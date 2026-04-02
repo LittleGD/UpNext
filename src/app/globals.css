@@ -258,3 +258,21 @@ html[lang="en"] {
 html[lang="en"] body {
   font-family: 'slight-chance-mono', sans-serif;
 }
+
+/* === Japanese font override === */
+html[lang="ja"] {
+  --font-display: 'WDXL Lubrifont JP N', sans-serif;
+  --font-body: 'WDXL Lubrifont JP N', sans-serif;
+}
+html[lang="ja"] body {
+  font-family: 'WDXL Lubrifont JP N', sans-serif;
+}
+
+/* === Chinese font override === */
+html[lang="zh"] {
+  --font-display: 'ZCOOL QingKe HuangYou', sans-serif;
+  --font-body: 'ZCOOL QingKe HuangYou', sans-serif;
+}
+html[lang="zh"] body {
+  font-family: 'ZCOOL QingKe HuangYou', sans-serif;
+}

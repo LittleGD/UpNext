@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useGameStore } from "@/store/useGameStore";
-import { RARITY_CONFIG } from "@/data/rarityConfig";
+import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import { MODE_CARD_COUNT, getXPProgress, XP_PER_RARITY, getTitleForLevel } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
@@ -12,6 +12,7 @@ import PixelConfetti from "@/components/effects/PixelConfetti";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle, cardDesc } from "@/i18n";
+import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 
 // === Mini-game: Tap falling stars ===
 interface FallingStar {
@@ -336,6 +337,8 @@ export default function DailyBoard() {
   const { t, language } = useTranslation();
   const [confirmCard, setConfirmCard] = useState<ChallengeCard | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [completingCard, setCompletingCard] = useState<ChallengeCard | null>(null);
+  const [completingXp, setCompletingXp] = useState(0);
 
   const completedCount = daily.completedIds.length;
   const totalCount = daily.selectedCards.length;
@@ -343,16 +346,26 @@ export default function DailyBoard() {
 
   const handleConfirm = () => {
     if (confirmCard) {
-      play("complete");
-      completeChallenge(confirmCard.id);
+      const xp = XP_PER_RARITY[confirmCard.rarity] || 10;
+      // Show success state in modal
+      setCompletingCard(confirmCard);
+      setCompletingXp(xp);
       setConfirmCard(null);
+      play("complete");
+      setTimeout(() => play("xpGain"), 280);
+      completeChallenge(confirmCard.id);
 
       const willBeAllDone = completedCount + 1 >= totalCount;
-      if (willBeAllDone) {
-        setTimeout(() => play("fullClear"), 350);
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 2000);
-      }
+
+      // Dismiss success state after delay
+      setTimeout(() => {
+        setCompletingCard(null);
+        if (willBeAllDone) {
+          setTimeout(() => play("fullClear"), 100);
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 2000);
+        }
+      }, 1200);
     }
   };
 
@@ -413,6 +426,7 @@ export default function DailyBoard() {
                   : "bg-bg-elevated hover:bg-bg-hover cursor-pointer"
                 }
               `}
+              style={!isCompleted ? { boxShadow: rarityGlow(card.rarity) } : undefined}
             >
               {/* Top accent line */}
               <div
@@ -423,6 +437,9 @@ export default function DailyBoard() {
                     : `linear-gradient(90deg, ${rarity.color}00 5%, ${rarity.color} 50%, ${rarity.color}00 95%)`,
                 }}
               />
+
+              {/* Rarity texture overlay */}
+              {!isCompleted && <RarityTexture rarity={card.rarity} borderRadius={16} />}
 
               <div className="px-6 pt-6 pb-0 flex flex-col gap-5">
                 {/* Top row: icon + meta */}
@@ -455,7 +472,7 @@ export default function DailyBoard() {
                         color: isCompleted ? "var(--text-tertiary)" : rarity.color,
                       }}
                     >
-                      {language === "en" ? rarity.label : rarity.labelKo}
+                      {rarityLabel(card.rarity, language)}
                     </span>
                     {!isCompleted && (
                       <div className="flex items-center gap-1">
@@ -485,8 +502,8 @@ export default function DailyBoard() {
               <div className={`
                 mx-6 mb-5 mt-4 py-3 rounded-xl text-center text-[15px] font-semibold transition-colors
                 ${isCompleted
-                  ? "bg-accent/8 text-accent/50"
-                  : "bg-accent/10 text-accent border border-accent/20"
+                  ? "bg-bg-elevated text-text-tertiary"
+                  : "bg-bg-elevated text-accent"
                 }
               `}>
                 {isCompleted ? (
@@ -505,51 +522,207 @@ export default function DailyBoard() {
 
       {/* Confirm modal */}
       <AnimatePresence>
-        {confirmCard && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
-            onClick={() => setConfirmCard(null)}
-          >
+        {confirmCard && (() => {
+          const rarity = RARITY_CONFIG[confirmCard.rarity];
+          const xp = XP_PER_RARITY[confirmCard.rarity] || 10;
+          return (
             <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              transition={springSnappy}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-bg-elevated rounded-lg p-6 space-y-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md px-4 pb-6 sm:pb-0"
+              onClick={() => setConfirmCard(null)}
             >
-              <div className="flex items-center gap-3">
-                <PixelIcon name={confirmCard.icon} size={28} color={RARITY_CONFIG[confirmCard.rarity].color} />
-                <div>
-                  <h3 className="font-semibold text-text-primary">{cardTitle(confirmCard, language)}</h3>
-                  <p className="text-sm text-text-secondary">{cardDesc(confirmCard, language)}</p>
+              <motion.div
+                initial={{ y: 40, opacity: 0, scale: 0.97 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: 40, opacity: 0, scale: 0.97 }}
+                transition={{ type: "spring", duration: 0.45, bounce: 0.15 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-2xl overflow-hidden"
+                style={{ backgroundColor: "var(--bg-elevated)" }}
+              >
+                {/* Rarity accent line */}
+                <div
+                  className="h-[2px] w-full"
+                  style={{
+                    background: `linear-gradient(90deg, transparent 5%, ${rarity.color} 50%, transparent 95%)`,
+                  }}
+                />
+
+                {/* Content */}
+                <div className="px-6 pt-7 pb-6 flex flex-col items-center text-center">
+                  {/* Icon */}
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+                    style={{ backgroundColor: `${rarity.color}12` }}
+                  >
+                    <div style={{ color: rarity.color }}>
+                      <PixelIcon name={confirmCard.icon} size={32} />
+                    </div>
+                  </div>
+
+                  {/* Title + desc */}
+                  <h3 className="font-semibold text-[18px] text-text-primary leading-snug">
+                    {cardTitle(confirmCard, language)}
+                  </h3>
+                  <p className="text-[14px] text-text-secondary mt-1.5 leading-relaxed">
+                    {cardDesc(confirmCard, language)}
+                  </p>
+
+                  {/* XP reward badge */}
+                  <div className="flex items-center gap-1.5 mt-4 px-3 py-1.5 rounded-full bg-accent/8">
+                    <PixelIcon name="Zap" size={14} color="var(--accent-primary)" />
+                    <span className="text-[13px] text-accent font-semibold">+{xp} XP</span>
+                  </div>
+
+                  {/* Prompt */}
+                  <p className="text-[14px] text-text-tertiary mt-5">
+                    {t("daily.board.confirmPrompt")}
+                  </p>
+
+                  {/* Buttons */}
+                  <div className="flex w-full gap-3 mt-5">
+                    <button
+                      onClick={() => { play("select"); setConfirmCard(null); }}
+                      className="flex-1 py-3.5 rounded-xl bg-bg-elevated text-text-secondary font-semibold text-[15px] transition-colors active:scale-[0.97]"
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      onClick={handleConfirm}
+                      className="flex-1 py-3.5 rounded-xl bg-accent text-bg-primary font-semibold text-[15px] transition-colors active:scale-[0.97]"
+                    >
+                      {t("common.done")}
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <p className="text-body text-text-secondary text-center">
-                {t("daily.board.confirmPrompt")}
-              </p>
-
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={() => setConfirmCard(null)}
-                  className="px-6 py-3 rounded-md bg-bg-surface text-text-secondary font-semibold"
-                >
-                  {t("common.cancel")}
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className="px-6 py-3 rounded-md bg-accent text-bg-primary font-semibold"
-                >
-                  {t("common.done")}
-                </button>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* Completion celebration overlay */}
+      <AnimatePresence>
+        {completingCard && (() => {
+          const rarity = RARITY_CONFIG[completingCard.rarity];
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md px-4"
+            >
+              {/* Burst ring */}
+              <motion.div
+                initial={{ scale: 0.3, opacity: 0.8 }}
+                animate={{ scale: 3, opacity: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: 120,
+                  height: 120,
+                  background: `radial-gradient(circle, ${rarity.color}40 0%, transparent 70%)`,
+                }}
+              />
+              {/* Secondary burst */}
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0.6 }}
+                animate={{ scale: 2.5, opacity: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: 80,
+                  height: 80,
+                  border: `2px solid ${rarity.color}60`,
+                }}
+              />
+
+              {/* Radiating particles */}
+              {[...Array(8)].map((_, i) => {
+                const angle = (i / 8) * Math.PI * 2;
+                const dist = 80 + (i % 3) * 30;
+                return (
+                  <motion.div
+                    key={`burst-${i}`}
+                    className="absolute rounded-full pointer-events-none"
+                    style={{
+                      width: 3,
+                      height: 3,
+                      background: i % 2 === 0 ? rarity.color : "white",
+                    }}
+                    initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                    animate={{
+                      x: Math.cos(angle) * dist,
+                      y: Math.sin(angle) * dist,
+                      opacity: 0,
+                      scale: 0,
+                    }}
+                    transition={{ duration: 0.7, ease: "easeOut", delay: 0.05 * i }}
+                  />
+                );
+              })}
+
+              {/* Center content */}
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
+                className="flex flex-col items-center text-center relative"
+              >
+                {/* Check icon with glow */}
+                <motion.div
+                  initial={{ scale: 0, rotate: -90 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 18, delay: 0.15 }}
+                  className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
+                  style={{
+                    background: `radial-gradient(circle, ${rarity.color}25 0%, transparent 70%)`,
+                    boxShadow: `0 0 40px ${rarity.color}20`,
+                  }}
+                >
+                  <PixelIcon name="Check" size={44} color={rarity.color} />
+                </motion.div>
+
+                {/* XP gain with counting animation */}
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full"
+                  style={{ backgroundColor: `${rarity.color}15` }}
+                >
+                  <PixelIcon name="Zap" size={18} color="var(--accent-primary)" />
+                  <motion.span
+                    className="text-[20px] font-bold text-accent"
+                    initial={{ scale: 0.5 }}
+                    animate={{ scale: [0.5, 1.2, 1] }}
+                    transition={{ delay: 0.35, duration: 0.4 }}
+                  >
+                    +{completingXp} XP
+                  </motion.span>
+                </motion.div>
+
+                {/* Floating +XP particles going up */}
+                {[...Array(4)].map((_, i) => (
+                  <motion.div
+                    key={`xp-float-${i}`}
+                    className="absolute text-[12px] font-bold text-accent/60 pointer-events-none"
+                    initial={{ opacity: 0, y: 0, x: (i - 1.5) * 25 }}
+                    animate={{ opacity: [0, 0.7, 0], y: -60 - i * 15 }}
+                    transition={{ delay: 0.4 + i * 0.12, duration: 0.8, ease: "easeOut" }}
+                    style={{ top: 10 }}
+                  >
+                    +{Math.round(completingXp / 4)}
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
     </div>
   );

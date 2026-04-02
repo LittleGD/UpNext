@@ -4,6 +4,7 @@ import { useGameStore } from "@/store/useGameStore";
 import { getXPProgress, getTitleForLevel } from "@/types/game";
 import { ALL_TITLES } from "@/data/titles";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
+import { titleName } from "@/i18n";
 import { useTranslation } from "@/hooks/useTranslation";
 import { motion } from "framer-motion";
 
@@ -20,7 +21,7 @@ export default function Header() {
     ? ALL_TITLES.find((t) => t.id === progress.equippedTitleId)
     : null;
   const title = equippedTitle
-    ? (language === "en" && equippedTitle.nameEn ? equippedTitle.nameEn : equippedTitle.name)
+    ? titleName(equippedTitle, language)
     : getTitleForLevel(progress.level, language);
   const titleColor = equippedTitle ? RARITY_CONFIG[equippedTitle.rarity].color : undefined;
   const { current, needed } = getXPProgress(progress.xp || 0, progress.level);

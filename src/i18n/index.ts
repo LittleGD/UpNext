@@ -1,9 +1,13 @@
 import ko, { type DictKey } from "./ko";
 import en from "./en";
+import ja from "./ja";
+import zh from "./zh";
 import type { Language } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
+import type { TitleDefinition } from "@/types/title";
+import type { StarterPack } from "@/data/starterPacks";
 
-const dictionaries: Record<Language, Record<DictKey, string>> = { ko, en };
+const dictionaries: Record<Language, Record<DictKey, string>> = { ko, en, ja, zh };
 
 /**
  * Translate a key, with optional interpolation.
@@ -29,6 +33,8 @@ export function t(
  */
 export function cardTitle(card: ChallengeCard, lang: Language): string {
   if (lang === "en" && card.titleEn) return card.titleEn;
+  if (lang === "ja" && card.titleJa) return card.titleJa;
+  if (lang === "zh" && card.titleZh) return card.titleZh;
   return card.title;
 }
 
@@ -38,7 +44,51 @@ export function cardTitle(card: ChallengeCard, lang: Language): string {
  */
 export function cardDesc(card: ChallengeCard, lang: Language): string {
   if (lang === "en" && card.descriptionEn) return card.descriptionEn;
+  if (lang === "ja" && card.descriptionJa) return card.descriptionJa;
+  if (lang === "zh" && card.descriptionZh) return card.descriptionZh;
   return card.description;
+}
+
+/**
+ * Get a title's name in the given language.
+ * Falls back to Korean name if translation is missing.
+ */
+export function titleName(title: TitleDefinition, lang: Language): string {
+  if (lang === "en" && title.nameEn) return title.nameEn;
+  if (lang === "ja" && title.nameJa) return title.nameJa;
+  if (lang === "zh" && title.nameZh) return title.nameZh;
+  return title.name;
+}
+
+/**
+ * Get a title's description in the given language.
+ * Falls back to Korean description if translation is missing.
+ */
+export function titleDesc(title: TitleDefinition, lang: Language): string {
+  if (lang === "en" && title.descriptionEn) return title.descriptionEn;
+  if (lang === "ja" && title.descriptionJa) return title.descriptionJa;
+  if (lang === "zh" && title.descriptionZh) return title.descriptionZh;
+  return title.description;
+}
+
+/**
+ * Get a starter pack's name in the given language.
+ */
+export function packName(pack: StarterPack, lang: Language): string {
+  if (lang === "en" && pack.nameEn) return pack.nameEn;
+  if (lang === "ja" && pack.nameJa) return pack.nameJa;
+  if (lang === "zh" && pack.nameZh) return pack.nameZh;
+  return pack.name;
+}
+
+/**
+ * Get a starter pack's description in the given language.
+ */
+export function packDesc(pack: StarterPack, lang: Language): string {
+  if (lang === "en" && pack.descriptionEn) return pack.descriptionEn;
+  if (lang === "ja" && pack.descriptionJa) return pack.descriptionJa;
+  if (lang === "zh" && pack.descriptionZh) return pack.descriptionZh;
+  return pack.description;
 }
 
 export type { DictKey };

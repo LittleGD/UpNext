@@ -5,7 +5,7 @@ import { useGameStore } from "@/store/useGameStore";
 import type { GameMode } from "@/types/game";
 import { getTitleForLevel, getXPProgress } from "@/types/game";
 import { ALL_TITLES, getEarnedTitleIds } from "@/data/titles";
-import { RARITY_CONFIG } from "@/data/rarityConfig";
+import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import PixelIcon from "@/components/icons/PixelIcon";
 import AuthSection from "@/components/auth/AuthSection";
 import LanguageToggle from "@/components/ui/LanguageToggle";
@@ -16,6 +16,7 @@ import { springSnappy } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
+import { titleName } from "@/i18n";
 
 const modes: { key: GameMode; labelKey: DictKey; descKey: DictKey; cards: number }[] = [
   { key: "normal", labelKey: "settings.mode.normal", descKey: "settings.mode.normal.desc", cards: 1 },
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   const isLoaded = useGameStore((s) => s.isLoaded);
   const progress = useGameStore((s) => s.progress);
   const setMode = useGameStore((s) => s.setMode);
+  const cancelPendingMode = useGameStore((s) => s.cancelPendingMode);
   const toggleSound = useGameStore((s) => s.toggleSound);
   const equipTitle = useGameStore((s) => s.equipTitle);
   const { play } = useSound();
@@ -100,12 +102,20 @@ export default function SettingsPage() {
               key={mode.key}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
-                if (!isActive && !isPending) setPendingMode(mode.key);
+                if (isPending) {
+                  play("cancel");
+                  cancelPendingMode();
+                } else if (!isActive) {
+                  play("select");
+                  setPendingMode(mode.key);
+                }
               }}
               className={`
                 w-full text-left p-4 rounded-lg transition-all
                 ${isActive
                   ? "bg-accent text-bg-primary"
+                  : isPending
+                  ? "bg-bg-elevated text-text-primary grid-border-accent"
                   : "bg-bg-surface text-text-primary hover:bg-bg-elevated"
                 }
               `}
@@ -121,7 +131,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {isPending && (
-                    <span className="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-accent/20 rounded-sm">
+                    <span className="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-bg-surface rounded-sm">
                       {t("settings.mode.pendingBadge")}
                     </span>
                   )}
@@ -189,7 +199,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <PixelIcon name={title.icon} size={18} color={isEquipped ? undefined : rarity.color} />
-                        <span className="text-sm font-semibold">{language === "en" && title.nameEn ? title.nameEn : title.name}</span>
+                        <span className="text-sm font-semibold">{titleName(title, language)}</span>
                       </div>
                       <span
                         className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm"
@@ -198,7 +208,7 @@ export default function SettingsPage() {
                           color: isEquipped ? "var(--bg-primary)" : "#0A0A0A",
                         }}
                       >
-                        {language === "en" ? rarity.label : rarity.labelKo}
+                        {rarityLabel(title.rarity, language)}
                       </span>
                     </div>
                   </button>
@@ -238,6 +248,7 @@ export default function SettingsPage() {
       <div className="pt-4">
         <button
           onClick={async () => {
+            play("select");
             const authUser = useAuthStore.getState().user;
             const msg = authUser
               ? t("settings.reset.confirmWithAccount")
@@ -290,13 +301,13 @@ export default function SettingsPage() {
               </p>
               <div className="flex justify-center gap-3">
                 <button
-                  onClick={() => setPendingMode(null)}
+                  onClick={() => { play("select"); setPendingMode(null); }}
                   className="px-6 py-3 rounded-md bg-bg-surface text-text-secondary font-semibold"
                 >
                   {t("common.cancel")}
                 </button>
                 <button
-                  onClick={handleModeConfirm}
+                  onClick={() => { play("confirm"); handleModeConfirm(); }}
                   className="px-6 py-3 rounded-md bg-accent text-bg-primary font-semibold"
                 >
                   {t("common.change")}

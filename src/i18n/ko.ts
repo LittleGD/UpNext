@@ -161,7 +161,7 @@ const ko = {
   "category.wellness": "건강",
 
   // === language ===
-  "language.toggle": "언어설정 / Language",
+  "language.toggle": "언어설정",
 } as const;
 
 export type DictKey = keyof typeof ko;

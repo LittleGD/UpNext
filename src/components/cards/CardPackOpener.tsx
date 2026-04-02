@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useGameStore } from "@/store/useGameStore";
-import { RARITY_CONFIG } from "@/data/rarityConfig";
+import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import type { ChallengeCard } from "@/types/card";
 import { motion, AnimatePresence } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -10,6 +10,7 @@ import { springBouncy } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle } from "@/i18n";
+import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 
 type Phase = "shaking" | "opening" | "revealed" | "absorbing";
 
@@ -65,6 +66,11 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
   const handleDone = () => {
     play("xpGain");
     setPhase("absorbing");
+
+    // Play collect sound as each card reaches the nav bar
+    revealedCards.forEach((_, i) => {
+      addTimer(() => play("collect"), i * 80 + 700);
+    });
 
     addTimer(() => {
       const remaining = progress.pendingPacks || 0;
@@ -146,8 +152,11 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
                     : { ...springBouncy, delay: 0.1 + i * 0.15 }
                 }
                 className="w-[min(110px,28vw)] rounded-lg p-3 flex flex-col items-center gap-2 bg-bg-elevated grid-border relative overflow-visible"
-                style={{}}
+                style={{ boxShadow: rarityGlow(card.rarity) }}
               >
+                <div className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none">
+                  <RarityTexture rarity={card.rarity} />
+                </div>
                 {/* 흡수 시 형광 꼬리 */}
                 {phase === "absorbing" && (
                   <motion.div
@@ -167,7 +176,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
                   className="text-[min(13px,3vw)] font-bold px-1.5 py-0.5 rounded-sm self-start"
                   style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
                 >
-                  {language === "en" ? rarity.label : rarity.labelKo}
+                  {rarityLabel(card.rarity, language)}
                 </span>
 
                 {/* 아이콘 */}

@@ -91,7 +91,7 @@ export default function DifficultySelect({ onSelect }: DifficultySelectProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: selected ? 1 : 0.3, y: 0 }}
           whileTap={selected ? { scale: 0.95 } : {}}
-          onClick={() => selected && onSelect(selected)}
+          onClick={() => { if (selected) { play("select"); onSelect(selected); } }}
           disabled={!selected}
           className="w-full py-4 bg-accent text-bg-primary rounded-md font-semibold text-lg disabled:opacity-30 disabled:cursor-not-allowed"
         >

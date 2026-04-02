@@ -9,6 +9,7 @@ import { useGameStore } from "@/store/useGameStore";
 import { MODE_CARD_COUNT } from "@/types/game";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useSound } from "@/hooks/useSound";
 import type { DictKey } from "@/i18n";
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
 export default function BottomNav() {
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { play } = useSound();
   const isMd = useMediaQuery("(min-width: 768px)");
   const isLoaded = useGameStore((s) => s.isLoaded);
   const hasCompletedOnboarding = useGameStore((s) => s.hasCompletedOnboarding);
@@ -42,7 +44,7 @@ export default function BottomNav() {
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} onClick={() => play("select")}>
               <motion.div
                 whileTap={{ scale: 0.9 }}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all ${

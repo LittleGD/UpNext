@@ -1,0 +1,169 @@
+import type { DictKey } from "./ko";
+
+const zh: Record<DictKey, string> = {
+  // === common ===
+  "common.next": "下一步",
+  "common.cancel": "取消",
+  "common.confirm": "确认",
+  "common.start": "开始",
+  "common.done": "完成",
+  "common.change": "更换",
+  "common.default": "默认",
+  "common.recommended": "推荐",
+  "common.equipped": "已装备",
+  "common.unequip": "卸下",
+  "common.cardsPerDay": "张/天",
+
+  // === onboarding ===
+  "onboarding.desc1.title1": "每天组建新卡组",
+  "onboarding.desc1.accent": "并付诸行动",
+  "onboarding.desc1.description": "抽取卡牌，组建今日挑战卡组吧！",
+  "onboarding.desc2.title1": "向充实生活",
+  "onboarding.desc2.accent": "发起挑战",
+  "onboarding.desc2.description": "选择难度，完成挑战，提升等级！",
+  "onboarding.difficulty.heading": "选择难度",
+  "onboarding.difficulty.subheading": "决定每天要选择的挑战卡牌数量",
+  "onboarding.difficulty.normal": "普通",
+  "onboarding.difficulty.normal.desc": "轻松入门",
+  "onboarding.difficulty.godlife": "充实",
+  "onboarding.difficulty.godlife.desc": "适度挑战",
+  "onboarding.difficulty.ultra": "极限",
+  "onboarding.difficulty.ultra.desc": "硬核挑战者专属",
+  "onboarding.starter.heading": "抽取你的新手卡包",
+  "onboarding.starter.subheading": "用抽到的6张卡牌开启挑战之旅",
+  "onboarding.starter.revealMessage": "获得了6张挑战卡牌！",
+  "onboarding.starter.openPack": "开启卡包",
+  "onboarding.levelup.message": "升级了！可以抽取卡包",
+  "onboarding.levelup.button": "抽取卡包",
+
+  // === splash ===
+  "splash.tagline": "每天积累小成就的肉鸽挑战",
+
+  // === daily ===
+  "daily.draw.holding": "抽取中...",
+  "daily.draw.title": "抽取今日卡牌吧！",
+  "daily.draw.holdHint": "继续按住",
+  "daily.draw.instruction": "长按卡组抽取6张卡牌",
+  "daily.draw.reroll": "重抽",
+  "daily.draw.rerollUsed": "已使用重抽",
+  "daily.draw.rerollConfirm": "要重新抽卡吗？\n每天只能重抽一次。",
+  "daily.select.count": "已选 {count}/{max}",
+  "daily.select.heading": "选择 {count} 张卡牌",
+  "daily.select.hint": "点击或上滑预览卡牌",
+  "daily.select.swipeHint": "滑动选择",
+  "daily.select.deselect": "取消选择",
+  "daily.select.complete": "已选择 {count} 张",
+  "daily.select.dragHint": "左右滑动查看",
+  "daily.select.checkHint": "查看你的卡牌",
+  "daily.select.confirmButton": "确认选择",
+  "daily.board.heading": "今日挑战",
+  "daily.board.progress": "{done}/{total} 已完成",
+  "daily.board.allDoneTitle": "今日挑战全部完成！",
+  "daily.board.streak": "已连续打卡 {days} 天",
+  "daily.board.confirmPrompt": "确认完成这个挑战吗？",
+  "daily.board.markDone": "完成",
+  "daily.board.completed": "已完成",
+
+  // === cards ===
+  "cards.pack.newCards": "获得新卡牌！",
+  "cards.pack.addedToCollection": "已加入收藏！",
+  "cards.pack.arriving": "新卡包来啦！",
+  "cards.pack.whatsInside": "里面有什么呢？",
+
+  // === nav ===
+  "nav.challenge": "挑战",
+  "nav.collection": "收藏",
+  "nav.settings": "设置",
+
+  // === settings ===
+  "settings.title": "设置",
+  "settings.sound.heading": "声音",
+  "settings.sound.effects": "音效",
+  "settings.mode.heading": "挑战模式",
+  "settings.mode.normal": "普通模式",
+  "settings.mode.normal.desc": "轻松入门",
+  "settings.mode.godlife": "充实模式",
+  "settings.mode.godlife.desc": "适度挑战",
+  "settings.mode.ultra": "极限模式",
+  "settings.mode.ultra.desc": "硬核挑战者专属",
+  "settings.mode.pendingBadge": "明天生效",
+  "settings.mode.confirmPrompt": "确认切换模式？",
+  "settings.mode.confirmDesc": "从明天开始每天选择 {cards} 张卡牌",
+  "settings.titles.heading": "称号",
+  "settings.titles.empty": "还没有获得任何称号。完成挑战即可获得称号！",
+  "settings.stats.heading": "我的记录",
+  "settings.stats.currentStreak": "当前连续",
+  "settings.stats.longestStreak": "最长连续",
+  "settings.stats.totalXP": "总经验值",
+  "settings.stats.unlockedCards": "已解锁卡牌",
+  "settings.stats.days": "天",
+  "settings.stats.cards": "张",
+  "settings.reset.button": "重置数据 & 解绑账号",
+  "settings.reset.confirmWithAccount": "所有进度将被删除并解绑账号。确定要重置吗？",
+  "settings.reset.confirmLocal": "所有进度将被删除。确定要重置吗？",
+
+  // === collection ===
+  "collection.tab.cards": "卡牌",
+  "collection.tab.titles": "称号",
+  "collection.filter.all": "全部",
+  "collection.filter.owned": "已拥有",
+  "collection.filter.unowned": "未拥有",
+  "collection.cards.empty": "没有符合条件的卡牌",
+  "collection.titles.empty": "没有符合条件的称号",
+  "collection.titles.equipped": "已装备",
+  "collection.titles.special": "特殊称号",
+  "collection.titles.streak": "连续打卡称号",
+  "collection.titles.categoryTitles": "{category}称号",
+
+  // === auth ===
+  "auth.section.heading": "账号同步",
+  "auth.section.user": "用户",
+  "auth.section.syncing": "实时同步中",
+  "auth.section.signOut": "退出登录",
+  "auth.section.prompt": "登录后可在其他设备继续你的进度",
+  "auth.section.signingIn": "登录中...",
+  "auth.section.signInGoogle": "使用 Google 登录",
+  "auth.login.heading": "多设备同步",
+  "auth.login.description": "使用 Google 账号登录，进度将在\n所有设备间实时同步",
+  "auth.login.skip": "以后再说",
+  "auth.login.skipHint": "随时可在设置中登录",
+  "auth.merge.heading": "数据冲突",
+  "auth.merge.description": "本设备与云端存在不同的数据",
+  "auth.merge.useLocal": "使用本设备数据",
+  "auth.merge.useCloud": "使用云端数据",
+  "auth.merge.daysCompleted": "天已完成",
+
+  // === rarity ===
+  "rarity.normal": "普通",
+  "rarity.rare": "稀有",
+  "rarity.unique": "史诗",
+  "rarity.legend": "传说",
+
+  // === mode ===
+  "mode.normal": "普通",
+  "mode.godlife": "充实",
+  "mode.ultra": "极限",
+
+  // === level ===
+  "level.beginner": "入门者",
+  "level.newbie": "新手",
+  "level.challenger": "挑战者",
+  "level.achiever": "实践者",
+  "level.gogetter": "奋斗者",
+  "level.master": "大师",
+  "level.legend": "传奇",
+
+  // === category ===
+  "category.fitness": "运动",
+  "category.nutrition": "饮食",
+  "category.mindfulness": "正念",
+  "category.learning": "学习",
+  "category.social": "社交",
+  "category.productivity": "效率",
+  "category.wellness": "健康",
+
+  // === language ===
+  "language.toggle": "语言设置",
+};
+
+export default zh;

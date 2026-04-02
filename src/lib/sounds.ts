@@ -17,7 +17,10 @@ export type SoundName =
   | "levelUp"
   | "equip"
   | "xpGain"
-  | "chargeUp";
+  | "chargeUp"
+  | "ambientFloat"
+  | "pulseWave"
+  | "collect";
 
 let audioCtx: AudioContext | null = null;
 
@@ -78,11 +81,16 @@ function createSweep(
 }
 
 const sounds: Record<SoundName, () => void> = {
-  /** UI selection tick — 50ms, short bright boop ~800Hz */
+  /** UI button click — 60ms, punchy low thud with subtle overtone */
   select() {
     const ctx = getAudioContext();
     const t = ctx.currentTime;
-    createOsc(ctx, 800, t, 0.05, MASTER_VOLUME * 0.7);
+    // Low thud body — deep square hit
+    createOsc(ctx, 180, t, 0.06, MASTER_VOLUME * 0.8);
+    // Sub-bass punch — triangle for weight
+    createOsc(ctx, 90, t, 0.05, MASTER_VOLUME * 0.5, "triangle");
+    // Brief high tick for clarity
+    createOsc(ctx, 600, t, 0.02, MASTER_VOLUME * 0.25);
   },
 
   /** Success/confirm chime — 200ms, two rising notes 600→800Hz */
@@ -181,27 +189,122 @@ const sounds: Record<SoundName, () => void> = {
     createOsc(ctx, 1600, t + 0.08, 0.12);
   },
 
-  /** XP gained — 150ms, coin-like blip 1000→1200Hz */
+  /** XP gained — 450ms, ascending staccato coin-gather sequence */
   xpGain() {
     const ctx = getAudioContext();
     const t = ctx.currentTime;
-    createSweep(ctx, 1000, 1200, t, 0.08);
-    createOsc(ctx, 1200, t + 0.08, 0.07, MASTER_VOLUME * 0.6);
+    // 6 rapid ascending notes — feels like coins pouring in
+    const notes = [880, 988, 1047, 1175, 1319, 1568]; // A5 B5 C6 D6 E6 G6
+    const step = 0.055;
+    notes.forEach((freq, i) => {
+      createOsc(ctx, freq, t + i * step, 0.045, MASTER_VOLUME * (0.4 + i * 0.08));
+    });
+    // Final shimmer — sustained high note with triangle harmony
+    const end = t + notes.length * step;
+    createOsc(ctx, 1568, end, 0.12, MASTER_VOLUME * 0.7);
+    createOsc(ctx, 784, end, 0.12, MASTER_VOLUME * 0.25, "triangle");
   },
 
-  /** Charge up — 800ms, rising sweep that builds tension 200→800Hz */
+  /** Collect/stash — 150ms, heavy thud + metallic lock, card slotting into inventory */
+  collect() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Deep impact thud
+    createOsc(ctx, 120, t, 0.08, MASTER_VOLUME * 0.9, "triangle");
+    createOsc(ctx, 80, t, 0.06, MASTER_VOLUME * 0.6);
+    // Metallic latch click
+    createOsc(ctx, 1400, t + 0.03, 0.03, MASTER_VOLUME * 0.4);
+    // Brief resonance tail
+    createOsc(ctx, 200, t + 0.06, 0.1, MASTER_VOLUME * 0.3, "triangle");
+  },
+
+  /** Ambient float — 1.2s, deep space drone with slow oscillating undertone */
+  ambientFloat() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Deep bass drone — low C2 triangle wave, slow swell
+    const bass = ctx.createOscillator();
+    const bassGain = ctx.createGain();
+    bass.type = "triangle";
+    bass.frequency.setValueAtTime(65, t); // C2
+    bass.frequency.linearRampToValueAtTime(73, t + 1.2); // slow drift up
+    bassGain.gain.setValueAtTime(0.0001, t);
+    bassGain.gain.exponentialRampToValueAtTime(MASTER_VOLUME * 0.45, t + 0.3);
+    bassGain.gain.setValueAtTime(MASTER_VOLUME * 0.45, t + 0.7);
+    bassGain.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    bass.connect(bassGain);
+    bassGain.connect(ctx.destination);
+    bass.start(t);
+    bass.stop(t + 1.25);
+    // Mid-tone square hum — G2, quiet, gives 8-bit texture
+    createOsc(ctx, 98, t + 0.1, 0.8, MASTER_VOLUME * 0.15);
+    // High shimmer — very quiet C4 that fades in/out
+    createOsc(ctx, 262, t + 0.4, 0.5, MASTER_VOLUME * 0.08, "triangle");
+    // Sub-bass rumble — pulsing
+    createOsc(ctx, 45, t, 0.4, MASTER_VOLUME * 0.2, "triangle");
+    createOsc(ctx, 45, t + 0.5, 0.4, MASTER_VOLUME * 0.15, "triangle");
+  },
+
+  /** Pulse wave — 900ms, ascending expanding pulse that builds outward */
+  pulseWave() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Main pulse — ascending sweep, energy rising outward
+    createSweep(ctx, 220, 880, t, 0.3, MASTER_VOLUME * 0.5);
+    // Echo pulse 1 — higher, slightly delayed, expanding feel
+    createSweep(ctx, 330, 1100, t + 0.15, 0.3, MASTER_VOLUME * 0.3);
+    // Echo pulse 2 — highest, widest spread
+    createSweep(ctx, 440, 1320, t + 0.3, 0.3, MASTER_VOLUME * 0.18);
+    // Rising undertone — triangle wave swelling upward
+    const sub = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    sub.type = "triangle";
+    sub.frequency.setValueAtTime(110, t);
+    sub.frequency.exponentialRampToValueAtTime(440, t + 0.7);
+    subGain.gain.setValueAtTime(0.0001, t);
+    subGain.gain.exponentialRampToValueAtTime(MASTER_VOLUME * 0.35, t + 0.3);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    sub.connect(subGain);
+    subGain.connect(ctx.destination);
+    sub.start(t);
+    sub.stop(t + 0.95);
+    // Bright shimmer at the peak
+    createOsc(ctx, 1320, t + 0.5, 0.15, MASTER_VOLUME * 0.15, "triangle");
+  },
+
+  /** Charge up — 800ms, deep rumble rising to high tension release */
   chargeUp() {
     const ctx = getAudioContext();
     const t = ctx.currentTime;
-    // Low rumble base sweep
-    createSweep(ctx, 150, 600, t, 0.7, MASTER_VOLUME * 0.5);
-    // Higher overtone sweep that trails slightly
-    createSweep(ctx, 300, 1000, t + 0.1, 0.6, MASTER_VOLUME * 0.3);
-    // Staccato energy pulses
-    for (let i = 0; i < 6; i++) {
-      const freq = 200 + i * 100;
-      createOsc(ctx, freq, t + i * 0.1, 0.06, MASTER_VOLUME * (0.15 + i * 0.05));
-    }
+    // Deep sub-bass rumble foundation — builds weight
+    createSweep(ctx, 60, 200, t, 0.8, MASTER_VOLUME * 0.7);
+    // Main rising sweep — low to high, the core charge feeling
+    createSweep(ctx, 100, 900, t, 0.75, MASTER_VOLUME * 0.55);
+    // Higher overtone sweep — trails behind, adds brightness as charge builds
+    createSweep(ctx, 200, 1400, t + 0.15, 0.65, MASTER_VOLUME * 0.3);
+    // Triangle sub-bass drone — continuous rumble underneath
+    const drone = ctx.createOscillator();
+    const droneGain = ctx.createGain();
+    drone.type = "triangle";
+    drone.frequency.setValueAtTime(55, t);
+    drone.frequency.exponentialRampToValueAtTime(110, t + 0.8);
+    droneGain.gain.setValueAtTime(0.0001, t);
+    droneGain.gain.exponentialRampToValueAtTime(MASTER_VOLUME * 0.5, t + 0.15);
+    droneGain.gain.setValueAtTime(MASTER_VOLUME * 0.5, t + 0.5);
+    droneGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+    drone.connect(droneGain);
+    droneGain.connect(ctx.destination);
+    drone.start(t);
+    drone.stop(t + 0.85);
+    // Accelerating staccato pulses — faster as charge builds
+    const pulses = [0, 0.12, 0.22, 0.30, 0.36, 0.41, 0.45, 0.48];
+    pulses.forEach((offset, i) => {
+      const freq = 150 + i * 80;
+      createOsc(ctx, freq, t + offset, 0.04, MASTER_VOLUME * (0.12 + i * 0.04));
+    });
+    // Final bright burst at peak — signals charge complete
+    createOsc(ctx, 1200, t + 0.7, 0.1, MASTER_VOLUME * 0.25);
+    createOsc(ctx, 600, t + 0.7, 0.1, MASTER_VOLUME * 0.15, "triangle");
   },
 };
 

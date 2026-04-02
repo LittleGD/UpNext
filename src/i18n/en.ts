@@ -163,7 +163,7 @@ const en: Record<DictKey, string> = {
   "category.wellness": "Wellness",
 
   // === language ===
-  "language.toggle": "언어설정 / Language",
+  "language.toggle": "Language",
 };
 
 export default en;
