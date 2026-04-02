@@ -56,22 +56,22 @@ export default function SettingsPage() {
     }
   };
 
+  const earnedIds = getEarnedTitleIds(progress);
+  const earnedTitles = ALL_TITLES.filter((title) => earnedIds.includes(title.id));
+  const defaultTitle = getTitleForLevel(progress.level, language);
+
   return (
-    <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto space-y-6">
+    <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto space-y-5">
       <h2 className="text-heading-1 text-text-primary">{t("settings.title")}</h2>
 
-      {/* 언어 설정 */}
-      <div className="space-y-3">
-        <h3 className="text-body font-semibold text-text-secondary">{t("language.toggle")}</h3>
-        <div className="bg-bg-surface rounded-lg p-4 grid-border">
-          <LanguageToggle />
-        </div>
-      </div>
-
-      {/* 사운드 토글 */}
-      <div className="space-y-3">
-        <h3 className="text-body font-semibold text-text-secondary">{t("settings.sound.heading")}</h3>
-        <div className="flex items-center justify-between p-4 rounded-lg bg-bg-surface">
+      {/* ── 일반 설정 (언어 + 사운드) ── */}
+      <section className="rounded-lg bg-bg-surface grid-border overflow-hidden">
+        {/* 언어 */}
+        <LanguageToggle />
+        {/* 구분선 */}
+        <div className="h-px bg-white/[0.06]" />
+        {/* 사운드 */}
+        <div className="flex items-center justify-between px-4 py-3.5">
           <div className="flex items-center gap-3">
             <PixelIcon name="Sparkle" size={20} color="var(--text-secondary)" />
             <span className="text-sm font-semibold text-text-primary">{t("settings.sound.effects")}</span>
@@ -89,149 +89,162 @@ export default function SettingsPage() {
             />
           </button>
         </div>
-      </div>
+      </section>
 
-      {/* 모드 선택 */}
-      <div className="space-y-3">
-        <h3 className="text-body font-semibold text-text-secondary">{t("settings.mode.heading")}</h3>
-        {modes.map((mode) => {
-          const isActive = progress.mode === mode.key;
-          const isPending = progress.pendingMode === mode.key;
-          return (
-            <motion.button
-              key={mode.key}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                if (isPending) {
-                  play("cancel");
-                  cancelPendingMode();
-                } else if (!isActive) {
-                  play("select");
-                  setPendingMode(mode.key);
-                }
-              }}
-              className={`
-                w-full text-left p-4 rounded-lg transition-all
-                ${isActive
-                  ? "bg-accent text-bg-primary"
-                  : isPending
-                  ? "bg-bg-elevated text-text-primary grid-border-accent"
-                  : "bg-bg-surface text-text-primary hover:bg-bg-elevated"
-                }
-              `}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`font-semibold ${isActive ? "text-bg-primary" : "text-text-primary"}`}>
-                    {t(mode.labelKey)}
-                  </p>
-                  <p className={`text-sm mt-0.5 ${isActive ? "text-bg-primary/70" : "text-text-secondary"}`}>
-                    {t(mode.descKey)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isPending && (
-                    <span className="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-bg-surface rounded-sm">
-                      {t("settings.mode.pendingBadge")}
+      {/* ── 챌린지 모드 ── */}
+      <section className="space-y-2">
+        <h3 className="text-caption font-semibold uppercase tracking-wider px-1">{t("settings.mode.heading")}</h3>
+        <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
+          {modes.map((mode, i) => {
+            const isActive = progress.mode === mode.key;
+            const isPending = progress.pendingMode === mode.key;
+            return (
+              <motion.button
+                key={mode.key}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  if (isPending) {
+                    play("cancel");
+                    cancelPendingMode();
+                  } else if (!isActive) {
+                    play("select");
+                    setPendingMode(mode.key);
+                  }
+                }}
+                className={`
+                  w-full text-left px-4 py-3.5 transition-colors relative
+                  ${isActive
+                    ? "bg-accent/10"
+                    : isPending
+                    ? "bg-accent/5"
+                    : "hover:bg-bg-elevated"
+                  }
+                `}
+              >
+                {/* 활성 표시 바 */}
+                {isActive && (
+                  <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-accent" />
+                )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      isActive ? "border-accent" : isPending ? "border-accent/50" : "border-text-tertiary"
+                    }`}>
+                      {isActive && <div className="w-2.5 h-2.5 rounded-full bg-accent" />}
+                      {isPending && <div className="w-2.5 h-2.5 rounded-full bg-accent/50" />}
+                    </div>
+                    <div>
+                      <p className={`text-sm font-semibold ${isActive ? "text-accent" : "text-text-primary"}`}>
+                        {t(mode.labelKey)}
+                      </p>
+                      <p className="text-[12px] text-text-tertiary mt-0.5">
+                        {t(mode.descKey)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isPending && (
+                      <span className="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-accent/10 rounded-sm">
+                        {t("settings.mode.pendingBadge")}
+                      </span>
+                    )}
+                    <span className="text-[12px] font-bold text-text-tertiary tabular-nums">
+                      {mode.cards}{t("common.cardsPerDay")}
                     </span>
-                  )}
-                  <span
-                    className={`text-sm font-bold px-2 py-1 rounded-sm ${
-                      isActive ? "bg-black/20 text-bg-primary" : "bg-bg-elevated text-text-tertiary"
-                    }`}
-                  >
-                    {mode.cards}{t("common.cardsPerDay")}
-                  </span>
+                  </div>
                 </div>
+                {/* 카드 간 구분선 (마지막 제외) */}
+                {i < modes.length - 1 && (
+                  <div className="absolute bottom-0 left-4 right-4 h-px bg-white/[0.06]" />
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── 칭호 ── */}
+      <section className="space-y-2">
+        <h3 className="text-caption font-semibold uppercase tracking-wider px-1">{t("settings.titles.heading")}</h3>
+        <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
+          {/* 기본 칭호 */}
+          <button
+            onClick={() => { play("select"); equipTitle(null); }}
+            className={`w-full text-left px-4 py-3.5 transition-colors relative ${
+              !progress.equippedTitleId ? "bg-accent/10" : "hover:bg-bg-elevated"
+            }`}
+          >
+            {!progress.equippedTitleId && (
+              <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-accent" />
+            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <PixelIcon name="Zap" size={18} color={!progress.equippedTitleId ? "var(--accent-primary)" : "var(--text-tertiary)"} />
+                <span className={`text-sm font-semibold ${!progress.equippedTitleId ? "text-accent" : "text-text-primary"}`}>
+                  {defaultTitle}
+                </span>
               </div>
-            </motion.button>
-          );
-        })}
-      </div>
+              <span className="text-[11px] text-text-tertiary">
+                {t("common.default")}
+              </span>
+            </div>
+            <div className="absolute bottom-0 left-4 right-4 h-px bg-white/[0.06]" />
+          </button>
 
-      {/* 칭호 설정 */}
-      <div className="space-y-3">
-        <h3 className="text-body font-semibold text-text-secondary">{t("settings.titles.heading")}</h3>
-        {(() => {
-          const earnedIds = getEarnedTitleIds(progress);
-          const earnedTitles = ALL_TITLES.filter((t) => earnedIds.includes(t.id));
-          const equippedTitle = progress.equippedTitleId
-            ? ALL_TITLES.find((t) => t.id === progress.equippedTitleId)
-            : null;
-          const defaultTitle = getTitleForLevel(progress.level, language);
-
-          return (
-            <div className="space-y-2">
-              {/* 기본 칭호 (레벨 기반) */}
+          {/* 획득한 칭호들 */}
+          {earnedTitles.map((title, i) => {
+            const isEquipped = progress.equippedTitleId === title.id;
+            const rarity = RARITY_CONFIG[title.rarity];
+            return (
               <button
-                onClick={() => { play("select"); equipTitle(null); }}
-                className={`w-full text-left p-3 rounded-lg transition-all ${
-                  !progress.equippedTitleId
-                    ? "bg-accent text-bg-primary"
-                    : "bg-bg-surface text-text-primary"
+                key={title.id}
+                onClick={() => { play("equip"); equipTitle(title.id); }}
+                className={`w-full text-left px-4 py-3.5 transition-colors relative ${
+                  isEquipped ? "bg-accent/10" : "hover:bg-bg-elevated"
                 }`}
               >
+                {isEquipped && (
+                  <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-accent" />
+                )}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <PixelIcon name="Zap" size={18} />
-                    <span className="text-sm font-semibold">{defaultTitle}</span>
+                  <div className="flex items-center gap-2.5">
+                    <PixelIcon name={title.icon} size={18} color={isEquipped ? "var(--accent-primary)" : rarity.color} />
+                    <span className={`text-sm font-semibold ${isEquipped ? "text-accent" : "text-text-primary"}`}>
+                      {titleName(title, language)}
+                    </span>
                   </div>
-                  <span className={`text-[11px] ${!progress.equippedTitleId ? "text-bg-primary/70" : "text-text-tertiary"}`}>
-                    {t("common.default")}
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm"
+                    style={{
+                      backgroundColor: isEquipped ? "rgba(205, 245, 100, 0.1)" : `${rarity.color}20`,
+                      color: isEquipped ? "var(--accent-primary)" : rarity.color,
+                    }}
+                  >
+                    {rarityLabel(title.rarity, language)}
                   </span>
                 </div>
+                {i < earnedTitles.length - 1 && (
+                  <div className="absolute bottom-0 left-4 right-4 h-px bg-white/[0.06]" />
+                )}
               </button>
+            );
+          })}
 
-              {/* 획득한 칭호들 */}
-              {earnedTitles.map((title) => {
-                const isEquipped = progress.equippedTitleId === title.id;
-                const rarity = RARITY_CONFIG[title.rarity];
-                return (
-                  <button
-                    key={title.id}
-                    onClick={() => { play("equip"); equipTitle(title.id); }}
-                    className={`w-full text-left p-3 rounded-lg transition-all ${
-                      isEquipped
-                        ? "bg-accent text-bg-primary"
-                        : "bg-bg-surface text-text-primary"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <PixelIcon name={title.icon} size={18} color={isEquipped ? undefined : rarity.color} />
-                        <span className="text-sm font-semibold">{titleName(title, language)}</span>
-                      </div>
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm"
-                        style={{
-                          backgroundColor: isEquipped ? "rgba(0,0,0,0.2)" : rarity.color,
-                          color: isEquipped ? "var(--bg-primary)" : "#0A0A0A",
-                        }}
-                      >
-                        {rarityLabel(title.rarity, language)}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+          {earnedTitles.length === 0 && (
+            <p className="text-[12px] text-text-tertiary px-4 py-3">
+              {t("settings.titles.empty")}
+            </p>
+          )}
+        </div>
+      </section>
 
-              {earnedTitles.length === 0 && (
-                <p className="text-sm text-text-tertiary py-2">
-                  {t("settings.titles.empty")}
-                </p>
-              )}
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* 계정 연동 */}
+      {/* ── 계정 연동 ── */}
       <AuthSection />
 
-      {/* 통계 */}
-      <div className="space-y-3">
-        <h3 className="text-body font-semibold text-text-secondary">{t("settings.stats.heading")}</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* ── 내 기록 ── */}
+      <section className="space-y-2">
+        <h3 className="text-caption font-semibold uppercase tracking-wider px-1">{t("settings.stats.heading")}</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <StatCard label={t("settings.stats.currentStreak")} value={`${progress.currentStreak}${t("settings.stats.days")}`} icon="Zap" color="var(--accent-primary)" />
           <StatCard label={t("settings.stats.longestStreak")} value={`${progress.longestStreak}${t("settings.stats.days")}`} icon="Trophy" color="var(--rarity-legend)" />
           <StatCard label={t("settings.stats.totalXP")} value={`${progress.xp || 0} XP`} icon="Sparkle" color="var(--accent-cyan)" />
@@ -242,10 +255,11 @@ export default function SettingsPage() {
             color="var(--rarity-unique)"
           />
         </div>
-      </div>
+      </section>
 
-      {/* 데이터 리셋 */}
-      <div className="pt-4">
+      {/* ── 위험 영역 ── */}
+      <section className="pt-2">
+        <div className="h-px bg-white/[0.04] mb-4" />
         <button
           onClick={async () => {
             play("select");
@@ -266,13 +280,13 @@ export default function SettingsPage() {
               window.location.href = "/";
             }
           }}
-          className="text-sm text-accent-secondary hover:text-accent-secondary/80"
+          className="text-[13px] text-text-tertiary hover:text-accent-secondary transition-colors"
         >
           {t("settings.reset.button")}
         </button>
-      </div>
+      </section>
 
-      {/* 모드 변경 확인 모달 */}
+      {/* ── 모드 변경 확인 모달 ── */}
       <AnimatePresence>
         {pendingMode && (
           <motion.div
@@ -333,10 +347,10 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="bg-bg-surface rounded-lg p-4 grid-border">
-      <PixelIcon name={icon} size={24} color={color} />
-      <p className="font-display text-lg text-text-primary mt-1">{value}</p>
-      <p className="text-caption">{label}</p>
+    <div className="bg-bg-surface rounded-lg p-3.5 grid-border">
+      <PixelIcon name={icon} size={20} color={color} />
+      <p className="font-display text-lg text-text-primary mt-1.5 tabular-nums">{value}</p>
+      <p className="text-[12px] text-text-tertiary">{label}</p>
     </div>
   );
 }
