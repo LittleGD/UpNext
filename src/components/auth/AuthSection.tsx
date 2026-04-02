@@ -20,49 +20,48 @@ export default function AuthSection() {
   if (isLoading) return null;
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-body font-semibold text-text-secondary">{t("auth.section.heading")}</h3>
+    <section className="space-y-2">
+      <h3 className="text-caption font-semibold uppercase tracking-wider px-1">{t("auth.section.heading")}</h3>
 
       {isSignedIn && user ? (
-        <div className="bg-bg-surface rounded-lg p-4 grid-border space-y-3">
-          <div className="flex items-center gap-3">
+        <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
+          {/* 유저 정보 */}
+          <div className="flex items-center gap-3 px-4 py-3.5">
             {user.photoURL ? (
               <img
                 src={user.photoURL}
                 alt=""
-                className="w-10 h-10 rounded-full"
+                className="w-9 h-9 rounded-full"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-bg-elevated flex items-center justify-center">
-                <PixelIcon name="User" size={20} color="var(--text-tertiary)" />
+              <div className="w-9 h-9 rounded-full bg-bg-elevated flex items-center justify-center">
+                <PixelIcon name="User" size={18} color="var(--text-tertiary)" />
               </div>
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-text-primary truncate">
                 {user.displayName || t("auth.section.user")}
               </p>
-              <p className="text-[12px] text-text-tertiary truncate">
-                {user.email}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <PixelIcon name="Reload" size={12} color="var(--accent-primary)" />
+                <span className="text-[11px] text-accent">{t("auth.section.syncing")}</span>
+              </div>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 text-[12px] text-accent">
-            <PixelIcon name="Reload" size={14} color="var(--accent-primary)" />
-            <span>{t("auth.section.syncing")}</span>
-          </div>
-
+          {/* 구분선 */}
+          <div className="h-px bg-white/[0.06]" />
+          {/* 로그아웃 */}
           <button
             onClick={signOut}
-            className="px-4 py-2.5 rounded-md bg-bg-elevated text-text-secondary text-sm font-semibold"
+            className="w-full text-left px-4 py-3 text-sm text-text-tertiary hover:bg-bg-elevated transition-colors"
           >
             {t("auth.section.signOut")}
           </button>
         </div>
       ) : (
-        <div className="bg-bg-surface rounded-lg p-4 grid-border space-y-3">
-          <p className="text-sm text-text-secondary">
+        <div className="rounded-lg bg-bg-surface grid-border p-4 space-y-3">
+          <p className="text-[13px] text-text-tertiary">
             {t("auth.section.prompt")}
           </p>
           <button
@@ -87,6 +86,6 @@ export default function AuthSection() {
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

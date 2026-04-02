@@ -34,14 +34,22 @@ export default function LanguageToggle() {
 
   return (
     <>
+      {/* 인라인 행 — 설정 카드 내부에서 사용 */}
       <button
         onClick={() => setOpen(true)}
-        className="w-full py-4 rounded-md font-semibold text-lg bg-bg-elevated text-text-primary hover:bg-bg-hover transition-colors flex items-center justify-center gap-2"
+        className="w-full flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-bg-elevated"
       >
-        <PixelIcon name="Languages" size={22} color="var(--text-secondary)" />
-        {currentLanguageLabel(language)}
+        <div className="flex items-center gap-3">
+          <PixelIcon name="Languages" size={20} color="var(--text-secondary)" />
+          <span className="text-sm font-semibold text-text-primary">{t("language.toggle")}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-text-tertiary">
+          <span className="text-sm">{currentLanguageLabel(language)}</span>
+          <PixelIcon name="ChevronRight" size={16} color="var(--text-tertiary)" />
+        </div>
       </button>
 
+      {/* 언어 선택 모달 */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -57,25 +65,28 @@ export default function LanguageToggle() {
               exit={{ y: 100, opacity: 0 }}
               transition={springSnappy}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm bg-bg-elevated rounded-lg p-6 space-y-2"
+              className="w-full max-w-sm bg-bg-elevated rounded-lg p-5"
             >
-              <p className="text-body text-text-primary text-center font-semibold mb-4">
+              <p className="text-body text-text-primary text-center font-semibold mb-3">
                 {t("language.toggle")}
               </p>
-              <div className="space-y-1">
-                {LANGUAGE_OPTIONS.map((opt) => (
+              <div className="rounded-md overflow-hidden bg-bg-surface">
+                {LANGUAGE_OPTIONS.map((opt, i) => (
                   <button
                     key={opt.code}
                     onClick={() => handleSelect(opt.code)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md transition-colors ${
+                    className={`w-full flex items-center justify-between px-4 py-3 transition-colors relative ${
                       language === opt.code
-                        ? "bg-bg-hover text-accent"
-                        : "text-text-primary hover:bg-bg-hover"
+                        ? "text-accent bg-accent/10"
+                        : "text-text-primary hover:bg-bg-elevated"
                     }`}
                   >
-                    <span className="text-lg font-semibold">{opt.label}</span>
+                    <span className="text-[15px] font-semibold">{opt.label}</span>
                     {language === opt.code && (
-                      <PixelIcon name="Check" size={20} color="var(--accent-primary)" />
+                      <PixelIcon name="Check" size={18} color="var(--accent-primary)" />
+                    )}
+                    {i < LANGUAGE_OPTIONS.length - 1 && (
+                      <div className="absolute bottom-0 left-4 right-4 h-px bg-white/[0.06]" />
                     )}
                   </button>
                 ))}
