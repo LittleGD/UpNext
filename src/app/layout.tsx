@@ -7,6 +7,7 @@ import SyncProvider from "@/components/providers/SyncProvider";
 import LanguageSync from "@/components/providers/LanguageSync";
 import PixelStars from "@/components/effects/PixelStars";
 import AmbientBackground from "@/components/effects/AmbientBackground";
+import { Analytics } from "@vercel/analytics/next";
 
 const orbit = Orbit({
   variable: "--font-orbit",
@@ -58,6 +59,7 @@ export default function RootLayout({
           <main className="relative z-[1] flex-1">{children}</main>
           <BottomNav />
         </SyncProvider>
+        <Analytics />
       </body>
     </html>
   );
