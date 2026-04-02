@@ -1,12 +1,13 @@
 "use client";
 
 import type { ChallengeCard as CardType } from "@/types/card";
-import { RARITY_CONFIG } from "@/data/rarityConfig";
+import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import { motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { stampIn, springSnappy } from "@/lib/motion";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle, cardDesc } from "@/i18n";
+import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 
 interface ChallengeCardProps {
   card: CardType;
@@ -51,14 +52,15 @@ export default function ChallengeCard({
         ${isCompleted ? "opacity-60" : ""}
         ${disabled ? "cursor-default opacity-40" : "hover:bg-bg-elevated"}
       `}
-      style={{}}
+      style={!isCompleted ? { boxShadow: rarityGlow(card.rarity) } : undefined}
     >
+      {!isCompleted && <RarityTexture rarity={card.rarity} />}
       {/* 등급 배지 */}
       <div
         className="absolute -top-2 -right-2 text-[13px] font-bold px-2 py-0.5 rounded-sm"
         style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
       >
-        {language === "en" ? rarity.label : rarity.labelKo}
+        {rarityLabel(card.rarity, language)}
       </div>
 
       {/* 카드 내용 */}

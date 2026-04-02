@@ -48,6 +48,9 @@ export default function RootLayout({
     <html lang="ko" className={`${orbit.variable} dark h-full`}>
       <head>
         <link rel="stylesheet" href="https://use.typekit.net/cdr3qvu.css" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=WDXL+Lubrifont+JP+N&family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-full flex flex-col bg-bg-primary font-sans antialiased">
         <AmbientBackground />

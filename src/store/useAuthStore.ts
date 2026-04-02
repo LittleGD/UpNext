@@ -38,14 +38,20 @@ export const useAuthStore = create<AuthState>((set) => ({
       await signInWithPopup(auth!, googleProvider!);
     } catch (error: unknown) {
       const code = (error as { code?: string })?.code;
+      const message = (error as { message?: string })?.message;
+      console.error("Google sign-in failed:", code, message, error);
+
       if (code === "auth/popup-blocked") {
         set({ signInError: "팝업이 차단되었어요. 브라우저 설정에서 팝업을 허용해 주세요." });
-      } else if (code === "auth/popup-closed-by-user") {
+      } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
         // 사용자가 직접 닫은 경우 — 에러 표시 불필요
+      } else if (code === "auth/unauthorized-domain") {
+        set({ signInError: `이 도메인이 Firebase에 등록되지 않았어요. Firebase Console → Authentication → Settings → Authorized domains에 현재 도메인을 추가해 주세요.` });
+      } else if (code === "auth/operation-not-allowed") {
+        set({ signInError: "Google 로그인이 활성화되지 않았어요. Firebase Console → Authentication → Sign-in method에서 Google을 활성화해 주세요." });
       } else {
-        set({ signInError: "로그인에 실패했어요. 다시 시도해 주세요." });
+        set({ signInError: `로그인에 실패했어요 (${code || "unknown"}). 다시 시도해 주세요.` });
       }
-      console.error("Google sign-in failed:", error);
     } finally {
       set({ isSigningIn: false });
     }

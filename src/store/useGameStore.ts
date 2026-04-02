@@ -73,6 +73,7 @@ interface GameStore {
   confirmSelection: () => void;
   completeChallenge: (cardId: string) => void;
   setMode: (mode: GameMode) => void;
+  cancelPendingMode: () => void;
   checkDailyReset: () => void;
   completeOnboarding: () => void;
   selectStarterPack: (packId: string) => void;
@@ -314,6 +315,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // 모드 변경 (다음 날부터 적용)
   setMode: (mode: GameMode) => {
     const progress = { ...get().progress, pendingMode: mode };
+    set({ progress });
+    saveToStorage("progress", progress);
+  },
+
+  cancelPendingMode: () => {
+    const progress = { ...get().progress, pendingMode: null };
     set({ progress });
     saveToStorage("progress", progress);
   },

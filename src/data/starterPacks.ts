@@ -2,8 +2,12 @@ export interface StarterPack {
   id: string;
   name: string;
   nameEn?: string;
+  nameJa?: string;
+  nameZh?: string;
   description: string;
   descriptionEn?: string;
+  descriptionJa?: string;
+  descriptionZh?: string;
   cardIds: string[];
   icon: string;
   color: string;
@@ -14,8 +18,12 @@ export const STARTER_PACKS: StarterPack[] = [
     id: "body-mind",
     name: "바디 & 마인드",
     nameEn: "Body & Mind",
+    nameJa: "ボディ&マインド",
+    nameZh: "身心平衡",
     description: "운동과 마음챙김으로 시작하는 건강한 루틴",
     descriptionEn: "A healthy routine of fitness and mindfulness",
+    descriptionJa: "フィットネスとマインドフルネスで始める健康ルーティン",
+    descriptionZh: "从运动和正念开始的健康日常",
     icon: "Heart",
     color: "var(--accent-primary)",
     cardIds: [
@@ -31,8 +39,12 @@ export const STARTER_PACKS: StarterPack[] = [
     id: "smart-life",
     name: "스마트 라이프",
     nameEn: "Smart Life",
+    nameJa: "スマートライフ",
+    nameZh: "高效生活",
     description: "학습과 생산성으로 시작하는 스마트한 루틴",
     descriptionEn: "A smart routine of learning and productivity",
+    descriptionJa: "学習と生産性で始めるスマートなルーティン",
+    descriptionZh: "从学习和效率提升开始的智慧日常",
     icon: "Lightbulb",
     color: "var(--accent-cyan)",
     cardIds: [

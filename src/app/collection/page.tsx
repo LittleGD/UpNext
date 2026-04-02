@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { ALL_CARDS } from "@/data/cards";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
-import { ALL_TITLES, CATEGORY_LABELS, CATEGORY_LABELS_EN, getEarnedTitleIds, getTitleProgress } from "@/data/titles";
+import { ALL_TITLES, getEarnedTitleIds, getTitleProgress, categoryLabel } from "@/data/titles";
 import type { Category } from "@/types/card";
 import type { TitleDefinition } from "@/types/title";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -12,7 +12,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
-import { t as translate, cardTitle } from "@/i18n";
+import { t as translate, cardTitle, titleName, titleDesc } from "@/i18n";
+import { rarityLabel } from "@/data/rarityConfig";
 import type { Language } from "@/types/game";
 
 type Tab = "cards" | "titles";
@@ -64,7 +65,7 @@ export default function CollectionPage() {
       {/* 탭 */}
       <div className="flex gap-2 mb-4">
         <button
-          onClick={() => { setTab("cards"); setFilter("all"); }}
+          onClick={() => { play("select"); setTab("cards"); setFilter("all"); }}
           className={`flex-1 py-2.5 rounded-md text-sm font-semibold transition-all ${
             tab === "cards" ? "bg-accent text-bg-primary" : "bg-bg-surface text-text-secondary"
           }`}
@@ -72,7 +73,7 @@ export default function CollectionPage() {
           {t("collection.tab.cards")} ({unlockedCount}/{totalCount})
         </button>
         <button
-          onClick={() => { setTab("titles"); setFilter("all"); }}
+          onClick={() => { play("select"); setTab("titles"); setFilter("all"); }}
           className={`flex-1 py-2.5 rounded-md text-sm font-semibold transition-all relative ${
             tab === "titles" ? "bg-accent text-bg-primary" : "bg-bg-surface text-text-secondary"
           }`}
@@ -91,7 +92,7 @@ export default function CollectionPage() {
         {([["all", t("collection.filter.all")], ["owned", t("collection.filter.owned")], ["unowned", t("collection.filter.unowned")]] as [Filter, string][]).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setFilter(key)}
+            onClick={() => { play("select"); setFilter(key); }}
             className={`px-3 py-1.5 rounded-md text-[12px] font-semibold transition-all ${
               filter === key
                 ? "bg-text-primary text-bg-primary"
@@ -181,7 +182,7 @@ function CardsTab({
       return true;
     });
     const unlockedInCat = allCards.filter((c) => progress.unlockedCardIds.includes(c.id)).length;
-    const label = language === "en" ? CATEGORY_LABELS_EN[cat] : CATEGORY_LABELS[cat];
+    const label = categoryLabel(cat, language);
     return { category: cat, label, cards: filtered, unlockedInCat, totalInCat: allCards.length };
   }).filter((g) => g.cards.length > 0);
 
@@ -217,19 +218,19 @@ function CardsTab({
                   )}
                   <div className={!isUnlocked ? "blur-sm pointer-events-none" : ""}>
                     <div
-                      className="text-[13px] font-bold px-1.5 py-0.5 rounded-sm text-black inline-block mb-1"
+                      className="absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-sm text-black"
                       style={{ backgroundColor: rarity.color }}
                     >
-                      {language === "en" ? rarity.label : rarity.labelKo}
+                      {rarityLabel(card.rarity, language)}
                     </div>
-                    <div className="mb-1" style={{ color: rarity.color }}>
+                    <div className="mb-2" style={{ color: rarity.color }}>
                       <PixelIcon name={card.icon} size={28} />
                     </div>
-                    <p className="text-xs font-semibold text-text-primary leading-tight">
+                    <p className="text-sm font-semibold text-text-primary leading-tight">
                       {cardTitle(card, language)}
                     </p>
-                    <p className="text-[13px] text-text-secondary mt-0.5">
-                      {language === "en" ? CATEGORY_LABELS_EN[card.category] : CATEGORY_LABELS[card.category]}
+                    <p className="text-[12px] text-text-tertiary mt-1">
+                      {categoryLabel(card.category, language)}
                     </p>
                   </div>
                 </motion.div>
@@ -265,11 +266,10 @@ function TitlesTab({
     return true;
   };
 
-  const catLabels = language === "en" ? CATEGORY_LABELS_EN : CATEGORY_LABELS;
   const groups = [
     ...CATEGORY_ORDER.map((cat) => ({
       key: `cat-${cat}`,
-      label: translate("collection.titles.categoryTitles", language, { category: catLabels[cat] }),
+      label: translate("collection.titles.categoryTitles", language, { category: categoryLabel(cat, language) }),
       titles: ALL_TITLES.filter(
         (t) => t.condition.type === "category" && t.condition.category === cat
       ),
@@ -302,7 +302,7 @@ function TitlesTab({
             <div>
               <p className="text-caption mb-1">{translate("collection.titles.equipped", language)}</p>
               <p className="text-body font-semibold text-accent">
-                {(() => { const tt = ALL_TITLES.find((t) => t.id === progress.equippedTitleId); return tt ? (language === "en" && tt.nameEn ? tt.nameEn : tt.name) : ""; })()}
+                {(() => { const tt = ALL_TITLES.find((t) => t.id === progress.equippedTitleId); return tt ? titleName(tt, language) : ""; })()}
               </p>
             </div>
             <button
@@ -363,7 +363,7 @@ function TitleCard({
       disabled={!isEarned}
       className={`w-full text-left rounded-lg p-3 flex items-center gap-3 transition-all ${
         isEquipped
-          ? "bg-accent/10 grid-border-accent"
+          ? "bg-bg-elevated grid-border-accent"
           : isEarned
           ? "bg-bg-surface grid-border"
           : "bg-bg-elevated opacity-60"
@@ -382,18 +382,18 @@ function TitleCard({
               color: isEarned ? "#0A0A0A" : "var(--text-tertiary)",
             }}
           >
-            {language === "en" ? rarity.label : rarity.labelKo}
+            {rarityLabel(title.rarity, language)}
           </span>
           <span className={`text-sm font-semibold truncate ${isEarned ? "text-text-primary" : "text-text-tertiary"}`}>
-            {language === "en" && title.nameEn ? title.nameEn : title.name}
+            {titleName(title, language)}
           </span>
           {isEquipped && (
-            <span className="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-accent/20 rounded-sm flex-shrink-0">
+            <span className="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-bg-surface rounded-sm flex-shrink-0">
               {translate("common.equipped", language)}
             </span>
           )}
         </div>
-        <p className="text-[12px] text-text-secondary mt-0.5">{language === "en" && title.descriptionEn ? title.descriptionEn : title.description}</p>
+        <p className="text-[12px] text-text-secondary mt-0.5">{titleDesc(title, language)}</p>
         {!isEarned && (
           <div className="flex items-center gap-2 mt-1.5">
             <div className="flex-1 h-1 bg-bg-elevated rounded-sm overflow-hidden">

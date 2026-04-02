@@ -13,6 +13,10 @@ export interface TitleDefinition {
   nameEn?: string;
   description: string;
   descriptionEn?: string;
+  nameJa?: string;
+  descriptionJa?: string;
+  nameZh?: string;
+  descriptionZh?: string;
   rarity: Rarity;
   condition: TitleCondition;
   icon: string;

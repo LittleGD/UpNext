@@ -5,11 +5,11 @@ import { motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { STARTER_PACKS } from "@/data/starterPacks";
 import { ALL_CARDS } from "@/data/cards";
-import { RARITY_CONFIG } from "@/data/rarityConfig";
+import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import { fadeInUp, staggerContainer, springBouncy } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
-import { cardTitle } from "@/i18n";
+import { cardTitle, packName as getPackName, packDesc as getPackDesc } from "@/i18n";
 
 interface StarterPackSelectProps {
   onSelect: (packId: string) => void;
@@ -36,7 +36,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
   // 카드 리빌 화면
   if (phase === "revealing" && selectedPack) {
     const pack = STARTER_PACKS.find((p) => p.id === selectedPack)!;
-    const packName = language === "en" && pack.nameEn ? pack.nameEn : pack.name;
+    const resolvedPackName = getPackName(pack, language);
     const cards = pack.cardIds.map((id) => ALL_CARDS.find((c) => c.id === id)!).filter(Boolean);
 
     return (
@@ -47,7 +47,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
           animate={{ opacity: 1, y: 0 }}
           className="text-heading-1 text-accent text-center"
         >
-          {packName}
+          {resolvedPackName}
         </motion.h2>
         <motion.p
           initial={{ opacity: 0 }}
@@ -75,7 +75,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
                   className="text-[13px] font-bold px-1.5 py-0.5 rounded-sm self-start"
                   style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
                 >
-                  {language === "en" ? rarity.label : rarity.labelKo}
+                  {rarityLabel(card.rarity, language)}
                 </span>
                 <motion.div
                   initial={{ scale: 0 }}
@@ -100,7 +100,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 + cards.length * 0.12 + 0.3 }}
             whileTap={{ scale: 0.95 }}
-            onClick={handleRevealDone}
+            onClick={() => { play("select"); handleRevealDone(); }}
             className="w-full py-4 bg-accent text-bg-primary rounded-md font-semibold text-lg"
           >
             {t("common.start")}
@@ -130,8 +130,8 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
 
         <div className="space-y-3">
           {STARTER_PACKS.map((pack) => {
-            const packName = language === "en" && pack.nameEn ? pack.nameEn : pack.name;
-            const packDesc = language === "en" && pack.descriptionEn ? pack.descriptionEn : pack.description;
+            const packName = getPackName(pack, language);
+            const packDesc = getPackDesc(pack, language);
             return (
               <motion.button
                 key={pack.id}

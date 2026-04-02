@@ -49,7 +49,7 @@ export default function MergeConflictDialog({
             onClick={onChooseLocal}
             className={`w-full text-left p-4 rounded-lg transition-all ${
               recommend === "local"
-                ? "bg-accent/10 grid-border-accent"
+                ? "bg-bg-elevated grid-border-accent"
                 : "bg-bg-surface grid-border"
             }`}
           >
@@ -61,7 +61,7 @@ export default function MergeConflictDialog({
                 </p>
               </div>
               {recommend === "local" && (
-                <span className="text-[10px] font-bold text-accent px-2 py-1 bg-accent/20 rounded-sm">
+                <span className="text-[10px] font-bold text-accent px-2 py-1 bg-bg-surface rounded-sm">
                   {t("common.recommended")}
                 </span>
               )}
@@ -72,7 +72,7 @@ export default function MergeConflictDialog({
             onClick={onChooseCloud}
             className={`w-full text-left p-4 rounded-lg transition-all ${
               recommend === "cloud"
-                ? "bg-accent/10 grid-border-accent"
+                ? "bg-bg-elevated grid-border-accent"
                 : "bg-bg-surface grid-border"
             }`}
           >
@@ -84,7 +84,7 @@ export default function MergeConflictDialog({
                 </p>
               </div>
               {recommend === "cloud" && (
-                <span className="text-[10px] font-bold text-accent px-2 py-1 bg-accent/20 rounded-sm">
+                <span className="text-[10px] font-bold text-accent px-2 py-1 bg-bg-surface rounded-sm">
                   {t("common.recommended")}
                 </span>
               )}

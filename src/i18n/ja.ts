@@ -1,0 +1,169 @@
+import type { DictKey } from "./ko";
+
+const ja: Record<DictKey, string> = {
+  // === common ===
+  "common.next": "次へ",
+  "common.cancel": "キャンセル",
+  "common.confirm": "OK",
+  "common.start": "はじめる",
+  "common.done": "完了",
+  "common.change": "変更",
+  "common.default": "デフォルト",
+  "common.recommended": "おすすめ",
+  "common.equipped": "装備中",
+  "common.unequip": "外す",
+  "common.cardsPerDay": "枚/日",
+
+  // === onboarding ===
+  "onboarding.desc1.title1": "毎日新しいデッキを",
+  "onboarding.desc1.accent": "組んで実践しよう",
+  "onboarding.desc1.description": "カードを引いて今日のチャレンジデッキを作ろう!",
+  "onboarding.desc2.title1": "理想の毎日に",
+  "onboarding.desc2.accent": "チャレンジしよう",
+  "onboarding.desc2.description": "モードを選んで難易度を決めて、クリアしてレベルアップ!",
+  "onboarding.difficulty.heading": "難易度を選んでください",
+  "onboarding.difficulty.subheading": "毎日選ぶチャレンジカードの枚数を決めます",
+  "onboarding.difficulty.normal": "ノーマル",
+  "onboarding.difficulty.normal.desc": "気軽に始めたいなら",
+  "onboarding.difficulty.godlife": "理想の毎日",
+  "onboarding.difficulty.godlife.desc": "ほどよいチャレンジを求めるなら",
+  "onboarding.difficulty.ultra": "ウルトラ",
+  "onboarding.difficulty.ultra.desc": "ハードコアチャレンジャー向け",
+  "onboarding.starter.heading": "スターターパックを引こう",
+  "onboarding.starter.subheading": "引いたパックの6枚のカードでチャレンジ開始!",
+  "onboarding.starter.revealMessage": "6枚のチャレンジカードを獲得しました!",
+  "onboarding.starter.openPack": "カードパックを開く",
+  "onboarding.levelup.message": "レベルアップ! カードパックを開けます",
+  "onboarding.levelup.button": "カードパックを引く",
+
+  // === splash ===
+  "splash.tagline": "毎日小さな達成を積み重ねるローグライクチャレンジ",
+
+  // === daily ===
+  "daily.draw.holding": "ドロー中...",
+  "daily.draw.title": "今日のカードを引こう!",
+  "daily.draw.holdHint": "そのまま長押し",
+  "daily.draw.instruction": "デッキを長押しして6枚のカードを引こう",
+  "daily.draw.reroll": "リロール",
+  "daily.draw.rerollUsed": "リロール使用済み",
+  "daily.draw.rerollConfirm": "カードを引き直しますか?\nリロールは1日1回だけです。",
+  "daily.select.count": "{count}/{max} 選択済み",
+  "daily.select.heading": "{count}枚を選んでください",
+  "daily.select.hint": "タップまたは上にスワイプでプレビュー",
+  "daily.select.swipeHint": "スワイプで選択",
+  "daily.select.deselect": "選択解除",
+  "daily.select.complete": "{count}枚選択完了",
+  "daily.select.dragHint": "左右にスワイプして確認",
+  "daily.select.checkHint": "カードを確認しよう",
+  "daily.select.confirmButton": "選択を確定する",
+  "daily.board.heading": "今日のチャレンジ",
+  "daily.board.progress": "{done}/{total} 完了",
+  "daily.board.allDoneTitle": "今日のチャレンジ達成!",
+  "daily.board.streak": "{days}日連続達成中",
+  "daily.board.confirmPrompt": "このチャレンジを完了しますか?",
+  "daily.board.markDone": "完了する",
+  "daily.board.completed": "完了済み",
+
+  // === cards ===
+  "cards.pack.newCards": "新しいカードを獲得!",
+  "cards.pack.addedToCollection": "コレクションに追加されました!",
+  "cards.pack.arriving": "新しいカードパックが届きました!",
+  "cards.pack.whatsInside": "何が入っているかな?",
+
+  // === nav ===
+  "nav.challenge": "チャレンジ",
+  "nav.collection": "コレクション",
+  "nav.settings": "設定",
+
+  // === settings ===
+  "settings.title": "設定",
+  "settings.sound.heading": "サウンド",
+  "settings.sound.effects": "効果音",
+  "settings.mode.heading": "チャレンジモード",
+  "settings.mode.normal": "ノーマルモード",
+  "settings.mode.normal.desc": "気軽に始めたいなら",
+  "settings.mode.godlife": "理想の毎日モード",
+  "settings.mode.godlife.desc": "ほどよいチャレンジを求めるなら",
+  "settings.mode.ultra": "ウルトラモード",
+  "settings.mode.ultra.desc": "ハードコアチャレンジャー向け",
+  "settings.mode.pendingBadge": "明日から",
+  "settings.mode.confirmPrompt": "に変更しますか?",
+  "settings.mode.confirmDesc": "明日から1日に{cards}枚を選ぶようになります",
+  "settings.titles.heading": "称号",
+  "settings.titles.empty": "まだ獲得した称号がありません。チャレンジをクリアして称号を手に入れよう!",
+  "settings.stats.heading": "マイ記録",
+  "settings.stats.currentStreak": "現在の連続",
+  "settings.stats.longestStreak": "最長連続",
+  "settings.stats.totalXP": "合計経験値",
+  "settings.stats.unlockedCards": "解放済みカード",
+  "settings.stats.days": "日",
+  "settings.stats.cards": "枚",
+  "settings.reset.button": "データ初期化 & アカウント連携解除",
+  "settings.reset.confirmWithAccount": "すべての進行データが削除され、アカウント連携が解除されます。本当にリセットしますか?",
+  "settings.reset.confirmLocal": "すべての進行データが削除されます。本当にリセットしますか?",
+
+  // === collection ===
+  "collection.tab.cards": "カード",
+  "collection.tab.titles": "称号",
+  "collection.filter.all": "すべて",
+  "collection.filter.owned": "所持",
+  "collection.filter.unowned": "未所持",
+  "collection.cards.empty": "該当するカードがありません",
+  "collection.titles.empty": "該当する称号がありません",
+  "collection.titles.equipped": "装備中",
+  "collection.titles.special": "特別称号",
+  "collection.titles.streak": "連続達成称号",
+  "collection.titles.categoryTitles": "{category}称号",
+
+  // === auth ===
+  "auth.section.heading": "アカウント連携",
+  "auth.section.user": "ユーザー",
+  "auth.section.syncing": "リアルタイム同期中",
+  "auth.section.signOut": "ログアウト",
+  "auth.section.prompt": "ログインすると他のデバイスでも続きからプレイできます",
+  "auth.section.signingIn": "ログイン中...",
+  "auth.section.signInGoogle": "Googleでログイン",
+  "auth.login.heading": "他のデバイスでも続きから",
+  "auth.login.description": "Googleアカウントでログインすると\nすべてのデバイスでリアルタイム同期されます",
+  "auth.login.skip": "あとにする",
+  "auth.login.skipHint": "設定からいつでもログインできます",
+  "auth.merge.heading": "データの競合",
+  "auth.merge.description": "このデバイスとクラウドに異なるデータがあります",
+  "auth.merge.useLocal": "このデバイスのデータを使う",
+  "auth.merge.useCloud": "クラウドのデータを使う",
+  "auth.merge.daysCompleted": "日完了",
+
+  // === rarity ===
+  "rarity.normal": "ノーマル",
+  "rarity.rare": "レア",
+  "rarity.unique": "ユニーク",
+  "rarity.legend": "レジェンド",
+
+  // === mode ===
+  "mode.normal": "ノーマル",
+  "mode.godlife": "理想の毎日",
+  "mode.ultra": "ウルトラ",
+
+  // === level ===
+  "level.beginner": "入門者",
+  "level.newbie": "ルーキー",
+  "level.challenger": "チャレンジャー",
+  "level.achiever": "実践者",
+  "level.gogetter": "努力家",
+  "level.master": "マスター",
+  "level.legend": "レジェンド",
+
+  // === category ===
+  "category.fitness": "フィットネス",
+  "category.nutrition": "食事",
+  "category.mindfulness": "マインドフルネス",
+  "category.learning": "学習",
+  "category.social": "コミュニケーション",
+  "category.productivity": "生産性",
+  "category.wellness": "ウェルネス",
+
+  // === language ===
+  "language.toggle": "言語設定",
+};
+
+export default ja;

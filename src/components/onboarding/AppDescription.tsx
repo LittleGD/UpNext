@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { springBouncy } from "@/lib/motion";
 import { useTranslation } from "@/hooks/useTranslation";
 import LanguageToggle from "@/components/ui/LanguageToggle";
+import { useSound } from "@/hooks/useSound";
 
 interface AppDescriptionProps {
   onNext: () => void;
@@ -42,6 +43,15 @@ const SPARKLES_2 = generateSparkles(10, "#E8FFE8");
 export default function AppDescription({ onNext }: AppDescriptionProps) {
   const [page, setPage] = useState(0);
   const { t } = useTranslation();
+  const { play } = useSound();
+
+  // Play sound effect when page changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      play(page === 0 ? "ambientFloat" : "pulseWave");
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [page, play]);
 
   const pages = [
     {
@@ -126,7 +136,7 @@ export default function AppDescription({ onNext }: AppDescriptionProps) {
         <LanguageToggle />
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={handleNext}
+          onClick={() => { play("select"); handleNext(); }}
           className="w-full py-4 bg-accent text-bg-primary rounded-md font-semibold text-lg"
         >
           {isLast ? t("common.start") : t("common.next")}

@@ -38,10 +38,12 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
   const { t, language } = useTranslation();
 
   useEffect(() => {
-    // 프로그레스 바가 차는 애니메이션 후 → burst → done
+    // 프로그레스 바 차오르는 사운드 → burst → done
+    const t0 = setTimeout(() => play("chargeUp"), 300);
     const t1 = setTimeout(() => { setPhase("burst"); play("levelUp"); }, 1800);
     const t2 = setTimeout(() => setPhase("done"), 2600);
     return () => {
+      clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
     };
@@ -151,7 +153,7 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
           animate={{ opacity: phase === "done" ? 1 : 0, y: phase === "done" ? 0 : 20 }}
           transition={{ duration: 0.4, delay: 0.2 }}
           whileTap={{ scale: 0.95 }}
-          onClick={onComplete}
+          onClick={() => { play("select"); onComplete(); }}
           className="w-full py-4 bg-accent text-bg-primary rounded-md font-semibold text-lg"
         >
           {t("onboarding.levelup.button")}

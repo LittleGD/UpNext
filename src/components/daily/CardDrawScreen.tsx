@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { MODE_CARD_COUNT } from "@/types/game";
-import { RARITY_CONFIG } from "@/data/rarityConfig";
+import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import type { ChallengeCard } from "@/types/card";
 import {
   motion,
@@ -18,6 +18,8 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle, cardDesc } from "@/i18n";
+import { categoryLabel } from "@/data/titles";
+import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 
 const SWIPE_UP_THRESHOLD = -100;
 const SWIPE_DOWN_THRESHOLD = 80;
@@ -129,98 +131,404 @@ export default function CardDrawScreen() {
 
   // 아직 드로우 안 했을 때 — 덱 홀드 인터랙션
   if (!daily.isDrawComplete) {
+    const shakeAmp = holdProgress * 5;
+
     return (
-      <motion.div
-        animate={isShaking ? { x: [0, -3, 3, -2, 2, -1, 1, 0] } : {}}
-        transition={isShaking ? { duration: 0.4, repeat: Infinity } : {}}
-        className="flex flex-col items-center justify-center min-h-[60vh] gap-8 max-w-lg md:max-w-xl lg:max-w-2xl mx-auto px-4 select-none"
-      >
-        {/* 덱 비주얼 */}
-        <div
-          className="relative cursor-pointer"
-          onPointerDown={(e) => { e.preventDefault(); startHold(); }}
-          onPointerUp={cancelHold}
-          onPointerLeave={cancelHold}
-          onPointerCancel={cancelHold}
-          style={{ touchAction: "none" }}
-        >
-          {/* 덱 카드 스택 */}
-          {[4, 3, 2, 1, 0].map((layer) => (
-            <motion.div
-              key={layer}
-              animate={{
-                y: isHolding ? -layer * 6 - holdProgress * 8 : -layer * 4,
-                rotate: isHolding ? (layer - 2) * holdProgress * 3 : (layer - 2) * 0.5,
-                scale: isHolding ? 1 + holdProgress * 0.03 : 1,
-              }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              className="absolute inset-0"
-              style={{ zIndex: layer }}
-            >
-              <div
-                className="w-[min(100px,22vw)] h-[min(140px,31vw)] md:w-[120px] md:h-[168px] lg:w-[140px] lg:h-[196px] rounded-lg bg-bg-elevated grid-border flex items-center justify-center"
-                style={{
-                  boxShadow: isHolding
-                    ? `0 ${4 + layer * 2}px ${12 + layer * 4}px rgba(205, 245, 100, ${0.05 + holdProgress * 0.1})`
-                    : `0 ${2 + layer}px ${4 + layer * 2}px rgba(0, 0, 0, 0.2)`,
-                }}
-              >
-                {layer === 0 && (
-                  <PixelIcon name="Card" size={isLg ? 48 : isMd ? 42 : 36} color="var(--accent-primary)" />
-                )}
-              </div>
-            </motion.div>
-          ))}
-          {/* 진행도 링 */}
-          <div className="w-[min(100px,22vw)] h-[min(140px,31vw)] md:w-[120px] md:h-[168px] lg:w-[140px] lg:h-[196px] relative">
-            {isHolding && (
-              <svg
-                className="absolute -inset-3 pointer-events-none"
-                viewBox="0 0 126 166"
-              >
-                <rect
-                  x="3" y="3" width="120" height="160" rx="12"
-                  fill="none"
-                  stroke="var(--accent-primary)"
-                  strokeWidth="2"
-                  strokeDasharray={`${(120 + 160) * 2}`}
-                  strokeDashoffset={`${(120 + 160) * 2 * (1 - holdProgress)}`}
-                  opacity={0.8}
-                  style={{ transition: "stroke-dashoffset 0.05s linear" }}
-                />
-              </svg>
-            )}
-          </div>
-
-          {/* 홀드 시 글로우 이펙트 */}
-          <AnimatePresence>
-            {isHolding && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: holdProgress * 0.6, scale: 1 + holdProgress * 0.3 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute -inset-8 rounded-2xl pointer-events-none"
-                style={{
-                  background: `radial-gradient(ellipse at center, var(--accent-primary)${Math.round(holdProgress * 20).toString(16).padStart(2, "0")} 0%, transparent 70%)`,
-                }}
-              />
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* 텍스트 */}
-        <div className="text-center">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto px-4 select-none relative">
+        {/* 텍스트 — 덱 위에 배치 */}
+        <div className="text-center mb-10">
           <motion.h2
-            animate={{ scale: isHolding ? 1.02 : 1 }}
-            className="text-heading-1 text-text-primary"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0, scale: isHolding ? 1.03 : 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="text-heading-2 text-text-primary"
           >
             {isHolding ? t("daily.draw.holding") : t("daily.draw.title")}
           </motion.h2>
-          <p className="text-body text-text-secondary mt-2">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{
+              opacity: isHolding ? 0.9 : [0.4, 0.7, 0.4],
+            }}
+            transition={isHolding ? { duration: 0.2 } : { duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+            className="text-caption text-text-secondary mt-2"
+          >
             {isHolding ? t("daily.draw.holdHint") : t("daily.draw.instruction")}
-          </p>
+          </motion.p>
         </div>
-      </motion.div>
+
+        {/* 성스러운 빛줄기 — 화면 바닥에서 덱 중간까지 */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 2 }}>
+          {/* 빛줄기 1 — 메인 accent, 중앙에서 살짝 왼쪽 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.5, 0.8, 0.5] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: "calc(50% - 60px)",
+              width: 80,
+              height: "60%",
+              background: "linear-gradient(to top, rgba(205, 245, 100, 0.22) 0%, rgba(205, 245, 100, 0.07) 40%, transparent 100%)",
+              filter: "blur(12px)",
+              transform: "rotate(-4deg)",
+              transformOrigin: "bottom center",
+            }}
+          />
+          {/* 빛줄기 2 — 흰색+베이지, 중앙 메인 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.4, 0.7, 0.4] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: "calc(50% - 30px)",
+              width: 70,
+              height: "58%",
+              background: "linear-gradient(to top, rgba(255, 245, 220, 0.2) 0%, rgba(255, 245, 220, 0.06) 35%, transparent 100%)",
+              filter: "blur(14px)",
+              transform: "rotate(1deg)",
+              transformOrigin: "bottom center",
+            }}
+          />
+          {/* 빛줄기 3 — 순수 흰빛, 중앙에서 약간 오른쪽 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.35, 0.65, 0.35] }}
+            transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: "calc(50% + 10px)",
+              width: 60,
+              height: "55%",
+              background: "linear-gradient(to top, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 35%, transparent 100%)",
+              filter: "blur(14px)",
+              transform: "rotate(5deg)",
+              transformOrigin: "bottom center",
+            }}
+          />
+          {/* 빛줄기 4 — 시안 보조, 오른쪽 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.3, 0.5, 0.3] }}
+            transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut", delay: 2.5 }}
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: "calc(50% + 55px)",
+              width: 45,
+              height: "48%",
+              background: "linear-gradient(to top, rgba(155, 240, 225, 0.15) 0%, rgba(155, 240, 225, 0.04) 30%, transparent 100%)",
+              filter: "blur(10px)",
+              transform: "rotate(8deg)",
+              transformOrigin: "bottom center",
+            }}
+          />
+          {/* 빛줄기 5 — 따뜻한 베이지, 왼쪽 넓은 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.25, 0.5, 0.25] }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 3.5 }}
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: "calc(50% - 110px)",
+              width: 55,
+              height: "45%",
+              background: "linear-gradient(to top, rgba(245, 230, 190, 0.18) 0%, rgba(245, 230, 190, 0.04) 30%, transparent 100%)",
+              filter: "blur(10px)",
+              transform: "rotate(-8deg)",
+              transformOrigin: "bottom center",
+            }}
+          />
+          {/* 빛줄기 6 — 가느다란 accent 오른쪽 끝 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.2, 0.4, 0.2] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 4.5 }}
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: "calc(50% + 95px)",
+              width: 30,
+              height: "40%",
+              background: "linear-gradient(to top, rgba(205, 245, 100, 0.12) 0%, transparent 100%)",
+              filter: "blur(8px)",
+              transform: "rotate(11deg)",
+              transformOrigin: "bottom center",
+            }}
+          />
+          {/* 바닥 글로우 — 중앙 수렴점 */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: -20,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 350,
+              height: 100,
+              background: "radial-gradient(ellipse, rgba(255, 245, 220, 0.15) 0%, rgba(205, 245, 100, 0.08) 40%, transparent 70%)",
+              filter: "blur(20px)",
+            }}
+          />
+        </div>
+
+        {/* 덱 영역 — with ambient particles */}
+        <motion.div
+          animate={isShaking ? {
+            x: [0, -shakeAmp, shakeAmp, -shakeAmp * 0.6, shakeAmp * 0.6, 0],
+          } : {}}
+          transition={isShaking ? { duration: Math.max(0.2, 0.45 - holdProgress * 0.2), repeat: Infinity } : {}}
+          className="relative"
+        >
+          {/* Ambient radial glow — grows during hold */}
+          <motion.div
+            animate={{
+              opacity: isHolding ? holdProgress * 0.35 : 0.06,
+              scale: isHolding ? 0.8 + holdProgress * 1.2 : 1,
+            }}
+            transition={{ type: "tween", duration: 0.15 }}
+            className="absolute pointer-events-none"
+            style={{
+              width: 280,
+              height: 280,
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+              background: "radial-gradient(circle, rgba(205, 245, 100, 0.15) 0%, transparent 70%)",
+              filter: "blur(40px)",
+            }}
+          />
+
+          {/* Floating motes — fill empty space */}
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={`mote-${i}`}
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                width: 3,
+                height: 3,
+                background: i % 3 === 0 ? "var(--accent-primary)" : i % 3 === 1 ? "var(--accent-cyan)" : "rgba(255,255,255,0.5)",
+                left: "50%",
+                top: "50%",
+                filter: "blur(0.5px)",
+              }}
+              animate={isHolding ? {
+                x: 0,
+                y: 0,
+                opacity: 0.8,
+                scale: 0,
+              } : {
+                x: [
+                  Math.cos((i / 8) * Math.PI * 2) * (50 + (i % 3) * 20),
+                  Math.cos((i / 8) * Math.PI * 2 + 0.5) * (60 + (i % 3) * 15),
+                  Math.cos((i / 8) * Math.PI * 2) * (50 + (i % 3) * 20),
+                ],
+                y: [
+                  Math.sin((i / 8) * Math.PI * 2) * (40 + (i % 3) * 20),
+                  Math.sin((i / 8) * Math.PI * 2 + 0.5) * (55 + (i % 3) * 15),
+                  Math.sin((i / 8) * Math.PI * 2) * (40 + (i % 3) * 20),
+                ],
+                opacity: [0.12, 0.3, 0.12],
+                scale: 1,
+              }}
+              transition={isHolding ? {
+                duration: 0.4,
+                ease: "easeIn",
+              } : {
+                duration: 4 + i * 0.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: i * 0.3,
+              }}
+            />
+          ))}
+
+          {/* 덱 인터랙션 영역 */}
+          <div
+            className="relative cursor-pointer"
+            onPointerDown={(e) => { e.preventDefault(); startHold(); }}
+            onPointerUp={cancelHold}
+            onPointerLeave={cancelHold}
+            onPointerCancel={cancelHold}
+            style={{ touchAction: "none" }}
+          >
+            {/* 덱 카드 스택 — deeper spread + breathing */}
+            {[4, 3, 2, 1, 0].map((layer) => (
+              <motion.div
+                key={layer}
+                animate={isHolding ? {
+                  y: -layer * 7 - holdProgress * 10,
+                  x: (layer - 2) * holdProgress * 0.5,
+                  rotate: (layer - 2) * holdProgress * 4,
+                  scale: 1 + holdProgress * 0.04,
+                } : {
+                  y: [
+                    -layer * 5,
+                    -layer * 5 - (4 - layer) * 0.8,
+                    -layer * 5,
+                  ],
+                  x: (layer - 2) * 1.5,
+                  rotate: (layer - 2) * 1.5,
+                  scale: 1,
+                }}
+                transition={isHolding ? {
+                  type: "spring", stiffness: 400, damping: 25,
+                } : {
+                  y: { duration: 3, repeat: Infinity, ease: "easeInOut", delay: layer * 0.1 },
+                  x: { type: "spring", stiffness: 300, damping: 25 },
+                  rotate: { type: "spring", stiffness: 300, damping: 25 },
+                }}
+                className="absolute inset-0"
+                style={{ zIndex: layer }}
+              >
+                <div
+                  className="w-[min(110px,24vw)] h-[min(154px,34vw)] md:w-[130px] md:h-[182px] lg:w-[150px] lg:h-[210px] rounded-xl overflow-hidden relative"
+                  style={{
+                    backgroundColor: `hsl(0, 0%, ${11 + layer * 1.2}%)`,
+                    border: layer === 0
+                      ? `1px solid rgba(255, 255, 255, ${isHolding ? 0.06 + holdProgress * 0.08 : 0.06})`
+                      : "1px solid rgba(255, 255, 255, 0.03)",
+                    boxShadow: isHolding
+                      ? `0 0 ${12 + holdProgress * 24}px rgba(205, 245, 100, ${holdProgress * 0.3}), 0 ${4 + layer * 2}px ${8 + layer * 4}px rgba(0, 0, 0, 0.3)`
+                      : `0 ${2 + layer}px ${6 + layer * 3}px rgba(0, 0, 0, 0.25)`,
+                  }}
+                >
+                  {/* Card back design */}
+                  {/* Top edge highlight */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: layer === 0
+                      ? "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 30%)"
+                      : undefined,
+                  }} />
+                  {/* Inner border inset */}
+                  <div style={{
+                    position: "absolute",
+                    inset: layer === 0 ? 5 : 4,
+                    borderRadius: 6,
+                    border: `1px solid rgba(205, 245, 100, ${layer === 0 ? 0.08 : 0.03})`,
+                    pointerEvents: "none",
+                  }} />
+                  {/* Diamond grid pattern */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    opacity: layer === 0 ? 0.035 : 0.015,
+                    backgroundImage: `
+                      linear-gradient(45deg, rgba(205,245,100,1) 25%, transparent 25%),
+                      linear-gradient(-45deg, rgba(205,245,100,1) 25%, transparent 25%),
+                      linear-gradient(45deg, transparent 75%, rgba(205,245,100,1) 75%),
+                      linear-gradient(-45deg, transparent 75%, rgba(205,245,100,1) 75%)
+                    `,
+                    backgroundSize: "12px 12px",
+                    backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0px",
+                    pointerEvents: "none",
+                  }} />
+                  {/* Corner accents — top-left & bottom-right */}
+                  {layer === 0 && (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 16 16" style={{ position: "absolute", top: 10, left: 10, opacity: 0.12 }}>
+                        <path d="M0 0L16 0L0 16Z" fill="var(--accent-primary)" />
+                      </svg>
+                      <svg width="16" height="16" viewBox="0 0 16 16" style={{ position: "absolute", bottom: 10, right: 10, opacity: 0.12, transform: "rotate(180deg)" }}>
+                        <path d="M0 0L16 0L0 16Z" fill="var(--accent-primary)" />
+                      </svg>
+                    </>
+                  )}
+                  {/* Center emblem */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {layer === 0 ? (
+                      <motion.div
+                        animate={isHolding ? {
+                          scale: 1 + holdProgress * 0.1,
+                          filter: `brightness(${1 + holdProgress * 0.4})`,
+                        } : {}}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}
+                      >
+                        <PixelIcon name="Card" size={isLg ? 40 : isMd ? 34 : 28} color="var(--accent-primary)" />
+                        {/* Small decorative line under icon */}
+                        <div style={{
+                          width: 20, height: 1,
+                          background: "linear-gradient(90deg, transparent, rgba(205,245,100,0.2), transparent)",
+                        }} />
+                      </motion.div>
+                    ) : (
+                      /* Faint icon on non-top cards too */
+                      <div style={{ opacity: 0.06 }}>
+                        <PixelIcon name="Card" size={isLg ? 32 : isMd ? 28 : 22} color="var(--accent-primary)" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+
+            {/* 크기 예약 div */}
+            <div className="w-[min(110px,24vw)] h-[min(154px,34vw)] md:w-[130px] md:h-[182px] lg:w-[150px] lg:h-[210px] relative" />
+
+            {/* 떨어지는 먼지 파티클 */}
+            {[...Array(12)].map((_, i) => {
+              const startX = (i - 5.5) * 12 + (i % 2 === 0 ? -3 : 3);
+              const size = 1.5 + (i % 3) * 0.8;
+              const dur = 3 + (i % 4) * 1.2;
+              const delay = i * 0.45;
+              const drift = (i % 2 === 0 ? 1 : -1) * (8 + (i % 3) * 6);
+              return (
+                <motion.div
+                  key={`dust-${i}`}
+                  className="absolute pointer-events-none rounded-full"
+                  style={{
+                    width: size,
+                    height: size,
+                    background: "rgba(255, 255, 255, 0.7)",
+                    left: `calc(50% + ${startX}px)`,
+                    top: "100%",
+                    filter: size > 2 ? "blur(0.5px)" : undefined,
+                  }}
+                  animate={{
+                    y: [0, 60 + (i % 3) * 25, 120 + (i % 4) * 20],
+                    x: [0, drift * 0.5, drift],
+                    opacity: [0, 0.6, 0],
+                  }}
+                  transition={{
+                    duration: dur,
+                    repeat: Infinity,
+                    ease: "easeOut",
+                    delay: delay,
+                  }}
+                />
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Hold progress hint — subtle dot indicators */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isHolding ? 1 : 0 }}
+          className="flex items-center gap-1.5 mt-8"
+        >
+          {[0.2, 0.4, 0.6, 0.8, 1].map((threshold, i) => (
+            <motion.div
+              key={i}
+              animate={{
+                backgroundColor: holdProgress >= threshold
+                  ? "var(--accent-primary)"
+                  : "rgba(255,255,255,0.1)",
+                scale: holdProgress >= threshold ? [1, 1.3, 1] : 1,
+              }}
+              transition={{ duration: 0.15 }}
+              className="w-1.5 h-1.5 rounded-full"
+            />
+          ))}
+        </motion.div>
+      </div>
     );
   }
 
@@ -265,17 +573,19 @@ export default function CardDrawScreen() {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={springSnappy}
-                  className="w-[min(240px,60vw)] md:w-[300px] lg:w-[340px] flex-shrink-0 snap-center rounded-lg p-5 md:p-6 flex flex-col gap-3 bg-bg-elevated grid-border-accent"
+                  className="w-[min(240px,60vw)] md:w-[300px] lg:w-[340px] flex-shrink-0 snap-center rounded-lg p-5 md:p-6 flex flex-col gap-3 bg-bg-elevated grid-border-accent relative overflow-hidden"
+                  style={{ boxShadow: rarityGlow(card.rarity) }}
                 >
-                  <div className="flex items-center justify-between">
+                  <RarityTexture rarity={card.rarity} />
+                  <div className="flex items-center justify-between relative">
                     <span
                       className="text-[13px] font-bold px-2 py-0.5 rounded-sm"
                       style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
                     >
-                      {language === "en" ? rarity.label : rarity.labelKo}
+                      {rarityLabel(card.rarity, language)}
                     </span>
                     <span className="text-[13px] text-text-tertiary capitalize">
-                      {language === "en" ? card.category : card.category}
+                      {categoryLabel(card.category, language)}
                     </span>
                   </div>
                   <div className="flex items-center justify-center py-5 md:py-6" style={{ color: rarity.color }}>
@@ -344,36 +654,33 @@ export default function CardDrawScreen() {
         </div>
       </div>
 
-      {/* 안내 텍스트 — 화면 중앙 고정 */}
+      {/* 안내 텍스트 — 중앙 */}
       {!previewCard && (
         <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-[6]">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center flex flex-col items-center gap-3"
+            className="text-center flex flex-col items-center gap-2"
           >
-            <h2 className="text-heading-2 text-text-primary mb-1">
+            <p className="text-lg font-semibold text-text-primary">
               {t("daily.select.heading", { count: maxCards })}
-            </h2>
-            <p className="text-caption">
+            </p>
+            <p className="text-[12px] text-text-tertiary">
               {t("daily.select.hint")}
             </p>
 
-            {/* 리롤 버튼 — nav-sized pill */}
+            {/* 리롤 버튼 */}
             {!daily.rerollUsed && !daily.isSelectionComplete && (
               <motion.button
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 onClick={() => { play("select"); setShowRerollConfirm(true); }}
-                className="pointer-events-auto flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-bg-elevated/90 backdrop-blur-md text-text-secondary hover:text-accent transition-colors grid-border mt-1"
+                className="pointer-events-auto flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-bg-elevated/90 backdrop-blur-md text-text-tertiary hover:text-text-secondary transition-colors grid-border mt-2"
               >
-                <PixelIcon name="Reload" size={18} />
-                <span className="text-[13px] font-semibold">{t("daily.draw.reroll")}</span>
+                <PixelIcon name="Reload" size={16} />
+                <span className="text-[12px] font-semibold">{t("daily.draw.reroll")}</span>
               </motion.button>
-            )}
-            {daily.rerollUsed && (
-              <span className="text-[11px] text-text-tertiary mt-1">{t("daily.draw.rerollUsed")}</span>
             )}
           </motion.div>
         </div>
@@ -423,7 +730,7 @@ export default function CardDrawScreen() {
               </p>
               <div className="flex justify-center gap-3">
                 <button
-                  onClick={() => setShowRerollConfirm(false)}
+                  onClick={() => { play("select"); setShowRerollConfirm(false); }}
                   className="px-6 py-3 rounded-md bg-bg-surface text-text-secondary font-semibold"
                 >
                   {t("common.cancel")}
@@ -553,6 +860,7 @@ function HandCard({
         zIndex: isPreview ? 50 : index,
         marginLeft: index === 0 ? 0 : "clamp(-16px, -1.5vw, -6px)",
         touchAction: "pan-x",
+        boxShadow: rarityGlow(card.rarity),
       }}
       drag={!disabled || isPreview ? "y" : false}
       dragConstraints={{ top: -160, bottom: 20 }}
@@ -562,14 +870,15 @@ function HandCard({
       onClick={onTap}
       onHoverStart={() => { if (!disabled && !isPreview && !isFlying) play("cardHover"); }}
       whileHover={!disabled && !isPreview && !isFlying ? { y: -8, transition: { type: "spring", stiffness: 400, damping: 20 } } : {}}
-      className="w-[clamp(80px,18vw,120px)] h-[clamp(112px,25vw,168px)] md:w-[140px] md:h-[196px] lg:w-[160px] lg:h-[224px] flex-shrink-0 snap-center rounded-lg p-2 md:p-3 flex flex-col items-center justify-between bg-bg-elevated grid-border cursor-pointer active:cursor-grabbing"
+      className="w-[clamp(80px,18vw,120px)] h-[clamp(112px,25vw,168px)] md:w-[140px] md:h-[196px] lg:w-[160px] lg:h-[224px] flex-shrink-0 snap-center rounded-lg p-2 md:p-3 flex flex-col items-center justify-between bg-bg-elevated grid-border cursor-pointer active:cursor-grabbing relative overflow-hidden"
       whileTap={{ scale: 1.05 }}
     >
+      <RarityTexture rarity={card.rarity} />
       <span
-        className="text-[10px] md:text-[12px] lg:text-[13px] font-bold px-1.5 py-0.5 rounded-sm self-start leading-tight"
+        className="text-[10px] md:text-[12px] lg:text-[13px] font-bold px-1.5 py-0.5 rounded-sm self-start leading-tight relative"
         style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
       >
-        {language === "en" ? rarity.label : rarity.labelKo}
+        {rarityLabel(card.rarity, language)}
       </span>
       <div className="flex-1 flex items-center justify-center" style={{ color: rarity.color }}>
         <PixelIcon name={card.icon} size={iconSize} />
@@ -620,7 +929,7 @@ function PreviewCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 120, scale: 0.7 }}
       transition={springSnappy}
-      style={{ y, scale: cardScale, opacity: cardOpacity }}
+      style={{ y, scale: cardScale, opacity: cardOpacity, boxShadow: rarityGlow(card.rarity) }}
       drag="y"
       dragConstraints={{ top: -180, bottom: 140 }}
       dragElastic={0.35}
@@ -630,8 +939,9 @@ function PreviewCard({
         e.stopPropagation(); // 카드 클릭이 배경으로 전파되지 않게
         onConfirm();
       }}
-      className="w-[min(240px,60vw)] md:w-[300px] lg:w-[340px] rounded-lg p-5 md:p-6 flex flex-col gap-3 bg-bg-elevated grid-border-accent cursor-grab active:cursor-grabbing"
+      className="w-[min(240px,60vw)] md:w-[300px] lg:w-[340px] rounded-lg p-5 md:p-6 flex flex-col gap-3 bg-bg-elevated grid-border-accent cursor-grab active:cursor-grabbing relative overflow-hidden"
     >
+      <RarityTexture rarity={card.rarity} />
       {/* 스와이프 힌트 */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -648,7 +958,7 @@ function PreviewCard({
           className="text-[13px] font-bold px-2 py-0.5 rounded-sm"
           style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
         >
-          {language === "en" ? rarity.label : rarity.labelKo}
+          {rarityLabel(card.rarity, language)}
         </span>
         <span className="text-[13px] text-text-tertiary capitalize">
           {card.category}
@@ -715,15 +1025,16 @@ function SelectedMiniCard({
       className="flex flex-col items-center gap-1"
     >
       <motion.div
-        style={{ y, opacity, scale }}
+        style={{ y, opacity, scale, boxShadow: rarityGlow(card.rarity) }}
         drag="y"
         dragConstraints={{ top: 0, bottom: 80 }}
         dragElastic={0.3}
         dragSnapToOrigin
         onDragEnd={handleDragEnd}
         onClick={() => onDeselect(card.id)}
-        className="w-16 h-[5.5rem] md:w-20 md:h-[6.875rem] lg:w-24 lg:h-[8.25rem] rounded-md flex flex-col items-center justify-center gap-1 bg-bg-elevated grid-border cursor-pointer active:cursor-grabbing"
+        className="w-16 h-[5.5rem] md:w-20 md:h-[6.875rem] lg:w-24 lg:h-[8.25rem] rounded-md flex flex-col items-center justify-center gap-1 bg-bg-elevated grid-border cursor-pointer active:cursor-grabbing relative overflow-hidden"
       >
+        <RarityTexture rarity={card.rarity} borderRadius={6} />
         <PixelIcon name={card.icon} size={22} color={rarity.color} />
         <span className="text-[11px] md:text-[12px] text-text-secondary truncate w-full text-center px-1">
           {cardTitle(card, language)}
