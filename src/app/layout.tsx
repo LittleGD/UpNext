@@ -6,6 +6,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import SyncProvider from "@/components/providers/SyncProvider";
 import LanguageSync from "@/components/providers/LanguageSync";
 import PixelStars from "@/components/effects/PixelStars";
+import AmbientBackground from "@/components/effects/AmbientBackground";
 
 const orbit = Orbit({
   variable: "--font-orbit",
@@ -38,7 +39,7 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://use.typekit.net/cdr3qvu.css" />
       </head>
       <body className="min-h-full flex flex-col bg-bg-primary font-sans antialiased">
-        <div className="ambient-bg"><div className="ambient-orb" /></div>
+        <AmbientBackground />
         <PixelStars />
         <SyncProvider>
           <LanguageSync />

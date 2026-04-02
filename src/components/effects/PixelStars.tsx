@@ -107,7 +107,12 @@ export default function PixelStars() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-[1] pointer-events-none"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1,
+        pointerEvents: "none",
+      }}
       aria-hidden="true"
     />
   );
