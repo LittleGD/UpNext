@@ -346,7 +346,7 @@ export default function CardDrawScreen() {
 
       {/* 안내 텍스트 — 화면 중앙 고정 */}
       {!previewCard && (
-        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-[1]">
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-[6]">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
