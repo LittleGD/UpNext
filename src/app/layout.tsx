@@ -16,7 +16,18 @@ const orbit = Orbit({
 
 export const metadata: Metadata = {
   title: "UpNext",
-  description: "매일 작은 성취를 쌓아가는 로그라이크 챌린지",
+  description: "A roguelike challenge for daily achievements",
+  openGraph: {
+    title: "UpNext",
+    description: "A roguelike challenge for daily achievements",
+    siteName: "UpNext",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "UpNext",
+    description: "A roguelike challenge for daily achievements",
+  },
 };
 
 export const viewport: Viewport = {
