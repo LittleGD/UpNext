@@ -1,0 +1,169 @@
+import type { DictKey } from "./ko";
+
+const en: Record<DictKey, string> = {
+  // === common ===
+  "common.next": "Next",
+  "common.cancel": "Cancel",
+  "common.confirm": "OK",
+  "common.start": "Get Started",
+  "common.done": "Done",
+  "common.change": "Change",
+  "common.default": "Default",
+  "common.recommended": "Recommended",
+  "common.equipped": "Equipped",
+  "common.unequip": "Unequip",
+  "common.cardsPerDay": "/day",
+
+  // === onboarding ===
+  "onboarding.desc1.title1": "Build a new deck",
+  "onboarding.desc1.accent": "every single day",
+  "onboarding.desc1.description": "Draw cards and build your daily challenge deck!",
+  "onboarding.desc2.title1": "Take on your",
+  "onboarding.desc2.accent": "best life challenge",
+  "onboarding.desc2.description": "Pick a difficulty, complete challenges, and level up!",
+  "onboarding.difficulty.heading": "Choose your difficulty",
+  "onboarding.difficulty.subheading": "Set how many challenge cards you pick each day",
+  "onboarding.difficulty.normal": "Normal",
+  "onboarding.difficulty.normal.desc": "Start light and easy",
+  "onboarding.difficulty.godlife": "Go-getter",
+  "onboarding.difficulty.godlife.desc": "A balanced challenge",
+  "onboarding.difficulty.ultra": "Ultra",
+  "onboarding.difficulty.ultra.desc": "For hardcore challengers",
+  "onboarding.starter.heading": "Pick your Starter Pack",
+  "onboarding.starter.subheading": "Begin your journey with 6 challenge cards",
+  "onboarding.starter.revealMessage": "You got 6 challenge cards!",
+  "onboarding.starter.openPack": "Open Pack",
+  "onboarding.levelup.message": "Level up! You can open a card pack",
+  "onboarding.levelup.button": "Open Card Pack",
+
+  // === splash ===
+  "splash.tagline": "A roguelike challenge for daily achievements",
+
+  // === daily ===
+  "daily.draw.holding": "Drawing...",
+  "daily.draw.title": "Draw today's cards!",
+  "daily.draw.holdHint": "Keep holding",
+  "daily.draw.instruction": "Hold the deck to draw 6 cards",
+  "daily.draw.reroll": "Reroll",
+  "daily.draw.rerollUsed": "Reroll used",
+  "daily.draw.rerollConfirm": "Draw new cards?\nYou can only reroll once per day.",
+  "daily.select.count": "{count}/{max} selected",
+  "daily.select.heading": "Select {count} cards",
+  "daily.select.hint": "Tap or swipe up to preview",
+  "daily.select.swipeHint": "Swipe to select",
+  "daily.select.deselect": "Deselect",
+  "daily.select.complete": "{count} cards selected",
+  "daily.select.dragHint": "Swipe to browse",
+  "daily.select.checkHint": "Review your card",
+  "daily.select.confirmButton": "Confirm Selection",
+  "daily.board.heading": "Today's Challenges",
+  "daily.board.progress": "{done}/{total} done",
+  "daily.board.allDoneTitle": "All challenges complete!",
+  "daily.board.streak": "{days}-day streak",
+  "daily.board.confirmPrompt": "Mark this challenge as done?",
+  "daily.board.markDone": "Mark Complete",
+  "daily.board.completed": "Completed",
+
+  // === cards ===
+  "cards.pack.newCards": "New cards unlocked!",
+  "cards.pack.addedToCollection": "Added to your collection!",
+  "cards.pack.arriving": "A new card pack has arrived!",
+  "cards.pack.whatsInside": "What's inside?",
+
+  // === nav ===
+  "nav.challenge": "Challenge",
+  "nav.collection": "Collection",
+  "nav.settings": "Settings",
+
+  // === settings ===
+  "settings.title": "Settings",
+  "settings.sound.heading": "Sound",
+  "settings.sound.effects": "Sound Effects",
+  "settings.mode.heading": "Challenge Mode",
+  "settings.mode.normal": "Normal Mode",
+  "settings.mode.normal.desc": "Start light and easy",
+  "settings.mode.godlife": "Go-getter Mode",
+  "settings.mode.godlife.desc": "A balanced challenge",
+  "settings.mode.ultra": "Ultra Mode",
+  "settings.mode.ultra.desc": "For hardcore challengers",
+  "settings.mode.pendingBadge": "Tomorrow",
+  "settings.mode.confirmPrompt": "Switch to this mode?",
+  "settings.mode.confirmDesc": "Starting tomorrow, you'll pick {cards} cards per day",
+  "settings.titles.heading": "Titles",
+  "settings.titles.empty": "No titles earned yet. Complete challenges to earn titles!",
+  "settings.stats.heading": "My Stats",
+  "settings.stats.currentStreak": "Current Streak",
+  "settings.stats.longestStreak": "Best Streak",
+  "settings.stats.totalXP": "Total XP",
+  "settings.stats.unlockedCards": "Cards Unlocked",
+  "settings.stats.days": "d",
+  "settings.stats.cards": "",
+  "settings.reset.button": "Reset Data & Unlink Account",
+  "settings.reset.confirmWithAccount": "All progress will be deleted and your account will be unlinked. Are you sure?",
+  "settings.reset.confirmLocal": "All progress will be deleted. Are you sure?",
+
+  // === collection ===
+  "collection.tab.cards": "Cards",
+  "collection.tab.titles": "Titles",
+  "collection.filter.all": "All",
+  "collection.filter.owned": "Owned",
+  "collection.filter.unowned": "Locked",
+  "collection.cards.empty": "No cards match this filter",
+  "collection.titles.empty": "No titles match this filter",
+  "collection.titles.equipped": "Equipped",
+  "collection.titles.special": "Special Titles",
+  "collection.titles.streak": "Streak Titles",
+  "collection.titles.categoryTitles": "{category} Titles",
+
+  // === auth ===
+  "auth.section.heading": "Account Sync",
+  "auth.section.user": "User",
+  "auth.section.syncing": "Syncing in real-time",
+  "auth.section.signOut": "Sign Out",
+  "auth.section.prompt": "Sign in to sync your progress across devices",
+  "auth.section.signingIn": "Signing in...",
+  "auth.section.signInGoogle": "Sign in with Google",
+  "auth.login.heading": "Play on any device",
+  "auth.login.description": "Sign in with Google to sync your\nprogress across all your devices",
+  "auth.login.skip": "Maybe later",
+  "auth.login.skipHint": "You can always sign in from Settings",
+  "auth.merge.heading": "Data Conflict",
+  "auth.merge.description": "This device and the cloud have different data",
+  "auth.merge.useLocal": "Use this device",
+  "auth.merge.useCloud": "Use cloud data",
+  "auth.merge.daysCompleted": "days done",
+
+  // === rarity ===
+  "rarity.normal": "Normal",
+  "rarity.rare": "Rare",
+  "rarity.unique": "Unique",
+  "rarity.legend": "Legend",
+
+  // === mode ===
+  "mode.normal": "Normal",
+  "mode.godlife": "Go-getter",
+  "mode.ultra": "Ultra",
+
+  // === level ===
+  "level.beginner": "Beginner",
+  "level.newbie": "Newbie",
+  "level.challenger": "Challenger",
+  "level.achiever": "Achiever",
+  "level.gogetter": "Go-getter",
+  "level.master": "Master",
+  "level.legend": "Legend",
+
+  // === category ===
+  "category.fitness": "Fitness",
+  "category.nutrition": "Nutrition",
+  "category.mindfulness": "Mindfulness",
+  "category.learning": "Learning",
+  "category.social": "Social",
+  "category.productivity": "Productivity",
+  "category.wellness": "Wellness",
+
+  // === language ===
+  "language.toggle": "언어설정 / Language",
+};
+
+export default en;

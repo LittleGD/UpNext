@@ -1,0 +1,218 @@
+"use client";
+
+import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, deleteDoc, type Unsubscribe } from "firebase/firestore";
+import { db, isFirebaseConfigured } from "@/lib/firebase";
+import { ALL_CARDS } from "@/data/cards";
+import type { DailyState, UserProgress } from "@/types/game";
+import type { ChallengeCard } from "@/types/card";
+
+// 카드 ID → ChallengeCard 매핑
+function hydrateCards(ids: string[]): ChallengeCard[] {
+  return ids
+    .map((id) => ALL_CARDS.find((c) => c.id === id))
+    .filter((c): c is ChallengeCard => c !== undefined);
+}
+
+// ChallengeCard[] → ID 배열
+function dehydrateCards(cards: ChallengeCard[]): string[] {
+  return cards.map((c) => c.id);
+}
+
+// Firestore 데이터 → DailyState (카드 ID 배열 → 풀 객체 복원)
+export function hydrateDaily(data: Record<string, unknown>): DailyState {
+  return {
+    date: (data.date as string) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })(),
+    drawnCards: hydrateCards((data.drawnCardIds as string[]) || []),
+    selectedCards: hydrateCards((data.selectedCardIds as string[]) || []),
+    completedIds: (data.completedIds as string[]) || [],
+    isDrawComplete: (data.isDrawComplete as boolean) || false,
+    isSelectionComplete: (data.isSelectionComplete as boolean) || false,
+    rerollUsed: (data.rerollUsed as boolean) || false,
+  };
+}
+
+// DailyState → Firestore 저장 형식 (카드 ID만)
+export function dehydrateDaily(daily: DailyState): Record<string, unknown> {
+  return {
+    date: daily.date,
+    drawnCardIds: dehydrateCards(daily.drawnCards),
+    selectedCardIds: dehydrateCards(daily.selectedCards),
+    completedIds: daily.completedIds,
+    isDrawComplete: daily.isDrawComplete,
+    isSelectionComplete: daily.isSelectionComplete,
+    rerollUsed: daily.rerollUsed,
+  };
+}
+
+// --- SyncManager ---
+
+let unsubscribe: Unsubscribe | null = null;
+let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSyncData: Record<string, unknown> = {};
+let currentUid: string | null = null;
+
+// 클라우드에서 로컬로 업데이트할 때 루프 방지 플래그
+let isUpdatingFromCloud = false;
+let cloudUpdatePromise: Promise<void> | null = null;
+
+export function isCloudUpdate(): boolean {
+  return isUpdatingFromCloud;
+}
+
+// 리스너 시작: Firestore 문서 변경 감지 → 콜백 호출
+export function startListener(
+  uid: string,
+  onCloudUpdate: (progress: UserProgress, daily: DailyState) => void,
+): void {
+  if (!isFirebaseConfigured) return;
+  stopListener();
+  currentUid = uid;
+
+  const docRef = doc(db!, "users", uid);
+  unsubscribe = onSnapshot(docRef, (snapshot) => {
+    const data = snapshot.data();
+    if (!data) return;
+    // 자기 쓰기 에코 무시
+    if (snapshot.metadata.hasPendingWrites) return;
+    // 이전 클라우드 업데이트가 진행 중이면 무시
+    if (isUpdatingFromCloud) return;
+
+    isUpdatingFromCloud = true;
+    cloudUpdatePromise = Promise.resolve().then(() => {
+      try {
+        const progress = data.progress as UserProgress;
+        const daily = hydrateDaily((data.daily as Record<string, unknown>) || {});
+        onCloudUpdate(progress, daily);
+      } finally {
+        isUpdatingFromCloud = false;
+        cloudUpdatePromise = null;
+      }
+    });
+  });
+}
+
+// 리스너 정지
+export function stopListener(): void {
+  if (unsubscribe) {
+    unsubscribe();
+    unsubscribe = null;
+  }
+  currentUid = null;
+  if (syncDebounceTimer) {
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = null;
+  }
+  pendingSyncData = {};
+}
+
+// 로컬 → 클라우드 동기화 (디바운스 300ms)
+export function syncToCloud(key: string, value: unknown): void {
+  if (!isFirebaseConfigured || !currentUid || isUpdatingFromCloud) return;
+
+  if (key === "progress") {
+    pendingSyncData.progress = value;
+  } else if (key === "daily") {
+    pendingSyncData.daily = dehydrateDaily(value as DailyState);
+  } else if (key === "onboarding_complete") {
+    pendingSyncData.onboardingComplete = value;
+  }
+
+  if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(() => {
+    flushSync();
+  }, 300);
+}
+
+async function flushSync(): Promise<void> {
+  if (!currentUid || Object.keys(pendingSyncData).length === 0) return;
+
+  const dataToSync = { ...pendingSyncData };
+  const docRef = doc(db!, "users", currentUid);
+  try {
+    await setDoc(
+      docRef,
+      {
+        ...dataToSync,
+        meta: {
+          lastSyncedAt: serverTimestamp(),
+          lastDeviceId: getDeviceId(),
+        },
+      },
+      { merge: true },
+    );
+    // 성공 시에만 전송된 데이터 제거 (그 사이 새 데이터가 추가됐을 수 있으므로)
+    for (const key of Object.keys(dataToSync)) {
+      if (pendingSyncData[key] === dataToSync[key]) {
+        delete pendingSyncData[key];
+      }
+    }
+  } catch (error) {
+    console.error("Failed to sync to cloud:", error);
+    // 실패 시 pendingSyncData 유지 → 다음 syncToCloud 호출 시 재시도
+  }
+}
+
+// 로컬 데이터를 클라우드에 초기 업로드
+export async function uploadLocalData(
+  uid: string,
+  progress: UserProgress,
+  daily: DailyState,
+): Promise<void> {
+  if (!isFirebaseConfigured) return;
+  const docRef = doc(db!, "users", uid);
+  await setDoc(docRef, {
+    progress,
+    daily: dehydrateDaily(daily),
+    onboardingComplete: true,
+    meta: {
+      createdAt: serverTimestamp(),
+      lastSyncedAt: serverTimestamp(),
+      lastDeviceId: getDeviceId(),
+    },
+  });
+}
+
+// 클라우드 데이터 최소 검증
+function isValidProgress(data: unknown): data is UserProgress {
+  if (!data || typeof data !== "object") return false;
+  const p = data as Record<string, unknown>;
+  return typeof p.totalDaysCompleted === "number" && Array.isArray(p.unlockedCardIds);
+}
+
+// 클라우드에 기존 데이터가 있는지 확인
+export async function getCloudData(
+  uid: string,
+): Promise<{ progress: UserProgress; daily: DailyState } | null> {
+  if (!isFirebaseConfigured) return null;
+  const docRef = doc(db!, "users", uid);
+  const snapshot = await getDoc(docRef);
+  if (!snapshot.exists()) return null;
+
+  const data = snapshot.data();
+  if (!isValidProgress(data.progress)) {
+    console.warn("Invalid cloud progress data, ignoring");
+    return null;
+  }
+  return {
+    progress: data.progress as UserProgress,
+    daily: hydrateDaily((data.daily as Record<string, unknown>) || {}),
+  };
+}
+
+// 클라우드 데이터 삭제
+export async function deleteCloudData(uid: string): Promise<void> {
+  if (!isFirebaseConfigured) return;
+  const docRef = doc(db!, "users", uid);
+  await deleteDoc(docRef);
+}
+
+// 기기 ID (간단한 랜덤)
+function getDeviceId(): string {
+  if (typeof window === "undefined") return "server";
+  let id = localStorage.getItem("upnext_device_id");
+  if (!id) {
+    id = Math.random().toString(36).substring(2, 10);
+    localStorage.setItem("upnext_device_id", id);
+  }
+  return id;
+}

@@ -1,0 +1,168 @@
+const ko = {
+  // === common ===
+  "common.next": "다음",
+  "common.cancel": "취소",
+  "common.confirm": "확인",
+  "common.start": "시작하기",
+  "common.done": "완료",
+  "common.change": "변경",
+  "common.default": "기본",
+  "common.recommended": "추천",
+  "common.equipped": "장착중",
+  "common.unequip": "해제",
+  "common.cardsPerDay": "장/일",
+
+  // === onboarding ===
+  "onboarding.desc1.title1": "매일 새로운 덱을",
+  "onboarding.desc1.accent": "짜고 실천하세요",
+  "onboarding.desc1.description": "카드를 뽑고 오늘의 챌린지 덱을 구성해보세요!",
+  "onboarding.desc2.title1": "당신의 갓생에",
+  "onboarding.desc2.accent": "도전하세요",
+  "onboarding.desc2.description": "모드를 선택해 난이도를 고르고, 완료하여 레벨업해보세요!",
+  "onboarding.difficulty.heading": "난이도를 선택하세요",
+  "onboarding.difficulty.subheading": "매일 선택할 챌린지 카드 수를 정해요",
+  "onboarding.difficulty.normal": "일반",
+  "onboarding.difficulty.normal.desc": "가볍게 시작하고 싶다면",
+  "onboarding.difficulty.godlife": "갓생",
+  "onboarding.difficulty.godlife.desc": "적당한 도전을 원한다면",
+  "onboarding.difficulty.ultra": "초갓생",
+  "onboarding.difficulty.ultra.desc": "하드코어 챌린저를 위해",
+  "onboarding.starter.heading": "스타터 팩을 뽑아보세요",
+  "onboarding.starter.subheading": "뽑은 팩의 6장 카드로 챌린지를 시작해요",
+  "onboarding.starter.revealMessage": "6장의 챌린지 카드를 획득했어요!",
+  "onboarding.starter.openPack": "카드팩 열기",
+  "onboarding.levelup.message": "레벨업! 카드팩을 뽑을 수 있어요",
+  "onboarding.levelup.button": "카드팩 뽑기",
+
+  // === splash ===
+  "splash.tagline": "매일 작은 성취를 쌓아가는 로그라이크 챌린지",
+
+  // === daily ===
+  "daily.draw.holding": "뽑는 중...",
+  "daily.draw.title": "오늘의 카드를 뽑아보세요!",
+  "daily.draw.holdHint": "계속 홀드하세요",
+  "daily.draw.instruction": "덱을 꾹 눌러 카드 6장을 뽑으세요",
+  "daily.draw.reroll": "리롤",
+  "daily.draw.rerollUsed": "리롤 사용됨",
+  "daily.draw.rerollConfirm": "카드를 다시 뽑으시겠어요?\n리롤은 하루에 한 번만 가능합니다.",
+  "daily.select.count": "{count}/{max} 선택됨",
+  "daily.select.heading": "{count}장을 선택하세요",
+  "daily.select.hint": "카드를 탭하거나 위로 밀어 프리뷰",
+  "daily.select.swipeHint": "밀어서 선택",
+  "daily.select.deselect": "선택 취소",
+  "daily.select.complete": "{count}장 선택 완료",
+  "daily.select.dragHint": "좌우로 드래그하여 확인하세요",
+  "daily.select.checkHint": "카드를 확인하세요",
+  "daily.select.confirmButton": "선택 확정하기",
+  "daily.board.heading": "오늘의 챌린지",
+  "daily.board.progress": "{done}/{total} 완료",
+  "daily.board.allDoneTitle": "오늘의 챌린지 완료!",
+  "daily.board.streak": "{days}일 연속 달성 중",
+  "daily.board.confirmPrompt": "이 챌린지를 완료하시겠어요?",
+  "daily.board.markDone": "완료하기",
+  "daily.board.completed": "완료됨",
+
+  // === cards ===
+  "cards.pack.newCards": "새로운 카드 획득!",
+  "cards.pack.addedToCollection": "컬렉션에 추가되었어요!",
+  "cards.pack.arriving": "새로운 카드팩이 도착했어요!",
+  "cards.pack.whatsInside": "어떤 카드가 들어있을까요?",
+
+  // === nav ===
+  "nav.challenge": "챌린지",
+  "nav.collection": "컬렉션",
+  "nav.settings": "설정",
+
+  // === settings ===
+  "settings.title": "설정",
+  "settings.sound.heading": "사운드",
+  "settings.sound.effects": "효과음",
+  "settings.mode.heading": "챌린지 모드",
+  "settings.mode.normal": "일반 모드",
+  "settings.mode.normal.desc": "가볍게 시작하고 싶다면",
+  "settings.mode.godlife": "갓생 모드",
+  "settings.mode.godlife.desc": "적당한 도전을 원한다면",
+  "settings.mode.ultra": "초갓생 모드",
+  "settings.mode.ultra.desc": "하드코어 챌린저를 위해",
+  "settings.mode.pendingBadge": "내일부터",
+  "settings.mode.confirmPrompt": "로 변경하시겠어요?",
+  "settings.mode.confirmDesc": "내일부터 하루에 {cards}장을 선택하게 됩니다",
+  "settings.titles.heading": "칭호",
+  "settings.titles.empty": "아직 획득한 칭호가 없어요. 챌린지를 완료하면 칭호를 얻을 수 있어요!",
+  "settings.stats.heading": "내 기록",
+  "settings.stats.currentStreak": "현재 연속",
+  "settings.stats.longestStreak": "최장 연속",
+  "settings.stats.totalXP": "총 경험치",
+  "settings.stats.unlockedCards": "해금된 카드",
+  "settings.stats.days": "일",
+  "settings.stats.cards": "장",
+  "settings.reset.button": "데이터 초기화 & 계정 연동 해제",
+  "settings.reset.confirmWithAccount": "모든 진행 데이터가 삭제되고 계정 연동이 해제됩니다. 정말 초기화할까요?",
+  "settings.reset.confirmLocal": "모든 진행 데이터가 삭제됩니다. 정말 초기화할까요?",
+
+  // === collection ===
+  "collection.tab.cards": "카드",
+  "collection.tab.titles": "칭호",
+  "collection.filter.all": "전체",
+  "collection.filter.owned": "보유",
+  "collection.filter.unowned": "미보유",
+  "collection.cards.empty": "해당하는 카드가 없어요",
+  "collection.titles.empty": "해당하는 칭호가 없어요",
+  "collection.titles.equipped": "장착 중",
+  "collection.titles.special": "특별 칭호",
+  "collection.titles.streak": "연속 달성 칭호",
+  "collection.titles.categoryTitles": "{category} 칭호",
+
+  // === auth ===
+  "auth.section.heading": "계정 연동",
+  "auth.section.user": "사용자",
+  "auth.section.syncing": "실시간 동기화 중",
+  "auth.section.signOut": "로그아웃",
+  "auth.section.prompt": "로그인하면 다른 기기에서도 진행 상황을 이어할 수 있어요",
+  "auth.section.signingIn": "로그인 중...",
+  "auth.section.signInGoogle": "Google로 로그인",
+  "auth.login.heading": "다른 기기에서도 이어하기",
+  "auth.login.description": "Google 계정으로 로그인하면 진행 상황이\n모든 기기에서 실시간으로 동기화돼요",
+  "auth.login.skip": "나중에 할게요",
+  "auth.login.skipHint": "설정에서 언제든 로그인할 수 있어요",
+  "auth.merge.heading": "데이터 충돌",
+  "auth.merge.description": "이 기기와 클라우드에 서로 다른 데이터가 있어요",
+  "auth.merge.useLocal": "이 기기 데이터 사용",
+  "auth.merge.useCloud": "클라우드 데이터 사용",
+  "auth.merge.daysCompleted": "일 완료",
+
+  // === rarity ===
+  "rarity.normal": "일반",
+  "rarity.rare": "레어",
+  "rarity.unique": "유니크",
+  "rarity.legend": "레전드",
+
+  // === mode ===
+  "mode.normal": "일반",
+  "mode.godlife": "갓생",
+  "mode.ultra": "초갓생",
+
+  // === level ===
+  "level.beginner": "입문자",
+  "level.newbie": "뉴비",
+  "level.challenger": "도전자",
+  "level.achiever": "실천가",
+  "level.gogetter": "갓생러",
+  "level.master": "마스터",
+  "level.legend": "레전드",
+
+  // === category ===
+  "category.fitness": "운동",
+  "category.nutrition": "식단",
+  "category.mindfulness": "마음챙김",
+  "category.learning": "학습",
+  "category.social": "소통",
+  "category.productivity": "생산성",
+  "category.wellness": "건강",
+
+  // === language ===
+  "language.toggle": "언어설정 / Language",
+} as const;
+
+export type DictKey = keyof typeof ko;
+export default ko;

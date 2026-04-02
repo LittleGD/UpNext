@@ -1,26 +1,260 @@
 @import "tailwindcss";
 
+/* === April16Promise — 디스플레이/헤딩 전용 폰트 === */
+@font-face {
+  font-family: 'April16Promise';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2404-2@1.0/April16th-Promise.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* === 디자인 토큰 === */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 배경 */
+  --bg-primary: #0A0A0A;
+  --bg-surface: #141414;
+  --bg-elevated: #1E1E1E;
+  --bg-hover: #282828;
+
+  /* 액센트 — Citric + Tangerine + Aquamarine */
+  --accent-primary: #CDF564;
+  --accent-secondary: #FF4632;
+  --accent-cyan: #9BF0E1;
+  --accent-blue: #4100F5;
+  --accent-fushia: #F037A5;
+
+  /* 텍스트 */
+  --text-primary: #F0F0F0;
+  --text-secondary: #808080;
+  --text-tertiary: #484848;
+
+  /* 등급 */
+  --rarity-normal: #808080;
+  --rarity-rare: #9BF0E1;
+  --rarity-unique: #F037A5;
+  --rarity-legend: #CDF564;
+
+  /* 폰트 — 전체 April16Promise 통일 */
+  --font-display: 'April16Promise', sans-serif;
+  --font-body: 'April16Promise', sans-serif;
+
+  /* 반경 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* base font size: 1rem = 16px */
+  font-size: 16px;
 }
 
+/* === Tailwind 테마 확장 === */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-hover: var(--bg-hover);
+  --color-accent: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-fushia: var(--accent-fushia);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-rarity-normal: var(--rarity-normal);
+  --color-rarity-rare: var(--rarity-rare);
+  --color-rarity-unique: var(--rarity-unique);
+  --color-rarity-legend: var(--rarity-legend);
+  --font-sans: 'April16Promise', sans-serif;
+  --font-display: 'April16Promise', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* === 기본 바디 === */
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'April16Promise', sans-serif;
+  font-size: 1rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === 타이포그래피 스케일 === */
+.text-display {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.text-heading-1 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.text-heading-2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.text-body {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.text-caption {
+  font-size: 0.8125rem; /* 13px — minimum readable size */
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+/* === 타이포그래피 반응형 스케일 (태블릿+) === */
+@media (min-width: 768px) {
+  .text-display { font-size: 3.25rem; }
+  .text-heading-1 { font-size: 2.125rem; }
+  .text-heading-2 { font-size: 1.5rem; }
+  .text-body { font-size: 1.125rem; }
+  .text-caption { font-size: 0.9375rem; }
+}
+
+@media (min-width: 1024px) {
+  .text-display { font-size: 3.75rem; }
+  .text-heading-1 { font-size: 2.5rem; }
+  .text-heading-2 { font-size: 1.75rem; }
+  .text-body { font-size: 1.25rem; }
+  .text-caption { font-size: 1rem; }
+}
+
+/* === 스켈레톤 shimmer === */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+/* === 모바일 safe area (개별 고정 요소에서 처리) === */
+
+/* === 스크롤바 === */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 2px; }
+
+/* === 수평 스크롤 (카드 덱) === */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* === Ambient 배경 — 하단 오로라 (블루/퍼플/핑크) === */
+/* === Aurora 배경 — 하단 오로라 물결 === */
+@keyframes aurora-drift {
+  0%, 100% {
+    transform: translateX(0%) translateY(0%) scaleX(1);
+  }
+  25% {
+    transform: translateX(3%) translateY(-8px) scaleX(1.05);
+  }
+  50% {
+    transform: translateX(-2%) translateY(4px) scaleX(0.97);
+  }
+  75% {
+    transform: translateX(-4%) translateY(-4px) scaleX(1.03);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes aurora-drift-alt {
+  0%, 100% {
+    transform: translateX(0%) translateY(0%) scaleX(1) rotate(0deg);
+  }
+  30% {
+    transform: translateX(-5%) translateY(6px) scaleX(1.08) rotate(0.5deg);
+  }
+  60% {
+    transform: translateX(4%) translateY(-6px) scaleX(0.95) rotate(-0.5deg);
+  }
+}
+
+@keyframes aurora-breathe {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.5; }
+}
+
+.ambient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* 레이어 1 — 딥 퍼플 베이스 (하단 넓게, 부드러운 확산) */
+.ambient-bg::before {
+  content: '';
+  position: absolute;
+  bottom: -15%;
+  left: -25%;
+  width: 150%;
+  height: 60%;
+  background:
+    radial-gradient(ellipse 100% 70% at 35% 90%, rgba(59, 7, 100, 0.45) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 60% at 65% 95%, rgba(30, 6, 56, 0.35) 0%, transparent 65%);
+  filter: blur(60px);
+  opacity: 0.8;
+  animation: aurora-drift 20s ease-in-out infinite;
+}
+
+/* 레이어 2 — 메인 오로라 밴드 (보라/마젠타 물결, 부드럽게) */
+.ambient-bg::after {
+  content: '';
+  position: absolute;
+  bottom: 5%;
+  left: -20%;
+  width: 140%;
+  height: 45%;
+  background:
+    radial-gradient(ellipse 70% 80% at 20% 60%, rgba(120, 40, 190, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 70% at 55% 55%, rgba(170, 50, 150, 0.15) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 75% at 85% 65%, rgba(90, 30, 170, 0.2) 0%, transparent 55%);
+  filter: blur(70px);
+  animation: aurora-drift-alt 25s ease-in-out infinite, aurora-breathe 8s ease-in-out infinite;
+}
+
+/* 레이어 3 — 오로라 상단 엣지 (미세한 하이라이트) */
+.ambient-orb {
+  position: absolute;
+  bottom: 20%;
+  left: -15%;
+  width: 130%;
+  height: 25%;
+  background:
+    radial-gradient(ellipse 50% 90% at 28% 55%, rgba(160, 120, 230, 0.1) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 80% at 72% 50%, rgba(220, 180, 240, 0.06) 0%, transparent 55%);
+  filter: blur(80px);
+  animation: aurora-drift 18s ease-in-out infinite;
+  animation-delay: -6s;
+  pointer-events: none;
+}
+
+/* === 그리드 시스템 — 얇은 그리드 라인 === */
+.grid-border {
+  border: 1px solid rgba(240, 240, 240, 0.06);
+}
+
+.grid-border-accent {
+  border: 1px solid rgba(205, 245, 100, 0.12);
+}
+
+/* === English font override === */
+html[lang="en"] {
+  --font-display: 'slight-chance-mono', sans-serif;
+  --font-body: 'slight-chance-mono', sans-serif;
+}
+
+html[lang="en"] body {
+  font-family: 'slight-chance-mono', sans-serif;
 }
