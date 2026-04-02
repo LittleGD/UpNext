@@ -6,6 +6,7 @@ import type { Language } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
 import type { TitleDefinition } from "@/types/title";
 import type { StarterPack } from "@/data/starterPacks";
+import { ALL_CARDS } from "@/data/cards";
 
 const dictionaries: Record<Language, Record<DictKey, string>> = { ko, en, ja, zh };
 
@@ -27,26 +28,41 @@ export function t(
   return text;
 }
 
+// Lazy-init card lookup map (handles cards persisted without translation fields)
+let _cardMap: Map<string, ChallengeCard> | null = null;
+function getCardMap(): Map<string, ChallengeCard> {
+  if (!_cardMap) {
+    _cardMap = new Map(ALL_CARDS.map((c) => [c.id, c]));
+  }
+  return _cardMap;
+}
+
+function resolveCard(card: ChallengeCard): ChallengeCard {
+  return getCardMap().get(card.id) ?? card;
+}
+
 /**
  * Get a card's title in the given language.
- * Falls back to Korean title if English is missing.
+ * Falls back to Korean title if translation is missing.
  */
 export function cardTitle(card: ChallengeCard, lang: Language): string {
-  if (lang === "en" && card.titleEn) return card.titleEn;
-  if (lang === "ja" && card.titleJa) return card.titleJa;
-  if (lang === "zh" && card.titleZh) return card.titleZh;
-  return card.title;
+  const c = resolveCard(card);
+  if (lang === "en" && c.titleEn) return c.titleEn;
+  if (lang === "ja" && c.titleJa) return c.titleJa;
+  if (lang === "zh" && c.titleZh) return c.titleZh;
+  return c.title;
 }
 
 /**
  * Get a card's description in the given language.
- * Falls back to Korean description if English is missing.
+ * Falls back to Korean description if translation is missing.
  */
 export function cardDesc(card: ChallengeCard, lang: Language): string {
-  if (lang === "en" && card.descriptionEn) return card.descriptionEn;
-  if (lang === "ja" && card.descriptionJa) return card.descriptionJa;
-  if (lang === "zh" && card.descriptionZh) return card.descriptionZh;
-  return card.description;
+  const c = resolveCard(card);
+  if (lang === "en" && c.descriptionEn) return c.descriptionEn;
+  if (lang === "ja" && c.descriptionJa) return c.descriptionJa;
+  if (lang === "zh" && c.descriptionZh) return c.descriptionZh;
+  return c.description;
 }
 
 /**
