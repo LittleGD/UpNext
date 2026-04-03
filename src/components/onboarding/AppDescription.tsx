@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { springBouncy } from "@/lib/motion";
@@ -44,6 +44,10 @@ export default function AppDescription({ onNext }: AppDescriptionProps) {
   const [page, setPage] = useState(0);
   const { t } = useTranslation();
   const { play } = useSound();
+
+  // 초기 마운트 시 진입 애니메이션 비활성 → LCP = FCP (SSR 콘텐츠 그대로 유지)
+  const isInitialMount = useRef(true);
+  useEffect(() => { isInitialMount.current = false; }, []);
 
   // Play sound effect when page changes
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function AppDescription({ onNext }: AppDescriptionProps) {
         <AnimatePresence mode="wait">
           <motion.div
             key={page}
-            initial={{ opacity: 0, x: 80 }}
+            initial={isInitialMount.current ? false : { opacity: 0, x: 80 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -80 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
