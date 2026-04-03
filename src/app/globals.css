@@ -1,13 +1,5 @@
 @import "tailwindcss";
 
-/* === April16Promise — 디스플레이/헤딩 전용 폰트 === */
-@font-face {
-  font-family: 'April16Promise';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2404-2@1.0/April16th-Promise.woff2') format('woff2');
-  font-weight: 400;
-  font-display: swap;
-}
-
 /* === 디자인 토큰 === */
 :root {
   /* 배경 */
@@ -34,9 +26,9 @@
   --rarity-unique: #F037A5;
   --rarity-legend: #CDF564;
 
-  /* 폰트 — 전체 April16Promise 통일 */
-  --font-display: 'April16Promise', sans-serif;
-  --font-body: 'April16Promise', sans-serif;
+  /* 폰트 — CSS variable 기반 (next/font에서 주입) */
+  --font-display: var(--font-april16), sans-serif;
+  --font-body: var(--font-april16), sans-serif;
 
   /* 반경 */
   --radius-sm: 4px;
@@ -65,15 +57,15 @@
   --color-rarity-rare: var(--rarity-rare);
   --color-rarity-unique: var(--rarity-unique);
   --color-rarity-legend: var(--rarity-legend);
-  --font-sans: 'April16Promise', sans-serif;
-  --font-display: 'April16Promise', sans-serif;
+  --font-sans: var(--font-april16), sans-serif;
+  --font-display: var(--font-april16), sans-serif;
 }
 
 /* === 기본 바디 === */
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'April16Promise', sans-serif;
+  font-family: var(--font-april16), sans-serif;
   font-size: 1rem;
   -webkit-font-smoothing: antialiased;
 }
@@ -249,7 +241,7 @@ body {
   border: 1px solid rgba(205, 245, 100, 0.12);
 }
 
-/* === English font override === */
+/* === English font override (Typekit — 비동기 로딩) === */
 html[lang="en"] {
   --font-display: 'slight-chance-mono', sans-serif;
   --font-body: 'slight-chance-mono', sans-serif;
@@ -259,20 +251,20 @@ html[lang="en"] body {
   font-family: 'slight-chance-mono', sans-serif;
 }
 
-/* === Japanese font override === */
+/* === Japanese font override (next/font/google 셀프호스팅) === */
 html[lang="ja"] {
-  --font-display: 'WDXL Lubrifont JP N', sans-serif;
-  --font-body: 'WDXL Lubrifont JP N', sans-serif;
+  --font-display: var(--font-wdxl), sans-serif;
+  --font-body: var(--font-wdxl), sans-serif;
 }
 html[lang="ja"] body {
-  font-family: 'WDXL Lubrifont JP N', sans-serif;
+  font-family: var(--font-wdxl), sans-serif;
 }
 
-/* === Chinese font override === */
+/* === Chinese font override (next/font/google 셀프호스팅) === */
 html[lang="zh"] {
-  --font-display: 'ZCOOL QingKe HuangYou', sans-serif;
-  --font-body: 'ZCOOL QingKe HuangYou', sans-serif;
+  --font-display: var(--font-zcool), sans-serif;
+  --font-body: var(--font-zcool), sans-serif;
 }
 html[lang="zh"] body {
-  font-family: 'ZCOOL QingKe HuangYou', sans-serif;
+  font-family: var(--font-zcool), sans-serif;
 }

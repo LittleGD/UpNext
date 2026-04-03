@@ -1,17 +1,35 @@
 import type { Metadata, Viewport } from "next";
-import { Orbit } from "next/font/google";
+import localFont from "next/font/local";
+import { WDXL_Lubrifont_JP_N, ZCOOL_QingKe_HuangYou } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import BottomNav from "@/components/layout/BottomNav";
 import SyncProvider from "@/components/providers/SyncProvider";
 import LanguageSync from "@/components/providers/LanguageSync";
-import PixelStars from "@/components/effects/PixelStars";
-import AmbientBackground from "@/components/effects/AmbientBackground";
+import ClientEffects from "@/components/effects/ClientEffects";
 
-const orbit = Orbit({
-  variable: "--font-orbit",
-  subsets: ["latin"],
+// ── Phase 1A: April16Promise 로컬 셀프호스팅 ──
+const april16 = localFont({
+  src: "./fonts/April16th-Promise.woff2",
+  variable: "--font-april16",
+  display: "swap",
   weight: "400",
+});
+
+// ── Phase 1B: Google Fonts → next/font/google (JA/ZH) ──
+const wdxlLubrifont = WDXL_Lubrifont_JP_N({
+  variable: "--font-wdxl",
+  display: "swap",
+  weight: "400",
+  preload: false,
+});
+
+const zcoolQingKe = ZCOOL_QingKe_HuangYou({
+  variable: "--font-zcool",
+  display: "swap",
+  weight: "400",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -45,16 +63,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`${orbit.variable} dark h-full`}>
+    <html
+      lang="ko"
+      className={`${april16.variable} ${wdxlLubrifont.variable} ${zcoolQingKe.variable} dark h-full`}
+    >
       <head>
-        <link rel="stylesheet" href="https://use.typekit.net/cdr3qvu.css" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=WDXL+Lubrifont+JP+N&family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet" />
+        {/* Phase 1C: Typekit (EN 폰트) 비동기 로딩 — 렌더 블로킹 제거 */}
+        <Script id="typekit-loader" strategy="afterInteractive">{`
+          (function(){
+            var l=document.createElement('link');
+            l.rel='stylesheet';
+            l.href='https://use.typekit.net/cdr3qvu.css';
+            document.head.appendChild(l);
+          })();
+        `}</Script>
       </head>
       <body className="min-h-full flex flex-col bg-bg-primary font-sans antialiased">
-        <AmbientBackground />
-        <PixelStars />
+        <ClientEffects />
         <SyncProvider>
           <LanguageSync />
           <Header />

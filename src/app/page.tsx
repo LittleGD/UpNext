@@ -5,10 +5,23 @@ import { useGameStore } from "@/store/useGameStore";
 import { loadFromStorage } from "@/lib/storage";
 import CardDrawScreen from "@/components/daily/CardDrawScreen";
 import DailyBoard from "@/components/daily/DailyBoard";
-import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
-import CardPackOpener from "@/components/cards/CardPackOpener";
-import LoginOverlay from "@/components/auth/LoginOverlay";
+import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
+
+// ── Phase 4: 조건부 컴포넌트 동적 import ──
+// OnboardingFlow, CardPackOpener, LoginOverlay는 조건부 렌더링이므로 초기 번들 불필요
+const OnboardingFlow = dynamic(
+  () => import("@/components/onboarding/OnboardingFlow"),
+  { ssr: false },
+);
+const CardPackOpener = dynamic(
+  () => import("@/components/cards/CardPackOpener"),
+  { ssr: false },
+);
+const LoginOverlay = dynamic(
+  () => import("@/components/auth/LoginOverlay"),
+  { ssr: false },
+);
 
 export default function Home() {
   const initialize = useGameStore((s) => s.initialize);

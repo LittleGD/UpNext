@@ -1,10 +1,30 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 /**
  * Aurora ambient background — rendered with inline styles
  * to avoid CSS purge issues in production builds.
+ *
+ * Phase 3B: requestIdleCallback으로 마운트 지연
+ * → FCP 시점의 GPU 블러 연산 제거
  */
 export default function AmbientBackground() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(() => setReady(true));
+      return () => window.cancelIdleCallback(id);
+    } else {
+      // Safari fallback
+      const timer = setTimeout(() => setReady(true), 200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  if (!ready) return null;
+
   return (
     <div
       style={{
