@@ -794,7 +794,7 @@ export default function CardDrawScreen() {
               exit={{ y: 100, opacity: 0 }}
               transition={springSnappy}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm bg-bg-elevated rounded-lg p-6 space-y-4"
+              className="w-full max-w-sm bg-bg-elevated rounded-2xl p-6 space-y-4"
             >
               <div className="flex items-center justify-center gap-2">
                 <PixelIcon name="Reload" size={24} color="var(--accent-primary)" />

@@ -42,14 +42,14 @@ export default function LoginOverlay({ onDismiss }: { onDismiss: () => void }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
     >
       <motion.div
         initial={{ y: 40, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: 40, opacity: 0, scale: 0.95 }}
         transition={springSnappy}
-        className="w-full max-w-sm bg-bg-elevated rounded-xl px-6 pt-8 pb-6 space-y-6"
+        className="w-full max-w-sm bg-bg-elevated rounded-2xl px-6 pt-8 pb-6 space-y-6"
       >
         {/* 아이콘 + 제목 */}
         <div className="text-center space-y-3">

@@ -65,7 +65,7 @@ export default function LanguageToggle() {
               exit={{ y: 100, opacity: 0 }}
               transition={springSnappy}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm bg-bg-elevated rounded-lg p-5"
+              className="w-full max-w-sm bg-bg-elevated rounded-2xl p-5"
             >
               <p className="text-body text-text-primary text-center font-semibold mb-3">
                 {t("language.toggle")}
