@@ -251,20 +251,20 @@ html[lang="en"] body {
   font-family: 'slight-chance-mono', sans-serif;
 }
 
-/* === Japanese font override (next/font/google 셀프호스팅) === */
+/* === Japanese font override (Google Fonts — 동적 로딩) === */
 html[lang="ja"] {
-  --font-display: var(--font-wdxl), sans-serif;
-  --font-body: var(--font-wdxl), sans-serif;
+  --font-display: 'WDXL Lubrifont JP N', sans-serif;
+  --font-body: 'WDXL Lubrifont JP N', sans-serif;
 }
 html[lang="ja"] body {
-  font-family: var(--font-wdxl), sans-serif;
+  font-family: 'WDXL Lubrifont JP N', sans-serif;
 }
 
-/* === Chinese font override (next/font/google 셀프호스팅) === */
+/* === Chinese font override (Google Fonts — 동적 로딩) === */
 html[lang="zh"] {
-  --font-display: var(--font-zcool), sans-serif;
-  --font-body: var(--font-zcool), sans-serif;
+  --font-display: 'ZCOOL QingKe HuangYou', sans-serif;
+  --font-body: 'ZCOOL QingKe HuangYou', sans-serif;
 }
 html[lang="zh"] body {
-  font-family: var(--font-zcool), sans-serif;
+  font-family: 'ZCOOL QingKe HuangYou', sans-serif;
 }
