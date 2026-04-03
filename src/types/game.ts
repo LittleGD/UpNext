@@ -19,6 +19,13 @@ export const PHASE_MIN_CARDS: Record<ChallengePhase, number> = {
   super: 4,
 };
 
+// 단계별 최대 선택 카드 수 (daily는 MODE_CARD_COUNT 사용)
+export const PHASE_MAX_CARDS: Record<ChallengePhase, number> = {
+  daily: 0,
+  extra: 3,
+  super: 5,
+};
+
 // 단계별 XP 배율
 export const PHASE_XP_MULTIPLIER: Record<ChallengePhase, number> = {
   daily: 1,

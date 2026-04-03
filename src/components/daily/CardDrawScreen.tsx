@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useGameStore } from "@/store/useGameStore";
-import { MODE_CARD_COUNT, PHASE_MIN_CARDS } from "@/types/game";
+import { MODE_CARD_COUNT, PHASE_MIN_CARDS, PHASE_MAX_CARDS } from "@/types/game";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import type { ChallengeCard } from "@/types/card";
 import {
@@ -57,7 +57,7 @@ export default function CardDrawScreen() {
     : daily.isDrawComplete;
 
   // daily: 정확히 MODE_CARD_COUNT장, extra/super: 최대 6장 (최소 PHASE_MIN_CARDS)
-  const maxCards = phase === "daily" ? MODE_CARD_COUNT[progress.mode] : 6;
+  const maxCards = phase === "daily" ? MODE_CARD_COUNT[progress.mode] : PHASE_MAX_CARDS[phase];
   const minCards = phase === "daily" ? MODE_CARD_COUNT[progress.mode] : PHASE_MIN_CARDS[phase];
   const selectedCount = phaseSelectedCards.length;
   const isSelectionFull = selectedCount >= maxCards;
@@ -711,11 +711,35 @@ export default function CardDrawScreen() {
               </motion.div>
             )}
 
-            <p className="text-lg font-semibold text-text-primary">
-              {phase === "daily"
-                ? t("daily.select.heading", { count: maxCards })
-                : t("daily.select.heading", { count: `${minCards}+` })}
-            </p>
+            {phase === "super" ? (
+              <p className="text-lg font-semibold text-text-primary">
+                {t("daily.select.heading", { count: `${minCards}+` }).split("").map((char, i) => (
+                  <motion.span
+                    key={i}
+                    animate={{
+                      y: [0, -1.5, 1.5, -1, 0.5, 0],
+                      x: [0, 0.8, -0.8, 0.5, -0.3, 0],
+                      rotate: [0, -2, 2, -1, 0],
+                    }}
+                    transition={{
+                      duration: 0.5,
+                      repeat: Infinity,
+                      delay: i * 0.04,
+                      ease: "easeInOut",
+                    }}
+                    style={{ display: "inline-block", whiteSpace: char === " " ? "pre" : undefined }}
+                  >
+                    {char}
+                  </motion.span>
+                ))}
+              </p>
+            ) : (
+              <p className="text-lg font-semibold text-text-primary">
+                {phase === "daily"
+                  ? t("daily.select.heading", { count: maxCards })
+                  : t("daily.select.heading", { count: `${minCards}+` })}
+              </p>
+            )}
             <p className="text-[12px] text-text-tertiary">
               {t("daily.select.hint")}
             </p>
