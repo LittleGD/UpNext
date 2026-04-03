@@ -206,6 +206,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       progress.xp = expectedXP;
     }
 
+    // XP가 현재 레벨을 초과했으면 레벨업 처리
+    const correctLevel = getLevelFromXP(progress.xp || 0);
+    if (correctLevel > progress.level) {
+      const levelsGained = correctLevel - progress.level;
+      progress.level = correctLevel;
+      progress.pendingPacks = (progress.pendingPacks || 0) + levelsGained;
+    }
+
     const isOpeningPack = (progress.pendingPacks || 0) > 0;
     set({ daily, progress, isLoaded: true, hasCompletedOnboarding: !!savedOnboarding, isOpeningPack });
     saveToStorage("progress", progress);
