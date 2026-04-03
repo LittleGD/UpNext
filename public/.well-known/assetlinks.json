@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.upnext",
+      "sha256_cert_fingerprints": [
+        "3C:4C:12:EE:48:02:B3:71:D8:6B:2A:BE:59:7B:84:81:3E:27:4F:35:5D:8F:3E:F3:BE:55:14:74:41:7F:78:EB"
+      ]
+    }
+  }
+]

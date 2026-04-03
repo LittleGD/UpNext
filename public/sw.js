@@ -47,16 +47,21 @@ self.addEventListener("fetch", (event) => {
 
 // Push notification 처리
 self.addEventListener("push", (event) => {
-  if (event.data) {
+  if (!event.data) return;
+  try {
     const data = event.data.json();
+    const title = data.title || "UpNext";
+    const body = data.body || "";
     event.waitUntil(
-      self.registration.showNotification(data.title, {
-        body: data.body,
+      self.registration.showNotification(title, {
+        body,
         icon: "/icons/icon-192x192.png",
         badge: "/icons/icon-192x192.png",
         vibrate: [100, 50, 100],
       })
     );
+  } catch (_) {
+    // malformed push payload — skip
   }
 });
 

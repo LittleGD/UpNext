@@ -1,0 +1,33 @@
+{
+  "packageId": "app.vercel.upnext",
+  "host": "up-next-phi.vercel.app",
+  "name": "UpNext — 매일 새로운 챌린지",
+  "launcherName": "UpNext",
+  "display": "standalone",
+  "themeColor": "#0A0A0A",
+  "themeColorDark": "#0A0A0A",
+  "navigationColor": "#0A0A0A",
+  "navigationColorDark": "#0A0A0A",
+  "navigationDividerColor": "#0A0A0A",
+  "navigationDividerColorDark": "#0A0A0A",
+  "backgroundColor": "#0A0A0A",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://up-next-phi.vercel.app/icons/icon-512x512.png",
+  "maskableIconUrl": "https://up-next-phi.vercel.app/icons/icon-maskable-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "upnext"
+  },
+  "appVersionCode": 1,
+  "appVersionName": "1.0.0",
+  "shortcuts": [],
+  "generatorApp": "nicorighi",
+  "webManifestUrl": "https://up-next-phi.vercel.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "orientation": "default",
+  "fingerprints": []
+}
