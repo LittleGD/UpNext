@@ -56,6 +56,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
+      suppressHydrationWarning
       className={`${april16.variable} dark h-full`}
     >
       <head>
