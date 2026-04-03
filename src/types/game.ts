@@ -169,11 +169,6 @@ export function getTitleForLevel(level: number, lang: Language = "ko"): string {
   return titles[6];
 }
 
-// === 레거시 호환 ===
-export function daysToNextLevel(level: number): number {
-  return Math.min(level, 7);
-}
-
 // === 모드별 선택 카드 수 ===
 export const MODE_CARD_COUNT: Record<GameMode, number> = {
   normal: 1,

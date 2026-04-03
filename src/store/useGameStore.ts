@@ -459,6 +459,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       (c) => !progress.unlockedCardIds.includes(c.id)
     );
 
+    // 해금할 카드가 없으면 남은 팩을 전부 소진
+    if (lockedCards.length === 0) {
+      const updatedProgress = { ...progress, pendingPacks: 0 };
+      set({ progress: updatedProgress });
+      saveToStorage("progress", updatedProgress);
+      return [];
+    }
+
     const newCards = drawFromPool(lockedCards, 3);
 
     const updatedProgress = {

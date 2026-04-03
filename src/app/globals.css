@@ -152,11 +152,11 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   html[lang="ja"] .typo-heading,
   html[lang="zh"] .typo-heading { font-size: 24px; }
   html[lang="ja"] .typo-body,
-  html[lang="zh"] .typo-body    { font-size: 18px; }
+  html[lang="zh"] .typo-body    { font-size: 19px; }
   html[lang="ja"] .typo-caption,
-  html[lang="zh"] .typo-caption { font-size: 15px; }
+  html[lang="zh"] .typo-caption { font-size: 17px; }
   html[lang="ja"] .typo-micro,
-  html[lang="zh"] .typo-micro   { font-size: 13px; }
+  html[lang="zh"] .typo-micro   { font-size: 14px; }
 }
 
 @media (min-width: 1024px) {

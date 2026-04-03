@@ -321,7 +321,7 @@ export default function SettingsPage() {
                   {t("common.cancel")}
                 </button>
                 <button
-                  onClick={() => { play("confirm"); handleModeConfirm(); }}
+                  onClick={handleModeConfirm}
                   className="px-6 py-3 rounded-md bg-accent text-bg-primary typo-body"
                 >
                   {t("common.change")}
