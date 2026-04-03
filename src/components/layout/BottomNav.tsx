@@ -33,7 +33,7 @@ export default function BottomNav() {
   const maxCards = MODE_CARD_COUNT[progress.mode];
   const phase = daily.challengePhase || "daily";
 
-  // daily: 선택 리뷰 화면
+  // 선택 리뷰 화면 (선택 완료 but 미확정) — 모든 phase 공통
   const isDailySelectionReview =
     pathname === "/" &&
     phase === "daily" &&
@@ -41,15 +41,23 @@ export default function BottomNav() {
     !daily.isSelectionComplete &&
     daily.selectedCards.length >= maxCards;
 
-  // extra/super: 카드 드로우/선택 전체 화면 (CardDrawScreen이 보이는 동안)
-  const isPhaseDrawScreen =
+  const isExtraSelectionReview =
     pathname === "/" &&
-    phase !== "daily" && (
-      (phase === "extra" && !(daily.extraSelectionComplete ?? false)) ||
-      (phase === "super" && !(daily.superSelectionComplete ?? false))
-    );
+    phase === "extra" &&
+    (daily.extraDrawComplete ?? false) &&
+    !(daily.extraSelectionComplete ?? false) &&
+    (daily.extraSelectedCards?.length ?? 0) >= 2;
 
-  if (!isLoaded || !hasCompletedOnboarding || isDailySelectionReview || isPhaseDrawScreen || isOpeningPack) return null;
+  const isSuperSelectionReview =
+    pathname === "/" &&
+    phase === "super" &&
+    (daily.superDrawComplete ?? false) &&
+    !(daily.superSelectionComplete ?? false) &&
+    (daily.superSelectedCards?.length ?? 0) >= 4;
+
+  const isSelectionReview = isDailySelectionReview || isExtraSelectionReview || isSuperSelectionReview;
+
+  if (!isLoaded || !hasCompletedOnboarding || isSelectionReview || isOpeningPack) return null;
 
   return (
     <nav className="fixed bottom-5 left-1/2 -translate-x-1/2 z-10 pb-[env(safe-area-inset-bottom)]">
