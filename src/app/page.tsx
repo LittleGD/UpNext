@@ -5,15 +5,12 @@ import { useGameStore } from "@/store/useGameStore";
 import { loadFromStorage } from "@/lib/storage";
 import CardDrawScreen from "@/components/daily/CardDrawScreen";
 import DailyBoard from "@/components/daily/DailyBoard";
+import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
 
-// ── Phase 4: 조건부 컴포넌트 동적 import ──
-// OnboardingFlow, CardPackOpener, LoginOverlay는 조건부 렌더링이므로 초기 번들 불필요
-const OnboardingFlow = dynamic(
-  () => import("@/components/onboarding/OnboardingFlow"),
-  { ssr: false },
-);
+// CardPackOpener, LoginOverlay만 동적 — 진짜 조건부 렌더링 컴포넌트
+// OnboardingFlow는 LCP 요소이므로 정적 import 유지
 const CardPackOpener = dynamic(
   () => import("@/components/cards/CardPackOpener"),
   { ssr: false },
@@ -33,7 +30,6 @@ export default function Home() {
 
   const [showLoginOverlay, setShowLoginOverlay] = useState(false);
 
-  // 온보딩 완료 후 + 첫 드로우 전 + 로그인 프롬프트 미확인 시 오버레이 표시
   useEffect(() => {
     if (isLoaded && hasCompletedOnboarding && !daily.isDrawComplete) {
       const seen = loadFromStorage<boolean>("login_prompt_seen");
