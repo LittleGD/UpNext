@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "@/hooks/useTranslation";
+import Image from "next/image";
 
 function Logo({ className = "" }: { className?: string }) {
   return (
@@ -23,35 +24,83 @@ interface SplashScreenProps {
 
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
   const { t } = useTranslation();
+  const [phase, setPhase] = useState<"icon" | "morph" | "logo">("icon");
 
   useEffect(() => {
-    const timer = setTimeout(onComplete, 2500);
-    return () => clearTimeout(timer);
+    // 아이콘 표시 → 모핑 시작 → 로고 완성 → 완료
+    const t1 = setTimeout(() => setPhase("morph"), 600);
+    const t2 = setTimeout(() => setPhase("logo"), 1200);
+    const t3 = setTimeout(onComplete, 2800);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [onComplete]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-bg-primary">
-      <motion.div
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      >
-        <Logo className="text-text-primary" />
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="mt-4 text-text-secondary text-body"
+      <div className="relative w-40 h-40 flex items-center justify-center">
+        {/* Phase 1: 앱 아이콘 (사각형) */}
+        <AnimatePresence>
+          {phase === "icon" && (
+            <motion.div
+              key="icon"
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.2, opacity: 0, filter: "blur(8px)" }}
+              transition={{ type: "spring", duration: 0.5, bounce: 0 }}
+              className="absolute"
+            >
+              <Image
+                src="/icons/icon-192x192.png"
+                alt="UpNext"
+                width={96}
+                height={96}
+                className="rounded-2xl"
+                priority
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Phase 2-3: SVG 로고 */}
+        <AnimatePresence>
+          {(phase === "morph" || phase === "logo") && (
+            <motion.div
+              key="logo"
+              initial={{ scale: 0.25, opacity: 0, filter: "blur(4px)" }}
+              animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
+              transition={{ type: "spring", duration: 0.6, bounce: 0 }}
+              className="absolute"
+            >
+              <Logo className="text-accent" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* 태그라인 */}
+      <motion.p
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: phase === "logo" ? 0.6 : 0, y: phase === "logo" ? 0 : 8 }}
+        transition={{ duration: 0.5 }}
+        className="mt-6 typo-caption text-text-secondary text-center"
+        style={{ textWrap: "balance" } as React.CSSProperties}
       >
         {t("splash.tagline")}
-      </motion.div>
+      </motion.p>
+
+      {/* 로딩 바 */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 1, 0] }}
-        transition={{ delay: 1, duration: 1.5, repeat: Infinity }}
-        className="absolute bottom-12 w-12 h-1 rounded-sm bg-accent/30"
-      />
+        animate={{ opacity: phase === "logo" ? 1 : 0 }}
+        transition={{ delay: 0.3 }}
+        className="absolute bottom-12 w-12 h-1 rounded-full overflow-hidden bg-bg-elevated"
+      >
+        <motion.div
+          className="h-full bg-accent/40 rounded-full"
+          initial={{ width: "0%" }}
+          animate={{ width: phase === "logo" ? "100%" : "0%" }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
+        />
+      </motion.div>
     </div>
   );
 }

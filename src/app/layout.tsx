@@ -7,6 +7,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import SyncProvider from "@/components/providers/SyncProvider";
 import LanguageSync from "@/components/providers/LanguageSync";
 import ClientEffects from "@/components/effects/ClientEffects";
+import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
 
 // ── April16Promise 로컬 셀프호스팅 ──
 // display: "optional" → 100ms 내 로딩 못하면 시스템 폰트 유지
@@ -72,6 +73,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-bg-primary font-sans antialiased">
         <ClientEffects />
+        <ServiceWorkerRegistrar />
         <SyncProvider>
           <LanguageSync />
           <Header />

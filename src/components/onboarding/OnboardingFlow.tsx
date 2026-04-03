@@ -14,9 +14,15 @@ type Step = "splash" | "description" | "difficulty" | "starter-pack" | "level-up
 
 const INDICATOR_STEPS: Step[] = ["description", "difficulty", "starter-pack", "level-up"];
 
+function isStandalone() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches
+    || (navigator as unknown as { standalone?: boolean }).standalone === true;
+}
+
 export default function OnboardingFlow() {
-  // splash 스킵 → description에서 시작 (LCP 2.5초 단축)
-  const [step, setStep] = useState<Step>("description");
+  // PWA standalone → 스플래시 표시, 브라우저 → 스킵 (LCP 최적화)
+  const [step, setStep] = useState<Step>(() => isStandalone() ? "splash" : "description");
   const setMode = useGameStore((s) => s.setMode);
   const selectStarterPack = useGameStore((s) => s.selectStarterPack);
   const completeOnboarding = useGameStore((s) => s.completeOnboarding);
