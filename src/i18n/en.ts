@@ -59,6 +59,7 @@ const en: Record<DictKey, string> = {
   "daily.board.heading": "Today's Challenges",
   "daily.board.progress": "{done}/{total} done",
   "daily.board.allDoneTitle": "All challenges complete!",
+  "daily.board.doneGuide": "Try an extra challenge below",
   "daily.board.streak": "{days}-day streak",
   "daily.board.confirmPrompt": "Mark this challenge as done?",
   "daily.board.markDone": "Mark Complete",
@@ -76,6 +77,7 @@ const en: Record<DictKey, string> = {
   "extra.confirm.rest": "Take a Rest",
   "extra.board.heading": "Extra Challenge",
   "extra.complete.title": "Extra Challenge Cleared!",
+  "extra.complete.guide": "The Super Ultra Challenge awaits below",
 
   // === super ===
   "super.banner.title": "Super Ultra Challenge Unlocked",
@@ -87,6 +89,7 @@ const en: Record<DictKey, string> = {
   "super.confirm.rest": "That's Enough for Today",
   "super.board.heading": "Super Ultra Challenge",
   "super.complete.title": "Super Ultra Challenge Cleared!!",
+  "super.complete.guide": "You've conquered every challenge today!\nNew challenges arrive tomorrow",
 
   // === cards ===
   "cards.pack.newCards": "New cards unlocked!",

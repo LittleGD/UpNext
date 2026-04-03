@@ -171,7 +171,7 @@ function CatchStarGame({ active }: { active: boolean }) {
 }
 
 // === Completion celebration ===
-function CompletionCard() {
+function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
   const progress = useGameStore((s) => s.progress);
   const { t, language } = useTranslation();
   const { play } = useSound();
@@ -267,8 +267,11 @@ function CompletionCard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           className="typo-display text-bg-primary mt-3 text-center"
+          style={{ textWrap: "balance" } as React.CSSProperties}
         >
-          {t("daily.board.allDoneTitle")}
+          {phase === "extra" ? t("extra.complete.title")
+            : phase === "super" ? t("super.complete.title")
+            : t("daily.board.allDoneTitle")}
         </motion.p>
 
         {/* Streak with counting animation */}
@@ -304,6 +307,19 @@ function CompletionCard() {
             />
           </div>
         </motion.div>
+
+        {/* Phase-specific guide message */}
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="typo-caption text-bg-primary/50 mt-4 text-center whitespace-pre-line leading-relaxed"
+          style={{ textWrap: "balance" } as React.CSSProperties}
+        >
+          {phase === "extra" ? t("extra.complete.guide")
+            : phase === "super" ? t("super.complete.guide")
+            : t("daily.board.doneGuide")}
+        </motion.p>
 
         {/* Mini-game hint after 3 taps */}
         <AnimatePresence>
@@ -441,7 +457,7 @@ export default function DailyBoard() {
       <PixelConfetti trigger={showConfetti} />
 
       {/* Completion card */}
-      {allDone && <CompletionCard />}
+      {allDone && <CompletionCard phase={phase} />}
 
       {/* 추가 챌린지 배너 — daily 완료 후, extra 미시작 */}
       {phase === "daily" && dailyAllDone && (

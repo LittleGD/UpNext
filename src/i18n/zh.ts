@@ -59,6 +59,7 @@ const zh: Record<DictKey, string> = {
   "daily.board.heading": "今日挑战",
   "daily.board.progress": "{done}/{total} 已完成",
   "daily.board.allDoneTitle": "今日挑战全部完成！",
+  "daily.board.doneGuide": "可以在下方尝试附加挑战哦",
   "daily.board.streak": "已连续打卡 {days} 天",
   "daily.board.confirmPrompt": "确认完成这个挑战吗？",
   "daily.board.markDone": "完成",
@@ -76,6 +77,7 @@ const zh: Record<DictKey, string> = {
   "extra.confirm.rest": "休息一下",
   "extra.board.heading": "附加挑战",
   "extra.complete.title": "附加挑战完成！",
+  "extra.complete.guide": "超级挑战正在下方等着你",
 
   // === super ===
   "super.banner.title": "今日超级挑战已解锁",
@@ -87,6 +89,7 @@ const zh: Record<DictKey, string> = {
   "super.confirm.rest": "今天到此为止",
   "super.board.heading": "超级挑战",
   "super.complete.title": "超级挑战完成！！",
+  "super.complete.guide": "你征服了今天所有的挑战！\n明天会有新的挑战等着你",
 
   // === cards ===
   "cards.pack.newCards": "获得新卡牌！",

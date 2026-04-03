@@ -59,6 +59,7 @@ const ja: Record<DictKey, string> = {
   "daily.board.heading": "今日のチャレンジ",
   "daily.board.progress": "{done}/{total} 完了",
   "daily.board.allDoneTitle": "今日のチャレンジ達成!",
+  "daily.board.doneGuide": "下から追加チャレンジに挑戦できるよ",
   "daily.board.streak": "{days}日連続達成中",
   "daily.board.confirmPrompt": "このチャレンジを完了しますか?",
   "daily.board.markDone": "完了する",
@@ -76,6 +77,7 @@ const ja: Record<DictKey, string> = {
   "extra.confirm.rest": "休憩する",
   "extra.board.heading": "追加チャレンジ",
   "extra.complete.title": "追加チャレンジクリア！",
+  "extra.complete.guide": "スーパーチャレンジが下で待ってるよ",
 
   // === super ===
   "super.banner.title": "本日のスーパーチャレンジ解放",
@@ -87,6 +89,7 @@ const ja: Record<DictKey, string> = {
   "super.confirm.rest": "今日はここまで",
   "super.board.heading": "スーパーチャレンジ",
   "super.complete.title": "スーパーチャレンジクリア！！",
+  "super.complete.guide": "今日の全チャレンジを達成したよ！\n明日また新しいチャレンジが届くよ",
 
   // === cards ===
   "cards.pack.newCards": "新しいカードを獲得!",

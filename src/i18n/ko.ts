@@ -57,6 +57,7 @@ const ko = {
   "daily.board.heading": "오늘의 챌린지",
   "daily.board.progress": "{done}/{total} 완료",
   "daily.board.allDoneTitle": "오늘의 챌린지 완료!",
+  "daily.board.doneGuide": "아래에서 추가 챌린지에 도전할 수 있어요",
   "daily.board.streak": "{days}일 연속 달성 중",
   "daily.board.confirmPrompt": "이 챌린지를 완료하시겠어요?",
   "daily.board.markDone": "완료하기",
@@ -74,6 +75,7 @@ const ko = {
   "extra.confirm.rest": "쉬어가기",
   "extra.board.heading": "추가 챌린지",
   "extra.complete.title": "추가 챌린지 클리어!",
+  "extra.complete.guide": "슈퍼 초갓생챌린지가 아래에서 기다리고 있어요",
 
   // === super ===
   "super.banner.title": "오늘의 슈퍼 초갓생챌린지 해금",
@@ -85,6 +87,7 @@ const ko = {
   "super.confirm.rest": "오늘은 여기까지",
   "super.board.heading": "슈퍼 초갓생챌린지",
   "super.complete.title": "슈퍼 초갓생챌린지 클리어!!",
+  "super.complete.guide": "오늘의 모든 챌린지를 달성했어요!\n내일 새로운 챌린지가 기다리고 있어요",
 
   // === cards ===
   "cards.pack.newCards": "새로운 카드 획득!",
