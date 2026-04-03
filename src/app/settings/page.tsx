@@ -302,7 +302,7 @@ export default function SettingsPage() {
               exit={{ y: 100, opacity: 0 }}
               transition={springSnappy}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-bg-elevated rounded-lg p-6 space-y-4"
+              className="w-full max-w-sm bg-bg-elevated rounded-2xl p-6 space-y-4"
             >
               <p className="text-body text-text-primary text-center">
                 <span className="font-semibold">

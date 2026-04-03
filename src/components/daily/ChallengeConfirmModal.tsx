@@ -45,7 +45,7 @@ export default function ChallengeConfirmModal({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25 }}
-        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-lg px-4 pb-6 sm:pb-0"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-lg px-4"
         onClick={onCancel}
       >
         <motion.div
