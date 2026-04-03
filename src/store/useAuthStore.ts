@@ -1,8 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { signInWithPopup, signOut as firebaseSignOut } from "firebase/auth";
-import { auth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
+import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import type { AuthUser } from "@/types/auth";
 
 interface AuthState {
@@ -35,7 +34,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (!isFirebaseConfigured) return;
     set({ isSigningIn: true, signInError: null });
     try {
-      await signInWithPopup(auth!, googleProvider!);
+      const { auth, googleProvider } = await getFirebase();
+      const { signInWithPopup } = await import("firebase/auth");
+      await signInWithPopup(auth, googleProvider);
     } catch (error: unknown) {
       const code = (error as { code?: string })?.code;
       const message = (error as { message?: string })?.message;
@@ -60,7 +61,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     if (!isFirebaseConfigured) return;
     try {
-      await firebaseSignOut(auth!);
+      const { auth } = await getFirebase();
+      const { signOut: firebaseSignOut } = await import("firebase/auth");
+      await firebaseSignOut(auth);
     } catch (error) {
       console.error("Sign-out failed:", error);
     }
