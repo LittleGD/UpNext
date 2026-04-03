@@ -206,7 +206,7 @@ const zh: Record<DictKey, string> = {
   "privacy.section5.title": "5. 数据删除",
   "privacy.section5.body": "您可以通过设置中的'重置数据'按钮删除所有本地和云端数据。卸载应用会自动删除设备上的数据。",
   "privacy.section6.title": "6. 联系方式",
-  "privacy.section6.body": "如有隐私相关问题，请通过应用内设置或电子邮件（jmlee@kakao.com）联系我们。",
+  "privacy.section6.body": "如有隐私相关问题，请联系 jmjplearner@gmail.com。",
 
   // === settings ===
   "settings.privacy": "隐私政策",

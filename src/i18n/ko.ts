@@ -204,7 +204,7 @@ const ko = {
   "privacy.section5.title": "5. 데이터 삭제",
   "privacy.section5.body": "설정 화면의 '데이터 초기화' 버튼을 통해 모든 로컬 및 클라우드 데이터를 삭제할 수 있습니다. 앱을 삭제하면 기기 내 데이터가 자동으로 제거됩니다.",
   "privacy.section6.title": "6. 문의",
-  "privacy.section6.body": "개인정보 관련 문의는 앱 내 설정 또는 이메일(jmlee@kakao.com)로 연락해 주세요.",
+  "privacy.section6.body": "개인정보 관련 문의는 jmjplearner@gmail.com으로 연락해 주세요.",
 
   // === settings ===
   "settings.privacy": "개인정보 처리방침",

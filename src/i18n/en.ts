@@ -206,7 +206,7 @@ const en: Record<DictKey, string> = {
   "privacy.section5.title": "5. Data Deletion",
   "privacy.section5.body": "You can delete all local and cloud data via the 'Reset Data' button in Settings. Uninstalling the App automatically removes on-device data.",
   "privacy.section6.title": "6. Contact",
-  "privacy.section6.body": "For privacy inquiries, please contact us via in-app settings or email at jmlee@kakao.com.",
+  "privacy.section6.body": "For privacy inquiries, please contact us at jmjplearner@gmail.com.",
 
   // === settings ===
   "settings.privacy": "Privacy Policy",

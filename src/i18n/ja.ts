@@ -206,7 +206,7 @@ const ja: Record<DictKey, string> = {
   "privacy.section5.title": "5. データの削除",
   "privacy.section5.body": "設定画面の「データ初期化」ボタンから、すべてのローカルおよびクラウドデータを削除できます。アプリを削除すると、端末内のデータは自動的に消去されます。",
   "privacy.section6.title": "6. お問い合わせ",
-  "privacy.section6.body": "プライバシーに関するお問い合わせは、アプリ内の設定またはメール（jmlee@kakao.com）までご連絡ください。",
+  "privacy.section6.body": "プライバシーに関するお問い合わせは、jmjplearner@gmail.comまでご連絡ください。",
 
   // === settings ===
   "settings.privacy": "プライバシーポリシー",
