@@ -18,6 +18,18 @@ interface ConflictState {
   cloudDaily: DailyState;
 }
 
+/**
+ * requestIdleCallback 래퍼 — FCP/LCP 이후 idle 시점에 콜백 실행
+ * → Firebase SDK 파싱이 초기 렌더를 방해하지 않도록 지연
+ */
+function whenIdle(fn: () => void) {
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(fn);
+  } else {
+    setTimeout(fn, 50);
+  }
+}
+
 export default function SyncProvider({ children }: { children: React.ReactNode }) {
   const setUser = useAuthStore((s) => s.setUser);
   const [conflict, setConflict] = useState<ConflictState | null>(null);
@@ -29,10 +41,16 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     }
 
     let unsub: (() => void) | null = null;
+    let cancelled = false;
 
-    (async () => {
+    // Firebase 로딩을 idle 시점으로 지연 → TBT 감소
+    whenIdle(async () => {
+      if (cancelled) return;
+
       const { auth } = await getFirebase();
       const { onAuthStateChanged } = await import("firebase/auth");
+
+      if (cancelled) return;
 
       unsub = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
@@ -85,9 +103,10 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
           stopListener();
         }
       });
-    })();
+    });
 
     return () => {
+      cancelled = true;
       if (unsub) unsub();
     };
   }, [setUser]);
