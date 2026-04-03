@@ -191,6 +191,25 @@ const zh: Record<DictKey, string> = {
 
   // === language ===
   "language.toggle": "语言设置",
+
+  // === privacy ===
+  "privacy.title": "隐私政策",
+  "privacy.lastUpdated": "最后更新：2026年4月3日",
+  "privacy.section1.title": "1. 概述",
+  "privacy.section1.body": "UpNext（以下简称'应用'）重视用户的隐私。本政策说明应用收集哪些数据以及如何使用这些数据。",
+  "privacy.section2.title": "2. 收集的数据",
+  "privacy.section2.body": "应用在设备本地存储中保存运行所需的最少数据，如挑战进度和设置。如果您使用Google登录，将收集您的电子邮件地址和显示名称用于身份验证。",
+  "privacy.section3.title": "3. 数据用途",
+  "privacy.section3.body": "收集的数据仅用于保存挑战记录、跨设备同步和改进应用功能，不会用于广告或营销目的。",
+  "privacy.section4.title": "4. 第三方共享",
+  "privacy.section4.body": "应用不会向第三方出售或共享您的个人信息。云同步使用Firebase（Google），适用Firebase的隐私政策。",
+  "privacy.section5.title": "5. 数据删除",
+  "privacy.section5.body": "您可以通过设置中的'重置数据'按钮删除所有本地和云端数据。卸载应用会自动删除设备上的数据。",
+  "privacy.section6.title": "6. 联系方式",
+  "privacy.section6.body": "如有隐私相关问题，请通过应用内设置或电子邮件（jmlee@kakao.com）联系我们。",
+
+  // === settings ===
+  "settings.privacy": "隐私政策",
 };
 
 export default zh;

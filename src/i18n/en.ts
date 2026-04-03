@@ -191,6 +191,25 @@ const en: Record<DictKey, string> = {
 
   // === language ===
   "language.toggle": "Language",
+
+  // === privacy ===
+  "privacy.title": "Privacy Policy",
+  "privacy.lastUpdated": "Last updated: April 3, 2026",
+  "privacy.section1.title": "1. Overview",
+  "privacy.section1.body": "UpNext (the 'App') values your privacy. This policy explains what data the App collects and how it is used.",
+  "privacy.section2.title": "2. Data We Collect",
+  "privacy.section2.body": "The App stores minimal data required for operation — such as challenge progress and settings — in your device's local storage. If you sign in with Google, your email address and display name are collected for authentication.",
+  "privacy.section3.title": "3. How We Use Data",
+  "privacy.section3.body": "Collected data is used solely to save challenge records, sync across devices, and improve App functionality. It is never used for advertising or marketing.",
+  "privacy.section4.title": "4. Third-Party Sharing",
+  "privacy.section4.body": "The App does not sell or share your personal information with third parties. Firebase (Google) is used for cloud sync and its privacy policy applies.",
+  "privacy.section5.title": "5. Data Deletion",
+  "privacy.section5.body": "You can delete all local and cloud data via the 'Reset Data' button in Settings. Uninstalling the App automatically removes on-device data.",
+  "privacy.section6.title": "6. Contact",
+  "privacy.section6.body": "For privacy inquiries, please contact us via in-app settings or email at jmlee@kakao.com.",
+
+  // === settings ===
+  "settings.privacy": "Privacy Policy",
 };
 
 export default en;

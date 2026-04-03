@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useGameStore } from "@/store/useGameStore";
 import type { GameMode } from "@/types/game";
 import { getTitleForLevel, getXPProgress } from "@/types/game";
@@ -260,6 +261,12 @@ export default function SettingsPage() {
       {/* ── 위험 영역 ── */}
       <section className="pt-2">
         <div className="h-px bg-white/[0.04] mb-4" />
+        <Link
+          href="/privacy"
+          className="typo-caption text-text-tertiary hover:text-accent-secondary transition-colors block mb-4"
+        >
+          {t("settings.privacy")}
+        </Link>
         <button
           onClick={async () => {
             play("select");

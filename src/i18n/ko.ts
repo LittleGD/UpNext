@@ -189,6 +189,25 @@ const ko = {
 
   // === language ===
   "language.toggle": "언어설정",
+
+  // === privacy ===
+  "privacy.title": "개인정보 처리방침",
+  "privacy.lastUpdated": "최종 수정일: 2026년 4월 3일",
+  "privacy.section1.title": "1. 개요",
+  "privacy.section1.body": "UpNext(이하 '앱')는 사용자의 개인정보를 소중히 다룹니다. 본 방침은 앱이 어떤 데이터를 수집하고 어떻게 활용하는지 설명합니다.",
+  "privacy.section2.title": "2. 수집하는 데이터",
+  "privacy.section2.body": "앱은 챌린지 진행 상황, 설정값 등 앱 이용에 필요한 최소한의 데이터를 기기 내 로컬 저장소에 보관합니다. Google 로그인을 사용할 경우 이메일 주소와 표시 이름이 인증 목적으로 수집됩니다.",
+  "privacy.section3.title": "3. 데이터 이용 목적",
+  "privacy.section3.body": "수집된 데이터는 챌린지 기록 저장, 기기 간 동기화, 앱 기능 개선 목적으로만 사용됩니다. 광고나 마케팅 목적으로 사용되지 않습니다.",
+  "privacy.section4.title": "4. 제3자 제공",
+  "privacy.section4.body": "앱은 사용자의 개인정보를 제3자에게 판매하거나 공유하지 않습니다. 클라우드 동기화를 위해 Firebase(Google)를 사용하며, Firebase의 개인정보 처리방침이 적용됩니다.",
+  "privacy.section5.title": "5. 데이터 삭제",
+  "privacy.section5.body": "설정 화면의 '데이터 초기화' 버튼을 통해 모든 로컬 및 클라우드 데이터를 삭제할 수 있습니다. 앱을 삭제하면 기기 내 데이터가 자동으로 제거됩니다.",
+  "privacy.section6.title": "6. 문의",
+  "privacy.section6.body": "개인정보 관련 문의는 앱 내 설정 또는 이메일(jmlee@kakao.com)로 연락해 주세요.",
+
+  // === settings ===
+  "settings.privacy": "개인정보 처리방침",
 } as const;
 
 export type DictKey = keyof typeof ko;

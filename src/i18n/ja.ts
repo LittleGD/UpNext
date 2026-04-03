@@ -191,6 +191,25 @@ const ja: Record<DictKey, string> = {
 
   // === language ===
   "language.toggle": "言語設定",
+
+  // === privacy ===
+  "privacy.title": "プライバシーポリシー",
+  "privacy.lastUpdated": "最終更新日: 2026年4月3日",
+  "privacy.section1.title": "1. 概要",
+  "privacy.section1.body": "UpNext（以下「アプリ」）はユーザーのプライバシーを大切にしています。本ポリシーは、アプリが収集するデータとその利用方法について説明します。",
+  "privacy.section2.title": "2. 収集するデータ",
+  "privacy.section2.body": "アプリはチャレンジの進行状況や設定値など、運用に必要な最小限のデータを端末のローカルストレージに保存します。Googleログインをご利用の場合、認証のためにメールアドレスと表示名が収集されます。",
+  "privacy.section3.title": "3. データの利用目的",
+  "privacy.section3.body": "収集されたデータは、チャレンジ記録の保存、デバイス間の同期、アプリ機能の改善のみに使用されます。広告やマーケティング目的では使用されません。",
+  "privacy.section4.title": "4. 第三者への提供",
+  "privacy.section4.body": "アプリはユーザーの個人情報を第三者に販売・共有しません。クラウド同期のためにFirebase（Google）を使用しており、Firebaseのプライバシーポリシーが適用されます。",
+  "privacy.section5.title": "5. データの削除",
+  "privacy.section5.body": "設定画面の「データ初期化」ボタンから、すべてのローカルおよびクラウドデータを削除できます。アプリを削除すると、端末内のデータは自動的に消去されます。",
+  "privacy.section6.title": "6. お問い合わせ",
+  "privacy.section6.body": "プライバシーに関するお問い合わせは、アプリ内の設定またはメール（jmlee@kakao.com）までご連絡ください。",
+
+  // === settings ===
+  "settings.privacy": "プライバシーポリシー",
 };
 
 export default ja;
