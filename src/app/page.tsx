@@ -69,11 +69,21 @@ export default function Home() {
   const showBoard = isCurrentSelectionDone;
   const showDraw = !isCurrentDrawDone || !isCurrentSelectionDone;
 
+  // phase별 완료 여부 — 완료 시 이펙트 제거
+  const extraCards = daily.extraSelectedCards ?? [];
+  const extraDone = extraCards.length > 0 && (daily.extraCompletedIds?.length ?? 0) >= extraCards.length;
+  const superCards = daily.superSelectedCards ?? [];
+  const superDone = superCards.length > 0 && (daily.superCompletedIds?.length ?? 0) >= superCards.length;
+
+  const burningActive =
+    (phase === "extra" && !extraDone) ||
+    (phase === "super" && !superDone);
+
   return (
     <>
-      {/* 추가 챌린지 글로벌 이펙트 — 모든 화면에서 표시 */}
-      <BurningBorder phase={phase === "daily" ? "extra" : phase} active={phase !== "daily"} />
-      <MeteorShower active={phase === "super"} />
+      {/* 추가 챌린지 글로벌 이펙트 — 진행 중일 때만 표시, 완료 시 제거 */}
+      <BurningBorder phase={phase === "daily" ? "extra" : phase} active={burningActive} />
+      <MeteorShower active={phase === "super" && !superDone} />
 
       <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
         {isOpeningPack ? (
