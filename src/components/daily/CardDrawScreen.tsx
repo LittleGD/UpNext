@@ -167,7 +167,7 @@ export default function CardDrawScreen() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0, scale: isHolding ? 1.03 : 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="text-heading-2 text-text-primary"
+            className="typo-title text-text-primary"
           >
             {isHolding ? t("daily.draw.holding") : t("daily.draw.title")}
           </motion.h2>
@@ -177,7 +177,7 @@ export default function CardDrawScreen() {
               opacity: isHolding ? 0.9 : [0.4, 0.7, 0.4],
             }}
             transition={isHolding ? { duration: 0.2 } : { duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-            className="text-caption text-text-secondary mt-2"
+            className="typo-caption text-text-secondary mt-2"
           >
             {isHolding ? t("daily.draw.holdHint") : t("daily.draw.instruction")}
           </motion.p>
@@ -575,10 +575,10 @@ export default function CardDrawScreen() {
 
         {/* 상태 */}
         <div className="text-center pt-2 pb-4 px-4 flex-shrink-0 max-w-md md:max-w-xl lg:max-w-2xl mx-auto w-full">
-          <p className="text-heading-2 text-text-primary">
+          <p className="typo-heading text-text-primary">
             {t("daily.select.complete", { count: maxCards })}
           </p>
-          <p className="text-caption mt-1">
+          <p className="typo-caption mt-1">
             {maxCards > 1 ? t("daily.select.dragHint") : t("daily.select.checkHint")}
           </p>
         </div>
@@ -605,12 +605,12 @@ export default function CardDrawScreen() {
                   <RarityTexture rarity={card.rarity} />
                   <div className="flex items-center justify-between relative">
                     <span
-                      className="text-[13px] font-bold px-2 py-0.5 rounded-sm"
+                      className="typo-micro font-bold px-2 py-0.5 rounded-sm"
                       style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
                     >
                       {rarityLabel(card.rarity, language)}
                     </span>
-                    <span className="text-[13px] text-text-tertiary capitalize">
+                    <span className="typo-micro text-text-tertiary capitalize">
                       {categoryLabel(card.category, language)}
                     </span>
                   </div>
@@ -618,23 +618,23 @@ export default function CardDrawScreen() {
                     <PixelIcon name={card.icon} size={isLg ? 64 : isMd ? 56 : 48} />
                   </div>
                   <div>
-                    <p className="font-semibold text-text-primary text-base md:text-lg leading-tight">
+                    <p className="typo-heading text-text-primary leading-tight">
                       {cardTitle(card, language)}
                     </p>
-                    <p className="text-sm md:text-base text-text-secondary mt-1">
+                    <p className="typo-caption text-text-secondary mt-1">
                       {cardDesc(card, language)}
                     </p>
                   </div>
                   {/* 개별 카드 취소 버튼 (패널티 카드는 잠금) */}
                   {daily.penaltyCardId === card.id ? (
-                    <div className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-red-500/10 text-red-400 text-sm mt-1">
+                    <div className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-red-500/10 text-red-400 typo-caption mt-1">
                       <PixelIcon name="Lock" size={12} color="#FF4632" />
                       <span>{t("daily.penalty.locked")}</span>
                     </div>
                   ) : (
                     <button
                       onClick={() => { play("cancel"); phase === "daily" ? deselectCard(card.id) : deselectPhaseCard(card.id); }}
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-bg-surface text-text-secondary text-sm mt-1"
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-bg-surface text-text-secondary typo-caption mt-1"
                     >
                       <PixelIcon name="Cancel" size={12} />
                       <span>{t("daily.select.deselect")}</span>
@@ -652,7 +652,7 @@ export default function CardDrawScreen() {
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] z-20">
           <button
             onClick={() => { play("confirm"); phase === "daily" ? confirmSelection() : confirmPhaseSelection(); }}
-            className="w-full py-3 bg-accent text-bg-primary rounded-md font-semibold text-base"
+            className="w-full py-3 bg-accent text-bg-primary rounded-md typo-body"
           >
             {t("daily.select.confirmButton")}
           </button>
@@ -666,7 +666,7 @@ export default function CardDrawScreen() {
     <div className="fixed inset-0 overflow-hidden">
       {/* 선택 상태 — 상단 고정 */}
       <div className="fixed top-[calc(env(safe-area-inset-top)+70px)] left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl z-[2] text-center px-4">
-        <p className="text-caption">
+        <p className="typo-caption">
           {t("daily.select.count", { count: selectedCount, max: maxCards })}
         </p>
 
@@ -705,14 +705,14 @@ export default function CardDrawScreen() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 mb-2"
               >
                 <PixelIcon name="Lock" size={14} color="#FF4632" />
-                <p className="text-[12px] text-red-400 font-medium">
+                <p className="typo-caption text-red-400">
                   {t("daily.penalty.banner")}
                 </p>
               </motion.div>
             )}
 
             {phase === "super" ? (
-              <p className="text-lg font-semibold text-text-primary">
+              <p className="typo-heading text-text-primary">
                 {t("daily.select.heading", { count: `${minCards}+` }).split("").map((char, i) => (
                   <motion.span
                     key={i}
@@ -734,13 +734,13 @@ export default function CardDrawScreen() {
                 ))}
               </p>
             ) : (
-              <p className="text-lg font-semibold text-text-primary">
+              <p className="typo-heading text-text-primary">
                 {phase === "daily"
                   ? t("daily.select.heading", { count: maxCards })
                   : t("daily.select.heading", { count: `${minCards}+` })}
               </p>
             )}
-            <p className="text-[12px] text-text-tertiary">
+            <p className="typo-caption text-text-tertiary">
               {t("daily.select.hint")}
             </p>
 
@@ -754,7 +754,7 @@ export default function CardDrawScreen() {
                 className="pointer-events-auto flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-bg-elevated/90 backdrop-blur-md text-text-tertiary hover:text-text-secondary transition-colors grid-border mt-2"
               >
                 <PixelIcon name="Reload" size={16} />
-                <span className="text-[12px] font-semibold">{t("daily.draw.reroll")}</span>
+                <span className="typo-caption">{t("daily.draw.reroll")}</span>
               </motion.button>
             )}
           </motion.div>
@@ -798,15 +798,15 @@ export default function CardDrawScreen() {
             >
               <div className="flex items-center justify-center gap-2">
                 <PixelIcon name="Reload" size={24} color="var(--accent-primary)" />
-                <h3 className="font-semibold text-text-primary text-lg">{t("daily.draw.reroll")}</h3>
+                <h3 className="typo-heading text-text-primary">{t("daily.draw.reroll")}</h3>
               </div>
-              <p className="text-body text-text-secondary text-center whitespace-pre-line">
+              <p className="typo-body text-text-secondary text-center whitespace-pre-line">
                 {t("daily.draw.rerollConfirm")}
               </p>
               <div className="flex justify-center gap-3">
                 <button
                   onClick={() => { play("select"); setShowRerollConfirm(false); }}
-                  className="px-6 py-3 rounded-md bg-bg-surface text-text-secondary font-semibold"
+                  className="px-6 py-3 rounded-md bg-bg-surface text-text-secondary typo-body"
                 >
                   {t("common.cancel")}
                 </button>
@@ -821,7 +821,7 @@ export default function CardDrawScreen() {
                       setTimeout(() => play("cardFlip"), i * 80);
                     }
                   }}
-                  className="px-6 py-3 rounded-md bg-accent text-bg-primary font-semibold"
+                  className="px-6 py-3 rounded-md bg-accent text-bg-primary typo-body"
                 >
                   {t("daily.draw.reroll")}
                 </button>
@@ -882,7 +882,7 @@ export default function CardDrawScreen() {
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] z-20">
           <button
             onClick={() => { play("confirm"); confirmPhaseSelection(); }}
-            className="w-full py-3 bg-accent text-bg-primary rounded-md font-semibold text-base"
+            className="w-full py-3 bg-accent text-bg-primary rounded-md typo-body"
           >
             {t("daily.select.confirmButton")} ({selectedCount}/{minCards}+)
           </button>
@@ -962,7 +962,7 @@ function HandCard({
     >
       <RarityTexture rarity={card.rarity} />
       <span
-        className="text-[10px] md:text-[12px] lg:text-[13px] font-bold px-1.5 py-0.5 rounded-sm self-start leading-tight relative"
+        className="typo-micro font-bold px-1.5 py-0.5 rounded-sm self-start leading-tight relative"
         style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
       >
         {rarityLabel(card.rarity, language)}
@@ -970,7 +970,7 @@ function HandCard({
       <div className="flex-1 flex items-center justify-center" style={{ color: rarity.color }}>
         <PixelIcon name={card.icon} size={iconSize} />
       </div>
-      <p className="text-[11px] md:text-[13px] lg:text-sm font-medium text-text-tertiary text-center leading-tight truncate w-full">
+      <p className="typo-micro text-text-tertiary text-center leading-tight truncate w-full">
         {cardTitle(card, language)}
       </p>
     </motion.div>
@@ -1034,7 +1034,7 @@ function PreviewCard({
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.6 }}
         transition={{ delay: 0.3 }}
-        className="flex items-center justify-center gap-1 text-[13px] text-text-tertiary"
+        className="flex items-center justify-center gap-1 typo-caption text-text-tertiary"
       >
         <PixelIcon name="ArrowUp" size={14} />
         <span>{t("daily.select.swipeHint")}</span>
@@ -1042,12 +1042,12 @@ function PreviewCard({
 
       <div className="flex items-center justify-between">
         <span
-          className="text-[13px] font-bold px-2 py-0.5 rounded-sm"
+          className="typo-micro font-bold px-2 py-0.5 rounded-sm"
           style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
         >
           {rarityLabel(card.rarity, language)}
         </span>
-        <span className="text-[13px] text-text-tertiary">
+        <span className="typo-micro text-text-tertiary">
           {categoryLabel(card.category, language)}
         </span>
       </div>
@@ -1057,10 +1057,10 @@ function PreviewCard({
       </div>
 
       <div>
-        <p className="font-semibold text-text-primary text-base md:text-lg leading-tight">
+        <p className="typo-heading text-text-primary leading-tight">
           {cardTitle(card, language)}
         </p>
-        <p className="text-sm md:text-base text-text-secondary mt-1">
+        <p className="typo-caption text-text-secondary mt-1">
           {cardDesc(card, language)}
         </p>
       </div>
@@ -1132,7 +1132,7 @@ function SelectedMiniCard({
           </div>
         )}
         <PixelIcon name={card.icon} size={22} color={locked ? "#FF4632" : rarity.color} />
-        <span className="text-[11px] md:text-[12px] text-text-secondary truncate w-full text-center px-1">
+        <span className="typo-micro text-text-secondary truncate w-full text-center px-1">
           {cardTitle(card, language)}
         </span>
       </motion.div>

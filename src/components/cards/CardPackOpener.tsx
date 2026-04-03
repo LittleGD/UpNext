@@ -121,7 +121,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
             y: phase === "absorbing" ? -20 : 0,
           }}
           transition={{ delay: phase === "absorbing" ? 0 : 0.2, duration: 0.3 }}
-          className="text-heading-1 text-accent text-center"
+          className="typo-title text-accent text-center"
         >
           {t("cards.pack.newCards")}
         </motion.h2>
@@ -173,7 +173,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
 
                 {/* 등급 */}
                 <span
-                  className="text-[min(13px,3vw)] font-bold px-1.5 py-0.5 rounded-sm self-start"
+                  className="typo-micro font-bold px-1.5 py-0.5 rounded-sm self-start"
                   style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
                 >
                   {rarityLabel(card.rarity, language)}
@@ -190,12 +190,12 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
                 </motion.div>
 
                 {/* 제목 */}
-                <p className="text-sm font-semibold text-text-primary text-center leading-tight">
+                <p className="typo-caption font-semibold text-text-primary text-center leading-tight">
                   {cardTitle(card, language)}
                 </p>
 
                 {/* 카테고리 */}
-                <p className="text-[13px] text-text-tertiary capitalize">
+                <p className="typo-caption text-text-tertiary capitalize">
                   {card.category}
                 </p>
               </motion.div>
@@ -243,7 +243,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.8 }}
-              className="text-caption text-center"
+              className="typo-caption text-center"
             >
               {t("cards.pack.addedToCollection")}
             </motion.p>
@@ -254,7 +254,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
               transition={{ delay: revealedCards.length * 0.15 + 0.5 }}
               whileTap={{ scale: 0.97 }}
               onClick={handleDone}
-              className="px-8 py-3 bg-accent text-bg-primary rounded-md font-semibold text-base"
+              className="px-8 py-3 bg-accent text-bg-primary rounded-md typo-body"
             >
               {t("common.confirm")}
             </motion.button>
@@ -319,10 +319,10 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
         transition={{ delay: 0.3 }}
         className="text-center"
       >
-        <h2 className="text-heading-1 text-text-primary">
+        <h2 className="typo-title text-text-primary">
           {t("cards.pack.arriving")}
         </h2>
-        <p className="text-body text-text-secondary mt-1">
+        <p className="typo-body text-text-secondary mt-1">
           {t("cards.pack.whatsInside")}
         </p>
       </motion.div>

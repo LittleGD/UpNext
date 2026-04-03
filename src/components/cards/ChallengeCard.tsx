@@ -57,7 +57,7 @@ export default function ChallengeCard({
       {!isCompleted && <RarityTexture rarity={card.rarity} />}
       {/* 등급 배지 */}
       <div
-        className="absolute -top-2 -right-2 text-[13px] font-bold px-2 py-0.5 rounded-sm"
+        className="absolute -top-2 -right-2 typo-micro font-bold px-2 py-0.5 rounded-sm"
         style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
       >
         {rarityLabel(card.rarity, language)}
@@ -67,10 +67,10 @@ export default function ChallengeCard({
       <div className="flex items-start gap-3">
         <PixelIcon name={card.icon} size={28} color={rarity.color} />
         <div className="flex-1 min-w-0">
-          <h3 className={`font-semibold text-text-primary ${isCompleted ? "line-through" : ""}`}>
+          <h3 className={`typo-caption font-semibold text-text-primary ${isCompleted ? "line-through" : ""}`}>
             {cardTitle(card, language)}
           </h3>
-          <p className="text-sm text-text-secondary mt-0.5">{cardDesc(card, language)}</p>
+          <p className="typo-caption text-text-secondary mt-0.5">{cardDesc(card, language)}</p>
         </div>
       </div>
 

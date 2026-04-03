@@ -173,7 +173,7 @@ export default function ExtraChallengeBanner({ onPress }: ExtraChallengeBannerPr
             {/* Text */}
             <div className="flex-1 text-left">
               <p
-                className="text-[15px] font-semibold leading-snug transition-colors duration-300"
+                className="typo-body leading-snug transition-colors duration-300"
                 style={{
                   color: holding || activated
                     ? "#FF6B4A"
@@ -183,7 +183,7 @@ export default function ExtraChallengeBanner({ onPress }: ExtraChallengeBannerPr
                 {t("extra.banner.title")}
               </p>
               {!activated && (
-                <p className="text-[12px] mt-0.5 text-text-tertiary">
+                <p className="typo-caption mt-0.5 text-text-tertiary">
                   {t("extra.banner.hint")}
                 </p>
               )}

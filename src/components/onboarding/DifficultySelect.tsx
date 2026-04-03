@@ -39,10 +39,10 @@ export default function DifficultySelect({ onSelect }: DifficultySelectProps) {
         className="flex-1 flex flex-col justify-center gap-8 pt-6"
       >
         <motion.div variants={fadeInUp}>
-          <h1 className="text-heading-1 text-text-primary">
+          <h1 className="typo-title text-text-primary">
             {t("onboarding.difficulty.heading")}
           </h1>
-          <p className="text-body text-text-secondary mt-2">
+          <p className="typo-body text-text-secondary mt-2">
             {t("onboarding.difficulty.subheading")}
           </p>
         </motion.div>
@@ -71,14 +71,14 @@ export default function DifficultySelect({ onSelect }: DifficultySelectProps) {
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <p className={`font-semibold ${selected === diff.key ? "text-bg-primary" : "text-text-primary"}`}>{t(diff.labelKey)}</p>
-                    <span className={`text-sm font-bold px-2 py-0.5 rounded-sm ${
+                    <p className={`typo-heading ${selected === diff.key ? "text-bg-primary" : "text-text-primary"}`}>{t(diff.labelKey)}</p>
+                    <span className={`typo-micro px-2 py-0.5 rounded-sm ${
                       selected === diff.key ? "bg-black/20 text-bg-primary" : "bg-bg-elevated text-text-tertiary"
                     }`}>
                       {diff.cards}{t("common.cardsPerDay")}
                     </span>
                   </div>
-                  <p className={`text-sm mt-0.5 ${selected === diff.key ? "text-bg-primary/70" : "text-text-secondary"}`}>{t(diff.descriptionKey)}</p>
+                  <p className={`typo-caption mt-0.5 ${selected === diff.key ? "text-bg-primary/70" : "text-text-secondary"}`}>{t(diff.descriptionKey)}</p>
                 </div>
               </div>
             </motion.button>
@@ -93,7 +93,7 @@ export default function DifficultySelect({ onSelect }: DifficultySelectProps) {
           whileTap={selected ? { scale: 0.95 } : {}}
           onClick={() => { if (selected) { play("select"); onSelect(selected); } }}
           disabled={!selected}
-          className="w-full py-4 bg-accent text-bg-primary rounded-md font-semibold text-lg disabled:opacity-30 disabled:cursor-not-allowed"
+          className="w-full py-4 bg-accent text-bg-primary rounded-md typo-body disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {t("common.next")}
         </motion.button>

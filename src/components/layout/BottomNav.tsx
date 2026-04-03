@@ -79,7 +79,7 @@ export default function BottomNav() {
                   <motion.span
                     initial={{ width: 0, opacity: 0 }}
                     animate={{ width: "auto", opacity: 1 }}
-                    className="text-[13px] md:text-[15px] font-semibold overflow-hidden whitespace-nowrap"
+                    className="typo-caption overflow-hidden whitespace-nowrap"
                   >
                     {t(item.labelKey)}
                   </motion.span>

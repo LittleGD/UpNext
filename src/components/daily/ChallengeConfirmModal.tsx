@@ -116,7 +116,7 @@ export default function ChallengeConfirmModal({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="font-semibold text-[18px] text-text-primary leading-snug"
+              className="typo-heading text-text-primary leading-snug"
             >
               {t(`${phase}.confirm.title`)}
             </motion.h3>
@@ -126,7 +126,7 @@ export default function ChallengeConfirmModal({
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-[14px] text-text-tertiary mt-2.5 leading-relaxed"
+              className="typo-caption text-text-tertiary mt-2.5 leading-relaxed"
             >
               {t(`${phase}.confirm.warning`)}
             </motion.p>
@@ -140,7 +140,7 @@ export default function ChallengeConfirmModal({
               style={{ backgroundColor: config.accentSoft }}
             >
               <p
-                className="text-[12px] font-medium"
+                className="typo-micro"
                 style={{ color: config.accent }}
               >
                 {t(`${phase}.confirm.rule`)}
@@ -160,7 +160,7 @@ export default function ChallengeConfirmModal({
                   play("select");
                   onConfirm();
                 }}
-                className="w-full py-3.5 rounded-xl text-white font-semibold text-[15px] transition-all active:scale-[0.97] active:brightness-90"
+                className="w-full py-3.5 rounded-xl text-white typo-body transition-all active:scale-[0.97] active:brightness-90"
                 style={{
                   background: config.buttonGradient,
                 }}
@@ -174,7 +174,7 @@ export default function ChallengeConfirmModal({
                   play("select");
                   onCancel();
                 }}
-                className="w-full py-3 rounded-xl text-text-tertiary font-medium text-[14px] transition-colors active:text-text-secondary"
+                className="w-full py-3 rounded-xl text-text-tertiary typo-body transition-colors active:text-text-secondary"
               >
                 {t(`${phase}.confirm.rest`)}
               </button>

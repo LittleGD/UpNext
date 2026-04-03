@@ -45,7 +45,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
         <motion.h2
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-heading-1 text-accent text-center"
+          className="typo-title text-accent text-center"
         >
           {resolvedPackName}
         </motion.h2>
@@ -53,7 +53,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-caption text-center"
+          className="typo-caption text-center"
         >
           {t("onboarding.starter.revealMessage")}
         </motion.p>
@@ -72,7 +72,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
                 style={{}}
               >
                 <span
-                  className="text-[13px] font-bold px-1.5 py-0.5 rounded-sm self-start"
+                  className="typo-caption font-bold px-1.5 py-0.5 rounded-sm self-start"
                   style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
                 >
                   {rarityLabel(card.rarity, language)}
@@ -85,7 +85,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
                 >
                   <PixelIcon name={card.icon} size={28} />
                 </motion.div>
-                <p className="text-[13px] font-semibold text-text-primary text-center leading-tight">
+                <p className="typo-caption font-semibold text-text-primary text-center leading-tight">
                   {cardTitle(card, language)}
                 </p>
               </motion.div>
@@ -101,7 +101,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
             transition={{ delay: 0.3 + cards.length * 0.12 + 0.3 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => { play("select"); handleRevealDone(); }}
-            className="w-full py-4 bg-accent text-bg-primary rounded-md font-semibold text-lg"
+            className="w-full py-4 bg-accent text-bg-primary rounded-md typo-body"
           >
             {t("common.start")}
           </motion.button>
@@ -120,10 +120,10 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
         className="flex-1 flex flex-col justify-center gap-6 pt-6"
       >
         <motion.div variants={fadeInUp}>
-          <h1 className="text-heading-1 text-text-primary">
+          <h1 className="typo-title text-text-primary">
             {t("onboarding.starter.heading")}
           </h1>
-          <p className="text-body text-text-secondary mt-2">
+          <p className="typo-body text-text-secondary mt-2">
             {t("onboarding.starter.subheading")}
           </p>
         </motion.div>
@@ -154,10 +154,10 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
                     color={selectedPack === pack.id ? "#0A0A0A" : "var(--text-secondary)"}
                   />
                   <div className="flex-1">
-                    <p className={`font-semibold ${selectedPack === pack.id ? "text-bg-primary" : "text-text-primary"}`}>
+                    <p className={`typo-body font-semibold ${selectedPack === pack.id ? "text-bg-primary" : "text-text-primary"}`}>
                       {packName}
                     </p>
-                    <p className={`text-sm mt-0.5 ${selectedPack === pack.id ? "text-bg-primary/70" : "text-text-secondary"}`}>
+                    <p className={`typo-caption mt-0.5 ${selectedPack === pack.id ? "text-bg-primary/70" : "text-text-secondary"}`}>
                       {packDesc}
                     </p>
                   </div>
@@ -175,7 +175,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
           whileTap={selectedPack ? { scale: 0.95 } : {}}
           onClick={handleStart}
           disabled={!selectedPack}
-          className="w-full py-4 bg-accent text-bg-primary rounded-md font-semibold text-lg disabled:opacity-30 disabled:cursor-not-allowed"
+          className="w-full py-4 bg-accent text-bg-primary rounded-md typo-body disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {t("onboarding.starter.openPack")}
         </motion.button>

@@ -124,10 +124,10 @@ export default function AppDescription({ onNext }: AppDescriptionProps) {
 
             {/* 텍스트 */}
             <div className="text-center">
-              <h1 className="text-display text-text-primary leading-tight">
+              <h1 className="typo-title text-text-primary leading-tight">
                 {current.title}
               </h1>
-              <p className="text-body text-text-secondary mt-4">
+              <p className="typo-body text-text-secondary mt-4">
                 {current.description}
               </p>
             </div>
@@ -141,7 +141,7 @@ export default function AppDescription({ onNext }: AppDescriptionProps) {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => { play("select"); handleNext(); }}
-          className="w-full py-4 bg-accent text-bg-primary rounded-md font-semibold text-lg"
+          className="w-full py-4 bg-accent text-bg-primary rounded-md typo-body"
         >
           {isLast ? t("common.start") : t("common.next")}
         </motion.button>
@@ -345,7 +345,7 @@ function EnergyPulseGraphic() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.5 }}
             transition={{ delay: 1 }}
-            className="text-[10px] text-text-tertiary"
+            className="typo-micro text-text-tertiary"
           >
             Lv.1
           </motion.span>
@@ -353,7 +353,7 @@ function EnergyPulseGraphic() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.5 }}
             transition={{ delay: 1.2 }}
-            className="text-[10px] text-accent-cyan"
+            className="typo-micro text-accent-cyan"
           >
             Lv.2
           </motion.span>

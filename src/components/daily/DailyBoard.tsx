@@ -162,7 +162,7 @@ function CatchStarGame({ active }: { active: boolean }) {
             animate={{ opacity: 1, scale: 1 }}
             className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm rounded-md px-2 py-1"
           >
-            <span className="text-[13px] text-accent font-bold">{score}</span>
+            <span className="typo-caption text-accent">{score}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -257,7 +257,7 @@ function CompletionCard() {
           initial={{ opacity: 0 }}
           animate={{ opacity: trophyTaps === 0 ? 0.5 : 0 }}
           transition={{ delay: 2, duration: 0.5 }}
-          className="text-[11px] text-bg-primary/40 mt-1"
+          className="typo-micro text-bg-primary/40 mt-1"
         >
           tap me
         </motion.p>
@@ -266,7 +266,7 @@ function CompletionCard() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="text-heading-1 text-bg-primary mt-3 text-center"
+          className="typo-title text-bg-primary mt-3 text-center"
         >
           {t("daily.board.allDoneTitle")}
         </motion.p>
@@ -279,7 +279,7 @@ function CompletionCard() {
           className="flex items-center gap-2 mt-2"
         >
           <PixelIcon name="Zap" size={18} color="#0A0A0A" />
-          <span className="text-body text-bg-primary font-semibold">
+          <span className="typo-body text-bg-primary">
             {t("daily.board.streak", { days: progress.currentStreak })}
           </span>
         </motion.div>
@@ -291,7 +291,7 @@ function CompletionCard() {
           transition={{ delay: 0.35 }}
           className="mt-3 w-full max-w-[200px]"
         >
-          <div className="flex justify-between text-[11px] text-bg-primary/60 mb-1">
+          <div className="flex justify-between typo-micro text-bg-primary/60 mb-1">
             <span>Lv.{progress.level} {getTitleForLevel(progress.level, language)}</span>
             <span>{xpInfo.current}/{xpInfo.needed}</span>
           </div>
@@ -312,7 +312,7 @@ function CompletionCard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
               exit={{ opacity: 0 }}
-              className="text-[11px] text-bg-primary/50 mt-2"
+              className="typo-micro text-bg-primary/50 mt-2"
             >
               {5 - trophyTaps} more...
             </motion.p>
@@ -323,7 +323,7 @@ function CompletionCard() {
           <motion.p
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 0.7, y: 0 }}
-            className="text-[11px] text-bg-primary/60 mt-2"
+            className="typo-micro text-bg-primary/60 mt-2"
           >
             catch the stars!
           </motion.p>
@@ -466,7 +466,7 @@ export default function DailyBoard() {
 
       {/* Header — compact progress */}
       <div className="flex items-center justify-between">
-        <h2 className="text-heading-2 text-text-primary">{phaseHeading}</h2>
+        <h2 className="typo-title text-text-primary">{phaseHeading}</h2>
         <div className="flex items-center gap-1.5">
           {Array.from({ length: totalCount }, (_, i) => (
             <motion.div
@@ -480,7 +480,7 @@ export default function DailyBoard() {
               transition={{ duration: 0.3 }}
             />
           ))}
-          <span className="text-caption ml-1">
+          <span className="typo-caption ml-1">
             {completedCount}/{totalCount}
           </span>
         </div>
@@ -554,7 +554,7 @@ export default function DailyBoard() {
                   {/* Rarity badge + XP */}
                   <div className="flex flex-col items-end gap-2">
                     <span
-                      className="text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-md"
+                      className="typo-micro font-bold uppercase tracking-wide px-2.5 py-1 rounded-md"
                       style={{
                         backgroundColor: isCompleted ? "var(--bg-elevated)" : `${rarity.color}18`,
                         color: isCompleted ? "var(--text-tertiary)" : rarity.color,
@@ -565,7 +565,7 @@ export default function DailyBoard() {
                     {!isCompleted && (
                       <div className="flex items-center gap-1">
                         <PixelIcon name="Zap" size={14} color="var(--accent-primary)" />
-                        <span className="text-[13px] text-accent font-semibold">+{xp}</span>
+                        <span className="typo-caption text-accent">+{xp}</span>
                       </div>
                     )}
                   </div>
@@ -574,13 +574,13 @@ export default function DailyBoard() {
                 {/* Title + description */}
                 <div className="space-y-1.5">
                   <h3
-                    className={`font-semibold text-[19px] leading-snug ${
+                    className={`typo-heading leading-snug ${
                       isCompleted ? "line-through text-text-tertiary" : "text-text-primary"
                     }`}
                   >
                     {cardTitle(card, language)}
                   </h3>
-                  <p className={`text-[15px] leading-relaxed ${isCompleted ? "text-text-tertiary" : "text-text-secondary"}`}>
+                  <p className={`typo-caption leading-relaxed ${isCompleted ? "text-text-tertiary" : "text-text-secondary"}`}>
                     {cardDesc(card, language)}
                   </p>
                 </div>
@@ -588,7 +588,7 @@ export default function DailyBoard() {
 
               {/* CTA bar */}
               <div className={`
-                mx-6 mb-5 mt-4 py-3 rounded-xl text-center text-[15px] font-semibold transition-colors
+                mx-6 mb-5 mt-4 py-3 rounded-xl text-center typo-body transition-colors
                 ${isCompleted
                   ? "bg-bg-elevated text-text-tertiary"
                   : "bg-bg-elevated text-accent"
@@ -652,21 +652,21 @@ export default function DailyBoard() {
                   </div>
 
                   {/* Title + desc */}
-                  <h3 className="font-semibold text-[18px] text-text-primary leading-snug">
+                  <h3 className="typo-heading text-text-primary leading-snug">
                     {cardTitle(confirmCard, language)}
                   </h3>
-                  <p className="text-[14px] text-text-secondary mt-1.5 leading-relaxed">
+                  <p className="typo-body text-text-secondary mt-1.5 leading-relaxed">
                     {cardDesc(confirmCard, language)}
                   </p>
 
                   {/* XP reward badge */}
                   <div className="flex items-center gap-1.5 mt-4 px-3 py-1.5 rounded-full bg-accent/8">
                     <PixelIcon name="Zap" size={14} color="var(--accent-primary)" />
-                    <span className="text-[13px] text-accent font-semibold">+{xp} XP</span>
+                    <span className="typo-caption text-accent">+{xp} XP</span>
                   </div>
 
                   {/* Prompt */}
-                  <p className="text-[14px] text-text-tertiary mt-5">
+                  <p className="typo-body text-text-tertiary mt-5">
                     {t("daily.board.confirmPrompt")}
                   </p>
 
@@ -674,13 +674,13 @@ export default function DailyBoard() {
                   <div className="flex w-full gap-3 mt-5">
                     <button
                       onClick={() => { play("select"); setConfirmCard(null); }}
-                      className="flex-1 py-3.5 rounded-xl bg-bg-elevated text-text-secondary font-semibold text-[15px] transition-colors active:scale-[0.97]"
+                      className="flex-1 py-3.5 rounded-xl bg-bg-elevated text-text-secondary typo-body transition-colors active:scale-[0.97]"
                     >
                       {t("common.cancel")}
                     </button>
                     <button
                       onClick={handleConfirm}
-                      className="flex-1 py-3.5 rounded-xl bg-accent text-bg-primary font-semibold text-[15px] transition-colors active:scale-[0.97]"
+                      className="flex-1 py-3.5 rounded-xl bg-accent text-bg-primary typo-body transition-colors active:scale-[0.97]"
                     >
                       {t("common.done")}
                     </button>
@@ -785,7 +785,7 @@ export default function DailyBoard() {
                 >
                   <PixelIcon name="Zap" size={18} color="var(--accent-primary)" />
                   <motion.span
-                    className="text-[20px] font-bold text-accent"
+                    className="typo-title text-accent"
                     initial={{ scale: 0.5 }}
                     animate={{ scale: [0.5, 1.2, 1] }}
                     transition={{ delay: 0.35, duration: 0.4 }}
@@ -798,7 +798,7 @@ export default function DailyBoard() {
                 {[...Array(4)].map((_, i) => (
                   <motion.div
                     key={`xp-float-${i}`}
-                    className="absolute text-[12px] font-bold text-accent/60 pointer-events-none"
+                    className="absolute typo-caption text-accent/60 pointer-events-none"
                     initial={{ opacity: 0, y: 0, x: (i - 1.5) * 25 }}
                     animate={{ opacity: [0, 0.7, 0], y: -60 - i * 15 }}
                     transition={{ delay: 0.4 + i * 0.12, duration: 0.8, ease: "easeOut" }}

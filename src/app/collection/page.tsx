@@ -66,7 +66,7 @@ export default function CollectionPage() {
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => { play("select"); setTab("cards"); setFilter("all"); }}
-          className={`flex-1 py-2.5 rounded-md text-sm font-semibold transition-all ${
+          className={`flex-1 py-2.5 rounded-md typo-body transition-all ${
             tab === "cards" ? "bg-accent text-bg-primary" : "bg-bg-surface text-text-secondary"
           }`}
         >
@@ -74,13 +74,13 @@ export default function CollectionPage() {
         </button>
         <button
           onClick={() => { play("select"); setTab("titles"); setFilter("all"); }}
-          className={`flex-1 py-2.5 rounded-md text-sm font-semibold transition-all relative ${
+          className={`flex-1 py-2.5 rounded-md typo-body transition-all relative ${
             tab === "titles" ? "bg-accent text-bg-primary" : "bg-bg-surface text-text-secondary"
           }`}
         >
           {t("collection.tab.titles")} ({earnedTitleCount}/{ALL_TITLES.length})
           {newTitleCount > 0 && tab !== "titles" && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent-secondary rounded-full text-[10px] font-bold text-bg-primary flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent-secondary rounded-full typo-micro text-bg-primary flex items-center justify-center">
               {newTitleCount}
             </span>
           )}
@@ -93,7 +93,7 @@ export default function CollectionPage() {
           <button
             key={key}
             onClick={() => { play("select"); setFilter(key); }}
-            className={`px-3 py-1.5 rounded-md text-[12px] font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-md typo-caption transition-all ${
               filter === key
                 ? "bg-text-primary text-bg-primary"
                 : "bg-bg-surface text-text-tertiary"
@@ -142,9 +142,9 @@ function AccordionSection({
           >
             <PixelIcon name="ChevronDown" size={16} className="text-text-tertiary" />
           </motion.div>
-          <h3 className="text-body font-semibold text-text-primary">{label}</h3>
+          <h3 className="typo-caption text-text-primary">{label}</h3>
         </div>
-        <span className="text-caption">{count}/{total}</span>
+        <span className="typo-caption">{count}/{total}</span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -187,7 +187,7 @@ function CardsTab({
   }).filter((g) => g.cards.length > 0);
 
   if (cardsByCategory.length === 0) {
-    return <p className="text-center text-text-tertiary py-12 text-sm">{translate("collection.cards.empty", language)}</p>;
+    return <p className="text-center text-text-tertiary py-12 typo-body">{translate("collection.cards.empty", language)}</p>;
   }
 
   return (
@@ -218,7 +218,7 @@ function CardsTab({
                   )}
                   <div className={!isUnlocked ? "blur-sm pointer-events-none" : ""}>
                     <div
-                      className="absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-sm text-black"
+                      className="absolute top-2 right-2 typo-micro px-1.5 py-0.5 rounded-sm text-black"
                       style={{ backgroundColor: rarity.color }}
                     >
                       {rarityLabel(card.rarity, language)}
@@ -226,10 +226,10 @@ function CardsTab({
                     <div className="mb-2" style={{ color: rarity.color }}>
                       <PixelIcon name={card.icon} size={28} />
                     </div>
-                    <p className="text-sm font-semibold text-text-primary leading-tight">
+                    <p className="typo-caption text-text-primary leading-tight">
                       {cardTitle(card, language)}
                     </p>
-                    <p className="text-[12px] text-text-tertiary mt-1">
+                    <p className="typo-caption text-text-tertiary mt-1">
                       {categoryLabel(card.category, language)}
                     </p>
                   </div>
@@ -290,7 +290,7 @@ function TitlesTab({
   }).filter((g) => g.filtered.length > 0);
 
   if (groups.length === 0) {
-    return <p className="text-center text-text-tertiary py-12 text-sm">{translate("collection.titles.empty", language)}</p>;
+    return <p className="text-center text-text-tertiary py-12 typo-body">{translate("collection.titles.empty", language)}</p>;
   }
 
   return (
@@ -300,14 +300,14 @@ function TitlesTab({
         <div className="bg-bg-surface rounded-lg p-4 grid-border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-caption mb-1">{translate("collection.titles.equipped", language)}</p>
-              <p className="text-body font-semibold text-accent">
+              <p className="typo-caption mb-1">{translate("collection.titles.equipped", language)}</p>
+              <p className="typo-body text-accent">
                 {(() => { const tt = ALL_TITLES.find((t) => t.id === progress.equippedTitleId); return tt ? titleName(tt, language) : ""; })()}
               </p>
             </div>
             <button
               onClick={() => { play("select"); equipTitle(null); }}
-              className="text-sm text-text-tertiary px-3 py-1.5 rounded-md bg-bg-elevated"
+              className="typo-body text-text-tertiary px-3 py-1.5 rounded-md bg-bg-elevated"
             >
               {translate("common.unequip", language)}
             </button>
@@ -376,7 +376,7 @@ function TitleCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm"
+            className="typo-micro px-1.5 py-0.5 rounded-sm"
             style={{
               backgroundColor: isEarned ? rarity.color : "var(--bg-surface)",
               color: isEarned ? "#0A0A0A" : "var(--text-tertiary)",
@@ -384,16 +384,16 @@ function TitleCard({
           >
             {rarityLabel(title.rarity, language)}
           </span>
-          <span className={`text-sm font-semibold truncate ${isEarned ? "text-text-primary" : "text-text-tertiary"}`}>
+          <span className={`typo-body truncate ${isEarned ? "text-text-primary" : "text-text-tertiary"}`}>
             {titleName(title, language)}
           </span>
           {isEquipped && (
-            <span className="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-bg-surface rounded-sm flex-shrink-0">
+            <span className="typo-micro text-accent px-1.5 py-0.5 bg-bg-surface rounded-sm flex-shrink-0">
               {translate("common.equipped", language)}
             </span>
           )}
         </div>
-        <p className="text-[12px] text-text-secondary mt-0.5">{titleDesc(title, language)}</p>
+        <p className="typo-caption text-text-secondary mt-0.5">{titleDesc(title, language)}</p>
         {!isEarned && (
           <div className="flex items-center gap-2 mt-1.5">
             <div className="flex-1 h-1 bg-bg-elevated rounded-sm overflow-hidden">
@@ -402,7 +402,7 @@ function TitleCard({
                 style={{ width: `${percent}%`, backgroundColor: rarity.color }}
               />
             </div>
-            <span className="text-[10px] text-text-tertiary flex-shrink-0">
+            <span className="typo-micro text-text-tertiary flex-shrink-0">
               {current}/{target}
             </span>
           </div>

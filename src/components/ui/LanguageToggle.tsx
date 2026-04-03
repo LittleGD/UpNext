@@ -41,10 +41,10 @@ export default function LanguageToggle() {
       >
         <div className="flex items-center gap-3">
           <PixelIcon name="Languages" size={20} color="var(--text-secondary)" />
-          <span className="text-sm font-semibold text-text-primary">{t("language.toggle")}</span>
+          <span className="typo-body text-text-primary">{t("language.toggle")}</span>
         </div>
         <div className="flex items-center gap-1.5 text-text-tertiary">
-          <span className="text-sm">{currentLanguageLabel(language)}</span>
+          <span className="typo-body">{currentLanguageLabel(language)}</span>
           <PixelIcon name="ChevronRight" size={16} color="var(--text-tertiary)" />
         </div>
       </button>
@@ -67,7 +67,7 @@ export default function LanguageToggle() {
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-sm bg-bg-elevated rounded-2xl p-5"
             >
-              <p className="text-body text-text-primary text-center font-semibold mb-3">
+              <p className="typo-heading text-text-primary text-center mb-3">
                 {t("language.toggle")}
               </p>
               <div className="rounded-md overflow-hidden bg-bg-surface">
@@ -81,7 +81,7 @@ export default function LanguageToggle() {
                         : "text-text-primary hover:bg-bg-elevated"
                     }`}
                   >
-                    <span className="text-[15px] font-semibold">{opt.label}</span>
+                    <span className="typo-body font-semibold">{opt.label}</span>
                     {language === opt.code && (
                       <PixelIcon name="Check" size={18} color="var(--accent-primary)" />
                     )}

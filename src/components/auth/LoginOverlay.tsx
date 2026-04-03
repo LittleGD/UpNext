@@ -57,10 +57,10 @@ export default function LoginOverlay({ onDismiss }: { onDismiss: () => void }) {
             <PixelIcon name="Monitor" size={28} color="var(--accent-primary)" />
           </div>
           <div className="space-y-1.5">
-            <h2 className="text-heading-2 text-text-primary">
+            <h2 className="typo-heading text-text-primary">
               {t("auth.login.heading")}
             </h2>
-            <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
+            <p className="typo-body text-text-secondary leading-relaxed whitespace-pre-line">
               {t("auth.login.description")}
             </p>
           </div>
@@ -71,7 +71,7 @@ export default function LoginOverlay({ onDismiss }: { onDismiss: () => void }) {
           <button
             onClick={handleGoogleLogin}
             disabled={isSigningIn}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-lg bg-white text-[#1f1f1f] font-semibold text-sm transition-transform hover:bg-gray-100 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-lg bg-white text-[#1f1f1f] font-semibold typo-body transition-transform hover:bg-gray-100 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSigningIn ? (
               <div className="w-[18px] h-[18px] border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
@@ -86,14 +86,14 @@ export default function LoginOverlay({ onDismiss }: { onDismiss: () => void }) {
             {isSigningIn ? t("auth.section.signingIn") : t("auth.section.signInGoogle")}
           </button>
           {signInError && (
-            <p className="text-[12px] text-accent-secondary text-center">{signInError}</p>
+            <p className="typo-caption text-accent-secondary text-center">{signInError}</p>
           )}
         </div>
 
         {/* 건너뛰기 */}
         <button
           onClick={handleSkip}
-          className="w-full text-center text-[13px] text-text-tertiary hover:text-text-secondary transition-colors pt-1"
+          className="w-full text-center typo-caption text-text-tertiary hover:text-text-secondary transition-colors pt-1"
         >
           {t("auth.login.skip")}
         </button>

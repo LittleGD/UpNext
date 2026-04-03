@@ -62,7 +62,7 @@ export default function SettingsPage() {
 
   return (
     <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto space-y-5">
-      <h2 className="text-heading-1 text-text-primary">{t("settings.title")}</h2>
+      <h2 className="typo-title text-text-primary">{t("settings.title")}</h2>
 
       {/* ── 일반 설정 (언어 + 사운드) ── */}
       <section className="rounded-lg bg-bg-surface grid-border overflow-hidden">
@@ -74,7 +74,7 @@ export default function SettingsPage() {
         <div className="flex items-center justify-between px-4 py-3.5">
           <div className="flex items-center gap-3">
             <PixelIcon name="Sparkle" size={20} color="var(--text-secondary)" />
-            <span className="text-sm font-semibold text-text-primary">{t("settings.sound.effects")}</span>
+            <span className="typo-body text-text-primary">{t("settings.sound.effects")}</span>
           </div>
           <button
             onClick={() => { toggleSound(); if (!progress.soundEnabled) play("select"); }}
@@ -93,7 +93,7 @@ export default function SettingsPage() {
 
       {/* ── 챌린지 모드 ── */}
       <section className="space-y-2">
-        <h3 className="text-caption font-semibold uppercase tracking-wider px-1">{t("settings.mode.heading")}</h3>
+        <h3 className="typo-heading uppercase tracking-wider px-1">{t("settings.mode.heading")}</h3>
         <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
           {modes.map((mode, i) => {
             const isActive = progress.mode === mode.key;
@@ -134,21 +134,21 @@ export default function SettingsPage() {
                       {isPending && <div className="w-2.5 h-2.5 rounded-full bg-accent/50" />}
                     </div>
                     <div>
-                      <p className={`text-sm font-semibold ${isActive ? "text-accent" : "text-text-primary"}`}>
+                      <p className={`typo-body ${isActive ? "text-accent" : "text-text-primary"}`}>
                         {t(mode.labelKey)}
                       </p>
-                      <p className="text-[12px] text-text-tertiary mt-0.5">
+                      <p className="typo-caption text-text-tertiary mt-0.5">
                         {t(mode.descKey)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {isPending && (
-                      <span className="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-accent/10 rounded-sm">
+                      <span className="typo-micro text-accent px-1.5 py-0.5 bg-accent/10 rounded-sm">
                         {t("settings.mode.pendingBadge")}
                       </span>
                     )}
-                    <span className="text-[12px] font-bold text-text-tertiary tabular-nums">
+                    <span className="typo-caption text-text-tertiary tabular-nums">
                       {mode.cards}{t("common.cardsPerDay")}
                     </span>
                   </div>
@@ -165,7 +165,7 @@ export default function SettingsPage() {
 
       {/* ── 칭호 ── */}
       <section className="space-y-2">
-        <h3 className="text-caption font-semibold uppercase tracking-wider px-1">{t("settings.titles.heading")}</h3>
+        <h3 className="typo-heading uppercase tracking-wider px-1">{t("settings.titles.heading")}</h3>
         <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
           {/* 기본 칭호 */}
           <button
@@ -180,11 +180,11 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <PixelIcon name="Zap" size={18} color={!progress.equippedTitleId ? "var(--accent-primary)" : "var(--text-tertiary)"} />
-                <span className={`text-sm font-semibold ${!progress.equippedTitleId ? "text-accent" : "text-text-primary"}`}>
+                <span className={`typo-body ${!progress.equippedTitleId ? "text-accent" : "text-text-primary"}`}>
                   {defaultTitle}
                 </span>
               </div>
-              <span className="text-[11px] text-text-tertiary">
+              <span className="typo-micro text-text-tertiary">
                 {t("common.default")}
               </span>
             </div>
@@ -209,12 +209,12 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <PixelIcon name={title.icon} size={18} color={isEquipped ? "var(--accent-primary)" : rarity.color} />
-                    <span className={`text-sm font-semibold ${isEquipped ? "text-accent" : "text-text-primary"}`}>
+                    <span className={`typo-body ${isEquipped ? "text-accent" : "text-text-primary"}`}>
                       {titleName(title, language)}
                     </span>
                   </div>
                   <span
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm"
+                    className="typo-micro px-1.5 py-0.5 rounded-sm"
                     style={{
                       backgroundColor: isEquipped ? "rgba(205, 245, 100, 0.1)" : `${rarity.color}20`,
                       color: isEquipped ? "var(--accent-primary)" : rarity.color,
@@ -231,7 +231,7 @@ export default function SettingsPage() {
           })}
 
           {earnedTitles.length === 0 && (
-            <p className="text-[12px] text-text-tertiary px-4 py-3">
+            <p className="typo-caption text-text-tertiary px-4 py-3">
               {t("settings.titles.empty")}
             </p>
           )}
@@ -243,7 +243,7 @@ export default function SettingsPage() {
 
       {/* ── 내 기록 ── */}
       <section className="space-y-2">
-        <h3 className="text-caption font-semibold uppercase tracking-wider px-1">{t("settings.stats.heading")}</h3>
+        <h3 className="typo-heading uppercase tracking-wider px-1">{t("settings.stats.heading")}</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <StatCard label={t("settings.stats.currentStreak")} value={`${progress.currentStreak}${t("settings.stats.days")}`} icon="Zap" color="var(--accent-primary)" />
           <StatCard label={t("settings.stats.longestStreak")} value={`${progress.longestStreak}${t("settings.stats.days")}`} icon="Trophy" color="var(--rarity-legend)" />
@@ -280,7 +280,7 @@ export default function SettingsPage() {
               window.location.href = "/";
             }
           }}
-          className="text-[13px] text-text-tertiary hover:text-accent-secondary transition-colors"
+          className="typo-caption text-text-tertiary hover:text-accent-secondary transition-colors"
         >
           {t("settings.reset.button")}
         </button>
@@ -304,25 +304,25 @@ export default function SettingsPage() {
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-sm bg-bg-elevated rounded-2xl p-6 space-y-4"
             >
-              <p className="text-body text-text-primary text-center">
+              <p className="typo-body text-text-primary text-center">
                 <span className="font-semibold">
                   {modes.find((m) => m.key === pendingMode) && t(modes.find((m) => m.key === pendingMode)!.labelKey)}
                 </span>
                 {" "}{t("settings.mode.confirmPrompt")}
               </p>
-              <p className="text-sm text-text-secondary text-center">
+              <p className="typo-body text-text-secondary text-center">
                 {t("settings.mode.confirmDesc", { cards: modes.find((m) => m.key === pendingMode)?.cards ?? 0 })}
               </p>
               <div className="flex justify-center gap-3">
                 <button
                   onClick={() => { play("select"); setPendingMode(null); }}
-                  className="px-6 py-3 rounded-md bg-bg-surface text-text-secondary font-semibold"
+                  className="px-6 py-3 rounded-md bg-bg-surface text-text-secondary typo-body"
                 >
                   {t("common.cancel")}
                 </button>
                 <button
                   onClick={() => { play("confirm"); handleModeConfirm(); }}
-                  className="px-6 py-3 rounded-md bg-accent text-bg-primary font-semibold"
+                  className="px-6 py-3 rounded-md bg-accent text-bg-primary typo-body"
                 >
                   {t("common.change")}
                 </button>
@@ -349,8 +349,8 @@ function StatCard({
   return (
     <div className="bg-bg-surface rounded-lg p-3.5 grid-border">
       <PixelIcon name={icon} size={20} color={color} />
-      <p className="font-display text-lg text-text-primary mt-1.5 tabular-nums">{value}</p>
-      <p className="text-[12px] text-text-tertiary">{label}</p>
+      <p className="typo-heading text-text-primary mt-1.5 tabular-nums">{value}</p>
+      <p className="typo-caption text-text-tertiary">{label}</p>
     </div>
   );
 }

@@ -216,7 +216,7 @@ export default function SuperChallengeBanner({ onPress }: SuperChallengeBannerPr
             {/* Text */}
             <div className="flex-1 text-left">
               <p
-                className="text-[15px] font-semibold leading-snug transition-colors duration-300"
+                className="typo-body leading-snug transition-colors duration-300"
                 style={{
                   color: activated
                     ? "#FF6B9D"
@@ -228,7 +228,7 @@ export default function SuperChallengeBanner({ onPress }: SuperChallengeBannerPr
                 {t("super.banner.title")}
               </p>
               {!activated && (
-                <p className="text-[12px] mt-0.5 text-text-tertiary">
+                <p className="typo-caption mt-0.5 text-text-tertiary">
                   {t("super.banner.hint")}
                 </p>
               )}

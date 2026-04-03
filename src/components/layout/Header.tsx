@@ -32,10 +32,10 @@ export default function Header() {
       <div className="max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="font-display text-lg text-accent">Lv.{progress.level}</span>
-            <span className="text-sm font-semibold" style={{ color: titleColor || "var(--text-primary)" }}>{title}</span>
+            <span className="font-display typo-heading text-accent">Lv.{progress.level}</span>
+            <span className="typo-body" style={{ color: titleColor || "var(--text-primary)" }}>{title}</span>
           </div>
-          <span className="text-xs text-text-tertiary">
+          <span className="typo-caption text-text-tertiary">
             {current}/{needed} XP
           </span>
         </div>

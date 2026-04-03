@@ -83,8 +83,8 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
         >
           <PixelIcon name="Zap" size={48} color="var(--accent-primary)" />
         </motion.div>
-        <p className="text-display text-accent">Lv.1</p>
-        <p className="text-body text-text-secondary">{getTitleForLevel(1, language)}</p>
+        <p className="typo-title text-accent">Lv.1</p>
+        <p className="typo-body text-text-secondary">{getTitleForLevel(1, language)}</p>
       </motion.div>
 
       {/* 프로그레스 바 + 파티클 */}
@@ -98,8 +98,8 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
           />
         </div>
         <div className="flex justify-between mt-1">
-          <span className="text-caption">Lv.0</span>
-          <span className="text-caption text-accent">Lv.1</span>
+          <span className="typo-caption">Lv.0</span>
+          <span className="typo-caption text-accent">Lv.1</span>
         </div>
 
         {/* 파티클 — 프로그레스 바 오른쪽 끝에서 발사 */}
@@ -139,7 +139,7 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: phase === "done" ? 1 : 0, y: phase === "done" ? 0 : 10 }}
         transition={{ duration: 0.4 }}
-        className="text-body text-text-primary text-center"
+        className="typo-body text-text-primary text-center"
       >
         {t("onboarding.levelup.message")}
       </motion.p>
@@ -154,7 +154,7 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
           transition={{ duration: 0.4, delay: 0.2 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => { play("select"); onComplete(); }}
-          className="w-full py-4 bg-accent text-bg-primary rounded-md font-semibold text-lg"
+          className="w-full py-4 bg-accent text-bg-primary rounded-md typo-body"
         >
           {t("onboarding.levelup.button")}
         </motion.button>

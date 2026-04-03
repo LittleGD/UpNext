@@ -21,7 +21,7 @@ export default function AuthSection() {
 
   return (
     <section className="space-y-2">
-      <h3 className="text-caption font-semibold uppercase tracking-wider px-1">{t("auth.section.heading")}</h3>
+      <h3 className="typo-heading uppercase tracking-wider px-1">{t("auth.section.heading")}</h3>
 
       {isSignedIn && user ? (
         <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
@@ -40,12 +40,12 @@ export default function AuthSection() {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-text-primary truncate">
+              <p className="typo-body text-text-primary truncate">
                 {user.displayName || t("auth.section.user")}
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <PixelIcon name="Reload" size={12} color="var(--accent-primary)" />
-                <span className="text-[11px] text-accent">{t("auth.section.syncing")}</span>
+                <span className="typo-micro text-accent">{t("auth.section.syncing")}</span>
               </div>
             </div>
           </div>
@@ -54,20 +54,20 @@ export default function AuthSection() {
           {/* 로그아웃 */}
           <button
             onClick={signOut}
-            className="w-full text-left px-4 py-3 text-sm text-text-tertiary hover:bg-bg-elevated transition-colors"
+            className="w-full text-left px-4 py-3 typo-body text-text-tertiary hover:bg-bg-elevated transition-colors"
           >
             {t("auth.section.signOut")}
           </button>
         </div>
       ) : (
         <div className="rounded-lg bg-bg-surface grid-border p-4 space-y-3">
-          <p className="text-[13px] text-text-tertiary">
+          <p className="typo-caption text-text-tertiary">
             {t("auth.section.prompt")}
           </p>
           <button
             onClick={signInWithGoogle}
             disabled={isSigningIn}
-            className="flex items-center gap-3 px-5 py-3 rounded-lg bg-white text-[#1f1f1f] font-semibold text-sm transition-all hover:bg-gray-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-3 px-5 py-3 rounded-lg bg-white text-[#1f1f1f] font-semibold typo-body transition-all hover:bg-gray-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSigningIn ? (
               <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
@@ -82,7 +82,7 @@ export default function AuthSection() {
             {isSigningIn ? t("auth.section.signingIn") : t("auth.section.signInGoogle")}
           </button>
           {signInError && (
-            <p className="text-[12px] text-accent-secondary">{signInError}</p>
+            <p className="typo-caption text-accent-secondary">{signInError}</p>
           )}
         </div>
       )}

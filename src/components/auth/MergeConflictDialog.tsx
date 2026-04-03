@@ -38,8 +38,8 @@ export default function MergeConflictDialog({
         className="w-full max-w-sm bg-bg-elevated rounded-2xl p-6 space-y-4"
       >
         <div className="text-center">
-          <h2 className="text-heading-2 text-text-primary">{t("auth.merge.heading")}</h2>
-          <p className="text-sm text-text-secondary mt-1">
+          <h2 className="typo-heading text-text-primary">{t("auth.merge.heading")}</h2>
+          <p className="typo-body text-text-secondary mt-1">
             {t("auth.merge.description")}
           </p>
         </div>
@@ -55,13 +55,13 @@ export default function MergeConflictDialog({
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-text-primary">{t("auth.merge.useLocal")}</p>
-                <p className="text-[12px] text-text-secondary mt-0.5">
+                <p className="typo-body text-text-primary">{t("auth.merge.useLocal")}</p>
+                <p className="typo-caption text-text-secondary mt-0.5">
                   Lv.{localProgress.level} · {localDays} {t("auth.merge.daysCompleted")} · {localProgress.xp} XP
                 </p>
               </div>
               {recommend === "local" && (
-                <span className="text-[10px] font-bold text-accent px-2 py-1 bg-bg-surface rounded-sm">
+                <span className="typo-micro text-accent px-2 py-1 bg-bg-surface rounded-sm">
                   {t("common.recommended")}
                 </span>
               )}
@@ -78,13 +78,13 @@ export default function MergeConflictDialog({
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-text-primary">{t("auth.merge.useCloud")}</p>
-                <p className="text-[12px] text-text-secondary mt-0.5">
+                <p className="typo-body text-text-primary">{t("auth.merge.useCloud")}</p>
+                <p className="typo-caption text-text-secondary mt-0.5">
                   Lv.{cloudProgress.level} · {cloudDays} {t("auth.merge.daysCompleted")} · {cloudProgress.xp} XP
                 </p>
               </div>
               {recommend === "cloud" && (
-                <span className="text-[10px] font-bold text-accent px-2 py-1 bg-bg-surface rounded-sm">
+                <span className="typo-micro text-accent px-2 py-1 bg-bg-surface rounded-sm">
                   {t("common.recommended")}
                 </span>
               )}
