@@ -57,7 +57,9 @@ export default function BottomNav() {
 
   const isSelectionReview = isDailySelectionReview || isExtraSelectionReview || isSuperSelectionReview;
 
-  if (!isLoaded || !hasCompletedOnboarding || isSelectionReview || isOpeningPack) return null;
+  // 팩 오프너는 메인 페이지(/)에서만 표시되므로, 다른 페이지에서는 네비 숨기지 않음
+  const hideForPack = isOpeningPack && pathname === "/";
+  if (!isLoaded || !hasCompletedOnboarding || isSelectionReview || hideForPack) return null;
 
   return (
     <nav className="fixed bottom-5 left-1/2 -translate-x-1/2 z-10 pb-[env(safe-area-inset-bottom)]">
