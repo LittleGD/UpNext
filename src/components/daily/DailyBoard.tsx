@@ -619,7 +619,7 @@ export default function DailyBoard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md px-4 pb-6 sm:pb-0"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md px-4"
               onClick={() => setConfirmCard(null)}
             >
               <motion.div
