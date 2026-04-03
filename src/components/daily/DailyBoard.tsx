@@ -266,7 +266,7 @@ function CompletionCard() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="typo-title text-bg-primary mt-3 text-center"
+          className="typo-display text-bg-primary mt-3 text-center"
         >
           {t("daily.board.allDoneTitle")}
         </motion.p>

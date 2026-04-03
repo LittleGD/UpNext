@@ -121,7 +121,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
             y: phase === "absorbing" ? -20 : 0,
           }}
           transition={{ delay: phase === "absorbing" ? 0 : 0.2, duration: 0.3 }}
-          className="typo-title text-accent text-center"
+          className="typo-display text-accent text-center"
         >
           {t("cards.pack.newCards")}
         </motion.h2>

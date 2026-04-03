@@ -124,7 +124,7 @@ export default function AppDescription({ onNext }: AppDescriptionProps) {
 
             {/* 텍스트 */}
             <div className="text-center">
-              <h1 className="typo-title text-text-primary leading-tight">
+              <h1 className="typo-display text-text-primary leading-tight">
                 {current.title}
               </h1>
               <p className="typo-body text-text-secondary mt-4">
