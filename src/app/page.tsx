@@ -9,8 +9,6 @@ import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
 
-// CardPackOpener, LoginOverlay만 동적 — 진짜 조건부 렌더링 컴포넌트
-// OnboardingFlow는 LCP 요소이므로 정적 import 유지
 const CardPackOpener = dynamic(
   () => import("@/components/cards/CardPackOpener"),
   { ssr: false },
@@ -41,21 +39,14 @@ export default function Home() {
     initialize();
   }, [initialize]);
 
-  if (!isLoaded) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="skeleton w-48 h-6" />
-          <div className="skeleton w-32 h-4" />
-          <div className="skeleton w-full max-w-xs h-20 mt-4" />
-          <div className="skeleton w-full max-w-xs h-20" />
-          <div className="skeleton w-full max-w-xs h-20" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!hasCompletedOnboarding) {
+  // ── 핵심 LCP 최적화 ──
+  // 기존: !isLoaded → skeleton(무의미) → JS 하이드레이션 후 실제 콘텐츠 → LCP 8.2s
+  // 개선: !isLoaded → OnboardingFlow SSR → 서버에서 실제 콘텐츠 렌더 → LCP = FCP
+  //
+  // 서버: isLoaded=false → OnboardingFlow 렌더 (첫 방문자에게 적합)
+  // 클라이언트 하이드레이션: 동일 → 불일치 없음
+  // initialize() 후: isLoaded=true → 기존 사용자는 DailyBoard로 전환
+  if (!isLoaded || !hasCompletedOnboarding) {
     return <OnboardingFlow />;
   }
 

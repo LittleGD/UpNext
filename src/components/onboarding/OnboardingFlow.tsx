@@ -15,7 +15,8 @@ type Step = "splash" | "description" | "difficulty" | "starter-pack" | "level-up
 const INDICATOR_STEPS: Step[] = ["description", "difficulty", "starter-pack", "level-up"];
 
 export default function OnboardingFlow() {
-  const [step, setStep] = useState<Step>("splash");
+  // splash 스킵 → description에서 시작 (LCP 2.5초 단축)
+  const [step, setStep] = useState<Step>("description");
   const setMode = useGameStore((s) => s.setMode);
   const selectStarterPack = useGameStore((s) => s.selectStarterPack);
   const completeOnboarding = useGameStore((s) => s.completeOnboarding);
