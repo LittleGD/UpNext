@@ -67,7 +67,6 @@ export default function Home() {
     : phase === "extra" ? daily.extraSelectionComplete
     : daily.superSelectionComplete;
   const showBoard = isCurrentSelectionDone;
-  const showDraw = !isCurrentDrawDone || !isCurrentSelectionDone;
 
   // phase별 완료 여부 — 완료 시 이펙트 제거
   const extraCards = daily.extraSelectedCards ?? [];
