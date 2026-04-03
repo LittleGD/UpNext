@@ -21,23 +21,31 @@ const FAN_CARDS = [
   { icon: "Trophy", color: "var(--rarity-legend)", rotate: 22, x: 48, delay: 0.38 },
 ];
 
-/* ── 파티클 생성 ── */
-function generateSparkles(count: number, singleColor?: string) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    x: (Math.random() - 0.5) * 200,
-    y: (Math.random() - 0.5) * 200,
-    size: 1 + Math.random() * 1.5,
-    delay: Math.random() * 2,
-    duration: 2 + Math.random() * 2,
-    color: singleColor || ["var(--accent-primary)", "var(--accent-cyan)", "var(--rarity-unique)", "var(--text-tertiary)"][
-      Math.floor(Math.random() * 4)
-    ],
-  }));
+/* ── 결정적 파티클 생성 (서버/클라이언트 동일) ── */
+function seededRandom(seed: number) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
 }
 
-const SPARKLES_1 = generateSparkles(12);
-const SPARKLES_2 = generateSparkles(10, "#E8FFE8");
+function generateSparkles(count: number, seedOffset: number, singleColor?: string) {
+  return Array.from({ length: count }, (_, i) => {
+    const s = (n: number) => seededRandom(i * 7 + n + seedOffset);
+    return {
+      id: i,
+      x: (s(0) - 0.5) * 200,
+      y: (s(1) - 0.5) * 200,
+      size: 1 + s(2) * 1.5,
+      delay: s(3) * 2,
+      duration: 2 + s(4) * 2,
+      color: singleColor || ["var(--accent-primary)", "var(--accent-cyan)", "var(--rarity-unique)", "var(--text-tertiary)"][
+        Math.floor(s(5) * 4)
+      ],
+    };
+  });
+}
+
+const SPARKLES_1 = generateSparkles(12, 0);
+const SPARKLES_2 = generateSparkles(10, 100, "#E8FFE8");
 
 
 export default function AppDescription({ onNext }: AppDescriptionProps) {
