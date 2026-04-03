@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { ChallengeCard, Category } from "@/types/card";
 import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase } from "@/types/game";
-import { MODE_CARD_COUNT, XP_PER_RARITY, FULL_CLEAR_BONUS_XP, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, PHASE_MIN_CARDS, PHASE_XP_MULTIPLIER, PHASE_CLEAR_BONUS } from "@/types/game";
+import { MODE_CARD_COUNT, XP_PER_RARITY, FULL_CLEAR_BONUS_XP, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, PHASE_MIN_CARDS, PHASE_MAX_CARDS, PHASE_XP_MULTIPLIER, PHASE_CLEAR_BONUS } from "@/types/game";
 import { ALL_CARDS, STARTER_CARD_IDS } from "@/data/cards";
 import { drawCards, drawFromPool } from "@/lib/deck";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
@@ -567,13 +567,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const phase = daily.challengePhase;
 
     if (phase === "extra") {
-      if (daily.extraSelectedCards.length >= 6) return;
+      if (daily.extraSelectedCards.length >= PHASE_MAX_CARDS.extra) return;
       if (daily.extraSelectedCards.some((c) => c.id === card.id)) return;
       const updated = { ...daily, extraSelectedCards: [...daily.extraSelectedCards, card] };
       set({ daily: updated });
       saveToStorage("daily", updated);
     } else if (phase === "super") {
-      if (daily.superSelectedCards.length >= 6) return;
+      if (daily.superSelectedCards.length >= PHASE_MAX_CARDS.super) return;
       if (daily.superSelectedCards.some((c) => c.id === card.id)) return;
       const updated = { ...daily, superSelectedCards: [...daily.superSelectedCards, card] };
       set({ daily: updated });

@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { NAV_ICONS } from "@/components/icons";
 import { useGameStore } from "@/store/useGameStore";
-import { MODE_CARD_COUNT } from "@/types/game";
+import { MODE_CARD_COUNT, PHASE_MAX_CARDS } from "@/types/game";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSound } from "@/hooks/useSound";
@@ -46,14 +46,14 @@ export default function BottomNav() {
     phase === "extra" &&
     (daily.extraDrawComplete ?? false) &&
     !(daily.extraSelectionComplete ?? false) &&
-    (daily.extraSelectedCards?.length ?? 0) >= 2;
+    (daily.extraSelectedCards?.length ?? 0) >= PHASE_MAX_CARDS.extra;
 
   const isSuperSelectionReview =
     pathname === "/" &&
     phase === "super" &&
     (daily.superDrawComplete ?? false) &&
     !(daily.superSelectionComplete ?? false) &&
-    (daily.superSelectedCards?.length ?? 0) >= 4;
+    (daily.superSelectedCards?.length ?? 0) >= PHASE_MAX_CARDS.super;
 
   const isSelectionReview = isDailySelectionReview || isExtraSelectionReview || isSuperSelectionReview;
 
