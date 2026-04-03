@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { WDXL_Lubrifont_JP_N, ZCOOL_QingKe_HuangYou } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Header from "@/components/layout/Header";
@@ -9,28 +8,20 @@ import SyncProvider from "@/components/providers/SyncProvider";
 import LanguageSync from "@/components/providers/LanguageSync";
 import ClientEffects from "@/components/effects/ClientEffects";
 
-// ── Phase 1A: April16Promise 로컬 셀프호스팅 ──
+// ── April16Promise 로컬 셀프호스팅 ──
+// display: "optional" → 100ms 내 로딩 못하면 시스템 폰트 유지
+// → LCP = FCP (폰트 swap으로 인한 LCP 지연 제거)
+// → 재방문 시 캐시에서 즉시 로딩되어 커스텀 폰트 적용
 const april16 = localFont({
   src: "./fonts/April16th-Promise.woff2",
   variable: "--font-april16",
-  display: "swap",
+  display: "optional",
   weight: "400",
 });
 
-// ── Phase 1B: Google Fonts → next/font/google (JA/ZH) ──
-const wdxlLubrifont = WDXL_Lubrifont_JP_N({
-  variable: "--font-wdxl",
-  display: "swap",
-  weight: "400",
-  preload: false,
-});
-
-const zcoolQingKe = ZCOOL_QingKe_HuangYou({
-  variable: "--font-zcool",
-  display: "swap",
-  weight: "400",
-  preload: false,
-});
+// JA/ZH 폰트: next/font/google 제거 → LanguageSync에서 동적 로딩
+// next/font/google은 preload:false여도 @font-face CSS가 메인 번들에 포함되어
+// 렌더 블로킹 CSS를 비대화시킴 (170ms→330ms)
 
 export const metadata: Metadata = {
   title: "UpNext",
@@ -65,10 +56,10 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${april16.variable} ${wdxlLubrifont.variable} ${zcoolQingKe.variable} dark h-full`}
+      className={`${april16.variable} dark h-full`}
     >
       <head>
-        {/* Phase 1C: Typekit (EN 폰트) 비동기 로딩 — 렌더 블로킹 제거 */}
+        {/* Typekit (EN 폰트) 비동기 로딩 */}
         <Script id="typekit-loader" strategy="afterInteractive">{`
           (function(){
             var l=document.createElement('link');
