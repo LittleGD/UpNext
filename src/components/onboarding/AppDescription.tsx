@@ -21,31 +21,34 @@ const FAN_CARDS = [
   { icon: "Trophy", color: "var(--rarity-legend)", rotate: 22, x: 48, delay: 0.38 },
 ];
 
-/* ── 결정적 파티클 생성 (서버/클라이언트 동일) ── */
-function seededRandom(seed: number) {
-  const x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
-}
-
-function generateSparkles(count: number, seedOffset: number, singleColor?: string) {
-  return Array.from({ length: count }, (_, i) => {
-    const s = (n: number) => seededRandom(i * 7 + n + seedOffset);
-    return {
-      id: i,
-      x: (s(0) - 0.5) * 200,
-      y: (s(1) - 0.5) * 200,
-      size: 1 + s(2) * 1.5,
-      delay: s(3) * 2,
-      duration: 2 + s(4) * 2,
-      color: singleColor || ["var(--accent-primary)", "var(--accent-cyan)", "var(--rarity-unique)", "var(--text-tertiary)"][
-        Math.floor(s(5) * 4)
-      ],
-    };
-  });
-}
-
-const SPARKLES_1 = generateSparkles(12, 0);
-const SPARKLES_2 = generateSparkles(10, 100, "#E8FFE8");
+/* ── 파티클 (하드코딩 — SSR hydration 안전) ── */
+const SPARKLE_COLORS = ["var(--accent-primary)", "var(--accent-cyan)", "var(--rarity-unique)", "var(--text-tertiary)"];
+const SPARKLES_1 = [
+  { id: 0, x: -62, y: 48, size: 1.3, delay: 0.4, duration: 3.1, color: SPARKLE_COLORS[0] },
+  { id: 1, x: 78, y: -35, size: 2.1, delay: 1.2, duration: 2.6, color: SPARKLE_COLORS[1] },
+  { id: 2, x: -88, y: -72, size: 1.7, delay: 0.1, duration: 3.8, color: SPARKLE_COLORS[2] },
+  { id: 3, x: 45, y: 82, size: 1.1, delay: 1.8, duration: 2.3, color: SPARKLE_COLORS[3] },
+  { id: 4, x: -30, y: -90, size: 2.4, delay: 0.7, duration: 3.4, color: SPARKLE_COLORS[0] },
+  { id: 5, x: 95, y: 15, size: 1.5, delay: 1.5, duration: 2.8, color: SPARKLE_COLORS[1] },
+  { id: 6, x: -75, y: 60, size: 1.9, delay: 0.3, duration: 3.6, color: SPARKLE_COLORS[2] },
+  { id: 7, x: 20, y: -55, size: 1.2, delay: 1.0, duration: 2.4, color: SPARKLE_COLORS[3] },
+  { id: 8, x: -50, y: -20, size: 2.0, delay: 1.6, duration: 3.2, color: SPARKLE_COLORS[0] },
+  { id: 9, x: 68, y: 40, size: 1.4, delay: 0.6, duration: 2.9, color: SPARKLE_COLORS[1] },
+  { id: 10, x: -15, y: 75, size: 1.8, delay: 0.9, duration: 3.5, color: SPARKLE_COLORS[2] },
+  { id: 11, x: 55, y: -80, size: 2.2, delay: 1.3, duration: 2.5, color: SPARKLE_COLORS[3] },
+];
+const SPARKLES_2 = [
+  { id: 0, x: -55, y: 42, size: 1.4, delay: 0.5, duration: 3.0, color: "#E8FFE8" },
+  { id: 1, x: 72, y: -28, size: 2.0, delay: 1.1, duration: 2.7, color: "#E8FFE8" },
+  { id: 2, x: -80, y: -65, size: 1.6, delay: 0.2, duration: 3.5, color: "#E8FFE8" },
+  { id: 3, x: 38, y: 78, size: 1.2, delay: 1.7, duration: 2.4, color: "#E8FFE8" },
+  { id: 4, x: -25, y: -85, size: 2.3, delay: 0.8, duration: 3.3, color: "#E8FFE8" },
+  { id: 5, x: 90, y: 10, size: 1.5, delay: 1.4, duration: 2.6, color: "#E8FFE8" },
+  { id: 6, x: -68, y: 55, size: 1.8, delay: 0.4, duration: 3.7, color: "#E8FFE8" },
+  { id: 7, x: 15, y: -48, size: 1.3, delay: 1.0, duration: 2.5, color: "#E8FFE8" },
+  { id: 8, x: -42, y: -15, size: 2.1, delay: 1.6, duration: 3.1, color: "#E8FFE8" },
+  { id: 9, x: 60, y: 35, size: 1.7, delay: 0.7, duration: 2.8, color: "#E8FFE8" },
+];
 
 
 export default function AppDescription({ onNext }: AppDescriptionProps) {
@@ -55,7 +58,8 @@ export default function AppDescription({ onNext }: AppDescriptionProps) {
 
   // 초기 마운트 시 진입 애니메이션 비활성 → LCP = FCP (SSR 콘텐츠 그대로 유지)
   const isInitialMount = useRef(true);
-  useEffect(() => { isInitialMount.current = false; }, []);
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => { isInitialMount.current = false; setIsMounted(true); }, []);
 
   // Play sound effect when page changes
   useEffect(() => {
@@ -125,9 +129,9 @@ export default function AppDescription({ onNext }: AppDescriptionProps) {
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="flex flex-col items-center gap-8 w-full"
           >
-            {/* 모션 그래픽 영역 */}
+            {/* 모션 그래픽 영역 — SSR에서는 빈 컨테이너만 렌더 (hydration 안전) */}
             <div className="relative w-full h-[200px] flex items-center justify-center">
-              {page === 0 ? <CardFanGraphic /> : <EnergyPulseGraphic />}
+              {isMounted && (page === 0 ? <CardFanGraphic /> : <EnergyPulseGraphic />)}
             </div>
 
             {/* 텍스트 */}
