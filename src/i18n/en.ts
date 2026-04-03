@@ -63,6 +63,30 @@ const en: Record<DictKey, string> = {
   "daily.board.confirmPrompt": "Mark this challenge as done?",
   "daily.board.markDone": "Mark Complete",
   "daily.board.completed": "Completed",
+  "daily.penalty.banner": "Penalty! One card was auto-selected for failing yesterday's challenges",
+  "daily.penalty.locked": "Locked",
+
+  // === extra ===
+  "extra.banner.title": "Extra Challenge — Are You Sure?",
+  "extra.banner.hint": "Hold to activate",
+  "extra.confirm.title": "Ready for an Extra Challenge?",
+  "extra.confirm.warning": "Overexertion leads to burnout",
+  "extra.confirm.rule": "Must select at least 2 challenges",
+  "extra.confirm.go": "Let's Go!",
+  "extra.confirm.rest": "Take a Rest",
+  "extra.board.heading": "Extra Challenge",
+  "extra.complete.title": "Extra Challenge Cleared!",
+
+  // === super ===
+  "super.banner.title": "Super Ultra Challenge Unlocked",
+  "super.banner.hint": "Hold to unlock",
+  "super.confirm.title": "Take the Super Ultra Challenge?",
+  "super.confirm.warning": "Great rewards, but it'll be tiring",
+  "super.confirm.rule": "Must select 4 challenges",
+  "super.confirm.go": "I Can Do This!",
+  "super.confirm.rest": "That's Enough for Today",
+  "super.board.heading": "Super Ultra Challenge",
+  "super.complete.title": "Super Ultra Challenge Cleared!!",
 
   // === cards ===
   "cards.pack.newCards": "New cards unlocked!",

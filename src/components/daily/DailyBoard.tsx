@@ -13,6 +13,10 @@ import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle, cardDesc } from "@/i18n";
 import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
+import { PHASE_XP_MULTIPLIER } from "@/types/game";
+import ExtraChallengeBanner from "./ExtraChallengeBanner";
+import SuperChallengeBanner from "./SuperChallengeBanner";
+import ChallengeConfirmModal from "./ChallengeConfirmModal";
 
 // === Mini-game: Tap falling stars ===
 interface FallingStar {
@@ -333,27 +337,60 @@ export default function DailyBoard() {
   const daily = useGameStore((s) => s.daily);
   const progress = useGameStore((s) => s.progress);
   const completeChallenge = useGameStore((s) => s.completeChallenge);
+  const completePhaseChallenge = useGameStore((s) => s.completePhaseChallenge);
+  const startExtraChallenge = useGameStore((s) => s.startExtraChallenge);
+  const startSuperChallenge = useGameStore((s) => s.startSuperChallenge);
   const { play } = useSound();
   const { t, language } = useTranslation();
   const [confirmCard, setConfirmCard] = useState<ChallengeCard | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [completingCard, setCompletingCard] = useState<ChallengeCard | null>(null);
   const [completingXp, setCompletingXp] = useState(0);
+  const [showChallengeModal, setShowChallengeModal] = useState<"extra" | "super" | null>(null);
+  const [shakeCount, setShakeCount] = useState(0);
 
-  const completedCount = daily.completedIds.length;
-  const totalCount = daily.selectedCards.length;
+  // phase-aware 데이터 선택
+  const phase = daily.challengePhase || "daily";
+  const phaseSelectedCards = phase === "extra" ? daily.extraSelectedCards
+    : phase === "super" ? daily.superSelectedCards
+    : daily.selectedCards;
+  const phaseCompletedIds = phase === "extra" ? daily.extraCompletedIds
+    : phase === "super" ? daily.superCompletedIds
+    : daily.completedIds;
+
+  const completedCount = phaseCompletedIds.length;
+  const totalCount = phaseSelectedCards.length;
   const allDone = totalCount > 0 && completedCount >= totalCount;
+
+  // daily 완료 여부 (extra 배너 표시용)
+  const dailyAllDone = daily.selectedCards.length > 0 && daily.completedIds.length >= daily.selectedCards.length;
+  // extra 완료 여부 (super 배너 표시용)
+  const extraAllDone = (daily.extraSelectedCards?.length ?? 0) > 0 && (daily.extraCompletedIds?.length ?? 0) >= (daily.extraSelectedCards?.length ?? 0);
+
+  const phaseHeading = phase === "extra" ? t("extra.board.heading")
+    : phase === "super" ? t("super.board.heading")
+    : t("daily.board.heading");
+
+  const handleCompleteAction = (cardId: string) => {
+    if (phase === "daily") {
+      completeChallenge(cardId);
+    } else {
+      completePhaseChallenge(cardId);
+    }
+  };
 
   const handleConfirm = () => {
     if (confirmCard) {
-      const xp = XP_PER_RARITY[confirmCard.rarity] || 10;
+      const baseXp = XP_PER_RARITY[confirmCard.rarity] || 10;
+      const multiplier = PHASE_XP_MULTIPLIER[phase];
+      const xp = Math.round(baseXp * multiplier);
       // Show success state in modal
       setCompletingCard(confirmCard);
       setCompletingXp(xp);
       setConfirmCard(null);
       play("complete");
       setTimeout(() => play("xpGain"), 280);
-      completeChallenge(confirmCard.id);
+      handleCompleteAction(confirmCard.id);
 
       const willBeAllDone = completedCount + 1 >= totalCount;
 
@@ -369,16 +406,67 @@ export default function DailyBoard() {
     }
   };
 
+  // 추가 챌린지 확인 핸들러
+  const handleExtraConfirm = () => {
+    setShowChallengeModal(null);
+    play("impactShake");
+    setShakeCount(1);
+    setTimeout(() => setShakeCount(0), 500);
+    startExtraChallenge();
+  };
+
+  const handleSuperConfirm = () => {
+    setShowChallengeModal(null);
+    play("impactShake");
+    setShakeCount(2);
+    setTimeout(() => {
+      play("impactShake");
+      setTimeout(() => setShakeCount(0), 500);
+    }, 400);
+    startSuperChallenge();
+  };
+
   return (
-    <div className="space-y-4">
+    <motion.div
+      className="space-y-4"
+      animate={shakeCount > 0 ? {
+        x: [0, -10, 10, -8, 8, -4, 4, 0],
+      } : {}}
+      transition={shakeCount > 0 ? {
+        duration: 0.4,
+        repeat: shakeCount - 1,
+        repeatDelay: 0.1,
+      } : {}}
+    >
       <PixelConfetti trigger={showConfetti} />
 
       {/* Completion card */}
       {allDone && <CompletionCard />}
 
+      {/* 추가 챌린지 배너 — daily 완료 후, extra 미시작 */}
+      {phase === "daily" && dailyAllDone && (
+        <ExtraChallengeBanner onPress={() => setShowChallengeModal("extra")} />
+      )}
+
+      {/* 슈퍼 챌린지 배너 — extra 완료 후, super 미시작 */}
+      {phase === "extra" && extraAllDone && (
+        <SuperChallengeBanner onPress={() => setShowChallengeModal("super")} />
+      )}
+
+      {/* 챌린지 확인 모달 */}
+      <AnimatePresence>
+        {showChallengeModal && (
+          <ChallengeConfirmModal
+            phase={showChallengeModal}
+            onConfirm={showChallengeModal === "extra" ? handleExtraConfirm : handleSuperConfirm}
+            onCancel={() => setShowChallengeModal(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Header — compact progress */}
       <div className="flex items-center justify-between">
-        <h2 className="text-heading-2 text-text-primary">{t("daily.board.heading")}</h2>
+        <h2 className="text-heading-2 text-text-primary">{phaseHeading}</h2>
         <div className="flex items-center gap-1.5">
           {Array.from({ length: totalCount }, (_, i) => (
             <motion.div
@@ -400,8 +488,8 @@ export default function DailyBoard() {
 
       {/* Challenge cards — large, spacious, refined */}
       <div className="space-y-5">
-        {daily.selectedCards.map((card, index) => {
-          const isCompleted = daily.completedIds.includes(card.id);
+        {phaseSelectedCards.map((card, index) => {
+          const isCompleted = phaseCompletedIds.includes(card.id);
           const rarity = RARITY_CONFIG[card.rarity];
           const xp = XP_PER_RARITY[card.rarity] || 10;
 
@@ -724,6 +812,6 @@ export default function DailyBoard() {
           );
         })()}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

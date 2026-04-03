@@ -20,7 +20,11 @@ export type SoundName =
   | "chargeUp"
   | "ambientFloat"
   | "pulseWave"
-  | "collect";
+  | "collect"
+  | "fireIgnite"
+  | "impactShake"
+  | "superIgnite"
+  | "meteorWhoosh";
 
 let audioCtx: AudioContext | null = null;
 
@@ -305,6 +309,126 @@ const sounds: Record<SoundName, () => void> = {
     // Final bright burst at peak — signals charge complete
     createOsc(ctx, 1200, t + 0.7, 0.1, MASTER_VOLUME * 0.25);
     createOsc(ctx, 600, t + 0.7, 0.1, MASTER_VOLUME * 0.15, "triangle");
+  },
+
+  /** Fire ignite — 600ms, low rumble + crackling bursts + rising sweep */
+  fireIgnite() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Low rumble — 80Hz triangle for deep fire body
+    createOsc(ctx, 80, t, 0.5, MASTER_VOLUME * 0.7, "triangle");
+    // Crackling bursts — 4-5 random short square notes at high freq
+    const crackleFreqs = [1200, 1500, 1800, 1400, 2000];
+    crackleFreqs.forEach((freq, i) => {
+      const offset = 0.05 + i * 0.07 + Math.random() * 0.03;
+      const dur = 0.02 + Math.random() * 0.02; // 20-40ms
+      createOsc(ctx, freq, t + offset, dur, MASTER_VOLUME * 0.4);
+    });
+    // Rising sweep — 200→600Hz over 400ms, the fire catching
+    createSweep(ctx, 200, 600, t + 0.1, 0.4, MASTER_VOLUME * 0.5);
+  },
+
+  /** Impact shake — 200ms, strong low impact + sub-bass frequency drop */
+  impactShake() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Strong low impact — 60Hz square, high volume
+    const impactOsc = ctx.createOscillator();
+    const impactGain = ctx.createGain();
+    impactOsc.type = "square";
+    impactOsc.frequency.setValueAtTime(60, t);
+    // Sub-bass drop — ramp 60→30Hz over 150ms
+    impactOsc.frequency.exponentialRampToValueAtTime(30, t + 0.15);
+    impactGain.gain.setValueAtTime(0.0001, t);
+    impactGain.gain.exponentialRampToValueAtTime(0.25, t + 0.005);
+    // Quick decay
+    impactGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    impactOsc.connect(impactGain);
+    impactGain.connect(ctx.destination);
+    impactOsc.start(t);
+    impactOsc.stop(t + 0.22);
+    // Additional sub-bass body for weight
+    createOsc(ctx, 45, t, 0.15, MASTER_VOLUME * 0.6, "triangle");
+  },
+
+  /** Super ignite — 900ms, epic enhanced fire with chorus + reverse cymbal */
+  superIgnite() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Deep bass — 50Hz triangle, even deeper than fireIgnite
+    createOsc(ctx, 50, t, 0.7, MASTER_VOLUME * 0.8, "triangle");
+    // Double crackling — 8 notes across wider freq range
+    const crackleFreqs = [1000, 1400, 1800, 2200, 1200, 2400, 1600, 2000];
+    crackleFreqs.forEach((freq, i) => {
+      const offset = 0.05 + i * 0.06 + Math.random() * 0.03;
+      const dur = 0.02 + Math.random() * 0.02;
+      createOsc(ctx, freq, t + offset, dur, MASTER_VOLUME * 0.35);
+    });
+    // 3 detuned oscillators for chorus effect — main + ±5Hz offsets
+    const chorusBase = 200;
+    [chorusBase, chorusBase + 5, chorusBase - 5].forEach((freq) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(freq, t + 0.1);
+      osc.frequency.exponentialRampToValueAtTime(freq * 3, t + 0.6);
+      gain.gain.setValueAtTime(0.0001, t + 0.1);
+      gain.gain.exponentialRampToValueAtTime(MASTER_VOLUME * 0.3, t + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t + 0.1);
+      osc.stop(t + 0.75);
+    });
+    // Reverse cymbal sweep — 2000→200Hz triangle, builds tension
+    const cymbal = ctx.createOscillator();
+    const cymbalGain = ctx.createGain();
+    cymbal.type = "triangle";
+    cymbal.frequency.setValueAtTime(2000, t + 0.2);
+    cymbal.frequency.exponentialRampToValueAtTime(200, t + 0.85);
+    cymbalGain.gain.setValueAtTime(0.0001, t + 0.2);
+    cymbalGain.gain.exponentialRampToValueAtTime(MASTER_VOLUME * 0.4, t + 0.5);
+    cymbalGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    cymbal.connect(cymbalGain);
+    cymbalGain.connect(ctx.destination);
+    cymbal.start(t + 0.2);
+    cymbal.stop(t + 0.95);
+  },
+
+  /** Meteor whoosh — 1.5s, descending sweep + cosmic pad + sparkle pings */
+  meteorWhoosh() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Descending sweep — 1500→300Hz triangle, the meteor streaking
+    const sweep = ctx.createOscillator();
+    const sweepGain = ctx.createGain();
+    sweep.type = "triangle";
+    sweep.frequency.setValueAtTime(1500, t);
+    sweep.frequency.exponentialRampToValueAtTime(300, t + 0.8);
+    sweepGain.gain.setValueAtTime(0.0001, t);
+    sweepGain.gain.exponentialRampToValueAtTime(MASTER_VOLUME * 0.6, t + 0.02);
+    sweepGain.gain.exponentialRampToValueAtTime(MASTER_VOLUME * 0.3, t + 0.4);
+    sweepGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+    sweep.connect(sweepGain);
+    sweepGain.connect(ctx.destination);
+    sweep.start(t);
+    sweep.stop(t + 0.85);
+    // Soft cosmic pad — 200Hz triangle, very low volume, sustained
+    const pad = ctx.createOscillator();
+    const padGain = ctx.createGain();
+    pad.type = "triangle";
+    pad.frequency.setValueAtTime(200, t + 0.2);
+    padGain.gain.setValueAtTime(0.0001, t + 0.2);
+    padGain.gain.exponentialRampToValueAtTime(0.05, t + 0.4);
+    padGain.gain.setValueAtTime(0.05, t + 1.0);
+    padGain.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+    pad.connect(padGain);
+    padGain.connect(ctx.destination);
+    pad.start(t + 0.2);
+    pad.stop(t + 1.35);
+    // Light sparkle notes — 2 quick 1800Hz pings at the tail
+    createOsc(ctx, 1800, t + 1.0, 0.06, MASTER_VOLUME * 0.25);
+    createOsc(ctx, 1800, t + 1.12, 0.06, MASTER_VOLUME * 0.15);
   },
 };
 

@@ -25,18 +25,31 @@ export default function BottomNav() {
   const isMd = useMediaQuery("(min-width: 768px)");
   const isLoaded = useGameStore((s) => s.isLoaded);
   const hasCompletedOnboarding = useGameStore((s) => s.hasCompletedOnboarding);
+  const isOpeningPack = useGameStore((s) => s.isOpeningPack);
   const daily = useGameStore((s) => s.daily);
   const progress = useGameStore((s) => s.progress);
 
   // 선택 리뷰 화면(선택 완료 but 미확정)에서 네비 숨김
   const maxCards = MODE_CARD_COUNT[progress.mode];
-  const isInSelectionReview =
+  const phase = daily.challengePhase || "daily";
+
+  // daily: 선택 리뷰 화면
+  const isDailySelectionReview =
     pathname === "/" &&
+    phase === "daily" &&
     daily.isDrawComplete &&
     !daily.isSelectionComplete &&
     daily.selectedCards.length >= maxCards;
 
-  if (!isLoaded || !hasCompletedOnboarding || isInSelectionReview) return null;
+  // extra/super: 카드 드로우/선택 전체 화면 (CardDrawScreen이 보이는 동안)
+  const isPhaseDrawScreen =
+    pathname === "/" &&
+    phase !== "daily" && (
+      (phase === "extra" && !(daily.extraSelectionComplete ?? false)) ||
+      (phase === "super" && !(daily.superSelectionComplete ?? false))
+    );
+
+  if (!isLoaded || !hasCompletedOnboarding || isDailySelectionReview || isPhaseDrawScreen || isOpeningPack) return null;
 
   return (
     <nav className="fixed bottom-5 left-1/2 -translate-x-1/2 z-10 pb-[env(safe-area-inset-bottom)]">
