@@ -63,6 +63,30 @@ const ja: Record<DictKey, string> = {
   "daily.board.confirmPrompt": "このチャレンジを完了しますか?",
   "daily.board.markDone": "完了する",
   "daily.board.completed": "完了済み",
+  "daily.penalty.banner": "昨日のチャレンジ未完了のペナルティでカード1枚が自動選択されました",
+  "daily.penalty.locked": "ロック",
+
+  // === extra ===
+  "extra.banner.title": "追加チャレンジ、本当にやる？",
+  "extra.banner.hint": "長押しで挑戦",
+  "extra.confirm.title": "追加チャレンジに挑戦する？",
+  "extra.confirm.warning": "無理なチャレンジは疲労を招きます",
+  "extra.confirm.rule": "チャレンジを2つ以上選んでね",
+  "extra.confirm.go": "挑戦する！",
+  "extra.confirm.rest": "休憩する",
+  "extra.board.heading": "追加チャレンジ",
+  "extra.complete.title": "追加チャレンジクリア！",
+
+  // === super ===
+  "super.banner.title": "本日のスーパーチャレンジ解放",
+  "super.banner.hint": "長押しで解放",
+  "super.confirm.title": "スーパーチャレンジに挑戦？",
+  "super.confirm.warning": "大きな達成感があるけど、疲れるかも",
+  "super.confirm.rule": "チャレンジを4つ選んでね",
+  "super.confirm.go": "やり遂げる！",
+  "super.confirm.rest": "今日はここまで",
+  "super.board.heading": "スーパーチャレンジ",
+  "super.complete.title": "スーパーチャレンジクリア！！",
 
   // === cards ===
   "cards.pack.newCards": "新しいカードを獲得!",

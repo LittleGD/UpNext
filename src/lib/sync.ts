@@ -21,13 +21,28 @@ function dehydrateCards(cards: ChallengeCard[]): string[] {
 // Firestore 데이터 → DailyState (카드 ID 배열 → 풀 객체 복원)
 export function hydrateDaily(data: Record<string, unknown>): DailyState {
   return {
-    date: (data.date as string) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })(),
+    date: (data.date as string) || (() => { const d = new Date(); d.setHours(d.getHours() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })(),
     drawnCards: hydrateCards((data.drawnCardIds as string[]) || []),
     selectedCards: hydrateCards((data.selectedCardIds as string[]) || []),
     completedIds: (data.completedIds as string[]) || [],
     isDrawComplete: (data.isDrawComplete as boolean) || false,
     isSelectionComplete: (data.isSelectionComplete as boolean) || false,
     rerollUsed: (data.rerollUsed as boolean) || false,
+    // 추가 챌린지 시스템
+    challengePhase: (data.challengePhase as "daily" | "extra" | "super") || "daily",
+    extraDrawnCards: hydrateCards((data.extraDrawnCardIds as string[]) || []),
+    extraSelectedCards: hydrateCards((data.extraSelectedCardIds as string[]) || []),
+    extraCompletedIds: (data.extraCompletedIds as string[]) || [],
+    extraDrawComplete: (data.extraDrawComplete as boolean) || false,
+    extraSelectionComplete: (data.extraSelectionComplete as boolean) || false,
+    superDrawnCards: hydrateCards((data.superDrawnCardIds as string[]) || []),
+    superSelectedCards: hydrateCards((data.superSelectedCardIds as string[]) || []),
+    superCompletedIds: (data.superCompletedIds as string[]) || [],
+    superDrawComplete: (data.superDrawComplete as boolean) || false,
+    superSelectionComplete: (data.superSelectionComplete as boolean) || false,
+    // 실패 패널티
+    hasPenalty: (data.hasPenalty as boolean) || false,
+    penaltyCardId: (data.penaltyCardId as string) || null,
   };
 }
 
@@ -41,6 +56,21 @@ export function dehydrateDaily(daily: DailyState): Record<string, unknown> {
     isDrawComplete: daily.isDrawComplete,
     isSelectionComplete: daily.isSelectionComplete,
     rerollUsed: daily.rerollUsed,
+    // 추가 챌린지 시스템
+    challengePhase: daily.challengePhase,
+    extraDrawnCardIds: dehydrateCards(daily.extraDrawnCards),
+    extraSelectedCardIds: dehydrateCards(daily.extraSelectedCards),
+    extraCompletedIds: daily.extraCompletedIds,
+    extraDrawComplete: daily.extraDrawComplete,
+    extraSelectionComplete: daily.extraSelectionComplete,
+    superDrawnCardIds: dehydrateCards(daily.superDrawnCards),
+    superSelectedCardIds: dehydrateCards(daily.superSelectedCards),
+    superCompletedIds: daily.superCompletedIds,
+    superDrawComplete: daily.superDrawComplete,
+    superSelectionComplete: daily.superSelectionComplete,
+    // 실패 패널티
+    hasPenalty: daily.hasPenalty,
+    penaltyCardId: daily.penaltyCardId,
   };
 }
 

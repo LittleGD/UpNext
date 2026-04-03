@@ -61,6 +61,30 @@ const ko = {
   "daily.board.confirmPrompt": "이 챌린지를 완료하시겠어요?",
   "daily.board.markDone": "완료하기",
   "daily.board.completed": "완료됨",
+  "daily.penalty.banner": "어제 챌린지 미완료 패널티로 카드 1장이 자동 선택됐어요",
+  "daily.penalty.locked": "잠김",
+
+  // === extra ===
+  "extra.banner.title": "추가 챌린지, 정말 할 거야?",
+  "extra.banner.hint": "길게 눌러서 도전",
+  "extra.confirm.title": "추가 도전하실 건가요?",
+  "extra.confirm.warning": "무리한 챌린지는 피로를 불러옵니다",
+  "extra.confirm.rule": "챌린지 2개 이상 선택 필수",
+  "extra.confirm.go": "도전한다!",
+  "extra.confirm.rest": "쉬어가기",
+  "extra.board.heading": "추가 챌린지",
+  "extra.complete.title": "추가 챌린지 클리어!",
+
+  // === super ===
+  "super.banner.title": "오늘의 슈퍼 초갓생챌린지 해금",
+  "super.banner.hint": "길게 눌러서 해금",
+  "super.confirm.title": "슈퍼 초갓생챌린지에 도전?",
+  "super.confirm.warning": "큰 성취감이 있지만, 피곤해질 수 있어요",
+  "super.confirm.rule": "챌린지 4개 선택 필수",
+  "super.confirm.go": "해낸다!",
+  "super.confirm.rest": "오늘은 여기까지",
+  "super.board.heading": "슈퍼 초갓생챌린지",
+  "super.complete.title": "슈퍼 초갓생챌린지 클리어!!",
 
   // === cards ===
   "cards.pack.newCards": "새로운 카드 획득!",

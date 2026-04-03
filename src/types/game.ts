@@ -8,6 +8,31 @@ export type Language = "ko" | "en" | "ja" | "zh";
 export type GameMode = "normal" | "godlife" | "ultra";
 // normal: 1장 | godlife(갓생): 2장 | ultra(초갓생): 3장
 
+// === 챌린지 단계 ===
+// daily → extra(추가 챌린지) → super(슈퍼 초갓생챌린지)
+export type ChallengePhase = "daily" | "extra" | "super";
+
+// 단계별 최소 선택 카드 수 (daily는 MODE_CARD_COUNT 사용)
+export const PHASE_MIN_CARDS: Record<ChallengePhase, number> = {
+  daily: 0,
+  extra: 2,
+  super: 4,
+};
+
+// 단계별 XP 배율
+export const PHASE_XP_MULTIPLIER: Record<ChallengePhase, number> = {
+  daily: 1,
+  extra: 1.2,
+  super: 1.5,
+};
+
+// 단계별 풀클리어 보너스 XP
+export const PHASE_CLEAR_BONUS: Record<ChallengePhase, number> = {
+  daily: 20,
+  extra: 30,
+  super: 50,
+};
+
 // === 오늘의 상태 ===
 // 하루 단위로 관리되는 게임 진행 상태
 export interface DailyState {
@@ -18,6 +43,27 @@ export interface DailyState {
   isDrawComplete: boolean;         // 오늘 드로우 했는지
   isSelectionComplete: boolean;    // 카드 선택 완료했는지
   rerollUsed: boolean;             // 오늘 리롤 사용했는지
+
+  // === 추가 챌린지 시스템 ===
+  challengePhase: ChallengePhase;  // 현재 진행 단계
+
+  // Extra 챌린지 (2장+)
+  extraDrawnCards: ChallengeCard[];
+  extraSelectedCards: ChallengeCard[];
+  extraCompletedIds: string[];
+  extraDrawComplete: boolean;
+  extraSelectionComplete: boolean;
+
+  // Super 초갓생챌린지 (4장)
+  superDrawnCards: ChallengeCard[];
+  superSelectedCards: ChallengeCard[];
+  superCompletedIds: string[];
+  superDrawComplete: boolean;
+  superSelectionComplete: boolean;
+
+  // === 실패 패널티 ===
+  hasPenalty: boolean;              // 어제 실패로 패널티 적용 여부
+  penaltyCardId: string | null;    // 자동 선택된 잠긴 카드 ID
 }
 
 // === 하루 기록 ===
@@ -28,6 +74,9 @@ export interface DayRecord {
   completedCardIds: string[];   // 완료한 카드 ID들
   wasFullClear: boolean;        // 선택한 카드를 모두 완료했는지
   mode: GameMode;               // 그날의 모드
+  extraCompleted?: boolean;     // 추가 챌린지 완료 여부
+  superCompleted?: boolean;     // 슈퍼 챌린지 완료 여부
+  wasFailed?: boolean;          // 챌린지 실패 여부
 }
 
 // === 유저 진행도 ===
@@ -45,9 +94,12 @@ export interface UserProgress {
   daysTowardNextLevel: number;     // 다음 레벨까지 완료한 일수
   pendingPacks: number;            // 미개봉 카드팩 수
   cardCompletions: Record<string, number>; // 카드별 완수 횟수
+  extraChallengesCompleted: number;          // 추가 챌린지 완료 횟수
+  superChallengesCompleted: number;          // 슈퍼 챌린지 완료 횟수
   equippedTitleId: string | null;          // 장착된 칭호 ID
   seenTitleIds: string[];                  // 확인한 칭호 ID 목록 (new 뱃지용)
   pendingMode?: GameMode | null;           // 다음 날 적용될 모드 (설정 변경 시)
+  hasPendingPenalty: boolean;                // 다음 날 패널티 예약 (전날 실패 시)
   language: Language;                        // 언어 설정
   soundEnabled: boolean;                     // 사운드 on/off
 }

@@ -17,6 +17,14 @@ const LoginOverlay = dynamic(
   () => import("@/components/auth/LoginOverlay"),
   { ssr: false },
 );
+const BurningBorder = dynamic(
+  () => import("@/components/effects/BurningBorder"),
+  { ssr: false },
+);
+const MeteorShower = dynamic(
+  () => import("@/components/effects/MeteorShower"),
+  { ssr: false },
+);
 
 export default function Home() {
   const initialize = useGameStore((s) => s.initialize);
@@ -50,21 +58,38 @@ export default function Home() {
     return <OnboardingFlow />;
   }
 
-  return (
-    <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
-      {isOpeningPack ? (
-        <CardPackOpener onComplete={dismissPackOpener} />
-      ) : daily.isSelectionComplete ? (
-        <DailyBoard />
-      ) : (
-        <CardDrawScreen />
-      )}
+  // phase-aware 화면 전환
+  const phase = daily.challengePhase || "daily";
+  const isCurrentDrawDone = phase === "daily" ? daily.isDrawComplete
+    : phase === "extra" ? daily.extraDrawComplete
+    : daily.superDrawComplete;
+  const isCurrentSelectionDone = phase === "daily" ? daily.isSelectionComplete
+    : phase === "extra" ? daily.extraSelectionComplete
+    : daily.superSelectionComplete;
+  const showBoard = isCurrentSelectionDone;
+  const showDraw = !isCurrentDrawDone || !isCurrentSelectionDone;
 
-      <AnimatePresence>
-        {showLoginOverlay && (
-          <LoginOverlay onDismiss={() => setShowLoginOverlay(false)} />
+  return (
+    <>
+      {/* 추가 챌린지 글로벌 이펙트 — 모든 화면에서 표시 */}
+      <BurningBorder phase={phase === "daily" ? "extra" : phase} active={phase !== "daily"} />
+      <MeteorShower active={phase === "super"} />
+
+      <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
+        {isOpeningPack ? (
+          <CardPackOpener onComplete={dismissPackOpener} />
+        ) : showBoard ? (
+          <DailyBoard />
+        ) : (
+          <CardDrawScreen />
         )}
-      </AnimatePresence>
-    </div>
+
+        <AnimatePresence>
+          {showLoginOverlay && (
+            <LoginOverlay onDismiss={() => setShowLoginOverlay(false)} />
+          )}
+        </AnimatePresence>
+      </div>
+    </>
   );
 }

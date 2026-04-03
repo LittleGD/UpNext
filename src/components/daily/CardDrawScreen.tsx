@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useGameStore } from "@/store/useGameStore";
-import { MODE_CARD_COUNT } from "@/types/game";
+import { MODE_CARD_COUNT, PHASE_MIN_CARDS } from "@/types/game";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import type { ChallengeCard } from "@/types/card";
 import {
@@ -34,14 +34,32 @@ export default function CardDrawScreen() {
   const selectCard = useGameStore((s) => s.selectCard);
   const deselectCard = useGameStore((s) => s.deselectCard);
   const confirmSelection = useGameStore((s) => s.confirmSelection);
+  const drawPhaseCards = useGameStore((s) => s.drawPhaseCards);
+  const selectPhaseCard = useGameStore((s) => s.selectPhaseCard);
+  const deselectPhaseCard = useGameStore((s) => s.deselectPhaseCard);
+  const confirmPhaseSelection = useGameStore((s) => s.confirmPhaseSelection);
 
   const { play } = useSound();
   const { t, language } = useTranslation();
   const isMd = useMediaQuery("(min-width: 768px)");
   const isLg = useMediaQuery("(min-width: 1024px)");
 
-  const maxCards = MODE_CARD_COUNT[progress.mode];
-  const selectedCount = daily.selectedCards.length;
+  // phase-aware 데이터 선택
+  const phase = daily.challengePhase || "daily";
+  const phaseDrawnCards = phase === "extra" ? daily.extraDrawnCards
+    : phase === "super" ? daily.superDrawnCards
+    : daily.drawnCards;
+  const phaseSelectedCards = phase === "extra" ? daily.extraSelectedCards
+    : phase === "super" ? daily.superSelectedCards
+    : daily.selectedCards;
+  const phaseIsDrawComplete = phase === "extra" ? daily.extraDrawComplete
+    : phase === "super" ? daily.superDrawComplete
+    : daily.isDrawComplete;
+
+  // daily: 정확히 MODE_CARD_COUNT장, extra/super: 최대 6장 (최소 PHASE_MIN_CARDS)
+  const maxCards = phase === "daily" ? MODE_CARD_COUNT[progress.mode] : 6;
+  const minCards = phase === "daily" ? MODE_CARD_COUNT[progress.mode] : PHASE_MIN_CARDS[phase];
+  const selectedCount = phaseSelectedCards.length;
   const isSelectionFull = selectedCount >= maxCards;
 
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -59,12 +77,12 @@ export default function CardDrawScreen() {
   // 핸드 스크롤을 중앙으로 초기화
   useEffect(() => {
     const el = handScrollRef.current;
-    if (el && daily.isDrawComplete && !isSelectionFull) {
+    if (el && phaseIsDrawComplete && !isSelectionFull) {
       requestAnimationFrame(() => {
         el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
       });
     }
-  }, [daily.isDrawComplete, isSelectionFull]);
+  }, [phaseIsDrawComplete, isSelectionFull]);
 
   const dismissPreview = useCallback(() => setPreviewId(null), []);
 
@@ -79,16 +97,20 @@ export default function CardDrawScreen() {
 
   const handleConfirmCard = useCallback(
     (card: ChallengeCard) => {
-      if (daily.selectedCards.some((c) => c.id === card.id)) return;
+      if (phaseSelectedCards.some((c) => c.id === card.id)) return;
       play("cardSelect");
       setFlyingId(card.id);
       setTimeout(() => {
-        selectCard(card);
+        if (phase === "daily") {
+          selectCard(card);
+        } else {
+          selectPhaseCard(card);
+        }
         setPreviewId(null);
         setFlyingId(null);
       }, 300);
     },
-    [daily.selectedCards, selectCard]
+    [phaseSelectedCards, selectCard, selectPhaseCard, phase]
   );
 
   // 덱 홀드 핸들러
@@ -104,7 +126,11 @@ export default function CardDrawScreen() {
       if (p >= 1) {
         if (holdTimerRef.current) clearInterval(holdTimerRef.current);
         // 홀드 완료 → 카드 뽑기
-        drawDailyCards();
+        if (phase === "daily") {
+          drawDailyCards();
+        } else {
+          drawPhaseCards();
+        }
         for (let i = 0; i < 6; i++) {
           setTimeout(() => play("cardFlip"), i * 80);
         }
@@ -113,7 +139,7 @@ export default function CardDrawScreen() {
         setHoldProgress(0);
       }
     }, 16);
-  }, [drawDailyCards]);
+  }, [drawDailyCards, drawPhaseCards, phase, play]);
 
   const cancelHold = useCallback(() => {
     if (holdTimerRef.current) clearInterval(holdTimerRef.current);
@@ -130,7 +156,7 @@ export default function CardDrawScreen() {
   }, []);
 
   // 아직 드로우 안 했을 때 — 덱 홀드 인터랙션
-  if (!daily.isDrawComplete) {
+  if (!phaseIsDrawComplete) {
     const shakeAmp = holdProgress * 5;
 
     return (
@@ -532,10 +558,10 @@ export default function CardDrawScreen() {
     );
   }
 
-  const unselectedCards = daily.drawnCards.filter(
-    (c) => !daily.selectedCards.some((s) => s.id === c.id)
+  const unselectedCards = phaseDrawnCards.filter(
+    (c) => !phaseSelectedCards.some((s) => s.id === c.id)
   );
-  const selectedCards = daily.selectedCards;
+  const selectedCards = phaseSelectedCards;
   const previewCard = previewId
     ? unselectedCards.find((c) => c.id === previewId) ?? null
     : null;
@@ -599,14 +625,21 @@ export default function CardDrawScreen() {
                       {cardDesc(card, language)}
                     </p>
                   </div>
-                  {/* 개별 카드 취소 버튼 */}
-                  <button
-                    onClick={() => { play("cancel"); deselectCard(card.id); }}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-bg-surface text-text-secondary text-sm mt-1"
-                  >
-                    <PixelIcon name="Cancel" size={12} />
-                    <span>{t("daily.select.deselect")}</span>
-                  </button>
+                  {/* 개별 카드 취소 버튼 (패널티 카드는 잠금) */}
+                  {daily.penaltyCardId === card.id ? (
+                    <div className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-red-500/10 text-red-400 text-sm mt-1">
+                      <PixelIcon name="Lock" size={12} color="#FF4632" />
+                      <span>{t("daily.penalty.locked")}</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { play("cancel"); phase === "daily" ? deselectCard(card.id) : deselectPhaseCard(card.id); }}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-bg-surface text-text-secondary text-sm mt-1"
+                    >
+                      <PixelIcon name="Cancel" size={12} />
+                      <span>{t("daily.select.deselect")}</span>
+                    </button>
+                  )}
                 </motion.div>
               );
             })}
@@ -618,7 +651,7 @@ export default function CardDrawScreen() {
         {/* 확정 버튼 — 하단 고정 */}
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] z-20">
           <button
-            onClick={() => { play("confirm"); confirmSelection(); }}
+            onClick={() => { play("confirm"); phase === "daily" ? confirmSelection() : confirmPhaseSelection(); }}
             className="w-full py-3 bg-accent text-bg-primary rounded-md font-semibold text-base"
           >
             {t("daily.select.confirmButton")}
@@ -639,13 +672,15 @@ export default function CardDrawScreen() {
 
         {/* 선택된 미니카드 슬롯 */}
         <div className="flex justify-center gap-3 md:gap-4 pt-2">
-          {Array.from({ length: maxCards }).map((_, i) => {
+          {Array.from({ length: phase === "daily" ? maxCards : Math.max(selectedCount, minCards) }).map((_, i) => {
             const card = selectedCards[i];
+            const isPenaltyCard = card && daily.penaltyCardId === card.id;
             return card ? (
               <SelectedMiniCard
                 key={card.id}
                 card={card}
-                onDeselect={(id) => { play("cancel"); deselectCard(id); }}
+                locked={!!isPenaltyCard}
+                onDeselect={(id) => { play("cancel"); phase === "daily" ? deselectCard(id) : deselectPhaseCard(id); }}
               />
             ) : (
               <PlaceholderSlot key={`placeholder-${i}`} />
@@ -662,15 +697,31 @@ export default function CardDrawScreen() {
             animate={{ opacity: 1 }}
             className="text-center flex flex-col items-center gap-2"
           >
+            {/* 패널티 배너 */}
+            {daily.hasPenalty && phase === "daily" && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 mb-2"
+              >
+                <PixelIcon name="Lock" size={14} color="#FF4632" />
+                <p className="text-[12px] text-red-400 font-medium">
+                  {t("daily.penalty.banner")}
+                </p>
+              </motion.div>
+            )}
+
             <p className="text-lg font-semibold text-text-primary">
-              {t("daily.select.heading", { count: maxCards })}
+              {phase === "daily"
+                ? t("daily.select.heading", { count: maxCards })
+                : t("daily.select.heading", { count: `${minCards}+` })}
             </p>
             <p className="text-[12px] text-text-tertiary">
               {t("daily.select.hint")}
             </p>
 
-            {/* 리롤 버튼 */}
-            {!daily.rerollUsed && !daily.isSelectionComplete && (
+            {/* 리롤 버튼 (daily에서만) */}
+            {phase === "daily" && !daily.rerollUsed && !daily.isSelectionComplete && (
               <motion.button
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -801,6 +852,18 @@ export default function CardDrawScreen() {
           </div>
         );
       })()}
+
+      {/* extra/super: 최소 선택 수 충족 시 확정 버튼 표시 */}
+      {phase !== "daily" && selectedCount >= minCards && !isSelectionFull && (
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] z-20">
+          <button
+            onClick={() => { play("confirm"); confirmPhaseSelection(); }}
+            className="w-full py-3 bg-accent text-bg-primary rounded-md font-semibold text-base"
+          >
+            {t("daily.select.confirmButton")} ({selectedCount}/{minCards}+)
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -960,8 +1023,8 @@ function PreviewCard({
         >
           {rarityLabel(card.rarity, language)}
         </span>
-        <span className="text-[13px] text-text-tertiary capitalize">
-          {card.category}
+        <span className="text-[13px] text-text-tertiary">
+          {categoryLabel(card.category, language)}
         </span>
       </div>
 
@@ -997,23 +1060,26 @@ function PlaceholderSlot() {
 function SelectedMiniCard({
   card,
   onDeselect,
+  locked = false,
 }: {
   card: ChallengeCard;
   onDeselect: (id: string) => void;
+  locked?: boolean;
 }) {
   const rarity = RARITY_CONFIG[card.rarity];
   const { language } = useTranslation();
   const y = useMotionValue(0);
-  const opacity = useTransform(y, [0, 60], [1, 0.4]);
-  const scale = useTransform(y, [0, 60], [1, 0.9]);
+  const opacity = useTransform(y, [0, 60], [1, locked ? 1 : 0.4]);
+  const scale = useTransform(y, [0, 60], [1, locked ? 1 : 0.9]);
 
   const handleDragEnd = useCallback(
     (_: unknown, info: PanInfo) => {
+      if (locked) return;
       if (y.get() > 50 || info.velocity.y > 300) {
         onDeselect(card.id);
       }
     },
-    [y, card.id, onDeselect]
+    [y, card.id, onDeselect, locked]
   );
 
   return (
@@ -1025,27 +1091,39 @@ function SelectedMiniCard({
       className="flex flex-col items-center gap-1"
     >
       <motion.div
-        style={{ y, opacity, scale, boxShadow: rarityGlow(card.rarity) }}
-        drag="y"
+        style={{ y, opacity, scale, boxShadow: locked ? "0 0 12px rgba(255,70,50,0.3)" : rarityGlow(card.rarity) }}
+        drag={locked ? false : "y"}
         dragConstraints={{ top: 0, bottom: 80 }}
         dragElastic={0.3}
         dragSnapToOrigin
         onDragEnd={handleDragEnd}
-        onClick={() => onDeselect(card.id)}
-        className="w-16 h-[5.5rem] md:w-20 md:h-[6.875rem] lg:w-24 lg:h-[8.25rem] rounded-md flex flex-col items-center justify-center gap-1 bg-bg-elevated grid-border cursor-pointer active:cursor-grabbing relative overflow-hidden"
+        onClick={() => !locked && onDeselect(card.id)}
+        className={`w-16 h-[5.5rem] md:w-20 md:h-[6.875rem] lg:w-24 lg:h-[8.25rem] rounded-md flex flex-col items-center justify-center gap-1 bg-bg-elevated grid-border relative overflow-hidden ${locked ? "" : "cursor-pointer active:cursor-grabbing"}`}
       >
         <RarityTexture rarity={card.rarity} borderRadius={6} />
-        <PixelIcon name={card.icon} size={22} color={rarity.color} />
+        {/* 잠금 오버레이 */}
+        {locked && (
+          <div className="absolute inset-0 bg-red-500/[0.06] z-10 flex items-start justify-end p-1">
+            <PixelIcon name="Lock" size={10} color="#FF4632" />
+          </div>
+        )}
+        <PixelIcon name={card.icon} size={22} color={locked ? "#FF4632" : rarity.color} />
         <span className="text-[11px] md:text-[12px] text-text-secondary truncate w-full text-center px-1">
           {cardTitle(card, language)}
         </span>
       </motion.div>
-      <button
-        onClick={() => onDeselect(card.id)}
-        className="w-7 h-7 rounded-sm bg-bg-surface flex items-center justify-center"
-      >
-        <PixelIcon name="Cancel" size={14} color="var(--text-secondary)" />
-      </button>
+      {locked ? (
+        <div className="w-7 h-7 rounded-sm bg-bg-surface/50 flex items-center justify-center">
+          <PixelIcon name="Lock" size={12} color="#FF4632" />
+        </div>
+      ) : (
+        <button
+          onClick={() => onDeselect(card.id)}
+          className="w-7 h-7 rounded-sm bg-bg-surface flex items-center justify-center"
+        >
+          <PixelIcon name="Cancel" size={14} color="var(--text-secondary)" />
+        </button>
+      )}
     </motion.div>
   );
 }

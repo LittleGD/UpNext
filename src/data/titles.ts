@@ -458,11 +458,116 @@ const streakTitles: TitleDefinition[] = [
   },
 ];
 
+// 추가 챌린지 칭호
+const extraChallengeTitles: TitleDefinition[] = [
+  // === Extra Challenge ===
+  {
+    id: "title-extra-1",
+    name: "한 번 더!",
+    nameEn: "One More Round!",
+    nameJa: "もう一回！",
+    nameZh: "再来一轮！",
+    description: "추가 챌린지 1회 완수",
+    descriptionEn: "Complete Extra Challenge once",
+    descriptionJa: "追加チャレンジを1回達成",
+    descriptionZh: "完成附加挑战1次",
+    rarity: "normal",
+    condition: { type: "extra", phase: "extra", count: 1 },
+    icon: "Fire",
+  },
+  {
+    id: "title-extra-5",
+    name: "불꽃 챌린저",
+    nameEn: "Blazing Challenger",
+    nameJa: "炎のチャレンジャー",
+    nameZh: "烈焰挑战者",
+    description: "추가 챌린지 5회 완수",
+    descriptionEn: "Complete Extra Challenge 5 times",
+    descriptionJa: "追加チャレンジを5回達成",
+    descriptionZh: "完成附加挑战5次",
+    rarity: "rare",
+    condition: { type: "extra", phase: "extra", count: 5 },
+    icon: "Fire",
+  },
+  {
+    id: "title-extra-15",
+    name: "불굴의 의지",
+    nameEn: "Unbreakable Will",
+    nameJa: "不屈の意志",
+    nameZh: "不屈意志",
+    description: "추가 챌린지 15회 완수",
+    descriptionEn: "Complete Extra Challenge 15 times",
+    descriptionJa: "追加チャレンジを15回達成",
+    descriptionZh: "完成附加挑战15次",
+    rarity: "unique",
+    condition: { type: "extra", phase: "extra", count: 15 },
+    icon: "Fire",
+  },
+  {
+    id: "title-extra-30",
+    name: "영원한 불꽃",
+    nameEn: "Eternal Flame",
+    nameJa: "永遠の炎",
+    nameZh: "永恒之焰",
+    description: "추가 챌린지 30회 완수",
+    descriptionEn: "Complete Extra Challenge 30 times",
+    descriptionJa: "追加チャレンジを30回達成",
+    descriptionZh: "完成附加挑战30次",
+    rarity: "legend",
+    condition: { type: "extra", phase: "extra", count: 30 },
+    icon: "Fire",
+  },
+  // === Super Challenge ===
+  {
+    id: "title-super-1",
+    name: "초갓생의 시작",
+    nameEn: "Super Challenge Debut",
+    nameJa: "スーパーチャレンジ開始",
+    nameZh: "超级挑战起步",
+    description: "슈퍼 초갓생챌린지 1회 완수",
+    descriptionEn: "Complete Super Challenge once",
+    descriptionJa: "スーパーチャレンジを1回達成",
+    descriptionZh: "完成超级挑战1次",
+    rarity: "rare",
+    condition: { type: "extra", phase: "super", count: 1 },
+    icon: "Trophy",
+  },
+  {
+    id: "title-super-5",
+    name: "초갓생 마스터",
+    nameEn: "Super Challenge Master",
+    nameJa: "スーパーチャレンジマスター",
+    nameZh: "超级挑战大师",
+    description: "슈퍼 초갓생챌린지 5회 완수",
+    descriptionEn: "Complete Super Challenge 5 times",
+    descriptionJa: "スーパーチャレンジを5回達成",
+    descriptionZh: "完成超级挑战5次",
+    rarity: "unique",
+    condition: { type: "extra", phase: "super", count: 5 },
+    icon: "Trophy",
+  },
+  {
+    id: "title-super-10",
+    name: "전설의 초갓생러",
+    nameEn: "Legendary Overachiever",
+    nameJa: "伝説の超努力家",
+    nameZh: "传奇超级奋斗者",
+    description: "슈퍼 초갓생챌린지 10회 완수",
+    descriptionEn: "Complete Super Challenge 10 times",
+    descriptionJa: "スーパーチャレンジを10回達成",
+    descriptionZh: "完成超级挑战10次",
+    rarity: "legend",
+    condition: { type: "extra", phase: "super", count: 10 },
+    icon: "Trophy",
+  },
+];
+
 export const ALL_TITLES: TitleDefinition[] = [
   ...categoryTitles,
   ...cardTitles,
   ...funTitles,
   ...streakTitles,
+  ...extraChallengeTitles,
 ];
 
 // === 칭호 획득 여부 체크 ===
@@ -475,6 +580,11 @@ export function isTitleEarned(title: TitleDefinition, progress: UserProgress): b
       return (progress.cardCompletions?.[condition.cardId] || 0) >= condition.count;
     case "streak":
       return (progress.longestStreak || 0) >= condition.days;
+    case "extra":
+      if (condition.phase === "extra") {
+        return (progress.extraChallengesCompleted || 0) >= condition.count;
+      }
+      return (progress.superChallengesCompleted || 0) >= condition.count;
   }
 }
 
@@ -493,5 +603,10 @@ export function getTitleProgress(title: TitleDefinition, progress: UserProgress)
       return { current: progress.cardCompletions?.[condition.cardId] || 0, target: condition.count };
     case "streak":
       return { current: progress.longestStreak || 0, target: condition.days };
+    case "extra":
+      if (condition.phase === "extra") {
+        return { current: progress.extraChallengesCompleted || 0, target: condition.count };
+      }
+      return { current: progress.superChallengesCompleted || 0, target: condition.count };
   }
 }

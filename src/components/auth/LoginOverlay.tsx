@@ -54,7 +54,7 @@ export default function LoginOverlay({ onDismiss }: { onDismiss: () => void }) {
         {/* 아이콘 + 제목 */}
         <div className="text-center space-y-3">
           <div className="mx-auto w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center">
-            <PixelIcon name="DeviceLaptop" size={28} color="var(--accent-primary)" />
+            <PixelIcon name="Monitor" size={28} color="var(--accent-primary)" />
           </div>
           <div className="space-y-1.5">
             <h2 className="text-heading-2 text-text-primary">

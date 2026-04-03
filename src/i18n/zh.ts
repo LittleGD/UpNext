@@ -63,6 +63,30 @@ const zh: Record<DictKey, string> = {
   "daily.board.confirmPrompt": "确认完成这个挑战吗？",
   "daily.board.markDone": "完成",
   "daily.board.completed": "已完成",
+  "daily.penalty.banner": "昨日挑战未完成，1张卡片被自动选择作为惩罚",
+  "daily.penalty.locked": "已锁定",
+
+  // === extra ===
+  "extra.banner.title": "附加挑战，真的要来吗？",
+  "extra.banner.hint": "长按激活",
+  "extra.confirm.title": "准备好额外挑战了吗？",
+  "extra.confirm.warning": "过度挑战会导致疲劳",
+  "extra.confirm.rule": "至少选择2个挑战",
+  "extra.confirm.go": "接受挑战！",
+  "extra.confirm.rest": "休息一下",
+  "extra.board.heading": "附加挑战",
+  "extra.complete.title": "附加挑战完成！",
+
+  // === super ===
+  "super.banner.title": "今日超级挑战已解锁",
+  "super.banner.hint": "长按解锁",
+  "super.confirm.title": "挑战超级挑战？",
+  "super.confirm.warning": "成就感满满，但可能会很累",
+  "super.confirm.rule": "必须选择4个挑战",
+  "super.confirm.go": "我能行！",
+  "super.confirm.rest": "今天到此为止",
+  "super.board.heading": "超级挑战",
+  "super.complete.title": "超级挑战完成！！",
 
   // === cards ===
   "cards.pack.newCards": "获得新卡牌！",
