@@ -8,6 +8,7 @@ import SyncProvider from "@/components/providers/SyncProvider";
 import LanguageSync from "@/components/providers/LanguageSync";
 import ClientEffects from "@/components/effects/ClientEffects";
 import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
+import { Analytics } from "@vercel/analytics/next";
 
 // ── April16Promise 로컬 셀프호스팅 ──
 // display: "optional" → 100ms 내 로딩 못하면 시스템 폰트 유지
@@ -80,6 +81,7 @@ export default function RootLayout({
           <main className="relative z-[1] flex-1">{children}</main>
           <BottomNav />
         </SyncProvider>
+        <Analytics />
       </body>
     </html>
   );
