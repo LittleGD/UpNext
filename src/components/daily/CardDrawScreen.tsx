@@ -649,7 +649,7 @@ export default function CardDrawScreen() {
         </div>
 
         {/* 확정 버튼 — 하단 고정 */}
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] z-20">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+80px)] z-20">
           <button
             onClick={() => { play("confirm"); phase === "daily" ? confirmSelection() : confirmPhaseSelection(); }}
             className="w-full py-3 bg-accent text-bg-primary rounded-md typo-body"
@@ -879,7 +879,7 @@ export default function CardDrawScreen() {
 
       {/* extra/super: 최소 선택 수 충족 시 확정 버튼 표시 */}
       {phase !== "daily" && selectedCount >= minCards && !isSelectionFull && (
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] z-20">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+80px)] z-20">
           <button
             onClick={() => { play("confirm"); confirmPhaseSelection(); }}
             className="w-full py-3 bg-accent text-bg-primary rounded-md typo-body"

@@ -109,6 +109,9 @@ export interface UserProgress {
   hasPendingPenalty: boolean;                // 다음 날 패널티 예약 (전날 실패 시)
   language: Language;                        // 언어 설정
   soundEnabled: boolean;                     // 사운드 on/off
+  hapticEnabled: boolean;                    // 햅틱(진동) on/off
+  notificationsEnabled: boolean;             // 알림 on/off
+  notificationTime: string;                  // 알림 시간 "HH:MM"
 }
 
 // === XP 보상 (등급별) ===
@@ -122,16 +125,15 @@ export const XP_PER_RARITY: Record<string, number> = {
 // === 일일 풀클리어 보너스 XP ===
 export const FULL_CLEAR_BONUS_XP = 20;
 
-// === 레벨업에 필요한 XP ===
-// Level 1→2: 60, 2→3: 80, 3→4: 100, ...
-export function xpToNextLevel(level: number): number {
-  return 40 + level * 20;
-}
-
 // === 특정 레벨까지 필요한 총 누적 XP ===
 export function totalXPForLevel(level: number): number {
-  // sum of xpToNextLevel(l) for l=1..level = level*(50 + 10*level)
   return level * (50 + 10 * level);
+}
+
+// === 레벨업에 필요한 XP (totalXPForLevel 기준 파생) ===
+// Level 0→1: 60, 1→2: 80, 2→3: 100, 3→4: 120, 4→5: 140, ...
+export function xpToNextLevel(level: number): number {
+  return totalXPForLevel(level + 1) - totalXPForLevel(level);
 }
 
 // === 누적 XP에서 레벨 계산 ===

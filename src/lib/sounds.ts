@@ -439,3 +439,35 @@ export function playSound(name: SoundName): void {
     // Silently fail — audio is non-critical
   }
 }
+
+/* === 햅틱(진동) 피드백 === */
+const VIBRATION_PATTERNS: Record<SoundName, number[] | null> = {
+  select:       [8],
+  confirm:      [15],
+  cancel:       [15],
+  cardFlip:     [15],
+  cardSelect:   [8],
+  cardHover:    null,            // 너무 빈번 — 진동 없음
+  cardPreview:  [8],
+  packOpen:     [10, 30, 10],
+  complete:     [10, 30, 10],
+  fullClear:    [20, 20, 30],
+  levelUp:      [20, 20, 30],
+  equip:        [8],
+  xpGain:       [15],
+  chargeUp:     [30, 10, 40],
+  ambientFloat: null,            // 배경음 — 진동 없음
+  pulseWave:    [30, 10, 40],
+  collect:      [8],
+  fireIgnite:   [20, 20, 30],
+  impactShake:  [30, 10, 40],
+  superIgnite:  [30, 10, 40],
+  meteorWhoosh: [30, 10, 40],
+};
+
+export function triggerHaptic(name: SoundName): void {
+  const pattern = VIBRATION_PATTERNS[name];
+  if (pattern && typeof navigator !== "undefined" && navigator.vibrate) {
+    try { navigator.vibrate(pattern); } catch { /* non-critical */ }
+  }
+}

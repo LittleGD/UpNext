@@ -18,6 +18,12 @@ import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
 import { titleName } from "@/i18n";
+import {
+  requestNotificationPermission,
+  getNotificationPermission,
+  scheduleLocalReminder,
+  cancelLocalReminder,
+} from "@/lib/notifications";
 
 const modes: { key: GameMode; labelKey: DictKey; descKey: DictKey; cards: number }[] = [
   { key: "normal", labelKey: "settings.mode.normal", descKey: "settings.mode.normal.desc", cards: 1 },
@@ -32,14 +38,22 @@ export default function SettingsPage() {
   const setMode = useGameStore((s) => s.setMode);
   const cancelPendingMode = useGameStore((s) => s.cancelPendingMode);
   const toggleSound = useGameStore((s) => s.toggleSound);
+  const toggleHaptic = useGameStore((s) => s.toggleHaptic);
+  const setNotificationsEnabled = useGameStore((s) => s.setNotificationsEnabled);
+  const setNotificationTime = useGameStore((s) => s.setNotificationTime);
   const equipTitle = useGameStore((s) => s.equipTitle);
   const { play } = useSound();
   const { t, language } = useTranslation();
   const [pendingMode, setPendingMode] = useState<GameMode | null>(null);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
 
   useEffect(() => {
     if (!isLoaded) initialize();
   }, [isLoaded, initialize]);
+
+  useEffect(() => {
+    setNotifPermission(getNotificationPermission());
+  }, []);
 
   if (!isLoaded) {
     return (
@@ -90,6 +104,89 @@ export default function SettingsPage() {
             />
           </button>
         </div>
+        {/* 구분선 */}
+        <div className="h-px bg-white/[0.06]" />
+        {/* 햅틱 */}
+        <div className="flex items-center justify-between px-4 py-3.5">
+          <div className="flex items-center gap-3">
+            <PixelIcon name="Sparkle" size={20} color="var(--text-secondary)" />
+            <span className="typo-body text-text-primary">{t("settings.haptic")}</span>
+          </div>
+          <button
+            onClick={() => { toggleHaptic(); if (!progress.hapticEnabled) play("select"); }}
+            className={`relative w-11 h-6 rounded-full transition-colors ${
+              (progress.hapticEnabled ?? true) ? "bg-accent" : "bg-bg-elevated"
+            }`}
+          >
+            <motion.div
+              animate={{ x: (progress.hapticEnabled ?? true) ? 20 : 2 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              className="absolute top-1 w-4 h-4 rounded-full bg-white"
+            />
+          </button>
+        </div>
+        {/* 구분선 */}
+        <div className="h-px bg-white/[0.06]" />
+        {/* 알림 */}
+        <div className="flex items-center justify-between px-4 py-3.5">
+          <div className="flex items-center gap-3">
+            <PixelIcon name="Sparkle" size={20} color="var(--text-secondary)" />
+            <span className="typo-body text-text-primary">{t("settings.notifications")}</span>
+          </div>
+          <button
+            onClick={async () => {
+              if (progress.notificationsEnabled) {
+                // 끄기
+                setNotificationsEnabled(false);
+                cancelLocalReminder();
+                play("cancel");
+              } else {
+                // 켜기 — 권한 요청
+                const granted = await requestNotificationPermission();
+                setNotifPermission(getNotificationPermission());
+                if (granted) {
+                  setNotificationsEnabled(true);
+                  scheduleLocalReminder(progress.notificationTime);
+                  play("confirm");
+                }
+              }
+            }}
+            className={`relative w-11 h-6 rounded-full transition-colors ${
+              progress.notificationsEnabled ? "bg-accent" : "bg-bg-elevated"
+            }`}
+          >
+            <motion.div
+              animate={{ x: progress.notificationsEnabled ? 20 : 2 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              className="absolute top-1 w-4 h-4 rounded-full bg-white"
+            />
+          </button>
+        </div>
+        {/* 알림 시간 선택 (알림 활성화 시) */}
+        {progress.notificationsEnabled && (
+          <>
+            <div className="h-px bg-white/[0.06]" />
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <span className="typo-body text-text-secondary pl-8">{t("settings.notifications.time")}</span>
+              <input
+                type="time"
+                value={progress.notificationTime}
+                onChange={(e) => {
+                  setNotificationTime(e.target.value);
+                  scheduleLocalReminder(e.target.value);
+                }}
+                className="bg-bg-elevated text-text-primary rounded px-2 py-1 typo-body"
+              />
+            </div>
+          </>
+        )}
+        {/* 알림 권한 거부 안내 */}
+        {notifPermission === "denied" && (
+          <>
+            <div className="h-px bg-white/[0.06]" />
+            <p className="px-4 py-2 typo-caption text-accent-secondary">{t("settings.notifications.denied")}</p>
+          </>
+        )}
       </section>
 
       {/* ── 챌린지 모드 ── */}

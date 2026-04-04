@@ -45,6 +45,9 @@ function getInitialProgress(): UserProgress {
     hasPendingPenalty: false,
     language: "en",
     soundEnabled: true,
+    hapticEnabled: true,
+    notificationsEnabled: false,
+    notificationTime: "09:00",
   };
 }
 
@@ -101,6 +104,9 @@ interface GameStore {
   dismissPackOpener: () => void;
   setLanguage: (lang: Language) => void;
   toggleSound: () => void;
+  toggleHaptic: () => void;
+  setNotificationsEnabled: (enabled: boolean) => void;
+  setNotificationTime: (time: string) => void;
   equipTitle: (titleId: string | null) => void;
   markTitlesSeen: (titleIds: string[]) => void;
   _setFromCloud: (progress: UserProgress, daily: DailyState) => void;
@@ -493,6 +499,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // 사운드 토글
   toggleSound: () => {
     const progress = { ...get().progress, soundEnabled: !get().progress.soundEnabled };
+    set({ progress });
+    saveToStorage("progress", progress);
+  },
+
+  // 햅틱 토글
+  toggleHaptic: () => {
+    const progress = { ...get().progress, hapticEnabled: !get().progress.hapticEnabled };
+    set({ progress });
+    saveToStorage("progress", progress);
+  },
+
+  // 알림 설정
+  setNotificationsEnabled: (enabled: boolean) => {
+    const progress = { ...get().progress, notificationsEnabled: enabled };
+    set({ progress });
+    saveToStorage("progress", progress);
+  },
+
+  setNotificationTime: (time: string) => {
+    const progress = { ...get().progress, notificationTime: time };
     set({ progress });
     saveToStorage("progress", progress);
   },

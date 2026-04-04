@@ -69,3 +69,41 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   event.waitUntil(clients.openWindow("/"));
 });
+
+// === 로컬 리마인더 스케줄링 ===
+let reminderTimeout = null;
+
+function scheduleNextReminder(timeStr) {
+  if (reminderTimeout) clearTimeout(reminderTimeout);
+
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  const now = new Date();
+  const target = new Date();
+  target.setHours(hours, minutes, 0, 0);
+
+  // 오늘 시간이 지났으면 내일로
+  if (target <= now) target.setDate(target.getDate() + 1);
+
+  const delay = target.getTime() - now.getTime();
+
+  reminderTimeout = setTimeout(() => {
+    self.registration.showNotification("UpNext", {
+      body: "Time to draw your cards! 🎴",
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/icon-192x192.png",
+      vibrate: [100, 50, 100],
+      tag: "daily-reminder",
+    });
+    // 다음날 재스케줄
+    scheduleNextReminder(timeStr);
+  }, delay);
+}
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SCHEDULE_REMINDER") {
+    scheduleNextReminder(event.data.time);
+  } else if (event.data?.type === "CANCEL_REMINDER") {
+    if (reminderTimeout) clearTimeout(reminderTimeout);
+    reminderTimeout = null;
+  }
+});

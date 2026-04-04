@@ -62,6 +62,11 @@
 }
 
 /* === 기본 바디 === */
+html, body {
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
