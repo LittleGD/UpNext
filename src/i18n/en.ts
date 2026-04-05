@@ -110,6 +110,7 @@ const en: Record<DictKey, string> = {
   "settings.notifications": "Notifications",
   "settings.notifications.time": "Reminder Time",
   "settings.notifications.denied": "Notifications blocked. Please enable in browser settings.",
+  "settings.dataWarning": "Sign in to back up your data. Clearing browser data may erase your progress.",
   "settings.mode.heading": "Challenge Mode",
   "settings.mode.normal": "Normal Mode",
   "settings.mode.normal.desc": "Start light and easy",

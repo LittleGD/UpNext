@@ -108,6 +108,7 @@ const ko = {
   "settings.notifications": "알림",
   "settings.notifications.time": "알림 시간",
   "settings.notifications.denied": "알림이 차단되었습니다. 브라우저 설정에서 허용해주세요.",
+  "settings.dataWarning": "로그인하면 데이터가 클라우드에 백업됩니다. 브라우저 데이터 삭제 시 진행 상황이 사라질 수 있어요.",
   "settings.mode.heading": "챌린지 모드",
   "settings.mode.normal": "일반 모드",
   "settings.mode.normal.desc": "가볍게 시작하고 싶다면",

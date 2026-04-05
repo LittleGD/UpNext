@@ -6,6 +6,7 @@ import { ALL_CARDS, STARTER_CARD_IDS } from "@/data/cards";
 import { drawCards, drawFromPool } from "@/lib/deck";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import { STARTER_PACKS } from "@/data/starterPacks";
+import { scheduleChallengeReminder, cancelChallengeReminder, showChallengeStatus, hideChallengeStatus } from "@/lib/notifications";
 
 // 오늘 날짜를 "2026-04-01" 형식으로 반환
 // 하루 기준: 새벽 1시 ~ 다음날 00:59 (1시간 빼서 날짜 계산)
@@ -86,6 +87,7 @@ interface GameStore {
   isLoaded: boolean;
   hasCompletedOnboarding: boolean;
   isOpeningPack: boolean;
+  isLocalEmpty: boolean;
 
   // 액션
   initialize: () => void;
@@ -130,6 +132,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isLoaded: false,
   hasCompletedOnboarding: false,
   isOpeningPack: false,
+  isLocalEmpty: false,
 
   // 앱 시작 시 LocalStorage에서 데이터 복원
   initialize: () => {
@@ -199,6 +202,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       daily = { ...getInitialDailyState(), date: today, hasPenalty: applyPenalty };
 
+      // 일일 리셋 시 챌린지 알림 취소
+      cancelChallengeReminder();
+      hideChallengeStatus();
+
       // 예약된 모드 변경 적용
       if (progress.pendingMode) {
         progress.mode = progress.pendingMode;
@@ -221,9 +228,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     const isOpeningPack = (progress.pendingPacks || 0) > 0;
-    set({ daily, progress, isLoaded: true, hasCompletedOnboarding: !!savedOnboarding, isOpeningPack });
-    saveToStorage("progress", progress);
-    saveToStorage("daily", daily);
+    const isLocalEmpty = !savedOnboarding && !savedProgress;
+    set({ daily, progress, isLoaded: true, hasCompletedOnboarding: !!savedOnboarding, isOpeningPack, isLocalEmpty });
+
+    // localStorage가 비어있으면 저장하지 않음 — SyncProvider가 클라우드 확인 후 처리
+    if (!isLocalEmpty) {
+      saveToStorage("progress", progress);
+      saveToStorage("daily", daily);
+    }
   },
 
   // 오늘의 6장 드로우
@@ -325,6 +337,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const updated = { ...daily, isSelectionComplete: true };
     set({ daily: updated });
     saveToStorage("daily", updated);
+
+    // 챌린지 알림 스케줄 + 상시 알림 표시
+    if (progress.notificationsEnabled) {
+      scheduleChallengeReminder("오늘 챌린지가 남아있어요!");
+      showChallengeStatus(updated.selectedCards.map((c) => ({
+        name: c.title, completed: updated.completedIds.includes(c.id),
+      })));
+    }
   },
 
   // 챌린지 완료
@@ -384,7 +404,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // 모든 카드 완료 시 풀클리어 보너스 XP (스트릭은 initialize() 날짜 리셋 시 처리)
-    if (updatedDaily.completedIds.length >= daily.selectedCards.length) {
+    const allDone = updatedDaily.completedIds.length >= daily.selectedCards.length;
+    if (allDone) {
       updatedProgress.xp += FULL_CLEAR_BONUS_XP;
     }
 
@@ -402,6 +423,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("daily", updatedDaily);
     saveToStorage("progress", updatedProgress);
     completingCardIds.delete(cardId);
+
+    // 알림 갱신
+    if (updatedProgress.notificationsEnabled) {
+      if (allDone) {
+        cancelChallengeReminder();
+        hideChallengeStatus();
+      } else {
+        showChallengeStatus(daily.selectedCards.map((c) => ({
+          name: c.title, completed: updatedDaily.completedIds.includes(c.id),
+        })));
+      }
+    }
   },
 
   // 모드 변경 (다음 날부터 적용)

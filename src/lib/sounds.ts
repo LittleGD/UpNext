@@ -465,9 +465,21 @@ const VIBRATION_PATTERNS: Record<SoundName, number[] | null> = {
   meteorWhoosh: [30, 10, 40],
 };
 
+const MIN_VIBRATION_MS = 25;
+
+function normalizePattern(pattern: number[]): number[] {
+  return pattern.map((v, i) =>
+    // 홀수 인덱스는 pause, 짝수(및 단일)는 vibrate → vibrate만 클램핑
+    pattern.length === 1 || i % 2 === 0 ? Math.max(v, MIN_VIBRATION_MS) : v
+  );
+}
+
 export function triggerHaptic(name: SoundName): void {
   const pattern = VIBRATION_PATTERNS[name];
   if (pattern && typeof navigator !== "undefined" && navigator.vibrate) {
-    try { navigator.vibrate(pattern); } catch { /* non-critical */ }
+    try {
+      navigator.vibrate(0); // 이전 패턴 취소 (Samsung 호환성)
+      navigator.vibrate(normalizePattern(pattern));
+    } catch { /* non-critical */ }
   }
 }

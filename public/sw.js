@@ -99,11 +99,71 @@ function scheduleNextReminder(timeStr) {
   }, delay);
 }
 
+// === 챌린지 리마인더 (4시간 간격) ===
+let challengeInterval = null;
+
+function scheduleChallengeReminder(data) {
+  cancelChallengeReminder();
+
+  function check() {
+    const now = new Date();
+    const hour = now.getHours();
+    // 23시~7시 방해금지
+    if (hour >= 7 && hour < 23) {
+      self.registration.showNotification("UpNext", {
+        body: data.message || "오늘 챌린지가 남아있어요!",
+        icon: "/icons/icon-192x192.png",
+        badge: "/icons/icon-192x192.png",
+        vibrate: [100, 50, 100],
+        tag: "challenge-reminder",
+      });
+    }
+    challengeInterval = setTimeout(check, 4 * 60 * 60 * 1000);
+  }
+
+  // 첫 알림은 4시간 후
+  challengeInterval = setTimeout(check, 4 * 60 * 60 * 1000);
+}
+
+function cancelChallengeReminder() {
+  if (challengeInterval) clearTimeout(challengeInterval);
+  challengeInterval = null;
+}
+
+// === 상시 알림 (위젯 대체) ===
+function showChallengeStatus(data) {
+  const lines = data.challenges.map((c) =>
+    (c.completed ? "✅ " : "⬜ ") + c.name
+  );
+  self.registration.showNotification("UpNext — 오늘의 챌린지", {
+    body: lines.join("\n"),
+    tag: "challenge-status",
+    requireInteraction: true,
+    silent: true,
+    icon: "/icons/icon-192x192.png",
+  });
+}
+
+function hideChallengeStatus() {
+  self.registration.getNotifications({ tag: "challenge-status" }).then((n) =>
+    n.forEach((notif) => notif.close())
+  );
+}
+
 self.addEventListener("message", (event) => {
-  if (event.data?.type === "SCHEDULE_REMINDER") {
+  const { type } = event.data || {};
+  if (type === "SCHEDULE_REMINDER") {
     scheduleNextReminder(event.data.time);
-  } else if (event.data?.type === "CANCEL_REMINDER") {
+  } else if (type === "CANCEL_REMINDER") {
     if (reminderTimeout) clearTimeout(reminderTimeout);
     reminderTimeout = null;
+  } else if (type === "SCHEDULE_CHALLENGE_REMINDER") {
+    scheduleChallengeReminder(event.data);
+  } else if (type === "CANCEL_CHALLENGE_REMINDER") {
+    cancelChallengeReminder();
+  } else if (type === "SHOW_CHALLENGE_STATUS") {
+    showChallengeStatus(event.data);
+  } else if (type === "HIDE_CHALLENGE_STATUS") {
+    hideChallengeStatus();
   }
 });

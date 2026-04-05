@@ -110,6 +110,7 @@ const ja: Record<DictKey, string> = {
   "settings.notifications": "通知",
   "settings.notifications.time": "通知時間",
   "settings.notifications.denied": "通知がブロックされています。ブラウザ設定で許可してください。",
+  "settings.dataWarning": "ログインするとデータがクラウドにバックアップされます。ブラウザデータを削除すると進行状況が消える可能性があります。",
   "settings.mode.heading": "チャレンジモード",
   "settings.mode.normal": "ノーマルモード",
   "settings.mode.normal.desc": "気軽に始めたいなら",
