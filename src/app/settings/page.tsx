@@ -42,6 +42,7 @@ export default function SettingsPage() {
   const setNotificationsEnabled = useGameStore((s) => s.setNotificationsEnabled);
   const setNotificationTime = useGameStore((s) => s.setNotificationTime);
   const equipTitle = useGameStore((s) => s.equipTitle);
+  const authUser = useAuthStore((s) => s.user);
   const { play } = useSound();
   const { t, language } = useTranslation();
   const [pendingMode, setPendingMode] = useState<GameMode | null>(null);
@@ -78,6 +79,13 @@ export default function SettingsPage() {
   return (
     <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto space-y-5">
       <h2 className="typo-title text-text-primary">{t("settings.title")}</h2>
+
+      {/* ── 비로그인 경고 ── */}
+      {!authUser && progress.totalDaysCompleted > 0 && (
+        <div className="rounded-lg bg-accent-secondary/10 border border-accent-secondary/20 px-4 py-3">
+          <p className="typo-caption text-accent-secondary">{t("settings.dataWarning")}</p>
+        </div>
+      )}
 
       {/* ── 일반 설정 (언어 + 사운드) ── */}
       <section className="rounded-lg bg-bg-surface grid-border overflow-hidden">
@@ -367,14 +375,14 @@ export default function SettingsPage() {
         <button
           onClick={async () => {
             play("select");
-            const authUser = useAuthStore.getState().user;
-            const msg = authUser
+            const currentAuthUser = useAuthStore.getState().user;
+            const msg = currentAuthUser
               ? t("settings.reset.confirmWithAccount")
               : t("settings.reset.confirmLocal");
             if (window.confirm(msg)) {
-              if (authUser) {
+              if (currentAuthUser) {
                 try {
-                  await deleteCloudData(authUser.uid);
+                  await deleteCloudData(currentAuthUser.uid);
                   await useAuthStore.getState().signOut();
                 } catch (e) {
                   console.error("Cloud data deletion failed:", e);

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGameStore } from "@/store/useGameStore";
-import { startListener, stopListener, uploadLocalData, getCloudData } from "@/lib/sync";
+import { startListener, stopListener, uploadLocalData, getCloudData, setSyncReady } from "@/lib/sync";
+import { saveToStorage } from "@/lib/storage";
 import type { AuthUser } from "@/types/auth";
 import type { UserProgress, DailyState } from "@/types/game";
 import { AnimatePresence } from "framer-motion";
@@ -66,7 +67,19 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
             const cloudData = await getCloudData(firebaseUser.uid);
             const store = useGameStore.getState();
 
-            if (!cloudData) {
+            if (store.isLocalEmpty && cloudData) {
+              // 쿠키 삭제 후 복원 — 클라우드 데이터로 복원
+              useGameStore.getState()._setFromCloud(cloudData.progress, cloudData.daily);
+              saveToStorage("progress", cloudData.progress);
+              saveToStorage("daily", cloudData.daily);
+              saveToStorage("onboarding_complete", true);
+              useGameStore.setState({ hasCompletedOnboarding: true, isLocalEmpty: false });
+            } else if (store.isLocalEmpty && !cloudData) {
+              // 진짜 신규 유저 — 기본값 저장
+              saveToStorage("progress", store.progress);
+              saveToStorage("daily", store.daily);
+              useGameStore.setState({ isLocalEmpty: false });
+            } else if (!cloudData) {
               if (store.hasCompletedOnboarding) {
                 await uploadLocalData(firebaseUser.uid, store.progress, store.daily);
               }
@@ -95,10 +108,18 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
             console.error("Sync initialization failed:", error);
           }
 
+          setSyncReady(true);
           await startListener(firebaseUser.uid, (progress, daily) => {
             useGameStore.getState()._setFromCloud(progress, daily);
           });
         } else {
+          const store = useGameStore.getState();
+          if (store.isLocalEmpty) {
+            saveToStorage("progress", store.progress);
+            saveToStorage("daily", store.daily);
+            useGameStore.setState({ isLocalEmpty: false });
+          }
+          setSyncReady(true);
           setUser(null);
           stopListener();
         }

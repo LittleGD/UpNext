@@ -83,6 +83,13 @@ let currentUid: string | null = null;
 
 // 클라우드에서 로컬로 업데이트할 때 루프 방지 플래그
 let isUpdatingFromCloud = false;
+
+// 앱 시작 시 Auth 확인 완료 전까지 클라우드 동기화 차단
+let isSyncReady = false;
+
+export function setSyncReady(ready: boolean): void {
+  isSyncReady = ready;
+}
 let cloudUpdatePromise: Promise<void> | null = null;
 
 export function isCloudUpdate(): boolean {
@@ -147,7 +154,7 @@ export function stopListener(): void {
 
 // 로컬 → 클라우드 동기화 (디바운스 300ms)
 export function syncToCloud(key: string, value: unknown): void {
-  if (!isFirebaseConfigured || !currentUid || isUpdatingFromCloud) return;
+  if (!isFirebaseConfigured || !currentUid || isUpdatingFromCloud || !isSyncReady) return;
 
   if (key === "progress") {
     pendingSyncData.progress = value;

@@ -110,6 +110,7 @@ const zh: Record<DictKey, string> = {
   "settings.notifications": "通知",
   "settings.notifications.time": "提醒时间",
   "settings.notifications.denied": "通知已被阻止。请在浏览器设置中允许。",
+  "settings.dataWarning": "登录后数据会备份到云端。清除浏览器数据可能会丢失进度。",
   "settings.mode.heading": "挑战模式",
   "settings.mode.normal": "普通模式",
   "settings.mode.normal.desc": "轻松入门",

@@ -32,3 +32,41 @@ export function cancelLocalReminder(): void {
     });
   }
 }
+
+// === 챌린지 리마인더 (4시간 간격) ===
+
+export function scheduleChallengeReminder(message: string): void {
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "SCHEDULE_CHALLENGE_REMINDER",
+      message,
+    });
+  }
+}
+
+export function cancelChallengeReminder(): void {
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "CANCEL_CHALLENGE_REMINDER",
+    });
+  }
+}
+
+// === 상시 알림 (위젯 대체) ===
+
+export function showChallengeStatus(challenges: Array<{ name: string; completed: boolean }>): void {
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "SHOW_CHALLENGE_STATUS",
+      challenges,
+    });
+  }
+}
+
+export function hideChallengeStatus(): void {
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "HIDE_CHALLENGE_STATUS",
+    });
+  }
+}

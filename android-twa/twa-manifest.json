@@ -15,7 +15,7 @@
   "startUrl": "/",
   "iconUrl": "https://up-next-phi.vercel.app/icons/icon-512x512.png",
   "maskableIconUrl": "https://up-next-phi.vercel.app/icons/icon-maskable-512x512.png",
-  "splashScreenFadeOutDuration": 300,
+  "splashScreenFadeOutDuration": 100,
   "signingKey": {
     "path": "/Users/jmlee/Documents/UpNext/android-twa/android.keystore",
     "alias": "android"
