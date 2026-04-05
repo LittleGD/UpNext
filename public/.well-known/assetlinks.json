@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "app.vercel.upnext",
       "sha256_cert_fingerprints": [
-        "3C:4C:12:EE:48:02:B3:71:D8:6B:2A:BE:59:7B:84:81:3E:27:4F:35:5D:8F:3E:F3:BE:55:14:74:41:7F:78:EB"
+        "3C:4C:12:EE:48:02:B3:71:D8:6B:2A:BE:59:7B:84:81:3E:27:4F:35:5D:8F:3E:F3:BE:55:14:74:41:7F:78:EB",
+        "E4:FC:DA:D7:27:B9:A5:65:83:36:E0:46:FC:7F:B0:22:FF:B1:F3:D9:AB:84:B3:02:EE:98:36:16:0C:ED:C0:6A"
       ]
     }
   }
