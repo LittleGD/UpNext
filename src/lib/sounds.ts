@@ -478,8 +478,13 @@ export function triggerHaptic(name: SoundName): void {
   const pattern = VIBRATION_PATTERNS[name];
   if (pattern && typeof navigator !== "undefined" && navigator.vibrate) {
     try {
-      navigator.vibrate(0); // 이전 패턴 취소 (Samsung 호환성)
-      navigator.vibrate(normalizePattern(pattern));
+      const normalized = normalizePattern(pattern);
+      // vibrate(0)으로 이전 패턴을 취소한 뒤 약간의 딜레이를 두고 새 패턴 실행
+      // Samsung 구형 기기(Note9 등)에서 취소 직후 실행 시 무시되는 이슈 방지
+      navigator.vibrate(0);
+      setTimeout(() => {
+        try { navigator.vibrate(normalized); } catch { /* non-critical */ }
+      }, 10);
     } catch { /* non-critical */ }
   }
 }
