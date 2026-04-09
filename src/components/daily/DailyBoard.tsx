@@ -13,7 +13,6 @@ import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle, cardDesc } from "@/i18n";
 import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
-import { PHASE_XP_MULTIPLIER } from "@/types/game";
 import ExtraChallengeBanner from "./ExtraChallengeBanner";
 import SuperChallengeBanner from "./SuperChallengeBanner";
 import ChallengeConfirmModal from "./ChallengeConfirmModal";
@@ -397,9 +396,8 @@ export default function DailyBoard() {
 
   const handleConfirm = () => {
     if (confirmCard) {
-      const baseXp = XP_PER_RARITY[confirmCard.rarity] || 10;
-      const multiplier = PHASE_XP_MULTIPLIER[phase];
-      const xp = Math.round(baseXp * multiplier);
+      // 카드에 명시된 XP 그대로 (배율 없음)
+      const xp = XP_PER_RARITY[confirmCard.rarity] || 10;
       // Show success state in modal
       setCompletingCard(confirmCard);
       setCompletingXp(xp);

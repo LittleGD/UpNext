@@ -28,6 +28,8 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // handleDone 재진입 방지 (더블탭/연속탭으로 팩이 중복 소모되는 것 차단)
+  const isDoneInFlightRef = useRef(false);
 
   const addTimer = (fn: () => void, ms: number) => {
     const id = setTimeout(fn, ms);
@@ -54,7 +56,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
       addTimer(() => {
         setPhase("revealed");
         cards.forEach((_, i) => {
-          setTimeout(() => play("cardFlip"), i * 120);
+          addTimer(() => play("cardFlip"), i * 120);
         });
       }, 600);
     }, 1400);
@@ -64,6 +66,10 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
   }, []);
 
   const handleDone = () => {
+    // 재진입 방지: 이미 진행 중이면 무시
+    if (isDoneInFlightRef.current) return;
+    isDoneInFlightRef.current = true;
+
     play("xpGain");
     setPhase("absorbing");
 
@@ -73,7 +79,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
     });
 
     addTimer(() => {
-      const remaining = progress.pendingPacks || 0;
+      const remaining = (progress.pendingPacks || 0) + (progress.pendingBonusCards || 0);
       if (remaining > 0) {
         setRevealedCards([]);
         setPhase("shaking");
@@ -88,8 +94,10 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
           play("packOpen");
           addTimer(() => {
             setPhase("revealed");
+            // 다음 리빌 라운드 시작 → 확인 버튼 다시 받을 수 있도록 해제
+            isDoneInFlightRef.current = false;
             cards.forEach((_, i) => {
-              setTimeout(() => play("cardFlip"), i * 120);
+              addTimer(() => play("cardFlip"), i * 120);
             });
           }, 600);
         }, 1400);

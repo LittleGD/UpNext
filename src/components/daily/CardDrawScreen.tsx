@@ -73,6 +73,7 @@ export default function CardDrawScreen() {
   const [isShaking, setIsShaking] = useState(false);
   const holdTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const holdStartRef = useRef<number>(0);
+  const didDrawRef = useRef(false);
 
   // 핸드 스크롤을 중앙으로 초기화
   useEffect(() => {
@@ -115,34 +116,46 @@ export default function CardDrawScreen() {
 
   // 덱 홀드 핸들러
   const startHold = useCallback(() => {
+    // 이미 홀드 중이면 중복 인터벌 생성 방지 (멀티터치/빠른 재누름 대응)
+    if (holdTimerRef.current) return;
+    didDrawRef.current = false;
     setIsHolding(true);
     setIsShaking(true);
     play("chargeUp");
     holdStartRef.current = Date.now();
-    holdTimerRef.current = setInterval(() => {
+    // 로컬 변수에 캡처해 clearInterval이 정확한 인터벌을 타겟팅하도록 함
+    const timer: ReturnType<typeof setInterval> = setInterval(() => {
       const elapsed = Date.now() - holdStartRef.current;
       const p = Math.min(elapsed / HOLD_DURATION, 1);
       setHoldProgress(p);
       if (p >= 1) {
-        if (holdTimerRef.current) clearInterval(holdTimerRef.current);
-        // 홀드 완료 → 카드 뽑기
-        if (phase === "daily") {
-          drawDailyCards();
-        } else {
-          drawPhaseCards();
-        }
-        for (let i = 0; i < 6; i++) {
-          setTimeout(() => play("cardFlip"), i * 80);
+        clearInterval(timer);
+        if (holdTimerRef.current === timer) holdTimerRef.current = null;
+        // 홀드 완료 → 카드 뽑기 (한 사이클당 1회만)
+        if (!didDrawRef.current) {
+          didDrawRef.current = true;
+          if (phase === "daily") {
+            drawDailyCards();
+          } else {
+            drawPhaseCards();
+          }
+          for (let i = 0; i < 6; i++) {
+            setTimeout(() => play("cardFlip"), i * 80);
+          }
         }
         setIsHolding(false);
         setIsShaking(false);
         setHoldProgress(0);
       }
     }, 16);
+    holdTimerRef.current = timer;
   }, [drawDailyCards, drawPhaseCards, phase, play]);
 
   const cancelHold = useCallback(() => {
-    if (holdTimerRef.current) clearInterval(holdTimerRef.current);
+    if (holdTimerRef.current) {
+      clearInterval(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
     setIsHolding(false);
     setIsShaking(false);
     setHoldProgress(0);
@@ -151,7 +164,10 @@ export default function CardDrawScreen() {
   // cleanup
   useEffect(() => {
     return () => {
-      if (holdTimerRef.current) clearInterval(holdTimerRef.current);
+      if (holdTimerRef.current) {
+        clearInterval(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
     };
   }, []);
 

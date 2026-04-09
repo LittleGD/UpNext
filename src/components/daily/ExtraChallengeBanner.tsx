@@ -19,48 +19,66 @@ export default function ExtraChallengeBanner({ onPress }: ExtraChallengeBannerPr
   const [activated, setActivated] = useState(false);
   const [progress, setProgress] = useState(0);
   const holdStartRef = useRef(0);
-  const rafRef = useRef(0);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const rafRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completedRef = useRef(false);
 
   const startHold = useCallback(() => {
-    if (activated) return;
+    // 중복 진입 방지: 이미 홀드 중이거나 활성화된 경우 스킵
+    if (activated || rafRef.current !== null) return;
     completedRef.current = false;
     holdStartRef.current = Date.now();
     setHolding(true);
     play("chargeUp");
 
-    function tick() {
+    const tick = () => {
       const elapsed = Date.now() - holdStartRef.current;
       const p = Math.min(elapsed / HOLD_DURATION, 1);
       setProgress(p);
 
       if (p >= 1 && !completedRef.current) {
         completedRef.current = true;
+        rafRef.current = null;
         setActivated(true);
         setHolding(false);
         play("fireIgnite");
         // Small delay for the activation animation to play
+        // 기존 예약 타임아웃이 있으면 취소 후 재설정 (이중 onPress 방지)
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = setTimeout(() => onPress(), 400);
         return;
       }
 
       if (p < 1) {
         rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
       }
-    }
+    };
     rafRef.current = requestAnimationFrame(tick);
   }, [activated, onPress, play]);
 
   const cancelHold = useCallback(() => {
     if (completedRef.current) return;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     setHolding(false);
     setProgress(0);
-    cancelAnimationFrame(rafRef.current);
   }, []);
 
   useEffect(() => {
-    return () => { cancelAnimationFrame(rafRef.current); clearTimeout(timeoutRef.current); };
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
   }, []);
 
   return (
