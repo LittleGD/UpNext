@@ -75,6 +75,44 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* === 텍스트 선택 / 드래그 / 복사 방지 (앱처럼 느껴지도록) ===
+   - 전역 차단: 길게 누르기 콜아웃, 선택 하이라이트, 이미지 드래그, 탭 하이라이트
+   - 예외: 폼 입력(<input>, <textarea>, [contenteditable]), data-selectable="true"
+   - 개인정보 처리방침 같은 읽기 문서는 .allow-select 클래스로 옵트인 */
+html, body {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+img, svg, video, canvas {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 폼 입력은 항상 선택 가능 */
+input,
+textarea,
+[contenteditable="true"],
+[contenteditable=""] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* 옵트인: 특정 영역만 선택/복사 허용 */
+.allow-select,
+[data-selectable="true"] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 /* ============================================
    타이포그래피 시스템 — 6단계 스케일
    typo-display > typo-title > typo-heading > typo-body > typo-caption > typo-micro
