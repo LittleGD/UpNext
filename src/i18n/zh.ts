@@ -110,6 +110,14 @@ const zh: Record<DictKey, string> = {
   "settings.notifications": "通知",
   "settings.notifications.time": "提醒时间",
   "settings.notifications.denied": "通知已被阻止。请在浏览器设置中允许。",
+
+  // === 通知 ===
+  "notif.daily.complete.title": "今日挑战完成！",
+  "notif.daily.complete.body": "辛苦了。还有额外挑战哦。",
+  "notif.extra.complete.title": "额外挑战完成！",
+  "notif.extra.complete.body": "太棒了。今天也是充实的一天！",
+  "notif.extra.nudge.title": "UpNext",
+  "notif.extra.nudge.body": "要不要试试额外挑战？",
   "settings.dataWarning": "登录后数据会备份到云端。清除浏览器数据可能会丢失进度。",
   "settings.mode.heading": "挑战模式",
   "settings.mode.normal": "普通模式",

@@ -108,6 +108,14 @@ const ko = {
   "settings.notifications": "알림",
   "settings.notifications.time": "알림 시간",
   "settings.notifications.denied": "알림이 차단되었습니다. 브라우저 설정에서 허용해주세요.",
+
+  // === 알림 문구 ===
+  "notif.daily.complete.title": "오늘의 챌린지 완료!",
+  "notif.daily.complete.body": "수고했어요. 추가 챌린지도 있어요.",
+  "notif.extra.complete.title": "추가 챌린지 완료!",
+  "notif.extra.complete.body": "대단해요. 오늘도 갓생!",
+  "notif.extra.nudge.title": "UpNext",
+  "notif.extra.nudge.body": "추가 챌린지, 하고 싶지 않아?",
   "settings.dataWarning": "로그인하면 데이터가 클라우드에 백업됩니다. 브라우저 데이터 삭제 시 진행 상황이 사라질 수 있어요.",
   "settings.mode.heading": "챌린지 모드",
   "settings.mode.normal": "일반 모드",

@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import type { ChallengeCard, Category } from "@/types/card";
 import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase } from "@/types/game";
-import { MODE_CARD_COUNT, XP_PER_RARITY, FULL_CLEAR_BONUS_XP, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, PHASE_MIN_CARDS, PHASE_MAX_CARDS, PHASE_XP_MULTIPLIER, PHASE_CLEAR_BONUS } from "@/types/game";
+import { MODE_CARD_COUNT, XP_PER_RARITY, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, PHASE_MIN_CARDS, PHASE_MAX_CARDS } from "@/types/game";
 import { ALL_CARDS, STARTER_CARD_IDS } from "@/data/cards";
 import { drawCards, drawFromPool } from "@/lib/deck";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import { STARTER_PACKS } from "@/data/starterPacks";
-import { scheduleChallengeReminder, cancelChallengeReminder, showChallengeStatus, hideChallengeStatus } from "@/lib/notifications";
+import { scheduleChallengeReminder, cancelChallengeReminder, showChallengeStatus, hideChallengeStatus, showInstantNotify, scheduleExtraNudge, cancelExtraNudge } from "@/lib/notifications";
+import { t } from "@/i18n";
 
 // 오늘 날짜를 "2026-04-01" 형식으로 반환
 // 하루 기준: 새벽 1시 ~ 다음날 00:59 (1시간 빼서 날짜 계산)
@@ -38,6 +39,7 @@ function getInitialProgress(): UserProgress {
     xp: 0,
     daysTowardNextLevel: 0,
     pendingPacks: 0,
+    pendingBonusCards: 0,
     cardCompletions: {},
     extraChallengesCompleted: 0,
     superChallengesCompleted: 0,
@@ -77,6 +79,8 @@ function getInitialDailyState(): DailyState {
     // 실패 패널티
     hasPenalty: false,
     penaltyCardId: null,
+    // 알림
+    extraNudgeScheduled: false,
   };
 }
 
@@ -227,7 +231,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       progress.pendingPacks = (progress.pendingPacks || 0) + levelsGained;
     }
 
-    const isOpeningPack = (progress.pendingPacks || 0) > 0;
+    const isOpeningPack = (progress.pendingPacks || 0) > 0 || (progress.pendingBonusCards || 0) > 0;
     const isLocalEmpty = !savedOnboarding && !savedProgress;
     set({ daily, progress, isLoaded: true, hasCompletedOnboarding: !!savedOnboarding, isOpeningPack, isLocalEmpty });
 
@@ -403,10 +407,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ];
     }
 
-    // 모든 카드 완료 시 풀클리어 보너스 XP (스트릭은 initialize() 날짜 리셋 시 처리)
+    // 모든 카드 완료 여부 (알림 갱신에 사용)
     const allDone = updatedDaily.completedIds.length >= daily.selectedCards.length;
+
+    // daily 풀클리어 → 다음 날 패널티 해제 (이미 false겠지만 안전 차원)
+    // 그리고 "오늘 실패는 아님" 확정
     if (allDone) {
-      updatedProgress.xp += FULL_CLEAR_BONUS_XP;
+      // 추가 챌린지 넛지 1회 예약 (이미 예약된 상태면 건드리지 않음)
+      // 이 플래그는 daily 상태의 일부 — 새벽 리셋 시 자동 초기화
+      if (!updatedDaily.extraNudgeScheduled) {
+        updatedDaily.extraNudgeScheduled = true;
+      }
     }
 
     // XP 기반 레벨업 체크
@@ -429,6 +440,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (allDone) {
         cancelChallengeReminder();
         hideChallengeStatus();
+
+        // 1) 오늘의 챌린지 완료 축하 알림 (즉시)
+        const lang = updatedProgress.language;
+        showInstantNotify(
+          t("notif.daily.complete.title", lang),
+          t("notif.daily.complete.body", lang),
+          "daily-complete",
+        );
+
+        // 2) 2시간 뒤 "추가 챌린지, 하고 싶지 않아?" 넛지 (하루 1회)
+        //    extra phase에 이미 들어갔거나 완료했으면 보내지 않음
+        const alreadyInExtra = updatedDaily.challengePhase !== "daily";
+        if (!daily.extraNudgeScheduled && !alreadyInExtra) {
+          scheduleExtraNudge(
+            t("notif.extra.nudge.title", lang),
+            t("notif.extra.nudge.body", lang),
+          );
+        }
       } else {
         showChallengeStatus(daily.selectedCards.map((c) => ({
           name: c.title, completed: updatedDaily.completedIds.includes(c.id),
@@ -489,28 +518,37 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ isOpeningPack: false });
   },
 
-  // 카드팩 열기 → 3장 등급 가중치 랜덤 해금 (중복 없음)
+  // 카드팩 열기
+  // - 보너스 카드(pendingBonusCards) 우선 소진: 1장
+  // - 레벨업 팩(pendingPacks): 3장
+  // 둘 다 없으면 빈 배열
   openCardPack: () => {
     const { progress } = get();
-    if ((progress.pendingPacks || 0) <= 0) return [];
+    const pendingPacks = progress.pendingPacks || 0;
+    const pendingBonusCards = progress.pendingBonusCards || 0;
+    if (pendingPacks <= 0 && pendingBonusCards <= 0) return [];
 
     const lockedCards = ALL_CARDS.filter(
       (c) => !progress.unlockedCardIds.includes(c.id)
     );
 
-    // 해금할 카드가 없으면 남은 팩을 전부 소진
+    // 해금할 카드가 없으면 남은 큐 전부 소진
     if (lockedCards.length === 0) {
-      const updatedProgress = { ...progress, pendingPacks: 0 };
+      const updatedProgress = { ...progress, pendingPacks: 0, pendingBonusCards: 0 };
       set({ progress: updatedProgress });
       saveToStorage("progress", updatedProgress);
       return [];
     }
 
-    const newCards = drawFromPool(lockedCards, 3);
+    // 보너스 카드 먼저 (1장), 그 다음에 레벨업 팩 (3장)
+    const isBonus = pendingBonusCards > 0;
+    const count = isBonus ? 1 : 3;
+    const newCards = drawFromPool(lockedCards, count);
 
     const updatedProgress = {
       ...progress,
-      pendingPacks: progress.pendingPacks - 1,
+      pendingPacks: isBonus ? pendingPacks : pendingPacks - 1,
+      pendingBonusCards: isBonus ? pendingBonusCards - 1 : pendingBonusCards,
       unlockedCardIds: [
         ...progress.unlockedCardIds,
         ...newCards.map((c) => c.id),
@@ -588,12 +626,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ══════════════════════════════════════
 
   startExtraChallenge: () => {
-    const { daily } = get();
+    const { daily, progress } = get();
     // 가드: daily 챌린지 완료 확인
     if (daily.completedIds.length < daily.selectedCards.length) return;
     const updated = { ...daily, challengePhase: "extra" as ChallengePhase };
     set({ daily: updated });
     saveToStorage("daily", updated);
+
+    // 유저가 직접 추가 챌린지를 시작했으니 2시간 뒤 넛지 취소
+    if (progress.notificationsEnabled) {
+      cancelExtraNudge();
+    }
   },
 
   startSuperChallenge: () => {
@@ -752,12 +795,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
     };
 
-    // XP (배율 적용)
-    const baseXP = XP_PER_RARITY[card.rarity] || 10;
-    const multiplier = PHASE_XP_MULTIPLIER[phase];
-    const xpGain = Math.round(baseXP * multiplier);
+    // XP — 카드에 명시된 값 그대로 (배율/보너스 없음)
+    const xpGain = XP_PER_RARITY[card.rarity] || 10;
     updatedProgress.xp = (updatedProgress.xp || 0) + xpGain;
     updatedProgress.pendingPacks = updatedProgress.pendingPacks || 0;
+    updatedProgress.pendingBonusCards = updatedProgress.pendingBonusCards || 0;
 
     // 새 카드 해금 체크
     const newUnlocks = ALL_CARDS.filter(
@@ -774,9 +816,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ];
     }
 
-    // 풀클리어 보너스 XP (카운터 증가는 initialize() 날짜 리셋 시 처리)
-    if (newCompletedIds.length >= selectedCards.length) {
-      updatedProgress.xp += PHASE_CLEAR_BONUS[phase];
+    // 풀클리어 시 랜덤 카드 1장 적립 (실제 뽑기는 openCardPack에서 수행)
+    const phaseFullClear = newCompletedIds.length >= selectedCards.length;
+    if (phaseFullClear) {
+      const hasLockedCards = ALL_CARDS.some(
+        (c) => !updatedProgress.unlockedCardIds.includes(c.id)
+      );
+      if (hasLockedCards) {
+        updatedProgress.pendingBonusCards += 1;
+      }
     }
 
     // 레벨업 체크
@@ -788,11 +836,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
       updatedProgress.pendingPacks += levelsGained;
     }
 
-    const shouldOpenPack = updatedProgress.pendingPacks > (progress.pendingPacks || 0);
+    const shouldOpenPack =
+      updatedProgress.pendingPacks > (progress.pendingPacks || 0) ||
+      updatedProgress.pendingBonusCards > (progress.pendingBonusCards || 0);
     set({ daily: updatedDaily, progress: updatedProgress, ...(shouldOpenPack && { isOpeningPack: true }) });
     saveToStorage("daily", updatedDaily);
     saveToStorage("progress", updatedProgress);
     completingCardIds.delete(cardId);
+
+    // 알림: extra 풀클리어 → 축하 알림 + 넛지 취소
+    if (phase === "extra" && phaseFullClear && updatedProgress.notificationsEnabled) {
+      cancelExtraNudge();
+      const lang = updatedProgress.language;
+      showInstantNotify(
+        t("notif.extra.complete.title", lang),
+        t("notif.extra.complete.body", lang),
+        "extra-complete",
+      );
+    }
   },
 }));
 
