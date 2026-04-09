@@ -26,20 +26,6 @@ export const PHASE_MAX_CARDS: Record<ChallengePhase, number> = {
   super: 5,
 };
 
-// 단계별 XP 배율
-export const PHASE_XP_MULTIPLIER: Record<ChallengePhase, number> = {
-  daily: 1,
-  extra: 1.2,
-  super: 1.5,
-};
-
-// 단계별 풀클리어 보너스 XP
-export const PHASE_CLEAR_BONUS: Record<ChallengePhase, number> = {
-  daily: 20,
-  extra: 30,
-  super: 50,
-};
-
 // === 오늘의 상태 ===
 // 하루 단위로 관리되는 게임 진행 상태
 export interface DailyState {
@@ -71,6 +57,9 @@ export interface DailyState {
   // === 실패 패널티 ===
   hasPenalty: boolean;              // 어제 실패로 패널티 적용 여부
   penaltyCardId: string | null;    // 자동 선택된 잠긴 카드 ID
+
+  // === 알림 ===
+  extraNudgeScheduled: boolean;    // 추가 챌린지 넛지 알림 예약 여부 (하루 1회)
 }
 
 // === 하루 기록 ===
@@ -99,7 +88,8 @@ export interface UserProgress {
   level: number;                   // 현재 레벨
   xp: number;                      // 현재 경험치 (레거시, 카드 XP용)
   daysTowardNextLevel: number;     // 다음 레벨까지 완료한 일수
-  pendingPacks: number;            // 미개봉 카드팩 수
+  pendingPacks: number;            // 미개봉 카드팩 수 (레벨업 시 3장)
+  pendingBonusCards: number;       // 추가/슈퍼 풀클리어로 적립된 랜덤 카드 1장 큐
   cardCompletions: Record<string, number>; // 카드별 완수 횟수
   extraChallengesCompleted: number;          // 추가 챌린지 완료 횟수
   superChallengesCompleted: number;          // 슈퍼 챌린지 완료 횟수
@@ -115,15 +105,13 @@ export interface UserProgress {
 }
 
 // === XP 보상 (등급별) ===
+// 카드에 명시된 XP — 모든 지급이 이 값 그대로 (배율/풀클리어 보너스 없음)
 export const XP_PER_RARITY: Record<string, number> = {
   normal: 10,
   rare: 25,
   unique: 50,
   legend: 100,
 };
-
-// === 일일 풀클리어 보너스 XP ===
-export const FULL_CLEAR_BONUS_XP = 20;
 
 // === 특정 레벨까지 필요한 총 누적 XP ===
 export function totalXPForLevel(level: number): number {

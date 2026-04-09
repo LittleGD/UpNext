@@ -70,3 +70,37 @@ export function hideChallengeStatus(): void {
     });
   }
 }
+
+// === 즉시 알림 (완료 축하) ===
+// tag로 중복 방지: 같은 tag면 기존 알림을 덮어씀
+export function showInstantNotify(title: string, body: string, tag: string): void {
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "SHOW_INSTANT_NOTIFY",
+      title,
+      body,
+      tag,
+    });
+  }
+}
+
+// === 추가 챌린지 넛지 (2시간 뒤 1회) ===
+// delayMs는 기본 2시간. DND(23~7시)는 SW에서 체크.
+export function scheduleExtraNudge(title: string, body: string, delayMs: number = 2 * 60 * 60 * 1000): void {
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "SCHEDULE_EXTRA_NUDGE",
+      title,
+      body,
+      delayMs,
+    });
+  }
+}
+
+export function cancelExtraNudge(): void {
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "CANCEL_EXTRA_NUDGE",
+    });
+  }
+}

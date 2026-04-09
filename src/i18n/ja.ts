@@ -110,6 +110,14 @@ const ja: Record<DictKey, string> = {
   "settings.notifications": "通知",
   "settings.notifications.time": "通知時間",
   "settings.notifications.denied": "通知がブロックされています。ブラウザ設定で許可してください。",
+
+  // === 通知 ===
+  "notif.daily.complete.title": "今日のチャレンジ完了!",
+  "notif.daily.complete.body": "お疲れ様。追加チャレンジもありますよ。",
+  "notif.extra.complete.title": "追加チャレンジ完了!",
+  "notif.extra.complete.body": "素晴らしい。今日も理想の一日!",
+  "notif.extra.nudge.title": "UpNext",
+  "notif.extra.nudge.body": "追加チャレンジ、やってみない?",
   "settings.dataWarning": "ログインするとデータがクラウドにバックアップされます。ブラウザデータを削除すると進行状況が消える可能性があります。",
   "settings.mode.heading": "チャレンジモード",
   "settings.mode.normal": "ノーマルモード",

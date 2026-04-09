@@ -150,6 +150,51 @@ function hideChallengeStatus() {
   );
 }
 
+// === 즉시 알림 (완료 축하) ===
+function showInstantNotify(data) {
+  self.registration.showNotification(data.title || "UpNext", {
+    body: data.body || "",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-192x192.png",
+    vibrate: [80, 40, 80],
+    tag: data.tag || "instant-notify",
+  });
+}
+
+// === 추가 챌린지 넛지 (1회, 2시간 뒤) ===
+let extraNudgeTimeout = null;
+
+function scheduleExtraNudge(data) {
+  // 기존 예약이 있으면 덮어씀 (1회 보장)
+  if (extraNudgeTimeout) clearTimeout(extraNudgeTimeout);
+
+  const delay = Math.max(0, Number(data.delayMs) || 2 * 60 * 60 * 1000);
+  extraNudgeTimeout = setTimeout(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    // 23~7시 방해금지 — 조용히 스킵 (다음날 다시 추가하지 않음, 1회 원칙)
+    if (hour >= 7 && hour < 23) {
+      self.registration.showNotification(data.title || "UpNext", {
+        body: data.body || "",
+        icon: "/icons/icon-192x192.png",
+        badge: "/icons/icon-192x192.png",
+        vibrate: [100, 50, 100],
+        tag: "extra-nudge",
+      });
+    }
+    extraNudgeTimeout = null;
+  }, delay);
+}
+
+function cancelExtraNudge() {
+  if (extraNudgeTimeout) clearTimeout(extraNudgeTimeout);
+  extraNudgeTimeout = null;
+  // 이미 떠있는 넛지 알림도 닫기
+  self.registration.getNotifications({ tag: "extra-nudge" }).then((n) =>
+    n.forEach((notif) => notif.close())
+  );
+}
+
 self.addEventListener("message", (event) => {
   const { type } = event.data || {};
   if (type === "SCHEDULE_REMINDER") {
@@ -165,5 +210,11 @@ self.addEventListener("message", (event) => {
     showChallengeStatus(event.data);
   } else if (type === "HIDE_CHALLENGE_STATUS") {
     hideChallengeStatus();
+  } else if (type === "SHOW_INSTANT_NOTIFY") {
+    showInstantNotify(event.data);
+  } else if (type === "SCHEDULE_EXTRA_NUDGE") {
+    scheduleExtraNudge(event.data);
+  } else if (type === "CANCEL_EXTRA_NUDGE") {
+    cancelExtraNudge();
   }
 });

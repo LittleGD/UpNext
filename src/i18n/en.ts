@@ -110,6 +110,14 @@ const en: Record<DictKey, string> = {
   "settings.notifications": "Notifications",
   "settings.notifications.time": "Reminder Time",
   "settings.notifications.denied": "Notifications blocked. Please enable in browser settings.",
+
+  // === notifications ===
+  "notif.daily.complete.title": "Daily Challenge Complete!",
+  "notif.daily.complete.body": "Great job. Extra challenges are waiting.",
+  "notif.extra.complete.title": "Extra Challenge Complete!",
+  "notif.extra.complete.body": "Amazing. Peak life mode today!",
+  "notif.extra.nudge.title": "UpNext",
+  "notif.extra.nudge.body": "Up for an extra challenge?",
   "settings.dataWarning": "Sign in to back up your data. Clearing browser data may erase your progress.",
   "settings.mode.heading": "Challenge Mode",
   "settings.mode.normal": "Normal Mode",
