@@ -43,6 +43,8 @@ export function hydrateDaily(data: Record<string, unknown>): DailyState {
     // 실패 패널티
     hasPenalty: (data.hasPenalty as boolean) || false,
     penaltyCardId: (data.penaltyCardId as string) || null,
+    // 추가 챌린지 넛지 (1일 1회 스케줄 여부)
+    extraNudgeScheduled: (data.extraNudgeScheduled as boolean) || false,
   };
 }
 
@@ -71,6 +73,8 @@ export function dehydrateDaily(daily: DailyState): Record<string, unknown> {
     // 실패 패널티
     hasPenalty: daily.hasPenalty,
     penaltyCardId: daily.penaltyCardId,
+    // 추가 챌린지 넛지 (1일 1회 스케줄 여부)
+    extraNudgeScheduled: daily.extraNudgeScheduled,
   };
 }
 
