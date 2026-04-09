@@ -18,7 +18,7 @@ export default function PrivacyPage() {
         <h2 className="typo-title text-text-primary">{t("privacy.title")}</h2>
       </div>
 
-      <div className="space-y-4 typo-caption text-text-secondary leading-relaxed">
+      <div className="allow-select space-y-4 typo-caption text-text-secondary leading-relaxed">
         <p>{t("privacy.lastUpdated")}</p>
 
         <section className="space-y-2">
