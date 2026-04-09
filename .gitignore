@@ -54,3 +54,7 @@ android-twa/*.exp
 android-twa/generate.cjs
 android-twa/generate.mjs
 
+# android signing secrets — NEVER commit
+android-twa/keystore.properties
+keystore.properties
+

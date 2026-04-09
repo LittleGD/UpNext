@@ -147,9 +147,34 @@ android {
 
         
     }
+    // 서명 설정 — keystore.properties (gitignored) 또는 환경 변수에서 읽음
+    // 우선순위: keystore.properties > 환경 변수 > (없으면 서명 스킵)
+    def keystoreProps = new Properties()
+    def keystorePropsFile = rootProject.file("keystore.properties")
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.withInputStream { keystoreProps.load(it) }
+    }
+    def ksStoreFile = keystoreProps.getProperty('storeFile') ?: System.getenv('UPNEXT_KEYSTORE_FILE')
+    def ksStorePassword = keystoreProps.getProperty('storePassword') ?: System.getenv('UPNEXT_KEYSTORE_PASSWORD')
+    def ksKeyAlias = keystoreProps.getProperty('keyAlias') ?: System.getenv('UPNEXT_KEY_ALIAS')
+    def ksKeyPassword = keystoreProps.getProperty('keyPassword') ?: System.getenv('UPNEXT_KEY_PASSWORD')
+    def hasSigningConfig = ksStoreFile && ksStorePassword && ksKeyAlias && ksKeyPassword
+    signingConfigs {
+        release {
+            if (hasSigningConfig) {
+                storeFile file(ksStoreFile)
+                storePassword ksStorePassword
+                keyAlias ksKeyAlias
+                keyPassword ksKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true
+            if (hasSigningConfig) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     compileOptions {
