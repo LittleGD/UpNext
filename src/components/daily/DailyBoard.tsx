@@ -362,6 +362,7 @@ export default function DailyBoard() {
   const [completingCard, setCompletingCard] = useState<ChallengeCard | null>(null);
   const [completingXp, setCompletingXp] = useState(0);
   const [showChallengeModal, setShowChallengeModal] = useState<"extra" | "super" | null>(null);
+  const [bannerResetKey, setBannerResetKey] = useState(0);
   const [shakeCount, setShakeCount] = useState(0);
 
   // phase-aware 데이터 선택
@@ -459,12 +460,18 @@ export default function DailyBoard() {
 
       {/* 추가 챌린지 배너 — daily 완료 후, extra 미시작 */}
       {phase === "daily" && dailyAllDone && (
-        <ExtraChallengeBanner onPress={() => setShowChallengeModal("extra")} />
+        <ExtraChallengeBanner
+          key={`extra-${bannerResetKey}`}
+          onPress={() => setShowChallengeModal("extra")}
+        />
       )}
 
       {/* 슈퍼 챌린지 배너 — extra 완료 후, super 미시작 */}
       {phase === "extra" && extraAllDone && (
-        <SuperChallengeBanner onPress={() => setShowChallengeModal("super")} />
+        <SuperChallengeBanner
+          key={`super-${bannerResetKey}`}
+          onPress={() => setShowChallengeModal("super")}
+        />
       )}
 
       {/* 챌린지 확인 모달 */}
@@ -473,7 +480,11 @@ export default function DailyBoard() {
           <ChallengeConfirmModal
             phase={showChallengeModal}
             onConfirm={showChallengeModal === "extra" ? handleExtraConfirm : handleSuperConfirm}
-            onCancel={() => setShowChallengeModal(null)}
+            onCancel={() => {
+              setShowChallengeModal(null);
+              // 배너를 re-mount해서 activated/holding 상태 리셋 (Bug 5)
+              setBannerResetKey((k) => k + 1);
+            }}
           />
         )}
       </AnimatePresence>

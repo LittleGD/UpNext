@@ -131,6 +131,9 @@ const en: Record<DictKey, string> = {
   "settings.mode.confirmDesc": "Starting tomorrow, you'll pick {cards} cards per day",
   "settings.titles.heading": "Titles",
   "settings.titles.empty": "No titles earned yet. Complete challenges to earn titles!",
+  "settings.titles.level.heading": "Level Title",
+  "settings.titles.level.label": "Lv.{level} · {title}",
+  "settings.titles.earned.heading": "Earned Titles",
   "settings.stats.heading": "My Stats",
   "settings.stats.currentStreak": "Current Streak",
   "settings.stats.longestStreak": "Best Streak",
@@ -154,6 +157,7 @@ const en: Record<DictKey, string> = {
   "collection.titles.special": "Special Titles",
   "collection.titles.streak": "Streak Titles",
   "collection.titles.categoryTitles": "{category} Titles",
+  "collection.titles.extra": "Extra Challenge Titles",
 
   // === auth ===
   "auth.section.heading": "Account Sync",

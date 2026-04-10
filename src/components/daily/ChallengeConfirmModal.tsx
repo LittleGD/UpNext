@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { useSound } from "@/hooks/useSound";
@@ -38,6 +39,15 @@ export default function ChallengeConfirmModal({
   const { play } = useSound();
   const { t } = useTranslation();
   const config = PHASE_CONFIG[phase];
+
+  // 모달이 열려있는 동안 배경 스크롤 락 — 이전 overflow 값 저장/복원
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   return (
       <motion.div
