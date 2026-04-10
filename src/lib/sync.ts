@@ -88,6 +88,11 @@ let currentUid: string | null = null;
 // 클라우드에서 로컬로 업데이트할 때 루프 방지 플래그
 let isUpdatingFromCloud = false;
 
+// 디바운스 중인 로컬 write 존재 여부
+// Firestore의 hasPendingWrites보다 먼저 true가 되어, 디바운스 대기 중에 도착한
+// stale cloud snapshot이 로컬 변경을 덮어쓰는 race condition을 방지
+let hasLocalPendingWrite = false;
+
 // 앱 시작 시 Auth 확인 완료 전까지 클라우드 동기화 차단
 let isSyncReady = false;
 
@@ -127,6 +132,9 @@ export async function startListener(
     if (!data) return;
     if (snapshot.metadata.hasPendingWrites) return;
     if (isUpdatingFromCloud) return;
+    // 디바운스 대기 중인 로컬 write가 있으면 stale cloud snapshot 무시
+    // (flushSync 후 새 snapshot이 오면 정상 처리됨)
+    if (hasLocalPendingWrite) return;
 
     isUpdatingFromCloud = true;
     cloudUpdatePromise = Promise.resolve().then(() => {
@@ -154,6 +162,7 @@ export function stopListener(): void {
     syncDebounceTimer = null;
   }
   pendingSyncData = {};
+  hasLocalPendingWrite = false;
 }
 
 // 로컬 → 클라우드 동기화 (디바운스 300ms)
@@ -168,6 +177,9 @@ export function syncToCloud(key: string, value: unknown): void {
     pendingSyncData.onboardingComplete = value;
   }
 
+  // 로컬에 pending write가 있음을 표시 — 이 동안 stale cloud snapshot 무시
+  hasLocalPendingWrite = true;
+
   if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(() => {
     flushSync();
@@ -175,7 +187,10 @@ export function syncToCloud(key: string, value: unknown): void {
 }
 
 async function flushSync(): Promise<void> {
-  if (!currentUid || Object.keys(pendingSyncData).length === 0) return;
+  if (!currentUid || Object.keys(pendingSyncData).length === 0) {
+    hasLocalPendingWrite = false;
+    return;
+  }
 
   const { db } = await getFirebase();
   const { doc, setDoc, serverTimestamp } = await getFirestoreMod();
@@ -201,6 +216,10 @@ async function flushSync(): Promise<void> {
     }
   } catch (error) {
     console.error("Failed to sync to cloud:", error);
+  } finally {
+    // 성공/실패 상관없이 플래그 정리
+    // 새로 쌓인 pending write가 있으면 유지, 없으면 클리어
+    hasLocalPendingWrite = Object.keys(pendingSyncData).length > 0;
   }
 }
 

@@ -129,6 +129,9 @@ const ko = {
   "settings.mode.confirmDesc": "내일부터 하루에 {cards}장을 선택하게 됩니다",
   "settings.titles.heading": "칭호",
   "settings.titles.empty": "아직 획득한 칭호가 없어요. 챌린지를 완료하면 칭호를 얻을 수 있어요!",
+  "settings.titles.level.heading": "레벨 칭호",
+  "settings.titles.level.label": "Lv.{level} · {title}",
+  "settings.titles.earned.heading": "획득한 칭호",
   "settings.stats.heading": "내 기록",
   "settings.stats.currentStreak": "현재 연속",
   "settings.stats.longestStreak": "최장 연속",
@@ -152,6 +155,7 @@ const ko = {
   "collection.titles.special": "특별 칭호",
   "collection.titles.streak": "연속 달성 칭호",
   "collection.titles.categoryTitles": "{category} 칭호",
+  "collection.titles.extra": "추가 챌린지 칭호",
 
   // === auth ===
   "auth.section.heading": "계정 연동",
