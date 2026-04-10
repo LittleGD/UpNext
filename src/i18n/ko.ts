@@ -70,7 +70,7 @@ const ko = {
   "extra.banner.hint": "길게 눌러서 도전",
   "extra.confirm.title": "추가 도전하실 건가요?",
   "extra.confirm.warning": "무리한 챌린지는 피로를 불러옵니다",
-  "extra.confirm.rule": "챌린지 2개 이상 선택 필수",
+  "extra.confirm.rule": "챌린지 2개 선택 필수",
   "extra.confirm.go": "도전한다!",
   "extra.confirm.rest": "쉬어가기",
   "extra.board.heading": "추가 챌린지",
@@ -82,7 +82,7 @@ const ko = {
   "super.banner.hint": "길게 눌러서 해금",
   "super.confirm.title": "슈퍼 초갓생챌린지에 도전?",
   "super.confirm.warning": "큰 성취감이 있지만, 피곤해질 수 있어요",
-  "super.confirm.rule": "챌린지 4개 선택 필수",
+  "super.confirm.rule": "챌린지 3개 선택 필수",
   "super.confirm.go": "해낸다!",
   "super.confirm.rest": "오늘은 여기까지",
   "super.board.heading": "슈퍼 초갓생챌린지",
@@ -98,6 +98,7 @@ const ko = {
   // === nav ===
   "nav.challenge": "챌린지",
   "nav.collection": "컬렉션",
+  "nav.minigame": "게임",
   "nav.settings": "설정",
 
   // === settings ===
@@ -129,6 +130,9 @@ const ko = {
   "settings.mode.confirmDesc": "내일부터 하루에 {cards}장을 선택하게 됩니다",
   "settings.titles.heading": "칭호",
   "settings.titles.empty": "아직 획득한 칭호가 없어요. 챌린지를 완료하면 칭호를 얻을 수 있어요!",
+  "settings.titles.level.heading": "레벨 칭호",
+  "settings.titles.level.label": "Lv.{level} · {title}",
+  "settings.titles.earned.heading": "획득한 칭호",
   "settings.stats.heading": "내 기록",
   "settings.stats.currentStreak": "현재 연속",
   "settings.stats.longestStreak": "최장 연속",
@@ -151,6 +155,7 @@ const ko = {
   "collection.titles.equipped": "장착 중",
   "collection.titles.special": "특별 칭호",
   "collection.titles.streak": "연속 달성 칭호",
+  "collection.titles.extra": "추가 챌린지 칭호",
   "collection.titles.categoryTitles": "{category} 칭호",
 
   // === auth ===
@@ -221,6 +226,93 @@ const ko = {
 
   // === settings ===
   "settings.privacy": "개인정보 처리방침",
+
+  // === minigame ===
+  "minigame.title": "카드매치",
+  "minigame.subtitle": "같은 챌린지 카드 한 쌍을 찾아보세요",
+  "minigame.tickets.label": "티켓",
+  "minigame.tickets.count": "{count}장",
+  "minigame.tickets.empty": "티켓이 없어요",
+  "minigame.tickets.emptyDesc": "데일리·추가·슈퍼 챌린지를 모두 완료하면 티켓이 들어와요",
+  "minigame.tickets.goToChallenges": "챌린지 하러 가기",
+  "minigame.play": "플레이",
+  "minigame.stats.runs": "플레이 횟수",
+  "minigame.stats.best": "최고 매치",
+  "minigame.howToPlay.heading": "플레이 방법",
+  "minigame.howToPlay.line1": "3 라운드 동안 뒤집힌 카드 쌍을 맞추세요",
+  "minigame.howToPlay.line2": "실수 4번이면 라운드 종료 — 스킬 카드로 기회를 벌어요",
+  "minigame.howToPlay.line3": "저주 카드는 피해야 해요. 런 끝에 카드를 한 장 획득!",
+
+  // HUD
+  "minigame.hud.round": "라운드 {current}/{total}",
+  "minigame.hud.chances": "기회",
+  "minigame.hud.buffs": "버프",
+  "minigame.peek.getReady": "준비하세요",
+  "minigame.round.cleared": "라운드 클리어!",
+  "minigame.round.failed": "라운드 종료",
+  "minigame.round.continue": "계속",
+  "minigame.round.endRun": "런 종료",
+  "minigame.hud.mulliganActive": "멀리건",
+  "minigame.hud.exit": "나가기",
+  "minigame.exit.confirmTitle": "런을 종료할까요?",
+  "minigame.exit.confirmDesc": "티켓은 환불되지 않아요",
+  "minigame.exit.confirmYes": "종료",
+  "minigame.exit.confirmNo": "계속",
+  "minigame.runResult.deselect": "선택 해제",
+
+  // Reward draft
+  "minigame.reward.draft.heading": "보상을 선택하세요",
+  "minigame.reward.draft.subheading": "다음 라운드를 위한 한 개의 보상을 고르세요",
+  "minigame.reward.steelNerves.name": "강철 의지",
+  "minigame.reward.steelNerves.desc": "다음 라운드 기회 +1",
+  "minigame.reward.luckyCharm.name": "행운의 부적",
+  "minigame.reward.luckyCharm.desc": "이번 라운드 첫 실수는 기회가 차감되지 않아요",
+  "minigame.reward.scoutsEye.name": "정찰자의 눈",
+  "minigame.reward.scoutsEye.desc": "라운드 시작 시 뒷면 3장을 2초간 공개",
+  "minigame.reward.rareSurge.name": "고급 카드 서지",
+  "minigame.reward.rareSurge.desc": "다음 라운드 희귀 카드 등장률 +30%",
+  "minigame.reward.duplicateStash.name": "중복 보관함",
+  "minigame.reward.duplicateStash.desc": "런 종료 시 중복 카드 경험치 +50%",
+  "minigame.reward.warded.name": "수호",
+  "minigame.reward.warded.desc": "다음 라운드 저주 효과 1회 무효화",
+  "minigame.reward.compass.name": "나침반",
+  "minigame.reward.compass.desc": "남은 런 동안 뒷면에 희귀도 테두리 표시",
+  "minigame.reward.dualEcho.name": "이중 메아리",
+  "minigame.reward.dualEcho.desc": "다음 라운드 잔상 지속시간 증가",
+  "minigame.reward.skillAmp.name": "스킬 증폭",
+  "minigame.reward.skillAmp.desc": "다음 라운드 스킬 효과가 2회 발동",
+  "minigame.reward.doubleLoot.name": "더블 루트",
+  "minigame.reward.doubleLoot.desc": "런 종료 시 카드 +1장 추가 획득",
+
+  // Skill
+  "minigame.skill.chancesPlus2.name": "타임 키",
+  "minigame.skill.chancesPlus2.desc": "기회 +2 (상한 무시)",
+  "minigame.skill.peek2.name": "엿보기 두루마리",
+  "minigame.skill.peek2.desc": "뒷면 2장을 2초간 공개",
+  "minigame.skill.mulligan.name": "재고의 시야",
+  "minigame.skill.mulligan.desc": "이 라운드의 다음 실수는 기회 차감 없음",
+  "minigame.skill.compass.name": "카테고리 나침반",
+  "minigame.skill.compass.desc": "인접 카드들의 카테고리를 2.5초간 공개",
+
+  // Curse
+  "minigame.curse.triggered": "저주 발동!",
+  "minigame.curse.buffStripped": "버프 {buff}이(가) 제거되었습니다",
+
+  // Run result
+  "minigame.runResult.heading": "매치된 카드",
+  "minigame.runResult.subheading": "획득할 카드를 선택하세요",
+  "minigame.runResult.pickOne": "1장 선택",
+  "minigame.runResult.pickTwo": "2장 선택",
+  "minigame.runResult.pickN": "{count}장 선택",
+
+  // Summary
+  "minigame.summary.heading": "런 완료",
+  "minigame.summary.unlocked": "새 카드 획득!",
+  "minigame.summary.duplicate": "중복 카드",
+  "minigame.summary.xpGained": "+{xp} XP",
+  "minigame.summary.totalMatches": "총 매치 수",
+  "minigame.summary.playAgain": "다시 플레이",
+  "minigame.summary.exit": "나가기",
 } as const;
 
 export type DictKey = keyof typeof ko;

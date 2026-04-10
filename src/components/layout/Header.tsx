@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useGameStore } from "@/store/useGameStore";
+import { useMinigameStore } from "@/store/useMinigameStore";
 import { getXPProgress, getTitleForLevel } from "@/types/game";
 import { ALL_TITLES } from "@/data/titles";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
@@ -13,6 +15,8 @@ export default function Header() {
   const progress = useGameStore((s) => s.progress);
   const isLoaded = useGameStore((s) => s.isLoaded);
   const hasCompletedOnboarding = useGameStore((s) => s.hasCompletedOnboarding);
+  const minigamePhase = useMinigameStore((s) => s.phase);
+  const pathname = usePathname();
 
   const { language } = useTranslation();
 
@@ -57,6 +61,10 @@ export default function Header() {
   }, [level, pulseControls]);
 
   if (!isLoaded || !hasCompletedOnboarding) return null;
+
+  // 미니게임 런 중에는 몰입 모드: idle이 아닌 모든 phase에서 헤더 숨김
+  const inMinigameRun = pathname === "/minigame" && minigamePhase !== "idle";
+  if (inMinigameRun) return null;
 
   const equippedTitle = progress.equippedTitleId
     ? ALL_TITLES.find((t) => t.id === progress.equippedTitleId)

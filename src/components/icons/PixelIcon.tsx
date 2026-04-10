@@ -18,11 +18,23 @@ function loadIcon(name: string): Promise<ComponentType<SVGProps<SVGSVGElement>>>
   if (!loadingCache.has(name)) {
     loadingCache.set(
       name,
-      import(`pixelarticons/react/${name}.js`).then((mod) => {
-        const component = (mod[name] || mod.default) as ComponentType<SVGProps<SVGSVGElement>>;
-        iconCache.set(name, component);
-        return component;
-      })
+      import(`pixelarticons/react/${name}.js`)
+        .then((mod) => {
+          const component = (mod[name] || mod.default) as ComponentType<SVGProps<SVGSVGElement>>;
+          iconCache.set(name, component);
+          return component;
+        })
+        .catch(() => {
+          // 알 수 없는 아이콘 이름 — 레거시 저장 데이터나 신규 이름에 대비해
+          // 크래시 대신 invisible 컴포넌트로 폴백한다.
+          if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+            // eslint-disable-next-line no-console
+            console.warn(`[PixelIcon] missing pixelarticons icon: "${name}"`);
+          }
+          const Fallback: ComponentType<SVGProps<SVGSVGElement>> = () => null;
+          iconCache.set(name, Fallback);
+          return Fallback;
+        })
     );
   }
   return loadingCache.get(name)!;

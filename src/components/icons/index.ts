@@ -13,6 +13,7 @@ export const CATEGORY_ICONS: Record<string, string> = {
 export const NAV_ICONS = {
   today: "Card",
   collection: "Archive",
+  minigame: "Gamepad",
   settings: "MoreHorizontal",
 } as const;
 
