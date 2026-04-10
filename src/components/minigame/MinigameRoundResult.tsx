@@ -1,0 +1,80 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { useMinigameStore } from "@/store/useMinigameStore";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useSound } from "@/hooks/useSound";
+import { fadeInUp, staggerContainer } from "@/lib/motion";
+
+export default function MinigameRoundResult() {
+  const { t } = useTranslation();
+  const { play } = useSound();
+  const currentRound = useMinigameStore((s) => s.currentRound);
+  const matchedThisRound = useMinigameStore((s) => s.matchedThisRound);
+  const chancesLeft = useMinigameStore((s) => s.chancesLeft);
+  const board = useMinigameStore((s) => s.board);
+  const continueFromRoundResult = useMinigameStore((s) => s.continueFromRoundResult);
+
+  // matchedThisRound는 이미 store에서 matchedAllRun으로 옮겨진 상태일 수 있음
+  // 실제 매치 판정은 board의 isMatched 개수로
+  const totalMatched = board.filter((t) => t.isMatched).length / 2;
+  const allCleared = board.every((t) => t.isMatched);
+  // 부분 성공: 챌린지 카드를 1쌍 이상 매치했으면 런 진행 가능.
+  const matchedAnyChallenge = board.some(
+    (t) => t.isMatched && t.kind === "challenge",
+  );
+  const canContinue = matchedAnyChallenge;
+  void matchedThisRound;
+
+  const headingKey = allCleared ? "minigame.round.cleared" : "minigame.round.failed";
+
+  const handleContinue = () => {
+    play("confirm");
+    continueFromRoundResult();
+  };
+
+  return (
+    <motion.div
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+      className="flex flex-col items-center justify-center min-h-[80vh] px-6 gap-6"
+    >
+      <motion.h2 variants={fadeInUp} className="typo-display text-text-primary text-center">
+        {t(headingKey)}
+      </motion.h2>
+
+      <motion.div variants={fadeInUp} className="grid grid-cols-2 gap-4 w-full max-w-xs">
+        <div className="bg-bg-surface rounded-lg p-4 grid-border text-center">
+          <p className="typo-caption text-text-tertiary mb-1">
+            {t("minigame.summary.totalMatches")}
+          </p>
+          <p className="typo-heading text-text-primary">{totalMatched}</p>
+        </div>
+        <div className="bg-bg-surface rounded-lg p-4 grid-border text-center">
+          <p className="typo-caption text-text-tertiary mb-1">
+            {t("minigame.hud.chances")}
+          </p>
+          <p className="typo-heading text-text-primary">{chancesLeft}</p>
+        </div>
+      </motion.div>
+
+      <motion.div variants={fadeInUp} className="typo-caption text-text-tertiary">
+        {t("minigame.hud.round", { current: currentRound, total: 3 })}
+      </motion.div>
+
+      <motion.button
+        variants={fadeInUp}
+        onClick={handleContinue}
+        whileTap={{ scale: 0.95 }}
+        className={`px-8 py-3 rounded-lg typo-body ${
+          canContinue
+            ? "bg-accent text-bg-primary"
+            : "bg-bg-surface text-text-primary grid-border"
+        }`}
+      >
+        {canContinue ? t("minigame.round.continue") : t("minigame.round.endRun")}
+      </motion.button>
+    </motion.div>
+  );
+}

@@ -1,0 +1,744 @@
+import { create } from "zustand";
+import type {
+  MinigamePhase,
+  MinigameTile,
+  ActiveBuff,
+  RewardDefinition,
+  RewardEffectId,
+  SkillEffectId,
+  CurseEffectId,
+  MinigameRunStats,
+} from "@/types/minigame";
+import {
+  ROUND_CONFIGS,
+  CATEGORY_FLASH_MS,
+  ROUND1_PEEK_MS,
+  ECHO_GHOST_MS,
+  ECHO_GHOST_MS_DUAL,
+  MISMATCH_REVEAL_MS,
+  PEEK2_MS,
+  COMPASS_HINT_MS,
+  SCOUTS_EYE_MS,
+} from "@/types/minigame";
+import { generateBoard, getAdjacentIndices } from "@/lib/minigame/generateBoard";
+import { drawRewardOffer } from "@/data/minigame";
+import { useGameStore } from "@/store/useGameStore";
+import { XP_PER_RARITY } from "@/types/game";
+import { playSound, triggerHaptic } from "@/lib/sounds";
+
+/**
+ * 미니게임(카드매치) 런타임 상태 — 비영속.
+ * 페이지 이탈 = 런 포기. 런 종료 시 부작용은 useGameStore.grantMinigameRewards() 로만.
+ */
+
+interface EchoGhost {
+  idx: number;
+  expiresAt: number;
+}
+
+export interface EffectToast {
+  kind: "skill" | "curse";
+  id: SkillEffectId | CurseEffectId;
+  /** 표시 시점 ID — 같은 효과가 연달아 터져도 key로 구분되도록 */
+  triggeredAt: number;
+}
+
+interface MinigameStore {
+  phase: MinigamePhase;
+  currentRound: 1 | 2 | 3;
+  /** 이번 런에서 challenge 페어를 1쌍 이상 매치한 라운드 수 (0~3). runResult에서 픽 슬롯 수의 기준. */
+  roundsCleared: number;
+  chancesLeft: number;
+  board: MinigameTile[];
+  firstFlippedIdx: number | null;
+  secondFlippedIdx: number | null;
+  isResolving: boolean;
+  matchedThisRound: MinigameTile[];
+  matchedAllRun: MinigameTile[];
+  activeBuffs: ActiveBuff[];
+  rewardOffer: RewardDefinition[] | null;
+  echoGhosts: EchoGhost[];
+  categoryHintActive: boolean;
+  compassHintIdxs: number[];
+  peekHintIdxs: number[];
+  zoomedTileIdx: number | null;
+  skillPoolForRound: SkillEffectId[];
+  runStats: MinigameRunStats;
+  mulliganActive: boolean;
+  luckyCharmUsed: boolean;
+  wardedActive: boolean;
+  skillAmpActive: boolean;
+  dualEchoActive: boolean;
+  compassBorderActive: boolean;
+  doubleLootActive: boolean;
+  duplicateStashActive: boolean;
+  exitConfirmOpen: boolean;
+  lastEffectToast: EffectToast | null;
+  /**
+   * 티켓 "예약" 상태 — startRun에서 true, 런이 확정되면(finishRun/exitRun) commit 시점에만
+   * 실제로 progress.tickets를 차감한다. 이렇게 해야 새로고침/크래시 시 티켓이 날아가지 않음.
+   */
+  ticketReserved: boolean;
+
+  // 액션
+  startRun: () => boolean;
+  flipCard: (idx: number) => void;
+  pickReward: (rewardId: RewardEffectId) => void;
+  pickRunReward: (tileIds: string[]) => void;
+  continueFromRoundResult: () => void;
+  exitRun: () => void;
+  requestExit: () => void;
+  cancelExit: () => void;
+}
+
+const initialState = {
+  phase: "idle" as MinigamePhase,
+  currentRound: 1 as 1 | 2 | 3,
+  roundsCleared: 0,
+  chancesLeft: 0,
+  board: [] as MinigameTile[],
+  firstFlippedIdx: null as number | null,
+  secondFlippedIdx: null as number | null,
+  isResolving: false,
+  matchedThisRound: [] as MinigameTile[],
+  matchedAllRun: [] as MinigameTile[],
+  activeBuffs: [] as ActiveBuff[],
+  rewardOffer: null as RewardDefinition[] | null,
+  echoGhosts: [] as EchoGhost[],
+  categoryHintActive: false,
+  compassHintIdxs: [] as number[],
+  peekHintIdxs: [] as number[],
+  zoomedTileIdx: null as number | null,
+  skillPoolForRound: [] as SkillEffectId[],
+  runStats: { totalMatches: 0, skillMatches: 0, curseMatches: 0 } as MinigameRunStats,
+  mulliganActive: false,
+  luckyCharmUsed: false,
+  wardedActive: false,
+  skillAmpActive: false,
+  dualEchoActive: false,
+  compassBorderActive: false,
+  doubleLootActive: false,
+  duplicateStashActive: false,
+  exitConfirmOpen: false,
+  lastEffectToast: null as EffectToast | null,
+  ticketReserved: false,
+};
+
+// 타이머 취소용 (모듈 스코프)
+const timers: Record<string, ReturnType<typeof setTimeout> | null> = {
+  categoryFlash: null,
+  peek: null,
+  mismatchReveal: null,
+  peekHint: null,
+  compassHint: null,
+  echoSweep: null,
+  matchDelay: null,
+  roundEnd: null,
+  effectToast: null,
+};
+
+const EFFECT_TOAST_MS = 4500;
+
+function clearAllTimers() {
+  for (const key of Object.keys(timers)) {
+    if (timers[key]) {
+      clearTimeout(timers[key] as ReturnType<typeof setTimeout>);
+      timers[key] = null;
+    }
+  }
+}
+
+// 현재 활성(非consumed) 버프로부터 derived flag 재계산.
+// beginRound에서 한 번 스냅샷하고 curse로 버프가 strip될 때마다 다시 호출 —
+// 이렇게 해야 "저주가 doubleLoot/duplicateStash/skillAmp 등을 스트립했는데
+// 라운드/런 끝까지 그 버프가 계속 적용되는" 버그가 재현되지 않음.
+function computeBuffFlags(activeBuffs: ActiveBuff[], round: 1 | 2 | 3) {
+  const hasRoundActive = (id: RewardEffectId) =>
+    activeBuffs.some(
+      (b) =>
+        !b.consumed &&
+        b.effectId === id &&
+        (b.appliesInRound === "all" || b.appliesInRound === round),
+    );
+  const hasRunActive = (id: RewardEffectId) =>
+    activeBuffs.some((b) => !b.consumed && b.effectId === id);
+  return {
+    wardedActive: hasRoundActive("warded"),
+    skillAmpActive: hasRoundActive("skillAmp"),
+    dualEchoActive: hasRoundActive("dualEcho"),
+    compassBorderActive: hasRunActive("compass"),
+    doubleLootActive: hasRunActive("doubleLoot"),
+    duplicateStashActive: hasRunActive("duplicateStash"),
+  };
+}
+
+export const useMinigameStore = create<MinigameStore>((set, get) => {
+  // === 내부 헬퍼 ===
+  function beginRound(round: 1 | 2 | 3, carriedBuffs: ActiveBuff[]) {
+    clearAllTimers();
+
+    const config = ROUND_CONFIGS[round];
+    const progress = useGameStore.getState().progress;
+
+    // 이번 라운드에 적용되는 활성 버프만 추림
+    const activeThisRound = carriedBuffs.filter(
+      (b) =>
+        !b.consumed &&
+        (b.appliesInRound === "all" || b.appliesInRound === round),
+    );
+
+    const { board, skillIdsInRound } = generateBoard({
+      config,
+      unlockedCardIds: progress.unlockedCardIds || [],
+      activeBuffs: activeThisRound,
+      currentRound: round,
+    });
+
+    const steelNerves = activeThisRound.some((b) => b.effectId === "steelNerves");
+    const chances = config.chances + (steelNerves ? 1 : 0);
+
+    set({
+      phase: "categoryFlash",
+      currentRound: round,
+      chancesLeft: chances,
+      board,
+      firstFlippedIdx: null,
+      secondFlippedIdx: null,
+      isResolving: false,
+      matchedThisRound: [],
+      activeBuffs: carriedBuffs,
+      echoGhosts: [],
+      categoryHintActive: true,
+      compassHintIdxs: [],
+      peekHintIdxs: [],
+      zoomedTileIdx: null,
+      skillPoolForRound: skillIdsInRound,
+      mulliganActive: false,
+      luckyCharmUsed: false,
+      ...computeBuffFlags(carriedBuffs, round),
+    });
+
+    // 카테고리 플래시 2.5초
+    timers.categoryFlash = setTimeout(() => {
+      set({ categoryHintActive: false });
+
+      if (config.openingPeek) {
+        // Round 1: 모든 카드 1.5초 공개
+        set({
+          phase: "peek",
+          board: get().board.map((t) => ({ ...t, isFaceUp: true })),
+        });
+        timers.peek = setTimeout(() => {
+          set({
+            board: get().board.map((t) =>
+              t.isMatched ? t : { ...t, isFaceUp: false },
+            ),
+            phase: "playing",
+          });
+          applyRoundStartBuffs();
+        }, ROUND1_PEEK_MS);
+      } else {
+        set({ phase: "playing" });
+        applyRoundStartBuffs();
+      }
+    }, CATEGORY_FLASH_MS);
+  }
+
+  function applyRoundStartBuffs() {
+    // Scout's Eye: 라운드 시작 시 뒷면 3장 2초 공개
+    const s = get();
+    const hasScoutsEye = s.activeBuffs.some(
+      (b) =>
+        b.effectId === "scoutsEye" &&
+        !b.consumed &&
+        (b.appliesInRound === "all" || b.appliesInRound === s.currentRound),
+    );
+    if (hasScoutsEye) {
+      const hidden = s.board
+        .map((t, i) => (!t.isFaceUp && !t.isMatched ? i : -1))
+        .filter((i) => i >= 0);
+      const picks: number[] = [];
+      const pool = [...hidden];
+      for (let i = 0; i < 3 && pool.length > 0; i++) {
+        const p = Math.floor(Math.random() * pool.length);
+        picks.push(pool[p]);
+        pool.splice(p, 1);
+      }
+      set({ peekHintIdxs: picks });
+      timers.peekHint = setTimeout(() => {
+        set({ peekHintIdxs: [] });
+      }, SCOUTS_EYE_MS);
+    }
+  }
+
+  function checkRoundEnd() {
+    const s = get();
+    const unmatched = s.board.filter((t) => !t.isMatched);
+    const allMatched = unmatched.length === 0;
+    const outOfChances = s.chancesLeft <= 0;
+
+    if (allMatched || outOfChances) {
+      // 500ms 전환 애니메이션 윈도우 동안 더 이상 입력을 받지 않아야 함 —
+      // phase는 시각적으로 playing을 유지해야 매치/미스 애니메이션이 자연스럽게
+      // 끝날 수 있으므로, isResolving을 원자적으로 잠가 flipCard 가드에 걸리게 함.
+      set({ isResolving: true });
+      if (timers.roundEnd) clearTimeout(timers.roundEnd);
+      timers.roundEnd = setTimeout(() => {
+        const s2 = get();
+        set({
+          phase: "roundResult",
+          matchedAllRun: [...s2.matchedAllRun, ...s2.matchedThisRound],
+          matchedThisRound: [],
+          isResolving: false,
+        });
+        if (allMatched) {
+          playSound("fullClear");
+          triggerHaptic("fullClear");
+        }
+      }, 500);
+    }
+  }
+
+  function showEffectToast(toast: EffectToast) {
+    set({ lastEffectToast: toast });
+    if (timers.effectToast) clearTimeout(timers.effectToast);
+    timers.effectToast = setTimeout(() => {
+      set({ lastEffectToast: null });
+    }, EFFECT_TOAST_MS);
+  }
+
+  function applySkillEffect(skillId: SkillEffectId) {
+    showEffectToast({ kind: "skill", id: skillId, triggeredAt: Date.now() });
+    const s = get();
+    switch (skillId) {
+      case "chancesPlus2":
+        set({ chancesLeft: s.chancesLeft + 2 });
+        break;
+      case "peek2": {
+        const hidden = s.board
+          .map((t, i) => (!t.isFaceUp && !t.isMatched ? i : -1))
+          .filter((i) => i >= 0);
+        const picks: number[] = [];
+        const pool = [...hidden];
+        for (let i = 0; i < 2 && pool.length > 0; i++) {
+          const p = Math.floor(Math.random() * pool.length);
+          picks.push(pool[p]);
+          pool.splice(p, 1);
+        }
+        set({ peekHintIdxs: [...s.peekHintIdxs, ...picks] });
+        if (timers.peekHint) clearTimeout(timers.peekHint);
+        timers.peekHint = setTimeout(() => {
+          set({ peekHintIdxs: [] });
+        }, PEEK2_MS);
+        break;
+      }
+      case "mulligan":
+        set({ mulliganActive: true });
+        break;
+      case "compass": {
+        const config = ROUND_CONFIGS[s.currentRound];
+        const skillIdxs = s.board
+          .map((t, i) =>
+            t.kind === "skill" && t.skillId === skillId && t.isMatched ? i : -1,
+          )
+          .filter((i) => i >= 0);
+        const hinted = new Set<number>();
+        for (const sIdx of skillIdxs) {
+          const adj = getAdjacentIndices(sIdx, config.rows, config.cols);
+          for (const a of adj) {
+            const t = s.board[a];
+            if (t && !t.isFaceUp && !t.isMatched) hinted.add(a);
+          }
+        }
+        set({ compassHintIdxs: Array.from(hinted) });
+        if (timers.compassHint) clearTimeout(timers.compassHint);
+        timers.compassHint = setTimeout(() => {
+          set({ compassHintIdxs: [] });
+        }, COMPASS_HINT_MS);
+        break;
+      }
+    }
+  }
+
+  function applyCurseEffect() {
+    showEffectToast({
+      kind: "curse",
+      id: "loseChanceAndStripBuff",
+      triggeredAt: Date.now(),
+    });
+    const s = get();
+    playSound("curseTrigger");
+    triggerHaptic("curseTrigger");
+
+    // Warded: 저주를 1회 무효화 — 실제 activeBuffs에서도 consumed 처리해야
+    // 이후 computeBuffFlags 재계산과 정합이 맞음.
+    if (s.wardedActive) {
+      const wardedIdx = s.activeBuffs.findIndex(
+        (b) =>
+          !b.consumed &&
+          b.effectId === "warded" &&
+          (b.appliesInRound === "all" || b.appliesInRound === s.currentRound),
+      );
+      const newBuffs = [...s.activeBuffs];
+      if (wardedIdx >= 0) {
+        newBuffs[wardedIdx] = { ...newBuffs[wardedIdx], consumed: true };
+      }
+      set({
+        activeBuffs: newBuffs,
+        ...computeBuffFlags(newBuffs, s.currentRound),
+      });
+      return;
+    }
+
+    const chances = Math.max(0, s.chancesLeft - 1);
+    const current = s.currentRound;
+    const activeIdxs = s.activeBuffs
+      .map((b, i) =>
+        !b.consumed &&
+        (b.appliesInRound === "all" || b.appliesInRound === current)
+          ? i
+          : -1,
+      )
+      .filter((i) => i >= 0);
+
+    const newBuffs = [...s.activeBuffs];
+    if (activeIdxs.length > 0) {
+      const pick = activeIdxs[Math.floor(Math.random() * activeIdxs.length)];
+      newBuffs[pick] = { ...newBuffs[pick], consumed: true };
+    }
+
+    // derived 버프 플래그를 새 activeBuffs로부터 재계산 —
+    // 이렇게 해야 저주가 doubleLoot/duplicateStash/skillAmp 등을 실제로 무력화함.
+    set({
+      chancesLeft: chances,
+      activeBuffs: newBuffs,
+      ...computeBuffFlags(newBuffs, current),
+    });
+  }
+
+  /**
+   * 예약된 티켓을 실제로 차감한다. idempotent — 이미 commit됐으면 no-op.
+   * finishRun / exitRun 같은 "런이 확정된" 지점에서만 호출.
+   */
+  function commitTicketSpend() {
+    const s = get();
+    if (!s.ticketReserved) return;
+    // progress.tickets가 런 시작 후 다른 경로(데일리 완료 등)로 올랐을 수도 있음 —
+    // spendTicket은 현재 값 기준으로 안전하게 차감한다.
+    useGameStore.getState().spendTicket();
+    set({ ticketReserved: false });
+  }
+
+  function finishRun() {
+    const s = get();
+    const fullMatched = [...s.matchedAllRun, ...s.matchedThisRound];
+    // 런이 runResult 단계로 도달 = "이 런은 확정된 플레이" → 티켓 차감.
+    commitTicketSpend();
+    set({
+      matchedAllRun: fullMatched,
+      matchedThisRound: [],
+      phase: "runResult",
+    });
+  }
+
+  // === 공개 액션 ===
+  return {
+    ...initialState,
+
+    startRun: () => {
+      // 가용 티켓만 확인하고 실제 차감은 finishRun/exitRun에서 commit.
+      // 이렇게 해야 새로고침/크래시 중 티켓이 날아가지 않는다.
+      const tickets = useGameStore.getState().progress.tickets || 0;
+      if (tickets < 1) return false;
+
+      clearAllTimers();
+      set({ ...initialState, ticketReserved: true });
+      beginRound(1, []);
+      return true;
+    },
+
+    flipCard: (idx) => {
+      const state = get();
+      if (state.phase !== "playing") return;
+      if (state.isResolving) return;
+      if (idx < 0 || idx >= state.board.length) return;
+
+      const tile = state.board[idx];
+      if (!tile) return;
+
+      // 매치 완료 타일도 재탭으로 zoom 토글 허용 — 매치된 카드 상세 확인용.
+      if (tile.isMatched) {
+        set({ zoomedTileIdx: state.zoomedTileIdx === idx ? null : idx });
+        return;
+      }
+
+      // 이미 face-up(unmatched) → zoom 토글
+      if (tile.isFaceUp) {
+        set({ zoomedTileIdx: state.zoomedTileIdx === idx ? null : idx });
+        return;
+      }
+
+      playSound("cardFlip");
+      triggerHaptic("cardFlip");
+
+      const newBoard = [...state.board];
+      newBoard[idx] = { ...tile, isFaceUp: true };
+
+      if (state.firstFlippedIdx === null) {
+        set({ board: newBoard, firstFlippedIdx: idx });
+        return;
+      }
+
+      // 두 번째 플립 = 매치 판정
+      const firstIdx = state.firstFlippedIdx;
+      const firstTile = state.board[firstIdx];
+      const isMatch = firstTile.pairKey === tile.pairKey;
+
+      set({
+        board: newBoard,
+        secondFlippedIdx: idx,
+        isResolving: true,
+      });
+
+      if (isMatch) {
+        timers.matchDelay = setTimeout(() => {
+          const s = get();
+          const mb = [...s.board];
+          mb[firstIdx] = { ...mb[firstIdx], isMatched: true };
+          mb[idx] = { ...mb[idx], isMatched: true };
+          const matchedTile = mb[idx];
+
+          const newRunStats = { ...s.runStats };
+          newRunStats.totalMatches += 1;
+
+          if (matchedTile.kind === "skill" && matchedTile.skillId) {
+            newRunStats.skillMatches += 1;
+            playSound("complete");
+            triggerHaptic("complete");
+            set({ board: mb });
+            applySkillEffect(matchedTile.skillId);
+            if (get().skillAmpActive) {
+              applySkillEffect(matchedTile.skillId);
+            }
+          } else if (matchedTile.kind === "curse") {
+            newRunStats.curseMatches += 1;
+            set({ board: mb });
+            applyCurseEffect();
+          } else {
+            playSound("matchPair");
+            triggerHaptic("matchPair");
+            set({ board: mb });
+          }
+
+          set({
+            firstFlippedIdx: null,
+            secondFlippedIdx: null,
+            isResolving: false,
+            matchedThisRound: [
+              ...get().matchedThisRound,
+              mb[firstIdx],
+              matchedTile,
+            ],
+            runStats: newRunStats,
+          });
+
+          checkRoundEnd();
+        }, 400);
+      } else {
+        timers.mismatchReveal = setTimeout(() => {
+          const s = get();
+          const mb = [...s.board];
+          mb[firstIdx] = { ...mb[firstIdx], isFaceUp: false };
+          mb[idx] = { ...mb[idx], isFaceUp: false };
+
+          // 기회 차감 (mulligan / luckyCharm 체크)
+          let chances = s.chancesLeft;
+          let mulliganUsed = s.mulliganActive;
+          let luckyCharmUsed = s.luckyCharmUsed;
+
+          const hasLuckyCharm =
+            !s.luckyCharmUsed &&
+            s.activeBuffs.some(
+              (b) =>
+                b.effectId === "luckyCharm" &&
+                !b.consumed &&
+                (b.appliesInRound === s.currentRound ||
+                  b.appliesInRound === "all"),
+            );
+
+          if (s.mulliganActive) {
+            mulliganUsed = false;
+          } else if (hasLuckyCharm) {
+            luckyCharmUsed = true;
+          } else {
+            chances = Math.max(0, chances - 1);
+            playSound("cancel");
+            triggerHaptic("cancel");
+          }
+
+          const ghostMs = s.dualEchoActive ? ECHO_GHOST_MS_DUAL : ECHO_GHOST_MS;
+          const now = performance.now();
+          const pruned = s.echoGhosts
+            .filter((g) => g.expiresAt > now)
+            .slice(-1);
+          const newGhosts: EchoGhost[] = [
+            ...pruned,
+            { idx: firstIdx, expiresAt: now + ghostMs },
+            { idx, expiresAt: now + ghostMs },
+          ];
+
+          set({
+            board: mb,
+            firstFlippedIdx: null,
+            secondFlippedIdx: null,
+            isResolving: false,
+            chancesLeft: chances,
+            mulliganActive: mulliganUsed,
+            luckyCharmUsed,
+            echoGhosts: newGhosts,
+          });
+
+          if (timers.echoSweep) clearTimeout(timers.echoSweep);
+          timers.echoSweep = setTimeout(() => {
+            const current = get();
+            const t2 = performance.now();
+            set({
+              echoGhosts: current.echoGhosts.filter((g) => g.expiresAt > t2),
+            });
+          }, ghostMs + 50);
+
+          checkRoundEnd();
+        }, MISMATCH_REVEAL_MS);
+      }
+    },
+
+    pickReward: (rewardId) => {
+      const state = get();
+      if (state.phase !== "rewardDraft") return;
+      if (!state.rewardOffer) return;
+      const chosen = state.rewardOffer.find((r) => r.id === rewardId);
+      if (!chosen) return;
+
+      playSound("rewardChoose");
+      triggerHaptic("rewardChoose");
+
+      const nextRound = (state.currentRound + 1) as 1 | 2 | 3;
+      const buff: ActiveBuff = {
+        effectId: chosen.id,
+        appliesInRound: chosen.scope === "run" ? "all" : nextRound,
+        consumed: false,
+      };
+
+      const newBuffs = [...state.activeBuffs, buff];
+      set({
+        activeBuffs: newBuffs,
+        rewardOffer: null,
+      });
+
+      if (nextRound > 3) {
+        finishRun();
+      } else {
+        beginRound(nextRound, newBuffs);
+      }
+    },
+
+    pickRunReward: (tileIds) => {
+      const state = get();
+      if (state.phase !== "runResult") return;
+
+      // 신뢰 경계: UI에서 넘어온 tileIds는 검증한다.
+      // - runResult의 현재 matchedAllRun 안에 있는 challenge 타일만 허용
+      // - 동일 카드(cardId) 중복 제거 — 단일 매칭 풀에서 한 카드만 보상
+      // - basePicks: 클리어한 라운드 1개당 1장 (1~3)
+      // - Double Loot: +1 장 (×2 아님 — 풀클리어 ×2=6장은 경제 균형을 무너뜨리기 때문에
+      //   flat +1 보너스로 교체했다. i18n의 desc도 "+1 장"으로 맞춤.)
+      const basePicks = Math.max(1, state.roundsCleared);
+      const maxPicks = basePicks + (state.doubleLootActive ? 1 : 0);
+      const validTiles = new Map<string, (typeof state.matchedAllRun)[number]>();
+      for (const tid of tileIds) {
+        if (validTiles.size >= maxPicks) break;
+        const tile = state.matchedAllRun.find((t) => t.tileId === tid);
+        if (!tile || tile.kind !== "challenge" || !tile.card) continue;
+        // 동일 카드가 여러 tileId로 들어왔을 때 중복 카운트 방지
+        if ([...validTiles.values()].some((v) => v.card?.id === tile.card?.id)) continue;
+        validTiles.set(tid, tile);
+      }
+      const picks = [...validTiles.values()];
+
+      const unlockCardIds: string[] = [];
+      const xpGainPerCard: { cardId: string; amount: number }[] = [];
+      const progress = useGameStore.getState().progress;
+      const unlockedSet = new Set(progress.unlockedCardIds || []);
+      const dupMult = state.duplicateStashActive ? 1.5 : 1;
+
+      for (const t of picks) {
+        if (!t.card) continue;
+        if (unlockedSet.has(t.card.id)) {
+          const base = XP_PER_RARITY[t.card.rarity] ?? 10;
+          xpGainPerCard.push({
+            cardId: t.card.id,
+            amount: Math.round(base * dupMult),
+          });
+        } else {
+          unlockCardIds.push(t.card.id);
+        }
+      }
+
+      useGameStore.getState().grantMinigameRewards({
+        unlockCardIds,
+        xpGainPerCard,
+        matchesThisRun: state.runStats.totalMatches,
+      });
+
+      playSound(unlockCardIds.length > 0 ? "collect" : "xpGain");
+      triggerHaptic("collect");
+
+      set({ phase: "runComplete" });
+    },
+
+    continueFromRoundResult: () => {
+      const state = get();
+      if (state.phase !== "roundResult") return;
+
+      // "실패한 라운드" 정의: 챌린지 카드(스킬/저주 제외)를 한 장도 매치하지 못한 라운드.
+      // 적어도 1쌍이라도 성공했다면 다음 라운드/보상 드래프트로 진행 — 부분 성공 허용.
+      const matchedChallenge = state.board.some(
+        (t) => t.isMatched && t.kind === "challenge",
+      );
+      if (!matchedChallenge) {
+        finishRun();
+        return;
+      }
+
+      // 이 라운드는 "클리어" — roundsCleared 증가. runResult에서 픽 슬롯 수의 기준이 됨.
+      set({ roundsCleared: state.roundsCleared + 1 });
+
+      if (state.currentRound === 3) {
+        finishRun();
+        return;
+      }
+
+      const offer = drawRewardOffer(3);
+      set({ phase: "rewardDraft", rewardOffer: offer });
+    },
+
+    exitRun: () => {
+      // 유저가 명시적으로 런을 포기한 경우도 "확정된 플레이"로 간주 — 티켓 차감.
+      // 이 플로우는 requestExit → 확인 프롬프트 → exitRun으로 오므로 유저 동의 있음.
+      // (확인 프롬프트 i18n 카피: "티켓은 환불되지 않아요")
+      commitTicketSpend();
+      clearAllTimers();
+      set({ ...initialState });
+    },
+
+    requestExit: () => {
+      const state = get();
+      if (state.phase === "idle") return;
+      set({ exitConfirmOpen: true });
+    },
+
+    cancelExit: () => {
+      set({ exitConfirmOpen: false });
+    },
+  };
+});

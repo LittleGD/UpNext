@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { NAV_ICONS } from "@/components/icons";
 import { useGameStore } from "@/store/useGameStore";
+import { useMinigameStore } from "@/store/useMinigameStore";
 import { MODE_CARD_COUNT, PHASE_MAX_CARDS } from "@/types/game";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -15,6 +16,7 @@ import type { DictKey } from "@/i18n";
 const navItems = [
   { href: "/", icon: NAV_ICONS.today, labelKey: "nav.challenge" as DictKey },
   { href: "/collection", icon: NAV_ICONS.collection, labelKey: "nav.collection" as DictKey },
+  { href: "/minigame", icon: NAV_ICONS.minigame, labelKey: "nav.minigame" as DictKey },
   { href: "/settings", icon: NAV_ICONS.settings, labelKey: "nav.settings" as DictKey },
 ];
 
@@ -28,6 +30,7 @@ export default function BottomNav() {
   const isOpeningPack = useGameStore((s) => s.isOpeningPack);
   const daily = useGameStore((s) => s.daily);
   const progress = useGameStore((s) => s.progress);
+  const minigamePhase = useMinigameStore((s) => s.phase);
 
   // 선택 리뷰 화면(선택 완료 but 미확정)에서 네비 숨김
   const maxCards = MODE_CARD_COUNT[progress.mode];
@@ -59,7 +62,16 @@ export default function BottomNav() {
 
   // 팩 오프너는 메인 페이지(/)에서만 표시되므로, 다른 페이지에서는 네비 숨기지 않음
   const hideForPack = isOpeningPack && pathname === "/";
-  if (!isLoaded || !hasCompletedOnboarding || isSelectionReview || hideForPack) return null;
+  // 미니게임 런 중(idle 제외 전체) 네비 숨김 — 실수로 탭해서 티켓 소실되는 걸 차단
+  const hideForMinigame = pathname === "/minigame" && minigamePhase !== "idle";
+  if (
+    !isLoaded ||
+    !hasCompletedOnboarding ||
+    isSelectionReview ||
+    hideForPack ||
+    hideForMinigame
+  )
+    return null;
 
   return (
     <nav className="fixed bottom-5 left-1/2 -translate-x-1/2 z-10 pb-[env(safe-area-inset-bottom)]">

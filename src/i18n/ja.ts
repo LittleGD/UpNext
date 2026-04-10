@@ -72,7 +72,7 @@ const ja: Record<DictKey, string> = {
   "extra.banner.hint": "長押しで挑戦",
   "extra.confirm.title": "追加チャレンジに挑戦する？",
   "extra.confirm.warning": "無理なチャレンジは疲労を招きます",
-  "extra.confirm.rule": "チャレンジを2つ以上選んでね",
+  "extra.confirm.rule": "チャレンジを2つ選んでね",
   "extra.confirm.go": "挑戦する！",
   "extra.confirm.rest": "休憩する",
   "extra.board.heading": "追加チャレンジ",
@@ -84,7 +84,7 @@ const ja: Record<DictKey, string> = {
   "super.banner.hint": "長押しで解放",
   "super.confirm.title": "スーパーチャレンジに挑戦？",
   "super.confirm.warning": "大きな達成感があるけど、疲れるかも",
-  "super.confirm.rule": "チャレンジを4つ選んでね",
+  "super.confirm.rule": "チャレンジを3つ選んでね",
   "super.confirm.go": "やり遂げる！",
   "super.confirm.rest": "今日はここまで",
   "super.board.heading": "スーパーチャレンジ",
@@ -100,6 +100,7 @@ const ja: Record<DictKey, string> = {
   // === nav ===
   "nav.challenge": "チャレンジ",
   "nav.collection": "コレクション",
+  "nav.minigame": "ゲーム",
   "nav.settings": "設定",
 
   // === settings ===
@@ -156,8 +157,8 @@ const ja: Record<DictKey, string> = {
   "collection.titles.equipped": "装備中",
   "collection.titles.special": "特別称号",
   "collection.titles.streak": "連続達成称号",
-  "collection.titles.categoryTitles": "{category}称号",
   "collection.titles.extra": "追加チャレンジ称号",
+  "collection.titles.categoryTitles": "{category}称号",
 
   // === auth ===
   "auth.section.heading": "アカウント連携",
@@ -227,6 +228,93 @@ const ja: Record<DictKey, string> = {
 
   // === settings ===
   "settings.privacy": "プライバシーポリシー",
+
+  // === minigame ===
+  "minigame.title": "カードマッチ",
+  "minigame.subtitle": "チャレンジカードのペアを見つけよう",
+  "minigame.tickets.label": "チケット",
+  "minigame.tickets.count": "{count}枚",
+  "minigame.tickets.empty": "チケットがありません",
+  "minigame.tickets.emptyDesc": "デイリー・エクストラ・スーパーチャレンジをすべて完了するとチケットが手に入ります",
+  "minigame.tickets.goToChallenges": "チャレンジへ",
+  "minigame.play": "プレイ",
+  "minigame.stats.runs": "プレイ回数",
+  "minigame.stats.best": "最高マッチ",
+  "minigame.howToPlay.heading": "遊び方",
+  "minigame.howToPlay.line1": "3ラウンドで裏向きのペアを見つけよう",
+  "minigame.howToPlay.line2": "ミス4回でラウンド終了 — スキルで追加のチャンスを",
+  "minigame.howToPlay.line3": "呪いカードは避けて。ラン終了時にカードを1枚獲得！",
+
+  // HUD
+  "minigame.hud.round": "ラウンド {current}/{total}",
+  "minigame.hud.chances": "チャンス",
+  "minigame.hud.buffs": "バフ",
+  "minigame.peek.getReady": "準備して",
+  "minigame.round.cleared": "ラウンドクリア!",
+  "minigame.round.failed": "ラウンド終了",
+  "minigame.round.continue": "続ける",
+  "minigame.round.endRun": "ラン終了",
+  "minigame.hud.mulliganActive": "マリガン",
+  "minigame.hud.exit": "退出",
+  "minigame.exit.confirmTitle": "ランを終了しますか？",
+  "minigame.exit.confirmDesc": "チケットは返還されません",
+  "minigame.exit.confirmYes": "終了する",
+  "minigame.exit.confirmNo": "続ける",
+  "minigame.runResult.deselect": "選択解除",
+
+  // Reward draft
+  "minigame.reward.draft.heading": "報酬を選択",
+  "minigame.reward.draft.subheading": "次のラウンドへ持ち越す報酬を1つ選ぼう",
+  "minigame.reward.steelNerves.name": "鋼の意志",
+  "minigame.reward.steelNerves.desc": "次のラウンド チャンス+1",
+  "minigame.reward.luckyCharm.name": "ラッキーチャーム",
+  "minigame.reward.luckyCharm.desc": "このラウンドの最初のミスはチャンスを消費しない",
+  "minigame.reward.scoutsEye.name": "斥候の眼",
+  "minigame.reward.scoutsEye.desc": "ラウンド開始時に裏面3枚を2秒間公開",
+  "minigame.reward.rareSurge.name": "レアサージ",
+  "minigame.reward.rareSurge.desc": "次のラウンドにレア以上の出現率+30%",
+  "minigame.reward.duplicateStash.name": "重複ストック",
+  "minigame.reward.duplicateStash.desc": "ラン終了時 重複カードのXP+50%",
+  "minigame.reward.warded.name": "守護",
+  "minigame.reward.warded.desc": "次のラウンドの呪い効果を1回無効化",
+  "minigame.reward.compass.name": "コンパス",
+  "minigame.reward.compass.desc": "残りラン中、裏面にレアリティの縁取り表示",
+  "minigame.reward.dualEcho.name": "デュアルエコー",
+  "minigame.reward.dualEcho.desc": "次のラウンドのエコーゴースト時間が延長",
+  "minigame.reward.skillAmp.name": "スキルアンプ",
+  "minigame.reward.skillAmp.desc": "次のラウンド スキル効果が2回発動",
+  "minigame.reward.doubleLoot.name": "ダブルルート",
+  "minigame.reward.doubleLoot.desc": "ラン終了時にカードを+1枚追加獲得",
+
+  // Skill
+  "minigame.skill.chancesPlus2.name": "タイムキー",
+  "minigame.skill.chancesPlus2.desc": "チャンス+2 (上限無視)",
+  "minigame.skill.peek2.name": "ピークの書",
+  "minigame.skill.peek2.desc": "裏面2枚を2秒間公開",
+  "minigame.skill.mulligan.name": "セカンドサイト",
+  "minigame.skill.mulligan.desc": "このラウンドの次のミスはチャンス消費なし",
+  "minigame.skill.compass.name": "カテゴリコンパス",
+  "minigame.skill.compass.desc": "隣接するカードのカテゴリを2.5秒間公開",
+
+  // Curse
+  "minigame.curse.triggered": "呪い発動!",
+  "minigame.curse.buffStripped": "バフ{buff}が剥がされた",
+
+  // Run result
+  "minigame.runResult.heading": "マッチしたカード",
+  "minigame.runResult.subheading": "獲得するカードを選んでください",
+  "minigame.runResult.pickOne": "1枚選択",
+  "minigame.runResult.pickTwo": "2枚選択",
+  "minigame.runResult.pickN": "{count}枚選択",
+
+  // Summary
+  "minigame.summary.heading": "ラン完了",
+  "minigame.summary.unlocked": "新しいカード獲得!",
+  "minigame.summary.duplicate": "重複カード",
+  "minigame.summary.xpGained": "+{xp} XP",
+  "minigame.summary.totalMatches": "総マッチ数",
+  "minigame.summary.playAgain": "もう一度",
+  "minigame.summary.exit": "終了",
 };
 
 export default ja;

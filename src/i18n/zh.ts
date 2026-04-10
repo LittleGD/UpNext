@@ -72,7 +72,7 @@ const zh: Record<DictKey, string> = {
   "extra.banner.hint": "长按激活",
   "extra.confirm.title": "准备好额外挑战了吗？",
   "extra.confirm.warning": "过度挑战会导致疲劳",
-  "extra.confirm.rule": "至少选择2个挑战",
+  "extra.confirm.rule": "选择2个挑战",
   "extra.confirm.go": "接受挑战！",
   "extra.confirm.rest": "休息一下",
   "extra.board.heading": "附加挑战",
@@ -84,7 +84,7 @@ const zh: Record<DictKey, string> = {
   "super.banner.hint": "长按解锁",
   "super.confirm.title": "挑战超级挑战？",
   "super.confirm.warning": "成就感满满，但可能会很累",
-  "super.confirm.rule": "必须选择4个挑战",
+  "super.confirm.rule": "必须选择3个挑战",
   "super.confirm.go": "我能行！",
   "super.confirm.rest": "今天到此为止",
   "super.board.heading": "超级挑战",
@@ -100,6 +100,7 @@ const zh: Record<DictKey, string> = {
   // === nav ===
   "nav.challenge": "挑战",
   "nav.collection": "收藏",
+  "nav.minigame": "游戏",
   "nav.settings": "设置",
 
   // === settings ===
@@ -133,7 +134,7 @@ const zh: Record<DictKey, string> = {
   "settings.titles.empty": "还没有获得任何称号。完成挑战即可获得称号！",
   "settings.titles.level.heading": "等级称号",
   "settings.titles.level.label": "Lv.{level} · {title}",
-  "settings.titles.earned.heading": "获得称号",
+  "settings.titles.earned.heading": "获得的称号",
   "settings.stats.heading": "我的记录",
   "settings.stats.currentStreak": "当前连续",
   "settings.stats.longestStreak": "最长连续",
@@ -156,8 +157,8 @@ const zh: Record<DictKey, string> = {
   "collection.titles.equipped": "已装备",
   "collection.titles.special": "特殊称号",
   "collection.titles.streak": "连续打卡称号",
-  "collection.titles.categoryTitles": "{category}称号",
   "collection.titles.extra": "附加挑战称号",
+  "collection.titles.categoryTitles": "{category}称号",
 
   // === auth ===
   "auth.section.heading": "账号同步",
@@ -227,6 +228,93 @@ const zh: Record<DictKey, string> = {
 
   // === settings ===
   "settings.privacy": "隐私政策",
+
+  // === minigame ===
+  "minigame.title": "卡牌配对",
+  "minigame.subtitle": "找到成对的挑战卡",
+  "minigame.tickets.label": "门票",
+  "minigame.tickets.count": "{count}",
+  "minigame.tickets.empty": "暂无门票",
+  "minigame.tickets.emptyDesc": "完成每日、额外和超级挑战即可获得门票",
+  "minigame.tickets.goToChallenges": "去挑战",
+  "minigame.play": "开始",
+  "minigame.stats.runs": "游玩次数",
+  "minigame.stats.best": "最高配对",
+  "minigame.howToPlay.heading": "玩法",
+  "minigame.howToPlay.line1": "在3个回合中找到成对的反面卡牌",
+  "minigame.howToPlay.line2": "4次失败结束回合 — 技能卡可以获得更多机会",
+  "minigame.howToPlay.line3": "避开诅咒卡。每次游玩结束获得1张卡！",
+
+  // HUD
+  "minigame.hud.round": "第{current}/{total}回合",
+  "minigame.hud.chances": "机会",
+  "minigame.hud.buffs": "增益",
+  "minigame.peek.getReady": "准备",
+  "minigame.round.cleared": "回合通关！",
+  "minigame.round.failed": "回合结束",
+  "minigame.round.continue": "继续",
+  "minigame.round.endRun": "结束本局",
+  "minigame.hud.mulliganActive": "重抽",
+  "minigame.hud.exit": "退出",
+  "minigame.exit.confirmTitle": "结束本局吗？",
+  "minigame.exit.confirmDesc": "门票不会被退还",
+  "minigame.exit.confirmYes": "结束",
+  "minigame.exit.confirmNo": "继续玩",
+  "minigame.runResult.deselect": "取消选择",
+
+  // Reward draft
+  "minigame.reward.draft.heading": "选择奖励",
+  "minigame.reward.draft.subheading": "选择一个带入下一回合",
+  "minigame.reward.steelNerves.name": "钢铁意志",
+  "minigame.reward.steelNerves.desc": "下回合机会+1",
+  "minigame.reward.luckyCharm.name": "幸运符",
+  "minigame.reward.luckyCharm.desc": "本回合首次失误不扣机会",
+  "minigame.reward.scoutsEye.name": "侦察之眼",
+  "minigame.reward.scoutsEye.desc": "回合开始公开3张背面2秒",
+  "minigame.reward.rareSurge.name": "稀有激增",
+  "minigame.reward.rareSurge.desc": "下回合稀有卡出现率+30%",
+  "minigame.reward.duplicateStash.name": "重复库存",
+  "minigame.reward.duplicateStash.desc": "游玩结束重复卡经验+50%",
+  "minigame.reward.warded.name": "守护",
+  "minigame.reward.warded.desc": "下回合无效化1次诅咒效果",
+  "minigame.reward.compass.name": "罗盘",
+  "minigame.reward.compass.desc": "本局剩余时间背面显示稀有度边框",
+  "minigame.reward.dualEcho.name": "双重回声",
+  "minigame.reward.dualEcho.desc": "下回合回声残影时间延长",
+  "minigame.reward.skillAmp.name": "技能增幅",
+  "minigame.reward.skillAmp.desc": "下回合技能效果触发2次",
+  "minigame.reward.doubleLoot.name": "双倍战利品",
+  "minigame.reward.doubleLoot.desc": "游玩结束时额外获得+1张卡",
+
+  // Skill
+  "minigame.skill.chancesPlus2.name": "时间钥匙",
+  "minigame.skill.chancesPlus2.desc": "机会+2 (忽略上限)",
+  "minigame.skill.peek2.name": "窥视卷轴",
+  "minigame.skill.peek2.desc": "公开2张背面2秒",
+  "minigame.skill.mulligan.name": "二次洞察",
+  "minigame.skill.mulligan.desc": "本回合下次失误不扣机会",
+  "minigame.skill.compass.name": "类别罗盘",
+  "minigame.skill.compass.desc": "公开相邻卡片类别2.5秒",
+
+  // Curse
+  "minigame.curse.triggered": "诅咒触发！",
+  "minigame.curse.buffStripped": "增益{buff}被剥夺",
+
+  // Run result
+  "minigame.runResult.heading": "配对的卡牌",
+  "minigame.runResult.subheading": "选择要获得的卡牌",
+  "minigame.runResult.pickOne": "选择1张",
+  "minigame.runResult.pickTwo": "选择2张",
+  "minigame.runResult.pickN": "选择{count}张",
+
+  // Summary
+  "minigame.summary.heading": "运行完成",
+  "minigame.summary.unlocked": "获得新卡！",
+  "minigame.summary.duplicate": "重复卡",
+  "minigame.summary.xpGained": "+{xp} XP",
+  "minigame.summary.totalMatches": "总配对数",
+  "minigame.summary.playAgain": "再玩一次",
+  "minigame.summary.exit": "退出",
 };
 
 export default zh;

@@ -3,6 +3,9 @@
 # docs (local Obsidian notes)
 /docs
 
+# Claude Code local workspace (launch configs, permissions, worktrees)
+/.claude/
+
 # dependencies
 /node_modules
 /.pnp
