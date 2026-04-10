@@ -72,7 +72,7 @@ const en: Record<DictKey, string> = {
   "extra.banner.hint": "Hold to activate",
   "extra.confirm.title": "Ready for an Extra Challenge?",
   "extra.confirm.warning": "Overexertion leads to burnout",
-  "extra.confirm.rule": "Must select at least 2 challenges",
+  "extra.confirm.rule": "Must select 2 challenges",
   "extra.confirm.go": "Let's Go!",
   "extra.confirm.rest": "Take a Rest",
   "extra.board.heading": "Extra Challenge",
@@ -84,7 +84,7 @@ const en: Record<DictKey, string> = {
   "super.banner.hint": "Hold to unlock",
   "super.confirm.title": "Take the Super Ultra Challenge?",
   "super.confirm.warning": "Great rewards, but it'll be tiring",
-  "super.confirm.rule": "Must select 4 challenges",
+  "super.confirm.rule": "Must select 3 challenges",
   "super.confirm.go": "I Can Do This!",
   "super.confirm.rest": "That's Enough for Today",
   "super.board.heading": "Super Ultra Challenge",
@@ -100,6 +100,7 @@ const en: Record<DictKey, string> = {
   // === nav ===
   "nav.challenge": "Challenge",
   "nav.collection": "Collection",
+  "nav.minigame": "Games",
   "nav.settings": "Settings",
 
   // === settings ===
@@ -156,8 +157,8 @@ const en: Record<DictKey, string> = {
   "collection.titles.equipped": "Equipped",
   "collection.titles.special": "Special Titles",
   "collection.titles.streak": "Streak Titles",
-  "collection.titles.categoryTitles": "{category} Titles",
   "collection.titles.extra": "Extra Challenge Titles",
+  "collection.titles.categoryTitles": "{category} Titles",
 
   // === auth ===
   "auth.section.heading": "Account Sync",
@@ -227,6 +228,93 @@ const en: Record<DictKey, string> = {
 
   // === settings ===
   "settings.privacy": "Privacy Policy",
+
+  // === minigame ===
+  "minigame.title": "Card Match",
+  "minigame.subtitle": "Find pairs of challenge cards",
+  "minigame.tickets.label": "Tickets",
+  "minigame.tickets.count": "{count}",
+  "minigame.tickets.empty": "No tickets yet",
+  "minigame.tickets.emptyDesc": "Complete your daily, extra, and super challenges to earn tickets",
+  "minigame.tickets.goToChallenges": "Go to Challenges",
+  "minigame.play": "Play",
+  "minigame.stats.runs": "Runs",
+  "minigame.stats.best": "Best Matches",
+  "minigame.howToPlay.heading": "How to Play",
+  "minigame.howToPlay.line1": "Match face-down card pairs across 3 rounds",
+  "minigame.howToPlay.line2": "4 misses end a round — skill cards buy extra chances",
+  "minigame.howToPlay.line3": "Avoid curse cards. Claim a card at the end of each run!",
+
+  // HUD
+  "minigame.hud.round": "Round {current}/{total}",
+  "minigame.hud.chances": "Chances",
+  "minigame.hud.buffs": "Buffs",
+  "minigame.peek.getReady": "Get Ready",
+  "minigame.round.cleared": "Round Cleared!",
+  "minigame.round.failed": "Round Over",
+  "minigame.round.continue": "Continue",
+  "minigame.round.endRun": "End Run",
+  "minigame.hud.mulliganActive": "Mulligan",
+  "minigame.hud.exit": "Exit",
+  "minigame.exit.confirmTitle": "End this run?",
+  "minigame.exit.confirmDesc": "Tickets are not refunded",
+  "minigame.exit.confirmYes": "End Run",
+  "minigame.exit.confirmNo": "Keep Playing",
+  "minigame.runResult.deselect": "Deselect",
+
+  // Reward draft
+  "minigame.reward.draft.heading": "Pick a Reward",
+  "minigame.reward.draft.subheading": "Choose one to carry into the next round",
+  "minigame.reward.steelNerves.name": "Steel Nerves",
+  "minigame.reward.steelNerves.desc": "+1 chance next round",
+  "minigame.reward.luckyCharm.name": "Lucky Charm",
+  "minigame.reward.luckyCharm.desc": "First miss this round won't cost a chance",
+  "minigame.reward.scoutsEye.name": "Scout's Eye",
+  "minigame.reward.scoutsEye.desc": "Reveal 3 face-down tiles for 2s at round start",
+  "minigame.reward.rareSurge.name": "Rare Surge",
+  "minigame.reward.rareSurge.desc": "+30% rare card spawn rate next round",
+  "minigame.reward.duplicateStash.name": "Duplicate Stash",
+  "minigame.reward.duplicateStash.desc": "+50% XP from duplicate cards at run end",
+  "minigame.reward.warded.name": "Warded",
+  "minigame.reward.warded.desc": "Block 1 curse effect next round",
+  "minigame.reward.compass.name": "Compass",
+  "minigame.reward.compass.desc": "Face-down tiles show rarity borders for the rest of the run",
+  "minigame.reward.dualEcho.name": "Dual Echo",
+  "minigame.reward.dualEcho.desc": "Echo ghost lasts longer next round",
+  "minigame.reward.skillAmp.name": "Skill Amp",
+  "minigame.reward.skillAmp.desc": "Skill matches trigger twice next round",
+  "minigame.reward.doubleLoot.name": "Double Loot",
+  "minigame.reward.doubleLoot.desc": "Claim +1 extra card at run end",
+
+  // Skill
+  "minigame.skill.chancesPlus2.name": "Time Key",
+  "minigame.skill.chancesPlus2.desc": "+2 chances (ignores cap)",
+  "minigame.skill.peek2.name": "Peek Scroll",
+  "minigame.skill.peek2.desc": "Reveal 2 face-down tiles for 2s",
+  "minigame.skill.mulligan.name": "Second Sight",
+  "minigame.skill.mulligan.desc": "Next miss this round is free",
+  "minigame.skill.compass.name": "Category Compass",
+  "minigame.skill.compass.desc": "Reveal adjacent tiles' categories for 2.5s",
+
+  // Curse
+  "minigame.curse.triggered": "Curse triggered!",
+  "minigame.curse.buffStripped": "Buff {buff} stripped",
+
+  // Run result
+  "minigame.runResult.heading": "Matched Cards",
+  "minigame.runResult.subheading": "Pick a card to claim",
+  "minigame.runResult.pickOne": "Pick 1",
+  "minigame.runResult.pickTwo": "Pick 2",
+  "minigame.runResult.pickN": "Pick {count}",
+
+  // Summary
+  "minigame.summary.heading": "Run Complete",
+  "minigame.summary.unlocked": "New Card!",
+  "minigame.summary.duplicate": "Duplicate",
+  "minigame.summary.xpGained": "+{xp} XP",
+  "minigame.summary.totalMatches": "Total Matches",
+  "minigame.summary.playAgain": "Play Again",
+  "minigame.summary.exit": "Exit",
 };
 
 export default en;

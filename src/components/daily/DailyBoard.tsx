@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import { MODE_CARD_COUNT, getXPProgress, XP_PER_RARITY, getTitleForLevel } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { springSnappy } from "@/lib/motion";
 import PixelConfetti from "@/components/effects/PixelConfetti";
@@ -17,188 +17,11 @@ import ExtraChallengeBanner from "./ExtraChallengeBanner";
 import SuperChallengeBanner from "./SuperChallengeBanner";
 import ChallengeConfirmModal from "./ChallengeConfirmModal";
 
-// === Mini-game: Tap falling stars ===
-interface FallingStar {
-  id: number;
-  x: number;       // % from left
-  speed: number;    // px per frame
-  y: number;
-  caught: boolean;
-  color: string;
-}
-
-const STAR_COLORS = ["var(--accent-primary)", "var(--accent-cyan)", "var(--accent-fushia)", "#FFFFFF"];
-
-function CatchStarGame({ active }: { active: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const starsRef = useRef<FallingStar[]>([]);
-  const scoreRef = useRef(0);
-  const [score, setScore] = useState(0);
-  const [showScore, setShowScore] = useState(false);
-  const nextIdRef = useRef(0);
-  const rafRef = useRef(0);
-  const lastSpawnRef = useRef(0);
-
-  const handleTap = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
-    // Check if tap hit any star (32px hit radius)
-    const stars = starsRef.current;
-    for (let i = stars.length - 1; i >= 0; i--) {
-      const s = stars[i];
-      if (s.caught) continue;
-      const sx = (s.x / 100) * canvas.width;
-      const sy = s.y;
-      const dist = Math.sqrt((x - sx) ** 2 + (y - sy) ** 2);
-      if (dist < 32) {
-        s.caught = true;
-        scoreRef.current++;
-        setScore(scoreRef.current);
-        setShowScore(true);
-        break;
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!active) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    scoreRef.current = 0;
-    setScore(0);
-    starsRef.current = [];
-
-    function spawnStar() {
-      starsRef.current.push({
-        id: nextIdRef.current++,
-        x: 10 + Math.random() * 80,
-        speed: 0.8 + Math.random() * 1.2,
-        y: -8,
-        caught: false,
-        color: STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)],
-      });
-    }
-
-    function animate(time: number) {
-      if (!ctx || !canvas) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Spawn new stars
-      if (time - lastSpawnRef.current > 600) {
-        spawnStar();
-        lastSpawnRef.current = time;
-      }
-
-      const stars = starsRef.current;
-      for (let i = stars.length - 1; i >= 0; i--) {
-        const s = stars[i];
-        if (s.caught) {
-          // Burst effect
-          ctx.fillStyle = s.color;
-          ctx.globalAlpha = 0.6;
-          for (let j = 0; j < 4; j++) {
-            const angle = (j / 4) * Math.PI * 2 + time * 0.01;
-            const bx = (s.x / 100) * canvas.width + Math.cos(angle) * 8;
-            const by = s.y + Math.sin(angle) * 8;
-            ctx.fillRect(bx, by, 1, 1);
-          }
-          ctx.globalAlpha = 1;
-          stars.splice(i, 1);
-          continue;
-        }
-
-        s.y += s.speed;
-
-        // Remove off-screen
-        if (s.y > canvas.height + 10) {
-          stars.splice(i, 1);
-          continue;
-        }
-
-        // Draw 3x3 pixel cross (plus shape)
-        const sx = Math.floor((s.x / 100) * canvas.width);
-        const sy = Math.floor(s.y);
-        ctx.fillStyle = s.color;
-        ctx.fillRect(sx, sy, 1, 1);       // center
-        ctx.fillRect(sx - 1, sy, 1, 1);   // left
-        ctx.fillRect(sx + 1, sy, 1, 1);   // right
-        ctx.fillRect(sx, sy - 1, 1, 1);   // top
-        ctx.fillRect(sx, sy + 1, 1, 1);   // bottom
-      }
-
-      rafRef.current = requestAnimationFrame(animate);
-    }
-
-    rafRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [active]);
-
-  if (!active) return null;
-
-  return (
-    <div className="absolute inset-0 z-10">
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full"
-        onTouchStart={handleTap}
-        onClick={handleTap}
-      />
-      <AnimatePresence>
-        {showScore && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm rounded-md px-2 py-1"
-          >
-            <span className="typo-caption text-accent">{score}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 // === Completion celebration ===
 function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
   const progress = useGameStore((s) => s.progress);
   const { t, language } = useTranslation();
-  const { play } = useSound();
-  const [trophyTaps, setTrophyTaps] = useState(0);
-  const [miniGameActive, setMiniGameActive] = useState(false);
-  const trophyRotate = useSpring(0, { stiffness: 300, damping: 15 });
-  const trophyScale = useSpring(1, { stiffness: 400, damping: 12 });
   const xpInfo = getXPProgress(progress.xp || 0, progress.level);
-
-  const handleTrophyTap = () => {
-    play("xpGain");
-    const next = trophyTaps + 1;
-    setTrophyTaps(next);
-
-    // Spin animation on tap
-    trophyRotate.set(trophyRotate.get() + (Math.random() > 0.5 ? 15 : -15));
-    trophyScale.set(1.15);
-    setTimeout(() => {
-      trophyRotate.set(0);
-      trophyScale.set(1);
-    }, 300);
-
-    // Easter egg: 5 taps activates mini-game
-    if (next >= 5 && !miniGameActive) {
-      setMiniGameActive(true);
-      play("packOpen");
-    }
-  };
 
   return (
     <motion.div
@@ -207,8 +30,6 @@ function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
       transition={springSnappy}
       className="rounded-lg bg-accent overflow-hidden relative"
     >
-      <CatchStarGame active={miniGameActive} />
-
       <div className="flex flex-col items-center justify-center py-10 px-6 relative z-20">
         {/* Floating particles */}
         {[...Array(6)].map((_, i) => (
@@ -233,33 +54,10 @@ function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
           />
         ))}
 
-        {/* Trophy — tap to interact */}
-        <motion.button
-          onClick={handleTrophyTap}
-          style={{ rotate: trophyRotate, scale: trophyScale }}
-          whileTap={{ scale: 0.9 }}
-          className="cursor-pointer relative"
-        >
+        {/* Trophy — 정적 렌더 */}
+        <div className="relative">
           <PixelIcon name="Trophy" size={64} color="#0A0A0A" />
-          {/* Glow ring on tap */}
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            animate={trophyTaps > 0 ? {
-              boxShadow: ["0 0 0px rgba(10,10,10,0)", "0 0 20px rgba(10,10,10,0.3)", "0 0 0px rgba(10,10,10,0)"],
-            } : {}}
-            transition={{ duration: 0.6 }}
-          />
-        </motion.button>
-
-        {/* Tap hint */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: trophyTaps === 0 ? 0.5 : 0 }}
-          transition={{ delay: 2, duration: 0.5 }}
-          className="typo-micro text-bg-primary/40 mt-1"
-        >
-          tap me
-        </motion.p>
+        </div>
 
         <motion.p
           initial={{ opacity: 0, y: 10 }}
@@ -320,29 +118,6 @@ function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
             : t("daily.board.doneGuide")}
         </motion.p>
 
-        {/* Mini-game hint after 3 taps */}
-        <AnimatePresence>
-          {trophyTaps >= 3 && trophyTaps < 5 && !miniGameActive && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              exit={{ opacity: 0 }}
-              className="typo-micro text-bg-primary/50 mt-2"
-            >
-              {5 - trophyTaps} more...
-            </motion.p>
-          )}
-        </AnimatePresence>
-
-        {miniGameActive && (
-          <motion.p
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 0.7, y: 0 }}
-            className="typo-micro text-bg-primary/60 mt-2"
-          >
-            catch the stars!
-          </motion.p>
-        )}
       </div>
     </motion.div>
   );
@@ -362,8 +137,10 @@ export default function DailyBoard() {
   const [completingCard, setCompletingCard] = useState<ChallengeCard | null>(null);
   const [completingXp, setCompletingXp] = useState(0);
   const [showChallengeModal, setShowChallengeModal] = useState<"extra" | "super" | null>(null);
-  const [bannerResetKey, setBannerResetKey] = useState(0);
   const [shakeCount, setShakeCount] = useState(0);
+  // 배너를 re-mount 해 hold 상태를 초기화하기 위한 key
+  // 모달을 cancel 로 닫으면 bump 되어 배너가 새 인스턴스로 교체됨
+  const [bannerResetKey, setBannerResetKey] = useState(0);
 
   // phase-aware 데이터 선택
   const phase = daily.challengePhase || "daily";
@@ -441,6 +218,13 @@ export default function DailyBoard() {
     startSuperChallenge();
   };
 
+  // 모달을 cancel 로 닫으면 배너 key 를 bump 해 re-mount → activated 등 hold state 초기화
+  const handleCancelChallengeModal = () => {
+    play("cancel");
+    setShowChallengeModal(null);
+    setBannerResetKey((k) => k + 1);
+  };
+
   return (
     <motion.div
       className="space-y-4"
@@ -480,11 +264,7 @@ export default function DailyBoard() {
           <ChallengeConfirmModal
             phase={showChallengeModal}
             onConfirm={showChallengeModal === "extra" ? handleExtraConfirm : handleSuperConfirm}
-            onCancel={() => {
-              setShowChallengeModal(null);
-              // 배너를 re-mount해서 activated/holding 상태 리셋 (Bug 5)
-              setBannerResetKey((k) => k + 1);
-            }}
+            onCancel={handleCancelChallengeModal}
           />
         )}
       </AnimatePresence>

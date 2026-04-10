@@ -729,7 +729,7 @@ export default function CardDrawScreen() {
 
             {phase === "super" ? (
               <p className="typo-heading text-text-primary">
-                {t("daily.select.heading", { count: `${minCards}+` }).split("").map((char, i) => (
+                {t("daily.select.heading", { count: minCards }).split("").map((char, i) => (
                   <motion.span
                     key={i}
                     animate={{
@@ -751,9 +751,7 @@ export default function CardDrawScreen() {
               </p>
             ) : (
               <p className="typo-heading text-text-primary">
-                {phase === "daily"
-                  ? t("daily.select.heading", { count: maxCards })
-                  : t("daily.select.heading", { count: `${minCards}+` })}
+                {t("daily.select.heading", { count: maxCards })}
               </p>
             )}
             <p className="typo-caption text-text-tertiary">
@@ -893,17 +891,6 @@ export default function CardDrawScreen() {
         );
       })()}
 
-      {/* extra/super: 최소 선택 수 충족 시 확정 버튼 표시 */}
-      {phase !== "daily" && selectedCount >= minCards && !isSelectionFull && (
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+80px)] z-20">
-          <button
-            onClick={() => { play("confirm"); confirmPhaseSelection(); }}
-            className="w-full py-3 bg-accent text-bg-primary rounded-md typo-body"
-          >
-            {t("daily.select.confirmButton")} ({selectedCount}/{minCards}+)
-          </button>
-        </div>
-      )}
     </div>
   );
 }
