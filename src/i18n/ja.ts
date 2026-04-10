@@ -131,6 +131,9 @@ const ja: Record<DictKey, string> = {
   "settings.mode.confirmDesc": "明日から1日に{cards}枚を選ぶようになります",
   "settings.titles.heading": "称号",
   "settings.titles.empty": "まだ獲得した称号がありません。チャレンジをクリアして称号を手に入れよう!",
+  "settings.titles.level.heading": "レベル称号",
+  "settings.titles.level.label": "Lv.{level} · {title}",
+  "settings.titles.earned.heading": "獲得した称号",
   "settings.stats.heading": "マイ記録",
   "settings.stats.currentStreak": "現在の連続",
   "settings.stats.longestStreak": "最長連続",
@@ -154,6 +157,7 @@ const ja: Record<DictKey, string> = {
   "collection.titles.special": "特別称号",
   "collection.titles.streak": "連続達成称号",
   "collection.titles.categoryTitles": "{category}称号",
+  "collection.titles.extra": "追加チャレンジ称号",
 
   // === auth ===
   "auth.section.heading": "アカウント連携",

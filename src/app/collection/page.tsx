@@ -8,7 +8,8 @@ import { ALL_TITLES, getEarnedTitleIds, getTitleProgress, categoryLabel } from "
 import type { Category } from "@/types/card";
 import type { TitleDefinition } from "@/types/title";
 import PixelIcon from "@/components/icons/PixelIcon";
-import { motion, AnimatePresence } from "framer-motion";
+import AccordionSection from "@/components/ui/AccordionSection";
+import { motion } from "framer-motion";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -109,56 +110,6 @@ export default function CollectionPage() {
       ) : (
         <TitlesTab progress={progress} earnedIds={earnedIds} equipTitle={equipTitle} filter={filter} play={play} language={language} />
       )}
-    </div>
-  );
-}
-
-/* ── 아코디언 섹션 ── */
-function AccordionSection({
-  label,
-  count,
-  total,
-  defaultOpen = true,
-  children,
-}: {
-  label: string;
-  count: number;
-  total: number;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <div>
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center justify-between w-full py-2 mb-2"
-      >
-        <div className="flex items-center gap-2">
-          <motion.div
-            animate={{ rotate: open ? 0 : -90 }}
-            transition={{ duration: 0.2 }}
-          >
-            <PixelIcon name="ChevronDown" size={16} className="text-text-tertiary" />
-          </motion.div>
-          <h3 className="typo-caption text-text-primary">{label}</h3>
-        </div>
-        <span className="typo-caption">{count}/{total}</span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -283,6 +234,11 @@ function TitlesTab({
       key: "streak",
       label: translate("collection.titles.streak", language),
       titles: ALL_TITLES.filter((t) => t.condition.type === "streak"),
+    },
+    {
+      key: "extra",
+      label: translate("collection.titles.extra", language),
+      titles: ALL_TITLES.filter((t) => t.condition.type === "extra"),
     },
   ].map((g) => {
     const earnedInGroup = g.titles.filter((t) => earnedIds.includes(t.id)).length;

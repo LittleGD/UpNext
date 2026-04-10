@@ -131,6 +131,9 @@ const zh: Record<DictKey, string> = {
   "settings.mode.confirmDesc": "从明天开始每天选择 {cards} 张卡牌",
   "settings.titles.heading": "称号",
   "settings.titles.empty": "还没有获得任何称号。完成挑战即可获得称号！",
+  "settings.titles.level.heading": "等级称号",
+  "settings.titles.level.label": "Lv.{level} · {title}",
+  "settings.titles.earned.heading": "获得称号",
   "settings.stats.heading": "我的记录",
   "settings.stats.currentStreak": "当前连续",
   "settings.stats.longestStreak": "最长连续",
@@ -154,6 +157,7 @@ const zh: Record<DictKey, string> = {
   "collection.titles.special": "特殊称号",
   "collection.titles.streak": "连续打卡称号",
   "collection.titles.categoryTitles": "{category}称号",
+  "collection.titles.extra": "附加挑战称号",
 
   // === auth ===
   "auth.section.heading": "账号同步",

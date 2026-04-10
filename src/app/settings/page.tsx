@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useGameStore } from "@/store/useGameStore";
 import type { GameMode } from "@/types/game";
+import type { Category } from "@/types/card";
+import type { TitleDefinition } from "@/types/title";
 import { getTitleForLevel, getXPProgress } from "@/types/game";
-import { ALL_TITLES, getEarnedTitleIds } from "@/data/titles";
+import { ALL_TITLES, getEarnedTitleIds, categoryLabel } from "@/data/titles";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import PixelIcon from "@/components/icons/PixelIcon";
 import AuthSection from "@/components/auth/AuthSection";
+import AccordionSection from "@/components/ui/AccordionSection";
 import LanguageToggle from "@/components/ui/LanguageToggle";
 import { useAuthStore } from "@/store/useAuthStore";
 import { deleteCloudData } from "@/lib/sync";
@@ -29,6 +32,10 @@ const modes: { key: GameMode; labelKey: DictKey; descKey: DictKey; cards: number
   { key: "normal", labelKey: "settings.mode.normal", descKey: "settings.mode.normal.desc", cards: 1 },
   { key: "godlife", labelKey: "settings.mode.godlife", descKey: "settings.mode.godlife.desc", cards: 2 },
   { key: "ultra", labelKey: "settings.mode.ultra", descKey: "settings.mode.ultra.desc", cards: 3 },
+];
+
+const CATEGORY_ORDER: Category[] = [
+  "fitness", "nutrition", "mindfulness", "learning", "social", "productivity", "wellness",
 ];
 
 export default function SettingsPage() {
@@ -75,6 +82,26 @@ export default function SettingsPage() {
   const earnedIds = getEarnedTitleIds(progress);
   const earnedTitles = ALL_TITLES.filter((title) => earnedIds.includes(title.id));
   const defaultTitle = getTitleForLevel(progress.level, language);
+
+  // 획득 칭호 그룹핑 (컬렉션과 동일한 카테고리/특별/연속/추가 챌린지 순서)
+  const groupConfigs: Array<{ key: string; label: string; filter: (tt: TitleDefinition) => boolean }> = [
+    ...CATEGORY_ORDER.map((cat) => ({
+      key: `cat-${cat}`,
+      label: t("collection.titles.categoryTitles", { category: categoryLabel(cat, language) }),
+      filter: (tt: TitleDefinition) =>
+        tt.condition.type === "category" && tt.condition.category === cat,
+    })),
+    { key: "special", label: t("collection.titles.special"), filter: (tt) => tt.condition.type === "card" },
+    { key: "streak", label: t("collection.titles.streak"), filter: (tt) => tt.condition.type === "streak" },
+    { key: "extra", label: t("collection.titles.extra"), filter: (tt) => tt.condition.type === "extra" },
+  ];
+  const earnedGroups = groupConfigs
+    .map((g) => {
+      const allInGroup = ALL_TITLES.filter(g.filter);
+      const earnedInGroup = allInGroup.filter((tt) => earnedIds.includes(tt.id));
+      return { ...g, earnedTitles: earnedInGroup, total: allInGroup.length };
+    })
+    .filter((g) => g.earnedTitles.length > 0);
 
   return (
     <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto space-y-5">
@@ -270,78 +297,98 @@ export default function SettingsPage() {
       </section>
 
       {/* ── 칭호 ── */}
-      <section className="space-y-2">
+      <section className="space-y-3">
         <h3 className="typo-heading uppercase tracking-wider px-1">{t("settings.titles.heading")}</h3>
-        <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
-          {/* 기본 칭호 */}
-          <button
-            onClick={() => { play("select"); equipTitle(null); }}
-            className={`w-full text-left px-4 py-3.5 transition-colors relative ${
-              !progress.equippedTitleId ? "bg-accent/10" : "hover:bg-bg-elevated"
-            }`}
-          >
-            {!progress.equippedTitleId && (
-              <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-accent" />
-            )}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <PixelIcon name="Zap" size={18} color={!progress.equippedTitleId ? "var(--accent-primary)" : "var(--text-tertiary)"} />
-                <span className={`typo-body ${!progress.equippedTitleId ? "text-accent" : "text-text-primary"}`}>
-                  {defaultTitle}
-                </span>
-              </div>
-              <span className="typo-micro text-text-tertiary">
-                {t("common.default")}
-              </span>
-            </div>
-            <div className="absolute bottom-0 left-4 right-4 h-px bg-white/[0.06]" />
-          </button>
 
-          {/* 획득한 칭호들 */}
-          {earnedTitles.map((title, i) => {
-            const isEquipped = progress.equippedTitleId === title.id;
-            const rarity = RARITY_CONFIG[title.rarity];
-            return (
-              <button
-                key={title.id}
-                onClick={() => { play("equip"); equipTitle(title.id); }}
-                className={`w-full text-left px-4 py-3.5 transition-colors relative ${
-                  isEquipped ? "bg-accent/10" : "hover:bg-bg-elevated"
-                }`}
-              >
-                {isEquipped && (
-                  <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-accent" />
-                )}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <PixelIcon name={title.icon} size={18} color={isEquipped ? "var(--accent-primary)" : rarity.color} />
-                    <span className={`typo-body ${isEquipped ? "text-accent" : "text-text-primary"}`}>
-                      {titleName(title, language)}
-                    </span>
-                  </div>
-                  <span
-                    className="typo-micro px-1.5 py-0.5 rounded-sm"
-                    style={{
-                      backgroundColor: isEquipped ? "rgba(205, 245, 100, 0.1)" : `${rarity.color}20`,
-                      color: isEquipped ? "var(--accent-primary)" : rarity.color,
-                    }}
-                  >
-                    {rarityLabel(title.rarity, language)}
+        {/* 레벨 칭호 */}
+        <div className="space-y-2">
+          <h4 className="typo-caption text-text-tertiary px-1">{t("settings.titles.level.heading")}</h4>
+          <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
+            <button
+              onClick={() => { play("select"); equipTitle(null); }}
+              className={`w-full text-left px-4 py-3.5 transition-colors relative ${
+                !progress.equippedTitleId ? "bg-accent/10" : "hover:bg-bg-elevated"
+              }`}
+            >
+              {!progress.equippedTitleId && (
+                <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-accent" />
+              )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <PixelIcon name="Zap" size={18} color={!progress.equippedTitleId ? "var(--accent-primary)" : "var(--text-tertiary)"} />
+                  <span className={`typo-body ${!progress.equippedTitleId ? "text-accent" : "text-text-primary"}`}>
+                    {t("settings.titles.level.label", { level: progress.level, title: defaultTitle })}
                   </span>
                 </div>
-                {i < earnedTitles.length - 1 && (
-                  <div className="absolute bottom-0 left-4 right-4 h-px bg-white/[0.06]" />
-                )}
-              </button>
-            );
-          })}
-
-          {earnedTitles.length === 0 && (
-            <p className="typo-caption text-text-tertiary px-4 py-3">
-              {t("settings.titles.empty")}
-            </p>
-          )}
+                <span className="typo-micro text-text-tertiary">
+                  {t("common.default")}
+                </span>
+              </div>
+            </button>
+          </div>
         </div>
+
+        {/* 획득 칭호 */}
+        {earnedTitles.length > 0 ? (
+          <div className="space-y-2">
+            <h4 className="typo-caption text-text-tertiary px-1">{t("settings.titles.earned.heading")}</h4>
+            <div className="space-y-3">
+              {earnedGroups.map(({ key, label, earnedTitles: groupTitles, total }) => (
+                <AccordionSection
+                  key={key}
+                  label={label}
+                  count={groupTitles.length}
+                  total={total}
+                  defaultOpen={false}
+                >
+                  <div className="rounded-lg bg-bg-surface grid-border overflow-hidden mb-2">
+                    {groupTitles.map((title, i) => {
+                      const isEquipped = progress.equippedTitleId === title.id;
+                      const rarity = RARITY_CONFIG[title.rarity];
+                      return (
+                        <button
+                          key={title.id}
+                          onClick={() => { play("equip"); equipTitle(title.id); }}
+                          className={`w-full text-left px-4 py-3.5 transition-colors relative ${
+                            isEquipped ? "bg-accent/10" : "hover:bg-bg-elevated"
+                          }`}
+                        >
+                          {isEquipped && (
+                            <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-accent" />
+                          )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <PixelIcon name={title.icon} size={18} color={isEquipped ? "var(--accent-primary)" : rarity.color} />
+                              <span className={`typo-body ${isEquipped ? "text-accent" : "text-text-primary"}`}>
+                                {titleName(title, language)}
+                              </span>
+                            </div>
+                            <span
+                              className="typo-micro px-1.5 py-0.5 rounded-sm"
+                              style={{
+                                backgroundColor: isEquipped ? "rgba(205, 245, 100, 0.1)" : `${rarity.color}20`,
+                                color: isEquipped ? "var(--accent-primary)" : rarity.color,
+                              }}
+                            >
+                              {rarityLabel(title.rarity, language)}
+                            </span>
+                          </div>
+                          {i < groupTitles.length - 1 && (
+                            <div className="absolute bottom-0 left-4 right-4 h-px bg-white/[0.06]" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </AccordionSection>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="typo-caption text-text-tertiary px-4 py-3 rounded-lg bg-bg-surface grid-border">
+            {t("settings.titles.empty")}
+          </p>
+        )}
       </section>
 
       {/* ── 계정 연동 ── */}
