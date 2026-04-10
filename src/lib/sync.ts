@@ -88,6 +88,21 @@ let currentUid: string | null = null;
 // 클라우드에서 로컬로 업데이트할 때 루프 방지 플래그
 let isUpdatingFromCloud = false;
 
+// 디바운스 중인 로컬 write 존재 여부
+// Firestore의 hasPendingWrites보다 먼저 true가 되어, 디바운스 대기 중에 도착한
+// stale cloud snapshot이 로컬 변경을 덮어쓰는 race condition을 방지
+let hasLocalPendingWrite = false;
+
+// flushSync 실패 시 재시도 타이머 — 네트워크 복구 후 자동으로 다시 시도해서
+// 실패한 write 때문에 클라우드 snapshot이 영원히 suppress되는 상황을 방지한다.
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryAttempt = 0;
+const MAX_RETRY_ATTEMPTS = 6;
+function computeRetryDelay(attempt: number): number {
+  // 1s → 2s → 4s → 8s → 16s → 30s (cap)
+  return Math.min(30_000, 1_000 * 2 ** attempt);
+}
+
 // 앱 시작 시 Auth 확인 완료 전까지 클라우드 동기화 차단
 let isSyncReady = false;
 
@@ -127,6 +142,9 @@ export async function startListener(
     if (!data) return;
     if (snapshot.metadata.hasPendingWrites) return;
     if (isUpdatingFromCloud) return;
+    // 디바운스 대기 중인 로컬 write가 있으면 stale cloud snapshot 무시
+    // (flushSync 후 새 snapshot이 오면 정상 처리됨)
+    if (hasLocalPendingWrite) return;
 
     isUpdatingFromCloud = true;
     cloudUpdatePromise = Promise.resolve().then(() => {
@@ -153,7 +171,13 @@ export function stopListener(): void {
     clearTimeout(syncDebounceTimer);
     syncDebounceTimer = null;
   }
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+  retryAttempt = 0;
   pendingSyncData = {};
+  hasLocalPendingWrite = false;
 }
 
 // 로컬 → 클라우드 동기화 (디바운스 300ms)
@@ -168,6 +192,9 @@ export function syncToCloud(key: string, value: unknown): void {
     pendingSyncData.onboardingComplete = value;
   }
 
+  // 로컬에 pending write가 있음을 표시 — 이 동안 stale cloud snapshot 무시
+  hasLocalPendingWrite = true;
+
   if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(() => {
     flushSync();
@@ -175,13 +202,17 @@ export function syncToCloud(key: string, value: unknown): void {
 }
 
 async function flushSync(): Promise<void> {
-  if (!currentUid || Object.keys(pendingSyncData).length === 0) return;
+  if (!currentUid || Object.keys(pendingSyncData).length === 0) {
+    hasLocalPendingWrite = false;
+    return;
+  }
 
   const { db } = await getFirebase();
   const { doc, setDoc, serverTimestamp } = await getFirestoreMod();
 
   const dataToSync = { ...pendingSyncData };
   const docRef = doc(db, "users", currentUid);
+  let success = false;
   try {
     await setDoc(
       docRef,
@@ -194,6 +225,7 @@ async function flushSync(): Promise<void> {
       },
       { merge: true },
     );
+    success = true;
     for (const key of Object.keys(dataToSync)) {
       if (pendingSyncData[key] === dataToSync[key]) {
         delete pendingSyncData[key];
@@ -201,6 +233,41 @@ async function flushSync(): Promise<void> {
     }
   } catch (error) {
     console.error("Failed to sync to cloud:", error);
+  } finally {
+    // 성공/실패 상관없이 플래그 정리
+    // 새로 쌓인 pending write가 있으면 유지, 없으면 클리어
+    hasLocalPendingWrite = Object.keys(pendingSyncData).length > 0;
+  }
+
+  if (success) {
+    // 성공 — 재시도 카운터 리셋
+    retryAttempt = 0;
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+  } else if (hasLocalPendingWrite && currentUid) {
+    // 실패 — 지수 backoff로 재시도 예약. 이렇게 해야 네트워크 복구 후
+    // pending write가 eventually 성공해서 hasLocalPendingWrite가 내려가고,
+    // 클라우드 snapshot suppression이 영구히 이어지지 않는다.
+    if (retryAttempt < MAX_RETRY_ATTEMPTS) {
+      const delay = computeRetryDelay(retryAttempt);
+      retryAttempt += 1;
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        void flushSync();
+      }, delay);
+    } else {
+      // 최대 재시도 소진 — 데이터 손실을 막기 위해 pending 데이터는 보존하되,
+      // snapshot suppression은 해제해서 읽기 경로는 회복시킨다. 다음 로컬 write가
+      // 들어오면 새 syncToCloud 호출이 다시 pending + 재시도를 킥오프한다.
+      console.error(
+        "Max sync retries exhausted; releasing snapshot suppression to avoid permanent read lock.",
+      );
+      hasLocalPendingWrite = false;
+      retryAttempt = 0;
+    }
   }
 }
 

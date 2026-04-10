@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { ChallengeCard, Category } from "@/types/card";
 import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase } from "@/types/game";
-import { MODE_CARD_COUNT, XP_PER_RARITY, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, PHASE_MIN_CARDS, PHASE_MAX_CARDS } from "@/types/game";
+import { MODE_CARD_COUNT, XP_PER_RARITY, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, PHASE_MIN_CARDS, PHASE_MAX_CARDS, MINIGAME_TICKET_CAP } from "@/types/game";
 import { ALL_CARDS, STARTER_CARD_IDS } from "@/data/cards";
 import { drawCards, drawFromPool } from "@/lib/deck";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
@@ -51,6 +51,10 @@ function getInitialProgress(): UserProgress {
     hapticEnabled: true,
     notificationsEnabled: false,
     notificationTime: "09:00",
+    // 미니게임
+    tickets: 0,
+    minigameRunsPlayed: 0,
+    minigameBestMatches: 0,
   };
 }
 
@@ -125,6 +129,14 @@ interface GameStore {
   deselectPhaseCard: (cardId: string) => void;
   confirmPhaseSelection: () => void;
   completePhaseChallenge: (cardId: string) => void;
+
+  // 미니게임
+  spendTicket: () => boolean;  // true면 성공(차감됨), false면 티켓 부족
+  grantMinigameRewards: (args: {
+    unlockCardIds?: string[];   // 새로 언락할 카드 ID들 (1~2장)
+    xpGainPerCard?: { cardId: string; amount: number }[]; // 중복 카드 XP 지급
+    matchesThisRun: number;     // 이번 런 총 매치 수 (최고 기록 갱신용)
+  }) => void;
 }
 
 // 이중 완료 방지용 락
@@ -418,6 +430,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!updatedDaily.extraNudgeScheduled) {
         updatedDaily.extraNudgeScheduled = true;
       }
+      // 미니게임 티켓 +1 (상한 10)
+      updatedProgress.tickets = Math.min(
+        MINIGAME_TICKET_CAP,
+        (updatedProgress.tickets || 0) + 1,
+      );
     }
 
     // XP 기반 레벨업 체크
@@ -487,13 +504,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  // 온보딩 완료 → 레벨 0→1 + 카드팩 1개 부여
+  // 온보딩 완료 → 레벨 0→1 + 카드팩 1개 + 미니게임 체험 티켓 1장
   completeOnboarding: () => {
     const progress = {
       ...get().progress,
       level: 1,
       xp: totalXPForLevel(1), // 레벨 1에 맞는 XP 설정
       pendingPacks: (get().progress.pendingPacks || 0) + 1,
+      tickets: Math.min(
+        MINIGAME_TICKET_CAP,
+        (get().progress.tickets || 0) + 1,
+      ),
     };
     set({ hasCompletedOnboarding: true, progress, isOpeningPack: true });
     saveToStorage("onboarding_complete", true);
@@ -825,6 +846,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (hasLockedCards) {
         updatedProgress.pendingBonusCards += 1;
       }
+      // 미니게임 티켓 지급: extra +1 / super +2 (상한 10)
+      const ticketGain = phase === "super" ? 2 : 1;
+      updatedProgress.tickets = Math.min(
+        MINIGAME_TICKET_CAP,
+        (updatedProgress.tickets || 0) + ticketGain,
+      );
     }
 
     // 레벨업 체크
@@ -854,6 +881,64 @@ export const useGameStore = create<GameStore>((set, get) => ({
         "extra-complete",
       );
     }
+  },
+
+  // === 미니게임 ===
+
+  // 티켓 1장 소비 — 성공 시 true, 티켓 부족이면 false (차감 X)
+  spendTicket: () => {
+    const progress = get().progress;
+    if ((progress.tickets || 0) < 1) return false;
+    const updated = { ...progress, tickets: progress.tickets - 1 };
+    set({ progress: updated });
+    saveToStorage("progress", updated);
+    return true;
+  },
+
+  // 미니게임 런 종료 보상 지급:
+  //  - 미보유 카드 언락 (unlockedCardIds에 추가)
+  //  - 중복 카드 XP 지급 (카드별 cardCompletions 증가 + XP → 레벨업 파이프라인)
+  //  - 런 카운트 / 최고 매치 기록 갱신
+  grantMinigameRewards: ({ unlockCardIds = [], xpGainPerCard = [], matchesThisRun }) => {
+    const progress = get().progress;
+    const updated: UserProgress = {
+      ...progress,
+      unlockedCardIds: [...progress.unlockedCardIds],
+      cardCompletions: { ...(progress.cardCompletions || {}) },
+      minigameRunsPlayed: (progress.minigameRunsPlayed || 0) + 1,
+      minigameBestMatches: Math.max(
+        progress.minigameBestMatches || 0,
+        matchesThisRun,
+      ),
+    };
+
+    // 새 카드 언락
+    for (const id of unlockCardIds) {
+      if (!updated.unlockedCardIds.includes(id)) {
+        updated.unlockedCardIds.push(id);
+      }
+    }
+
+    // 중복 카드 XP 지급 (레벨업 파이프라인 그대로 사용)
+    // cardCompletions는 건드리지 않음 — 언락 임계치는 데일리 완료로만 달성
+    let totalXpGain = 0;
+    for (const { amount } of xpGainPerCard) {
+      totalXpGain += amount;
+    }
+    if (totalXpGain > 0) {
+      updated.xp = (updated.xp || 0) + totalXpGain;
+      updated.pendingPacks = updated.pendingPacks || 0;
+      const prevLevel = updated.level;
+      const newLevel = getLevelFromXP(updated.xp);
+      if (newLevel > prevLevel) {
+        updated.level = newLevel;
+        updated.pendingPacks += newLevel - prevLevel;
+      }
+    }
+
+    const shouldOpenPack = (updated.pendingPacks || 0) > (progress.pendingPacks || 0);
+    set({ progress: updated, ...(shouldOpenPack && { isOpeningPack: true }) });
+    saveToStorage("progress", updated);
   },
 }));
 

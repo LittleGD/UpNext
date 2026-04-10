@@ -24,7 +24,10 @@ export type SoundName =
   | "fireIgnite"
   | "impactShake"
   | "superIgnite"
-  | "meteorWhoosh";
+  | "meteorWhoosh"
+  | "matchPair"
+  | "curseTrigger"
+  | "rewardChoose";
 
 let audioCtx: AudioContext | null = null;
 
@@ -395,6 +398,40 @@ const sounds: Record<SoundName, () => void> = {
     cymbal.stop(t + 0.95);
   },
 
+  /** Pair match — 220ms, double-chime "ding-ding" 880→1320Hz, bright satisfaction */
+  matchPair() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    createOsc(ctx, 880, t, 0.08);                      // A5
+    createOsc(ctx, 1320, t + 0.08, 0.1);               // E6
+    // Subtle triangle harmony
+    createOsc(ctx, 660, t, 0.14, MASTER_VOLUME * 0.35, "triangle");
+  },
+
+  /** Curse triggered — 400ms, dissonant descending tritone + dark rumble */
+  curseTrigger() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Dissonant tritone — C → F# (augmented fourth)
+    createOsc(ctx, 523, t, 0.15);            // C5
+    createOsc(ctx, 370, t + 0.05, 0.18);     // F#4 — tritone clash
+    // Descending menace sweep
+    createSweep(ctx, 523, 130, t + 0.12, 0.28, MASTER_VOLUME * 0.6);
+    // Low rumble under
+    createOsc(ctx, 70, t, 0.35, MASTER_VOLUME * 0.8, "triangle");
+  },
+
+  /** Reward chosen — 280ms, bright rising triplet with shimmer */
+  rewardChoose() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    createOsc(ctx, 784, t, 0.08);             // G5
+    createOsc(ctx, 988, t + 0.07, 0.08);      // B5
+    createOsc(ctx, 1319, t + 0.14, 0.14);     // E6
+    // Shimmer tail
+    createOsc(ctx, 1568, t + 0.18, 0.1, MASTER_VOLUME * 0.5, "triangle");
+  },
+
   /** Meteor whoosh — 1.5s, descending sweep + cosmic pad + sparkle pings */
   meteorWhoosh() {
     const ctx = getAudioContext();
@@ -463,6 +500,9 @@ const VIBRATION_PATTERNS: Record<SoundName, number[] | null> = {
   impactShake:  [30, 10, 40],
   superIgnite:  [30, 10, 40],
   meteorWhoosh: [30, 10, 40],
+  matchPair:    [15],
+  curseTrigger: [30, 10, 40],
+  rewardChoose: [10, 30, 10],
 };
 
 const MIN_VIBRATION_MS = 25;

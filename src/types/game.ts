@@ -12,18 +12,18 @@ export type GameMode = "normal" | "godlife" | "ultra";
 // daily → extra(추가 챌린지) → super(슈퍼 초갓생챌린지)
 export type ChallengePhase = "daily" | "extra" | "super";
 
-// 단계별 최소 선택 카드 수 (daily는 MODE_CARD_COUNT 사용)
+// 단계별 선택 카드 수 — 정확한 장수로 고정 (extra: 2장, super: 3장)
 export const PHASE_MIN_CARDS: Record<ChallengePhase, number> = {
   daily: 0,
   extra: 2,
-  super: 4,
+  super: 3,
 };
 
-// 단계별 최대 선택 카드 수 (daily는 MODE_CARD_COUNT 사용)
+// 단계별 최대 선택 카드 수 — min과 동일하게 고정
 export const PHASE_MAX_CARDS: Record<ChallengePhase, number> = {
   daily: 0,
-  extra: 3,
-  super: 5,
+  extra: 2,
+  super: 3,
 };
 
 // === 오늘의 상태 ===
@@ -102,7 +102,15 @@ export interface UserProgress {
   hapticEnabled: boolean;                    // 햅틱(진동) on/off
   notificationsEnabled: boolean;             // 알림 on/off
   notificationTime: string;                  // 알림 시간 "HH:MM"
+
+  // === 미니게임 ===
+  tickets: number;                           // 카드매치 미니게임 티켓 (0~10, 상한 10)
+  minigameRunsPlayed: number;                // 누적 런 수
+  minigameBestMatches: number;               // 단일 런 최대 매치 수
 }
+
+// === 미니게임 티켓 상한 ===
+export const MINIGAME_TICKET_CAP = 10;
 
 // === XP 보상 (등급별) ===
 // 카드에 명시된 XP — 모든 지급이 이 값 그대로 (배율/풀클리어 보너스 없음)
