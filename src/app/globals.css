@@ -231,12 +231,19 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
 
 /* === 모바일 safe area (개별 고정 요소에서 처리) === */
 
-/* === 스크롤바 === */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 2px; }
+/* === 스크롤바 전역 숨김 — 네이티브 앱 느낌 ===
+   스크롤 기능은 유지하되 바만 숨긴다. (iOS/Android는 원래 숨김, 데스크탑/웹도 맞춤) */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge (legacy) */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/WebKit */
+  width: 0;
+  height: 0;
+}
 
-/* === 수평 스크롤 (카드 덱) === */
+/* === 수평 스크롤 유틸 (레거시 호환) === */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
