@@ -10,6 +10,8 @@ import type { AuthUser } from "@/types/auth";
 import type { UserProgress, DailyState } from "@/types/game";
 import { AnimatePresence } from "framer-motion";
 import MergeConflictDialog from "@/components/auth/MergeConflictDialog";
+import PatchNotesModal from "@/components/PatchNotesModal";
+import { LATEST_PATCH } from "@/data/patchNotes";
 
 interface ConflictState {
   uid: string;
@@ -78,10 +80,18 @@ function whenIdle(fn: () => void) {
 export default function SyncProvider({ children }: { children: React.ReactNode }) {
   const setUser = useAuthStore((s) => s.setUser);
   const [conflict, setConflict] = useState<ConflictState | null>(null);
+  // 패치 노트 모달: 초기 동기화(로컬/클라우드)가 끝나기 전까지는 lastSeenPatchVersion을
+  // 신뢰할 수 없으므로 modal을 띄우지 않는다. syncSettled가 true가 되는 시점:
+  // - Firebase 비사용: 즉시
+  // - 로그인: 클라우드 페치 + merge 완료 후
+  // - 로그아웃: auth listener null 브랜치 실행 후
+  const [syncSettled, setSyncSettled] = useState(false);
+  const [showPatchModal, setShowPatchModal] = useState(false);
 
   useEffect(() => {
     if (!isFirebaseConfigured) {
       setUser(null);
+      setSyncSettled(true);
       return;
     }
 
@@ -159,6 +169,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
           }
 
           setSyncReady(true);
+          setSyncSettled(true);
           await startListener(firebaseUser.uid, (progress, daily) => {
             useGameStore.getState()._setFromCloud(progress, daily);
           });
@@ -170,6 +181,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
             useGameStore.setState({ isLocalEmpty: false });
           }
           setSyncReady(true);
+          setSyncSettled(true);
           setUser(null);
           stopListener();
         }
@@ -182,22 +194,72 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     };
   }, [setUser]);
 
+  // 패치 노트 트리거: 동기화 완료 + 온보딩 완료 + "돌아온 유저" + 버전 미확인.
+  // hasCompletedOnboarding은 로컬 storage 기반이라 sync보다 먼저 hydrate되지만,
+  // lastSeenPatchVersion은 클라우드 값이 로컬을 덮어쓸 수 있으므로 syncSettled 후에만 판단한다.
+  // cloud sync가 lastSeenPatchVersion을 늦게 내려보내도 이 effect가 재실행돼서 modal을 닫는다.
+  const lastSeenPatchVersion = useGameStore((s) => s.progress.lastSeenPatchVersion);
+  const hasCompletedOnboarding = useGameStore((s) => s.hasCompletedOnboarding);
+  const totalDaysCompleted = useGameStore((s) => s.progress.totalDaysCompleted);
+  const completionHistoryLength = useGameStore((s) => s.progress.completionHistory?.length ?? 0);
+  const minigameRunsPlayed = useGameStore((s) => s.progress.minigameRunsPlayed);
+
+  useEffect(() => {
+    if (!syncSettled) return;
+    if (conflict) return; // 병합 충돌 다이얼로그와 겹치지 않게
+    if (!hasCompletedOnboarding) return;
+
+    // cloud sync가 lastSeenPatchVersion을 최신으로 갱신했으면 modal을 즉시 닫음
+    if (lastSeenPatchVersion === LATEST_PATCH.version) {
+      setShowPatchModal(false);
+      return;
+    }
+
+    // "돌아온 유저" 신호: 챌린지 완료/기록/미니게임 플레이 중 하나라도 있어야 함
+    const hasActivity =
+      (totalDaysCompleted ?? 0) > 0 ||
+      completionHistoryLength > 0 ||
+      (minigameRunsPlayed ?? 0) > 0;
+    if (!hasActivity) return;
+
+    // 기존 인트로/레벨업 모달과 겹치지 않도록 약간의 지연
+    const timer = setTimeout(() => setShowPatchModal(true), 300);
+    return () => clearTimeout(timer);
+  }, [
+    syncSettled,
+    conflict,
+    hasCompletedOnboarding,
+    lastSeenPatchVersion,
+    totalDaysCompleted,
+    completionHistoryLength,
+    minigameRunsPlayed,
+  ]);
+
+  const handleClosePatchModal = () => {
+    useGameStore.getState().markPatchNotesSeen(LATEST_PATCH.version);
+    setShowPatchModal(false);
+  };
+
   const handleChooseLocal = async () => {
     if (!conflict) return;
     await uploadLocalData(conflict.uid, conflict.localProgress, conflict.localDaily);
+    setSyncReady(true);
     await startListener(conflict.uid, (progress, daily) => {
       useGameStore.getState()._setFromCloud(progress, daily);
     });
     setConflict(null);
+    setSyncSettled(true);
   };
 
   const handleChooseCloud = async () => {
     if (!conflict) return;
     useGameStore.getState()._setFromCloud(conflict.cloudProgress, conflict.cloudDaily);
+    setSyncReady(true);
     await startListener(conflict.uid, (progress, daily) => {
       useGameStore.getState()._setFromCloud(progress, daily);
     });
     setConflict(null);
+    setSyncSettled(true);
   };
 
   return (
@@ -211,6 +273,11 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
             onChooseLocal={handleChooseLocal}
             onChooseCloud={handleChooseCloud}
           />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showPatchModal && !conflict && (
+          <PatchNotesModal patch={LATEST_PATCH} onClose={handleClosePatchModal} />
         )}
       </AnimatePresence>
     </>

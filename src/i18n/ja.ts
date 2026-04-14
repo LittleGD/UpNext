@@ -315,6 +315,11 @@ const ja: Record<DictKey, string> = {
   "minigame.summary.totalMatches": "総マッチ数",
   "minigame.summary.playAgain": "もう一度",
   "minigame.summary.exit": "終了",
+
+  // Patch Notes
+  "patchnotes.title": "アップデート情報",
+  "patchnotes.close": "確認しました",
+  "patchnotes.version": "v{version}",
 };
 
 export default ja;

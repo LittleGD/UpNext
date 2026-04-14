@@ -119,6 +119,7 @@ interface GameStore {
   setNotificationTime: (time: string) => void;
   equipTitle: (titleId: string | null) => void;
   markTitlesSeen: (titleIds: string[]) => void;
+  markPatchNotesSeen: (version: string) => void;
   _setFromCloud: (progress: UserProgress, daily: DailyState) => void;
 
   // 추가 챌린지 시스템
@@ -628,6 +629,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const merged = [...new Set([...current, ...titleIds])];
     if (merged.length === current.length) return;
     const progress = { ...get().progress, seenTitleIds: merged };
+    set({ progress });
+    saveToStorage("progress", progress);
+  },
+
+  markPatchNotesSeen: (version: string) => {
+    if (get().progress.lastSeenPatchVersion === version) return;
+    const progress = { ...get().progress, lastSeenPatchVersion: version };
     set({ progress });
     saveToStorage("progress", progress);
   },

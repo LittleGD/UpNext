@@ -315,6 +315,11 @@ const zh: Record<DictKey, string> = {
   "minigame.summary.totalMatches": "总配对数",
   "minigame.summary.playAgain": "再玩一次",
   "minigame.summary.exit": "退出",
+
+  // Patch Notes
+  "patchnotes.title": "更新日志",
+  "patchnotes.close": "知道了",
+  "patchnotes.version": "v{version}",
 };
 
 export default zh;
