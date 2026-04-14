@@ -315,6 +315,11 @@ const en: Record<DictKey, string> = {
   "minigame.summary.totalMatches": "Total Matches",
   "minigame.summary.playAgain": "Play Again",
   "minigame.summary.exit": "Exit",
+
+  // Patch Notes
+  "patchnotes.title": "What's New",
+  "patchnotes.close": "Got it",
+  "patchnotes.version": "v{version}",
 };
 
 export default en;

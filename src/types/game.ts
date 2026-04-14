@@ -107,6 +107,9 @@ export interface UserProgress {
   tickets: number;                           // 카드매치 미니게임 티켓 (0~10, 상한 10)
   minigameRunsPlayed: number;                // 누적 런 수
   minigameBestMatches: number;               // 단일 런 최대 매치 수
+
+  // === 패치 노트 ===
+  lastSeenPatchVersion?: string;             // 마지막으로 확인한 패치 버전 (모달 중복 노출 방지)
 }
 
 // === 미니게임 티켓 상한 ===

@@ -313,6 +313,11 @@ const ko = {
   "minigame.summary.totalMatches": "총 매치 수",
   "minigame.summary.playAgain": "다시 플레이",
   "minigame.summary.exit": "나가기",
+
+  // Patch Notes
+  "patchnotes.title": "업데이트 노트",
+  "patchnotes.close": "확인했어요",
+  "patchnotes.version": "v{version}",
 } as const;
 
 export type DictKey = keyof typeof ko;
