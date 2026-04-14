@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
 import { motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import type { PatchNote } from "@/data/patchNotes";
 
 interface PatchNotesModalProps {
@@ -16,14 +16,8 @@ export default function PatchNotesModal({ patch, onClose }: PatchNotesModalProps
   const { play } = useSound();
   const { t, language } = useTranslation();
 
-  // 모달이 열려있는 동안 배경 스크롤 락
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  // 모달이 열려있는 동안 배경 스크롤 락 (html + body 모두)
+  useScrollLock();
 
   const headline = patch.headline[language];
   const entries = patch.entries[language];
@@ -34,7 +28,14 @@ export default function PatchNotesModal({ patch, onClose }: PatchNotesModalProps
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-lg px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-lg"
+      style={{
+        // viewportFit: cover 환경에서 모달이 status bar / nav bar 뒤로 밀리지 않도록
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+        paddingLeft: "max(1rem, env(safe-area-inset-left))",
+        paddingRight: "max(1rem, env(safe-area-inset-right))",
+      }}
       onClick={onClose}
     >
       <motion.div

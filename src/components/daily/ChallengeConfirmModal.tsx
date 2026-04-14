@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
 import { motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface ChallengeConfirmModalProps {
   phase: "extra" | "super";
@@ -40,14 +40,8 @@ export default function ChallengeConfirmModal({
   const { t } = useTranslation();
   const config = PHASE_CONFIG[phase];
 
-  // 모달이 열려있는 동안 배경 스크롤 락 — 이전 overflow 값 저장/복원
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  // 모달이 열려있는 동안 배경 스크롤 락 (html + body 모두)
+  useScrollLock();
 
   return (
       <motion.div
@@ -55,7 +49,13 @@ export default function ChallengeConfirmModal({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-lg px-4"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-lg"
+        style={{
+          paddingTop: "max(1rem, env(safe-area-inset-top))",
+          paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+          paddingLeft: "max(1rem, env(safe-area-inset-left))",
+          paddingRight: "max(1rem, env(safe-area-inset-right))",
+        }}
         onClick={onCancel}
       >
         <motion.div

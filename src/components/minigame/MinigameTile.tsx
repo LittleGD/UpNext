@@ -7,6 +7,8 @@ import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
 import { CATEGORY_ICONS } from "@/components/icons";
 import { SKILL_DEFINITIONS } from "@/data/minigame";
+import { cardTitle } from "@/i18n";
+import { useTranslation } from "@/hooks/useTranslation";
 import CardBack from "./CardBack";
 import type { MinigameTile as MinigameTileType } from "@/types/minigame";
 
@@ -134,6 +136,8 @@ function TileFront({
   tile: MinigameTileType;
   sizePx: number;
 }) {
+  const { language } = useTranslation();
+
   if (tile.kind === "challenge" && tile.card) {
     const rarity = tile.card.rarity;
     const color = RARITY_CONFIG[rarity].color;
@@ -156,7 +160,7 @@ function TileFront({
           className="typo-micro text-text-primary text-center leading-tight line-clamp-2 px-0.5"
           style={{ fontSize: Math.max(8, sizePx * 0.1) }}
         >
-          {tile.card.title}
+          {cardTitle(tile.card, language)}
         </div>
       </div>
     );

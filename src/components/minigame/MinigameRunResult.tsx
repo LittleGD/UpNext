@@ -10,13 +10,14 @@ import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
 import { CATEGORY_ICONS } from "@/components/icons";
 import PixelIcon from "@/components/icons/PixelIcon";
+import { cardTitle } from "@/i18n";
 
 /**
  * 매치된 챌린지 카드 중 1~2장을 선택 → 콜렉션/XP 지급.
  * Double Loot 버프 활성 시 2장.
  */
 export default function MinigameRunResult() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const matchedAllRun = useMinigameStore((s) => s.matchedAllRun);
   const doubleLootActive = useMinigameStore((s) => s.doubleLootActive);
   const roundsCleared = useMinigameStore((s) => s.roundsCleared);
@@ -144,7 +145,7 @@ export default function MinigameRunResult() {
                   color={color}
                 />
                 <p className="typo-micro text-text-primary text-center line-clamp-2 leading-tight">
-                  {tile.card.title}
+                  {cardTitle(tile.card, language)}
                 </p>
                 {owned && (
                   <span className="typo-micro text-text-tertiary">
@@ -202,7 +203,7 @@ export default function MinigameRunResult() {
                   color={RARITY_CONFIG[zoomedTile.card.rarity].color}
                 />
                 <p className="typo-body text-text-primary text-center">
-                  {zoomedTile.card.title}
+                  {cardTitle(zoomedTile.card, language)}
                 </p>
               </div>
             </motion.div>

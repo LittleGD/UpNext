@@ -8,13 +8,14 @@ import { RARITY_CONFIG } from "@/data/rarityConfig";
 import { CATEGORY_ICONS } from "@/components/icons";
 import { SKILL_DEFINITIONS } from "@/data/minigame";
 import { useTranslation } from "@/hooks/useTranslation";
+import { cardTitle, cardDesc } from "@/i18n";
 
 /**
  * 재탭 확대 — zoomedTileIdx가 설정되면 풀스크린 오버레이로 타일을 확대 표시.
  * 5×4 그리드에서 챌린지 설명 가독성 확보용.
  */
 export default function MinigameTileZoom() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const zoomedIdx = useMinigameStore((s) => s.zoomedTileIdx);
   const board = useMinigameStore((s) => s.board);
   const flipCard = useMinigameStore((s) => s.flipCard);
@@ -59,10 +60,10 @@ export default function MinigameTileZoom() {
                     color={RARITY_CONFIG[tile.card.rarity].color}
                   />
                   <h3 className="typo-title text-text-primary text-center">
-                    {tile.card.title}
+                    {cardTitle(tile.card, language)}
                   </h3>
                   <p className="typo-caption text-text-secondary text-center">
-                    {tile.card.description}
+                    {cardDesc(tile.card, language)}
                   </p>
                 </div>
               </>

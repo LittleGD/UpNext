@@ -360,7 +360,11 @@ export default function CardDrawScreen() {
           transition={isShaking ? { duration: Math.max(0.2, 0.45 - holdProgress * 0.2), repeat: Infinity } : {}}
           className="relative"
         >
-          {/* Ambient radial glow — grows during hold */}
+          {/* Ambient radial glow — grows during hold
+              NOTE: framer-motion의 animate={{ scale }}가 style.transform을 덮어쓰기 때문에
+              `translate(-50%, -50%)` 대신 motion value 키인 x/y를 써야 animate와 composable.
+              그렇지 않으면 glow가 left:50% 기준으로 우측에만 렌더되어 뷰포트 밖으로 삐져나온다
+              (horizontal scroll 원인). */}
           <motion.div
             animate={{
               opacity: isHolding ? holdProgress * 0.35 : 0.06,
@@ -373,7 +377,8 @@ export default function CardDrawScreen() {
               height: 280,
               left: "50%",
               top: "50%",
-              transform: "translate(-50%, -50%)",
+              x: "-50%",
+              y: "-50%",
               background: "radial-gradient(circle, rgba(205, 245, 100, 0.15) 0%, transparent 70%)",
               filter: "blur(40px)",
             }}
