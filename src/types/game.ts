@@ -126,11 +126,11 @@ export const XP_PER_RARITY: Record<string, number> = {
 
 // === 특정 레벨까지 필요한 총 누적 XP ===
 export function totalXPForLevel(level: number): number {
-  return level * (50 + 10 * level);
+  return level * (80 + 20 * level);
 }
 
 // === 레벨업에 필요한 XP (totalXPForLevel 기준 파생) ===
-// Level 0→1: 60, 1→2: 80, 2→3: 100, 3→4: 120, 4→5: 140, ...
+// Level 0→1: 100, 1→2: 140, 2→3: 180, 3→4: 220, 4→5: 260, ...
 export function xpToNextLevel(level: number): number {
   return totalXPForLevel(level + 1) - totalXPForLevel(level);
 }

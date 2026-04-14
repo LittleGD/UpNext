@@ -12,7 +12,7 @@ interface CardBackProps {
   categoryHintActive: boolean;
   compassHinted: boolean;
   peekHinted: boolean;           // scout's eye / peek2
-  rarityBorder: boolean;         // compass 보상 활성 시 뒷면에 rarity 테두리
+  rarityBorder: boolean;         // appraisal 보상 활성 시 뒷면에 rarity 테두리
 }
 
 /**

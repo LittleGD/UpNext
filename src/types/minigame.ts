@@ -20,15 +20,15 @@ export type SkillEffectId = "chancesPlus2" | "peek2" | "mulligan" | "compass";
 export type CurseEffectId = "loseChanceAndStripBuff";
 export type RewardEffectId =
   | "steelNerves"
-  | "luckyCharm"
-  | "scoutsEye"
   | "rareSurge"
   | "duplicateStash"
   | "warded"
-  | "compass"
-  | "dualEcho"
-  | "skillAmp"
-  | "doubleLoot";
+  | "appraisal"      // 런 내내 뒷면에 희귀도 테두리 (구 compass 보상)
+  | "doubleLoot"
+  | "wideEye"        // 다음 라운드 opening peek 1.5s → 3s
+  | "chainAwaken"    // 3연속 매치 성공 시 +1 chance (라운드 1회)
+  | "firstHarvest"   // 라운드 내 첫 매치 성공 시 peek2 자동 발동
+  | "xpBloom";       // 다음 라운드 모든 매치 XP +50%
 
 // === 보드 타일 ===
 // 그리드에 배치되는 카드 하나 = 정상 챌린지 카드, 스킬 카드, 저주 카드 셋 중 하나
@@ -77,19 +77,18 @@ export interface RoundConfig {
 
 export const ROUND_CONFIGS: Record<1 | 2 | 3, RoundConfig> = {
   1: { rows: 4, cols: 4, normalPairs: 7, skillPairs: 1, cursePairs: 0, chances: 4, openingPeek: true },
-  2: { rows: 4, cols: 5, normalPairs: 8, skillPairs: 1, cursePairs: 1, chances: 4, openingPeek: false },
-  3: { rows: 6, cols: 4, normalPairs: 9, skillPairs: 2, cursePairs: 1, chances: 4, openingPeek: false },
+  2: { rows: 4, cols: 5, normalPairs: 8, skillPairs: 1, cursePairs: 1, chances: 4, openingPeek: true },
+  3: { rows: 6, cols: 4, normalPairs: 9, skillPairs: 2, cursePairs: 1, chances: 4, openingPeek: true },
 };
 
 // === 타이밍 상수 ===
 export const CATEGORY_FLASH_MS = 2500;    // 라운드 시작 카테고리 힌트 노출
-export const ROUND1_PEEK_MS = 1500;        // Round 1 모든 카드 공개
+export const ROUND1_PEEK_MS = 1500;        // Opening peek 기본값 (모든 라운드 공통)
+export const ROUND_PEEK_MS_EXTENDED = 3000; // wideEye 보상 적용 시
 export const ECHO_GHOST_MS = 700;          // 실패 카드 잔상
-export const ECHO_GHOST_MS_DUAL = 1500;    // Dual Echo 보상 적용 시
 export const MISMATCH_REVEAL_MS = 800;     // 불일치 시 카드 공개 유지 시간
 export const PEEK2_MS = 2000;              // peek2 스킬 공개 시간
 export const COMPASS_HINT_MS = 2500;       // compass 스킬 인접 공개 시간
-export const SCOUTS_EYE_MS = 2000;         // Scout's Eye 보상 공개 시간
 
 // === 런 스탯 ===
 export interface MinigameRunStats {

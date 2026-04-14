@@ -542,7 +542,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // 카드팩 열기
   // - 보너스 카드(pendingBonusCards) 우선 소진: 1장
-  // - 레벨업 팩(pendingPacks): 3장
+  // - 레벨업 팩(pendingPacks): 2장
   // 둘 다 없으면 빈 배열
   openCardPack: () => {
     const { progress } = get();
@@ -562,9 +562,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return [];
     }
 
-    // 보너스 카드 먼저 (1장), 그 다음에 레벨업 팩 (3장)
+    // 보너스 카드 먼저 (1장), 그 다음에 레벨업 팩 (2장)
     const isBonus = pendingBonusCards > 0;
-    const count = isBonus ? 1 : 3;
+    const count = isBonus ? 1 : 2;
     const newCards = drawFromPool(lockedCards, count);
 
     const updatedProgress = {
@@ -854,8 +854,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (hasLockedCards) {
         updatedProgress.pendingBonusCards += 1;
       }
-      // 미니게임 티켓 지급: extra +1 / super +2 (상한 10)
-      const ticketGain = phase === "super" ? 2 : 1;
+      // 미니게임 티켓 지급: phase 완주당 +1 (daily+extra+super = 3장, 상한 10)
+      const ticketGain = 1;
       updatedProgress.tickets = Math.min(
         MINIGAME_TICKET_CAP,
         (updatedProgress.tickets || 0) + ticketGain,
