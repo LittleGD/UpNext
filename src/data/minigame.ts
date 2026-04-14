@@ -75,6 +75,7 @@ export const CURSE_DEFINITIONS: Record<CurseEffectId, CurseDefinition> = {
 // 라운드 종료 후 이 풀에서 tier 가중치 반영해 3개 랜덤 뽑음
 // tier는 메인 앱 rarity 체계와 통합: rare → unique → legend
 // 가중치: rare × 3 / unique × 2 / legend × 1
+// 구성: rare 4종 / unique 5종 / legend 1종
 export const REWARD_POOL: RewardDefinition[] = [
   {
     id: "steelNerves",
@@ -84,24 +85,24 @@ export const REWARD_POOL: RewardDefinition[] = [
     scope: "round",
   },
   {
-    id: "luckyCharm",
-    tier: "rare",
-    nameKey: "minigame.reward.luckyCharm.name",
-    descKey: "minigame.reward.luckyCharm.desc",
-    scope: "round",
-  },
-  {
-    id: "scoutsEye",
-    tier: "rare",
-    nameKey: "minigame.reward.scoutsEye.name",
-    descKey: "minigame.reward.scoutsEye.desc",
-    scope: "round",
-  },
-  {
     id: "rareSurge",
     tier: "rare",
     nameKey: "minigame.reward.rareSurge.name",
     descKey: "minigame.reward.rareSurge.desc",
+    scope: "round",
+  },
+  {
+    id: "wideEye",
+    tier: "rare",
+    nameKey: "minigame.reward.wideEye.name",
+    descKey: "minigame.reward.wideEye.desc",
+    scope: "round",
+  },
+  {
+    id: "firstHarvest",
+    tier: "rare",
+    nameKey: "minigame.reward.firstHarvest.name",
+    descKey: "minigame.reward.firstHarvest.desc",
     scope: "round",
   },
   {
@@ -119,24 +120,24 @@ export const REWARD_POOL: RewardDefinition[] = [
     scope: "round",
   },
   {
-    id: "compass",
+    id: "appraisal",
     tier: "unique",
-    nameKey: "minigame.reward.compass.name",
-    descKey: "minigame.reward.compass.desc",
+    nameKey: "minigame.reward.appraisal.name",
+    descKey: "minigame.reward.appraisal.desc",
     scope: "run",
   },
   {
-    id: "dualEcho",
+    id: "chainAwaken",
     tier: "unique",
-    nameKey: "minigame.reward.dualEcho.name",
-    descKey: "minigame.reward.dualEcho.desc",
+    nameKey: "minigame.reward.chainAwaken.name",
+    descKey: "minigame.reward.chainAwaken.desc",
     scope: "round",
   },
   {
-    id: "skillAmp",
-    tier: "legend",
-    nameKey: "minigame.reward.skillAmp.name",
-    descKey: "minigame.reward.skillAmp.desc",
+    id: "xpBloom",
+    tier: "unique",
+    nameKey: "minigame.reward.xpBloom.name",
+    descKey: "minigame.reward.xpBloom.desc",
     scope: "round",
   },
   {

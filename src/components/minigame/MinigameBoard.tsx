@@ -17,7 +17,7 @@ export default function MinigameBoard() {
   const categoryHintActive = useMinigameStore((s) => s.categoryHintActive);
   const compassHintIdxs = useMinigameStore((s) => s.compassHintIdxs);
   const peekHintIdxs = useMinigameStore((s) => s.peekHintIdxs);
-  const compassBorderActive = useMinigameStore((s) => s.compassBorderActive);
+  const appraisalBorderActive = useMinigameStore((s) => s.appraisalBorderActive);
   const echoGhosts = useMinigameStore((s) => s.echoGhosts);
 
   const config = ROUND_CONFIGS[currentRound];
@@ -85,7 +85,7 @@ export default function MinigameBoard() {
             categoryHintActive={categoryHintActive}
             compassHinted={compassSet.has(idx)}
             peekHinted={peekSet.has(idx)}
-            rarityBorder={compassBorderActive}
+            rarityBorder={appraisalBorderActive}
             echoGhostActive={activeGhostIdxs.has(idx)}
             disabled={disabled}
           />

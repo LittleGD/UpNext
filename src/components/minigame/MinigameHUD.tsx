@@ -23,7 +23,7 @@ export default function MinigameHUD() {
   const visibleBuffs = activeBuffs.filter((b) => !b.consumed);
   // run 스코프(=전 라운드 지속) 버프만 pulse glow — 즉각적인 "지금 작동 중" 피드백.
   const isRunScoped = (id: string) =>
-    id === "compass" || id === "doubleLoot" || id === "duplicateStash";
+    id === "appraisal" || id === "doubleLoot" || id === "duplicateStash";
 
   return (
     <div
