@@ -63,7 +63,15 @@ export default function CardDrawScreen() {
   const isSelectionFull = selectedCount >= maxCards;
 
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [flyingId, setFlyingId] = useState<string | null>(null);
+  // 프리뷰 카드 exit 방향 — "up" = 선택 확정(위로 날아감), "down" = 취소(아래로 사라짐).
+  // 이전에는 "위로 가는 모션"과 "아래로 가는 모션"이 동일해서 유저가 선택/취소를
+  // 시각적으로 구분할 수 없었음. 방향 기반 exit 애니메이션으로 해소.
+  const [previewExitDir, setPreviewExitDir] = useState<"up" | "down" | null>(null);
+  // exit 진행 여부를 ref로 추적. ref를 쓰는 이유: setState 업데이터 안에서 side effect를
+  // 일으키면 React 동시 렌더링/StrictMode 2중 호출로 setTimeout이 중복 실행될 위험이 있어
+  // 일반 setter + 외부 ref 가드 패턴이 안전함.
+  const previewExitingRef = useRef(false);
+  const previewExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showRerollConfirm, setShowRerollConfirm] = useState(false);
   const handScrollRef = useRef<HTMLDivElement>(null);
 
@@ -85,13 +93,31 @@ export default function CardDrawScreen() {
     }
   }, [phaseIsDrawComplete, isSelectionFull]);
 
-  const dismissPreview = useCallback(() => setPreviewId(null), []);
+  // 프리뷰 exit는 `animate` prop을 이용해 처리. AnimatePresence의 `exit` prop은
+  // unmount 직전의 마지막 렌더 시점 값을 캡처하므로, prop을 변경하고 같은 렌더 사이클에
+  // unmount 하면 구 값이 캡처될 수 있음. mount된 상태에서 animate 타깃을 바꾼 뒤
+  // fixed timeout 후 unmount 하는 방식이 타이밍에 무관하게 안정적임.
+  const PREVIEW_EXIT_MS = 320;
+
+  const dismissPreview = useCallback(() => {
+    if (previewExitingRef.current) return; // 이미 exit 진행 중 — 무시
+    previewExitingRef.current = true;
+    setPreviewExitDir("down");
+    previewExitTimerRef.current = setTimeout(() => {
+      setPreviewId(null);
+      setPreviewExitDir(null);
+      previewExitingRef.current = false;
+      previewExitTimerRef.current = null;
+    }, PREVIEW_EXIT_MS);
+  }, []);
 
   const handlePreview = useCallback(
     (cardId: string) => {
       if (isSelectionFull) return;
+      if (previewExitingRef.current) return; // exit 중에는 새 프리뷰 열지 않음
       play("cardPreview");
-      setPreviewId((prev) => (prev === cardId ? null : cardId));
+      setPreviewExitDir(null);
+      setPreviewId(cardId);
     },
     [isSelectionFull, play]
   );
@@ -99,19 +125,23 @@ export default function CardDrawScreen() {
   const handleConfirmCard = useCallback(
     (card: ChallengeCard) => {
       if (phaseSelectedCards.some((c) => c.id === card.id)) return;
+      if (previewExitingRef.current) return; // 이미 exit 진행 중 — 중복 방지
+      previewExitingRef.current = true;
       play("cardSelect");
-      setFlyingId(card.id);
-      setTimeout(() => {
+      setPreviewExitDir("up");
+      previewExitTimerRef.current = setTimeout(() => {
         if (phase === "daily") {
           selectCard(card);
         } else {
           selectPhaseCard(card);
         }
         setPreviewId(null);
-        setFlyingId(null);
-      }, 300);
+        setPreviewExitDir(null);
+        previewExitingRef.current = false;
+        previewExitTimerRef.current = null;
+      }, PREVIEW_EXIT_MS);
     },
-    [phaseSelectedCards, selectCard, selectPhaseCard, phase]
+    [phaseSelectedCards, selectCard, selectPhaseCard, phase, play]
   );
 
   // 덱 홀드 핸들러
@@ -167,6 +197,10 @@ export default function CardDrawScreen() {
       if (holdTimerRef.current) {
         clearInterval(holdTimerRef.current);
         holdTimerRef.current = null;
+      }
+      if (previewExitTimerRef.current) {
+        clearTimeout(previewExitTimerRef.current);
+        previewExitTimerRef.current = null;
       }
     };
   }, []);
@@ -775,20 +809,26 @@ export default function CardDrawScreen() {
         </div>
       )}
 
-      {/* 프리뷰 카드 — 오버레이 */}
+      {/* 프리뷰 카드 — 오버레이. 카드 본체의 exit(위/아래 방향)는 PreviewCard의
+          animate prop이 담당하고, overlay 배경은 이 motion.div의 fade in/out 으로 처리. */}
       <AnimatePresence>
-        {previewCard && flyingId !== previewCard.id && (
-          <div
+        {previewCard && (
+          <motion.div
+            key="preview-overlay"
             className="fixed inset-0 z-30 flex items-center justify-center bg-black/50"
             onClick={dismissPreview}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
           >
             <PreviewCard
-              key="preview"
               card={previewCard}
+              exitDir={previewExitDir}
               onConfirm={() => handleConfirmCard(previewCard)}
               onDismiss={dismissPreview}
             />
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -846,50 +886,44 @@ export default function CardDrawScreen() {
       </AnimatePresence>
 
       {/* 하단: 카드 핸드 */}
-      {(() => {
-        return (
-          <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] left-0 right-0 z-[5]">
-            <div
-              ref={handScrollRef}
-              className="overflow-x-auto overflow-y-visible scrollbar-hide pt-[50vh] -mt-[50vh] pb-1"
-              style={{ WebkitOverflowScrolling: "touch" }}
-            >
-              <div className="flex items-end gap-0 w-fit mx-auto px-4 md:px-8">
-              {unselectedCards.map((card, i) => {
-                const isPreview = previewId === card.id;
-                const isFlying = flyingId === card.id;
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] left-0 right-0 z-[5]">
+        <div
+          ref={handScrollRef}
+          className="overflow-x-auto overflow-y-visible scrollbar-hide pt-[50vh] -mt-[50vh] pb-1"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <div className="flex items-end gap-0 w-fit mx-auto px-4 md:px-8">
+            {unselectedCards.map((card, i) => {
+              const isPreview = previewId === card.id;
 
-                return (
-                  <HandCard
-                    key={card.id}
-                    card={card}
-                    index={i}
-                    isPreview={isPreview}
-                    isFlying={isFlying}
-                    isDimmed={false}
-                    disabled={isSelectionFull}
-                    onTap={() => {
-                      if (isPreview) {
-                        handleConfirmCard(card);
-                      } else {
-                        handlePreview(card.id);
-                      }
-                    }}
-                    onSwipeUp={() => {
-                      if (isPreview) {
-                        handleConfirmCard(card);
-                      } else {
-                        handlePreview(card.id);
-                      }
-                    }}
-                  />
-                );
-              })}
-              </div>
-            </div>
+              return (
+                <HandCard
+                  key={card.id}
+                  card={card}
+                  index={i}
+                  isPreview={isPreview}
+                  isDimmed={false}
+                  disabled={isSelectionFull}
+                  onTap={() => {
+                    if (isPreview) {
+                      handleConfirmCard(card);
+                    } else {
+                      handlePreview(card.id);
+                    }
+                  }}
+                  onSwipeUp={() => {
+                    if (isPreview) {
+                      handleConfirmCard(card);
+                    } else {
+                      handlePreview(card.id);
+                    }
+                  }}
+                />
+              );
+            })}
           </div>
-        );
-      })()}
+        </div>
+      </div>
 
     </div>
   );
@@ -900,7 +934,6 @@ function HandCard({
   card,
   index,
   isPreview,
-  isFlying,
   isDimmed,
   disabled,
   onTap,
@@ -909,7 +942,6 @@ function HandCard({
   card: ChallengeCard;
   index: number;
   isPreview: boolean;
-  isFlying: boolean;
   isDimmed: boolean;
   disabled: boolean;
   onTap: () => void;
@@ -939,13 +971,13 @@ function HandCard({
     <motion.div
       initial={{ y: 200, opacity: 0 }}
       animate={{
-        y: isFlying ? -600 : isPreview ? -20 : 0,
-        scale: isFlying ? 0.8 : isPreview ? 1.05 : 1,
-        opacity: isFlying ? 0 : isPreview ? 0 : isDimmed ? 0.35 : 1,
+        y: isPreview ? -20 : 0,
+        scale: isPreview ? 1.05 : 1,
+        opacity: isPreview ? 0 : isDimmed ? 0.35 : 1,
       }}
       transition={{ ...springBouncy, delay: index * 0.08 }}
       style={{
-        y: isPreview || isFlying ? undefined : y,
+        y: isPreview ? undefined : y,
         scale: isPreview ? undefined : scale,
         zIndex: isPreview ? 50 : index,
         marginLeft: index === 0 ? 0 : "clamp(-16px, -1.5vw, -6px)",
@@ -958,8 +990,8 @@ function HandCard({
       dragSnapToOrigin
       onDragEnd={handleDragEnd}
       onClick={onTap}
-      onHoverStart={() => { if (!disabled && !isPreview && !isFlying) play("cardHover"); }}
-      whileHover={!disabled && !isPreview && !isFlying ? { y: -8, transition: { type: "spring", stiffness: 400, damping: 20 } } : {}}
+      onHoverStart={() => { if (!disabled && !isPreview) play("cardHover"); }}
+      whileHover={!disabled && !isPreview ? { y: -8, transition: { type: "spring", stiffness: 400, damping: 20 } } : {}}
       className="w-[clamp(80px,18vw,120px)] h-[clamp(112px,25vw,168px)] md:w-[140px] md:h-[196px] lg:w-[160px] lg:h-[224px] flex-shrink-0 snap-center rounded-lg p-2 md:p-3 flex flex-col items-center justify-between bg-bg-elevated grid-border cursor-pointer active:cursor-grabbing relative overflow-hidden"
       whileTap={{ scale: 1.05 }}
     >
@@ -983,10 +1015,12 @@ function HandCard({
 /* ── 프리뷰 카드 (중앙 확대) ── */
 function PreviewCard({
   card,
+  exitDir,
   onConfirm,
   onDismiss,
 }: {
   card: ChallengeCard;
+  exitDir: "up" | "down" | null;
   onConfirm: () => void;
   onDismiss: () => void;
 }) {
@@ -994,42 +1028,50 @@ function PreviewCard({
   const { t, language } = useTranslation();
   const isMd = useMediaQuery("(min-width: 768px)");
   const isLg = useMediaQuery("(min-width: 1024px)");
-  const y = useMotionValue(0);
-  const cardScale = useTransform(y, [0, -100], [1, 1.05]);
-  const cardOpacity = useTransform(y, [0, -140], [1, 0.6]);
 
-  const handleDragEnd = useCallback(
-    (_: unknown, info: PanInfo) => {
-      const currentY = y.get();
-      // 위로 밀기 → 선택
-      if (currentY < SWIPE_UP_THRESHOLD || info.velocity.y < -400) {
-        onConfirm();
-      }
-      // 3. 아래로 내리기 → 손으로 복귀
-      if (currentY > SWIPE_DOWN_THRESHOLD || info.velocity.y > 300) {
-        onDismiss();
-      }
-    },
-    [y, onConfirm, onDismiss]
-  );
+  // 드래그 거리 + 속도 기반 스와이프 판정. 거리 임계값을 넘기거나 빠른 flick(높은 velocity)이면
+  // 해당 방향으로 exit. HandCard 와 동일한 감도로 맞춰 일관된 UX 제공.
+  const handleDragEnd = (
+    _e: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
+    if (info.offset.y < SWIPE_UP_THRESHOLD || info.velocity.y < -400) {
+      onConfirm();
+    } else if (info.offset.y > SWIPE_DOWN_THRESHOLD || info.velocity.y > 400) {
+      onDismiss();
+    }
+    // 그 외 경우: dragSnapToOrigin 이 원위치로 복귀시킴
+  };
+
+  // exit 방향 → 최종 animate 목표. exitDir 이 설정되기 전엔 기본 enter 상태.
+  const targetAnimate =
+    exitDir === "up"
+      ? { opacity: 0, y: -520, scale: 0.92 }
+      : exitDir === "down"
+        ? { opacity: 0, y: 220, scale: 0.78 }
+        : { opacity: 1, y: 0, scale: 1 };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 80, scale: 0.85 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 120, scale: 0.7 }}
-      transition={springSnappy}
-      style={{ y, scale: cardScale, opacity: cardOpacity, boxShadow: rarityGlow(card.rarity) }}
-      drag="y"
-      dragConstraints={{ top: -180, bottom: 140 }}
-      dragElastic={0.35}
+      initial={{ opacity: 0, y: 0, scale: 0.85 }}
+      animate={targetAnimate}
+      transition={
+        exitDir
+          ? { duration: 0.32, ease: [0.32, 0.72, 0, 1] }
+          : springSnappy
+      }
+      drag={exitDir ? false : "y"}
+      dragConstraints={{ top: -180, bottom: 120 }}
+      dragElastic={0.45}
       dragSnapToOrigin
       onDragEnd={handleDragEnd}
+      style={{ boxShadow: rarityGlow(card.rarity) }}
       onClick={(e) => {
         e.stopPropagation(); // 카드 클릭이 배경으로 전파되지 않게
+        if (exitDir) return; // 이미 exit 중이면 무시
         onConfirm();
       }}
-      className="w-[min(240px,60vw)] md:w-[300px] lg:w-[340px] rounded-lg p-5 md:p-6 flex flex-col gap-3 bg-bg-elevated grid-border-accent cursor-grab active:cursor-grabbing relative overflow-hidden"
+      className="w-[min(240px,60vw)] md:w-[300px] lg:w-[340px] rounded-lg p-5 md:p-6 flex flex-col gap-3 bg-bg-elevated grid-border-accent cursor-pointer active:cursor-grabbing relative overflow-hidden"
     >
       <RarityTexture rarity={card.rarity} />
       {/* 스와이프 힌트 */}
