@@ -206,6 +206,7 @@ const zh: Record<DictKey, string> = {
   "category.social": "社交",
   "category.productivity": "效率",
   "category.wellness": "健康",
+  "category.trending": "潮流",
 
   // === language ===
   "language.toggle": "语言设置",

@@ -204,6 +204,7 @@ const ko = {
   "category.social": "소통",
   "category.productivity": "생산성",
   "category.wellness": "건강",
+  "category.trending": "트렌드",
 
   // === language ===
   "language.toggle": "언어설정",

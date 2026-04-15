@@ -206,6 +206,7 @@ const en: Record<DictKey, string> = {
   "category.social": "Social",
   "category.productivity": "Productivity",
   "category.wellness": "Wellness",
+  "category.trending": "Trending",
 
   // === language ===
   "language.toggle": "Language",

@@ -56,4 +56,25 @@ export const STARTER_PACKS: StarterPack[] = [
       "productivity-002", // 내일 할 일 3개 적기
     ],
   },
+  {
+    id: "global-trends",
+    name: "글로벌 트렌드",
+    nameEn: "Global Trends",
+    nameJa: "グローバルトレンド",
+    nameZh: "全球潮流",
+    description: "한·일·중·미 Z세대가 SNS에서 따라하는 갓생 챌린지",
+    descriptionEn: "Z-gen daily-life trends from KR · JP · CN · US",
+    descriptionJa: "韓・日・中・米のZ世代が実践するトレンド習慣",
+    descriptionZh: "韩日中美Z世代的潮流自律挑战",
+    icon: "Globe",
+    color: "var(--accent-secondary)",
+    cardIds: [
+      "trending-001",  // 모닝 페이지 (KR)
+      "trending-009",  // 백탕 한 잔 (JP)
+      "trending-017",  // 자오바 인증 (CN)
+      "trending-027",  // 4-7-8 호흡법 (US)
+      "trending-018",  // 자율 체크인 (CN)
+      "trending-026",  // 무드 트래킹 (US)
+    ],
+  },
 ];

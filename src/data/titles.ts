@@ -11,6 +11,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   social: "소통",
   productivity: "생산성",
   wellness: "건강",
+  trending: "트렌드",
 };
 
 // === 카테고리 영문 라벨 ===
@@ -22,6 +23,7 @@ export const CATEGORY_LABELS_EN: Record<Category, string> = {
   social: "Social",
   productivity: "Productivity",
   wellness: "Wellness",
+  trending: "Trending",
 };
 
 // === カテゴリ日本語ラベル ===
@@ -33,6 +35,7 @@ export const CATEGORY_LABELS_JA: Record<Category, string> = {
   social: "コミュニケーション",
   productivity: "生産性",
   wellness: "ウェルネス",
+  trending: "トレンド",
 };
 
 // === 카테고리 中文 라벨 ===
@@ -44,6 +47,7 @@ export const CATEGORY_LABELS_ZH: Record<Category, string> = {
   social: "社交",
   productivity: "效率",
   wellness: "健康",
+  trending: "潮流",
 };
 
 // === 카테고리 라벨 헬퍼 ===
@@ -66,11 +70,12 @@ export const CATEGORY_ICONS: Record<Category, string> = {
   social: "Mail",
   productivity: "ClipboardNote",
   wellness: "Heart",
+  trending: "Globe",
 };
 
 // === 전체 칭호 목록 ===
 const categories: Category[] = [
-  "fitness", "nutrition", "mindfulness", "learning", "social", "productivity", "wellness",
+  "fitness", "nutrition", "mindfulness", "learning", "social", "productivity", "wellness", "trending",
 ];
 
 const categoryTitleNames: Record<Category, Record<string, string>> = {
@@ -81,6 +86,7 @@ const categoryTitleNames: Record<Category, Record<string, string>> = {
   social: { normal: "소통 입문자", rare: "소통 실천가", unique: "소통 마스터", legend: "소통 레전드" },
   productivity: { normal: "정리 입문자", rare: "정리 실천가", unique: "정리 마스터", legend: "정리 레전드" },
   wellness: { normal: "건강 입문자", rare: "건강 실천가", unique: "건강 마스터", legend: "건강 레전드" },
+  trending: { normal: "트렌드 워처", rare: "글로벌 시그널러", unique: "컬처 라이더", legend: "Z게이지 아이콘" },
 };
 
 const categoryTitleNamesEn: Record<Category, Record<string, string>> = {
@@ -91,6 +97,7 @@ const categoryTitleNamesEn: Record<Category, Record<string, string>> = {
   social: { normal: "Social Beginner", rare: "Social Achiever", unique: "Social Master", legend: "Social Legend" },
   productivity: { normal: "Productivity Beginner", rare: "Productivity Achiever", unique: "Productivity Master", legend: "Productivity Legend" },
   wellness: { normal: "Wellness Beginner", rare: "Wellness Achiever", unique: "Wellness Master", legend: "Wellness Legend" },
+  trending: { normal: "Trend Watcher", rare: "Global Signaler", unique: "Culture Rider", legend: "Z-Gauge Icon" },
 };
 
 const categoryTitleNamesJa: Record<Category, Record<string, string>> = {
@@ -101,6 +108,7 @@ const categoryTitleNamesJa: Record<Category, Record<string, string>> = {
   social: { normal: "コミュニケーション入門", rare: "コミュニケーション実践者", unique: "コミュニケーションマスター", legend: "コミュニケーションレジェンド" },
   productivity: { normal: "整理入門", rare: "整理実践者", unique: "整理マスター", legend: "整理レジェンド" },
   wellness: { normal: "ウェルネス入門", rare: "ウェルネス実践者", unique: "ウェルネスマスター", legend: "ウェルネスレジェンド" },
+  trending: { normal: "トレンドウォッチャー", rare: "グローバルシグナラー", unique: "カルチャーライダー", legend: "Zゲージアイコン" },
 };
 
 const categoryTitleNamesZh: Record<Category, Record<string, string>> = {
@@ -111,6 +119,7 @@ const categoryTitleNamesZh: Record<Category, Record<string, string>> = {
   social: { normal: "社交入门", rare: "社交达人", unique: "社交大师", legend: "社交传奇" },
   productivity: { normal: "效率入门", rare: "效率达人", unique: "效率大师", legend: "效率传奇" },
   wellness: { normal: "健康入门", rare: "健康达人", unique: "健康大师", legend: "健康传奇" },
+  trending: { normal: "潮流观察者", rare: "全球信号者", unique: "文化骑手", legend: "Z标杆ICON" },
 };
 
 const categoryThresholds = [
@@ -120,7 +129,7 @@ const categoryThresholds = [
   { rarity: "legend" as const, count: 50 },
 ];
 
-// 카테고리별 칭호 (7 카테고리 x 4 등급 = 28개)
+// 카테고리별 칭호 (8 카테고리 x 4 등급 = 32개)
 const categoryTitles: TitleDefinition[] = categories.flatMap((cat) =>
   categoryThresholds.map(({ rarity, count }) => ({
     id: `title-${cat}-${rarity}`,

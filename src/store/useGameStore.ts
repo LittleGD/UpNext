@@ -33,6 +33,7 @@ function getInitialProgress(): UserProgress {
       social: 0,
       productivity: 0,
       wellness: 0,
+      trending: 0,
     },
     mode: "normal",
     level: 0,
@@ -159,6 +160,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const today = getTodayString();
 
     const progress = { ...getInitialProgress(), ...savedProgress } as UserProgress;
+    // 신규 카테고리 idempotent 백필 — 기존 유저의 categoryCompletions 에 누락된 키가 있으면 0 으로 채움
+    // (saved spread 가 nested object 까지 깊이 머지하지 않으므로 신규 키는 여기서 보강해야 한다)
+    progress.categoryCompletions = {
+      ...getInitialProgress().categoryCompletions,
+      ...progress.categoryCompletions,
+    };
+    // 신규 카테고리(trending) starter 카드 idempotent 백필 —
+    // 트렌드 카테고리는 "각국 트렌드 노출" 자체가 핵심 가치라서 starter pack 선택과 무관하게
+    // unlockCondition 없는 11장이 모든 유저의 deck 에 항상 들어 있어야 한다.
+    // (기존 카테고리는 pack 픽 결과를 존중하여 건드리지 않음 — curated 6장 UX 보존)
+    const trendingStarterIds = ALL_CARDS.filter(
+      (c) => c.category === "trending" && !c.unlockCondition
+    ).map((c) => c.id);
+    const missingTrendingStarters = trendingStarterIds.filter(
+      (id) => !progress.unlockedCardIds.includes(id)
+    );
+    if (missingTrendingStarters.length > 0) {
+      progress.unlockedCardIds = [...progress.unlockedCardIds, ...missingTrendingStarters];
+    }
     let daily = { ...getInitialDailyState(), ...savedDaily } as DailyState;
     // 기존 저장 데이터에 새 필드가 없을 수 있으므로 배열 필드 보정
     daily.extraDrawnCards = daily.extraDrawnCards || [];
@@ -522,14 +542,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("progress", progress);
   },
 
-  // 스타터 팩 선택 → 해당 팩의 카드만 해금
+  // 스타터 팩 선택 → 해당 팩의 카드 + 트렌드 starter(11장) 해금
+  // (트렌드는 카테고리 노출이 핵심 가치라 pack 선택과 무관하게 항상 deck 에 들어감)
   selectStarterPack: (packId: string) => {
     const pack = STARTER_PACKS.find((p) => p.id === packId);
     if (!pack) return;
 
+    const trendingStarterIds = ALL_CARDS.filter(
+      (c) => c.category === "trending" && !c.unlockCondition
+    ).map((c) => c.id);
+    // pack.cardIds 에 trending 이 이미 있을 수 있으니 dedup
+    const merged = Array.from(new Set([...pack.cardIds, ...trendingStarterIds]));
+
     const progress = {
       ...get().progress,
-      unlockedCardIds: [...pack.cardIds],
+      unlockedCardIds: merged,
     };
     set({ progress });
     saveToStorage("progress", progress);

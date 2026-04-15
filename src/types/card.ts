@@ -11,7 +11,8 @@ export type Category =
   | "learning"     // 학습/독서
   | "social"       // 소통/관계
   | "productivity" // 생산성/정리
-  | "wellness";    // 건강/휴식
+  | "wellness"     // 건강/휴식
+  | "trending";    // MZ·Z세대 트렌드 챌린지 (한/일/중/미)
 
 // === 인증 방식 ===
 // 챌린지 완료를 어떻게 확인하는지
