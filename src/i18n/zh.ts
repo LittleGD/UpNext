@@ -208,6 +208,13 @@ const zh: Record<DictKey, string> = {
   "category.wellness": "健康",
   "category.trending": "潮流",
 
+  // === card detail modal ===
+  "cardDetail.completions": "已完成 {count} 次",
+  "cardDetail.noCompletions": "尚未完成",
+  "cardDetail.enableGyro": "点击启用陀螺仪",
+  "cardDetail.locked": "未解锁",
+  "cardDetail.unlockHint": "完成{category}挑战{count}次后解锁",
+
   // === language ===
   "language.toggle": "语言设置",
 

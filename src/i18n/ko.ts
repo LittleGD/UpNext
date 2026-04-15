@@ -206,6 +206,13 @@ const ko = {
   "category.wellness": "건강",
   "category.trending": "트렌드",
 
+  // === card detail modal ===
+  "cardDetail.completions": "완료 {count}회",
+  "cardDetail.noCompletions": "아직 완료한 적 없어요",
+  "cardDetail.enableGyro": "탭하여 자이로 활성화",
+  "cardDetail.locked": "잠금 상태",
+  "cardDetail.unlockHint": "{category} 챌린지 {count}회 완료 시 해금",
+
   // === language ===
   "language.toggle": "언어설정",
 

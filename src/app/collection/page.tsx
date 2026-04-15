@@ -9,13 +9,15 @@ import type { Category } from "@/types/card";
 import type { TitleDefinition } from "@/types/title";
 import PixelIcon from "@/components/icons/PixelIcon";
 import AccordionSection from "@/components/ui/AccordionSection";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { t as translate, cardTitle, titleName, titleDesc } from "@/i18n";
 import { rarityLabel } from "@/data/rarityConfig";
+import type { ChallengeCard } from "@/types/card";
 import type { Language } from "@/types/game";
+import CardDetailModal from "@/components/cards/CardDetailModal";
 
 type Tab = "cards" | "titles";
 type Filter = "all" | "owned" | "unowned";
@@ -124,6 +126,8 @@ function CardsTab({
   filter: Filter;
   language: Language;
 }) {
+  const [selectedCard, setSelectedCard] = useState<ChallengeCard | null>(null);
+
   const cardsByCategory = CATEGORY_ORDER.map((cat) => {
     const allCards = ALL_CARDS.filter((c) => c.category === cat);
     const filtered = allCards.filter((c) => {
@@ -142,55 +146,70 @@ function CardsTab({
   }
 
   return (
-    <div className="space-y-4">
-      {cardsByCategory.map(({ category, label, cards, unlockedInCat, totalInCat }) => (
-        <AccordionSection key={category} label={label} count={unlockedInCat} total={totalInCat}>
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
-            className="grid grid-cols-2 md:grid-cols-3 gap-3 pb-2"
-          >
-            {cards.map((card) => {
-              const isUnlocked = progress.unlockedCardIds.includes(card.id);
-              const rarity = RARITY_CONFIG[card.rarity];
-              return (
-                <motion.div
-                  key={card.id}
-                  variants={fadeInUp}
-                  className={`relative rounded-lg p-3 transition-all grid-border ${
-                    isUnlocked ? rarity.bgClass : "bg-bg-elevated"
-                  }`}
-                >
-                  {!isUnlocked && (
-                    <div className="absolute inset-0 z-10 rounded-lg flex items-center justify-center">
-                      <PixelIcon name="Lock" size={32} className="text-text-tertiary" />
+    <>
+      <div className="space-y-4">
+        {cardsByCategory.map(({ category, label, cards, unlockedInCat, totalInCat }) => (
+          <AccordionSection key={category} label={label} count={unlockedInCat} total={totalInCat}>
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-2 md:grid-cols-3 gap-3 pb-2"
+            >
+              {cards.map((card) => {
+                const isUnlocked = progress.unlockedCardIds.includes(card.id);
+                const rarity = RARITY_CONFIG[card.rarity];
+                return (
+                  <motion.div
+                    key={card.id}
+                    variants={fadeInUp}
+                    onClick={isUnlocked ? () => setSelectedCard(card) : undefined}
+                    className={`relative rounded-lg p-3 transition-all grid-border ${
+                      isUnlocked ? `${rarity.bgClass} cursor-pointer` : "bg-bg-elevated"
+                    }`}
+                  >
+                    {!isUnlocked && (
+                      <div className="absolute inset-0 z-10 rounded-lg flex items-center justify-center">
+                        <PixelIcon name="Lock" size={32} className="text-text-tertiary" />
+                      </div>
+                    )}
+                    <div className={!isUnlocked ? "blur-sm pointer-events-none" : ""}>
+                      <div
+                        className="absolute top-2 right-2 typo-micro px-1.5 py-0.5 rounded-sm text-black"
+                        style={{ backgroundColor: rarity.color }}
+                      >
+                        {rarityLabel(card.rarity, language)}
+                      </div>
+                      <div className="mb-2" style={{ color: rarity.color }}>
+                        <PixelIcon name={card.icon} size={28} />
+                      </div>
+                      <p className="typo-caption text-text-primary leading-tight">
+                        {cardTitle(card, language)}
+                      </p>
+                      <p className="typo-caption text-text-tertiary mt-1">
+                        {categoryLabel(card.category, language)}
+                      </p>
                     </div>
-                  )}
-                  <div className={!isUnlocked ? "blur-sm pointer-events-none" : ""}>
-                    <div
-                      className="absolute top-2 right-2 typo-micro px-1.5 py-0.5 rounded-sm text-black"
-                      style={{ backgroundColor: rarity.color }}
-                    >
-                      {rarityLabel(card.rarity, language)}
-                    </div>
-                    <div className="mb-2" style={{ color: rarity.color }}>
-                      <PixelIcon name={card.icon} size={28} />
-                    </div>
-                    <p className="typo-caption text-text-primary leading-tight">
-                      {cardTitle(card, language)}
-                    </p>
-                    <p className="typo-caption text-text-tertiary mt-1">
-                      {categoryLabel(card.category, language)}
-                    </p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </AccordionSection>
-      ))}
-    </div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          </AccordionSection>
+        ))}
+      </div>
+
+      {/* 카드 디테일 모달 */}
+      <AnimatePresence>
+        {selectedCard && (
+          <CardDetailModal
+            key={selectedCard.id}
+            card={selectedCard}
+            language={language}
+            onClose={() => setSelectedCard(null)}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 

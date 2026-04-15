@@ -5,6 +5,9 @@ export const springSnappy: Transition = { type: "spring", stiffness: 500, dampin
 export const springGentle: Transition = { type: "spring", stiffness: 200, damping: 20 };
 export const springBouncy: Transition = { type: "spring", stiffness: 300, damping: 15 };
 
+// === 3D 카드 snap-back ===
+export const spring3DReturn: Transition = { type: "spring", stiffness: 150, damping: 15 };
+
 // === 버튼 프레스 ===
 export const buttonPress = { scale: 0.95 };
 export const buttonPressTransition: Transition = { duration: 0.1 };

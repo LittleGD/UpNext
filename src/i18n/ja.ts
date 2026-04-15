@@ -208,6 +208,13 @@ const ja: Record<DictKey, string> = {
   "category.wellness": "ウェルネス",
   "category.trending": "トレンド",
 
+  // === card detail modal ===
+  "cardDetail.completions": "{count}回達成",
+  "cardDetail.noCompletions": "まだ達成していません",
+  "cardDetail.enableGyro": "タップしてジャイロを有効化",
+  "cardDetail.locked": "ロック中",
+  "cardDetail.unlockHint": "{category}チャレンジを{count}回達成で解放",
+
   // === language ===
   "language.toggle": "言語設定",
 
