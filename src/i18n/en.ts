@@ -208,6 +208,13 @@ const en: Record<DictKey, string> = {
   "category.wellness": "Wellness",
   "category.trending": "Trending",
 
+  // === card detail modal ===
+  "cardDetail.completions": "Completed {count}x",
+  "cardDetail.noCompletions": "Not completed yet",
+  "cardDetail.enableGyro": "Tap to enable gyro",
+  "cardDetail.locked": "Locked",
+  "cardDetail.unlockHint": "Complete {category} challenges {count}x to unlock",
+
   // === language ===
   "language.toggle": "Language",
 
