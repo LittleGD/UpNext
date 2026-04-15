@@ -20,9 +20,9 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle, cardDesc } from "@/i18n";
 import { categoryLabel } from "@/data/titles";
 import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
+import Card3DViewer from "@/components/cards/Card3DViewer";
 
 const SWIPE_UP_THRESHOLD = -100;
-const SWIPE_DOWN_THRESHOLD = 80;
 const HOLD_DURATION = 800; // ms
 
 /* ── 메인 컴포넌트 ── */
@@ -814,25 +814,51 @@ export default function CardDrawScreen() {
         </div>
       )}
 
-      {/* 프리뷰 카드 — 오버레이. 카드 본체의 exit(위/아래 방향)는 PreviewCard의
-          animate prop이 담당하고, overlay 배경은 이 motion.div의 fade in/out 으로 처리. */}
+      {/* 프리뷰 카드 — 3D 뷰어 오버레이 */}
       <AnimatePresence>
         {previewCard && (
           <motion.div
             key="preview-overlay"
-            className="fixed inset-0 z-30 flex items-center justify-center bg-black/50"
+            className="fixed inset-0 z-30 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm"
             onClick={dismissPreview}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <PreviewCard
-              card={previewCard}
-              exitDir={previewExitDir}
-              onConfirm={() => handleConfirmCard(previewCard)}
-              onDismiss={dismissPreview}
-            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={
+                previewExitDir === "up"
+                  ? { opacity: 0, y: -520, scale: 0.92 }
+                  : previewExitDir === "down"
+                    ? { opacity: 0, y: 220, scale: 0.78 }
+                    : { opacity: 1, y: 0, scale: 1 }
+              }
+              transition={
+                previewExitDir
+                  ? { duration: 0.32, ease: [0.32, 0.72, 0, 1] }
+                  : springSnappy
+              }
+              onClick={(e) => e.stopPropagation()}
+              className="flex flex-col items-center gap-4"
+            >
+              <Card3DViewer card={previewCard} language={language} />
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: previewExitDir ? 0 : 1, y: previewExitDir ? 10 : 0 }}
+                transition={{ delay: previewExitDir ? 0 : 0.2, duration: 0.2 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (previewExitDir) return;
+                  handleConfirmCard(previewCard);
+                }}
+                className="flex items-center gap-2 px-8 py-3 bg-accent text-bg-primary rounded-md typo-body"
+              >
+                <PixelIcon name="ArrowUp" size={16} />
+                <span>{t("daily.select.selectCard")}</span>
+              </motion.button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1013,107 +1039,6 @@ function HandCard({
       <p className="typo-micro text-text-tertiary text-center leading-tight truncate w-full">
         {cardTitle(card, language)}
       </p>
-    </motion.div>
-  );
-}
-
-/* ── 프리뷰 카드 (중앙 확대) ── */
-function PreviewCard({
-  card,
-  exitDir,
-  onConfirm,
-  onDismiss,
-}: {
-  card: ChallengeCard;
-  exitDir: "up" | "down" | null;
-  onConfirm: () => void;
-  onDismiss: () => void;
-}) {
-  const rarity = RARITY_CONFIG[card.rarity];
-  const { t, language } = useTranslation();
-  const isMd = useMediaQuery("(min-width: 768px)");
-  const isLg = useMediaQuery("(min-width: 1024px)");
-
-  // 드래그 거리 + 속도 기반 스와이프 판정. 거리 임계값을 넘기거나 빠른 flick(높은 velocity)이면
-  // 해당 방향으로 exit. HandCard 와 동일한 감도로 맞춰 일관된 UX 제공.
-  const handleDragEnd = (
-    _e: MouseEvent | TouchEvent | PointerEvent,
-    info: PanInfo
-  ) => {
-    if (info.offset.y < SWIPE_UP_THRESHOLD || info.velocity.y < -400) {
-      onConfirm();
-    } else if (info.offset.y > SWIPE_DOWN_THRESHOLD || info.velocity.y > 400) {
-      onDismiss();
-    }
-    // 그 외 경우: dragSnapToOrigin 이 원위치로 복귀시킴
-  };
-
-  // exit 방향 → 최종 animate 목표. exitDir 이 설정되기 전엔 기본 enter 상태.
-  const targetAnimate =
-    exitDir === "up"
-      ? { opacity: 0, y: -520, scale: 0.92 }
-      : exitDir === "down"
-        ? { opacity: 0, y: 220, scale: 0.78 }
-        : { opacity: 1, y: 0, scale: 1 };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 0, scale: 0.85 }}
-      animate={targetAnimate}
-      transition={
-        exitDir
-          ? { duration: 0.32, ease: [0.32, 0.72, 0, 1] }
-          : springSnappy
-      }
-      drag={exitDir ? false : "y"}
-      dragConstraints={{ top: -180, bottom: 120 }}
-      dragElastic={0.45}
-      dragSnapToOrigin
-      onDragEnd={handleDragEnd}
-      style={{ boxShadow: rarityGlow(card.rarity) }}
-      onClick={(e) => {
-        e.stopPropagation(); // 카드 클릭이 배경으로 전파되지 않게
-        if (exitDir) return; // 이미 exit 중이면 무시
-        onConfirm();
-      }}
-      className="w-[min(240px,60vw)] md:w-[300px] lg:w-[340px] rounded-lg p-5 md:p-6 flex flex-col gap-3 bg-bg-elevated grid-border-accent cursor-pointer active:cursor-grabbing relative overflow-hidden"
-    >
-      <RarityTexture rarity={card.rarity} />
-      {/* 스와이프 힌트 */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.6 }}
-        transition={{ delay: 0.3 }}
-        className="flex items-center justify-center gap-1 typo-caption text-text-tertiary"
-      >
-        <PixelIcon name="ArrowUp" size={14} />
-        <span>{t("daily.select.swipeHint")}</span>
-      </motion.div>
-
-      <div className="flex items-center justify-between">
-        <span
-          className="typo-micro font-bold px-2 py-0.5 rounded-sm"
-          style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
-        >
-          {rarityLabel(card.rarity, language)}
-        </span>
-        <span className="typo-micro text-text-tertiary">
-          {categoryLabel(card.category, language)}
-        </span>
-      </div>
-
-      <div className="flex items-center justify-center py-5 md:py-6" style={{ color: rarity.color }}>
-        <PixelIcon name={card.icon} size={isLg ? 64 : isMd ? 56 : 48} />
-      </div>
-
-      <div>
-        <p className="typo-heading text-text-primary leading-tight">
-          {cardTitle(card, language)}
-        </p>
-        <p className="typo-caption text-text-secondary mt-1">
-          {cardDesc(card, language)}
-        </p>
-      </div>
     </motion.div>
   );
 }

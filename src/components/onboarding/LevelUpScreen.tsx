@@ -83,8 +83,20 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
         >
           <PixelIcon name="Zap" size={48} color="var(--accent-primary)" />
         </motion.div>
-        <p className="typo-title text-accent">Lv.1</p>
-        <p className="typo-body text-text-secondary">{getTitleForLevel(1, language)}</p>
+        {/* 레벨 + 칭호 — burst 시 0→1 롤링 전환 */}
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={isBurst ? 1 : 0}
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -30, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="flex flex-col items-center"
+          >
+            <p className="typo-title text-accent">Lv.{isBurst ? 1 : 0}</p>
+            <p className="typo-body text-text-secondary">{getTitleForLevel(isBurst ? 1 : 0, language)}</p>
+          </motion.div>
+        </AnimatePresence>
       </motion.div>
 
       {/* 프로그레스 바 + 파티클 */}

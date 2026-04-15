@@ -40,24 +40,31 @@ export default function Card3DViewer({ card, language }: Card3DViewerProps) {
     handlers,
   } = useDragRotate(() => play("cardHover"));
 
-  // ── 자이로 ──
+  // ── 자이로 (MotionValue — 리렌더 없이 60fps) ──
   const gyro = useGyroscope();
-  const gyroX = (!isDragging && gyro.isActive && gyro.beta != null) ? gyro.beta : 0;
-  const gyroY = (!isDragging && gyro.isActive && gyro.gamma != null) ? gyro.gamma : 0;
 
   // ── 드래그 + 자이로 합성 ──
-  // MotionValue 로 관리하여 re-render 없이 60fps 유지
+  // 모든 입력이 MotionValue 이므로 re-render 없이 60fps 유지
   const combinedX = useMotionValue(0);
   const combinedY = useMotionValue(0);
 
   useEffect(() => {
-    const unsubX = dragRotateX.on("change", (v) => combinedX.set(v + gyroX));
-    const unsubY = dragRotateY.on("change", (v) => combinedY.set(v + gyroY));
-    // 자이로 state 변경 시에도 즉시 반영
-    combinedX.set(dragRotateX.get() + gyroX);
-    combinedY.set(dragRotateY.get() + gyroY);
-    return () => { unsubX(); unsubY(); };
-  }, [gyroX, gyroY, dragRotateX, dragRotateY, combinedX, combinedY]);
+    const update = () => {
+      const gx = isDragging ? 0 : gyro.beta.get();
+      const gy = isDragging ? 0 : gyro.gamma.get();
+      combinedX.set(dragRotateX.get() + gx);
+      combinedY.set(dragRotateY.get() + gy);
+    };
+
+    const unsubs = [
+      dragRotateX.on("change", update),
+      dragRotateY.on("change", update),
+      gyro.beta.on("change", update),
+      gyro.gamma.on("change", update),
+    ];
+    update();
+    return () => unsubs.forEach((u) => u());
+  }, [dragRotateX, dragRotateY, gyro.beta, gyro.gamma, combinedX, combinedY, isDragging]);
 
   // ── 홀로그래픽 효과용 derived values ──
   const holoAngle = useTransform(combinedY, (v) => v * 8);
@@ -84,7 +91,7 @@ export default function Card3DViewer({ card, language }: Card3DViewerProps) {
           willChange: "transform",
           touchAction: "none",
         }}
-        className="relative w-[250px] h-[350px] cursor-grab active:cursor-grabbing"
+        className="relative w-[min(250px,62vw)] h-[min(350px,87vw)] cursor-grab active:cursor-grabbing"
       >
         {/* 카드 배경 */}
         <div
@@ -155,8 +162,8 @@ export default function Card3DViewer({ card, language }: Card3DViewerProps) {
               &ldquo;{quote}&rdquo;
             </p>
 
-            {/* 자이로 활성화 버튼 (iOS 미허용 시) */}
-            {gyro.isAvailable && !gyro.isActive && !reducedMotion && (
+            {/* 자이로 권한 요청 버튼 (iOS 13+ 미허용 시에만 표시) */}
+            {gyro.needsPermission && !reducedMotion && (
               <button
                 onClick={async (e) => {
                   e.stopPropagation();

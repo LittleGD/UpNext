@@ -51,6 +51,7 @@ const ja: Record<DictKey, string> = {
   "daily.select.heading": "{count}枚を選んでください",
   "daily.select.hint": "タップまたは上にスワイプでプレビュー",
   "daily.select.swipeHint": "スワイプで選択",
+  "daily.select.selectCard": "選択する",
   "daily.select.deselect": "選択解除",
   "daily.select.complete": "{count}枚選択完了",
   "daily.select.dragHint": "左右にスワイプして確認",
@@ -212,8 +213,6 @@ const ja: Record<DictKey, string> = {
   "cardDetail.completions": "{count}回達成",
   "cardDetail.noCompletions": "まだ達成していません",
   "cardDetail.enableGyro": "タップしてジャイロを有効化",
-  "cardDetail.locked": "ロック中",
-  "cardDetail.unlockHint": "{category}チャレンジを{count}回達成で解放",
 
   // === language ===
   "language.toggle": "言語設定",
