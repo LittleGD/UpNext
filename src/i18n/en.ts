@@ -51,6 +51,7 @@ const en: Record<DictKey, string> = {
   "daily.select.heading": "Select {count} cards",
   "daily.select.hint": "Tap or swipe up to preview",
   "daily.select.swipeHint": "Swipe to select",
+  "daily.select.selectCard": "Select",
   "daily.select.deselect": "Deselect",
   "daily.select.complete": "{count} cards selected",
   "daily.select.dragHint": "Swipe to browse",
@@ -212,8 +213,6 @@ const en: Record<DictKey, string> = {
   "cardDetail.completions": "Completed {count}x",
   "cardDetail.noCompletions": "Not completed yet",
   "cardDetail.enableGyro": "Tap to enable gyro",
-  "cardDetail.locked": "Locked",
-  "cardDetail.unlockHint": "Complete {category} challenges {count}x to unlock",
 
   // === language ===
   "language.toggle": "Language",

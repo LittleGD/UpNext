@@ -49,6 +49,7 @@ const ko = {
   "daily.select.heading": "{count}장을 선택하세요",
   "daily.select.hint": "카드를 탭하거나 위로 밀어 프리뷰",
   "daily.select.swipeHint": "밀어서 선택",
+  "daily.select.selectCard": "선택하기",
   "daily.select.deselect": "선택 취소",
   "daily.select.complete": "{count}장 선택 완료",
   "daily.select.dragHint": "좌우로 드래그하여 확인하세요",
@@ -210,8 +211,6 @@ const ko = {
   "cardDetail.completions": "완료 {count}회",
   "cardDetail.noCompletions": "아직 완료한 적 없어요",
   "cardDetail.enableGyro": "탭하여 자이로 활성화",
-  "cardDetail.locked": "잠금 상태",
-  "cardDetail.unlockHint": "{category} 챌린지 {count}회 완료 시 해금",
 
   // === language ===
   "language.toggle": "언어설정",

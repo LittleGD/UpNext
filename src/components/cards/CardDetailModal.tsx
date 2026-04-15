@@ -43,7 +43,7 @@ export default function CardDetailModal({ card, language, onClose }: CardDetailM
       exit={{ opacity: 0 }}
       transition={backdropSpring}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-lg"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
       onClick={handleClose}
     >
       <motion.div

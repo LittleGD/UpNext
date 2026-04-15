@@ -51,6 +51,7 @@ const zh: Record<DictKey, string> = {
   "daily.select.heading": "选择 {count} 张卡牌",
   "daily.select.hint": "点击或上滑预览卡牌",
   "daily.select.swipeHint": "滑动选择",
+  "daily.select.selectCard": "选择",
   "daily.select.deselect": "取消选择",
   "daily.select.complete": "已选择 {count} 张",
   "daily.select.dragHint": "左右滑动查看",
@@ -212,8 +213,6 @@ const zh: Record<DictKey, string> = {
   "cardDetail.completions": "已完成 {count} 次",
   "cardDetail.noCompletions": "尚未完成",
   "cardDetail.enableGyro": "点击启用陀螺仪",
-  "cardDetail.locked": "未解锁",
-  "cardDetail.unlockHint": "完成{category}挑战{count}次后解锁",
 
   // === language ===
   "language.toggle": "语言设置",
