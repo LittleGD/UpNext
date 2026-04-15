@@ -21,7 +21,7 @@ type Tab = "cards" | "titles";
 type Filter = "all" | "owned" | "unowned";
 
 const CATEGORY_ORDER: Category[] = [
-  "fitness", "nutrition", "mindfulness", "learning", "social", "productivity", "wellness",
+  "fitness", "nutrition", "mindfulness", "learning", "social", "productivity", "wellness", "trending",
 ];
 
 export default function CollectionPage() {

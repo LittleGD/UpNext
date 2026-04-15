@@ -206,6 +206,7 @@ const ja: Record<DictKey, string> = {
   "category.social": "コミュニケーション",
   "category.productivity": "生産性",
   "category.wellness": "ウェルネス",
+  "category.trending": "トレンド",
 
   // === language ===
   "language.toggle": "言語設定",

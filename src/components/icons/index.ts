@@ -7,6 +7,7 @@ export const CATEGORY_ICONS: Record<string, string> = {
   social: "MessageText",
   productivity: "Clipboard",
   wellness: "Heart",
+  trending: "Globe",
 };
 
 // === 네비게이션 아이콘 ===
