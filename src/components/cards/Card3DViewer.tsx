@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { motion, useMotionValue, useTransform, type MotionValue } from "framer-motion";
 import type { ChallengeCard } from "@/types/card";
 import type { Language } from "@/types/game";
@@ -48,10 +48,16 @@ export default function Card3DViewer({ card, language }: Card3DViewerProps) {
   const combinedX = useMotionValue(0);
   const combinedY = useMotionValue(0);
 
+  // isDragging을 ref로 추적 — 구독 useEffect의 deps에서 제외하여
+  // 드래그 시작/종료 시 4개 MotionValue 구독이 tear down/recreate 되는 것을 방지.
+  // 구독 재설정 사이 한 프레임 동안 자이로 값이 bleed-through 되던 문제 해소.
+  const isDraggingRef = useRef(false);
+  useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
+
   useEffect(() => {
     const update = () => {
-      const gx = isDragging ? 0 : gyro.beta.get();
-      const gy = isDragging ? 0 : gyro.gamma.get();
+      const gx = isDraggingRef.current ? 0 : gyro.beta.get();
+      const gy = isDraggingRef.current ? 0 : gyro.gamma.get();
       combinedX.set(dragRotateX.get() + gx);
       combinedY.set(dragRotateY.get() + gy);
     };
@@ -64,7 +70,15 @@ export default function Card3DViewer({ card, language }: Card3DViewerProps) {
     ];
     update();
     return () => unsubs.forEach((u) => u());
-  }, [dragRotateX, dragRotateY, gyro.beta, gyro.gamma, combinedX, combinedY, isDragging]);
+  }, [dragRotateX, dragRotateY, gyro.beta, gyro.gamma, combinedX, combinedY]);
+
+  // isDragging 변경 시 즉시 반영 (구독 재설정 없이)
+  useEffect(() => {
+    const gx = isDragging ? 0 : gyro.beta.get();
+    const gy = isDragging ? 0 : gyro.gamma.get();
+    combinedX.set(dragRotateX.get() + gx);
+    combinedY.set(dragRotateY.get() + gy);
+  }, [isDragging]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 홀로그래픽 효과용 derived values ──
   const holoAngle = useTransform(combinedY, (v) => v * 8);

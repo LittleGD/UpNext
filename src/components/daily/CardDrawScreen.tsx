@@ -154,6 +154,9 @@ export default function CardDrawScreen() {
     play("chargeUp");
     holdStartRef.current = Date.now();
     // 로컬 변수에 캡처해 clearInterval이 정확한 인터벌을 타겟팅하도록 함
+    // NOTE(perf): 16ms setInterval → setHoldProgress 호출로 매 프레임 리렌더 발생.
+    // holdProgress가 인라인 animate props 다수를 구동하므로 MotionValue 전환은 대규모 리팩터 필요.
+    // 현재 홀드 인터랙션은 0.8초로 짧아 실사용 체감 영향 미미.
     const timer: ReturnType<typeof setInterval> = setInterval(() => {
       const elapsed = Date.now() - holdStartRef.current;
       const p = Math.min(elapsed / HOLD_DURATION, 1);
@@ -898,6 +901,13 @@ export default function CardDrawScreen() {
                 <button
                   onClick={() => {
                     play("packOpen");
+                    // 진행 중인 프리뷰 exit 타이머 취소
+                    if (previewExitTimerRef.current) {
+                      clearTimeout(previewExitTimerRef.current);
+                      previewExitTimerRef.current = null;
+                    }
+                    previewExitingRef.current = false;
+                    setPreviewExitDir(null);
                     rerollCards();
                     setShowRerollConfirm(false);
                     setPreviewId(null);

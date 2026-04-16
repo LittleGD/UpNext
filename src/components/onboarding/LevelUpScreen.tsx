@@ -47,7 +47,10 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, []);
+    // play는 useCallback이지만 soundEnabled/hapticEnabled에 의존하므로 완전 stable이 아님.
+    // deps에 추가하면 사운드 설정 토글 시 타이머가 초기화되어 애니메이션이 깨짐.
+    // 마운트 시점의 play 참조만 사용하는 것이 의도된 동작.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isBurst = phase === "burst" || phase === "done";
 

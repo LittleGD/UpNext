@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/store/useAuthStore";
 import { saveToStorage } from "@/lib/storage";
@@ -32,10 +33,11 @@ export default function LoginOverlay({ onDismiss }: { onDismiss: () => void }) {
   };
 
   // 로그인 성공하면 자동 dismiss
-  if (isSignedIn) {
-    onDismiss();
-    return null;
-  }
+  useEffect(() => {
+    if (isSignedIn) onDismiss();
+  }, [isSignedIn, onDismiss]);
+
+  if (isSignedIn) return null;
 
   return (
     <motion.div

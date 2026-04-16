@@ -154,6 +154,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // 앱 시작 시 LocalStorage에서 데이터 복원
   initialize: () => {
+    if (get().isLoaded) return;
     const savedOnboarding = loadFromStorage<boolean>("onboarding_complete");
     const savedProgress = loadFromStorage<UserProgress>("progress");
     const savedDaily = loadFromStorage<DailyState>("daily");
@@ -471,7 +472,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ daily: updatedDaily, progress: updatedProgress, ...(shouldOpenPack && { isOpeningPack: true }) });
     saveToStorage("daily", updatedDaily);
     saveToStorage("progress", updatedProgress);
-    completingCardIds.delete(cardId);
+    setTimeout(() => completingCardIds.delete(cardId), 100);
 
     // 알림 갱신
     if (updatedProgress.notificationsEnabled) {
@@ -490,7 +491,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // 2) 2시간 뒤 "추가 챌린지, 하고 싶지 않아?" 넛지 (하루 1회)
         //    extra phase에 이미 들어갔거나 완료했으면 보내지 않음
         const alreadyInExtra = updatedDaily.challengePhase !== "daily";
-        if (!daily.extraNudgeScheduled && !alreadyInExtra) {
+        if (!updatedDaily.extraNudgeScheduled && !alreadyInExtra) {
           scheduleExtraNudge(
             t("notif.extra.nudge.title", lang),
             t("notif.extra.nudge.body", lang),
@@ -542,7 +543,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("progress", progress);
   },
 
-  // 스타터 팩 선택 → 해당 팩의 카드 + 트렌드 starter(11장) 해금
+  /** 스타터 팩 선택. completeOnboarding() 전에 호출되어야 함 (unlockedCardIds 초기화 순서) */
+  // 해당 팩의 카드 + 트렌드 starter(11장) 해금
   // (트렌드는 카테고리 노출이 핵심 가치라 pack 선택과 무관하게 항상 deck 에 들어감)
   selectStarterPack: (packId: string) => {
     const pack = STARTER_PACKS.find((p) => p.id === packId);
