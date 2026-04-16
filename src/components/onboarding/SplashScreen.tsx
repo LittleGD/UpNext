@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useUIStore } from "@/store/useUIStore";
 
 /* ── SVG paths — each letter of the UNext wordmark ── */
 const U =
@@ -26,6 +27,11 @@ const T =
 /* ── Animation config ── */
 const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
 
+// 타이밍: 2800ms 모션 후 400ms fade-out → 총 3200ms 에 onComplete 호출.
+// nav/header 는 store 의 splashActive=false 신호를 받아 fade-out 동안 함께 rise-in.
+const SPLASH_MOTION_MS = 2800;
+const SPLASH_FADE_MS = 400;
+
 // "Next" SVG width at h=75: 75 × (89/52) ≈ 128px
 // To center U↗ initially, shift container right by half of Next width
 const NEXT_HALF_W = 64;
@@ -36,14 +42,43 @@ interface SplashScreenProps {
 
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
   const { t } = useTranslation();
+  const setSplashActive = useUIStore((s) => s.setSplashActive);
+  const dismissSplash = useUIStore((s) => s.dismissSplash);
+  const [fadingOut, setFadingOut] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(onComplete, 2800);
-    return () => clearTimeout(timer);
-  }, [onComplete]);
+    // 마운트 즉시 overlay 활성 신호 → nav/header 는 return null
+    setSplashActive(true);
+
+    // 1) 모션이 끝나면 fade-out 시작 + splashActive=false
+    //    → nav/header 가 이 순간 mount 되며 rise-in 애니메이션 시작.
+    //    스플래시는 이미 위에 있지만 opacity 0 으로 400ms 동안 사라지는 동시에
+    //    아래에서 nav 가 올라오므로 시각적으로 "스플래시가 걷히며 UI 가 도착" 연출.
+    const fadeTimer = setTimeout(() => {
+      setFadingOut(true);
+      setSplashActive(false);
+    }, SPLASH_MOTION_MS);
+
+    // 2) fade-out 완료 시점에 splashDismissed=true 확정 + 부모에게 완료 통지.
+    //    dismissSplash 는 setSplashActive(false) 를 재호출하지만 idempotent.
+    const doneTimer = setTimeout(() => {
+      dismissSplash();
+      onComplete();
+    }, SPLASH_MOTION_MS + SPLASH_FADE_MS);
+
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(doneTimer);
+    };
+  }, [onComplete, setSplashActive, dismissSplash]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-bg-primary overflow-hidden">
+    <motion.div
+      // fixed inset-0 z-[60] → Header(z-10) / BottomNav(z-10) 위를 덮어
+      // 스플래시 중 잔상 방지. 뷰포트 기준 items-center/justify-center 로 정확히 중앙.
+      animate={{ opacity: fadingOut ? 0 : 1 }}
+      transition={{ duration: SPLASH_FADE_MS / 1000, ease: EASE_OUT }}
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-bg-primary overflow-hidden">
       {/* Container — shifts right initially to center U↗, then settles */}
       <motion.div
         className="flex"
@@ -114,6 +149,6 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           transition={{ duration: 1.2, delay: 1.4, ease: "easeInOut" }}
         />
       </motion.div>
-    </div>
+    </motion.div>
   );
 }

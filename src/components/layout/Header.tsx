@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useGameStore } from "@/store/useGameStore";
 import { useMinigameStore } from "@/store/useMinigameStore";
+import { useUIStore } from "@/store/useUIStore";
 import { getXPProgress, getTitleForLevel } from "@/types/game";
 import { ALL_TITLES } from "@/data/titles";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
@@ -24,6 +25,9 @@ export default function Header() {
   const isLoaded = useGameStore((s) => s.isLoaded);
   const hasCompletedOnboarding = useGameStore((s) => s.hasCompletedOnboarding);
   const minigamePhase = useMinigameStore((s) => s.phase);
+  // 스플래시 오버레이(z-[60])가 위를 덮지만, 헤더도 함께 unmount 시켜
+  // splash 종료 순간 fade-in 으로 자연스럽게 등장.
+  const splashActive = useUIStore((s) => s.splashActive);
   const pathname = usePathname();
 
   const { language } = useTranslation();
@@ -118,7 +122,7 @@ export default function Header() {
     prevLevelRef.current = level;
   }, [level, isLoaded, hasCompletedOnboarding, pulseControls]);
 
-  if (!isLoaded || !hasCompletedOnboarding) return null;
+  if (!isLoaded || !hasCompletedOnboarding || splashActive) return null;
 
   // 미니게임 런 중에는 몰입 모드: idle이 아닌 모든 phase에서 헤더 숨김
   const inMinigameRun = pathname === "/minigame" && minigamePhase !== "idle";
@@ -142,7 +146,14 @@ export default function Header() {
     barPhase === "full" ? 100 : barPhase === "snap" ? 0 : progressPercent;
 
   return (
-    <header className="sticky top-0 z-10 bg-bg-primary/80 backdrop-blur-md border-b border-white/5 px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+    <motion.header
+      // 스플래시 종료 직후 첫 mount 시 위에서 살짝 내려오며 fade-in — 하단 nav 의
+      // rise 와 대칭 연출로 커튼이 열리는 듯한 리빌.
+      initial={{ y: -8, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      className="sticky top-0 z-10 bg-bg-primary/80 backdrop-blur-md border-b border-white/5 px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
+    >
       <div className="max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -178,6 +189,6 @@ export default function Header() {
           />
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }
