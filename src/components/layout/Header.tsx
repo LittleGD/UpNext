@@ -11,6 +11,14 @@ import { titleName } from "@/i18n";
 import { useTranslation } from "@/hooks/useTranslation";
 import { motion, useAnimationControls } from "framer-motion";
 
+// XP 바 애니메이션 phase:
+//  - "idle":  현재 진짜 % 에 머무름 (평시)
+//  - "full":  레벨업 축하 — 100% 로 채우고 카운트 롤링이 끝날 때까지 유지
+//  - "snap":  리셋 순간 — 0% 로 즉시 점프 (transition duration:0)
+// full → snap → idle 3단 시퀀스로 "100% 에서 새 레벨 % 로 줄어드는 느낌" 을 없애고
+// 전통적인 JRPG 식 "가득 채움 → 리셋 → 새로 차오름" 을 구현.
+type BarPhase = "idle" | "full" | "snap";
+
 export default function Header() {
   const progress = useGameStore((s) => s.progress);
   const isLoaded = useGameStore((s) => s.isLoaded);
@@ -21,20 +29,33 @@ export default function Header() {
   const { language } = useTranslation();
 
   const level = progress.level;
-  const prevLevelRef = useRef(level);
-  const [displayLevel, setDisplayLevel] = useState(level);
+  // null = 아직 "실제 레벨값" 을 seed 받지 않음. isLoaded=true 가 된 후의
+  // 첫 level 값을 기준점으로 삼아, store 기본값(0) → 실제값 전환이
+  // 거짓 레벨업 애니메이션을 트리거하는 버그를 원천 차단한다.
+  const prevLevelRef = useRef<number | null>(null);
+  // 롤링 중에만 non-null — 평시에는 실제 level 을 그대로 표시해 setState-in-effect
+  // 동기화를 피한다 (react-hooks/set-state-in-effect 규칙 준수).
+  const [rollingLevel, setRollingLevel] = useState<number | null>(null);
+  const [barPhase, setBarPhase] = useState<BarPhase>("idle");
   const pulseControls = useAnimationControls();
-  // 첫 로드 시 store 기본값(level=0)→실제 레벨 전환을 레벨업으로 오감지하지 않도록 가드
-  const hasInitializedRef = useRef(false);
+
+  // 평시에는 실제 level, 롤링 중에는 중간값. seed 단계나 store 기본값 0 이 잠깐
+  // 보일 위험은 isLoaded 가드로 렌더 자체를 막음.
+  const displayLevel = rollingLevel ?? level;
 
   // 레벨업 시 카운트업 + 펄스 애니메이션
   useEffect(() => {
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true;
+    // 데이터 로드 전까지는 level 변화를 관찰하지 않음.
+    // (초기 렌더: {level:0, isLoaded:false} → {level:realLevel, isLoaded:true} 순서로
+    //  오는데, 앞 렌더에서 prevLevelRef 을 seed 하면 뒷 전환이 레벨업으로 오감지됨)
+    if (!isLoaded || !hasCompletedOnboarding) return;
+
+    // 첫 seed — 실제 레벨값을 조용히 기준점으로 확정. ref 만 갱신해서 setState 없음.
+    if (prevLevelRef.current === null) {
       prevLevelRef.current = level;
-      setDisplayLevel(level);
       return;
     }
+
     if (level > prevLevelRef.current) {
       const start = prevLevelRef.current;
       const end = level;
@@ -44,32 +65,58 @@ export default function Header() {
         transition: { duration: 0.6, ease: "easeOut" },
       });
 
-      // 카운트업: 시작 값에서 새 값까지 가시적으로 롤링
       // 단일 레벨업(예: 1→2)도 정수 한 단계가 보이도록 약간의 duration 부여
       const delta = end - start;
       const duration = delta <= 1 ? 600 : Math.min(800 + (delta - 1) * 120, 1400);
 
-      // 카운트업이 시작 값에서 출발하도록 즉시 표시값을 start로 리셋
-      setDisplayLevel(start);
-
-      const startTime = performance.now();
+      // 모든 setState 를 rAF 콜백 안에서 호출 — react-hooks/set-state-in-effect
+      // 규칙을 준수하면서 효과적으로 동일한 연출을 유지한다.
       let raf = 0;
+      let snapRaf1 = 0;
+      let snapRaf2 = 0;
+      let startTime = 0;
+      let primed = false;
+
       const tick = (now: number) => {
+        if (!primed) {
+          // 첫 프레임: (1) 바를 100% 로 채움, (2) 카운터를 start 로 리셋. 이후 롤링 시작.
+          primed = true;
+          startTime = now;
+          setBarPhase("full");
+          setRollingLevel(start);
+          raf = requestAnimationFrame(tick);
+          return;
+        }
         const p = Math.min((now - startTime) / duration, 1);
         // easeOutQuad — 끝부분에서 부드럽게 정착
         const eased = 1 - (1 - p) * (1 - p);
         const next = Math.round(start + (end - start) * eased);
-        setDisplayLevel(next);
         if (p < 1) {
+          setRollingLevel(next);
           raf = requestAnimationFrame(tick);
+        } else {
+          // 롤링 완료: rollingLevel 해제 → displayLevel 이 실제 level 로 즉시 반영
+          setRollingLevel(null);
+          // (3) 바를 0% 로 순간 점프 (transition duration:0)
+          setBarPhase("snap");
+          // (4) 다음 프레임에 idle 로 → 실제 새 레벨 % 로 부드럽게 차오름.
+          // 이중 rAF: framer-motion 이 snap(width:0) 상태를 확정 처리할 시간을 확보.
+          snapRaf1 = requestAnimationFrame(() => {
+            snapRaf2 = requestAnimationFrame(() => setBarPhase("idle"));
+          });
         }
       };
       raf = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(raf);
+      return () => {
+        cancelAnimationFrame(raf);
+        if (snapRaf1) cancelAnimationFrame(snapRaf1);
+        if (snapRaf2) cancelAnimationFrame(snapRaf2);
+      };
     }
+
+    // 레벨 동일/하향(서버 보정 등): ref 만 조용히 맞춤
     prevLevelRef.current = level;
-    setDisplayLevel(level);
-  }, [level, pulseControls]);
+  }, [level, isLoaded, hasCompletedOnboarding, pulseControls]);
 
   if (!isLoaded || !hasCompletedOnboarding) return null;
 
@@ -89,10 +136,10 @@ export default function Header() {
   const titleColor = equippedTitle ? RARITY_CONFIG[equippedTitle.rarity].color : undefined;
   const { current, needed } = getXPProgress(progress.xp || 0, progress.level);
   const progressPercent = needed > 0 ? Math.min((current / needed) * 100, 100) : 0;
-  // 애니메이션 중에는 XP 바를 "직전 레벨 100%" 로 고정하고, 레벨 동기화 직후
-  // Framer Motion 이 새 % 로 부드럽게 감속해 들어가도록 한다. XP 텍스트는 레이아웃
-  // 유지를 위해 visibility 만 숨긴다.
-  const displayedPercent = isLevelAnimating ? 100 : progressPercent;
+
+  // barPhase 에 따라 바 너비 결정
+  const displayedPercent =
+    barPhase === "full" ? 100 : barPhase === "snap" ? 0 : progressPercent;
 
   return (
     <header className="sticky top-0 z-10 bg-bg-primary/80 backdrop-blur-md border-b border-white/5 px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
@@ -114,13 +161,20 @@ export default function Header() {
             {current}/{needed} XP
           </span>
         </div>
-        {/* XP Progress Bar */}
+        {/* XP Progress Bar
+            initial={false}: 첫 마운트 시 0→realPercent 로 차오르는 "오토 인트로" 를 비활성.
+            초기 로드에서 0 → 100% → 줄어들기 처럼 보이던 현상의 1차 원인이었음.
+            대신 정확한 % 로 즉시 표시되고, 이후 legit level-up 때만 full→snap→idle 시퀀스로 연출. */}
         <div className="mt-1.5 h-1.5 bg-bg-elevated rounded-sm overflow-hidden">
           <motion.div
             className="h-full bg-accent rounded-sm"
-            initial={{ width: 0 }}
+            initial={false}
             animate={{ width: `${displayedPercent}%` }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={
+              barPhase === "snap"
+                ? { duration: 0 }
+                : { duration: 0.6, ease: [0.23, 1, 0.32, 1] }
+            }
           />
         </div>
       </div>

@@ -1,13 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { loadFromStorage } from "@/lib/storage";
 import CardDrawScreen from "@/components/daily/CardDrawScreen";
 import DailyBoard from "@/components/daily/DailyBoard";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
+import SplashScreen from "@/components/onboarding/SplashScreen";
 import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
+
+function isStandalone() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches
+    || (navigator as unknown as { standalone?: boolean }).standalone === true;
+}
+
+// useSyncExternalStore — standalone 상태를 SSR-safe 하게 읽는다.
+// subscribe 는 no-op (앱 런타임 중 display-mode 가 바뀌지 않으므로 reactive 구독 불필요).
+// getServerSnapshot 이 false 를 반환하므로 SSR·첫 hydration 은 browser 경로와 동일,
+// hydration 완료 후 getSnapshot 으로 전환되며 실제 standalone 값을 반영한다.
+// 이 패턴은 useEffect + setState 대신 파생 상태를 사용해 react-hooks/set-state-in-effect 규칙을 준수.
+const subscribeNoop = () => () => {};
+const getStandaloneSnapshot = () => isStandalone();
+const getStandaloneServerSnapshot = () => false;
 
 const CardPackOpener = dynamic(
   () => import("@/components/cards/CardPackOpener"),
@@ -35,6 +51,17 @@ export default function Home() {
   const dismissPackOpener = useGameStore((s) => s.dismissPackOpener);
 
   const [showLoginOverlay, setShowLoginOverlay] = useState(false);
+  // PWA/TWA → 앱 열 때마다 모션 스플래시 표시 (세션당 1회, 비-persist).
+  // 서버·첫 hydration 은 standalone=false 로 평가 → OnboardingFlow/DailyBoard 가 렌더 시도되지만,
+  // hydration 완료 직후 getSnapshot=true 로 전환되며 splashDismissed=false 이면 스플래시로 교체.
+  // TWA native splash(fadeout=0)가 web load 까지 화면을 가리므로 1프레임 딜레이는 인지 불가 (< 16ms).
+  const standalone = useSyncExternalStore(
+    subscribeNoop,
+    getStandaloneSnapshot,
+    getStandaloneServerSnapshot,
+  );
+  const [splashDismissed, setSplashDismissed] = useState(false);
+  const showSplash = standalone && !splashDismissed;
 
   useEffect(() => {
     if (isLoaded && hasCompletedOnboarding && !daily.isDrawComplete) {
@@ -47,10 +74,16 @@ export default function Home() {
     initialize();
   }, [initialize]);
 
+  // ── 모션 스플래시 (PWA/TWA 전용) ──
+  // 기존·신규 유저 모두 앱 실행 시 워드마크 애니메이션 2.8초 표시.
+  // 브라우저에서는 standalone=false 이므로 자동으로 스킵.
+  // 스플래시 중에도 initialize() 는 이미 useEffect로 실행되므로
+  // 완료 시점에는 isLoaded=true 상태로 즉시 전환 가능.
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setSplashDismissed(true)} />;
+  }
+
   // ── 핵심 LCP 최적화 ──
-  // 기존: !isLoaded → skeleton(무의미) → JS 하이드레이션 후 실제 콘텐츠 → LCP 8.2s
-  // 개선: !isLoaded → OnboardingFlow SSR → 서버에서 실제 콘텐츠 렌더 → LCP = FCP
-  //
   // 서버: isLoaded=false → OnboardingFlow 렌더 (첫 방문자에게 적합)
   // 클라이언트 하이드레이션: 동일 → 불일치 없음
   // initialize() 후: isLoaded=true → 기존 사용자는 DailyBoard로 전환

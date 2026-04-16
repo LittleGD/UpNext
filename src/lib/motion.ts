@@ -5,6 +5,13 @@ export const springSnappy: Transition = { type: "spring", stiffness: 500, dampin
 export const springGentle: Transition = { type: "spring", stiffness: 200, damping: 20 };
 export const springBouncy: Transition = { type: "spring", stiffness: 300, damping: 15 };
 
+// === 카드 오버레이 (Detail / Preview / Final 공용) ===
+// 같은 Card3DViewer 가 여러 컨텍스트에서 다른 스프링으로 등장하던 문제 해소.
+// 진입은 bouncy spring(0.32s) — "카드가 도착했다" 느낌,
+// 퇴장은 빠르고 단방향(0.25s, ease-in strong) — Emil: enter/exit 비대칭이 정확함.
+export const cardOverlayEnter: Transition = { type: "spring", duration: 0.32, bounce: 0.18 };
+export const cardOverlayExit: Transition = { duration: 0.25, ease: [0.32, 0, 0.67, 0] };
+
 // === 버튼 프레스 ===
 export const buttonPress = { scale: 0.95 };
 export const buttonPressTransition: Transition = { duration: 0.1 };

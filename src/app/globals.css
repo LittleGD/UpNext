@@ -337,6 +337,103 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   pointer-events: none;
 }
 
+/* ==================================================================
+   Rarity Backdrop — Card detail/preview 등급별 배경 이펙트
+   CSS @keyframes 로 GPU/off-main-thread 실행.
+   framer-motion 은 entrance/exit 에만 사용 → 50+ motion.div 의 rAF 부하 제거.
+   ================================================================== */
+
+/* 회전 — 양방향. 원래 rotation/scale breathing 은 wrapper 패턴으로 합성 */
+@keyframes rb-spin-cw {
+  to { transform: rotate(360deg); }
+}
+@keyframes rb-spin-ccw {
+  to { transform: rotate(-360deg); }
+}
+
+/* 호흡 — 4가지 진폭·기준값 (서로소 주기 유지) */
+@keyframes rb-breath-98-106 {
+  0%, 100% { transform: scale(0.98); }
+  50% { transform: scale(1.06); }
+}
+@keyframes rb-breath-100-108 {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+@keyframes rb-breath-97-105 {
+  0%, 100% { transform: scale(0.97); }
+  50% { transform: scale(1.05); }
+}
+@keyframes rb-breath-100-107 {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+
+/* Normal — 흰색 halo 펄스 */
+@keyframes rb-halo-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.4; }
+}
+
+/* Rare — 오로라 오퍼시티 펄스 (두 주기) */
+@keyframes rb-aurora-op-a {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.55; }
+}
+@keyframes rb-aurora-op-b {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.4; }
+}
+
+/* Rare — 수평 커튼 스윕 */
+@keyframes rb-rare-curtain {
+  0% { transform: translateX(100%); opacity: 0; }
+  50% { transform: translateX(0%); opacity: 0.5; }
+  100% { transform: translateX(-100%); opacity: 0; }
+}
+
+/* Unique — 중앙 코어 펄스 (opacity + scale) */
+@keyframes rb-unique-core {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.15); }
+}
+
+/* Unique — 파편 방사. per-particle 방향은 --rb-fx1/fy1/fx2/fy2 로 주입 */
+@keyframes rb-frag-emanate {
+  0% {
+    transform: translate(0, 0) scale(0.3);
+    opacity: 0;
+  }
+  55% {
+    transform: translate(var(--rb-fx1, 0px), var(--rb-fy1, 0px)) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--rb-fx2, 0px), var(--rb-fy2, 0px)) scale(0.4);
+    opacity: 0;
+  }
+}
+
+/* Legend — 중앙 영광 펄스 */
+@keyframes rb-legend-core {
+  0%, 100% { opacity: 0.65; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.08); }
+}
+
+/* Legend — 반짝이 별 (Emil 원칙: scale(0) 금지, 0.4 부터 시작) */
+@keyframes rb-sparkle {
+  0% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1.4); }
+  100% { opacity: 0; transform: scale(0.4); }
+}
+
+/* Legend — 대각 shimmer sweep */
+@keyframes rb-legend-sweep {
+  0% { transform: translateX(30%); opacity: 0; }
+  50% { transform: translateX(0%); opacity: 0.7; }
+  100% { transform: translateX(-30%); opacity: 0; }
+}
+
 /* === 그리드 시스템 — 얇은 그리드 라인 === */
 .grid-border {
   border: 1px solid rgba(240, 240, 240, 0.06);

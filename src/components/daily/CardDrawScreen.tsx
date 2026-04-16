@@ -13,14 +13,17 @@ import {
   type PanInfo,
 } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
-import { springSnappy, springBouncy } from "@/lib/motion";
+import { springSnappy, springBouncy, cardOverlayEnter, cardOverlayExit } from "@/lib/motion";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useSound } from "@/hooks/useSound";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle, cardDesc } from "@/i18n";
 import { categoryLabel } from "@/data/titles";
 import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 import Card3DViewer from "@/components/cards/Card3DViewer";
+import RarityBackdrop from "@/components/cards/RarityBackdrop";
 
 const SWIPE_UP_THRESHOLD = -100;
 const HOLD_DURATION = 800; // ms
@@ -43,6 +46,7 @@ export default function CardDrawScreen() {
   const { t, language } = useTranslation();
   const isMd = useMediaQuery("(min-width: 768px)");
   const isLg = useMediaQuery("(min-width: 1024px)");
+  const reducedMotion = useReducedMotion();
 
   // phase-aware 데이터 선택
   const phase = daily.challengePhase || "daily";
@@ -208,6 +212,9 @@ export default function CardDrawScreen() {
     };
   }, []);
 
+  // ESC 로 프리뷰 닫기 — 접근성: 키보드 유저와 웹 표준 UX
+  useEscapeKey(dismissPreview, previewId !== null);
+
   // 아직 드로우 안 했을 때 — 덱 홀드 인터랙션
   if (!phaseIsDrawComplete) {
     const shakeAmp = holdProgress * 5;
@@ -236,8 +243,8 @@ export default function CardDrawScreen() {
           </motion.p>
         </div>
 
-        {/* 성스러운 빛줄기 — 화면 바닥에서 덱 중간까지 */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 2 }}>
+        {/* 성스러운 빛줄기 — 화면 바닥에서 덱 중간까지 (reduced-motion 시 숨김) */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 2, display: reducedMotion ? "none" : undefined }}>
           {/* 빛줄기 1 — 메인 accent, 중앙에서 살짝 왼쪽 */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -357,10 +364,10 @@ export default function CardDrawScreen() {
 
         {/* 덱 영역 — with ambient particles */}
         <motion.div
-          animate={isShaking ? {
+          animate={isShaking && !reducedMotion ? {
             x: [0, -shakeAmp, shakeAmp, -shakeAmp * 0.6, shakeAmp * 0.6, 0],
           } : {}}
-          transition={isShaking ? { duration: Math.max(0.2, 0.45 - holdProgress * 0.2), repeat: Infinity } : {}}
+          transition={isShaking && !reducedMotion ? { duration: Math.max(0.2, 0.45 - holdProgress * 0.2), repeat: Infinity } : {}}
           className="relative"
         >
           {/* Ambient radial glow — grows during hold
@@ -387,8 +394,8 @@ export default function CardDrawScreen() {
             }}
           />
 
-          {/* Floating motes — fill empty space */}
-          {[...Array(8)].map((_, i) => (
+          {/* Floating motes — fill empty space (reduced-motion 시 숨김) */}
+          {!reducedMotion && [...Array(8)].map((_, i) => (
             <motion.div
               key={`mote-${i}`}
               className="absolute rounded-full pointer-events-none"
@@ -556,8 +563,8 @@ export default function CardDrawScreen() {
             {/* 크기 예약 div */}
             <div className="w-[min(110px,24vw)] h-[min(154px,34vw)] md:w-[130px] md:h-[182px] lg:w-[150px] lg:h-[210px] relative" />
 
-            {/* 떨어지는 먼지 파티클 */}
-            {[...Array(12)].map((_, i) => {
+            {/* 떨어지는 먼지 파티클 (reduced-motion 시 숨김) */}
+            {!reducedMotion && [...Array(12)].map((_, i) => {
               const startX = (i - 5.5) * 12 + (i % 2 === 0 ? -3 : 3);
               const size = 1.5 + (i % 3) * 0.8;
               const dur = 3 + (i % 4) * 1.2;
@@ -631,15 +638,20 @@ export default function CardDrawScreen() {
         {/* 상단 — Header 높이 확보 */}
         <div className="flex-shrink-0 h-[60px]" />
 
-        {/* 상태 */}
-        <div className="text-center pt-2 pb-4 px-4 flex-shrink-0 max-w-md md:max-w-xl lg:max-w-2xl mx-auto w-full">
+        {/* 상태 — 축하 모멘트: 헤더도 같이 fade up 로 스토리텔링 시작 */}
+        <motion.div
+          initial={reducedMotion ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+          className="text-center pt-2 pb-4 px-4 flex-shrink-0 max-w-md md:max-w-xl lg:max-w-2xl mx-auto w-full"
+        >
           <p className="typo-heading text-text-primary">
             {t("daily.select.complete", { count: maxCards })}
           </p>
           <p className="typo-caption mt-1">
             {maxCards > 1 ? t("daily.select.dragHint") : t("daily.select.checkHint")}
           </p>
-        </div>
+        </motion.div>
 
         {/* 카드 가로 스크롤 — 중앙 정렬 캐러셀 */}
         <div className="flex-1 min-h-0 flex items-start justify-center pt-[4vh] w-full">
@@ -649,15 +661,24 @@ export default function CardDrawScreen() {
           >
             {/* 왼쪽 여백 — 첫 카드가 중앙에 오도록 */}
             <div className="flex-shrink-0" style={{ width: "calc(50vw - min(120px, 30vw))" }} />
-            {selectedCards.map((card) => {
+            {selectedCards.map((card, i) => {
               const rarity = RARITY_CONFIG[card.rarity];
+              // 축하 모멘트: scale 0.96 에서 시작하는 부드러운 등장 + 스태거 0.09s
+              // Emil 원칙: scale(0) 금지 — 아무것도 없는 상태에서 나타나는 듯한 부자연스러움 제거
+              const enterInitial = reducedMotion
+                ? false
+                : { opacity: 0, y: 30, scale: 0.96 };
+              const enterAnimate = { opacity: 1, y: 0, scale: 1 };
               return (
                 <motion.div
                   key={card.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={springSnappy}
-                  className="w-[min(240px,60vw)] md:w-[300px] lg:w-[340px] flex-shrink-0 snap-center rounded-lg p-5 md:p-6 flex flex-col gap-3 bg-bg-elevated grid-border-accent relative overflow-hidden"
+                  initial={enterInitial}
+                  animate={enterAnimate}
+                  transition={{
+                    ...cardOverlayEnter,
+                    delay: reducedMotion ? 0 : i * 0.09,
+                  }}
+                  className="w-[min(240px,60vw)] md:w-[300px] lg:w-[340px] flex-shrink-0 snap-center rounded-xl p-5 md:p-6 flex flex-col gap-3 bg-bg-elevated relative overflow-hidden aspect-[3/4]"
                   style={{ boxShadow: rarityGlow(card.rarity) }}
                 >
                   <RarityTexture rarity={card.rarity} />
@@ -672,31 +693,33 @@ export default function CardDrawScreen() {
                       {categoryLabel(card.category, language)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-center py-5 md:py-6" style={{ color: rarity.color }}>
-                    <PixelIcon name={card.icon} size={isLg ? 64 : isMd ? 56 : 48} />
+                  <div className="flex-1 flex items-center justify-center min-h-0" style={{ color: rarity.color }}>
+                    <PixelIcon name={card.icon} size={isLg ? 72 : isMd ? 60 : 52} />
                   </div>
                   <div>
-                    <p className="typo-heading text-text-primary leading-tight">
+                    {/* 제목: heading, 본문: body (caption 과용 해소) */}
+                    <p className="typo-heading text-text-primary leading-tight font-semibold">
                       {cardTitle(card, language)}
                     </p>
-                    <p className="typo-caption text-text-secondary mt-1">
+                    <p className="typo-body text-text-secondary mt-1 line-clamp-2 leading-relaxed">
                       {cardDesc(card, language)}
                     </p>
                   </div>
                   {/* 개별 카드 취소 버튼 (패널티 카드는 잠금) */}
                   {daily.penaltyCardId === card.id ? (
-                    <div className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-red-500/10 text-red-400 typo-caption mt-1">
+                    <div className="flex items-center justify-center gap-1.5 min-h-[44px] rounded-md bg-red-500/10 text-red-400 typo-micro mt-1">
                       <PixelIcon name="Lock" size={12} color="#FF4632" />
                       <span>{t("daily.penalty.locked")}</span>
                     </div>
                   ) : (
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
                       onClick={() => { play("cancel"); phase === "daily" ? deselectCard(card.id) : deselectPhaseCard(card.id); }}
-                      className="flex items-center justify-center gap-1.5 py-2 rounded-md bg-bg-surface text-text-secondary typo-caption mt-1"
+                      className="flex items-center justify-center gap-1.5 min-h-[44px] rounded-md bg-bg-surface text-text-secondary typo-micro mt-1"
                     >
                       <PixelIcon name="Cancel" size={12} />
                       <span>{t("daily.select.deselect")}</span>
-                    </button>
+                    </motion.button>
                   )}
                 </motion.div>
               );
@@ -706,15 +729,25 @@ export default function CardDrawScreen() {
           </div>
         </div>
 
-        {/* 확정 버튼 — 하단 고정 */}
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+80px)] z-20">
-          <button
+        {/* 확정 버튼 — 하단 고정 (마지막 카드 등장 이후 delay 로 등장하여 "축하 → 결심" 흐름) */}
+        <motion.div
+          initial={reducedMotion ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.3,
+            ease: [0.23, 1, 0.32, 1],
+            delay: reducedMotion ? 0 : 0.18 + selectedCards.length * 0.09,
+          }}
+          className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-xl lg:max-w-2xl px-6 pb-[calc(env(safe-area-inset-bottom)+80px)] z-20"
+        >
+          <motion.button
+            whileTap={{ scale: 0.97 }}
             onClick={() => { play("confirm"); phase === "daily" ? confirmSelection() : confirmPhaseSelection(); }}
-            className="w-full py-3 bg-accent text-bg-primary rounded-md typo-body"
+            className="w-full min-h-[48px] py-3 bg-accent text-bg-primary rounded-md typo-body"
           >
             {t("daily.select.confirmButton")}
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       </div>
     );
   }
@@ -817,46 +850,59 @@ export default function CardDrawScreen() {
         </div>
       )}
 
-      {/* 프리뷰 카드 — 3D 뷰어 오버레이 */}
+      {/* 프리뷰 카드 — 3D 뷰어 오버레이.
+          Detail 모달과 동일한 bg-black/70 + backdrop-blur-md + cardOverlayEnter 사용.
+          3 컨텍스트(Detail/Preview/Final) 모션·시각 언어 통일. */}
       <AnimatePresence>
         {previewCard && (
           <motion.div
             key="preview-overlay"
-            className="fixed inset-0 z-30 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label={cardTitle(previewCard, language)}
+            className="fixed inset-0 z-30 flex flex-col items-center justify-center bg-black/70 backdrop-blur-md overflow-hidden"
+            style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
             onClick={dismissPreview}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
           >
+            {/* 등급별 뒷배경 이펙트 — 카드 뒤에 위치 */}
+            <RarityBackdrop rarity={previewCard.rarity} />
+
             <motion.div
-              initial={{ opacity: 0, scale: 0.85 }}
+              initial={{ opacity: 0, scale: 0.95, y: 40 }}
               animate={
                 previewExitDir === "up"
-                  ? { opacity: 0, y: -520, scale: 0.92 }
+                  ? // 선택 확정: 뷰포트 위로 날아감 (고정 -520px 대신 뷰포트 기반 -70vh 로 디바이스 불문 시각 일관성)
+                    { opacity: 0, y: "-70vh", scale: 0.92 }
                   : previewExitDir === "down"
-                    ? { opacity: 0, y: 220, scale: 0.78 }
+                    ? // 취소: 살짝 아래로 사라짐
+                      { opacity: 0, y: "28vh", scale: 0.88 }
                     : { opacity: 1, y: 0, scale: 1 }
               }
               transition={
                 previewExitDir
                   ? { duration: 0.32, ease: [0.32, 0.72, 0, 1] }
-                  : springSnappy
+                  : cardOverlayEnter
               }
+              exit={{ opacity: 0, scale: 0.97, y: 24, transition: cardOverlayExit }}
               onClick={(e) => e.stopPropagation()}
-              className="flex flex-col items-center gap-4"
+              className="relative z-10 flex flex-col items-center gap-4"
             >
-              <Card3DViewer card={previewCard} language={language} />
+              <Card3DViewer card={previewCard} language={language} variant="preview" />
               <motion.button
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: previewExitDir ? 0 : 1, y: previewExitDir ? 10 : 0 }}
                 transition={{ delay: previewExitDir ? 0 : 0.2, duration: 0.2 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (previewExitDir) return;
                   handleConfirmCard(previewCard);
                 }}
-                className="flex items-center gap-2 px-8 py-3 bg-accent text-bg-primary rounded-md typo-body"
+                className="flex items-center gap-2 px-8 min-h-[48px] py-3 bg-accent text-bg-primary rounded-md typo-body"
               >
                 <PixelIcon name="ArrowUp" size={16} />
                 <span>{t("daily.select.selectCard")}</span>
@@ -892,13 +938,15 @@ export default function CardDrawScreen() {
                 {t("daily.draw.rerollConfirm")}
               </p>
               <div className="flex justify-center gap-3">
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => { play("select"); setShowRerollConfirm(false); }}
-                  className="px-6 py-3 rounded-md bg-bg-surface text-text-secondary typo-body"
+                  className="px-6 min-h-[48px] py-3 rounded-md bg-bg-surface text-text-secondary typo-body"
                 >
                   {t("common.cancel")}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => {
                     play("packOpen");
                     // 진행 중인 프리뷰 exit 타이머 취소
@@ -916,10 +964,10 @@ export default function CardDrawScreen() {
                       setTimeout(() => play("cardFlip"), i * 80);
                     }
                   }}
-                  className="px-6 py-3 rounded-md bg-accent text-bg-primary typo-body"
+                  className="px-6 min-h-[48px] py-3 rounded-md bg-accent text-bg-primary typo-body"
                 >
                   {t("daily.draw.reroll")}
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>
@@ -1033,8 +1081,8 @@ function HandCard({
       onClick={onTap}
       onHoverStart={() => { if (!disabled && !isPreview) play("cardHover"); }}
       whileHover={!disabled && !isPreview ? { y: -8, transition: { type: "spring", stiffness: 400, damping: 20 } } : {}}
-      className="w-[clamp(80px,18vw,120px)] h-[clamp(112px,25vw,168px)] md:w-[140px] md:h-[196px] lg:w-[160px] lg:h-[224px] flex-shrink-0 snap-center rounded-lg p-2 md:p-3 flex flex-col items-center justify-between bg-bg-elevated grid-border cursor-pointer active:cursor-grabbing relative overflow-hidden"
-      whileTap={{ scale: 1.05 }}
+      className="w-[clamp(80px,18vw,120px)] h-[clamp(112px,25vw,168px)] md:w-[140px] md:h-[196px] lg:w-[160px] lg:h-[224px] flex-shrink-0 snap-center rounded-xl p-2 md:p-3 flex flex-col items-center justify-between bg-bg-elevated grid-border cursor-pointer active:cursor-grabbing relative overflow-hidden"
+      whileTap={{ scale: 0.97 }}
     >
       <RarityTexture rarity={card.rarity} />
       <span
@@ -1093,9 +1141,9 @@ function SelectedMiniCard({
 
   return (
     <motion.div
-      initial={{ scale: 0, opacity: 0 }}
+      initial={{ scale: 0.85, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      exit={{ scale: 0, opacity: 0 }}
+      exit={{ scale: 0.85, opacity: 0, transition: { duration: 0.15, ease: [0.32, 0, 0.67, 0] } }}
       transition={springSnappy}
       className="flex flex-col items-center gap-1"
     >
@@ -1122,16 +1170,23 @@ function SelectedMiniCard({
         </span>
       </motion.div>
       {locked ? (
-        <div className="w-7 h-7 rounded-sm bg-bg-surface/50 flex items-center justify-center">
-          <PixelIcon name="Lock" size={12} color="#FF4632" />
+        <div className="h-11 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-sm bg-bg-surface/50 flex items-center justify-center">
+            <PixelIcon name="Lock" size={12} color="#FF4632" />
+          </div>
         </div>
       ) : (
-        <button
+        <motion.button
+          whileTap={{ scale: 0.92 }}
           onClick={() => onDeselect(card.id)}
-          className="w-7 h-7 rounded-sm bg-bg-surface flex items-center justify-center"
+          // 시각 크기는 28px 유지, 실제 히트 영역은 44×44 (Apple HIG 최소치)
+          className="w-11 h-11 flex items-center justify-center"
+          aria-label="deselect card"
         >
-          <PixelIcon name="Cancel" size={14} color="var(--text-secondary)" />
-        </button>
+          <div className="w-7 h-7 rounded-sm bg-bg-surface flex items-center justify-center">
+            <PixelIcon name="Cancel" size={14} color="var(--text-secondary)" />
+          </div>
+        </motion.button>
       )}
     </motion.div>
   );
