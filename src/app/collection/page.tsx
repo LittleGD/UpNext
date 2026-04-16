@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { ALL_CARDS } from "@/data/cards";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
@@ -42,7 +42,10 @@ export default function CollectionPage() {
     if (!isLoaded) initialize();
   }, [isLoaded, initialize]);
 
-  const earnedIds = isLoaded ? getEarnedTitleIds(progress) : [];
+  const earnedIds = useMemo(
+    () => isLoaded ? getEarnedTitleIds(progress) : [],
+    [isLoaded, progress]
+  );
   useEffect(() => {
     if (tab === "titles" && earnedIds.length > 0) {
       markTitlesSeen(earnedIds);
@@ -127,16 +130,17 @@ function CardsTab({
   language: Language;
 }) {
   const [selectedCard, setSelectedCard] = useState<ChallengeCard | null>(null);
+  const unlockedSet = useMemo(() => new Set(progress.unlockedCardIds), [progress.unlockedCardIds]);
 
   const cardsByCategory = CATEGORY_ORDER.map((cat) => {
     const allCards = ALL_CARDS.filter((c) => c.category === cat);
     const filtered = allCards.filter((c) => {
-      const isUnlocked = progress.unlockedCardIds.includes(c.id);
+      const isUnlocked = unlockedSet.has(c.id);
       if (filter === "owned") return isUnlocked;
       if (filter === "unowned") return !isUnlocked;
       return true;
     });
-    const unlockedInCat = allCards.filter((c) => progress.unlockedCardIds.includes(c.id)).length;
+    const unlockedInCat = allCards.filter((c) => unlockedSet.has(c.id)).length;
     const label = categoryLabel(cat, language);
     return { category: cat, label, cards: filtered, unlockedInCat, totalInCat: allCards.length };
   }).filter((g) => g.cards.length > 0);
@@ -157,7 +161,7 @@ function CardsTab({
               className="grid grid-cols-2 md:grid-cols-3 gap-3 pb-2"
             >
               {cards.map((card) => {
-                const isUnlocked = progress.unlockedCardIds.includes(card.id);
+                const isUnlocked = unlockedSet.has(card.id);
                 const rarity = RARITY_CONFIG[card.rarity];
                 return (
                   <motion.div

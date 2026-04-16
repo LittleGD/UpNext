@@ -32,27 +32,35 @@ function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
     >
       <div className="flex flex-col items-center justify-center py-10 px-6 relative z-20">
         {/* Floating particles */}
-        {[...Array(6)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-[2px] h-[2px] bg-bg-primary/30 rounded-full"
-            initial={{
-              x: (Math.random() - 0.5) * 200,
-              y: (Math.random() - 0.5) * 100,
-              opacity: 0,
-            }}
-            animate={{
-              y: [(Math.random() - 0.5) * 80, (Math.random() - 0.5) * 120],
-              opacity: [0, 0.6, 0],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: i * 0.5,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
+        {[...Array(6)].map((_, i) => {
+          // 골든 앵글 기반 결정적 분포 — Math.random() 사용 시 SSR/CSR hydration mismatch 발생
+          const angle = (i * 137.5 * Math.PI) / 180;
+          const initX = Math.cos(angle) * (60 + (i % 3) * 40);
+          const initY = Math.sin(angle) * (30 + (i % 2) * 20);
+          const animY1 = Math.cos(angle + 1) * (25 + (i % 3) * 15);
+          const animY2 = Math.sin(angle + 2) * (40 + (i % 2) * 20);
+          return (
+            <motion.div
+              key={i}
+              className="absolute w-[2px] h-[2px] bg-bg-primary/30 rounded-full"
+              initial={{
+                x: initX,
+                y: initY,
+                opacity: 0,
+              }}
+              animate={{
+                y: [animY1, animY2],
+                opacity: [0, 0.6, 0],
+              }}
+              transition={{
+                duration: 3 + (i % 3) * 0.8,
+                repeat: Infinity,
+                delay: i * 0.5,
+                ease: "easeInOut",
+              }}
+            />
+          );
+        })}
 
         {/* Trophy — 정적 렌더 */}
         <div className="relative">

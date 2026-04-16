@@ -435,7 +435,9 @@ export default function SettingsPage() {
                   console.error("Cloud data deletion failed:", e);
                 }
               }
-              localStorage.clear();
+              Object.keys(localStorage).forEach((key) => {
+                if (key.startsWith("upnext_")) localStorage.removeItem(key);
+              });
               window.location.href = "/";
             }
           }}
