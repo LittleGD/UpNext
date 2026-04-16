@@ -203,11 +203,21 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   const totalDaysCompleted = useGameStore((s) => s.progress.totalDaysCompleted);
   const completionHistoryLength = useGameStore((s) => s.progress.completionHistory?.length ?? 0);
   const minigameRunsPlayed = useGameStore((s) => s.progress.minigameRunsPlayed);
+  // 카드 드로우/선택 진행 중에는 패치 모달을 띄우지 않는다.
+  // 선택이 끝나면 isSelectionDone이 true로 바뀌면서 이 effect가 재실행돼 모달을 띄운다.
+  const isSelectionDone = useGameStore((s) => {
+    const d = s.daily;
+    const phase = d.challengePhase || "daily";
+    return phase === "daily" ? d.isSelectionComplete
+      : phase === "extra" ? d.extraSelectionComplete
+      : d.superSelectionComplete;
+  });
 
   useEffect(() => {
     if (!syncSettled) return;
     if (conflict) return; // 병합 충돌 다이얼로그와 겹치지 않게
     if (!hasCompletedOnboarding) return;
+    if (!isSelectionDone) return; // 카드 드로우/선택 중에는 표시하지 않음
 
     // cloud sync가 lastSeenPatchVersion을 최신으로 갱신했으면 modal을 즉시 닫음
     if (lastSeenPatchVersion === LATEST_PATCH.version) {
@@ -229,6 +239,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     syncSettled,
     conflict,
     hasCompletedOnboarding,
+    isSelectionDone,
     lastSeenPatchVersion,
     totalDaysCompleted,
     completionHistoryLength,
