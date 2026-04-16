@@ -217,7 +217,11 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     if (!syncSettled) return;
     if (conflict) return; // 병합 충돌 다이얼로그와 겹치지 않게
     if (!hasCompletedOnboarding) return;
-    if (!isSelectionDone) return; // 카드 드로우/선택 중에는 표시하지 않음
+    // 카드 드로우/선택 중에는 표시하지 않음 (extra/super phase 진입 시에도 닫힘)
+    if (!isSelectionDone) {
+      setShowPatchModal(false);
+      return;
+    }
 
     // cloud sync가 lastSeenPatchVersion을 최신으로 갱신했으면 modal을 즉시 닫음
     if (lastSeenPatchVersion === LATEST_PATCH.version) {
