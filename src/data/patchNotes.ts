@@ -17,6 +17,66 @@ export interface PatchNote {
 // 최신 순으로 맨 앞에 쌓기 — LATEST_PATCH는 항상 PATCH_NOTES[0]
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "2026.04.16",
+    date: "2026-04-16",
+    headline: {
+      ko: "앱 실행 연출 다듬기",
+      en: "Smoother app launch reveal",
+      ja: "アプリ起動演出の改善",
+      zh: "应用启动动画优化",
+    },
+    entries: {
+      ko: [
+        {
+          icon: "Sparkle",
+          title: "스플래시 화면 정중앙 정렬",
+          description: "워드마크가 살짝 아래로 밀려 보이던 문제를 수정. 이제 앱 실행 시 화면 한가운데에 정확히 표시됩니다.",
+        },
+        {
+          icon: "Zap",
+          title: "스플래시 종료 트랜지션",
+          description: "스플래시가 걷히는 동안 상단 레벨 바와 하단 내비게이션이 함께 슬라이드인. 스플래시 위로 겹쳐 보이던 잔상도 제거.",
+        },
+      ],
+      en: [
+        {
+          icon: "Sparkle",
+          title: "Splash screen centered",
+          description: "Fixed the wordmark sitting slightly below center. Now perfectly centered when you launch the app.",
+        },
+        {
+          icon: "Zap",
+          title: "Splash exit transition",
+          description: "The top level bar and bottom nav now slide in as the splash fades out, and no longer peek through during the splash.",
+        },
+      ],
+      ja: [
+        {
+          icon: "Sparkle",
+          title: "スプラッシュ画面の中央配置",
+          description: "ワードマークが少し下にずれて見えていた問題を修正。アプリ起動時に画面のど真ん中に表示されます。",
+        },
+        {
+          icon: "Zap",
+          title: "スプラッシュ終了演出",
+          description: "スプラッシュがフェードアウトする間に上部レベルバーと下部ナビが一緒にスライドイン。スプラッシュ越しに覗いていた表示も解消。",
+        },
+      ],
+      zh: [
+        {
+          icon: "Sparkle",
+          title: "启动画面居中",
+          description: "修复了标志略微偏下的问题。现在启动应用时完美居中。",
+        },
+        {
+          icon: "Zap",
+          title: "启动结束过渡",
+          description: "启动画面淡出的同时,顶部等级条与底部导航栏一起滑入。启动画面期间透出的残影也已消除。",
+        },
+      ],
+    },
+  },
+  {
     version: "2026.04.15",
     date: "2026-04-15",
     headline: {
