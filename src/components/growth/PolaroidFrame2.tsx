@@ -1,6 +1,13 @@
 "use client";
 
-import { KODAK_FILM_FILTER, FILM_GRAIN_URL, VINTAGE_VIGNETTE } from "@/lib/photoFilter";
+import { useEffect, useState } from "react";
+import {
+  KODAK_FILM_FILTER,
+  FILM_GRAIN_URL,
+  VINTAGE_VIGNETTE,
+  VINTAGE_AMBER,
+  computeVintageOpacity,
+} from "@/lib/photoFilter";
 
 interface Props {
   imageSrc: string;
@@ -9,18 +16,25 @@ interface Props {
 }
 
 /**
- * PolaroidFrame2 — Figma `p-frame2` (node 346:2611) 충실 구현
+ * PolaroidFrame2 — Figma `p-frame2` 기반, 장식은 역할 기반 자산으로 교체.
  *
  * 원본 프레임: 184×223 — max-width 300px 기준으로 ~1.63배 업스케일.
  * 구성:
  *  - 베이지 카드(#e8e7e3, rounded 4px, overflow-hidden)
- *  - 검은 사진 영역: 원본 좌표 x=15/y=14/154×157 (비율 기준 offset)
- *  - 우상단 모서리에 걸친 폴리곤 스티커(polygon3.png, 18.66° 회전, mix-blend-multiply)
- *  - 좌하단에 걸친 마스킹 테이프(rectangle38.png, -4.38° 회전)
+ *  - 검은 사진 영역: 원본 좌표 x=15/y=14/154×157 (퍼센트 기반)
+ *  - 우상단 모서리 fold (`frame-right-top-fold.png`, 19×7 원본 크기 그대로)
+ *    mix-blend-multiply 로 베이지 톤과 섞음
+ *  - 하단 엣지 테이프 (`frame-left-edge-tape.png`, 152×44 원본 크기 그대로)
+ *    프레임 하단 엣지에 절반쯤 걸쳐 좌측으로 살짝 삐져나간 배치 — 벽에 붙인 느낌
  *  - 사진 영역 내부: Kodak 필터 + 필름 그레인 + 비네트 + 인셋 섀도우 + 오렌지 날짜 스탬프
- *  - children 슬롯: 사진 아래 베이지 립 영역
  */
 export default function PolaroidFrame2({ imageSrc, timestamp, children }: Props) {
+  // 경과 일수 기반 빈티지 에이징 — 3일 간격 step, 21일에서 최대.
+  // Date.now() 를 mount 후 한 번 계산해 SSR/hydration 불일치 회피 (초기 SSR 은 opacity 0).
+  const [vintageOpacity, setVintageOpacity] = useState(0);
+  useEffect(() => {
+    setVintageOpacity(computeVintageOpacity(timestamp));
+  }, [timestamp]);
   // 필름 카메라 날짜 스탬프 — 기존 PolaroidFrame.tsx 포맷 그대로
   const d = new Date(timestamp);
   const dateStr = `'${String(d.getFullYear()).slice(2)} ${String(d.getMonth() + 1).padStart(2, "0")} ${String(d.getDate()).padStart(2, "0")}`;
@@ -33,16 +47,15 @@ export default function PolaroidFrame2({ imageSrc, timestamp, children }: Props)
   const photoWidthPct = (154 / 184) * 100; // 83.696%
   const photoHeightPct = (157 / 223) * 100; // 70.404%
 
-  // Polygon 3 스티커: x=170.01, y=-19.13, size=32.26, rotate 18.66deg
-  const polyLeftPct = (170.01 / 184) * 100; // 92.4%
-  const polyTopPct = (-19.13 / 223) * 100; // -8.58%
-  const polySizePct = (32.26 / 184) * 100; // 17.53% of frame width
-
-  // Rectangle 38 마스킹 테이프: x=-6, y=189.97, 156.99×43.76, rotate -4.38deg
-  const tapeLeftPct = (-6 / 184) * 100; // -3.26%
-  const tapeTopPct = (189.97 / 223) * 100; // 85.19%
-  const tapeWidthPct = (156.99 / 184) * 100; // 85.32%
-  const tapeHeightPct = (43.76 / 223) * 100; // 19.62%
+  // 장식은 전부 PNG 원본 픽셀 크기로 배치 — 업스케일 해상도 손실 방지
+  // (프레임만 반응형 스케일, 장식은 고정 크기)
+  const FOLD_W = 19;
+  const FOLD_H = 7;
+  const TAPE_W = 152;
+  const TAPE_H = 44;
+  // 테이프를 프레임 하단 엣지에 걸침 — 절반쯤 프레임 밖으로 삐져나오게
+  const TAPE_LEFT = -16; // 좌측에서 살짝 프레임 밖
+  const TAPE_BOTTOM = -TAPE_H / 2; // 하단 엣지에서 절반 밖 (≈ -22)
 
   return (
     <div
@@ -50,10 +63,21 @@ export default function PolaroidFrame2({ imageSrc, timestamp, children }: Props)
       style={{
         aspectRatio: "184 / 223",
         backgroundColor: "#e8e7e3",
-        borderBottom: "1px solid #e8e7e3",
+        borderBottom: "1px solid #423F3C",
         borderRadius: 4,
       }}
     >
+      {/* 종이 질감 그레인 — 프레임 여백에 옅게 깔림 (사진은 위에 덮여 그레인이 안 보임) */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: FILM_GRAIN_URL,
+          backgroundSize: "160px 160px",
+          opacity: 0.15,
+          mixBlendMode: "multiply",
+        }}
+      />
       {/* 사진 영역 (검은 배경 + 이미지 + 필터 레이어) */}
       <div
         className="absolute overflow-hidden"
@@ -118,46 +142,49 @@ export default function PolaroidFrame2({ imageSrc, timestamp, children }: Props)
         {children}
       </div>
 
-      {/* Polygon 3 — 우상단 모서리 스티커 (mix-blend-multiply, 18.66° 회전) */}
-      <div
-        className="absolute pointer-events-none"
+      {/* 우상단 모서리 fold — PNG 원본 크기, 방향이 PNG에 포함 */}
+      <img
+        src="/polaroid/frame-right-top-fold.png"
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="absolute pointer-events-none block"
         style={{
-          left: `${polyLeftPct}%`,
-          top: `${polyTopPct}%`,
-          width: `${polySizePct}%`,
-          aspectRatio: "1 / 1",
-          transform: "rotate(18.66deg)",
-          transformOrigin: "center",
+          right: 0,
+          top: 0,
+          width: FOLD_W,
+          height: FOLD_H,
           mixBlendMode: "multiply",
         }}
-      >
-        <img
-          src="/polaroid/frame2/polygon3.png"
-          alt=""
-          className="block w-full h-full"
-          draggable={false}
-        />
-      </div>
+      />
 
-      {/* Rectangle 38 — 좌하단 마스킹 테이프 (-4.38° 회전) */}
-      <div
-        className="absolute pointer-events-none"
+      {/* 하단 엣지 테이프 — PNG 원본 크기, 좌하단에 절반쯤 삐져나옴 */}
+      <img
+        src="/polaroid/frame-left-edge-tape.png"
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="absolute pointer-events-none block"
         style={{
-          left: `${tapeLeftPct}%`,
-          top: `${tapeTopPct}%`,
-          width: `${tapeWidthPct}%`,
-          height: `${tapeHeightPct}%`,
-          transform: "rotate(-4.38deg)",
-          transformOrigin: "center",
+          left: TAPE_LEFT,
+          bottom: TAPE_BOTTOM,
+          width: TAPE_W,
+          height: TAPE_H,
         }}
-      >
-        <img
-          src="/polaroid/frame2/rectangle38.png"
-          alt=""
-          className="block w-full h-full"
-          draggable={false}
+      />
+
+      {/* 빈티지 에이징 오버레이 — 21일에 걸쳐 누렇게 바래지는 앰버 레이어 */}
+      {vintageOpacity > 0 && (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundColor: VINTAGE_AMBER,
+            opacity: vintageOpacity,
+            mixBlendMode: "multiply",
+          }}
         />
-      </div>
+      )}
     </div>
   );
 }

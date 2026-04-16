@@ -1,6 +1,13 @@
 "use client";
 
-import { KODAK_FILM_FILTER, FILM_GRAIN_URL, VINTAGE_VIGNETTE } from "@/lib/photoFilter";
+import { useEffect, useState } from "react";
+import {
+  KODAK_FILM_FILTER,
+  FILM_GRAIN_URL,
+  VINTAGE_VIGNETTE,
+  VINTAGE_AMBER,
+  computeVintageOpacity,
+} from "@/lib/photoFilter";
 
 interface Props {
   imageSrc: string;
@@ -9,15 +16,14 @@ interface Props {
 }
 
 /**
- * PolaroidFrame4 — Figma `p-frame4` 재현 (node 346:2622).
+ * PolaroidFrame4 — Figma `p-frame4` 기반, 장식은 역할 기반 자산으로 교체.
  *
- * Figma 원본 수치 (1x):
- *   프레임: 184 × 224 (bg #e8e7e3, radius 4, border-bottom solid #e8e7e3)
- *   이미지: 154 × 157, 수평 중앙, 세로 중심 오프셋 -18.5px
- *   폴리곤3 (좌하단 장식): 26×26, left -15px / top 204px, rotate 1.34deg, mix-blend-multiply
- *   렉탱글38 (상단 테이프): 99.5 × 20.2 (랩 98 × 48 with rotate), left 86 / top -24, rotate 17.06deg
- *
- * 300px 너비로 스케일 업 (≈ 1.63x) → 실제 렌더: 300 × 365.
+ * 프레임: 184 × 224 (1x) → 300px 폭 기준 ~1.63x 업스케일 (실제 300 × 365).
+ * 이미지: 154 × 157, 수평 중앙, 세로 중심 오프셋 -18.5px.
+ * 장식:
+ *   · 좌하단 fold (`frame-left-bottom-fold.png`, 9×19) — 프레임 모서리 밀착, mix-blend-multiply
+ *   · 상단 엣지 테이프 (`frame-top-edge-tape.png`, 98×23) — 상단 우측에서 절반쯤 밖으로 삐져나옴
+ *     이미지 자체에 기울기 포함 → 회전 변환 불필요
  */
 
 // 스케일 계수 (Figma 1x → 렌더 px)
@@ -37,20 +43,22 @@ const IMG_TOP = Math.round(FRAME_H / 2 - 18.5 * S - IMG_H / 2); // ≈ 25
 const CAPTION_TOP = IMG_TOP + IMG_H;
 const CAPTION_H = FRAME_H - CAPTION_TOP;
 
-// 데코 — 좌하단 폴리곤 (mix-blend-multiply)
-const POLY_SIZE = Math.round(26.043 * S); // ≈ 42
-const POLY_LEFT = Math.round(-15.02 * S); // ≈ -24
-const POLY_TOP = Math.round(203.98 * S); // ≈ 333
-
-// 데코 — 상단 테이프
-const TAPE_W = Math.round(99.521 * S); // ≈ 162
-const TAPE_H = Math.round(48.03 * S); // ≈ 78 (회전 컨테이너)
-const TAPE_INNER_W = Math.round(97.902 * S); // ≈ 160
-const TAPE_INNER_H = Math.round(20.203 * S); // ≈ 33
-const TAPE_LEFT = Math.round(86 * S); // ≈ 140
-const TAPE_TOP = Math.round(-24 * S); // ≈ -39
+// 장식은 PNG 원본 픽셀 크기 그대로 — 업스케일 해상도 손실 방지
+const FOLD_W = 9;
+const FOLD_H = 19;
+const TAPE_W = 98;
+const TAPE_H = 23;
+// 상단 엣지 테이프: 우측 상단에서 절반쯤 프레임 밖으로 걸침
+const TAPE_LEFT = Math.round(88 * S); // ≈ 143 (프레임 우측에 가깝게)
+const TAPE_TOP = -Math.round(TAPE_H / 2); // ≈ -12 (절반 밖)
 
 export default function PolaroidFrame4({ imageSrc, timestamp, children }: Props) {
+  // 경과 일수 기반 빈티지 에이징 — 3일 간격 step, 21일에서 최대.
+  // Date.now() 를 mount 후 한 번 계산해 SSR/hydration 불일치 회피 (초기 SSR 은 opacity 0).
+  const [vintageOpacity, setVintageOpacity] = useState(0);
+  useEffect(() => {
+    setVintageOpacity(computeVintageOpacity(timestamp));
+  }, [timestamp]);
   // 필름 카메라 날짜 스탬프 — 'YY MM DD HH:MM
   const d = new Date(timestamp);
   const dateStr = `'${String(d.getFullYear()).slice(2)} ${String(d.getMonth() + 1).padStart(2, "0")} ${String(d.getDate()).padStart(2, "0")}`;
@@ -64,10 +72,21 @@ export default function PolaroidFrame4({ imageSrc, timestamp, children }: Props)
         height: FRAME_H,
         backgroundColor: "#e8e7e3",
         borderRadius: 4,
-        borderBottom: "1px solid #e8e7e3",
+        borderBottom: "1px solid #423F3C",
         overflow: "hidden",
       }}
     >
+      {/* 종이 질감 그레인 — 프레임 여백에 옅게 깔림 (사진은 위에 덮여 그레인이 안 보임) */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: FILM_GRAIN_URL,
+          backgroundSize: "160px 160px",
+          opacity: 0.15,
+          mixBlendMode: "multiply",
+        }}
+      />
       {/* 사진 영역 — Figma 검정 사각형 위치에 배치 */}
       <div
         className="absolute overflow-hidden"
@@ -135,60 +154,49 @@ export default function PolaroidFrame4({ imageSrc, timestamp, children }: Props)
         {children}
       </div>
 
-      {/* 좌하단 데코 — polygon3 (mix-blend-multiply, 1.34deg 회전) */}
-      <div
-        className="absolute pointer-events-none flex items-center justify-center"
+      {/* 좌하단 모서리 fold — 방향이 PNG에 포함 */}
+      <img
+        src="/polaroid/frame-left-bottom-fold.png"
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="absolute pointer-events-none block"
         style={{
-          left: POLY_LEFT,
-          top: POLY_TOP,
-          width: POLY_SIZE,
-          height: POLY_SIZE,
+          left: 0,
+          bottom: 0,
+          width: FOLD_W,
+          height: FOLD_H,
           mixBlendMode: "multiply",
         }}
-      >
-        <div style={{ transform: "rotate(1.34deg)", width: POLY_SIZE, height: POLY_SIZE }}>
-          <img
-            src="/polaroid/frame4/polygon3.png"
-            alt=""
-            className="block w-full h-full"
-            draggable={false}
-          />
-        </div>
-      </div>
+      />
 
-      {/* 상단 우측 테이프 — rectangle38 (17.06deg 회전) */}
-      <div
-        className="absolute pointer-events-none flex items-center justify-center"
+      {/* 상단 엣지 테이프 — 이미지 자체에 기울기 포함, 회전 없음 */}
+      <img
+        src="/polaroid/frame-top-edge-tape.png"
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="absolute pointer-events-none block"
         style={{
           left: TAPE_LEFT,
           top: TAPE_TOP,
           width: TAPE_W,
           height: TAPE_H,
         }}
-      >
+      />
+
+      {/* 빈티지 에이징 오버레이 — 21일에 걸쳐 누렇게 바래지는 앰버 레이어 */}
+      {vintageOpacity > 0 && (
         <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
           style={{
-            transform: "rotate(17.06deg)",
-            width: TAPE_INNER_W,
-            height: TAPE_INNER_H,
+            backgroundColor: VINTAGE_AMBER,
+            opacity: vintageOpacity,
+            mixBlendMode: "multiply",
           }}
-        >
-          <img
-            src="/polaroid/frame4/rectangle38.png"
-            alt=""
-            className="block w-full h-full"
-            draggable={false}
-            style={{
-              // Figma inset [-3.62% -0.26% -3.6% -0.76%] 재현 — 살짝 확장
-              width: "calc(100% + 1.02%)",
-              height: "calc(100% + 7.22%)",
-              marginLeft: "-0.76%",
-              marginTop: "-3.62%",
-              maxWidth: "none",
-            }}
-          />
-        </div>
-      </div>
+        />
+      )}
     </div>
   );
 }
