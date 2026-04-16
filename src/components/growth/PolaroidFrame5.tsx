@@ -16,12 +16,12 @@ interface Props {
 }
 
 /**
- * PolaroidFrame1 — Figma `p-frame1` 기반, 장식은 역할 기반 자산으로 교체.
+ * PolaroidFrame5 — 장식 없는 기본 흰색 폴라로이드.
  *
- * 프레임: 184×223 (1x), 300px 폭으로 스케일 업 (~1.63x).
- * 사진 슬롯: 154×157, 수평 중앙, 세로 중심에서 -18.5px 오프셋.
- * 장식: 좌상단 `frame-left-top-fold.png` (14×14) — 이미 올바른 방향이라 회전 없음.
- *       mix-blend-multiply 로 베이지 종이 톤과 자연스럽게 섞이게 함.
+ * 프레임: 184×223 (1x) → 300px 폭 스케일 업 (~1.63x).
+ * 사진 슬롯: Frame1과 동일 — 154×157, 수평 중앙, 세로 중심 -18.5px 오프셋.
+ * 배경: #ffffff (순백), border-bottom: 1px solid #423F3C (어두운 라인 — 종이 두께감).
+ * 장식 없음 — "기본형" 카드, 특별한 날이나 일반 기록용으로 사용 가능.
  */
 
 const S = 300 / 184; // ≈ 1.6304
@@ -30,7 +30,7 @@ const S = 300 / 184; // ≈ 1.6304
 const FRAME_W = 300;
 const FRAME_H = 223 * S; // ≈ 363.59
 
-// 이미지 슬롯 (Figma: 154×157, 수평 중앙, top = 50% - 18.5px - 157/2)
+// 이미지 슬롯 (Frame1과 동일 규격)
 const IMG_W = 154 * S;
 const IMG_H = 157 * S;
 const IMG_LEFT = (FRAME_W - IMG_W) / 2; // 수평 중앙
@@ -42,18 +42,14 @@ const CAPTION_TOP = IMG_TOP + IMG_H;
 const CAPTION_W = IMG_W;
 const CAPTION_H = FRAME_H - CAPTION_TOP;
 
-// 좌상단 fold 스티커 — PNG 원본 14×14 그대로 사용 (업스케일 시 해상도 손실 방지)
-const FOLD_W = 14;
-const FOLD_H = 14;
-
-export default function PolaroidFrame1({ imageSrc, timestamp, children }: Props) {
+export default function PolaroidFrame5({ imageSrc, timestamp, children }: Props) {
   // 경과 일수 기반 빈티지 에이징 — 3일 간격 step, 21일에서 최대.
   // Date.now() 를 mount 후 한 번 계산해 SSR/hydration 불일치 회피 (초기 SSR 은 opacity 0).
   const [vintageOpacity, setVintageOpacity] = useState(0);
   useEffect(() => {
     setVintageOpacity(computeVintageOpacity(timestamp));
   }, [timestamp]);
-  // 필름 카메라 날짜 스탬프 — 'YY MM DD HH:MM (기존 PolaroidFrame.tsx 포맷 그대로)
+  // 필름 카메라 날짜 스탬프 — 'YY MM DD HH:MM
   const d = new Date(timestamp);
   const dateStr = `'${String(d.getFullYear()).slice(2)} ${String(d.getMonth() + 1).padStart(2, "0")} ${String(d.getDate()).padStart(2, "0")}`;
   const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -64,13 +60,11 @@ export default function PolaroidFrame1({ imageSrc, timestamp, children }: Props)
       style={{
         width: FRAME_W,
         height: FRAME_H,
-        backgroundColor: "#e8e7e3",
+        backgroundColor: "#ffffff",
         borderRadius: 4,
         borderBottom: "1px solid #423F3C",
         overflow: "hidden",
       }}
-      data-node-id="346:2605"
-      data-name="p-frame1"
     >
       {/* 종이 질감 그레인 — 프레임 여백에 옅게 깔림 (사진은 위에 덮여 그레인이 안 보임) */}
       <div
@@ -93,7 +87,6 @@ export default function PolaroidFrame1({ imageSrc, timestamp, children }: Props)
           height: IMG_H,
           backgroundColor: "#010101",
         }}
-        data-node-id="346:2606"
       >
         <img
           src={imageSrc}
@@ -138,7 +131,7 @@ export default function PolaroidFrame1({ imageSrc, timestamp, children }: Props)
         </div>
       </div>
 
-      {/* 캡션/서명 영역 — 이미지 하단 베이지 립 */}
+      {/* 캡션/서명 영역 — 이미지 하단 흰 여백 */}
       <div
         className="absolute"
         style={{
@@ -150,22 +143,6 @@ export default function PolaroidFrame1({ imageSrc, timestamp, children }: Props)
       >
         {children}
       </div>
-
-      {/* 좌상단 모서리 fold — 방향이 PNG에 포함되어 회전 없음 */}
-      <img
-        src="/polaroid/frame-left-top-fold.png"
-        alt=""
-        aria-hidden
-        draggable={false}
-        className="absolute pointer-events-none block"
-        style={{
-          left: 0,
-          top: 0,
-          width: FOLD_W,
-          height: FOLD_H,
-          mixBlendMode: "multiply",
-        }}
-      />
 
       {/* 빈티지 에이징 오버레이 — 21일에 걸쳐 누렇게 바래지는 앰버 레이어 */}
       {vintageOpacity > 0 && (

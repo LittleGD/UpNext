@@ -1,6 +1,13 @@
 "use client";
 
-import { KODAK_FILM_FILTER, FILM_GRAIN_URL, VINTAGE_VIGNETTE } from "@/lib/photoFilter";
+import { useEffect, useState } from "react";
+import {
+  KODAK_FILM_FILTER,
+  FILM_GRAIN_URL,
+  VINTAGE_VIGNETTE,
+  VINTAGE_AMBER,
+  computeVintageOpacity,
+} from "@/lib/photoFilter";
 
 interface Props {
   imageSrc: string;
@@ -8,14 +15,14 @@ interface Props {
   children?: React.ReactNode; // 서명/캡션 캔버스 슬롯 — 폴라로이드 하단
 }
 
-// Figma p-frame3 원본 좌표계 (184 x 223)
+// Figma p-frame3 기반 (184 x 223), 장식은 역할 기반 자산으로 교체
 // - 이미지 슬롯(Frame 39): 154 x 157 @ (15, 14)
 // - 하단 캡션 영역: (15, 171) ~ (169, 223) — 52px 높이
-// - Polygon 3: 32.26 x 32.26 @ (176.14, 207) mix-blend-multiply rotate 18.66deg
-// - Vector 20: 140 x 18.344 @ (-18, 189) — 좌측 밖으로 삐져나온 라인
-// - Vector 21: flex wrapper 187.25 x 170.607 @ (100, 98), 내부 235.072 x 18.344 strip rotate -41.89deg
+// - 장식:
+//   · 우하단 fold (`frame-right-bottom-fold.png`, 13×12) — 프레임 모서리 밀착, mix-blend-multiply
+//   · 사진 하단 크랙 (`frame-crack.png`, 141×21) — 좌측 밖까지 뻗는 얇은 균열
 //
-// 렌더 시 ~300px 폭으로 확대 (300 / 184 ≈ 1.6304) — 좌표/크기를 모두 동일 배율로 스케일.
+// 렌더 시 ~300px 폭으로 확대 (300 / 184 ≈ 1.6304).
 const S = 300 / 184; // ≈ 1.6304
 const FRAME_W = 184 * S; // 300
 const FRAME_H = 223 * S; // ≈ 363.59
@@ -32,27 +39,24 @@ const CAP_TOP = (14 + 157) * S; // 171 * S
 const CAP_W = 154 * S;
 const CAP_H = (223 - 171) * S; // 52 * S
 
-// Polygon 3 (우하단 장식, mix-blend-multiply)
-const POLY_LEFT = 168 * S;
-const POLY_TOP = 207 * S;
-const POLY_BOX = 32.261 * S;
-const POLY_INNER = 25.456 * S;
+// 장식은 PNG 원본 픽셀 크기 그대로 — 업스케일 해상도 손실 방지
+const FOLD_W = 13;
+const FOLD_H = 12;
+const CRACK_W = 141;
+const CRACK_H = 21;
 
-// Vector 20 (좌측 밖으로 나간 라인)
-const V20_LEFT = -18 * S;
-const V20_TOP = 189 * S;
-const V20_W = 140 * S;
-const V20_H = 18.344 * S;
-
-// Vector 21 (대각선 strip — 회전된 flex wrapper)
-const V21_LEFT = 100 * S;
-const V21_TOP = 98 * S;
-const V21_WRAP_W = 187.25 * S;
-const V21_WRAP_H = 170.607 * S;
-const V21_STRIP_W = 235.072 * S;
-const V21_STRIP_H = 18.344 * S;
+// 크랙은 사진 하단~캡션 경계를 가로지르며 좌측 밖까지 살짝 뻗는 위치
+// Figma 원본 y=189 위치(프레임의 약 84.8%)에 배치
+const CRACK_LEFT = -16; // 좌측에서 살짝 프레임 밖
+const CRACK_TOP = Math.round(189 * S); // ≈ 308 — 사진 하단 엣지 근처
 
 export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props) {
+  // 경과 일수 기반 빈티지 에이징 — 3일 간격 step, 21일에서 최대.
+  // Date.now() 를 mount 후 한 번 계산해 SSR/hydration 불일치 회피 (초기 SSR 은 opacity 0).
+  const [vintageOpacity, setVintageOpacity] = useState(0);
+  useEffect(() => {
+    setVintageOpacity(computeVintageOpacity(timestamp));
+  }, [timestamp]);
   // 필름 카메라 날짜 스탬프 (기존 PolaroidFrame.tsx 포맷 그대로)
   const d = new Date(timestamp);
   const dateStr = `'${String(d.getFullYear()).slice(2)} ${String(d.getMonth() + 1).padStart(2, "0")} ${String(d.getDate()).padStart(2, "0")}`;
@@ -65,13 +69,24 @@ export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props)
         width: FRAME_W,
         height: FRAME_H,
         backgroundColor: "#e8e7e3",
-        borderBottom: "1px solid #e8e7e3",
+        borderBottom: "1px solid #423F3C",
         borderRadius: 4,
         boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
       }}
       data-node-id="346:2616"
       data-name="p-frame3"
     >
+      {/* 종이 질감 그레인 — 프레임 여백에 옅게 깔림 (사진은 위에 덮여 그레인이 안 보임) */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: FILM_GRAIN_URL,
+          backgroundSize: "160px 160px",
+          opacity: 0.15,
+          mixBlendMode: "multiply",
+        }}
+      />
       {/* 이미지 슬롯 (Frame 39) */}
       <div
         className="absolute overflow-hidden"
@@ -125,119 +140,38 @@ export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props)
         </div>
       </div>
 
-      {/* Vector 20 — 좌측 하단에서 밖으로 뻗는 얇은 라인 */}
-      <div
-        className="absolute pointer-events-none"
+      {/* 크랙 — 사진 하단~캡션 경계를 따라 좌측 밖까지 뻗는 얇은 균열 */}
+      <img
+        src="/polaroid/frame-crack.png"
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="absolute pointer-events-none block"
         style={{
-          left: V20_LEFT,
-          top: V20_TOP,
-          width: V20_W,
-          height: V20_H,
+          left: CRACK_LEFT,
+          top: CRACK_TOP,
+          width: CRACK_W,
+          height: CRACK_H,
+          mixBlendMode: "multiply",
+          opacity: 0.7,
         }}
-        data-node-id="346:2620"
-      >
-        {/* Figma 스펙: inset-[-8.75% -0.26% -5.4% -0.18%] — 이미지가 경계 밖까지 살짝 넘어감 */}
-        <div
-          className="absolute"
-          style={{
-            top: "-8.75%",
-            right: "-0.26%",
-            bottom: "-5.4%",
-            left: "-0.18%",
-          }}
-        >
-          <img
-            src="/polaroid/frame3/vector20.png"
-            alt=""
-            draggable={false}
-            className="block w-full h-full"
-            style={{ maxWidth: "none" }}
-          />
-        </div>
-      </div>
+      />
 
-      {/* Vector 21 — 대각선 strip (flex wrapper, 내부 회전) */}
-      <div
-        className="absolute flex items-center justify-center pointer-events-none"
+      {/* 우하단 모서리 fold — 방향이 PNG에 포함 */}
+      <img
+        src="/polaroid/frame-right-bottom-fold.png"
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="absolute pointer-events-none block"
         style={{
-          left: V21_LEFT,
-          top: V21_TOP,
-          width: V21_WRAP_W,
-          height: V21_WRAP_H,
-        }}
-      >
-        <div
-          className="flex-none"
-          style={{ transform: "rotate(-41.89deg)" }}
-        >
-          <div
-            className="relative"
-            style={{ width: V21_STRIP_W, height: V21_STRIP_H }}
-            data-node-id="346:2621"
-          >
-            {/* Figma 스펙: inset-[-8.8% -0.21% -7.1% -0.11%] */}
-            <div
-              className="absolute"
-              style={{
-                top: "-8.8%",
-                right: "-0.21%",
-                bottom: "-7.1%",
-                left: "-0.11%",
-              }}
-            >
-              <img
-                src="/polaroid/frame3/vector21.png"
-                alt=""
-                draggable={false}
-                className="block w-full h-full"
-                style={{ maxWidth: "none" }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Polygon 3 — 우하단 삼각형 장식 (mix-blend-multiply, rotate 18.66deg) */}
-      <div
-        className="absolute flex items-center justify-center pointer-events-none"
-        style={{
-          left: POLY_LEFT,
-          top: POLY_TOP,
-          width: POLY_BOX,
-          height: POLY_BOX,
+          right: 0,
+          bottom: 0,
+          width: FOLD_W,
+          height: FOLD_H,
           mixBlendMode: "multiply",
         }}
-      >
-        <div
-          className="flex-none"
-          style={{ transform: "rotate(18.66deg)" }}
-        >
-          <div
-            className="relative"
-            style={{ width: POLY_INNER, height: POLY_INNER }}
-            data-node-id="346:2618"
-          >
-            {/* Figma 스펙: 삼각형은 상단 기준 높이 75% 차지 (bottom-1/4), 좌우 6.7% 인셋 */}
-            <div
-              className="absolute"
-              style={{
-                top: 0,
-                bottom: "25%",
-                left: "6.7%",
-                right: "6.7%",
-              }}
-            >
-              <img
-                src="/polaroid/frame3/polygon3.png"
-                alt=""
-                draggable={false}
-                className="block w-full h-full"
-                style={{ maxWidth: "none" }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      />
 
       {/* 서명/캡션 슬롯 — 폴라로이드 하단 흰 여백 */}
       <div
@@ -251,6 +185,19 @@ export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props)
       >
         {children}
       </div>
+
+      {/* 빈티지 에이징 오버레이 — 21일에 걸쳐 누렇게 바래지는 앰버 레이어 */}
+      {vintageOpacity > 0 && (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundColor: VINTAGE_AMBER,
+            opacity: vintageOpacity,
+            mixBlendMode: "multiply",
+          }}
+        />
+      )}
     </div>
   );
 }

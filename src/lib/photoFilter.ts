@@ -32,3 +32,40 @@ export const FILM_GRAIN_URL = `url("data:image/svg+xml;utf8,${encodeURIComponent
  */
 export const VINTAGE_VIGNETTE =
   "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.22) 100%)";
+
+/**
+ * 빈티지 에이징 — 사진이 시간이 지나면서 누렇게 바래는 효과의 강도 계산.
+ *
+ * 규칙:
+ *  - 3일 간격으로 한 단계(0~7)씩 진행 — "조금씩" 변화
+ *  - 21일(=7단계)에서 최대, 그 이후는 더 진행하지 않음
+ *  - 같은 단계 안에서도 사진별 ±15% 편차 — 알고리즘 티 나지 않게 자연스럽게
+ *
+ * 반환값: 빈티지 오버레이 layer 의 opacity (0 ~ 0.25)
+ *   0 이면 오버레이 자체를 렌더하지 않아도 됨 (조건부 렌더로 DOM 가볍게).
+ *
+ * SSR 주의:
+ *   함수 자체는 pure 하지만 기본 `now = Date.now()` 를 쓰면 서버 렌더 시점과
+ *   클라이언트 hydrate 시점 값이 달라 하이드레이션 미스매치가 발생한다
+ *   ("use client" 컴포넌트도 여전히 SSR 이 도는 점이 함정). 호출부는 반드시
+ *   useEffect 로 mount 후에 호출해 결과를 state 로 두거나, 외부에서 안정적인
+ *   now 값을 주입해야 한다 — 프레임 5개 모두 useState + useEffect 패턴 사용.
+ */
+export function computeVintageOpacity(timestamp: number, now: number = Date.now()): number {
+  const DAY = 86_400_000;
+  const daysPassed = Math.max(0, Math.floor((now - timestamp) / DAY));
+  const ageStep = Math.min(7, Math.floor(daysPassed / 3)); // 0~7
+  const ageRatio = ageStep / 7; // 0~1
+  // 사진별 ±15% 편차 (LCG) — 같은 age 라도 완전히 동일 톤이 아니게
+  const jitter = (((timestamp * 9301 + 49297) % 233280) / 233280 - 0.5) * 0.3;
+  const finalRatio = Math.max(0, Math.min(1, ageRatio + jitter * ageRatio));
+  return finalRatio * 0.25;
+}
+
+/**
+ * 빈티지 오버레이 베이스 컬러 — 바랜 앰버 톤.
+ * multiply 블렌드로 얹으면 흰/베이지 여백이 누래지고 검은 사진은 거의 영향 없음
+ * → 실제 폴라로이드 bleaching 패턴에 가깝다 (종이는 황변, 이미지는 Kodak 필터가
+ *   이미 빈티지를 담당하므로 추가 변화 최소화).
+ */
+export const VINTAGE_AMBER = "rgba(200, 165, 114, 1)";
