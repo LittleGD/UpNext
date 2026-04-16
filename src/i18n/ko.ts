@@ -99,8 +99,31 @@ const ko = {
   // === nav ===
   "nav.challenge": "챌린지",
   "nav.collection": "컬렉션",
-  "nav.minigame": "게임",
+  "nav.playground": "아지트",
   "nav.settings": "설정",
+
+  // === playground ===
+  "playground.tab.tree": "나무",
+  "playground.tab.archive": "앨범",
+  "playground.tab.game": "게임",
+  "playground.tree.empty": "챌린지를 완료하고\n나무를 키워보세요",
+  "playground.tree.stage.seed": "씨앗",
+  "playground.tree.stage.sprout": "새싹",
+  "playground.tree.stage.sapling": "묘목",
+  "playground.tree.stage.young": "어린 나무",
+  "playground.tree.stage.mature": "큰 나무",
+  "playground.tree.stage.ancient": "고목",
+  "playground.archive.empty": "아직 인증 사진이 없어요",
+  "playground.capture.title": "챌린지 인증",
+  "playground.capture.take": "사진 찍기",
+  "playground.capture.skip": "건너뛰기",
+  "playground.capture.sign": "서명하세요",
+  "playground.capture.memo": "메모를 남겨보세요",
+  "playground.capture.save": "저장",
+  "playground.capture.flip": "뒤집기",
+  "playground.capture.signRequired": "서명을 해야 저장할 수 있어요",
+  "playground.capture.record": "기록 남기기",
+  "playground.capture.clear": "지우기",
 
   // === settings ===
   "settings.title": "설정",

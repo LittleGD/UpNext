@@ -101,8 +101,31 @@ const en: Record<DictKey, string> = {
   // === nav ===
   "nav.challenge": "Challenge",
   "nav.collection": "Collection",
-  "nav.minigame": "Games",
+  "nav.playground": "Hideout",
   "nav.settings": "Settings",
+
+  // === playground ===
+  "playground.tab.tree": "Tree",
+  "playground.tab.archive": "Album",
+  "playground.tab.game": "Game",
+  "playground.tree.empty": "Complete challenges\nto grow your tree",
+  "playground.tree.stage.seed": "Seed",
+  "playground.tree.stage.sprout": "Sprout",
+  "playground.tree.stage.sapling": "Sapling",
+  "playground.tree.stage.young": "Young Tree",
+  "playground.tree.stage.mature": "Mature Tree",
+  "playground.tree.stage.ancient": "Ancient Tree",
+  "playground.archive.empty": "No verification photos yet",
+  "playground.capture.title": "Verify Challenge",
+  "playground.capture.take": "Take Photo",
+  "playground.capture.skip": "Skip",
+  "playground.capture.sign": "Sign here",
+  "playground.capture.memo": "Leave a memo",
+  "playground.capture.save": "Save",
+  "playground.capture.flip": "Flip",
+  "playground.capture.signRequired": "Sign before saving",
+  "playground.capture.record": "Record this moment",
+  "playground.capture.clear": "Clear",
 
   // === settings ===
   "settings.title": "Settings",

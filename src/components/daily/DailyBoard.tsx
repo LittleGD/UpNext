@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useGameStore } from "@/store/useGameStore";
+import { useGrowthStore } from "@/store/useGrowthStore";
+import PhotoCaptureModal from "@/components/growth/PhotoCaptureModal";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import { MODE_CARD_COUNT, getXPProgress, XP_PER_RARITY, getTitleForLevel } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
@@ -146,6 +148,9 @@ export default function DailyBoard() {
   const [completingXp, setCompletingXp] = useState(0);
   const [showChallengeModal, setShowChallengeModal] = useState<"extra" | "super" | null>(null);
   const [shakeCount, setShakeCount] = useState(0);
+  const [captureCard, setCaptureCard] = useState<ChallengeCard | null>(null);
+  const startCapture = useGrowthStore((s) => s.startCapture);
+  const capturePhase = useGrowthStore((s) => s.capturePhase);
   // 배너를 re-mount 해 hold 상태를 초기화하기 위한 key
   // 모달을 cancel 로 닫으면 bump 되어 배너가 새 인스턴스로 교체됨
   const [bannerResetKey, setBannerResetKey] = useState(0);
@@ -180,31 +185,51 @@ export default function DailyBoard() {
     }
   };
 
+  // 챌린지 완료 + 셀레브레이션 공통 로직
+  const finishChallenge = useCallback((card: ChallengeCard) => {
+    const xp = XP_PER_RARITY[card.rarity] || 10;
+    setCompletingCard(card);
+    setCompletingXp(xp);
+    play("complete");
+    setTimeout(() => play("xpGain"), 280);
+    handleCompleteAction(card.id);
+
+    const willBeAllDone = completedCount + 1 >= totalCount;
+
+    setTimeout(() => {
+      setCompletingCard(null);
+      if (willBeAllDone) {
+        setTimeout(() => play("fullClear"), 100);
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 2000);
+      }
+    }, 1200);
+  }, [completedCount, totalCount, play, handleCompleteAction]);
+
+  // "완료" — 사진 없이 바로 완료
   const handleConfirm = () => {
     if (confirmCard) {
-      // 카드에 명시된 XP 그대로 (배율 없음)
-      const xp = XP_PER_RARITY[confirmCard.rarity] || 10;
-      // Show success state in modal
-      setCompletingCard(confirmCard);
-      setCompletingXp(xp);
+      const card = confirmCard;
       setConfirmCard(null);
-      play("complete");
-      setTimeout(() => play("xpGain"), 280);
-      handleCompleteAction(confirmCard.id);
-
-      const willBeAllDone = completedCount + 1 >= totalCount;
-
-      // Dismiss success state after delay
-      setTimeout(() => {
-        setCompletingCard(null);
-        if (willBeAllDone) {
-          setTimeout(() => play("fullClear"), 100);
-          setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 2000);
-        }
-      }, 1200);
+      finishChallenge(card);
     }
   };
+
+  // "기록 남기기" — 사진 캡처 후 완료
+  const handleConfirmWithPhoto = () => {
+    if (confirmCard) {
+      setCaptureCard(confirmCard);
+      startCapture(confirmCard.id);
+      setConfirmCard(null);
+    }
+  };
+
+  // 사진 캡처 완료 후 챌린지 완료 처리
+  const handleCaptureComplete = useCallback(() => {
+    if (!captureCard) return;
+    finishChallenge(captureCard);
+    setCaptureCard(null);
+  }, [captureCard, finishChallenge]);
 
   // 추가 챌린지 확인 핸들러
   const handleExtraConfirm = () => {
@@ -483,8 +508,17 @@ export default function DailyBoard() {
                     {t("daily.board.confirmPrompt")}
                   </p>
 
-                  {/* Buttons */}
-                  <div className="flex w-full gap-3 mt-5">
+                  {/* 기록 남기기 CTA */}
+                  <button
+                    onClick={handleConfirmWithPhoto}
+                    className="w-full mt-5 py-3.5 rounded-xl bg-accent text-bg-primary typo-body transition-colors active:scale-[0.97] flex items-center justify-center gap-2"
+                  >
+                    <PixelIcon name="Camera" size={16} color="var(--bg-primary)" />
+                    {t("playground.capture.record")}
+                  </button>
+
+                  {/* 완료 / 취소 */}
+                  <div className="flex w-full gap-3 mt-2">
                     <button
                       onClick={() => { play("select"); setConfirmCard(null); }}
                       className="flex-1 py-3.5 rounded-xl bg-bg-elevated text-text-secondary typo-body transition-colors active:scale-[0.97]"
@@ -493,7 +527,7 @@ export default function DailyBoard() {
                     </button>
                     <button
                       onClick={handleConfirm}
-                      className="flex-1 py-3.5 rounded-xl bg-accent text-bg-primary typo-body transition-colors active:scale-[0.97]"
+                      className="flex-1 py-3.5 rounded-xl bg-bg-elevated text-text-primary typo-body transition-colors active:scale-[0.97]"
                     >
                       {t("common.done")}
                     </button>
@@ -625,6 +659,14 @@ export default function DailyBoard() {
           );
         })()}
       </AnimatePresence>
+
+      {/* Photo capture modal */}
+      {captureCard && capturePhase !== "idle" && (
+        <PhotoCaptureModal
+          card={captureCard}
+          onComplete={handleCaptureComplete}
+        />
+      )}
     </motion.div>
   );
 }

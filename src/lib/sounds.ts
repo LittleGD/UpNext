@@ -27,7 +27,10 @@ export type SoundName =
   | "meteorWhoosh"
   | "matchPair"
   | "curseTrigger"
-  | "rewardChoose";
+  | "rewardChoose"
+  | "cameraShutter"
+  | "polaroidSlide"
+  | "treeGrow";
 
 let audioCtx: AudioContext | null = null;
 
@@ -467,6 +470,36 @@ const sounds: Record<SoundName, () => void> = {
     createOsc(ctx, 1800, t + 1.0, 0.06, MASTER_VOLUME * 0.25);
     createOsc(ctx, 1800, t + 1.12, 0.06, MASTER_VOLUME * 0.15);
   },
+
+  /** Camera shutter — 80ms, mechanical click burst */
+  cameraShutter() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Sharp click — high freq square burst
+    createOsc(ctx, 2000, t, 0.02, MASTER_VOLUME * 0.6);
+    createOsc(ctx, 1600, t + 0.01, 0.03, MASTER_VOLUME * 0.4);
+    // Mechanical body
+    createOsc(ctx, 300, t, 0.06, MASTER_VOLUME * 0.5, "triangle");
+  },
+
+  /** Polaroid slide — 150ms, soft whoosh */
+  polaroidSlide() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    createSweep(ctx, 800, 300, t, 0.15, MASTER_VOLUME * 0.35);
+    createOsc(ctx, 200, t + 0.05, 0.1, MASTER_VOLUME * 0.2, "triangle");
+  },
+
+  /** Tree grow — 400ms, ascending 3-note chime */
+  treeGrow() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    createOsc(ctx, 440, t, 0.12);               // A4
+    createOsc(ctx, 554, t + 0.1, 0.12);          // C#5
+    createOsc(ctx, 659, t + 0.2, 0.18);          // E5
+    // Gentle triangle harmony on final note
+    createOsc(ctx, 330, t + 0.2, 0.18, MASTER_VOLUME * 0.3, "triangle");
+  },
 };
 
 export function playSound(name: SoundName): void {
@@ -503,6 +536,9 @@ const VIBRATION_PATTERNS: Record<SoundName, number[] | null> = {
   matchPair:    [15],
   curseTrigger: [30, 10, 40],
   rewardChoose: [10, 30, 10],
+  cameraShutter: [8],
+  polaroidSlide: [15],
+  treeGrow:      [10, 30, 10],
 };
 
 const MIN_VIBRATION_MS = 25;
