@@ -670,12 +670,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // 클라우드 데이터로 로컬 상태 업데이트 (syncToCloud 트리거 안 함)
+  // 클라우드의 daily.date가 오늘이 아니면 어제 데이터이므로 fresh daily로 교체한다.
+  // 이전에는 어제의 isSelectionComplete:true가 오늘을 덮어써서 카드 드로우가 사라지는 버그가 있었음.
   _setFromCloud: (progress: UserProgress, daily: DailyState) => {
-    set({ progress, daily });
+    const today = getTodayString();
+    const safeDailyState = daily.date === today
+      ? daily
+      : { ...getInitialDailyState(), date: today };
+    set({ progress, daily: safeDailyState });
     // localStorage에 직접 저장 (saveToStorage를 거치면 syncToCloud가 다시 호출됨)
     if (typeof window !== "undefined") {
       localStorage.setItem("upnext_progress", JSON.stringify(progress));
-      localStorage.setItem("upnext_daily", JSON.stringify(daily));
+      localStorage.setItem("upnext_daily", JSON.stringify(safeDailyState));
     }
   },
 

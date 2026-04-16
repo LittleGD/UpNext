@@ -24,9 +24,17 @@ export default function Header() {
   const prevLevelRef = useRef(level);
   const [displayLevel, setDisplayLevel] = useState(level);
   const pulseControls = useAnimationControls();
+  // 첫 로드 시 store 기본값(level=0)→실제 레벨 전환을 레벨업으로 오감지하지 않도록 가드
+  const hasInitializedRef = useRef(false);
 
   // 레벨업 시 카운트업 + 펄스 애니메이션
   useEffect(() => {
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      prevLevelRef.current = level;
+      setDisplayLevel(level);
+      return;
+    }
     if (level > prevLevelRef.current) {
       const start = prevLevelRef.current;
       const end = level;
