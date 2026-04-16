@@ -50,13 +50,35 @@ const CARD_BOX: Record<Variant, { w: string; h: string; padding: string; iconMob
     iconLg: 56,
   },
   detail: {
-    // 상세 모달: 더 넓게, 높이는 78vh 까지 허용
-    w: "w-[min(300px,72vw,calc(78vh*5/7))] md:w-[min(340px,calc(82vh*5/7))] lg:w-[min(380px,calc(82vh*5/7))]",
-    h: "h-[min(420px,100vw,78vh)] md:h-[min(476px,82vh)] lg:h-[min(532px,82vh)]",
+    // 상세 모달: TCG 5:7 비율 + 축소된 밀도 (380/420/460)
+    w: "w-[min(272px,72vw,calc(78vh*5/7))] md:w-[min(300px,calc(82vh*5/7))] lg:w-[min(328px,calc(82vh*5/7))]",
+    h: "h-[min(380px,100vw,78vh)] md:h-[min(420px,82vh)] lg:h-[min(460px,82vh)]",
     padding: "p-5 md:p-6 lg:p-7",
     iconMobile: 48,
     iconMd: 56,
     iconLg: 64,
+  },
+};
+
+// ── 콘텐츠 Zone stagger — 모달 진입 시 3 구역 순차 등장 (총 ~560ms)
+// delayChildren 0.08 + staggerChildren 0.08 × 2 + duration 0.32
+// Exit 는 부모 모달의 AnimatePresence 가 처리 (비대칭: enter 560 / exit 200)
+const contentStaggerVariants = {
+  hidden: {},
+  visible: {
+    transition: {
+      delayChildren: 0.08,
+      staggerChildren: 0.08,
+    },
+  },
+};
+
+const zoneVariants = {
+  hidden: { opacity: 0, y: 6 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.32, ease: "easeOut" as const },
   },
 };
 
@@ -72,6 +94,11 @@ export default function Card3DViewer({ card, language, variant = "detail" }: Car
   const completions = useGameStore((s) => s.progress.cardCompletions?.[card.id] || 0);
   const box = CARD_BOX[variant];
   const iconSize = isLg ? box.iconLg : isMd ? box.iconMd : box.iconMobile;
+  // ── 내부 parallax z-depth — detail 에서 더 두드러지게, preview 는 절제
+  // 둘 다 양수 — preserve-3d 에서 음수 Z 가 불투명 배경(Z=0)에 가려지는 것 방지.
+  // 차이값이 parallax 강도: detail 에서 16px, preview 에서 10px 간격.
+  const titleZ = variant === "detail" ? 20 : 12;
+  const quoteZ = variant === "detail" ? 4 : 2;
 
   // ── 3D 드래그 ──
   const {
@@ -148,15 +175,13 @@ export default function Card3DViewer({ card, language, variant = "detail" }: Car
         }}
         className={`relative ${box.w} ${box.h} cursor-grab active:cursor-grabbing`}
       >
-        {/* 카드 배경 */}
+        {/* 카드 배경 — 텍스처 + 홀로 레이어 (overflow-hidden 으로 rarity 클립) */}
         <div
           className="absolute inset-0 rounded-xl bg-bg-elevated overflow-hidden"
           style={{ boxShadow: glow || "0 4px 24px rgba(0,0,0,0.6)" }}
         >
-          {/* Rarity 텍스처 */}
           <RarityTexture rarity={card.rarity} borderRadius={12} />
 
-          {/* 홀로그래픽 오버레이 (normal 제외) */}
           {card.rarity !== "normal" && !reducedMotion && (
             <HolographicOverlay
               angle={holoAngle}
@@ -166,76 +191,93 @@ export default function Card3DViewer({ card, language, variant = "detail" }: Car
               color={rarity.color}
             />
           )}
+        </div>
 
-          {/* 카드 콘텐츠 */}
-          <div className={`relative z-10 flex flex-col h-full ${box.padding}`}>
-            {/* 상단: 아이콘 + 레어리티 */}
-            <div className="flex items-start justify-between mb-4 md:mb-5">
-              <div style={{ color: rarity.color }}>
-                <PixelIcon name={card.icon} size={iconSize} />
-              </div>
-              <div
-                className="typo-micro px-2 py-0.5 rounded-sm"
-                style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
-              >
-                {rarityLabel(card.rarity, language)}
-              </div>
+        {/* 카드 콘텐츠 레이어 — preserve-3d 로 내부 parallax (title/quote 에 미세 z-transform)
+            배경 div 의 overflow-hidden 밖으로 분리 → 3D 변환 보존. 콘텐츠는 padding 덕분에
+            카드 가장자리에 닿지 않아 둥근 모서리 클립이 필요 없음. */}
+        <motion.div
+          className={`absolute inset-0 z-10 flex flex-col ${box.padding}`}
+          style={{ transformStyle: "preserve-3d" as const }}
+          variants={reducedMotion ? undefined : contentStaggerVariants}
+          initial={reducedMotion ? undefined : "hidden"}
+          animate={reducedMotion ? undefined : "visible"}
+        >
+          {/* Zone 1 — Header: 아이콘 + 레어리티 pill (2행 구조) */}
+          <motion.div
+            variants={reducedMotion ? undefined : zoneVariants}
+            className="flex items-start justify-between"
+          >
+            <div style={{ color: rarity.color }}>
+              <PixelIcon name={card.icon} size={iconSize} />
             </div>
+            <div
+              className="typo-micro px-2 py-0.5 rounded-sm"
+              style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
+            >
+              {rarityLabel(card.rarity, language)}
+            </div>
+          </motion.div>
 
-            {/* 제목 — variant 에 따라 heading/body 로 토큰 분기 */}
-            <h2 className={`${titleClass} text-text-primary leading-tight mb-2 font-semibold`}>
+          {/* Zone 2 — Body: title (Hero) + meta subline + description
+              24px 그룹 간격으로 분리, z+titleZ 만큼 전방 parallax */}
+          <motion.div
+            variants={reducedMotion ? undefined : zoneVariants}
+            className="mt-6"
+            style={reducedMotion ? undefined : { z: titleZ }}
+          >
+            <h2 className={`${titleClass} text-text-primary leading-tight font-semibold`}>
               {cardTitle(card, language)}
             </h2>
-
-            {/* 설명 — body (caption 이 여러 곳에서 쓰이던 과부하 해소) */}
-            <p className={`${bodyClass} text-text-secondary leading-relaxed mb-3 flex-shrink-0`}>
-              {cardDesc(card, language)}
-            </p>
-
-            {/* 카테고리 + 완료 횟수 — 메타 라인은 항상 micro */}
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex items-center gap-1 text-text-tertiary">
+            {/* 메타 subline — 제목 바로 아래, 8px 간격 */}
+            <div className="flex items-center gap-2 mt-2 text-text-tertiary">
+              <div className="flex items-center gap-1">
                 <PixelIcon name={categoryIcon} size={14} />
                 <span className={metaClass}>{categoryLabel(card.category, language)}</span>
               </div>
-              <span className={`${metaClass} text-text-tertiary`}>·</span>
-              <span className={`${metaClass} text-text-tertiary`}>
+              <span className={metaClass}>·</span>
+              <span className={metaClass}>
                 {completions > 0
                   ? t("cardDetail.completions", { count: completions })
                   : t("cardDetail.noCompletions")}
               </span>
             </div>
-
-            {/* 구분선 */}
-            <div
-              className="h-px w-full mb-3 opacity-20"
-              style={{ backgroundColor: rarity.color }}
-            />
-
-            {/* 명언/유머 — italic + 낮은 opacity 로 바디 텍스트와 시각적 구분 */}
-            <p
-              className={`${bodyClass} text-text-secondary leading-relaxed flex-1 flex items-center opacity-70`}
-              style={{ fontStyle: "italic" }}
-            >
-              &ldquo;{quote}&rdquo;
+            {/* 설명 — 메타 아래 8px, body 톤 */}
+            <p className={`${bodyClass} text-text-secondary leading-relaxed mt-2`}>
+              {cardDesc(card, language)}
             </p>
+          </motion.div>
 
-            {/* 자이로 권한 요청 버튼 (iOS 13+ 미허용 시에만 표시) */}
-            {gyro.needsPermission && !reducedMotion && (
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  const ok = await gyro.requestPermission();
-                  if (ok) play("confirm");
-                }}
-                className="mt-2 typo-micro text-text-tertiary bg-bg-surface/50 rounded-md px-3 min-h-[44px] flex items-center justify-center text-center"
-              >
-                {t("cardDetail.enableGyro")}
-              </motion.button>
-            )}
-          </div>
-        </div>
+          {/* Zone 3 — Footer: 인용문은 하단 앵커 + caption + italic + opacity 60 으로 강등
+              divider 를 제거하고 mt-auto 공백 + 시각적 감쇠로 title 과 위계 분리
+              z-quoteZ 만큼 후방 parallax → 드래그 시 title 과 엇갈려 깊이감 */}
+          <motion.p
+            variants={reducedMotion ? undefined : zoneVariants}
+            className="typo-caption text-text-secondary leading-relaxed mt-auto opacity-60"
+            style={
+              reducedMotion
+                ? { fontStyle: "italic" }
+                : { fontStyle: "italic", z: quoteZ }
+            }
+          >
+            &ldquo;{quote}&rdquo;
+          </motion.p>
+
+          {/* 자이로 권한 요청 버튼 (iOS 13+ 미허용 시에만 표시) */}
+          {gyro.needsPermission && !reducedMotion && (
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={async (e) => {
+                e.stopPropagation();
+                const ok = await gyro.requestPermission();
+                if (ok) play("confirm");
+              }}
+              className="mt-2 typo-micro text-text-tertiary bg-bg-surface/50 rounded-md px-3 min-h-[44px] flex items-center justify-center text-center"
+            >
+              {t("cardDetail.enableGyro")}
+            </motion.button>
+          )}
+        </motion.div>
       </motion.div>
     </div>
   );
