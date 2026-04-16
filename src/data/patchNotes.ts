@@ -20,13 +20,23 @@ export const PATCH_NOTES: PatchNote[] = [
     version: "2026.04.16",
     date: "2026-04-16",
     headline: {
-      ko: "앱 실행 연출 다듬기",
-      en: "Smoother app launch reveal",
-      ja: "アプリ起動演出の改善",
-      zh: "应用启动动画优化",
+      ko: "카드 디테일 다듬기 + 앱 실행 연출 개선",
+      en: "Card detail polish + smoother app launch",
+      ja: "カードディテール改善 + アプリ起動演出の向上",
+      zh: "卡片细节打磨 + 启动动画优化",
     },
     entries: {
       ko: [
+        {
+          icon: "Card",
+          title: "카드 디테일 레이아웃 다듬기",
+          description: "카드를 탭하면 제목→설명→명언이 자연스러운 순서로 나타나요. 기울임에 따라 각 영역이 살짝 다른 깊이로 떠오르는 깊이감도 추가. 컬렉션에서 한 장 열어보세요.",
+        },
+        {
+          icon: "Trophy",
+          title: "레벨업 연출 강화",
+          description: "XP 바가 가득 찬 후 리셋되며 새 레벨로 다시 차오르는 JRPG식 연출. 레벨 숫자도 정수 단위로 천천히 롤링합니다. 다음 레벨업에서 확인해보세요.",
+        },
         {
           icon: "Sparkle",
           title: "스플래시 화면 정중앙 정렬",
@@ -40,6 +50,16 @@ export const PATCH_NOTES: PatchNote[] = [
       ],
       en: [
         {
+          icon: "Card",
+          title: "Card detail layout refined",
+          description: "Tap a card and the title, description, and quote now appear in a natural sequence. Each zone rises to a subtly different depth as you tilt. Open one from your collection to try it.",
+        },
+        {
+          icon: "Trophy",
+          title: "Richer level-up sequence",
+          description: "A JRPG-style flourish — the XP bar fills to 100%, resets, and refills for the new level. The level number also rolls up one integer at a time. Catch it on your next level-up.",
+        },
+        {
           icon: "Sparkle",
           title: "Splash screen centered",
           description: "Fixed the wordmark sitting slightly below center. Now perfectly centered when you launch the app.",
@@ -52,6 +72,16 @@ export const PATCH_NOTES: PatchNote[] = [
       ],
       ja: [
         {
+          icon: "Card",
+          title: "カードディテールのレイアウト調整",
+          description: "カードをタップするとタイトル→説明→名言が自然な順序で登場。傾きに応じて各領域がわずかに異なる深さで浮かび上がる奥行き感も追加。コレクションから一枚開いてみてください。",
+        },
+        {
+          icon: "Trophy",
+          title: "レベルアップ演出の強化",
+          description: "XPバーが満タンになってからリセットされ、新レベルで再び満ちていくJRPG風の演出。レベル数字も整数単位でゆっくりロールします。次のレベルアップで確認してみてください。",
+        },
+        {
           icon: "Sparkle",
           title: "スプラッシュ画面の中央配置",
           description: "ワードマークが少し下にずれて見えていた問題を修正。アプリ起動時に画面のど真ん中に表示されます。",
@@ -63,6 +93,16 @@ export const PATCH_NOTES: PatchNote[] = [
         },
       ],
       zh: [
+        {
+          icon: "Card",
+          title: "卡片细节布局调整",
+          description: "点击卡片时,标题→说明→名言按自然顺序依次出现。倾斜时各区域以略微不同的深度浮起,增添立体感。快从收藏里打开一张试试。",
+        },
+        {
+          icon: "Trophy",
+          title: "升级演出强化",
+          description: "XP 条先填满再重置、以新等级再次填充的 JRPG 式演出。等级数字也以整数为单位慢慢滚动。下次升级时留意一下。",
+        },
         {
           icon: "Sparkle",
           title: "启动画面居中",
