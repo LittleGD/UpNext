@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { ChallengeCard } from "@/types/card";
 import type { Language } from "@/types/game";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useSound } from "@/hooks/useSound";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { cardOverlayEnter, cardOverlayExit } from "@/lib/motion";
 import Card3DViewer from "./Card3DViewer";
+import RarityBackdrop from "./RarityBackdrop";
+import { cardTitle } from "@/i18n";
 
 interface CardDetailModalProps {
   card: ChallengeCard;
@@ -14,13 +18,13 @@ interface CardDetailModalProps {
   onClose: () => void;
 }
 
-const backdropSpring = { type: "spring" as const, duration: 0.35, bounce: 0 };
-const cardSpring = { type: "spring" as const, duration: 0.5, bounce: 0.18 };
+// 백드롭은 opacity 만 — spring 대신 짧은 ease-out 으로 GPU 레이어 재사용
+const backdropTransition = { duration: 0.22, ease: [0.23, 1, 0.32, 1] as const };
 
 /**
  * 컬렉션 카드 디테일 모달.
  * AnimatePresence 안에서 렌더되어야 함.
- * 기존 5개 모달과 동일한 패턴: fixed backdrop + spring-in + scrollLock.
+ * Preview/Final 과 동일한 cardOverlayEnter/Exit 프리셋 공유 — 3 컨텍스트 모션 통일.
  */
 export default function CardDetailModal({ card, language, onClose }: CardDetailModalProps) {
   useScrollLock();
@@ -31,29 +35,39 @@ export default function CardDetailModal({ card, language, onClose }: CardDetailM
     play("cardPreview");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     play("collect");
     onClose();
-  };
+  }, [onClose, play]);
+
+  // ESC 키로 닫기 — 키보드 접근성
+  useEscapeKey(handleClose);
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={backdropSpring}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-lg"
+      transition={backdropTransition}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md overflow-hidden"
       style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
       onClick={handleClose}
     >
+      {/* 등급별 뒷배경 이펙트 — 카드 뒤에 위치 */}
+      <RarityBackdrop rarity={card.rarity} />
+
       <motion.div
-        initial={{ y: 60, opacity: 0, scale: 0.95 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ y: 60, opacity: 0, scale: 0.95 }}
-        transition={cardSpring}
+        role="dialog"
+        aria-modal="true"
+        aria-label={cardTitle(card, language)}
+        initial={{ opacity: 0, scale: 0.95, y: 40 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97, y: 24, transition: cardOverlayExit }}
+        transition={cardOverlayEnter}
         onClick={(e) => e.stopPropagation()}
+        className="relative z-10"
       >
-        <Card3DViewer card={card} language={language} />
+        <Card3DViewer card={card} language={language} variant="detail" />
       </motion.div>
     </motion.div>
   );

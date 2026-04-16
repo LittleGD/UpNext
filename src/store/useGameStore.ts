@@ -89,6 +89,40 @@ function getInitialDailyState(): DailyState {
   };
 }
 
+/**
+ * 오늘의 DailyState 진행 정도를 단일 정수로 환산한다.
+ * _setFromCloud가 stale 클라우드 snapshot으로 로컬 진행을 덮어쓰는
+ * 레이스 컨디션을 막기 위한 단조 비교용.
+ *
+ * 가중치 설계 — phase 간 100배 간격을 두어
+ * daily 단계가 완전히 끝나야 extra, extra가 끝나야 super로 올라가는
+ * 파이프라인 순서를 반영한다.
+ * (daily max≈33, extra base=100, extra max≈1413, super base=10000)
+ *
+ * rerollUsed를 포함하는 이유: 리롤은 drawnCards를 통째로 교체하므로,
+ * 클라우드가 리롤 전 상태를 보내면 교체된 카드가 사라질 수 있다.
+ */
+function dailyProgressScore(d: DailyState): number {
+  let s = 0;
+  // daily phase
+  if (d.isDrawComplete) s += 1;
+  if (d.rerollUsed) s += 1;
+  s += (d.selectedCards?.length || 0) * 2;
+  if (d.isSelectionComplete) s += 10;
+  s += (d.completedIds?.length || 0) * 5;
+  // extra phase
+  if (d.extraDrawComplete) s += 100;
+  s += (d.extraSelectedCards?.length || 0) * 2;
+  if (d.extraSelectionComplete) s += 1000;
+  s += (d.extraCompletedIds?.length || 0) * 50;
+  // super phase
+  if (d.superDrawComplete) s += 10000;
+  s += (d.superSelectedCards?.length || 0) * 2;
+  if (d.superSelectionComplete) s += 100000;
+  s += (d.superCompletedIds?.length || 0) * 500;
+  return s;
+}
+
 interface GameStore {
   // 상태
   daily: DailyState;
@@ -670,13 +704,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // 클라우드 데이터로 로컬 상태 업데이트 (syncToCloud 트리거 안 함)
-  // 클라우드의 daily.date가 오늘이 아니면 어제 데이터이므로 fresh daily로 교체한다.
-  // 이전에는 어제의 isSelectionComplete:true가 오늘을 덮어써서 카드 드로우가 사라지는 버그가 있었음.
+  // 1) 클라우드 daily.date가 오늘이 아니면 어제 데이터이므로 fresh daily로 교체.
+  // 2) 로컬 daily가 클라우드보다 더 진행(draw/select/complete)된 경우
+  //    daily는 로컬을 유지하고 progress만 업데이트한다.
+  //    — 클라우드 리스너가 stale snapshot을 보내면서 로컬에서 막 뽑은 카드나
+  //      진행 중인 챌린지를 덮어쓰는 레이스 컨디션 방지.
   _setFromCloud: (progress: UserProgress, daily: DailyState) => {
     const today = getTodayString();
     const safeDailyState = daily.date === today
       ? daily
       : { ...getInitialDailyState(), date: today };
+
+    const localDaily = get().daily;
+    // 로컬이 오늘이고, 클라우드 이상으로 진행됐으면 daily는 건드리지 않음
+    // >= 비교: 동점 시에도 로컬을 유지하여 유저의 최근 액션(deselect 등)을 보존
+    if (localDaily.date === today && dailyProgressScore(localDaily) >= dailyProgressScore(safeDailyState)) {
+      set({ progress });
+      if (typeof window !== "undefined") {
+        localStorage.setItem("upnext_progress", JSON.stringify(progress));
+      }
+      return;
+    }
+
     set({ progress, daily: safeDailyState });
     // localStorage에 직접 저장 (saveToStorage를 거치면 syncToCloud가 다시 호출됨)
     if (typeof window !== "undefined") {
