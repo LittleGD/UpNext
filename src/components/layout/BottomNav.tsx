@@ -7,6 +7,7 @@ import PixelIcon from "@/components/icons/PixelIcon";
 import { NAV_ICONS } from "@/components/icons";
 import { useGameStore } from "@/store/useGameStore";
 import { useMinigameStore } from "@/store/useMinigameStore";
+import { useUIStore } from "@/store/useUIStore";
 import { MODE_CARD_COUNT, PHASE_MAX_CARDS } from "@/types/game";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -31,6 +32,9 @@ export default function BottomNav() {
   const daily = useGameStore((s) => s.daily);
   const progress = useGameStore((s) => s.progress);
   const minigamePhase = useMinigameStore((s) => s.phase);
+  // 스플래시가 화면을 덮고 있는 동안은 네비 자체를 unmount → splash 끝나는 순간
+  // 첫 mount 으로 enter 애니메이션(y:30→0 rise) 이 자연스럽게 재생됨.
+  const splashActive = useUIStore((s) => s.splashActive);
 
   // 선택 리뷰 화면(선택 완료 but 미확정)에서 네비 숨김
   const maxCards = MODE_CARD_COUNT[progress.mode];
@@ -69,12 +73,20 @@ export default function BottomNav() {
     !hasCompletedOnboarding ||
     isSelectionReview ||
     hideForPack ||
-    hideForMinigame
+    hideForMinigame ||
+    splashActive
   )
     return null;
 
   return (
-    <nav className="fixed bottom-5 left-1/2 -translate-x-1/2 z-10 pb-[env(safe-area-inset-bottom)]">
+    <motion.nav
+      // 스플래시 종료 직후 첫 mount 시 하단에서 부드럽게 rise-in.
+      // 이후 같은 세션 내 재마운트는 거의 없음(layout 지속) — mount 시 1회만 재생.
+      initial={{ y: 30, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+      className="fixed bottom-5 left-1/2 -translate-x-1/2 z-10 pb-[env(safe-area-inset-bottom)]"
+    >
       <div className="flex items-center gap-1 bg-bg-elevated/90 backdrop-blur-md rounded-full px-2 py-1.5 grid-border">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -103,6 +115,6 @@ export default function BottomNav() {
           );
         })}
       </div>
-    </nav>
+    </motion.nav>
   );
 }

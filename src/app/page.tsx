@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useGameStore } from "@/store/useGameStore";
+import { useUIStore } from "@/store/useUIStore";
 import { loadFromStorage } from "@/lib/storage";
 import CardDrawScreen from "@/components/daily/CardDrawScreen";
 import DailyBoard from "@/components/daily/DailyBoard";
@@ -51,7 +52,7 @@ export default function Home() {
   const dismissPackOpener = useGameStore((s) => s.dismissPackOpener);
 
   const [showLoginOverlay, setShowLoginOverlay] = useState(false);
-  // PWA/TWA → 앱 열 때마다 모션 스플래시 표시 (세션당 1회, 비-persist).
+  // PWA/TWA → 앱 열 때마다 모션 스플래시 표시 (세션당 1회).
   // 서버·첫 hydration 은 standalone=false 로 평가 → OnboardingFlow/DailyBoard 가 렌더 시도되지만,
   // hydration 완료 직후 getSnapshot=true 로 전환되며 splashDismissed=false 이면 스플래시로 교체.
   // TWA native splash(fadeout=0)가 web load 까지 화면을 가리므로 1프레임 딜레이는 인지 불가 (< 16ms).
@@ -60,7 +61,9 @@ export default function Home() {
     getStandaloneSnapshot,
     getStandaloneServerSnapshot,
   );
-  const [splashDismissed, setSplashDismissed] = useState(false);
+  // splashDismissed 를 store 에 두어 /collection → / 뒤로 이동해도 스플래시 재시작 방지.
+  // SplashScreen 자신이 dismissSplash() 를 호출하므로 여기서는 콜백이 no-op.
+  const splashDismissed = useUIStore((s) => s.splashDismissed);
   const showSplash = standalone && !splashDismissed;
 
   useEffect(() => {
@@ -79,8 +82,10 @@ export default function Home() {
   // 브라우저에서는 standalone=false 이므로 자동으로 스킵.
   // 스플래시 중에도 initialize() 는 이미 useEffect로 실행되므로
   // 완료 시점에는 isLoaded=true 상태로 즉시 전환 가능.
+  // onComplete 는 splash 가 내부 fade-out 후 자체적으로 dismissSplash() 를 호출한 뒤 실행되므로
+  // 여기서는 "렌더 조건 재평가용 no-op 콜백" — store 업데이트가 자동으로 re-render 트리거.
   if (showSplash) {
-    return <SplashScreen onComplete={() => setSplashDismissed(true)} />;
+    return <SplashScreen onComplete={() => {}} />;
   }
 
   // ── 핵심 LCP 최적화 ──
