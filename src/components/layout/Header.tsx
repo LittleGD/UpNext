@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useGameStore } from "@/store/useGameStore";
 import { useMinigameStore } from "@/store/useMinigameStore";
 import { useUIStore } from "@/store/useUIStore";
+import { useGrowthStore } from "@/store/useGrowthStore";
 import { getXPProgress, getTitleForLevel } from "@/types/game";
 import { ALL_TITLES } from "@/data/titles";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
@@ -28,6 +29,7 @@ export default function Header() {
   // 스플래시 오버레이(z-[60])가 위를 덮지만, 헤더도 함께 unmount 시켜
   // splash 종료 순간 fade-in 으로 자연스럽게 등장.
   const splashActive = useUIStore((s) => s.splashActive);
+  const capturePhase = useGrowthStore((s) => s.capturePhase);
   const pathname = usePathname();
 
   const { language } = useTranslation();
@@ -125,8 +127,13 @@ export default function Header() {
   if (!isLoaded || !hasCompletedOnboarding || splashActive) return null;
 
   // 미니게임 런 중에는 몰입 모드: idle이 아닌 모든 phase에서 헤더 숨김
-  const inMinigameRun = pathname === "/minigame" && minigamePhase !== "idle";
+  // /minigame 직접 진입과 /playground 내 game 탭 양쪽 모두 커버
+  const inMinigameRun =
+    (pathname === "/minigame" || pathname === "/playground") && minigamePhase !== "idle";
   if (inMinigameRun) return null;
+
+  // 사진 캡처 중에는 풀스크린 몰입 — 헤더 숨김
+  if (capturePhase !== "idle") return null;
 
   const equippedTitle = progress.equippedTitleId
     ? ALL_TITLES.find((t) => t.id === progress.equippedTitleId)

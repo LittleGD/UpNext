@@ -14,7 +14,7 @@ export const CATEGORY_ICONS: Record<string, string> = {
 export const NAV_ICONS = {
   today: "Card",
   collection: "Archive",
-  minigame: "Gamepad",
+  playground: "TreePine",
   settings: "MoreHorizontal",
 } as const;
 

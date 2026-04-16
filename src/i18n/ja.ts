@@ -101,8 +101,31 @@ const ja: Record<DictKey, string> = {
   // === nav ===
   "nav.challenge": "チャレンジ",
   "nav.collection": "コレクション",
-  "nav.minigame": "ゲーム",
+  "nav.playground": "アジト",
   "nav.settings": "設定",
+
+  // === playground ===
+  "playground.tab.tree": "ツリー",
+  "playground.tab.archive": "アルバム",
+  "playground.tab.game": "ゲーム",
+  "playground.tree.empty": "チャレンジを達成して\n木を育てましょう",
+  "playground.tree.stage.seed": "種",
+  "playground.tree.stage.sprout": "芽",
+  "playground.tree.stage.sapling": "苗木",
+  "playground.tree.stage.young": "若木",
+  "playground.tree.stage.mature": "大木",
+  "playground.tree.stage.ancient": "古木",
+  "playground.archive.empty": "認証写真はまだありません",
+  "playground.capture.title": "チャレンジ認証",
+  "playground.capture.take": "撮影",
+  "playground.capture.skip": "スキップ",
+  "playground.capture.sign": "サインしてください",
+  "playground.capture.memo": "メモを残す",
+  "playground.capture.save": "保存",
+  "playground.capture.flip": "裏返す",
+  "playground.capture.signRequired": "サインしてから保存できます",
+  "playground.capture.record": "記録を残す",
+  "playground.capture.clear": "消す",
 
   // === settings ===
   "settings.title": "設定",

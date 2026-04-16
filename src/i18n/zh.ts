@@ -101,8 +101,31 @@ const zh: Record<DictKey, string> = {
   // === nav ===
   "nav.challenge": "挑战",
   "nav.collection": "收藏",
-  "nav.minigame": "游戏",
+  "nav.playground": "据点",
   "nav.settings": "设置",
+
+  // === playground ===
+  "playground.tab.tree": "树",
+  "playground.tab.archive": "相册",
+  "playground.tab.game": "游戏",
+  "playground.tree.empty": "完成挑战\n种出你的树",
+  "playground.tree.stage.seed": "种子",
+  "playground.tree.stage.sprout": "嫩芽",
+  "playground.tree.stage.sapling": "树苗",
+  "playground.tree.stage.young": "小树",
+  "playground.tree.stage.mature": "大树",
+  "playground.tree.stage.ancient": "古树",
+  "playground.archive.empty": "还没有认证照片",
+  "playground.capture.title": "挑战认证",
+  "playground.capture.take": "拍照",
+  "playground.capture.skip": "跳过",
+  "playground.capture.sign": "请签名",
+  "playground.capture.memo": "写下备注",
+  "playground.capture.save": "保存",
+  "playground.capture.flip": "翻转",
+  "playground.capture.signRequired": "签名后才能保存",
+  "playground.capture.record": "记录这一刻",
+  "playground.capture.clear": "清除",
 
   // === settings ===
   "settings.title": "设置",
