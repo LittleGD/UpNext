@@ -272,33 +272,42 @@ function HomeView({
           — 모닥불이 조용히 타오른다 —
         </div>
 
-        {/* Phase 4c-polish: 탐험권 카테고리별 시각화.
-             8개 던전의 테마컬러 pill. 수량 0 은 dim 처리해서 "비어있음" 이
-             한눈에 보인다. 어떤 챌린지를 해야 밸런스가 맞을지 의사결정 단서.
-             Phase 4c-fix: 전체 0 인 경우 CTA 힌트가 이미 "챌린지 완료로 획득"
-             을 전달하므로 pill 섹션 자체를 숨겨 중복 부정 신호를 줄임. */}
+        {/* Phase 4c-polish → 5a.4 redesign: 탐험권 카테고리별 시각화.
+             rounded+border+fill pill 이 dot-matrix 감성과 어긋나 underline
+             스타일로 치환. 숫자 위에 2px underline, 색은 던전 themeColor.
+             전체 0 이면 여전히 섹션 숨김 (CTA 힌트로 위임). */}
         {totalPasses > 0 && (
-          <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
+          <div className="mt-4 flex items-center justify-center gap-3 flex-wrap">
             {DUNGEON_LIST.map((d) => {
               const count = passes[d.id] ?? 0;
               const empty = count === 0;
               return (
                 <div
                   key={d.id}
-                  className="flex items-center justify-center rounded tabular-nums typo-micro"
-                  style={{
-                    minWidth: 26,
-                    height: 20,
-                    padding: "0 6px",
-                    background: empty ? `${GB.dark}80` : `${d.themeColor}55`,
-                    color: empty ? `${GB.light}80` : GB.lightest,
-                    border: `1px solid ${empty ? GB.dark : d.themeColor}`,
-                    letterSpacing: "0.03em",
-                  }}
+                  className="flex flex-col items-center tabular-nums"
                   title={`${d.name} ×${count}`}
                   aria-label={`${d.name} 탐험권 ${count}장`}
                 >
-                  {count}
+                  <span
+                    className="typo-micro"
+                    style={{
+                      color: empty ? `${GB.light}60` : GB.lightest,
+                      letterSpacing: "0.05em",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {count}
+                  </span>
+                  <div
+                    style={{
+                      width: 20,
+                      height: 2,
+                      background: empty ? GB.dark : d.themeColor,
+                      marginTop: 3,
+                      opacity: empty ? 0.5 : 1,
+                      transition: `background 180ms ${EASE_OUT}, opacity 180ms ${EASE_OUT}`,
+                    }}
+                  />
                 </div>
               );
             })}
