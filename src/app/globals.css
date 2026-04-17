@@ -265,6 +265,82 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-hp-regen-float 800ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* === Up Hero — Phase 6c: class 별 visual tell keyframes ===
+   warrior 의 pattern 과 동일 translate-up + fade 구조, color/duration 만 다름.
+   각 float 의 font weight / color 는 inline style 에서 통제. */
+
+/* Mage — XP float. 조금 더 높이 (추상적 마법 느낌) */
+@keyframes uphero-xp-float {
+  0%   { opacity: 0; transform: translateY(0); }
+  15%  { opacity: 1; transform: translateY(-4px); }
+  100% { opacity: 0; transform: translateY(-22px); }
+}
+.uphero-xp-float {
+  animation: uphero-xp-float 900ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Druid heal — 아래서 위로 물결 올라오는 느낌 (시작 2px 아래) */
+@keyframes uphero-heal-float {
+  0%   { opacity: 0; transform: translateY(4px); }
+  20%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-16px); }
+}
+.uphero-heal-float {
+  animation: uphero-heal-float 900ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Bard coin — 살짝 좌우 흔들리는 부유감 */
+@keyframes uphero-coin-float {
+  0%   { opacity: 0; transform: translate(0, 0); }
+  15%  { opacity: 1; transform: translate(0, -3px); }
+  60%  { opacity: 1; transform: translate(2px, -10px); }
+  100% { opacity: 0; transform: translate(-1px, -20px); }
+}
+.uphero-coin-float {
+  animation: uphero-coin-float 1000ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Chronomancer time — 위가 아닌 옆으로 사라지는 느낌 (시간이 빠져나간다) */
+@keyframes uphero-time-tag {
+  0%   { opacity: 0; transform: translateX(-4px); }
+  20%  { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(14px); }
+}
+.uphero-time-tag {
+  animation: uphero-time-tag 700ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Priest start bonus — HP bar 위에 "+50" 한 번 크게 */
+@keyframes uphero-start-bonus {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.9); }
+  20%  { opacity: 1; transform: translateY(0) scale(1.1); }
+  45%  { opacity: 1; transform: translateY(-3px) scale(1); }
+  100% { opacity: 0; transform: translateY(-18px) scale(0.95); }
+}
+.uphero-start-bonus {
+  animation: uphero-start-bonus 1100ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Monk dodge — sprite 위에 ✦ 파랑 pulse (scale + opacity) */
+@keyframes uphero-dodge-pulse {
+  0%   { opacity: 0; transform: scale(0.6); }
+  30%  { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+.uphero-dodge-pulse {
+  animation: uphero-dodge-pulse 450ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Illusionist crit — sprite 위에 ◇ 보라 pulse (dodge 와 유사하나 회전 추가) */
+@keyframes uphero-crit-pulse {
+  0%   { opacity: 0; transform: scale(0.5) rotate(0deg); }
+  30%  { opacity: 1; transform: scale(1.2) rotate(45deg); }
+  100% { opacity: 0; transform: scale(1.6) rotate(90deg); }
+}
+.uphero-crit-pulse {
+  animation: uphero-crit-pulse 500ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 /* === Up Hero — 탐험 시간 bar 급감 pulse ===
    이벤트 outcome 이 시간 5+ 소모했을 때 한 번 번쩍.
    box-shadow 기반이라 bar 의 width 애니메이션과 간섭 없음.

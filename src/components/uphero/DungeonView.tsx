@@ -192,6 +192,145 @@ export default function DungeonView() {
     }
   }, [session?.startedAt, session]);
 
+  // Phase 6c — 다른 class 의 visual tell.
+  //
+  // 각 class 별 float array 를 개별 관리. 공통 패턴:
+  // 1. useEffect 로 session.log 순회 + seen set 으로 중복 방지
+  // 2. 조건 만족하는 entry 감지 시 float array 에 push (id = log idx)
+  // 3. 애니메이션 끝나면 setTimeout 으로 제거
+  // 4. 세션 바뀌면 seen set + float array 초기화
+  //
+  // Tell 종류 (warrior 외):
+  //  mage         — victory 시 XP float 금색 (버프 or class 배율 적용됐을 때)
+  //  monk         — dodge 성공 시 sprite ✦ pulse
+  //  druid        — heal 효과 발동 시 HP bar "+amount" 초록 float (heal combat 판정 없어서 choice 관찰)
+  //  bard         — coin 획득 시 "+amount" 금색 float (victory/treasure)
+  //  chronomancer — consumeTime 에서 mult 적용 시 "-25%" micro tag (log 감지 어려움 → Phase 6b skill fire 로 대체)
+  //  priest       — 세션 첫 tick 시 "+50" 초록 (applyClassStartEffects 에서 적용된 HP 를 보여줌)
+  //  illusionist  — crit 발동 시 sprite ◇ pulse (기존 shake 와 보완)
+
+  // Mage XP / Bard coin / Druid heal / Priest start float — 공통 float array 로 통합
+  type GenericFloat = { id: number; kind: "xp" | "coin" | "heal" | "priestStart" | "timeSave"; amount: number };
+  const [genericFloats, setGenericFloats] = useState<GenericFloat[]>([]);
+  const seenGenericRef = useRef<Set<string>>(new Set());
+
+  // Monk dodge + Illusionist crit — HeroSprite pulseOverlay 를 통해 표시
+  const [pulseOverlay, setPulseOverlay] = useState<"dodge" | "crit" | null>(null);
+  const pulseTimerRef = useRef<number | null>(null);
+  const seenPulseIdxRef = useRef<Set<number>>(new Set());
+
+  // session 변경 시 초기화
+  useEffect(() => {
+    if (!session) {
+      setGenericFloats([]);
+      setPulseOverlay(null);
+      seenGenericRef.current.clear();
+      seenPulseIdxRef.current.clear();
+    }
+  }, [session?.startedAt, session]);
+
+  // Mage XP float + Bard coin float — victory entry 감지
+  useEffect(() => {
+    if (!session) return;
+    const cls = session.hero.classType;
+    if (cls !== "mage" && cls !== "bard") return;
+    session.log.forEach((entry, idx) => {
+      if (entry.type !== "victory") return;
+      const key = `${cls}-victory-${idx}`;
+      if (seenGenericRef.current.has(key)) return;
+      seenGenericRef.current.add(key);
+      const id = Date.now() + idx;
+      const kind = cls === "mage" ? "xp" : "coin";
+      const amount = cls === "mage" ? entry.xp : entry.coins;
+      setGenericFloats((prev) => [...prev, { id, kind, amount }]);
+      window.setTimeout(() => {
+        setGenericFloats((prev) => prev.filter((f) => f.id !== id));
+      }, 1100);
+    });
+  }, [session]);
+
+  // Monk dodge + Illusionist crit — combat entry 감지 → pulseOverlay 설정
+  useEffect(() => {
+    if (!session) return;
+    const cls = session.hero.classType;
+    if (cls !== "monk" && cls !== "illusionist") return;
+    session.log.forEach((entry, idx) => {
+      if (entry.type !== "combat") return;
+      if (seenPulseIdxRef.current.has(idx)) return;
+      // monk: 적 공격에서 dodge outcome 만
+      // illusionist: 영웅 공격에서 crit outcome 만
+      const match =
+        (cls === "monk" && entry.attacker === "enemy" && entry.outcome === "dodge") ||
+        (cls === "illusionist" && entry.attacker === "hero" && entry.outcome === "crit");
+      if (!match) return;
+      seenPulseIdxRef.current.add(idx);
+      if (pulseTimerRef.current) window.clearTimeout(pulseTimerRef.current);
+      setPulseOverlay(cls === "monk" ? "dodge" : "crit");
+      pulseTimerRef.current = window.setTimeout(() => {
+        setPulseOverlay(null);
+        pulseTimerRef.current = null;
+      }, cls === "monk" ? 460 : 510);
+    });
+  }, [session]);
+
+  // Priest start HP +50 float — 세션 첫 tick 에 한 번
+  const priestStartShownRef = useRef(false);
+  useEffect(() => {
+    if (!session) {
+      priestStartShownRef.current = false;
+      return;
+    }
+    if (session.hero.classType !== "priest") return;
+    if (priestStartShownRef.current) return;
+    // 세션 시작 직후 (log 3개 이하) 에 한 번만
+    if (session.log.length > 5) return;
+    priestStartShownRef.current = true;
+    const id = Date.now();
+    setGenericFloats((prev) => [...prev, { id, kind: "priestStart", amount: 50 }]);
+    window.setTimeout(() => {
+      setGenericFloats((prev) => prev.filter((f) => f.id !== id));
+    }, 1200);
+  }, [session]);
+
+  // Druid heal float — narrative 에 "heal" 단어 포함 탐지 (choice 결과 or skill)
+  // 정확한 수치 추출은 어려워 "+{amount}" 는 고정 텍스트 "+heal" 로 대체.
+  useEffect(() => {
+    if (!session) return;
+    if (session.hero.classType !== "druid") return;
+    session.log.forEach((entry, idx) => {
+      if (entry.type !== "narrative") return;
+      const text = entry.text;
+      if (!text.includes("HP") && !text.includes("회복") && !text.includes("치유")) return;
+      const key = `druid-narrative-${idx}`;
+      if (seenGenericRef.current.has(key)) return;
+      seenGenericRef.current.add(key);
+      const id = Date.now() + idx;
+      setGenericFloats((prev) => [...prev, { id, kind: "heal", amount: 0 }]);
+      window.setTimeout(() => {
+        setGenericFloats((prev) => prev.filter((f) => f.id !== id));
+      }, 1000);
+    });
+  }, [session]);
+
+  // Chronomancer time save tag — consumeTime 에서 mult 적용 시 combat log 에는
+  // 흔적이 없다. 차선책: TIME bar 옆에 "절약" micro tag 를 매 floor 진입
+  // (가장 자주 time 소모되는 지점) 시 1회 표시. Phase 6c MVP.
+  useEffect(() => {
+    if (!session) return;
+    if (session.hero.classType !== "chronomancer") return;
+    session.log.forEach((entry, idx) => {
+      if (entry.type !== "floor") return;
+      const key = `chrono-floor-${idx}`;
+      if (seenGenericRef.current.has(key)) return;
+      seenGenericRef.current.add(key);
+      const id = Date.now() + idx;
+      setGenericFloats((prev) => [...prev, { id, kind: "timeSave", amount: 25 }]);
+      window.setTimeout(() => {
+        setGenericFloats((prev) => prev.filter((f) => f.id !== id));
+      }, 720);
+    });
+  }, [session]);
+
   // Time bar pulse — 시간이 ≥5 한 번에 빠지면 bar 가 한 번 번쩍.
   // 이벤트 outcome (대피 -15, 보스 -8, 악몽 -10 등) 처럼 "큰 비용" 순간을
   // 시각적으로 강조. rAF restart 패턴으로 keyframe 다시 재생.
@@ -278,6 +417,7 @@ export default function DungeonView() {
               size={32}
               color={GB.lightest}
               state={heroState}
+              pulseOverlay={pulseOverlay}
               animationMs={1400}
             />
             <div className="flex flex-col leading-tight">
@@ -443,6 +583,29 @@ export default function DungeonView() {
               +2
             </span>
           ))}
+          {/* Phase 6c — class 별 float (mage XP, bard coin, druid heal, priest start) */}
+          {genericFloats
+            .filter((f) => f.kind === "heal" || f.kind === "priestStart")
+            .map((f) => (
+              <span
+                key={f.id}
+                className={`${
+                  f.kind === "priestStart"
+                    ? "uphero-start-bonus"
+                    : "uphero-heal-float"
+                } typo-micro tabular-nums pointer-events-none absolute`}
+                style={{
+                  right: 0,
+                  top: -16,
+                  color: "#87e5a0",
+                  textShadow: "0 0 4px #87e5a0aa",
+                  fontWeight: 700,
+                }}
+                aria-hidden="true"
+              >
+                {f.kind === "priestStart" ? "+50" : "+heal"}
+              </span>
+            ))}
         </div>
 
         {/* Phase 4c.2 — 탐험 시간 bar.
@@ -483,7 +646,52 @@ export default function DungeonView() {
           >
             {Math.round(time)}/{maxTime}
           </span>
+          {/* Phase 6c — Chronomancer time save micro tag (-25%) 매 floor 진입 시 */}
+          {genericFloats
+            .filter((f) => f.kind === "timeSave")
+            .map((f) => (
+              <span
+                key={f.id}
+                className="uphero-time-tag typo-micro tabular-nums pointer-events-none absolute"
+                style={{
+                  right: 0,
+                  top: -12,
+                  color: "#bca88b",
+                  textShadow: "0 0 3px #bca88baa",
+                  letterSpacing: "0.05em",
+                }}
+                aria-hidden="true"
+              >
+                −{f.amount}%
+              </span>
+            ))}
         </div>
+
+        {/* Phase 6c — Mage XP / Bard coin float (전투 로그 상단, 오른쪽 정렬).
+             victory 순간 잠시 뜸. pointer-events 없어서 UI 방해 X. */}
+        {genericFloats
+          .filter((f) => f.kind === "xp" || f.kind === "coin")
+          .map((f) => (
+            <span
+              key={f.id}
+              className={`${
+                f.kind === "xp" ? "uphero-xp-float" : "uphero-coin-float"
+              } typo-micro tabular-nums pointer-events-none absolute`}
+              style={{
+                right: 12,
+                top: 64,
+                color: f.kind === "xp" ? "#f0d567" : "#e8c76b",
+                textShadow: `0 0 4px ${
+                  f.kind === "xp" ? "#f0d567" : "#e8c76b"
+                }aa`,
+                fontWeight: 700,
+                zIndex: 5,
+              }}
+              aria-hidden="true"
+            >
+              +{f.amount} {f.kind === "xp" ? "XP" : "C"}
+            </span>
+          ))}
       </header>
 
       {/* === Log === */}
