@@ -22,35 +22,7 @@ export interface PhotoMeta {
   date: string;                   // "2026-04-15"
   timestamp: number;              // Unix ms
   memo: string;                   // 뒷면 메모 (max 200자)
-  treePosition: TreePosition | null;
   stickers?: Sticker[];           // 추후 스티커 기능 — 미사용 시 undefined
-}
-
-export interface TreePosition {
-  branchIndex: number;
-  slot: number;                   // 같은 가지 내 순서
-}
-
-// === 나무 성장 단계 ===
-export type TreeStage = "seed" | "sprout" | "sapling" | "young" | "mature" | "ancient";
-
-export const TREE_STAGE_THRESHOLDS: Record<TreeStage, number> = {
-  seed: 0,
-  sprout: 1,
-  sapling: 4,
-  young: 11,
-  mature: 26,
-  ancient: 51,
-};
-
-/** 완료 횟수 → 현재 성장 단계 */
-export function getTreeStage(completions: number): TreeStage {
-  if (completions >= TREE_STAGE_THRESHOLDS.ancient) return "ancient";
-  if (completions >= TREE_STAGE_THRESHOLDS.mature) return "mature";
-  if (completions >= TREE_STAGE_THRESHOLDS.young) return "young";
-  if (completions >= TREE_STAGE_THRESHOLDS.sapling) return "sapling";
-  if (completions >= TREE_STAGE_THRESHOLDS.sprout) return "sprout";
-  return "seed";
 }
 
 // === 캡처 플로우 단계 ===
