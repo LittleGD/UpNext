@@ -74,6 +74,18 @@ interface UpHeroActions {
   // 갓생 코인 sink
   purchaseTicket(): boolean;
   purchaseCardPack(size: "small" | "full"): boolean;
+
+  /**
+   * Phase 4c-feature — 장비 강화.
+   * 같은 type + 같은 rarity 두 장비 합성 → 한 등급 높은 새 장비.
+   * 코인 소모: normal 30 / rare 60 / unique 120. legend 는 합성 불가 (cap).
+   * 새 아이템 stats: 두 원본의 각 스탯 max + 2. 카테고리는 첫 입력 상속.
+   * 반환값으로 성공/실패 + 결과 아이템 알려줌 — UI 에서 reveal 연출 가능.
+   */
+  enhanceItem(
+    id1: string,
+    id2: string,
+  ): { ok: boolean; newItem?: Equipment; error?: string };
 }
 
 type UpHeroStore = UpHeroState & UpHeroActions;
@@ -433,5 +445,72 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     set({ coins: newCoins });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, coins: newCoins }));
     return true;
+  },
+
+  enhanceItem(id1, id2) {
+    const state = get();
+    if (id1 === id2) return { ok: false, error: "같은 아이템 두 번 선택 불가" };
+    const a = state.inventory.find((i) => i.id === id1);
+    const b = state.inventory.find((i) => i.id === id2);
+    if (!a || !b) return { ok: false, error: "인벤토리에 없는 아이템" };
+    if (a.type !== b.type) return { ok: false, error: "같은 슬롯끼리만 합성 가능" };
+    if (a.rarity !== b.rarity) return { ok: false, error: "같은 등급끼리만 합성 가능" };
+    if (a.rarity === "legend") return { ok: false, error: "전설은 최고 등급" };
+
+    // 코인 비용 — rarity 단계별
+    const RARITY_COST: Record<Rarity, number> = {
+      normal: SHOP_PRICES.enhance,
+      rare: SHOP_PRICES.enhance * 2,
+      unique: SHOP_PRICES.enhance * 4,
+      legend: Number.POSITIVE_INFINITY,
+    };
+    const cost = RARITY_COST[a.rarity];
+    if (state.coins < cost) return { ok: false, error: `코인 부족 (${cost} 필요)` };
+
+    // 다음 등급 계산
+    const NEXT_RARITY: Record<Rarity, Rarity> = {
+      normal: "rare",
+      rare: "unique",
+      unique: "legend",
+      legend: "legend",
+    };
+    const newRarity = NEXT_RARITY[a.rarity];
+
+    // 새 stats: 각 키의 max + 2 (최소한 더 나아진다 보장)
+    const newStats: Equipment["stats"] = {};
+    const keys = new Set<keyof Equipment["stats"]>([
+      ...Object.keys(a.stats),
+      ...Object.keys(b.stats),
+    ] as Array<keyof Equipment["stats"]>);
+    for (const key of keys) {
+      const va = a.stats[key] ?? 0;
+      const vb = b.stats[key] ?? 0;
+      newStats[key] = Math.max(va, vb) + 2;
+    }
+
+    const newItem: Equipment = {
+      id: `enh_${a.type}_${newRarity}_${Date.now() % 100000}_${Math.floor(Math.random() * 1000)}`,
+      name: `${a.name} +`,
+      type: a.type,
+      rarity: newRarity,
+      category: a.category,
+      iconName: a.iconName,
+      stats: newStats,
+      effects: a.effects,
+      flavor: `강화로 벼려낸 ${a.name}`,
+    };
+
+    const newInventory = [
+      ...state.inventory.filter((i) => i.id !== id1 && i.id !== id2),
+      newItem,
+    ];
+    const newCoins = state.coins - cost;
+
+    set({ inventory: newInventory, coins: newCoins });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, inventory: newInventory, coins: newCoins }),
+    );
+    return { ok: true, newItem };
   },
 }));
