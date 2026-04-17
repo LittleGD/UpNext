@@ -164,6 +164,34 @@ export default function DungeonView() {
     }
   }, [session?.startedAt, session]);
 
+  // Phase 5d — Warrior HP regen visual tell.
+  // 매 combat round 끝 (enemy 공격 entry) + classType === "warrior" →
+  // HP bar 위에 "+2" 가 800ms 떠올랐다 사라짐. 이제 패시브가 체감됨.
+  // 세션 바뀌면 seen 초기화.
+  const [hpRegenFloats, setHpRegenFloats] = useState<number[]>([]);
+  const seenRegenIdxRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!session) return;
+    if (session.hero.classType !== "warrior") return;
+    session.log.forEach((entry, idx) => {
+      if (entry.type !== "combat" || entry.attacker !== "enemy") return;
+      if (seenRegenIdxRef.current.has(idx)) return;
+      seenRegenIdxRef.current.add(idx);
+      // 새 float push — id 는 idx (unique per entry)
+      setHpRegenFloats((prev) => [...prev, idx]);
+      // 800ms 후 cleanup
+      window.setTimeout(() => {
+        setHpRegenFloats((prev) => prev.filter((i) => i !== idx));
+      }, 820);
+    });
+  }, [session]);
+  useEffect(() => {
+    if (!session) {
+      seenRegenIdxRef.current.clear();
+      setHpRegenFloats([]);
+    }
+  }, [session?.startedAt, session]);
+
   // Time bar pulse — 시간이 ≥5 한 번에 빠지면 bar 가 한 번 번쩍.
   // 이벤트 outcome (대피 -15, 보스 -8, 악몽 -10 등) 처럼 "큰 비용" 순간을
   // 시각적으로 강조. rAF restart 패턴으로 keyframe 다시 재생.
@@ -367,8 +395,8 @@ export default function DungeonView() {
             </div>
           );
         })()}
-        {/* HP bar */}
-        <div className="mt-2.5 flex items-center gap-2">
+        {/* HP bar — relative 로 감싸 warrior regen float 위치 기준 제공 */}
+        <div className="mt-2.5 flex items-center gap-2 relative">
           <span className="typo-caption" style={{ color: GB.light }}>
             HP
           </span>
@@ -396,6 +424,24 @@ export default function DungeonView() {
           >
             {hp}/{maxHp}
           </span>
+          {/* Phase 5d — Warrior HP regen float.
+               숫자 오른쪽 위에서 떠오르며 800ms fade. 누적 float 은 각각
+               idx 기준 key 로 독립 렌더. tabular-nums 영역 위에 겹침. */}
+          {hpRegenFloats.map((id) => (
+            <span
+              key={id}
+              className="uphero-hp-regen-float typo-micro tabular-nums pointer-events-none absolute"
+              style={{
+                right: 0,
+                top: -14,
+                color: GB.lightest,
+                textShadow: `0 0 4px ${GB.lightest}aa`,
+              }}
+              aria-hidden="true"
+            >
+              +2
+            </span>
+          ))}
         </div>
 
         {/* Phase 4c.2 — 탐험 시간 bar.
