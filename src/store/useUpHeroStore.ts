@@ -316,14 +316,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // inventory 추가 (사망 시 절반만)
     const newInventory = [...state.inventory, ...keptDrops];
 
-    // codex 업데이트 (발견 기록)
+    // codex 업데이트 — Phase 4c-feature: name 기반 저장 (기존 id 기반 entry 와 공존).
+    // 장비는 id 기반 유지 (각 drop 은 고유 item 이라 문제 없음).
     const codexMonstersSet = new Set(state.codex.monsters);
     const codexBossesSet = new Set(state.codex.bosses);
     const codexEqSet = new Set(state.codex.equipment);
     for (const entry of session.log) {
       if (entry.type === "encounter") {
-        if (entry.monster.isBoss) codexBossesSet.add(entry.monster.id);
-        else codexMonstersSet.add(entry.monster.id);
+        if (entry.monster.isBoss) codexBossesSet.add(entry.monster.name);
+        else codexMonstersSet.add(entry.monster.name);
       }
       if (entry.type === "drop") codexEqSet.add(entry.equipment.id);
     }
