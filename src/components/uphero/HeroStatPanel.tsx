@@ -144,46 +144,9 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
           </div>
         </section>
 
-        {/* Phase 5c.3 → 5d: class 분화된 영웅이면 별도 섹션으로.
-             이전에는 한 줄 inline-flex 라 passive 문구가 좁은 화면에서 잘림.
-             block 섹션으로 분리하면 icon + name 줄과 passive 설명 줄이
-             2단으로 자연스럽게 wrap. 장비 섹션 패턴과 통일. */}
-        {hero.classType && (
-          <section
-            className="px-5 pb-5"
-            style={{ borderTop: `1px solid ${GB.dark}` }}
-          >
-            <div className={`typo-caption pt-4 pb-3 ${gbClass.textDim}`}>
-              클래스
-            </div>
-            <div
-              className="flex items-center gap-3 rounded px-3 py-2.5"
-              style={{
-                background: `${GB.dark}80`,
-                border: `1px solid ${GB.light}`,
-              }}
-            >
-              <PixelIcon
-                name={CLASS_META[hero.classType].icon}
-                size={20}
-                color={GB.lightest}
-              />
-              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                <div
-                  className="typo-caption"
-                  style={{ color: GB.lightest }}
-                >
-                  {CLASS_META[hero.classType].name}
-                </div>
-                <div
-                  className={`typo-caption ${gbClass.textDim} leading-tight`}
-                >
-                  {CLASS_META[hero.classType].passive}
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
+        {/* Phase 5c.3 → 5d → 6b: class 분화된 영웅이면 별도 섹션.
+             block 카드 (icon + name + passive) + Phase 6b 토글 (자동 스킬). */}
+        {hero.classType && <ClassSection hero={hero} />}
 
         {/* 스탯 bar */}
         <section
@@ -295,5 +258,84 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
       </div>
     </div>,
     document.body,
+  );
+}
+
+/* ────────────────────────────────────────────
+ * Phase 6b — ClassSection (분화된 영웅의 class 정보 + 스킬 + 자동 토글)
+ * ──────────────────────────────────────────── */
+
+import { CLASS_SKILLS } from "@/lib/classSkills";
+import type { Hero } from "@/types/uphero";
+
+function ClassSection({ hero }: { hero: Hero }) {
+  const toggleAutoSkill = useUpHeroStore((s) => s.toggleAutoSkill);
+  if (!hero.classType) return null;
+  const meta = CLASS_META[hero.classType];
+  const skill = CLASS_SKILLS[hero.classType];
+  const autoEnabled = hero.autoSkillEnabled ?? true;
+
+  return (
+    <section
+      className="px-5 pb-5"
+      style={{ borderTop: `1px solid ${GB.dark}` }}
+    >
+      <div className={`typo-caption pt-4 pb-3 ${gbClass.textDim}`}>
+        클래스
+      </div>
+
+      {/* Class meta 카드 (name + passive) */}
+      <div
+        className="flex items-center gap-3 rounded px-3 py-2.5"
+        style={{
+          background: `${GB.dark}80`,
+          border: `1px solid ${GB.light}`,
+        }}
+      >
+        <PixelIcon name={meta.icon} size={20} color={GB.lightest} />
+        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+          <div className="typo-caption" style={{ color: GB.lightest }}>
+            {meta.name}
+          </div>
+          <div className={`typo-caption ${gbClass.textDim} leading-tight`}>
+            {meta.passive}
+          </div>
+        </div>
+      </div>
+
+      {/* Phase 6b — 액티브 스킬 카드 + 자동 발동 토글 */}
+      <div
+        className="mt-2.5 flex items-center gap-3 rounded px-3 py-2.5"
+        style={{
+          background: `${GB.dark}60`,
+          border: `1px dashed ${GB.light}80`,
+        }}
+      >
+        <PixelIcon name="Zap" size={18} color={GB.lightest} />
+        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+          <div className="typo-caption" style={{ color: GB.lightest }}>
+            액티브 — {skill.name}
+          </div>
+          <div className={`typo-caption ${gbClass.textDim} leading-tight`}>
+            쿨다운 {skill.cooldown} round · 조건 만족 시 자동 발동
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={toggleAutoSkill}
+          className="typo-micro tabular-nums rounded px-2 py-1"
+          style={{
+            minHeight: 28,
+            background: autoEnabled ? GB.lightest : `${GB.dark}cc`,
+            color: autoEnabled ? GB.darkest : GB.light,
+            border: `1px solid ${autoEnabled ? GB.lightest : GB.light}`,
+            letterSpacing: "0.05em",
+          }}
+          aria-label={`자동 스킬 ${autoEnabled ? "켜짐" : "꺼짐"}`}
+        >
+          {autoEnabled ? "자동 ON" : "자동 OFF"}
+        </button>
+      </div>
+    </section>
   );
 }

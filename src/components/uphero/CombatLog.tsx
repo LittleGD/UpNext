@@ -243,6 +243,29 @@ function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
         </div>
       );
     }
+
+    case "skill":
+      // Phase 6b — class 액티브 스킬 발동. Boss banner 수준의 prominence.
+      return (
+        <div
+          style={{
+            ...style,
+            color: GB.lightest,
+            background: `${GB.dark}66`,
+            borderLeft: `2px solid ${GB.lightest}`,
+            padding: "4px 8px",
+          }}
+          className="my-1.5 flex items-start gap-1.5 rounded-sm"
+        >
+          <PixelIcon name="Zap" size={14} color={GB.lightest} />
+          <div className="flex-1">
+            <div style={{ color: GB.lightest }}>
+              <span style={{ fontWeight: 700 }}>{entry.skillName}</span>
+            </div>
+            <div className={gbClass.textDim}>{entry.narrative}</div>
+          </div>
+        </div>
+      );
   }
 }
 
