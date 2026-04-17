@@ -17,14 +17,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { useGameStore } from "@/store/useGameStore";
 import { DUNGEONS } from "@/data/upHeroDungeons";
-import { computeEffectiveStats } from "@/types/uphero";
+import { computeEffectiveStats, getHeroAppearanceVariant } from "@/types/uphero";
 import type { Monster } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import CombatLog from "./CombatLog";
 import ChoicePanel from "./ChoicePanel";
 import BossBanner from "./BossBanner";
+import HeroSprite, { type HeroSpriteState } from "./HeroSprite";
+import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
@@ -38,6 +41,7 @@ export default function DungeonView() {
   const tickSession = useUpHeroStore((s) => s.tickSession);
   const resumeSession = useUpHeroStore((s) => s.resumeSession);
   const abandonSession = useUpHeroStore((s) => s.abandonSession);
+  const heroLevel = useGameStore((s) => s.progress.level);
 
   const [speed, setSpeed] = useState<1 | 2 | 4>(1);
   const [paused, setPaused] = useState(false);
@@ -110,6 +114,56 @@ export default function DungeonView() {
     return () => window.clearInterval(id);
   }, [session, speed, paused]);
 
+  // Phase 4c-polish: HeroSprite state (idle/attack/hurt).
+  // 새 combat 엔트리 감지 → attacker 별로 sprite 상태 세팅.
+  //   attacker = "hero", damage > 0  → attack
+  //   attacker = "enemy", damage > 0 → hurt
+  //   miss/dodge (damage 0)          → sprite 반응 없음
+  const [heroState, setHeroState] = useState<HeroSpriteState>("idle");
+  const [enemyHurt, setEnemyHurt] = useState(false);
+  const seenCombatIdxRef = useRef<Set<number>>(new Set());
+  const heroStateTimerRef = useRef<number | null>(null);
+  const enemyHurtTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!session) return;
+    session.log.forEach((entry, idx) => {
+      if (entry.type !== "combat") return;
+      if (seenCombatIdxRef.current.has(idx)) return;
+      seenCombatIdxRef.current.add(idx);
+      if (entry.damage === 0) return; // miss/dodge 는 정적
+      if (entry.attacker === "hero") {
+        // 영웅 공격 → hero sprite attack + enemy sprite hurt (0.4× brightness)
+        if (heroStateTimerRef.current) window.clearTimeout(heroStateTimerRef.current);
+        setHeroState("attack");
+        heroStateTimerRef.current = window.setTimeout(() => {
+          setHeroState("idle");
+          heroStateTimerRef.current = null;
+        }, 240);
+        if (enemyHurtTimerRef.current) window.clearTimeout(enemyHurtTimerRef.current);
+        setEnemyHurt(true);
+        enemyHurtTimerRef.current = window.setTimeout(() => {
+          setEnemyHurt(false);
+          enemyHurtTimerRef.current = null;
+        }, 260);
+      } else {
+        // 적 공격 → hero sprite hurt
+        if (heroStateTimerRef.current) window.clearTimeout(heroStateTimerRef.current);
+        setHeroState("hurt");
+        heroStateTimerRef.current = window.setTimeout(() => {
+          setHeroState("idle");
+          heroStateTimerRef.current = null;
+        }, 260);
+      }
+    });
+  }, [session]);
+
+  // 세션 바뀌면 combat seen 초기화
+  useEffect(() => {
+    if (!session) {
+      seenCombatIdxRef.current.clear();
+    }
+  }, [session?.startedAt, session]);
+
   // Time bar pulse — 시간이 ≥5 한 번에 빠지면 bar 가 한 번 번쩍.
   // 이벤트 outcome (대피 -15, 보스 -8, 악몽 -10 등) 처럼 "큰 비용" 순간을
   // 시각적으로 강조. rAF restart 패턴으로 keyframe 다시 재생.
@@ -141,6 +195,11 @@ export default function DungeonView() {
   const maxTime = session.maxTime;
   const timePct = Math.max(0, Math.min(100, (time / maxTime) * 100));
   const stats = computeEffectiveStats(session.hero);
+
+  // Phase 4c-polish: 현재 진행 중인 encounter 의 몬스터 — sprite 표시용.
+  // 마지막 encounter 이후 victory/drop 이 나왔으면 전투 종료라 null.
+  const currentEnemy = findActiveEnemy(session.log);
+  const heroVariant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
 
   const awaitingChoice = session.status === "awaitingChoice";
 
@@ -174,14 +233,64 @@ export default function DungeonView() {
           paddingTop: "calc(env(safe-area-inset-top) + 10px)",
         }}
       >
-        <div className="flex items-center justify-between typo-caption">
+        {/* Phase 4c-polish: 영웅 sprite ↔ 몬스터 sprite 가 마주보는 전투 장면.
+             전투가 아닐 때 (narrative/choice) 는 몬스터 자리 비고 영웅만.
+             공격/피격 시 짧은 transform 애니메이션으로 "누가 때리고 누가 맞았는지" 시각화. */}
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span style={{ color: GB.lightest }}>{dungeon.name}</span>
-            <span className={gbClass.textDim}>—</span>
-            <span style={{ color: GB.light }}>Floor {session.currentFloor}</span>
+            <HeroSprite
+              variant={heroVariant}
+              size={32}
+              color={GB.lightest}
+              state={heroState}
+              animationMs={1400}
+            />
+            <div className="flex flex-col leading-tight">
+              <span className="typo-caption" style={{ color: GB.lightest }}>
+                {dungeon.name}
+              </span>
+              <span className={`typo-caption ${gbClass.textDim}`}>
+                Floor {session.currentFloor}
+              </span>
+            </div>
           </div>
-          <div className={`typo-caption ${gbClass.textDim} tabular-nums`}>
-            STR {stats.str} · AGI {stats.agi}
+
+          <div className="flex items-center gap-2">
+            {currentEnemy && (
+              <div
+                className="flex flex-col items-end leading-tight"
+                style={{ opacity: enemyHurt ? 0.55 : 1, transition: `opacity 140ms ${EASE_OUT}` }}
+              >
+                <span
+                  className="typo-caption tabular-nums"
+                  style={{ color: currentEnemy.isBoss ? GB_ENEMY : GB.lightest }}
+                >
+                  {currentEnemy.name}
+                </span>
+                <span className={`typo-caption ${gbClass.textDim} tabular-nums`}>
+                  Lv {currentEnemy.level}
+                </span>
+              </div>
+            )}
+            {currentEnemy ? (
+              <div
+                style={{
+                  transform: enemyHurt ? "translateX(3px)" : "translateX(0)",
+                  filter: enemyHurt ? "brightness(0.55)" : "brightness(1)",
+                  transition: `transform 160ms ${EASE_OUT}, filter 160ms ${EASE_OUT}`,
+                }}
+              >
+                <MonsterSprite
+                  kind={currentEnemy.kind}
+                  size={currentEnemy.isBoss ? 40 : 32}
+                  color={currentEnemy.isBoss ? GB_ENEMY : GB.lightest}
+                />
+              </div>
+            ) : (
+              <div className={`typo-caption ${gbClass.textDim} tabular-nums`}>
+                STR {stats.str} · AGI {stats.agi}
+              </div>
+            )}
           </div>
         </div>
 
@@ -385,6 +494,20 @@ export default function DungeonView() {
 }
 
 /* ──────────────────────────────────────────────────────── */
+
+/**
+ * 현재 진행 중인 encounter 의 몬스터 반환. victory / drop 이후면 null.
+ * 로그 역순회로 마지막 encounter 찾고, 그 뒤에 세션 종결성 엔트리가 없는지 확인.
+ */
+function findActiveEnemy(log: Array<{ type: string; monster?: Monster }>): Monster | null {
+  for (let i = log.length - 1; i >= 0; i--) {
+    const e = log[i];
+    if (e.type === "victory" || e.type === "drop" || e.type === "sessionEnd") return null;
+    if (e.type === "encounter" && e.monster) return e.monster;
+    if (e.type === "boss" && e.monster) return e.monster;
+  }
+  return null;
+}
 
 function SpeedButton({
   children,
