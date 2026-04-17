@@ -7,7 +7,7 @@
 import type { DungeonId, Monster, MonsterKind } from "@/types/uphero";
 
 /** 몬스터 템플릿 — 정확한 stats 는 floor 에 따라 스케일링 */
-interface MonsterTemplate {
+export interface MonsterTemplate {
   id: string;
   name: string;
   /** MonsterSprite kind — 8×8 pixel 실루엣 선택 */
@@ -15,6 +15,8 @@ interface MonsterTemplate {
   /** 상대 파워 (같은 던전 내 상대값, 1-3) */
   power: 1 | 2 | 3;
   isBoss?: boolean;
+  /** codex 표시용 — 원본 던전 (scaleMonster 실행 후 붙는 dungeonId 와 동일) */
+  dungeonId?: DungeonId;
 }
 
 const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterTemplate[] }> = {
@@ -131,6 +133,18 @@ const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterT
     ],
   },
 };
+
+/** Phase 4c-feature: Codex 용 flat list. 던전 정보 붙여서 export. */
+export const ALL_MONSTER_TEMPLATES: MonsterTemplate[] = (() => {
+  const out: MonsterTemplate[] = [];
+  for (const [dungeonId, pool] of Object.entries(TEMPLATES) as Array<
+    [DungeonId, (typeof TEMPLATES)[DungeonId]]
+  >) {
+    for (const t of pool.normal) out.push({ ...t, dungeonId });
+    for (const t of pool.bosses) out.push({ ...t, dungeonId });
+  }
+  return out;
+})();
 
 /**
  * 던전/floor 에 맞는 몬스터 랜덤 선택 후 stats 스케일링.

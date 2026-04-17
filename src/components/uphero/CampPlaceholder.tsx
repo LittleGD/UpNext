@@ -29,6 +29,7 @@ import PixelIcon from "@/components/icons/PixelIcon";
 import HeroSprite from "./HeroSprite";
 import { getHeroAppearanceVariant } from "@/types/uphero";
 import EquipmentInventory from "./EquipmentInventory";
+import HeroCodex from "./HeroCodex";
 import HeroStatPanel from "./HeroStatPanel";
 import BuffDrawPanel from "./BuffDrawPanel";
 
@@ -44,7 +45,7 @@ const CATEGORY_ICON: Record<DungeonId, string> = {
   trending: "Sparkle",
 };
 
-type View = "home" | "dungeons" | "shop" | "equipment";
+type View = "home" | "dungeons" | "shop" | "equipment" | "codex";
 
 export default function CampPlaceholder() {
   const coins = useUpHeroStore((s) => s.coins);
@@ -118,6 +119,7 @@ export default function CampPlaceholder() {
             }}
             onOpenShop={() => setView("shop")}
             onOpenEquipment={() => setView("equipment")}
+            onOpenCodex={() => setView("codex")}
             onOpenStats={() => setStatsOpen(true)}
           />
         )}
@@ -140,6 +142,9 @@ export default function CampPlaceholder() {
             onBack={() => setView("home")}
             onNotify={notify}
           />
+        )}
+        {!pendingDungeon && view === "codex" && (
+          <HeroCodex onBack={() => setView("home")} />
         )}
       </div>
 
@@ -186,6 +191,7 @@ function HomeView({
   onOpenDungeons,
   onOpenShop,
   onOpenEquipment,
+  onOpenCodex,
   onOpenStats,
 }: {
   hero: { name: string };
@@ -194,6 +200,7 @@ function HomeView({
   onOpenDungeons: () => void;
   onOpenShop: () => void;
   onOpenEquipment: () => void;
+  onOpenCodex: () => void;
   onOpenStats: () => void;
 }) {
   const { play } = useSound();
@@ -327,7 +334,16 @@ function HomeView({
           }}
           iconName="Shield"
           label="장비"
-          hint="장착 · 판매 · 버리기"
+          hint="장착 · 판매 · 강화"
+        />
+        <SecondaryCTA
+          onClick={() => {
+            play("select");
+            onOpenCodex();
+          }}
+          iconName="BookOpen"
+          label="도감"
+          hint="만난 몬스터 기록"
         />
       </section>
 
