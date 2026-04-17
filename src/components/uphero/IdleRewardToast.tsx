@@ -18,10 +18,18 @@ import PixelIcon from "@/components/icons/PixelIcon";
 export default function IdleRewardToast() {
   const reward = useUpHeroStore((s) => s.idleReward);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeIdleReward);
+  // Phase 5c-fix #1: 다른 blocking modal (SessionResultModal / ClassAwakenModal)
+  // 이 떠있으면 토스트가 backdrop 뒤에 숨어 유저가 놓칠 수 있음.
+  // 해당 modal 들이 모두 사라질 때까지 mount / timer 를 지연.
+  const sessionStatus = useUpHeroStore((s) => s.currentSession?.status);
+  const pendingClassAwaken = useUpHeroStore((s) => s.pendingClassAwaken);
+  const blocked =
+    sessionStatus === "completed" || pendingClassAwaken !== null;
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     if (!reward) return;
+    if (blocked) return; // 대기 — 차단 modal 이 닫히면 재실행
     const rafId = requestAnimationFrame(() => setMounted(true));
     // 4초 자동 dismiss
     const dismissTimer = window.setTimeout(() => {
@@ -32,9 +40,10 @@ export default function IdleRewardToast() {
       cancelAnimationFrame(rafId);
       window.clearTimeout(dismissTimer);
     };
-  }, [reward, acknowledge]);
+  }, [reward, acknowledge, blocked]);
 
   if (!reward) return null;
+  if (blocked) return null;
 
   const onTap = () => {
     setMounted(false);
@@ -48,7 +57,7 @@ export default function IdleRewardToast() {
     <button
       type="button"
       onClick={onTap}
-      className="fixed left-1/2 z-30 rounded typo-caption text-left"
+      className="fixed left-1/2 z-[60] rounded typo-caption text-left"
       style={{
         top: "calc(env(safe-area-inset-top) + 52px)",
         transform: `translateX(-50%) translateY(${mounted ? 0 : "-8px"})`,

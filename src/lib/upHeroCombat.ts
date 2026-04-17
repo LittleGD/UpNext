@@ -222,13 +222,13 @@ function applyClassStartEffects(hero: Hero): Hero {
   return newHero;
 }
 
-/** xp 보상 배율 (mage +20%) */
-function classXpMult(cls: ClassType | null): number {
+/** xp 보상 배율 (mage +20%) — idle accrual 에서도 사용하려고 export */
+export function classXpMult(cls: ClassType | null): number {
   return cls === "mage" ? MAGE_XP_MULT : 1;
 }
 
-/** coin 보상 배율 (bard +25%) */
-function classCoinMult(cls: ClassType | null): number {
+/** coin 보상 배율 (bard +25%) — idle accrual 에서도 사용하려고 export */
+export function classCoinMult(cls: ClassType | null): number {
   return cls === "bard" ? BARD_COIN_MULT : 1;
 }
 
