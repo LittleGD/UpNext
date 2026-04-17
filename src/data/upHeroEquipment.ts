@@ -257,12 +257,27 @@ const TEMPLATES: EquipmentTemplate[] = [
   },
 ];
 
-const RARITY_PREFIX: Record<Rarity, string> = {
+export const RARITY_PREFIX: Record<Rarity, string> = {
   normal: "",
   rare: "빛나는 ",
   unique: "전설적 ",
   legend: "신성한 ",
 };
+
+/**
+ * Phase 5b.2 — Equipment.name 에서 rarity prefix 제거해 baseName 복원.
+ * codex 저장 / 조회 / 강화 등에서 사용.
+ */
+export function getEquipmentBaseName(eq: {
+  name: string;
+  rarity: Rarity;
+}): string {
+  const prefix = RARITY_PREFIX[eq.rarity];
+  if (prefix && eq.name.startsWith(prefix)) {
+    return eq.name.slice(prefix.length);
+  }
+  return eq.name;
+}
 
 /** 템플릿 + 등급 → Equipment instance */
 export function createEquipmentFromTemplate(
@@ -336,3 +351,31 @@ export function rollDropRarity(floor: number): Rarity {
 }
 
 export { TEMPLATES as EQUIPMENT_TEMPLATES };
+
+/**
+ * Phase 5b.2 — Codex 용 flat list. type + category + iconName 정보 포함.
+ * baseName 은 template 의 고유 식별자 역할도 한다 (Korean 문자열이지만 unique).
+ */
+export const ALL_EQUIPMENT_TEMPLATES: EquipmentTemplate[] = TEMPLATES;
+
+/**
+ * Phase 5b.2 — 인스턴스 id 에서 template baseName 복원.
+ * ID 포맷: `eq_{baseName 공백 제거}_{rarity}_{timestamp}_{rand}`
+ * Legacy codex entry (id 기반) 을 baseName 으로 변환할 때 사용.
+ *
+ * baseName 이 공백을 포함할 수 있지만 ID 에선 공백 제거되므로, template 을
+ * 순회하며 stripped 이름으로 매칭.
+ */
+export function findTemplateByLegacyId(legacyId: string): EquipmentTemplate | null {
+  // `eq_{name}_{rarity}_{ts}_{rnd}` 에서 가운데 name 부분 추출
+  // rarity 는 normal/rare/unique/legend 중 하나 — 뒤에서부터 파싱.
+  const match = legacyId.match(
+    /^eq_(.+?)_(normal|rare|unique|legend)_\d+_\d+$/,
+  );
+  if (!match) return null;
+  const strippedName = match[1];
+  for (const t of TEMPLATES) {
+    if (t.baseName.replace(/\s/g, "") === strippedName) return t;
+  }
+  return null;
+}

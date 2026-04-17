@@ -15,6 +15,7 @@ import type {
   LogEntry,
   SessionEndReason,
 } from "@/types/uphero";
+import { getEquipmentBaseName } from "@/data/upHeroEquipment";
 
 /**
  * 사망 시 drops 절반 유실 계산.
@@ -66,7 +67,7 @@ export function calculateBossesDefeated(
  *
  * 저장 형식:
  * - monsters / bosses: monster.name (템플릿 이름, unique)
- * - equipment: eq.id (인스턴스 ID — Phase 5b.2 에서 template name 으로 전환 예정)
+ * - equipment: template baseName (rarity prefix 제거한 이름, Phase 5b.2)
  */
 export function calculateCodexDelta(log: LogEntry[], current: Codex): Codex {
   const monsters = new Set(current.monsters);
@@ -77,7 +78,9 @@ export function calculateCodexDelta(log: LogEntry[], current: Codex): Codex {
       if (entry.monster.isBoss) bosses.add(entry.monster.name);
       else monsters.add(entry.monster.name);
     }
-    if (entry.type === "drop") equipment.add(entry.equipment.id);
+    if (entry.type === "drop") {
+      equipment.add(getEquipmentBaseName(entry.equipment));
+    }
   }
   return {
     monsters: [...monsters],

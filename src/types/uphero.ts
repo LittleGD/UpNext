@@ -302,7 +302,21 @@ export interface UpHeroState {
    * 실행하고 새 버전으로 갱신한다. undefined 이면 legacy 로 간주 (Phase 4c 이전).
    */
   schemaVersion?: number;
+  /**
+   * Phase 5b.1 — 마지막 initialize 에서 계산된 idle reward.
+   * UI 에서 토스트로 표시 후 acknowledgeIdleReward() 로 null 클리어.
+   * transient — persist 되지 않음.
+   */
+  idleReward: IdleRewardSnapshot | null;
   isLoaded: boolean;
+}
+
+/** Phase 5b.1 — idle accrual 결과를 UI 에 전달하는 snapshot */
+export interface IdleRewardSnapshot {
+  xp: number;
+  coins: number;
+  elapsedMin: number;
+  rawElapsedMin: number;
 }
 
 /**
