@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { springSnappy } from "@/lib/motion";
 import { useGrowthStore } from "@/store/useGrowthStore";
@@ -8,11 +9,13 @@ import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle } from "@/i18n";
 import PolaroidFrame from "./PolaroidFrame";
-import PolaroidFlip from "./PolaroidFlip";
 import SignatureCanvas from "./SignatureCanvas";
-import MemoEditor from "./MemoEditor";
+import StickerLayer from "./StickerLayer";
+import DecorationToolbar, { INK_COLORS } from "./DecorationToolbar";
+import PhotoDetailModal from "./PhotoDetailModal";
 import PixelIcon from "@/components/icons/PixelIcon";
 import type { ChallengeCard } from "@/types/card";
+import type { PhotoMeta, Sticker } from "@/types/growth";
 
 // UpNext 로고 — public assets 경로 의존성 제거를 위해 인라인
 function UpNextLogo({ width = 96, color = "#212727" }: { width?: number; color?: string }) {
@@ -54,8 +57,11 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [captureTimestamp, setCaptureTimestamp] = useState(0);
   const [signatureData, setSignatureData] = useState<string | null>(null);
-  const [memo, setMemo] = useState("");
-  const [isFlipped, setIsFlipped] = useState(false);
+  // capture 단계의 데코레이션 상태 — 사인 잉크 색 + 스티커 배열
+  const [penColor, setPenColor] = useState<string>(INK_COLORS[0]);
+  const [stickers, setStickers] = useState<Sticker[]>([]);
+  // Done 후 디테일 뷰 (savePhoto 가 반환한 meta 를 set 하면 PhotoDetailModal 렌더)
+  const [savedMeta, setSavedMeta] = useState<PhotoMeta | null>(null);
   const [showFlash, setShowFlash] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [exposureEV, setExposureEV] = useState(0); // -2..+2 (EV stops)
@@ -263,19 +269,40 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     reader.readAsDataURL(file);
   }, [play, setCapturePhase]);
 
-  // 저장
-  const handleSave = useCallback(async () => {
+  // Done — 사진 저장 + 디테일 뷰 표시 (즉시 close 안 함)
+  // savedMeta 가 set 되면 PhotoDetailModal 이 렌더되어 사용자가 바로 확인/편집 가능.
+  // 디테일 뷰 close 시 onComplete (챌린지 완료 + 모달 닫기) 호출됨.
+  const handleDone = useCallback(async () => {
     if (!capturedImage || !signatureData) return;
-    await savePhoto(
+    const meta = await savePhoto(
       capturedImage,
       signatureData,
-      memo,
+      "", // memo 는 capture 단계에서 입력 안 함 — detail 뷰에서 이어서 작성
       cardTitle(card, language),
       card.category,
+      stickers,
     );
     play("collect");
-    onComplete();
-  }, [capturedImage, signatureData, memo, savePhoto, card, language, play, onComplete]);
+    if (meta) setSavedMeta(meta);
+    else onComplete(); // savePhoto 가 null 반환 (pendingCaptureCardId 없음)
+  }, [capturedImage, signatureData, stickers, savePhoto, card, language, play, onComplete]);
+
+  // 스티커 추가 — 폴라로이드 중앙에 새 스티커 배치
+  const handleAddSticker = useCallback((type: "emoji" | "image", content: string) => {
+    setStickers((prev) => [
+      ...prev,
+      {
+        id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        type,
+        content,
+        x: 50, // 중앙
+        y: 50,
+        rotation: (Math.random() - 0.5) * 20, // ±10° 살짝 기울여서 시작
+        scale: 1,
+        zIndex: prev.length + 1,
+      },
+    ]);
+  }, []);
 
   // 건너뛰기
   const handleSkip = useCallback(() => {
@@ -290,15 +317,22 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     cancelCapture();
   }, [stopCamera, cancelCapture]);
 
-  if (capturePhase === "idle" || capturePhase === "saving") return null;
+  // Portal mount 가드 (SSR safe)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  return (
+  if (capturePhase === "idle" || capturePhase === "saving") return null;
+  if (!mounted) return null;
+
+  // ⚠ Portal 로 document.body 에 마운트 — 페이지 헤더 (sticky z-10) 의 stacking context
+  // 를 escape. 로컬 마운트 시 z:60 이어도 헤더가 뚫고 올라옴.
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className={`fixed inset-0 z-[60] flex flex-col ${
+        className={`fixed inset-0 z-[100] flex flex-col ${
           capturePhase === "camera" ? "bg-[#DCD5BC]" : "bg-black"
         }`}
       >
@@ -1059,93 +1093,92 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
             </div>
           )}
 
-          {/* ========== POLAROID PHASE — 프레임 전체 위 자유 낙서 + 사인 후 Save 노출 ==========
-              ⚠ wiggle motion.div 에 명시적 width 필요: flex-col items-center 부모에서
-                width 미지정 자식은 min-content 로 0×0 이 됨 (PolaroidFrame 의 w-full
-                이 0 이 되어 폴라로이드 통째로 사라지는 버그). max-w-[300px] w-full 로 고정.
-
-              SignatureCanvas 는 폴라로이드 프레임 전체 위 absolute 오버레이. 사진 위에도
-              마커 펜으로 그리는 빈티지 폴라로이드 느낌. PolaroidTilt 제거 — 서명 pointermove 와 충돌. */}
+          {/* ========== POLAROID PHASE — 자유 낙서 + 스티커 + 데코레이션 툴바 ==========
+              구조: 폴라로이드 (사진 + 사인 캔버스 + 스티커 레이어) + 툴바 + Done 버튼
+              사인은 잉크 색 변경 가능 (toolbar). 스티커는 탭으로 추가, drag 로 이동.
+              메모는 capture 단계에서 받지 않음 — Done 후 디테일 뷰에서 작성. */}
           {(capturePhase === "polaroid" || capturePhase === "memo") && capturedImage && (
             <motion.div
               initial={{ opacity: 0, scale: 0.97, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-              className="w-full max-w-[320px] flex flex-col items-center gap-4"
+              className="w-full max-w-[320px] flex flex-col items-center gap-3"
             >
-              {/* 수평 넛지 힌트 (플립 가능 알림) — rotateZ 대신 translateX 가 더 직관적 */}
-              <motion.div
-                className="w-full max-w-[300px]"
-                initial={{ x: 0 }}
-                animate={{ x: [0, 4, -4, 2, 0] }}
-                transition={{ duration: 0.6, delay: 0.5, ease: [0.77, 0, 0.175, 1] }}
-              >
-                <PolaroidFlip
-                  flipped={isFlipped}
-                  onFlip={setIsFlipped}
-                  showFlipHint={false}
-                  front={
-                    <div className="relative">
-                      <PolaroidFrame imageSrc={capturedImage} timestamp={captureTimestamp} />
-                      {/* 폴라로이드 프레임 전체 위 자유 낙서 캔버스 (absolute overlay).
-                          width 는 폴라로이드 표시 폭 = 300px, height 는 aspectRatio 184/223 → ~363px */}
-                      <div
-                        className="absolute inset-0 z-[5]"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <SignatureCanvas
-                          width={300}
-                          height={363}
-                          onSignatureChange={setSignatureData}
-                          className="w-full h-full"
-                        />
-                      </div>
-                      {/* 펄스 안내 — 미사인 시 "프레임 전체에 낙서하세요" 힌트 */}
-                      {!signatureData && (
-                        <motion.p
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: [0.5, 0.9, 0.5] }}
-                          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                          className="absolute bottom-3 left-0 right-0 text-center pointer-events-none z-[6]"
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "rgba(0,0,0,0.55)",
-                            letterSpacing: "0.02em",
-                            textShadow: "0 1px 2px rgba(255,255,255,0.5)",
-                          }}
-                        >
-                          ✍ {t("playground.capture.sign")}
-                        </motion.p>
-                      )}
-                    </div>
-                  }
-                  back={
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <MemoEditor value={memo} onChange={setMemo} />
-                    </div>
-                  }
+              {/* 폴라로이드 (사진 + 사인 + 스티커) */}
+              <div className="w-full max-w-[300px] relative">
+                <PolaroidFrame imageSrc={capturedImage} timestamp={captureTimestamp} />
+                {/* 사인 캔버스 — 폴라로이드 전체 위 absolute */}
+                <div
+                  className="absolute inset-0 z-[5]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SignatureCanvas
+                    width={300}
+                    height={363}
+                    inkColor={penColor}
+                    onSignatureChange={setSignatureData}
+                    className="w-full h-full"
+                  />
+                </div>
+                {/* 스티커 레이어 — 사인 위에 배치 (z-10), drag 가능 */}
+                <StickerLayer
+                  stickers={stickers}
+                  editable
+                  onChange={setStickers}
+                  className="z-10"
                 />
-              </motion.div>
+                {/* 펄스 힌트 — 미사인 시 */}
+                {!signatureData && stickers.length === 0 && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0.5, 0.9, 0.5] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute bottom-3 left-0 right-0 text-center pointer-events-none z-[15]"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "rgba(0,0,0,0.55)",
+                      letterSpacing: "0.02em",
+                      textShadow: "0 1px 2px rgba(255,255,255,0.5)",
+                    }}
+                  >
+                    ✍ {t("playground.capture.sign")}
+                  </motion.p>
+                )}
+              </div>
 
-              {/* 액션 영역 — 사인 후에만 Save 노출. Skip 은 헤더 Close 가 대신함. */}
+              {/* 데코레이션 툴바 — 잉크 색 + 스티커 팔레트 */}
+              <DecorationToolbar
+                selectedColor={penColor}
+                onColorChange={setPenColor}
+                onAddSticker={handleAddSticker}
+              />
+
+              {/* Done 버튼 — 사인이나 스티커가 하나라도 있으면 활성 */}
               <div className="w-full flex flex-col items-stretch gap-2.5 mt-1 min-h-[60px]">
-                {signatureData ? (
+                {(signatureData || stickers.length > 0) ? (
                   <motion.button
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-                    onClick={handleSave}
+                    onClick={handleDone}
                     className="w-full py-3.5 rounded-xl bg-accent text-bg-primary typo-body active:scale-[0.97] transition-transform"
                   >
-                    {t("playground.capture.save")}
+                    {t("common.done")}
                   </motion.button>
                 ) : null}
               </div>
             </motion.div>
           )}
         </div>
+
+        {/* Done 후 디테일 뷰 — savedMeta 가 set 되면 PhotoDetailModal 렌더.
+            close 시 onComplete (챌린지 완료 처리 + 모달 닫기) 호출. */}
+        {savedMeta && (
+          <PhotoDetailModal meta={savedMeta} onClose={onComplete} />
+        )}
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

@@ -9,6 +9,8 @@ interface Props {
   className?: string;
   /** 기존 사인을 다시 로드해서 이어 그리기 (PhotoDetailModal 의 Edit 모드용) */
   initialDataUrl?: string | null;
+  /** 잉크 색 (CSS color string) — DecorationToolbar 에서 변경 */
+  inkColor?: string;
 }
 
 interface Pt {
@@ -41,11 +43,15 @@ export default function SignatureCanvas({
   onSignatureChange,
   className,
   initialDataUrl,
+  inkColor = "rgba(22,18,14,0.92)",
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
   const points = useRef<Pt[]>([]);
   const [hasStrokes, setHasStrokes] = useState(false);
+  // ink color 를 ref 로도 보관 — useCallback closure 안에서 최신 값 참조
+  const inkColorRef = useRef(inkColor);
+  useEffect(() => { inkColorRef.current = inkColor; }, [inkColor]);
 
   const getPos = useCallback((e: PointerEvent | React.PointerEvent): Pt => {
     const canvas = canvasRef.current!;
@@ -93,7 +99,7 @@ export default function SignatureCanvas({
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-      ctx.strokeStyle = "rgba(22, 18, 14, 0.92)"; // 따뜻한 다크 잉크
+      ctx.strokeStyle = inkColorRef.current;
       ctx.lineWidth = computeWidth(p1, p2);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";

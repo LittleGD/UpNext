@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { PhotoMeta, CapturePhase, TreePosition } from "@/types/growth";
+import type { PhotoMeta, CapturePhase, TreePosition, Sticker } from "@/types/growth";
 import { getTreeStage } from "@/types/growth";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import {
@@ -32,12 +32,15 @@ interface GrowthActions {
     memo: string,
     challengeTitle: string,
     category: import("@/types/card").Category,
-  ) => Promise<void>;
+    stickers?: Sticker[],
+  ) => Promise<PhotoMeta | null>;
   skipCapture: () => void;
   cancelCapture: () => void;
 
   // 편집
   updatePhotoSignature: (photoId: string, signatureDataUrl: string) => Promise<void>;
+  updatePhotoMemo: (photoId: string, memo: string) => void;
+  updatePhotoStickers: (photoId: string, stickers: Sticker[]) => void;
 
   // 관리
   deletePhoto: (photoId: string) => void;
@@ -103,9 +106,9 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
     set({ capturePhase: phase });
   },
 
-  async savePhoto(imageDataUrl, signatureDataUrl, memo, challengeTitle, category) {
+  async savePhoto(imageDataUrl, signatureDataUrl, memo, challengeTitle, category, stickers) {
     const { pendingCaptureCardId, photoMetas } = get();
-    if (!pendingCaptureCardId) return;
+    if (!pendingCaptureCardId) return null;
 
     set({ capturePhase: "saving" });
 
@@ -135,6 +138,7 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
       timestamp: now,
       memo: memo.slice(0, 200),
       treePosition,
+      stickers: stickers && stickers.length > 0 ? stickers : undefined,
     };
 
     const updatedMetas = [meta, ...photoMetas];
@@ -145,6 +149,7 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
     });
 
     saveToStorage(STORAGE_KEY, { photoMetas: updatedMetas });
+    return meta;
   },
 
   skipCapture() {
@@ -161,6 +166,22 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
     await updateSignatureBlob(photoId, signatureBlob);
     // photoMetas 자체는 변하지 않으므로 store 업데이트 불필요.
     // signatureUrl 캐시만 PhotoDetailModal 에서 다시 fetch 하면 됨.
+  },
+
+  updatePhotoMemo(photoId, memo) {
+    const updated = get().photoMetas.map((m) =>
+      m.id === photoId ? { ...m, memo: memo.slice(0, 200) } : m,
+    );
+    set({ photoMetas: updated });
+    saveToStorage(STORAGE_KEY, { photoMetas: updated });
+  },
+
+  updatePhotoStickers(photoId, stickers) {
+    const updated = get().photoMetas.map((m) =>
+      m.id === photoId ? { ...m, stickers: stickers.length > 0 ? stickers : undefined } : m,
+    );
+    set({ photoMetas: updated });
+    saveToStorage(STORAGE_KEY, { photoMetas: updated });
   },
 
   deletePhoto(photoId) {

@@ -9,6 +9,7 @@ import { KODAK_FILM_FILTER, FILM_GRAIN_URL, VINTAGE_VIGNETTE } from "@/lib/photo
 import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 import PhotoDetailModal from "./PhotoDetailModal";
+import StickerLayer from "./StickerLayer";
 import type { PhotoMeta } from "@/types/growth";
 
 // === ArchiveSlot — 미니 폴라로이드 프레임 ===
@@ -37,19 +38,35 @@ function ArchiveSlot({ meta, onTap }: { meta: PhotoMeta; onTap: () => void }) {
   const d = new Date(meta.timestamp);
   const dateStr = `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 
+  // 폴라로이드 비율 (184/223) 그대로 — 디테일 뷰와 동일 proportions.
+  // 사인은 폴라로이드 전체를 덮고, 스티커는 % 좌표라 자동 정렬됨.
   return (
     <motion.button
       variants={fadeInUp}
       onClick={onTap}
       className="flex flex-col text-left active:scale-[0.96] transition-transform"
     >
-      {/* 미니 폴라로이드 프레임 */}
+      {/* 미니 폴라로이드 — aspect 184/223 */}
       <div
-        className="rounded-[2px] overflow-hidden"
-        style={{ backgroundColor: frameBg, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
+        className="relative w-full"
+        style={{
+          aspectRatio: "184 / 223",
+          backgroundColor: frameBg,
+          borderRadius: 2,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          overflow: "hidden",
+        }}
       >
-        {/* 사진 */}
-        <div className="m-[4px] mb-0 aspect-square bg-bg-elevated overflow-hidden relative">
+        {/* 사진 — Figma 좌표 비율 (15/14 / 154x157 of 184x223) */}
+        <div
+          className="absolute overflow-hidden bg-bg-elevated"
+          style={{
+            left: "8.15%",
+            top: "6.28%",
+            width: "83.70%",
+            height: "70.40%",
+          }}
+        >
           {thumbUrl ? (
             <>
               <img
@@ -59,7 +76,6 @@ function ArchiveSlot({ meta, onTap }: { meta: PhotoMeta; onTap: () => void }) {
                 draggable={false}
                 style={{ filter: KODAK_FILM_FILTER }}
               />
-              {/* 필름 그레인 */}
               <div
                 className="absolute inset-0 pointer-events-none mix-blend-overlay"
                 style={{
@@ -68,7 +84,6 @@ function ArchiveSlot({ meta, onTap }: { meta: PhotoMeta; onTap: () => void }) {
                   opacity: 0.28,
                 }}
               />
-              {/* 빈티지 비네팅 */}
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{ background: VINTAGE_VIGNETTE }}
@@ -80,13 +95,23 @@ function ArchiveSlot({ meta, onTap }: { meta: PhotoMeta; onTap: () => void }) {
             </div>
           )}
         </div>
-        {/* 서명 영역 */}
-        <div className="h-5 mx-[4px] mb-[4px] flex items-center justify-center overflow-hidden">
-          {sigUrl && (
-            <img src={sigUrl} alt="" className="h-full w-full object-contain opacity-60" draggable={false} />
-          )}
-        </div>
+
+        {/* 사인 오버레이 — 폴라로이드 전체를 덮음 (캡처 시 그렸던 영역과 일치) */}
+        {sigUrl && (
+          <img
+            src={sigUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[5]"
+            draggable={false}
+          />
+        )}
+
+        {/* 스티커 오버레이 — meta.stickers 의 % 좌표 그대로 (반응형) */}
+        {meta.stickers && meta.stickers.length > 0 && (
+          <StickerLayer stickers={meta.stickers} editable={false} />
+        )}
       </div>
+
       {/* 라벨 — 날짜만, 챌린지 제목은 디테일 모달에서 표시 */}
       <div className="mt-1 flex items-center justify-end w-full">
         <span className="typo-micro text-text-tertiary/60 tabular-nums">{dateStr}</span>

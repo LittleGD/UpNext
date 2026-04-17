@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useGameStore } from "@/store/useGameStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import PhotoCaptureModal from "@/components/growth/PhotoCaptureModal";
@@ -143,6 +144,9 @@ export default function DailyBoard() {
   const { play } = useSound();
   const { t, language } = useTranslation();
   const [confirmCard, setConfirmCard] = useState<ChallengeCard | null>(null);
+  // Portal mount 가드 (SSR safe)
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => setPortalReady(true), []);
   const [showConfetti, setShowConfetti] = useState(false);
   const [completingCard, setCompletingCard] = useState<ChallengeCard | null>(null);
   const [completingXp, setCompletingXp] = useState(0);
@@ -446,8 +450,9 @@ export default function DailyBoard() {
         })}
       </div>
 
-      {/* Confirm modal */}
-      <AnimatePresence>
+      {/* Confirm modal — Portal 로 헤더 stacking context escape */}
+      {portalReady && createPortal(
+        <AnimatePresence>
         {confirmCard && (() => {
           const rarity = RARITY_CONFIG[confirmCard.rarity];
           const xp = XP_PER_RARITY[confirmCard.rarity] || 10;
@@ -457,7 +462,7 @@ export default function DailyBoard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md px-4"
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md px-4"
               onClick={() => setConfirmCard(null)}
             >
               <motion.div
@@ -537,7 +542,9 @@ export default function DailyBoard() {
             </motion.div>
           );
         })()}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
+      )}
 
       {/* Completion celebration overlay */}
       <AnimatePresence>
