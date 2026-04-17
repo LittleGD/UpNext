@@ -310,11 +310,11 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                 </button>
               </div>
 
-              {/* 액션 영역 — Edit / Share / Close */}
+              {/* 액션 영역 — Edit / Share / Close (모두 동일 너비로 시각 대칭 확보) */}
               <div className="flex items-center justify-center gap-2 mt-1">
                 <button
                   onClick={handleEdit}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
+                  className="flex items-center justify-center gap-1.5 min-w-[86px] px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
                   aria-label="Edit"
                 >
                   <PixelIcon name="PenSquare" size={12} color="currentColor" />
@@ -323,7 +323,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                 <button
                   onClick={handleShare}
                   disabled={isSharing}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform disabled:opacity-50"
+                  className="flex items-center justify-center gap-1.5 min-w-[86px] px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform disabled:opacity-50"
                   aria-label="Share"
                 >
                   <PixelIcon name="Send" size={12} color="currentColor" />
@@ -331,7 +331,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                 </button>
                 <button
                   onClick={onClose}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
+                  className="flex items-center justify-center gap-1.5 min-w-[86px] px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
                   aria-label="Close"
                 >
                   <PixelIcon name="Cancel" size={12} color="currentColor" />
