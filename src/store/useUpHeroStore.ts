@@ -48,6 +48,7 @@ import {
   ALL_EQUIPMENT_TEMPLATES,
   findTemplateByLegacyId,
 } from "@/data/upHeroEquipment";
+import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { useGameStore } from "./useGameStore";
 
 /**
@@ -334,22 +335,26 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const state = get();
     if (state.hero.classType) return null; // 이미 분화됨
 
-    // useGameStore.progress.categoryCompletions 에서 최대 카테고리 찾기
+    // Phase 5c-fix #6: DUNGEON_LIST 의 canonical 순서로 순회해 tie 에서
+    // 결정적 결과 보장. 이전엔 Object.entries 순서 의존 → 같은 완료 수
+    // 일 때 어느 class 가 뽑히는지 불확실. 이제 fitness > learning >
+    // mindfulness > nutrition > social > productivity > wellness > trending
+    // 순으로 우선.
     const progress = useGameStore.getState().progress;
     const completions = progress.categoryCompletions ?? ({} as Record<Category, number>);
-    let bestCategory: Category | null = null;
+    let bestCategory: DungeonId | null = null;
     let bestCount = 0;
-    for (const [cat, count] of Object.entries(completions) as Array<[Category, number]>) {
+    for (const dungeon of DUNGEON_LIST) {
+      const count = completions[dungeon.id as Category] ?? 0;
       if (count > bestCount) {
-        bestCategory = cat;
+        bestCategory = dungeon.id;
         bestCount = count;
       }
     }
     // 완료 기록 전혀 없으면 nothing — 모든 카테고리 0
     if (!bestCategory || bestCount === 0) return null;
 
-    // Category 와 DungeonId 는 1:1 매핑 (같은 string union).
-    const classType = CLASS_BY_DUNGEON[bestCategory as DungeonId];
+    const classType = CLASS_BY_DUNGEON[bestCategory];
     if (!classType) return null;
 
     const newHero = { ...state.hero, classType };

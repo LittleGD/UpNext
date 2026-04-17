@@ -22,10 +22,24 @@ export default function UpHeroGame() {
   const isLoaded = useUpHeroStore((s) => s.isLoaded);
   const currentSession = useUpHeroStore((s) => s.currentSession);
   const gameLoaded = useGameStore((s) => s.isLoaded);
+  const heroClassType = useUpHeroStore((s) => s.hero.classType);
+  const assignClass = useUpHeroStore((s) => s.assignClass);
+  const level = useGameStore((s) => s.progress.level);
 
   useEffect(() => {
     if (!isLoaded) initialize();
   }, [isLoaded, initialize]);
+
+  // Phase 5c-fix #4: class 할당 race condition 안전장치.
+  // useUpHeroStore.initialize 는 useGameStore 가 아직 load 안 됐을 때 실행될
+  // 수 있어서 curLevel=1 로 safety path 가 발동 안 함. 이후 두 store 모두
+  // load 되고 level>=30 인데 classType 이 여전히 null 이면 여기서 재시도.
+  useEffect(() => {
+    if (!isLoaded || !gameLoaded) return;
+    if (heroClassType !== null) return;
+    if (level < 30) return;
+    assignClass();
+  }, [isLoaded, gameLoaded, heroClassType, level, assignClass]);
 
   if (!isLoaded || !gameLoaded) {
     return (
