@@ -184,6 +184,56 @@ export default function DungeonView() {
             STR {stats.str} · AGI {stats.agi}
           </div>
         </div>
+
+        {/* Phase 4c-polish: Floor progress bar (0-30F).
+             최종 보스 (30F) 까지의 여정을 시각화. 10/20/30 마커로 보스 지점 표시.
+             현재 floor 위치 = 얇은 accent 원. 읽기 보조용이라 매우 얇게 (2px). */}
+        <div className="mt-2 relative h-1.5" aria-hidden="true">
+          {/* track */}
+          <div
+            className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
+            style={{ background: GB.dark }}
+          />
+          {/* traveled */}
+          <div
+            className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
+            style={{
+              width: `${Math.max(0, Math.min(100, (session.currentFloor / 30) * 100))}%`,
+              background: GB.light,
+              transition: `width 320ms ${EASE_OUT}`,
+            }}
+          />
+          {/* 보스 마커 10/20/30 */}
+          {[10, 20, 30].map((f) => {
+            const pct = (f / 30) * 100;
+            const reached = session.currentFloor >= f;
+            return (
+              <div
+                key={f}
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
+                style={{
+                  left: `${pct}%`,
+                  width: 6,
+                  height: 6,
+                  background: reached ? GB.lightest : GB.darkest,
+                  border: `1px solid ${reached ? GB.lightest : GB.light}`,
+                }}
+              />
+            );
+          })}
+          {/* 현재 위치 마커 (traveled 끝) — 30F 초과 대비 clamp */}
+          <div
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
+            style={{
+              left: `${Math.max(0, Math.min(100, (session.currentFloor / 30) * 100))}%`,
+              width: 8,
+              height: 8,
+              background: GB.lightest,
+              boxShadow: `0 0 6px ${GB.lightest}`,
+              transition: `left 320ms ${EASE_OUT}`,
+            }}
+          />
+        </div>
         {/* HP bar */}
         <div className="mt-2.5 flex items-center gap-2">
           <span className="typo-caption" style={{ color: GB.light }}>

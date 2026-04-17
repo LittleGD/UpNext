@@ -198,6 +198,8 @@ function HomeView({
 }) {
   const { play } = useSound();
   const variant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
+  // Phase 4c-polish: 카테고리별 탐험권 시각화 — totalPasses 와 별도로 raw 객체 필요
+  const passes = useUpHeroStore((s) => s.passes);
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -261,6 +263,35 @@ function HomeView({
           style={{ color: GB.light }}
         >
           — 모닥불이 조용히 타오른다 —
+        </div>
+
+        {/* Phase 4c-polish: 탐험권 카테고리별 시각화.
+             8개 던전의 테마컬러 pill. 수량 0 은 dim 처리해서 "비어있음" 이
+             한눈에 보인다. 어떤 챌린지를 해야 밸런스가 맞을지 의사결정 단서. */}
+        <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
+          {DUNGEON_LIST.map((d) => {
+            const count = passes[d.id] ?? 0;
+            const empty = count === 0;
+            return (
+              <div
+                key={d.id}
+                className="flex items-center justify-center rounded tabular-nums typo-micro"
+                style={{
+                  minWidth: 26,
+                  height: 20,
+                  padding: "0 6px",
+                  background: empty ? `${GB.dark}80` : `${d.themeColor}55`,
+                  color: empty ? `${GB.light}80` : GB.lightest,
+                  border: `1px solid ${empty ? GB.dark : d.themeColor}`,
+                  letterSpacing: "0.03em",
+                }}
+                title={`${d.name} ×${count}`}
+                aria-label={`${d.name} 탐험권 ${count}장`}
+              >
+                {count}
+              </div>
+            );
+          })}
         </div>
       </section>
 
