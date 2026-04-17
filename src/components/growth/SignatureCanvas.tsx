@@ -88,7 +88,7 @@ export default function SignatureCanvas({ width, height, onSignatureChange, clas
   }, [width, height]);
 
   return (
-    <div className={className}>
+    <div className={`relative ${className || ""}`}>
       <canvas
         ref={canvasRef}
         className="w-full touch-none cursor-crosshair"
@@ -98,11 +98,14 @@ export default function SignatureCanvas({ width, height, onSignatureChange, clas
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       />
+      {/* Clear chip — 캔버스 우상단 absolute 배치 (폴라로이드 caption 영역 안에 머무름)
+          mt-1 positional 배치는 caption 52px 영역을 초과해 폴라로이드 프레임 밖으로 새어나감. */}
       {hasStrokes && (
         <button
           onClick={clear}
-          className="typo-micro text-text-tertiary mt-1 active:opacity-60"
           type="button"
+          aria-label="Clear signature"
+          className="absolute top-1 right-1 typo-micro text-text-tertiary/80 px-1.5 py-0.5 rounded bg-white/50 backdrop-blur-sm active:opacity-60 transition-opacity"
         >
           Clear
         </button>

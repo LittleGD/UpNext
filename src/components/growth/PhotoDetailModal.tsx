@@ -60,9 +60,9 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
           exit={{ y: 40, opacity: 0, scale: 0.95 }}
           transition={{ type: "spring", duration: 0.5, bounce: 0.18 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-[340px] space-y-4"
+          className="w-full max-w-[320px] space-y-4"
         >
-          <PolaroidTilt>
+          <PolaroidTilt autoHint>
           <PolaroidFlip
             flipped={isFlipped}
             onFlip={setIsFlipped}

@@ -27,9 +27,11 @@ function ArchiveSlot({ meta, onTap }: { meta: PhotoMeta; onTap: () => void }) {
     return () => urls.forEach(URL.revokeObjectURL);
   }, [meta.id]);
 
-  // 프레임 variant 결정 (timestamp 기반)
-  const variant = meta.timestamp % 4;
-  const frameBg = ["#e8e3d6", "#f8f7f4", "#f5f2eb", "#ede8df"][variant];
+  // 프레임 베이스 컬러 — PolaroidFrame.tsx pickVariant() 와 동일 hash.
+  // 60% Frame5 (#f9f8f5 near-white) / 40% Frame1-4 (#f2f1ee beige).
+  // 디테일뷰의 PolaroidFrame 과 베이스 컬러 일치 → 썸네일↔디테일 시각 연속성.
+  const h = ((meta.timestamp * 2654435761) >>> 0) % 100;
+  const frameBg = h >= 40 ? "#f9f8f5" : "#f2f1ee";
 
   // 날짜 포맷
   const d = new Date(meta.timestamp);
@@ -111,7 +113,7 @@ function EmptySlot() {
 // === ArchiveSheet ===
 export default function ArchiveSheet() {
   const photoMetas = useGrowthStore((s) => s.photoMetas);
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [selectedMeta, setSelectedMeta] = useState<PhotoMeta | null>(null);
 
   if (photoMetas.length === 0) {
@@ -148,7 +150,13 @@ export default function ArchiveSheet() {
           ))}
         </div>
         <p className="typo-micro text-text-tertiary text-center">
-          {photoMetas.length} photos
+          {t(
+            // 영어만 단/복수 분기, 다른 언어는 단일 키 (수량사 차이 없음)
+            language === "en" && photoMetas.length !== 1
+              ? "playground.archive.photoCountPlural"
+              : "playground.archive.photoCount",
+            { count: photoMetas.length },
+          )}
         </p>
       </motion.div>
 

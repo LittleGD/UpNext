@@ -13,6 +13,8 @@ interface Props {
   children: React.ReactNode;
   /** false 면 틸트/자이로 비활성 — children 만 그대로 렌더 */
   enabled?: boolean;
+  /** mount 후 1회 자동 살짝 흔들기 — 사용자에게 tilt 가능함을 시그널 */
+  autoHint?: boolean;
 }
 
 /**
@@ -35,7 +37,7 @@ interface Props {
  * Emil 원칙: 마우스 트래킹에 useSpring — 직접 값 바인딩은 인위적이다.
  * 스프링 보간이 모멘텀을 만들어 자연스러운 물리 느낌을 준다.
  */
-export default function PolaroidTilt({ children, enabled = true }: Props) {
+export default function PolaroidTilt({ children, enabled = true, autoHint = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const neutralBetaRef = useRef<number | null>(null);
   const isPointerActiveRef = useRef(false);
@@ -45,24 +47,30 @@ export default function PolaroidTilt({ children, enabled = true }: Props) {
   const targetRotateX = useMotionValue(0);
   const targetRotateY = useMotionValue(0);
 
-  // useSpring 으로 부드럽게 따라오는 실�� 회전각
-  // stiffness 150 / damping 15 / mass 0.5 — 반응 빠르되 약간의 오버슈트로 생동감
-  const springCfg = { stiffness: 150, damping: 15, mass: 0.5 };
-  const rotateX = useSpring(targetRotateX, springCfg);
-  const rotateY = useSpring(targetRotateY, springCfg);
+  // useSpring 으로 부드럽게 따라오는 실제 회전각 — 카드 회전용 (살짝 부드럽게)
+  const cardSpringCfg = { stiffness: 150, damping: 15, mass: 0.5 };
+  const rotateX = useSpring(targetRotateX, cardSpringCfg);
+  const rotateY = useSpring(targetRotateY, cardSpringCfg);
+
+  // 반사광용 — 카드보다 더 빠르게 추적해서 기울임 즉시 반응 (실물 스펙큘러 물리).
+  // 빛 반사는 표면 각도에 즉시 반응하므로 stiffer 스프링.
+  const reflSpringCfg = { stiffness: 400, damping: 30, mass: 0.3 };
+  const reflRotX = useSpring(targetRotateX, reflSpringCfg);
+  const reflRotY = useSpring(targetRotateY, reflSpringCfg);
 
   // ── self-contained perspective transform ──
   // 부모에 perspective 속성을 두지 않고, transform 함수에 직접 포함.
   // 조상의 scale/opacity 등이 3D context 를 flat 으로 만들어도 영향 없음.
   const tiltTransform = useMotionTemplate`perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
 
-  // 반사광 위치 — 기울기 반대 방향으로 이동 (실물 스펙큘러 물리)
-  // 카드를 오른쪽으로 기울이면(rotateY+) 하이라이트는 왼쪽으로 이동
-  const reflectX = useTransform(rotateY, [-15, 15], [65, 35]);
-  const reflectY = useTransform(rotateX, [-15, 15], [65, 35]);
+  // 반사광 위치 — 기울기 반대 방향 (실물 스펙큘러: 카드 우측 기울 → 하이라이트 좌측).
+  // 진폭 35-85% — 움직임은 충분히 보이되 너무 과하지 않게.
+  const reflectX = useTransform(reflRotY, [-15, 15], [85, 35]);
+  const reflectY = useTransform(reflRotX, [-15, 15], [85, 35]);
 
-  // 반사광 그라디언트 — useMotionTemplate 로 반응형 배경 생성
-  const reflectGradient = useMotionTemplate`radial-gradient(ellipse at ${reflectX}% ${reflectY}%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 40%, transparent 65%)`;
+  // 반사광 그라디언트 — 와이드 소프트 글로우 (사이즈 ↑, falloff 길게).
+  // ellipse 80% 65% = 더 넓은 sheen, transparent 100% = 부드러운 끝맺음.
+  const reflectGradient = useMotionTemplate`radial-gradient(ellipse 80% 65% at ${reflectX}% ${reflectY}%, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.06) 45%, transparent 100%)`;
 
   /* ���─ 포인터 추적 ── */
   const handlePointerMove = useCallback(
@@ -86,6 +94,20 @@ export default function PolaroidTilt({ children, enabled = true }: Props) {
     targetRotateY.set(0);
     isPointerActiveRef.current = false;
   }, [targetRotateX, targetRotateY]);
+
+  /* ── auto-hint: mount 후 살짝 흔들어 tilt 가능함을 시그널 ──
+     spring 보간으로 set() 만 해도 부드럽게 따라옴. cleanup 에서 timer 정리되어
+     strict mode 의 effect 더블 호출에도 안전 (re-schedule). 의존성은 stable
+     props/MotionValues 라 mount 시 1회만 실행됨. */
+  useEffect(() => {
+    if (!enabled || !autoHint) return;
+    const timers = [
+      setTimeout(() => { targetRotateX.set(-6); targetRotateY.set(8); }, 250),
+      setTimeout(() => { targetRotateX.set(4); targetRotateY.set(-5); }, 700),
+      setTimeout(() => { targetRotateX.set(0); targetRotateY.set(0); }, 1100),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [enabled, autoHint, targetRotateX, targetRotateY]);
 
   /* ── 자이로스코프 ── */
   useEffect(() => {
@@ -152,13 +174,15 @@ export default function PolaroidTilt({ children, enabled = true }: Props) {
         }}
       >
         {children}
-        {/* 동적 반사광 — 기울기에 따라 이동하는 스펙큘러 하이라이트 */}
+        {/* 동적 반사광 — 기울기에 따라 이동하는 스펙큘러 하이라이트.
+            ⚠ 반드시 backgroundImage (shorthand `background` 가 아님) 로 바인딩해야
+              MotionTemplate 의 string MotionValue 가 안정적으로 적용됨. */}
         <motion.div
           aria-hidden
           className="absolute inset-0 pointer-events-none rounded-sm"
           style={{
-            background: reflectGradient,
-            mixBlendMode: "overlay",
+            backgroundImage: reflectGradient,
+            mixBlendMode: "screen",
             zIndex: 10,
           }}
         />

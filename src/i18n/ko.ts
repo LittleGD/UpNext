@@ -114,6 +114,8 @@ const ko = {
   "playground.tree.stage.mature": "큰 나무",
   "playground.tree.stage.ancient": "고목",
   "playground.archive.empty": "아직 인증 사진이 없어요",
+  "playground.archive.photoCount": "사진 {count}장",
+  "playground.archive.photoCountPlural": "사진 {count}장",
   "playground.capture.title": "챌린지 인증",
   "playground.capture.take": "사진 찍기",
   "playground.capture.skip": "건너뛰기",
