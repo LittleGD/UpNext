@@ -19,11 +19,16 @@
 
 import type { CSSProperties } from "react";
 
+/** Phase 4c-polish — 전투 중 영웅 상태. parent 가 전환 타이밍 제어. */
+export type HeroSpriteState = "idle" | "attack" | "hurt";
+
 interface HeroSpriteProps {
   variant?: 0 | 1 | 2;
   size?: number;
   color?: string;
   animationMs?: number;
+  /** 전투 상태 — idle 기본. attack/hurt 는 240ms one-shot 효과 */
+  state?: HeroSpriteState;
   style?: CSSProperties;
 }
 
@@ -139,18 +144,31 @@ export default function HeroSprite({
   size = 64,
   color = "currentColor",
   animationMs = 900,
+  state = "idle",
   style,
 }: HeroSpriteProps) {
   const [frame1, frame2] = VARIANTS[variant];
 
+  // attack/hurt 는 transform/filter 로 구현 — 별도 frame 매트릭스 필요 없음.
+  // attack: 살짝 오른쪽 앞으로 뛰쳐나가는 기울기
+  // hurt: 왼쪽으로 밀리며 brightness 살짝 낮춤 (피격 충격)
+  const stateClass =
+    state === "attack"
+      ? "hs-attack"
+      : state === "hurt"
+        ? "hs-hurt"
+        : "";
+
   return (
     <div
+      className={stateClass}
       style={{
         display: "inline-block",
         position: "relative",
         width: size,
         height: size,
         lineHeight: 0,
+        transformOrigin: "50% 100%",
         ...style,
       }}
       role="img"
@@ -207,6 +225,27 @@ export default function HeroSprite({
           100% {
             opacity: 1;
           }
+        }
+
+        /* attack 상태: 오른쪽으로 튀어나갔다 제자리 */
+        :global(.hs-attack) {
+          animation: hs-attack 240ms cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        @keyframes hs-attack {
+          0%   { transform: translateX(0) rotate(0); }
+          40%  { transform: translateX(5px) rotate(-8deg); }
+          100% { transform: translateX(0) rotate(0); }
+        }
+
+        /* hurt 상태: 왼쪽 피격 반동 + brightness 낮춤 */
+        :global(.hs-hurt) {
+          animation: hs-hurt 260ms cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        @keyframes hs-hurt {
+          0%   { transform: translateX(0); filter: brightness(1); }
+          25%  { transform: translateX(-4px); filter: brightness(0.55) saturate(0.6); }
+          55%  { transform: translateX(1px); filter: brightness(1.1); }
+          100% { transform: translateX(0); filter: brightness(1); }
         }
       `}</style>
     </div>
