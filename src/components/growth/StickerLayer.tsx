@@ -30,15 +30,17 @@ interface Props {
  *  - image (UpNext 로고): 흰 카드 배경 + 풀 로고 + drop shadow → "die-cut 스티커" 느낌
  */
 
+// 스티커가 사진 위에 "붙어있는" 느낌 — drop shadow blur 최소화 (떠있는 느낌 방지).
+// 흰 외곽선은 die-cut 종이 스티커의 테두리, 그림자는 종이 두께만큼만 살짝.
 const TEXT_OUTLINE = [
   "1.5px 0 white", "-1.5px 0 white",
   "0 1.5px white", "0 -1.5px white",
   "1px 1px white", "-1px -1px white", "1px -1px white", "-1px 1px white",
-  "0 3px 6px rgba(0,0,0,0.30)",
+  "0 1px 1.5px rgba(0,0,0,0.40)", // 떠있는 느낌 X — 종이 edge 만 (3px/6px → 1px/1.5px)
 ].join(", ");
 
 const IMG_FILTER =
-  "drop-shadow(0 0 1px white) drop-shadow(0 0 1px white) drop-shadow(0 3px 6px rgba(0,0,0,0.30))";
+  "drop-shadow(0 0 1px white) drop-shadow(0 0 1px white) drop-shadow(0 1px 1.5px rgba(0,0,0,0.40))";
 
 // 멀티터치 변형 상태 — sticker 하나당 활성 pointer 들과 초기 변형 값 추적.
 interface DragState {
