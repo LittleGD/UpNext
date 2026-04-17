@@ -71,6 +71,18 @@ export async function getSignatureBlob(id: string): Promise<Blob | null> {
   return (await withStore("readonly", (s) => s.get(`${id}_signature`))) as Blob | null;
 }
 
+/** 단일 blob 갱신 — Edit 모드에서 signature 만 교체 시 사용 */
+export async function updateSignatureBlob(id: string, signature: Blob): Promise<void> {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  const store = tx.objectStore(STORE_NAME);
+  store.put(signature, `${id}_signature`);
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
 export async function deletePhotoBlobs(id: string): Promise<void> {
   const db = await openDB();
   const tx = db.transaction(STORE_NAME, "readwrite");

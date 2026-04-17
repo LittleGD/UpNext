@@ -87,26 +87,11 @@ function ArchiveSlot({ meta, onTap }: { meta: PhotoMeta; onTap: () => void }) {
           )}
         </div>
       </div>
-      {/* 라벨 */}
-      <div className="mt-1 flex items-center justify-between w-full">
-        <span className="typo-micro text-text-tertiary truncate max-w-[75%]">
-          {meta.challengeTitle}
-        </span>
+      {/* 라벨 — 날짜만, 챌린지 제목은 디테일 모달에서 표시 */}
+      <div className="mt-1 flex items-center justify-end w-full">
         <span className="typo-micro text-text-tertiary/60 tabular-nums">{dateStr}</span>
       </div>
     </motion.button>
-  );
-}
-
-// === EmptySlot ===
-function EmptySlot() {
-  return (
-    <motion.div variants={fadeInUp} className="flex flex-col">
-      <div className="aspect-[3/4] rounded-[2px] border border-dashed border-text-tertiary/15 flex items-center justify-center">
-        <PixelIcon name="Camera" size={14} color="var(--text-tertiary)" />
-      </div>
-      <div className="mt-1 h-3" />
-    </motion.div>
   );
 }
 
@@ -127,12 +112,6 @@ export default function ArchiveSheet() {
     );
   }
 
-  const COLS = 3;
-  const ROWS = 3;
-  const PER_SHEET = COLS * ROWS;
-  const remainder = photoMetas.length % PER_SHEET;
-  const emptyCount = remainder === 0 ? 0 : PER_SHEET - remainder;
-
   return (
     <>
       <motion.div
@@ -144,9 +123,6 @@ export default function ArchiveSheet() {
         <div className="grid grid-cols-3 gap-3">
           {photoMetas.map((meta) => (
             <ArchiveSlot key={meta.id} meta={meta} onTap={() => setSelectedMeta(meta)} />
-          ))}
-          {Array.from({ length: emptyCount }, (_, i) => (
-            <EmptySlot key={`empty-${i}`} />
           ))}
         </div>
         <p className="typo-micro text-text-tertiary text-center">

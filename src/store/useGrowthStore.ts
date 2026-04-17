@@ -7,6 +7,7 @@ import {
   deletePhotoBlobs,
   compressImage,
   dataUrlToBlob,
+  updateSignatureBlob,
 } from "@/lib/photoStorage";
 import { useGameStore } from "./useGameStore";
 
@@ -34,6 +35,9 @@ interface GrowthActions {
   ) => Promise<void>;
   skipCapture: () => void;
   cancelCapture: () => void;
+
+  // 편집
+  updatePhotoSignature: (photoId: string, signatureDataUrl: string) => Promise<void>;
 
   // 관리
   deletePhoto: (photoId: string) => void;
@@ -149,6 +153,14 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
 
   cancelCapture() {
     set({ pendingCaptureCardId: null, capturePhase: "idle" });
+  },
+
+  async updatePhotoSignature(photoId, signatureDataUrl) {
+    // 사인 만 교체 (사진/메타는 그대로). Edit 모드에서 사용.
+    const signatureBlob = await dataUrlToBlob(signatureDataUrl);
+    await updateSignatureBlob(photoId, signatureBlob);
+    // photoMetas 자체는 변하지 않으므로 store 업데이트 불필요.
+    // signatureUrl 캐시만 PhotoDetailModal 에서 다시 fetch 하면 됨.
   },
 
   deletePhoto(photoId) {
