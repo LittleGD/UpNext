@@ -14,7 +14,7 @@
  *  - 선택됨 상태: accent 배경 + 체크
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
 import { getBuffSlotCount } from "@/types/uphero";
@@ -213,17 +213,39 @@ function BuffCardPreview({
   const buff = getCardBuff(card);
   const rarityColor = RARITY_COLOR[card.rarity];
 
+  // 선택 순간 pulse — selected 가 false → true 로 바뀐 edge 에서만 재생.
+  // 애니메이션 restart 를 위해: 먼저 클래스를 제거, 다음 프레임에 추가 → reflow 를
+  // 거치면서 keyframe 이 0부터 다시 시작된다 (remount 없이 DOM focus 보존).
+  const prevSelectedRef = useRef(selected);
+  const [pulsing, setPulsing] = useState(false);
+  useEffect(() => {
+    if (selected && !prevSelectedRef.current) {
+      setPulsing(false);
+      const raf = requestAnimationFrame(() => setPulsing(true));
+      const clear = window.setTimeout(() => setPulsing(false), 290);
+      prevSelectedRef.current = selected;
+      return () => {
+        cancelAnimationFrame(raf);
+        window.clearTimeout(clear);
+      };
+    }
+    prevSelectedRef.current = selected;
+  }, [selected]);
+
   return (
     <button
       type="button"
       onClick={onToggle}
-      className="uphero-buff-card text-left rounded-md relative overflow-hidden"
+      className={`uphero-buff-card text-left rounded-md relative overflow-hidden ${
+        pulsing ? "uphero-card-select" : ""
+      }`}
       style={{
         minHeight: 124,
         padding: "10px 10px 12px",
         background: selected ? `${rarityColor}30` : `${GB.dark}99`,
         border: `1px solid ${selected ? GB.lightest : rarityColor}`,
         color: GB.light,
+        transition: `background 180ms ${EASE_OUT}, border-color 180ms ${EASE_OUT}`,
       }}
     >
       {/* 선택 체크 배지 */}

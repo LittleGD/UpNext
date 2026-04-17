@@ -126,7 +126,7 @@ const en: Record<DictKey, string> = {
   "uphero.dungeon.unexplored": "Unexplored",
   "uphero.dungeon.confirmExit": "Return to camp? You'll keep rewards earned so far.",
   "uphero.dungeon.controls.camp": "Camp",
-  "uphero.choice.hint": "Time stops until you choose",
+  "uphero.choice.hint": "The expedition waits for your choice",
   "uphero.result.victory": "Adventure complete",
   "uphero.result.defeat": "Hero fell",
   "uphero.result.abandoned": "Returned to camp",
