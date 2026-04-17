@@ -7,7 +7,7 @@
  * 하단 오버레이로 슬라이드 업. 선택 시 resolveChoice() 호출.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { GB, EASE_OUT, EASE_DRAWER, gbClass } from "@/lib/upHeroPalette";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -39,28 +39,36 @@ export default function ChoicePanel() {
   const timeoutMs = isChoice ? entry.timeoutMs : undefined;
   const defaultIdx = isChoice ? entry.defaultOptionIndex : undefined;
 
-  // Encounter choice 전용 5초 auto-select countdown
+  // Encounter choice 전용 5초 auto-select countdown.
+  // requestAnimationFrame 루프로 매 프레임(60Hz) 업데이트 — vsync 에 맞춰
+  // jitter 없이 부드럽게 카운트다운 bar 가 줄어든다.
+  // (setInterval 100ms 는 저사양에서 버벅였음)
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
-  const timerStartRef = useRef<number>(0);
   useEffect(() => {
     if (!isChoice || !timeoutMs || defaultIdx == null) {
       setRemainingMs(null);
       return;
     }
-    timerStartRef.current = Date.now();
+    const start = performance.now();
     setRemainingMs(timeoutMs);
-    const interval = window.setInterval(() => {
-      const elapsed = Date.now() - timerStartRef.current;
+    let rafId = 0;
+    let finished = false;
+    const tick = () => {
+      const elapsed = performance.now() - start;
       const left = timeoutMs - elapsed;
       if (left <= 0) {
-        window.clearInterval(interval);
+        finished = true;
         setRemainingMs(0);
         resolveChoice(defaultIdx);
-      } else {
-        setRemainingMs(left);
+        return;
       }
-    }, 100);
-    return () => window.clearInterval(interval);
+      setRemainingMs(left);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      if (!finished) cancelAnimationFrame(rafId);
+    };
     // choice entry 의 timestamp 로 identity 구분 (새 encounter choice 마다 리셋)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry && isChoice ? entry.timestamp : null]);
@@ -85,7 +93,10 @@ export default function ChoicePanel() {
           padding: "12px 12px 14px 12px",
           transform: mounted ? "translateY(0)" : "translateY(100%)",
           opacity: mounted ? 1 : 0,
-          transition: `transform 320ms ${EASE_DRAWER}, opacity 200ms ${EASE_OUT}`,
+          // 올라오면서 미세하게 blur(4px) → 0 으로 풀리면서 로그 영역과의 경계가 녹아든다.
+          // translateY 와 동시 진행, 약간 짧은 220ms 로 sheet 이 "자리잡은" 뒤 선명해진다.
+          filter: mounted ? "blur(0px)" : "blur(4px)",
+          transition: `transform 320ms ${EASE_DRAWER}, opacity 200ms ${EASE_OUT}, filter 220ms ${EASE_OUT}`,
         }}
       >
         <div
@@ -111,11 +122,33 @@ export default function ChoicePanel() {
           ))}
         </div>
 
-        {/* hint — encounter 는 남은 초, 일반 이벤트는 "시간이 멈춘다" */}
-        <div className={`typo-caption mt-3 text-center ${gbClass.textDim}`}>
+        {/* Encounter 전용 countdown bar — rAF 루프가 remainingMs 를 프레임마다
+             업데이트하므로 width 가 vsync 에 맞춰 smooth 하게 줄어든다.
+             transition 없이 직접 값 반영 (transition 을 걸면 rAF 샘플링 지연). */}
+        {isEncounter && remainingMs != null && timeoutMs != null && (
+          <div
+            className="mx-auto mt-3 h-[2px] rounded-full overflow-hidden"
+            style={{ width: "60%", background: `${GB.dark}` }}
+            aria-hidden="true"
+          >
+            <div
+              style={{
+                width: `${Math.max(0, (remainingMs / timeoutMs) * 100)}%`,
+                height: "100%",
+                background: GB.lightest,
+              }}
+            />
+          </div>
+        )}
+
+        {/* hint — encounter 는 남은 초, 일반 이벤트는 "탐험 정지" */}
+        <div
+          className={`typo-caption text-center ${gbClass.textDim}`}
+          style={{ marginTop: isEncounter && remainingMs != null ? 6 : 12 }}
+        >
           {isEncounter && remainingMs != null
             ? `${Math.ceil(remainingMs / 1000)}초 안에 선택 — 무응답 시 자동으로 "싸운다"`
-            : "선택 전까지 시간은 멈춘다"}
+            : "선택하기 전까지 탐험은 멈춰 있다"}
         </div>
       </div>
     </div>

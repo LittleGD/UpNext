@@ -126,7 +126,7 @@ const zh: Record<DictKey, string> = {
   "uphero.dungeon.unexplored": "未探索",
   "uphero.dungeon.confirmExit": "返回营地?保留已获得的奖励。",
   "uphero.dungeon.controls.camp": "返回营地",
-  "uphero.choice.hint": "选定之前时间静止",
+  "uphero.choice.hint": "选定之前探索暂停",
   "uphero.result.victory": "冒险完成",
   "uphero.result.defeat": "勇者倒下",
   "uphero.result.abandoned": "返回营地",

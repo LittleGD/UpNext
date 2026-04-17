@@ -126,7 +126,7 @@ const ja: Record<DictKey, string> = {
   "uphero.dungeon.unexplored": "未探検",
   "uphero.dungeon.confirmExit": "キャンプに戻りますか?ここまでの報酬は受け取ります。",
   "uphero.dungeon.controls.camp": "キャンプへ",
-  "uphero.choice.hint": "選ぶまで時間は止まる",
+  "uphero.choice.hint": "選ぶまで探検は止まっている",
   "uphero.result.victory": "冒険完了",
   "uphero.result.defeat": "勇者が倒れた",
   "uphero.result.abandoned": "キャンプへ帰還",

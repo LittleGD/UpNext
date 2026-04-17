@@ -124,7 +124,7 @@ const ko = {
   "uphero.dungeon.unexplored": "미탐험",
   "uphero.dungeon.confirmExit": "캠프로 돌아갈까요? 현재까지 진행한 보상을 받습니다.",
   "uphero.dungeon.controls.camp": "캠프로",
-  "uphero.choice.hint": "선택하기 전까지 시간은 멈춘다",
+  "uphero.choice.hint": "선택하기 전까지 탐험은 멈춰 있다",
   "uphero.result.victory": "모험 완료",
   "uphero.result.defeat": "영웅이 쓰러졌다",
   "uphero.result.abandoned": "캠프로 복귀",

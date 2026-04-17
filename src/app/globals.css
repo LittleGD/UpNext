@@ -242,6 +242,17 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-crit-shake 260ms steps(5, end);
 }
 
+/* === Up Hero — 버프 카드 선택 순간 pulse ===
+   selected 가 false → true 로 바뀐 순간 한 번만 재생. tactile feedback 보완. */
+@keyframes uphero-card-select {
+  0%   { transform: scale(0.97); filter: brightness(0.9); }
+  55%  { transform: scale(1.03); filter: brightness(1.18); }
+  100% { transform: scale(1);    filter: brightness(1); }
+}
+.uphero-card-select {
+  animation: uphero-card-select 280ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 /* === 모바일 safe area (개별 고정 요소에서 처리) === */
 
 /* === 스크롤바 전역 숨김 — 네이티브 앱 느낌 ===
