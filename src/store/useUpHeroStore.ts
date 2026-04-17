@@ -11,17 +11,20 @@ import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import {
   createDefaultHero,
   computeHeroForLevel,
+  CLASS_BY_DUNGEON,
   PASS_GRANT_BY_RARITY,
   PASS_CAP_PER_CATEGORY,
   SHOP_PRICES,
   SELL_PRICE,
   type UpHeroState,
   type DungeonId,
+  type ClassType,
   type Equipment,
   type EquipSlot,
   type CombatSession,
   type CardBuff,
 } from "@/types/uphero";
+import type { Category } from "@/types/card";
 import type { Rarity } from "@/types/card";
 import {
   createSession as buildSession,
@@ -137,6 +140,17 @@ interface UpHeroActions {
   /** Phase 5b.1 — idle reward 토스트 닫을 때 호출. idleReward 를 null 로 클리어. */
   acknowledgeIdleReward(): void;
 
+  /**
+   * Phase 5c.1 — Class 분화.
+   * useGameStore.progress.categoryCompletions 기반으로 가장 많이 완료한
+   * 카테고리 → class 할당. 이미 분화된 영웅이면 no-op.
+   * 반환: 새로 할당된 classType (또는 이미 할당됨/조건 미충족이면 null)
+   */
+  assignClass(): ClassType | null;
+
+  /** Phase 5c.1 — ClassAwakenModal 닫을 때 호출. pendingClassAwaken null 로. */
+  acknowledgeClassAwaken(): void;
+
   // 장비
   equipItem(itemId: string, slot: EquipSlot): void;
   unequipItem(slot: EquipSlot): void;
@@ -204,6 +218,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   cosmetics: {},
   lastIdleAccrualAt: Date.now(),
   idleReward: null,
+  pendingClassAwaken: null,
   isLoaded: false,
 
   initialize() {
@@ -274,6 +289,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       cosmetics: saved?.cosmetics ?? {},
       lastIdleAccrualAt: now, // 즉시 갱신해서 다음 새로고침 때 중복 지급 방지
       idleReward,
+      pendingClassAwaken: null, // transient
       schemaVersion: CURRENT_SCHEMA_VERSION,
       isLoaded: true,
     });
@@ -283,12 +299,52 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     if (needsMigration || idleReward) {
       saveToStorage(STORAGE_KEY, pickPersisted(get()));
     }
+
+    // Phase 5c.1 safety — 이미 Lv30+ 인데 classType 이 null 인 영웅
+    // (이 기능 출시 전 Lv30 도달한 유저) 은 여기서 자동 분화 시도.
+    // assignClass 는 categoryCompletions 있어야 반환 non-null.
+    if (curLevel >= 30 && mergedHero.classType === null) {
+      get().assignClass();
+    }
   },
 
   acknowledgeIdleReward() {
     if (!get().idleReward) return;
     set({ idleReward: null });
     // persist 할 필요 없음 — idleReward 는 transient.
+  },
+
+  assignClass() {
+    const state = get();
+    if (state.hero.classType) return null; // 이미 분화됨
+
+    // useGameStore.progress.categoryCompletions 에서 최대 카테고리 찾기
+    const progress = useGameStore.getState().progress;
+    const completions = progress.categoryCompletions ?? ({} as Record<Category, number>);
+    let bestCategory: Category | null = null;
+    let bestCount = 0;
+    for (const [cat, count] of Object.entries(completions) as Array<[Category, number]>) {
+      if (count > bestCount) {
+        bestCategory = cat;
+        bestCount = count;
+      }
+    }
+    // 완료 기록 전혀 없으면 nothing — 모든 카테고리 0
+    if (!bestCategory || bestCount === 0) return null;
+
+    // Category 와 DungeonId 는 1:1 매핑 (같은 string union).
+    const classType = CLASS_BY_DUNGEON[bestCategory as DungeonId];
+    if (!classType) return null;
+
+    const newHero = { ...state.hero, classType };
+    set({ hero: newHero, pendingClassAwaken: classType });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+    return classType;
+  },
+
+  acknowledgeClassAwaken() {
+    if (!get().pendingClassAwaken) return;
+    set({ pendingClassAwaken: null });
   },
 
   grantExpeditionPass(dungeonId, rarity) {

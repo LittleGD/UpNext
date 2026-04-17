@@ -8,6 +8,7 @@
  */
 
 import type {
+  ClassType,
   CombatOutcome,
   CombatSession,
   CardBuff,
@@ -62,6 +63,9 @@ export function createSession(
   activeBuffs?: CardBuff[],
 ): CombatSession {
   const buffedHero = applyStatAndHealBuffs(hero, activeBuffs ?? [], dungeonId);
+  // Phase 5c.2 — class 패시브 중 session start 효과 적용 (priest maxHp,
+  // illusionist crit). chronomancer 는 runtime consumeTime 에서.
+  const classedHero = applyClassStartEffects(buffedHero);
   const maxTime = BASE_EXPEDITION_TIME;
   return {
     dungeonId,
@@ -80,7 +84,7 @@ export function createSession(
         timestamp: Date.now(),
       },
     ],
-    hero: buffedHero,
+    hero: classedHero,
     rewards: { xp: 0, coins: 0, drops: [] },
     status: "active",
     speed: 1,
@@ -95,9 +99,16 @@ export function createSession(
  * Phase 4c.1 — 시간 소모 헬퍼.
  * delta 는 음수(소모) 또는 양수(회복). 0 이하로 떨어지면 세션 종료.
  * 반환값 true = 세션이 시간 소진으로 종료됨.
+ *
+ * Phase 5c.2: chronomancer class 는 소모량 (음수 delta) 에 0.75x 곱.
+ * 회복 (양수 delta) 은 그대로 반영.
  */
 function consumeTime(s: CombatSession, delta: number): boolean {
-  s.time = Math.max(0, Math.min(s.maxTime, s.time + delta));
+  let effectiveDelta = delta;
+  if (delta < 0) {
+    effectiveDelta = delta * classTimeMult(s.hero.classType);
+  }
+  s.time = Math.max(0, Math.min(s.maxTime, s.time + effectiveDelta));
   if (s.time <= 0 && s.status === "active") {
     endSession(s, "timeExpired", "탐험 시간이 소진됐다");
     return true;
@@ -173,6 +184,74 @@ function applyStatAndHealBuffs(
   };
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ * Phase 5c.2 — Class 패시브 스킬
+ *
+ * 8 class × 1 패시브 (MVP). 일부는 세션 시작 시점 (priest/illusionist/
+ * chronomancer), 나머지는 runtime 루프에서 반영 (warrior/mage/monk/druid/bard).
+ * ══════════════════════════════════════════════════════════════════════ */
+
+const WARRIOR_REGEN_PER_ROUND = 2; // HP +2/round
+const MAGE_XP_MULT = 1.2;
+const MONK_DODGE_BONUS = 0.1;
+const DRUID_HEAL_MULT = 1.3;
+const BARD_COIN_MULT = 1.25;
+const CHRONOMANCER_TIME_MULT = 0.75; // 25% 감소
+const PRIEST_START_HP_BONUS = 50;
+const ILLUSIONIST_CRIT_BONUS = 8; // percentage points (on stats.crit)
+
+/**
+ * 세션 시작 시점 class 패시브 적용.
+ * - priest: maxHp + 50 (hp 는 max 로 초기화됨)
+ * - illusionist: baseStats.crit + 8
+ * - chronomancer: maxTime 은 여기서 건드리지 않음 (consumeTime 에서 cost 조정)
+ *
+ * classType null 이면 no-op. Pure — 원본 hero mutate 안함.
+ */
+function applyClassStartEffects(hero: Hero): Hero {
+  const cls = hero.classType;
+  if (!cls) return hero;
+  const newHero = { ...hero, baseStats: { ...hero.baseStats } };
+  if (cls === "priest") {
+    newHero.maxHp += PRIEST_START_HP_BONUS;
+    newHero.hp = newHero.maxHp;
+  }
+  if (cls === "illusionist") {
+    newHero.baseStats.crit += ILLUSIONIST_CRIT_BONUS;
+  }
+  return newHero;
+}
+
+/** xp 보상 배율 (mage +20%) */
+function classXpMult(cls: ClassType | null): number {
+  return cls === "mage" ? MAGE_XP_MULT : 1;
+}
+
+/** coin 보상 배율 (bard +25%) */
+function classCoinMult(cls: ClassType | null): number {
+  return cls === "bard" ? BARD_COIN_MULT : 1;
+}
+
+/** heal 효과 배율 (druid +30%) — heal choice effect 적용 시 사용 */
+function classHealMult(cls: ClassType | null): number {
+  return cls === "druid" ? DRUID_HEAL_MULT : 1;
+}
+
+/** 시간 소모 배율 (chronomancer 0.75) — consumeTime 음수 delta 에만 적용 */
+function classTimeMult(cls: ClassType | null): number {
+  return cls === "chronomancer" ? CHRONOMANCER_TIME_MULT : 1;
+}
+
+/** dodge 가산량 (monk +0.1 확률) — rollEnemyOutcome 에서 사용 */
+function classDodgeBonus(cls: ClassType | null): number {
+  return cls === "monk" ? MONK_DODGE_BONUS : 0;
+}
+
+/** round 당 hp regen (warrior +2) — executeCombatRound 끝에서 적용 */
+function classHpRegen(cls: ClassType | null): number {
+  return cls === "warrior" ? WARRIOR_REGEN_PER_ROUND : 0;
+}
+
 /**
  * 세션 진행 — 다음 step 1개 실행.
  * 반환값: 업데이트된 session (불변).
@@ -220,8 +299,13 @@ export function tickSession(session: CombatSession): CombatSession {
       }
       if (combatState.monsterHp <= 0) {
         // 몬스터 처치 — victory. Phase 4b.3: xpBoost/coinBoost 반영
-        const xpMult = 1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100;
-        const coinMult = 1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100;
+        // Phase 5c.2: mage class → XP +20%, bard class → coin +25%
+        const xpMult =
+          (1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100) *
+          classXpMult(s.hero.classType);
+        const coinMult =
+          (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
+          classCoinMult(s.hero.classType);
         const gainedXp = Math.round(monster.xpReward * xpMult);
         const gainedCoin = Math.round(monster.coinReward * coinMult);
         s.log.push({
@@ -356,8 +440,10 @@ export function tickSession(session: CombatSession): CombatSession {
     return s;
   }
   if (roll < encounterThreshold) {
-    // treasure — Phase 4b.3: coinBoost 반영
-    const coinMult = 1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100;
+    // treasure — Phase 4b.3: coinBoost 반영. Phase 5c.2: bard +25%.
+    const coinMult =
+      (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
+      classCoinMult(s.hero.classType);
     const coins = Math.round((5 + Math.floor(Math.random() * 16)) * coinMult);
     s.log.push({
       type: "treasure",
@@ -487,9 +573,17 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
       // delta 음수 = 시간 소모, 양수 = 시간 회복
       consumeTime(session, effect.delta);
       break;
-    case "heal":
-      session.hero.hp = Math.min(session.hero.maxHp, session.hero.hp + effect.amount);
+    case "heal": {
+      // Phase 5c.2: druid class → heal 효과 +30%
+      const healed = Math.round(
+        effect.amount * classHealMult(session.hero.classType),
+      );
+      session.hero.hp = Math.min(
+        session.hero.maxHp,
+        session.hero.hp + healed,
+      );
       break;
+    }
     case "skipFloors":
       session.currentFloor += effect.count;
       session.log.push({
@@ -537,8 +631,12 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
           timestamp: Date.now(),
         });
         const stats = computeEffectiveStats(session.hero);
-        // 몬스터만 공격 (기습)
-        const outcome = rollEnemyOutcome(monster, stats);
+        // 몬스터만 공격 (기습). Phase 5c.2: monk class dodge bonus 동일 적용.
+        const outcome = rollEnemyOutcome(
+          monster,
+          stats,
+          classDodgeBonus(session.hero.classType),
+        );
         const dmg =
           outcome === "miss" || outcome === "dodge"
             ? 0
@@ -650,8 +748,12 @@ function executeCombatRound(
     timestamp: Date.now(),
   });
 
-  // 몬스터 공격
-  const enemyOutcome = rollEnemyOutcome(monster, stats);
+  // 몬스터 공격 — Phase 5c.2: monk class 는 dodge 확률 추가 (stats.agi 보강)
+  const enemyOutcome = rollEnemyOutcome(
+    monster,
+    stats,
+    classDodgeBonus(s.hero.classType),
+  );
   const enemyDmg =
     enemyOutcome === "miss" || enemyOutcome === "dodge"
       ? 0
@@ -667,6 +769,12 @@ function executeCombatRound(
     narrative: enemyNarrative,
     timestamp: Date.now(),
   });
+
+  // Phase 5c.2: warrior class → round 끝에 HP +2 회복 (최대치 cap)
+  const regen = classHpRegen(s.hero.classType);
+  if (regen > 0 && s.hero.hp > 0) {
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + regen);
+  }
 }
 
 /** 세션 포기 — 사용자가 자발적으로 캠프 복귀 선택 */
@@ -741,16 +849,20 @@ function rollHeroOutcome(
   return "hit";
 }
 
-/** 몬스터 공격의 outcome 판정 */
+/**
+ * 몬스터 공격의 outcome 판정.
+ * @param dodgeBonus Phase 5c.2 — monk class 일 때 +0.1 dodge 추가. 기본 0.
+ */
 function rollEnemyOutcome(
   monster: Monster,
   stats: HeroBaseStats,
+  dodgeBonus = 0,
 ): CombatOutcome {
   // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 8%, floor 60 에서 2% 바닥)
   const missChance = Math.max(0.02, 0.08 - monster.level * 0.001);
   if (Math.random() < missChance) return "miss";
-  // 방어자(영웅) 회피 — agi scaling
-  const dodgeChance = Math.min(0.25, stats.agi * 0.006);
+  // 방어자(영웅) 회피 — agi scaling + class bonus. cap 0.35 (monk 최대값).
+  const dodgeChance = Math.min(0.35, stats.agi * 0.006 + dodgeBonus);
   if (Math.random() < dodgeChance) return "dodge";
   // 공격자(몬스터) 크리 — level scaling
   const critChance = Math.min(0.25, 0.03 + monster.level * 0.004);

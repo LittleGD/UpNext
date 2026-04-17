@@ -19,6 +19,7 @@ import {
   computeEffectiveStats,
   computeHeroForLevel,
   getHeroAppearanceVariant,
+  CLASS_META,
 } from "@/types/uphero";
 import type { EquipSlot, HeroBaseStats } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
@@ -130,6 +131,27 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
           >
             Lv.{level} · HP {leveledHero.hp}/{leveledHero.maxHp}
           </div>
+          {/* Phase 5c.3 — class 분화된 영웅이면 class 이름 + 패시브 표시. */}
+          {hero.classType && (
+            <div
+              className="typo-caption mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded"
+              style={{
+                color: GB.lightest,
+                border: `1px solid ${GB.light}`,
+                background: `${GB.dark}aa`,
+              }}
+            >
+              <PixelIcon
+                name={CLASS_META[hero.classType].icon}
+                size={12}
+                color={GB.lightest}
+              />
+              {CLASS_META[hero.classType].name}
+              <span className={`${gbClass.textDim} ml-1`}>
+                · {CLASS_META[hero.classType].passive}
+              </span>
+            </div>
+          )}
           {/* Phase 5a.1 — 다음 레벨에 영웅이 얻는 성장 안내 */}
           <div
             className={`typo-caption mt-1 ${gbClass.textDim} tabular-nums`}

@@ -29,7 +29,7 @@ export interface HeroBaseStats {
   slotBonus: number;
 }
 
-/** 클래스 타입 — 30레벨 이후 가장 많이 한 카테고리로 분화 (Phase 5+) */
+/** 클래스 타입 — 30레벨 이후 가장 많이 한 카테고리로 분화 (Phase 5c) */
 export type ClassType =
   | "warrior" // 운동
   | "mage" // 학습
@@ -39,6 +39,56 @@ export type ClassType =
   | "chronomancer" // 생산성
   | "priest" // 건강
   | "illusionist"; // 트렌딩
+
+/**
+ * Phase 5c.1 — 8 dungeon → 8 class 매핑 (암묵 규약을 명시화).
+ * 주요 완료 카테고리를 기반으로 Lv 30 도달 시 자동 분화.
+ */
+export const CLASS_BY_DUNGEON: Record<DungeonId, ClassType> = {
+  fitness: "warrior",
+  learning: "mage",
+  mindfulness: "monk",
+  nutrition: "druid",
+  social: "bard",
+  productivity: "chronomancer",
+  wellness: "priest",
+  trending: "illusionist",
+};
+
+/** 역방향 — class 에서 원래 카테고리 찾기 (UI 에서 class 아이콘 선택용) */
+export const DUNGEON_BY_CLASS: Record<ClassType, DungeonId> = {
+  warrior: "fitness",
+  mage: "learning",
+  monk: "mindfulness",
+  druid: "nutrition",
+  bard: "social",
+  chronomancer: "productivity",
+  priest: "wellness",
+  illusionist: "trending",
+};
+
+/** Class 한국어 이름 + 패시브 설명 (Phase 5c.2 참조) */
+export const CLASS_META: Record<
+  ClassType,
+  { name: string; passive: string; icon: string }
+> = {
+  warrior: { name: "전사", passive: "전투 round 당 HP +2 회복", icon: "Sword" },
+  mage: { name: "마법사", passive: "모든 XP 획득 +20%", icon: "BookOpen" },
+  monk: { name: "수도승", passive: "회피 확률 +10%", icon: "Moon" },
+  druid: { name: "드루이드", passive: "회복 효과 +30%", icon: "Coffee" },
+  bard: { name: "음유시인", passive: "코인 획득 +25%", icon: "Message" },
+  chronomancer: {
+    name: "시간술사",
+    passive: "탐험 시간 소모 -25%",
+    icon: "Clock",
+  },
+  priest: { name: "사제", passive: "세션 시작 HP +50", icon: "Heart" },
+  illusionist: {
+    name: "환영술사",
+    passive: "치명타 확률 +8%",
+    icon: "Sparkle",
+  },
+};
 
 /** 영웅 */
 export interface Hero {
@@ -308,6 +358,12 @@ export interface UpHeroState {
    * transient — persist 되지 않음.
    */
   idleReward: IdleRewardSnapshot | null;
+  /**
+   * Phase 5c.1 — 방금 할당된 classType (ClassAwakenModal 표시용).
+   * UI 에서 modal 닫을 때 acknowledgeClassAwaken() 로 null 클리어.
+   * transient — persist 되지 않음 (hero.classType 으로 영구 기록됨).
+   */
+  pendingClassAwaken: ClassType | null;
   isLoaded: boolean;
 }
 
