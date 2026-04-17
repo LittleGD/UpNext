@@ -593,12 +593,14 @@ function pushEncounterChoice(
   // 30% 확률로 랜덤 이벤트 옵션 추가 (던전 flavor 에서 1개)
   if (Math.random() < 0.3) {
     const ev = pickEvent(s.dungeonId);
-    // 이벤트에서 첫 옵션 하나만 picks — 단일 추가 선택지
+    // 이벤트에서 첫 옵션 하나만 picks — 단일 추가 선택지.
+    // Phase 4c.3: outcomes 있는 옵션이면 outcomes 그대로 넘긴다 (확률 분기 유지).
     const evOption = ev.options[0];
     if (evOption) {
       options.push({
         label: `✦ ${evOption.label}`,
         effect: evOption.effect,
+        outcomes: evOption.outcomes,
         resultText: evOption.resultText,
       });
     }
