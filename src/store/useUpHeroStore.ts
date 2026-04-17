@@ -174,14 +174,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       .filter((c): c is NonNullable<typeof c> => c != null)
       .map((c) => getCardBuff(c));
 
-    // 탐험권 -1 + 세션 시작 (activeBuffs 포함)
+    // 탐험권 -1 + 세션 시작
+    // buildSession(createSession) 가 activeBuffs 를 받아 hero snapshot 에
+    // stat / affinity / healStart / critBonus 를 반영한다. 따라서 buffs 는
+    // 반드시 네 번째 인자로 넘겨줘야 실제 전투에 효과가 적용된다.
     const updatedPasses = { ...state.passes, [dungeonId]: passes - 1 };
     const progress = state.dungeons[dungeonId];
     const startFloor = (progress?.floorReached ?? 0) + 1;
-    const session: CombatSession = {
-      ...buildSession(dungeonId, state.hero, startFloor),
-      activeBuffs: buffs.length > 0 ? buffs : undefined,
-    };
+    const session: CombatSession = buildSession(
+      dungeonId,
+      state.hero,
+      startFloor,
+      buffs,
+    );
     const newState = {
       passes: updatedPasses,
       currentSession: session,

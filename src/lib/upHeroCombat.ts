@@ -10,6 +10,7 @@
 import type {
   CombatOutcome,
   CombatSession,
+  CardBuff,
   Hero,
   HeroBaseStats,
   LogEntry,
@@ -17,6 +18,7 @@ import type {
   Equipment,
   ChoiceOption,
   ChoiceEffect,
+  SpecialEffect,
 } from "@/types/uphero";
 import { computeEffectiveStats } from "@/types/uphero";
 import { createMonsterForFloor } from "@/data/upHeroMonsters";
@@ -28,12 +30,21 @@ import {
   monsterAttackNarrative,
 } from "@/lib/upHeroNarrative";
 
-/** 세션 시작 — 빈 log 로 생성 */
+/**
+ * 세션 시작 — 빈 log 로 생성.
+ *
+ * Phase 4b.3: activeBuffs 를 hero 스냅샷에 적용.
+ *  - stat 버프: baseStats 에 합산 (affinity 던전이면 multiplier 배)
+ *  - healStart: maxHp + hp 증가
+ *  - xpBoost/coinBoost/dropRate/critBonus/monsterFrequency 는 tick 중 참조용으로 activeBuffs 에 저장
+ */
 export function createSession(
   dungeonId: CombatSession["dungeonId"],
   hero: Hero,
   startFloor: number,
+  activeBuffs?: CardBuff[],
 ): CombatSession {
+  const buffedHero = applyStatAndHealBuffs(hero, activeBuffs ?? [], dungeonId);
   return {
     dungeonId,
     startFloor,
@@ -51,11 +62,62 @@ export function createSession(
         timestamp: Date.now(),
       },
     ],
-    hero: { ...hero, hp: hero.maxHp }, // 세션 시작 시 full HP
+    hero: buffedHero,
     rewards: { xp: 0, coins: 0, drops: [] },
     status: "active",
     speed: 1,
+    activeBuffs: activeBuffs && activeBuffs.length > 0 ? activeBuffs : undefined,
     startedAt: Date.now(),
+  };
+}
+
+/**
+ * Buff 의 stat / healStart 효과를 hero snapshot 에 반영.
+ *  - stat buff: baseStats 의 각 키에 합산
+ *  - affinity 가 같은 카테고리 던전이면 그 buff 의 stat 만 multiplier 적용
+ *  - healStart: maxHp 와 hp 둘 다 증가 (세션 끝까지 유지되는 내구력 버프)
+ */
+function applyStatAndHealBuffs(
+  hero: Hero,
+  buffs: CardBuff[],
+  dungeonId: CombatSession["dungeonId"],
+): Hero {
+  const newBaseStats: HeroBaseStats = { ...hero.baseStats };
+  let totalHealStart = 0;
+
+  for (const buff of buffs) {
+    // 이 buff 에 affinity 효과가 있고 현재 던전과 같은 카테고리면 stat 를 곱셈
+    const affinity = buff.effects.find(
+      (e): e is { kind: "affinity"; category: CombatSession["dungeonId"]; multiplier: number } =>
+        e.kind === "affinity",
+    );
+    const mult =
+      affinity && affinity.category === dungeonId ? affinity.multiplier : 1;
+
+    for (const effect of buff.effects) {
+      if (effect.kind === "stat") {
+        for (const [k, v] of Object.entries(effect.stats)) {
+          if (v == null) continue;
+          const key = k as keyof HeroBaseStats;
+          newBaseStats[key] += Math.round((v as number) * mult);
+        }
+      }
+      if (effect.kind === "special" && effect.type === "healStart") {
+        totalHealStart += effect.value;
+      }
+      // critBonus special → baseStats.crit 에 합산 (rollHeroOutcome 이 stats.crit 사용)
+      if (effect.kind === "special" && effect.type === "critBonus") {
+        newBaseStats.crit += effect.value;
+      }
+    }
+  }
+
+  const newMaxHp = hero.maxHp + totalHealStart;
+  return {
+    ...hero,
+    baseStats: newBaseStats,
+    maxHp: newMaxHp,
+    hp: newMaxHp, // 세션 시작 시 full HP + healStart 보너스 포함
   };
 }
 
@@ -106,16 +168,20 @@ export function tickSession(session: CombatSession): CombatSession {
         return s;
       }
       if (combatState.monsterHp <= 0) {
-        // 몬스터 처치 — victory
+        // 몬스터 처치 — victory. Phase 4b.3: xpBoost/coinBoost 반영
+        const xpMult = 1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100;
+        const coinMult = 1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100;
+        const gainedXp = Math.round(monster.xpReward * xpMult);
+        const gainedCoin = Math.round(monster.coinReward * coinMult);
         s.log.push({
           type: "victory",
           monster,
-          xp: monster.xpReward,
-          coins: monster.coinReward,
+          xp: gainedXp,
+          coins: gainedCoin,
           timestamp: Date.now(),
         });
-        s.rewards.xp += monster.xpReward;
-        s.rewards.coins += monster.coinReward;
+        s.rewards.xp += gainedXp;
+        s.rewards.coins += gainedCoin;
         s.hero.hp = combatState.heroHp;
 
         // 보스 처치면 드롭 확정 + 높은 등급
@@ -130,8 +196,9 @@ export function tickSession(session: CombatSession): CombatSession {
           return s;
         }
 
-        // 일반 몬스터: 30% drop
-        if (Math.random() < 0.3) {
+        // 일반 몬스터 drop 확률 — base 30% + dropRate buff %
+        const dropChance = 0.3 + getBuffBoost(s.activeBuffs, "dropRate") / 100;
+        if (Math.random() < dropChance) {
           const rarity = rollDropRarity(s.currentFloor);
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
@@ -212,6 +279,12 @@ export function tickSession(session: CombatSession): CombatSession {
 
   // 일반 층 안에서 이벤트/몬스터 고르기
   // 긴장감을 위해 choice 비중을 25% 로 상향 (이전 10%)
+  // Phase 4b.3: monsterFrequency buff 는 encounter 확률 조정. 음수값 = 조우 감소.
+  //   기본 encounter = 50% (roll >= 0.5). buff 반영 시 threshold 이동.
+  const monsterFreqDelta = getBuffBoost(s.activeBuffs, "monsterFrequency") / 100;
+  // encounter threshold = 0.5 - delta. delta -10 (음수) → threshold 0.6 (encounter 40%)
+  const encounterThreshold = Math.max(0.3, Math.min(0.7, 0.5 - monsterFreqDelta));
+
   const roll = Math.random();
   if (roll < 0.25) {
     // choice 이벤트 — 사용자 선택 필요
@@ -236,9 +309,10 @@ export function tickSession(session: CombatSession): CombatSession {
     });
     return s;
   }
-  if (roll < 0.5) {
-    // treasure
-    const coins = 5 + Math.floor(Math.random() * 16);
+  if (roll < encounterThreshold) {
+    // treasure — Phase 4b.3: coinBoost 반영
+    const coinMult = 1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100;
+    const coins = Math.round((5 + Math.floor(Math.random() * 16)) * coinMult);
     s.log.push({
       type: "treasure",
       coins,
@@ -249,7 +323,7 @@ export function tickSession(session: CombatSession): CombatSession {
     return s;
   }
 
-  // 나머지: encounter
+  // 나머지: encounter (monsterFreqDelta 만큼 확률 증감)
   const monster = createMonsterForFloor(s.dungeonId, s.currentFloor, false);
   s.log.push({ type: "encounter", monster, timestamp: Date.now() });
   return s;
@@ -616,6 +690,29 @@ function computeEnemyDamage(
  */
 function shouldNarrate(outcome: CombatOutcome): number {
   return outcome === "hit" ? 0.33 : 1.0;
+}
+
+/**
+ * Phase 4b.3 — activeBuffs 에서 특정 special effect 값 합산.
+ * 여러 buff 가 같은 special type 을 가지면 합쳐서 반영.
+ * (critBonus 는 baseStats.crit 로 이미 반영되므로 여기서는 미사용)
+ *
+ * @returns 값 (0 = 없음, 음수 가능 — monsterFrequency 감소)
+ */
+function getBuffBoost(
+  buffs: CardBuff[] | undefined,
+  type: SpecialEffect,
+): number {
+  if (!buffs) return 0;
+  let total = 0;
+  for (const buff of buffs) {
+    for (const effect of buff.effects) {
+      if (effect.kind === "special" && effect.type === type) {
+        total += effect.value;
+      }
+    }
+  }
+  return total;
 }
 
 /** 드롭 리스트 중 신규 장비만 (중복 방지) */
