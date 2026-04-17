@@ -25,6 +25,8 @@ export interface HeroBaseStats {
   agi: number;
   /** 크리 보너스 스탯 (%) — 장비로만 획득, hero base = 0 */
   crit: number;
+  /** 버프 슬롯 보너스 — unique/legend accessory/talisman 에서만, hero base = 0 */
+  slotBonus: number;
 }
 
 /** 클래스 타입 — 30레벨 이후 가장 많이 한 카테고리로 분화 (Phase 5+) */
@@ -263,7 +265,7 @@ export function createDefaultHero(): Hero {
     name: rollHeroName(),
     hp: 100,
     maxHp: 100,
-    baseStats: { str: 10, int: 10, vit: 10, dex: 10, agi: 10, crit: 0 },
+    baseStats: { str: 10, int: 10, vit: 10, dex: 10, agi: 10, crit: 0, slotBonus: 0 },
     equipped: {},
     classType: null,
     appearanceVariant: 0,
@@ -280,4 +282,45 @@ export function computeEffectiveStats(hero: Hero): HeroBaseStats {
     }
   }
   return stats;
+}
+
+// ─────────────────────────────────────────────────────────
+// Phase 4b — 챌린지 카드 버프 시스템
+// ─────────────────────────────────────────────────────────
+
+/** 특수 효과 종류 — rare+ 에서만 허용 */
+export type SpecialEffect =
+  | "dropRate"         // 장비 드롭 확률 ↑
+  | "monsterFrequency" // 몬스터 조우 빈도 ↓ (음수 %)
+  | "coinBoost"        // 코인 획득 ↑
+  | "xpBoost"          // XP 획득 ↑
+  | "critBonus"        // 크리 확률 ↑ (%)
+  | "healStart";       // 세션 시작 HP 보너스
+
+/** 버프 효과 — 3 종류의 discriminated union */
+export type BuffEffect =
+  | { kind: "stat"; stats: Partial<HeroBaseStats> } // 모든 rarity
+  | { kind: "special"; type: SpecialEffect; value: number } // rare+
+  | { kind: "affinity"; category: DungeonId; multiplier: number }; // unique+
+
+/** 카드 뒷면 버프 — ChallengeCard.buff 에 저장 */
+export interface CardBuff {
+  /** 1-3개 효과 조합 */
+  effects: BuffEffect[];
+  /** 카드 뒷면 표시용 요약 (한국어, Phase 10+ i18n) */
+  description: string;
+}
+
+/**
+ * 버프 선택 가능 슬롯 수 계산.
+ *   base = Lv 1-4: 1개, Lv 5+: 2개
+ *   + accessory.slotBonus (unique+1, legend+1)
+ *   + talisman.slotBonus (unique+1, legend+1)
+ *   cap = 4
+ */
+export function getBuffSlotCount(hero: Hero, level: number): number {
+  const base = level >= 5 ? 2 : 1;
+  const accessoryBonus = hero.equipped.accessory?.stats.slotBonus ?? 0;
+  const talismanBonus = hero.equipped.talisman?.stats.slotBonus ?? 0;
+  return Math.min(4, base + accessoryBonus + talismanBonus);
 }
