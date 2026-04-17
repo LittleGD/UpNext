@@ -1,0 +1,293 @@
+"use client";
+
+/**
+ * Up Hero — Phase 4b: 던전 진입 전 버프 draw 패널.
+ *
+ * 흐름:
+ *  1. pendingDungeon 이 set 되면 6장 카드 표시
+ *  2. 사용자 N장 선택 (슬롯 수는 영웅 Lv + 장비 slotBonus 로 결정)
+ *  3. "X장 선택 · 진입" → confirmDungeon, 탐험권 소모, 세션 시작
+ *  4. "취소" → cancelBuffDraw, pendingDungeon 클리어
+ *
+ * 카드 미리보기 (BuffCardPreview):
+ *  - rarity 테두리 + PixelIcon + 이름 + 버프 description 단문
+ *  - 선택됨 상태: accent 배경 + 체크
+ */
+
+import { useState } from "react";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { useGameStore } from "@/store/useGameStore";
+import { getBuffSlotCount } from "@/types/uphero";
+import { getCardBuff } from "@/data/cardBuffs";
+import { ALL_CARDS } from "@/data/cards";
+import { DUNGEONS } from "@/data/upHeroDungeons";
+import { GB, EASE_OUT, EASE_DRAWER, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
+import type { ChallengeCard, Rarity } from "@/types/card";
+import { useSound } from "@/hooks/useSound";
+import PixelIcon from "@/components/icons/PixelIcon";
+
+const RARITY_COLOR: Record<Rarity, string> = {
+  normal: GB.light,
+  rare: GB_RARE,
+  unique: GB_UNIQUE,
+  legend: GB_LEGEND,
+};
+
+export default function BuffDrawPanel() {
+  const hero = useUpHeroStore((s) => s.hero);
+  const pending = useUpHeroStore((s) => s.pendingDungeon);
+  const confirmDungeon = useUpHeroStore((s) => s.confirmDungeon);
+  const cancelBuffDraw = useUpHeroStore((s) => s.cancelBuffDraw);
+  const level = useGameStore((s) => s.progress.level);
+  const { play } = useSound();
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  if (!pending) return null;
+
+  const dungeon = DUNGEONS[pending.dungeonId];
+  const maxSlots = getBuffSlotCount(hero, level);
+
+  // drawnCardIds → ChallengeCard 해석
+  const cardById = new Map(ALL_CARDS.map((c) => [c.id, c]));
+  const drawnCards = pending.drawnCardIds
+    .map((id) => cardById.get(id))
+    .filter((c): c is ChallengeCard => c != null);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) {
+        play("select");
+        return prev.filter((x) => x !== id);
+      }
+      if (prev.length >= maxSlots) {
+        // 슬롯 가득 — 가장 오래된 선택 제거 후 추가
+        play("select");
+        return [...prev.slice(1), id];
+      }
+      play("select");
+      return [...prev, id];
+    });
+  };
+
+  const onConfirm = () => {
+    play("confirm");
+    confirmDungeon(selectedIds);
+    setSelectedIds([]);
+  };
+
+  const onSkip = () => {
+    // 버프 없이 진입
+    play("confirm");
+    confirmDungeon([]);
+    setSelectedIds([]);
+  };
+
+  const onCancel = () => {
+    play("cancel");
+    cancelBuffDraw();
+    setSelectedIds([]);
+  };
+
+  return (
+    <div
+      className="flex-1 min-h-0 flex flex-col overflow-hidden"
+      style={{ background: GB.darkest, color: GB.light }}
+    >
+      {/* === Header === */}
+      <header
+        className="px-4 py-3 shrink-0"
+        style={{
+          borderBottom: `1px solid ${GB.dark}`,
+          background: `linear-gradient(180deg, ${dungeon.themeColor}18 0%, transparent 100%)`,
+        }}
+      >
+        <div className="typo-caption" style={{ color: GB.light }}>
+          {dungeon.name} 진입 준비
+        </div>
+        <div
+          className="typo-body mt-1 tabular-nums"
+          style={{ color: GB.lightest }}
+        >
+          버프 카드 선택 · {selectedIds.length}/{maxSlots}
+        </div>
+        <div className={`typo-caption mt-0.5 ${gbClass.textDim}`}>
+          최대 {maxSlots}장까지 선택 가능 (0장도 가능)
+        </div>
+      </header>
+
+      {/* === Drawn cards grid === */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
+        {drawnCards.length === 0 ? (
+          <div className={`typo-caption ${gbClass.textDim} text-center py-8`}>
+            카드 drawing 실패 — 보유 카드가 없어요
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {drawnCards.map((card) => (
+              <BuffCardPreview
+                key={card.id}
+                card={card}
+                selected={selectedIds.includes(card.id)}
+                onToggle={() => toggleSelect(card.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* === Footer actions === */}
+      <footer
+        className="px-3 py-3 flex items-center gap-2 shrink-0"
+        style={{
+          borderTop: `1px solid ${GB.dark}`,
+          paddingBottom: "calc(max(env(safe-area-inset-bottom), 24px) + 10px)",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onCancel}
+          className="uphero-draw-btn typo-caption rounded"
+          style={{
+            minHeight: 40,
+            padding: "8px 14px",
+            background: "transparent",
+            color: GB_ENEMY,
+            border: `1px solid ${GB_ENEMY}`,
+          }}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="uphero-draw-btn typo-caption rounded"
+          style={{
+            minHeight: 40,
+            padding: "8px 14px",
+            background: `${GB.dark}cc`,
+            color: GB.light,
+            border: `1px solid ${GB.dark}`,
+          }}
+        >
+          버프 없이 진입
+        </button>
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={selectedIds.length === 0}
+          className="uphero-draw-btn typo-body rounded"
+          style={{
+            minHeight: 44,
+            padding: "10px 16px",
+            background: selectedIds.length > 0 ? GB.lightest : `${GB.dark}66`,
+            color: selectedIds.length > 0 ? GB.darkest : GB.light,
+            border: `1px solid ${selectedIds.length > 0 ? GB.lightest : GB.dark}`,
+            opacity: selectedIds.length > 0 ? 1 : 0.6,
+          }}
+        >
+          {selectedIds.length > 0 ? `${selectedIds.length}장 진입` : "진입"}
+        </button>
+        <style jsx>{`
+          .uphero-draw-btn {
+            transition: transform 120ms ${EASE_OUT};
+          }
+          .uphero-draw-btn:not(:disabled):active {
+            transform: scale(0.97);
+          }
+        `}</style>
+      </footer>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────── */
+
+function BuffCardPreview({
+  card,
+  selected,
+  onToggle,
+}: {
+  card: ChallengeCard;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const buff = getCardBuff(card);
+  const rarityColor = RARITY_COLOR[card.rarity];
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="uphero-buff-card text-left rounded-md relative overflow-hidden"
+      style={{
+        minHeight: 124,
+        padding: "10px 10px 12px",
+        background: selected ? `${rarityColor}30` : `${GB.dark}99`,
+        border: `1px solid ${selected ? GB.lightest : rarityColor}`,
+        color: GB.light,
+      }}
+    >
+      {/* 선택 체크 배지 */}
+      {selected && (
+        <div
+          className="absolute top-1.5 right-1.5 typo-micro px-1.5 py-0.5 rounded tabular-nums"
+          style={{
+            background: GB.lightest,
+            color: GB.darkest,
+            letterSpacing: "0.05em",
+          }}
+        >
+          ✓
+        </div>
+      )}
+
+      {/* 아이콘 + rarity dot */}
+      <div className="flex items-start justify-between mb-2">
+        <PixelIcon
+          name={card.icon}
+          size={22}
+          color={selected ? GB.lightest : rarityColor}
+        />
+        {card.rarity !== "normal" && !selected && (
+          <div
+            className="rounded-full shrink-0"
+            style={{
+              width: 6,
+              height: 6,
+              background: rarityColor,
+              boxShadow: `0 0 4px ${rarityColor}`,
+              marginTop: 2,
+            }}
+          />
+        )}
+      </div>
+
+      {/* 이름 */}
+      <div
+        className="typo-caption leading-tight truncate"
+        style={{ color: selected ? GB.lightest : rarityColor }}
+      >
+        {card.title}
+      </div>
+
+      {/* 버프 설명 */}
+      <div
+        className="typo-caption leading-tight mt-1"
+        style={{ color: GB.light }}
+      >
+        {buff.description}
+      </div>
+
+      <style jsx>{`
+        .uphero-buff-card {
+          transition: transform 120ms ${EASE_OUT};
+        }
+        .uphero-buff-card:active {
+          transform: scale(0.97);
+        }
+      `}</style>
+    </button>
+  );
+}

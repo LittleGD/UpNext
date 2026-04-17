@@ -19,6 +19,7 @@ import {
   type Equipment,
   type EquipSlot,
   type CombatSession,
+  type CardBuff,
 } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
 import {
@@ -27,6 +28,9 @@ import {
   resolveChoice as applyChoice,
   abandonSession as abandon,
 } from "@/lib/upHeroCombat";
+import { drawBuffCards } from "@/lib/buffDraw";
+import { getCardBuff } from "@/data/cardBuffs";
+import { ALL_CARDS } from "@/data/cards";
 import { useGameStore } from "./useGameStore";
 
 const STORAGE_KEY = "uphero";
@@ -38,6 +42,20 @@ interface UpHeroActions {
   grantExpeditionPass(dungeonId: DungeonId, rarity: Rarity): void;
 
   // 던전 세션
+  /**
+   * 던전 진입 준비 — 보유 카드 중 6장 draw 후 pendingDungeon set.
+   * 탐험권 소모는 confirmDungeon 에서. 보유 카드 없으면 자동 skip.
+   * @returns "ready" (drawn cards set), "no-pass" (탐험권 부족), "no-cards" (보유 카드 0, skip)
+   */
+  prepareBuffDraw(dungeonId: DungeonId): "ready" | "no-pass" | "no-cards";
+  /** 선택한 card ids 로 세션 시작 + 탐험권 1 소모 */
+  confirmDungeon(selectedCardIds: string[]): void;
+  /** pendingDungeon 취소 */
+  cancelBuffDraw(): void;
+  /**
+   * 구 API — 직접 진입 (버프 draw 스킵). 보유 카드 0 일 때 내부적으로 사용 +
+   * 외부 테스트용 fallback. 기본 플로우는 prepareBuffDraw → confirmDungeon.
+   */
   enterDungeon(dungeonId: DungeonId): boolean; // false = 탐험권 부족
   tickSession(): void;
   resolveChoice(optionIndex: number): void;
@@ -60,7 +78,7 @@ interface UpHeroActions {
 
 type UpHeroStore = UpHeroState & UpHeroActions;
 
-/** 저장할 state 추출 — 함수는 제외 */
+/** 저장할 state 추출 — 함수는 제외. pendingDungeon 은 transient (persist 안 함) */
 function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
   const { hero, inventory, coins, passes, dungeons, currentSession, codex, cosmetics, lastIdleAccrualAt } = s;
   return { hero, inventory, coins, passes, dungeons, currentSession, codex, cosmetics, lastIdleAccrualAt };
@@ -73,6 +91,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   passes: {},
   dungeons: {},
   currentSession: null,
+  pendingDungeon: null,
   codex: { monsters: [], equipment: [], bosses: [] },
   cosmetics: {},
   lastIdleAccrualAt: Date.now(),
@@ -98,6 +117,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       passes: saved?.passes ?? {},
       dungeons: saved?.dungeons ?? {},
       currentSession: saved?.currentSession ?? null,
+      pendingDungeon: null, // transient, 재시작 시 항상 null
       codex: saved?.codex ?? { monsters: [], equipment: [], bosses: [] },
       cosmetics: saved?.cosmetics ?? {},
       lastIdleAccrualAt: saved?.lastIdleAccrualAt ?? Date.now(),
@@ -114,13 +134,73 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     saveToStorage(STORAGE_KEY, pickPersisted({ ...get(), passes }));
   },
 
+  prepareBuffDraw(dungeonId) {
+    const state = get();
+    const passes = state.passes[dungeonId] ?? 0;
+    if (passes < 1) return "no-pass";
+    // 보유 카드 가져오기 — useGameStore.progress.unlockedCardIds
+    const gameState = useGameStore.getState();
+    const unlockedIds = gameState.progress.unlockedCardIds ?? [];
+    const ownedCards = ALL_CARDS.filter((c) => unlockedIds.includes(c.id));
+    if (ownedCards.length === 0) {
+      // 보유 카드 0 → 버프 draw 스킵, 바로 진입
+      return "no-cards";
+    }
+    // 6장 draw (보유 카드 부족 시 available 만큼)
+    const drawn = drawBuffCards(ownedCards, dungeonId, 6);
+    set({
+      pendingDungeon: {
+        dungeonId,
+        drawnCardIds: drawn.map((c) => c.id),
+      },
+    });
+    return "ready";
+  },
+
+  confirmDungeon(selectedCardIds) {
+    const state = get();
+    if (!state.pendingDungeon) return;
+    const { dungeonId } = state.pendingDungeon;
+    const passes = state.passes[dungeonId] ?? 0;
+    if (passes < 1) {
+      // 중간에 탐험권 잃은 상황 — 취소
+      set({ pendingDungeon: null });
+      return;
+    }
+    // 선택한 카드 → buffs 변환
+    const cardById = new Map(ALL_CARDS.map((c) => [c.id, c]));
+    const buffs: CardBuff[] = selectedCardIds
+      .map((id) => cardById.get(id))
+      .filter((c): c is NonNullable<typeof c> => c != null)
+      .map((c) => getCardBuff(c));
+
+    // 탐험권 -1 + 세션 시작 (activeBuffs 포함)
+    const updatedPasses = { ...state.passes, [dungeonId]: passes - 1 };
+    const progress = state.dungeons[dungeonId];
+    const startFloor = (progress?.floorReached ?? 0) + 1;
+    const session: CombatSession = {
+      ...buildSession(dungeonId, state.hero, startFloor),
+      activeBuffs: buffs.length > 0 ? buffs : undefined,
+    };
+    const newState = {
+      passes: updatedPasses,
+      currentSession: session,
+      pendingDungeon: null,
+    };
+    set(newState);
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...newState }));
+  },
+
+  cancelBuffDraw() {
+    set({ pendingDungeon: null });
+  },
+
   enterDungeon(dungeonId) {
+    // 구 API — 버프 draw 스킵 직진입. 보유 카드 0 케이스나 테스트용.
     const state = get();
     const passes = state.passes[dungeonId] ?? 0;
     if (passes < 1) return false;
-    // 진입 — 탐험권 1 소모
     const updatedPasses = { ...state.passes, [dungeonId]: passes - 1 };
-    // 던전 진행 상황 — 저장된 floorReached + 1 에서 시작 (최초는 1)
     const progress = state.dungeons[dungeonId];
     const startFloor = (progress?.floorReached ?? 0) + 1;
     const session = buildSession(dungeonId, state.hero, startFloor);
