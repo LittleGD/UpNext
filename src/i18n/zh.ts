@@ -118,6 +118,8 @@ const zh: Record<DictKey, string> = {
   "playground.archive.empty": "还没有认证照片",
   "playground.archive.photoCount": "{count} 张照片",
   "playground.archive.photoCountPlural": "{count} 张照片",
+  "daily.confirm.completeWithPhoto": "拍照并完成",
+  "daily.confirm.completeWithoutPhoto": "不拍照完成",
   "playground.capture.title": "挑战认证",
   "playground.capture.take": "拍照",
   "playground.capture.skip": "跳过",

@@ -118,6 +118,8 @@ const ja: Record<DictKey, string> = {
   "playground.archive.empty": "認証写真はまだありません",
   "playground.archive.photoCount": "写真 {count} 枚",
   "playground.archive.photoCountPlural": "写真 {count} 枚",
+  "daily.confirm.completeWithPhoto": "写真と一緒に完了",
+  "daily.confirm.completeWithoutPhoto": "写真なしで完了",
   "playground.capture.title": "チャレンジ認証",
   "playground.capture.take": "撮影",
   "playground.capture.skip": "スキップ",

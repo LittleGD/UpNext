@@ -118,6 +118,8 @@ const en: Record<DictKey, string> = {
   "playground.archive.empty": "No verification photos yet",
   "playground.archive.photoCount": "{count} photo",
   "playground.archive.photoCountPlural": "{count} photos",
+  "daily.confirm.completeWithPhoto": "Complete with photo",
+  "daily.confirm.completeWithoutPhoto": "Complete without photo",
   "playground.capture.title": "Verify Challenge",
   "playground.capture.take": "Take Photo",
   "playground.capture.skip": "Skip",
