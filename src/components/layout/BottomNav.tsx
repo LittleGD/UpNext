@@ -9,6 +9,7 @@ import { useGameStore } from "@/store/useGameStore";
 import { useMinigameStore } from "@/store/useMinigameStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { MODE_CARD_COUNT, PHASE_MAX_CARDS } from "@/types/game";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -72,12 +73,23 @@ export default function BottomNav() {
   // /minigame 직접 진입과 /playground 내 game 탭 양쪽 모두 커버
   const hideForMinigame =
     (pathname === "/minigame" || pathname === "/playground") && minigamePhase !== "idle";
+
+  // Up Hero 던전 진행 중엔 네비 숨김 — 이벤트 페널/포기 CTA 와 겹침 방지
+  const upHeroSession = useUpHeroStore((s) => s.currentSession);
+  const hideForUpHero =
+    pathname === "/playground" &&
+    upHeroSession != null &&
+    (upHeroSession.status === "active" ||
+      upHeroSession.status === "paused" ||
+      upHeroSession.status === "awaitingChoice");
+
   if (
     !isLoaded ||
     !hasCompletedOnboarding ||
     isSelectionReview ||
     hideForPack ||
     hideForMinigame ||
+    hideForUpHero ||
     splashActive ||
     capturePhase !== "idle"
   )

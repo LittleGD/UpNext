@@ -8,6 +8,7 @@ import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import { STARTER_PACKS } from "@/data/starterPacks";
 import { scheduleChallengeReminder, cancelChallengeReminder, showChallengeStatus, hideChallengeStatus, showInstantNotify, scheduleExtraNudge, cancelExtraNudge } from "@/lib/notifications";
 import { t } from "@/i18n";
+import { useUpHeroStore } from "./useUpHeroStore";
 
 // 오늘 날짜를 "2026-04-01" 형식으로 반환
 // 하루 기준: 새벽 1시 ~ 다음날 00:59 (1시간 빼서 날짜 계산)
@@ -507,6 +508,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("daily", updatedDaily);
     saveToStorage("progress", updatedProgress);
     setTimeout(() => completingCardIds.delete(cardId), 100);
+
+    // Up Hero 탐험권 지급 — 해당 카테고리에 rarity 별 수량 (normal:1, rare:2, unique:3, legend:5)
+    // 자동 전투 트리거 없음 — 사용자가 캠프에서 능동적으로 던전 진입
+    try {
+      useUpHeroStore.getState().grantExpeditionPass(card.category, card.rarity);
+    } catch (e) {
+      // store 가 아직 초기화 안 된 edge case — 무시 (다음 챌린지 완료 시 정상 작동)
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[useGameStore] grantExpeditionPass failed:", e);
+      }
+    }
 
     // 알림 갱신
     if (updatedProgress.notificationsEnabled) {

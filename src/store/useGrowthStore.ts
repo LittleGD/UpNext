@@ -1,6 +1,5 @@
 import { create } from "zustand";
-import type { PhotoMeta, CapturePhase, TreePosition, Sticker } from "@/types/growth";
-import { getTreeStage } from "@/types/growth";
+import type { PhotoMeta, CapturePhase, Sticker } from "@/types/growth";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import {
   savePhotoBlobs,
@@ -9,7 +8,6 @@ import {
   dataUrlToBlob,
   updateSignatureBlob,
 } from "@/lib/photoStorage";
-import { useGameStore } from "./useGameStore";
 
 interface GrowthState {
   photoMetas: PhotoMeta[];
@@ -49,40 +47,6 @@ interface GrowthActions {
 type GrowthStore = GrowthState & GrowthActions;
 
 const STORAGE_KEY = "growth";
-
-/** 다음 빈 나무 위치 계산 */
-function nextTreePosition(metas: PhotoMeta[]): TreePosition {
-  // 가지별 슬롯 수: 가지 0부터 순서대로 채움
-  const filled = new Map<number, number>();
-  for (const m of metas) {
-    if (m.treePosition) {
-      const count = filled.get(m.treePosition.branchIndex) ?? 0;
-      filled.set(m.treePosition.branchIndex, count + 1);
-    }
-  }
-
-  // 가장 적게 채워진 가지 찾기, 없으면 새 가지
-  const stage = getTreeStage(metas.length);
-  const maxBranches =
-    stage === "seed" ? 1
-    : stage === "sprout" ? 2
-    : stage === "sapling" ? 4
-    : stage === "young" ? 6
-    : stage === "mature" ? 8
-    : 10;
-
-  let minBranch = 0;
-  let minCount = Infinity;
-  for (let b = 0; b < maxBranches; b++) {
-    const count = filled.get(b) ?? 0;
-    if (count < minCount) {
-      minCount = count;
-      minBranch = b;
-    }
-  }
-
-  return { branchIndex: minBranch, slot: filled.get(minBranch) ?? 0 };
-}
 
 export const useGrowthStore = create<GrowthStore>((set, get) => ({
   photoMetas: [],
@@ -128,7 +92,6 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
     await savePhotoBlobs(id, photoBlob, thumbnailBlob, signatureBlob);
 
     // 메타 생성
-    const treePosition = nextTreePosition(photoMetas);
     const meta: PhotoMeta = {
       id,
       challengeCardId: pendingCaptureCardId,
@@ -137,7 +100,6 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
       date: dateStr,
       timestamp: now,
       memo: memo.slice(0, 200),
-      treePosition,
       stickers: stickers && stickers.length > 0 ? stickers : undefined,
     };
 
