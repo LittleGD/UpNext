@@ -35,6 +35,13 @@ interface HeroSpriteProps {
   animationMs?: number;
   /** 전투 상태 — idle 기본. attack/hurt 는 240ms one-shot 효과 */
   state?: HeroSpriteState;
+  /**
+   * Phase 6c — sprite 위 짧은 심볼 pulse.
+   * - "dodge": ✦ 파랑 (monk 회피 성공)
+   * - "crit": ◇ 보라 (illusionist crit 발동)
+   * parent 가 감지해서 값을 설정하고, 애니메이션 끝나면 null 로 reset.
+   */
+  pulseOverlay?: "dodge" | "crit" | null;
   style?: CSSProperties;
 }
 
@@ -413,6 +420,7 @@ export default function HeroSprite({
   color = "currentColor",
   animationMs = 900,
   state = "idle",
+  pulseOverlay = null,
   style,
 }: HeroSpriteProps) {
   // Phase 6a: classType 제공되면 CLASS_VARIANTS, 없으면 기존 level VARIANTS.
@@ -465,6 +473,33 @@ export default function HeroSprite({
       >
         {renderGrid(frame2, color)}
       </svg>
+      {/* Phase 6c — pulse overlay (monk dodge / illusionist crit) */}
+      {pulseOverlay === "dodge" && (
+        <div
+          className="uphero-dodge-pulse absolute inset-0 flex items-center justify-center pointer-events-none"
+          style={{
+            color: "#6bb1e5",
+            fontSize: size * 0.55,
+            textShadow: "0 0 8px #6bb1e5cc",
+            fontWeight: 700,
+          }}
+        >
+          ✦
+        </div>
+      )}
+      {pulseOverlay === "crit" && (
+        <div
+          className="uphero-crit-pulse absolute inset-0 flex items-center justify-center pointer-events-none"
+          style={{
+            color: "#c9b8e8",
+            fontSize: size * 0.5,
+            textShadow: "0 0 10px #c9b8e8cc",
+            fontWeight: 700,
+          }}
+        >
+          ◇
+        </div>
+      )}
       <style jsx>{`
         .hs-frame {
           animation-duration: ${animationMs}ms;
