@@ -258,11 +258,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const session = state.currentSession;
     if (!session || session.status !== "completed") return;
 
-    // 보상 → hero progress 에 반영
-    // coins: 직접 store 에 추가
-    // xp: useGameStore.progress.xp 에 추가 (게임스토어가 source of truth)
-    // drops: inventory 에 추가
-    // floorReached: 던전 진행에 최대값 기록
+    // 종료 사유 확인 — heroDied 면 페널티 적용
+    const lastEntry = session.log[session.log.length - 1];
+    const reason =
+      lastEntry?.type === "sessionEnd" ? lastEntry.reason : undefined;
+    const heroDied = reason === "heroDied" || reason === "defeat";
+
+    // === Phase 4c-balance: 사망 페널티 ===
+    // 영웅이 전투나 선택지에서 쓰러지면 획득한 drops 의 절반을 잃는다.
+    // (floor(N/2) 만큼만 인벤토리에 들어감. 코인·XP 는 유지 — 완전 손실은 과함)
+    // 보스 처치 / 시간 소진 / 자발 복귀는 전량 유지.
+    const keptDrops = heroDied
+      ? session.rewards.drops.slice(0, Math.floor(session.rewards.drops.length / 2))
+      : session.rewards.drops;
 
     const newCoins = state.coins + session.rewards.coins;
 
@@ -270,9 +278,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const curProgress = state.dungeons[session.dungeonId];
     const reached = Math.max(curProgress?.floorReached ?? 0, session.currentFloor);
     const bossesDefeated = curProgress?.bossesDefeated ?? [];
-    // 보스 처치 기록 (10/20/30F 에서 victory)
+    // 보스 처치 기록 — bossDefeated reason 일 때만 (heroDied 면 보스 못 잡은 것)
     const bossFloors = [10, 20, 30];
-    const newBossesDefeated = [...new Set([...bossesDefeated, ...bossFloors.filter((f) => f <= session.currentFloor && !bossesDefeated.includes(f))])];
+    const isBossVictory = reason === "bossDefeated" || reason === "victory";
+    const newBossesDefeated = isBossVictory
+      ? [
+          ...new Set([
+            ...bossesDefeated,
+            ...bossFloors.filter(
+              (f) => f <= session.currentFloor && !bossesDefeated.includes(f),
+            ),
+          ]),
+        ]
+      : bossesDefeated;
 
     const dungeons = {
       ...state.dungeons,
@@ -283,8 +301,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       },
     };
 
-    // inventory 추가
-    const newInventory = [...state.inventory, ...session.rewards.drops];
+    // inventory 추가 (사망 시 절반만)
+    const newInventory = [...state.inventory, ...keptDrops];
 
     // codex 업데이트 (발견 기록)
     const codexMonstersSet = new Set(state.codex.monsters);

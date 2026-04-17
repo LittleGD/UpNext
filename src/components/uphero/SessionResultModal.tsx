@@ -46,6 +46,15 @@ export default function SessionResultModal() {
   // legacy reason ("victory"/"defeat"/"abandoned") 도 매핑 (이전 세션 호환).
   const { title, titleColor, iconName } = resolveReasonDisplay(reason);
 
+  // Phase 4c-balance — 사망 시 drops 절반 잃음. 표시 위해 분리 계산.
+  // store 의 acknowledgeSessionEnd 와 동일한 로직을 미러링 (slice(0, floor/2)).
+  const heroDied = reason === "heroDied" || reason === "defeat";
+  const allDrops = session.rewards.drops;
+  const keptCount = heroDied ? Math.floor(allDrops.length / 2) : allDrops.length;
+  const lostCount = allDrops.length - keptCount;
+  const keptDrops = allDrops.slice(0, keptCount);
+  const lostDrops = allDrops.slice(keptCount);
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -117,21 +126,47 @@ export default function SessionResultModal() {
               style={{ color: GB.light }}
             >
               <PixelIcon name="Gift" size={14} color={GB.light} />
-              장비 획득 ({session.rewards.drops.length})
+              장비 획득 ({keptCount}
+              {lostCount > 0 && (
+                <span style={{ color: GB_ENEMY }}>
+                  {" / "}쓰러지며 {lostCount} 분실
+                </span>
+              )}
+              )
             </div>
-            {session.rewards.drops.length === 0 ? (
+            {allDrops.length === 0 ? (
               <div className={`typo-caption ${gbClass.textDim} pl-4`}>
                 없음
               </div>
             ) : (
-              // 개별 flip — 한 장씩 탭해서 공개 (사용자 결정)
               <div className="flex flex-wrap gap-2 justify-center py-2">
-                {session.rewards.drops.map((eq) => (
+                {keptDrops.map((eq) => (
                   <DropRevealCard key={eq.id} equipment={eq} />
+                ))}
+                {/* 잃은 drops — dim + 45deg stripe texture 로 "놓쳤다" 표시 */}
+                {lostDrops.map((eq) => (
+                  <div
+                    key={`lost-${eq.id}`}
+                    className="relative"
+                    style={{ opacity: 0.35, filter: "saturate(0.4)" }}
+                    aria-label={`${eq.name} 분실`}
+                  >
+                    <DropRevealCard equipment={eq} />
+                    <div
+                      className="absolute inset-0 rounded pointer-events-none"
+                      style={{
+                        background: `repeating-linear-gradient(
+                          45deg,
+                          transparent 0 4px,
+                          ${GB_ENEMY}30 4px 6px
+                        )`,
+                      }}
+                    />
+                  </div>
                 ))}
               </div>
             )}
-            {session.rewards.drops.length > 0 && (
+            {keptDrops.length > 0 && (
               <div
                 className={`typo-caption ${gbClass.textDim} text-center mt-1`}
               >

@@ -299,12 +299,18 @@ export interface UpHeroState {
   isLoaded: boolean;
 }
 
-/** 챌린지 rarity → 탐험권 수량 매핑 */
+/**
+ * 챌린지 rarity → 탐험권 수량 매핑.
+ *
+ * Phase 4c-balance: legend 5 → 3. 레전드 챌린지 2장만 뚫어도 cap 20 근처까지
+ * 차서 "꾸준 사용 유도" 의도가 무력화됐음. 3 으로 낮추면 레전드 7장 필요 →
+ * cap 경고가 의미 있는 신호가 된다.
+ */
 export const PASS_GRANT_BY_RARITY: Record<Rarity, number> = {
   normal: 1,
   rare: 2,
   unique: 3,
-  legend: 5,
+  legend: 3,
 };
 
 /** 탐험권 카테고리별 최대 보유량 */
