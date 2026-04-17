@@ -116,6 +116,8 @@ const en: Record<DictKey, string> = {
   "playground.tree.stage.mature": "Mature Tree",
   "playground.tree.stage.ancient": "Ancient Tree",
   "playground.archive.empty": "No verification photos yet",
+  "playground.archive.photoCount": "{count} photo",
+  "playground.archive.photoCountPlural": "{count} photos",
   "playground.capture.title": "Verify Challenge",
   "playground.capture.take": "Take Photo",
   "playground.capture.skip": "Skip",

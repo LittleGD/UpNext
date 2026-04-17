@@ -116,6 +116,8 @@ const ja: Record<DictKey, string> = {
   "playground.tree.stage.mature": "大木",
   "playground.tree.stage.ancient": "古木",
   "playground.archive.empty": "認証写真はまだありません",
+  "playground.archive.photoCount": "写真 {count} 枚",
+  "playground.archive.photoCountPlural": "写真 {count} 枚",
   "playground.capture.title": "チャレンジ認証",
   "playground.capture.take": "撮影",
   "playground.capture.skip": "スキップ",

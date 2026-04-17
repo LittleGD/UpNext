@@ -116,6 +116,8 @@ const zh: Record<DictKey, string> = {
   "playground.tree.stage.mature": "大树",
   "playground.tree.stage.ancient": "古树",
   "playground.archive.empty": "还没有认证照片",
+  "playground.archive.photoCount": "{count} 张照片",
+  "playground.archive.photoCountPlural": "{count} 张照片",
   "playground.capture.title": "挑战认证",
   "playground.capture.take": "拍照",
   "playground.capture.skip": "跳过",

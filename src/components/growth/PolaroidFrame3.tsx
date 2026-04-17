@@ -11,7 +11,6 @@ import {
   FRAME_EDGE_SHADOW,
   PHOTO_RECESS_SHADOW,
   BOTTOM_EMBOSS_PATTERN,
-  FRAME_REFLECTION,
   computeVintageOpacity,
 } from "@/lib/photoFilter";
 
@@ -227,12 +226,6 @@ export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props)
         />
       )}
 
-      {/* 표면 반사광 — 광택 인화지의 대각선 글로스 */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: FRAME_REFLECTION }}
-      />
     </div>
   );
 }
