@@ -1345,12 +1345,12 @@ export function buildRetreatChoice(currentFloor: number): {
     prompt: "영웅이 휘청인다. 더 싸우면 위험하다.",
     options: [
       {
-        label: "⚔ 마지막 일격",
+        label: "마지막 일격",
         effect: { kind: "nothing" },
         resultText: "이를 악물고 전투를 이어간다!",
       },
       {
-        label: "🏳 후퇴 — 캠프로",
+        label: "후퇴 — 캠프로",
         effect: { kind: "damage", amount: 0 },
         resultText: `F${currentFloor} 에서 후퇴. 획득한 보상은 유지된다.`,
       },

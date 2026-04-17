@@ -20,9 +20,16 @@ export default function SessionResultModal() {
   const acknowledge = useUpHeroStore((s) => s.acknowledgeSessionEnd);
 
   const [mounted, setMounted] = useState(false);
+  // Phase 4c-polish — detail 은 타이틀 등장 후 280ms 뒤 fade-in.
+  // "결과 (모험 완료) → 사유 (거인을 쓰러뜨렸다)" 두 박자 reveal.
+  const [detailMounted, setDetailMounted] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
+    const detailTimer = window.setTimeout(() => setDetailMounted(true), 280);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(detailTimer);
+    };
   }, []);
 
   if (!session || session.status !== "completed") return null;
@@ -73,11 +80,17 @@ export default function SessionResultModal() {
           >
             {title}
           </div>
-          {/* Phase 4c.1 — 사유 상세 (예: "시간이 다했다", "산악의 거인을 쓰러뜨렸다") */}
+          {/* Phase 4c.1 — 사유 상세 (예: "시간이 다했다", "산악의 거인을 쓰러뜨렸다").
+               Phase 4c-polish: 타이틀이 자리잡은 후 두 박자로 fade-in + y-shift. */}
           {detail && (
             <div
               className="typo-caption px-2"
-              style={{ color: GB.light, opacity: 0.85 }}
+              style={{
+                color: GB.light,
+                opacity: detailMounted ? 0.85 : 0,
+                transform: detailMounted ? "translateY(0)" : "translateY(-4px)",
+                transition: `opacity 240ms ${EASE_OUT}, transform 240ms ${EASE_OUT}`,
+              }}
             >
               {detail}
             </div>

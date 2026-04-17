@@ -579,13 +579,16 @@ function pushEncounterChoice(
   );
   const fleePct = Math.round(fleeChance * 100);
 
+  // Phase 4c-polish — 이모지 prefix 제거 (다른 UI 가 PixelIcon 으로 통일돼
+  // 이모지와 시각 언어 불일치). ChoicePanel 은 "{번호}. {label}" 로 렌더하므로
+  // prefix 없어도 구분 분명.
   const options: ChoiceOption[] = [
     {
-      label: "⚔ 싸운다",
+      label: "싸운다",
       effect: { kind: "fight" },
     },
     {
-      label: `🏃 도망간다 (${fleePct}%)`,
+      label: `도망간다 (${fleePct}%)`,
       effect: { kind: "flee", successChance: fleeChance },
     },
   ];
@@ -598,7 +601,7 @@ function pushEncounterChoice(
     const evOption = ev.options[0];
     if (evOption) {
       options.push({
-        label: `✦ ${evOption.label}`,
+        label: evOption.label,
         effect: evOption.effect,
         outcomes: evOption.outcomes,
         resultText: evOption.resultText,
