@@ -10,6 +10,7 @@ import { create } from "zustand";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import {
   createDefaultHero,
+  computeHeroForLevel,
   PASS_GRANT_BY_RARITY,
   PASS_CAP_PER_CATEGORY,
   SHOP_PRICES,
@@ -29,17 +30,33 @@ import {
   abandonSession as abandon,
 } from "@/lib/upHeroCombat";
 import { drawBuffCards } from "@/lib/buffDraw";
+import {
+  calculateKeptDrops,
+  calculateBossesDefeated,
+  calculateCodexDelta,
+  calculateDungeonProgress,
+} from "@/lib/sessionReward";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
 import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
 import { useGameStore } from "./useGameStore";
 
 /**
+ * Phase 5a.3 — 저장 스키마 현재 버전.
+ *
+ * v1: codex.monsters/bosses 를 monster.name 기반으로 전환 (legacy 는 instance ID)
+ *
+ * 미래: v2 에서 codex.equipment 를 template name 기반으로 전환 예정 (Phase 5b.2).
+ */
+const CURRENT_SCHEMA_VERSION = 1;
+
+/**
  * Phase 4c-fix: Codex legacy ID → name migration.
  *
  * 이전 버전은 `${templateId}_f{floor}_{timestamp}` 포맷 인스턴스 ID 를
  * codex 에 저장했음. 같은 템플릿을 여러 번 만나면 다른 entry 로 누적됨.
- * 현재는 template.name 기반으로 저장. initialize 때 한 번 변환 + dedup.
+ * 현재는 template.name 기반으로 저장. initialize 때 한 번만 변환 + dedup
+ * (schemaVersion gating).
  */
 function migrateCodexMonsters(entries: string[]): string[] {
   const result = new Set<string>();
@@ -118,8 +135,30 @@ type UpHeroStore = UpHeroState & UpHeroActions;
 
 /** 저장할 state 추출 — 함수는 제외. pendingDungeon 은 transient (persist 안 함) */
 function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
-  const { hero, inventory, coins, passes, dungeons, currentSession, codex, cosmetics, lastIdleAccrualAt } = s;
-  return { hero, inventory, coins, passes, dungeons, currentSession, codex, cosmetics, lastIdleAccrualAt };
+  const {
+    hero,
+    inventory,
+    coins,
+    passes,
+    dungeons,
+    currentSession,
+    codex,
+    cosmetics,
+    lastIdleAccrualAt,
+    schemaVersion,
+  } = s;
+  return {
+    hero,
+    inventory,
+    coins,
+    passes,
+    dungeons,
+    currentSession,
+    codex,
+    cosmetics,
+    lastIdleAccrualAt,
+    schemaVersion,
+  };
 }
 
 export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
@@ -148,16 +187,22 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
           baseStats: { ...defaults.baseStats, ...(saved.hero.baseStats ?? {}) },
         }
       : defaults;
-    // Codex migration — legacy id entry → template name (dedup).
+    // Phase 5a.3 — schemaVersion gating: migration 은 첫 1회만 실행.
+    // 이전 버전 (undefined) 이면 monsters/bosses legacy ID → template name 변환.
+    const savedVersion = saved?.schemaVersion ?? 0;
+    const needsMigration = savedVersion < CURRENT_SCHEMA_VERSION;
     const rawCodex = saved?.codex ?? { monsters: [], equipment: [], bosses: [] };
-    const migratedCodex = {
-      monsters: migrateCodexMonsters(rawCodex.monsters ?? []),
-      bosses: migrateCodexMonsters(rawCodex.bosses ?? []),
-      equipment: rawCodex.equipment ?? [],
-    };
-    const codexChanged =
-      migratedCodex.monsters.length !== (rawCodex.monsters ?? []).length ||
-      migratedCodex.bosses.length !== (rawCodex.bosses ?? []).length;
+    const codex = needsMigration
+      ? {
+          monsters: migrateCodexMonsters(rawCodex.monsters ?? []),
+          bosses: migrateCodexMonsters(rawCodex.bosses ?? []),
+          equipment: rawCodex.equipment ?? [],
+        }
+      : {
+          monsters: rawCodex.monsters ?? [],
+          bosses: rawCodex.bosses ?? [],
+          equipment: rawCodex.equipment ?? [],
+        };
 
     set({
       hero: mergedHero,
@@ -167,16 +212,16 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       dungeons: saved?.dungeons ?? {},
       currentSession: saved?.currentSession ?? null,
       pendingDungeon: null, // transient, 재시작 시 항상 null
-      codex: migratedCodex,
+      codex,
       cosmetics: saved?.cosmetics ?? {},
       lastIdleAccrualAt: saved?.lastIdleAccrualAt ?? Date.now(),
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       isLoaded: true,
     });
 
-    // migration 이 실제로 entry 를 변경했으면 바로 persist.
-    // (다음 업데이트 때 기록되긴 하지만 명시적으로 한 번 저장해서 예기치 못한
-    // 페이지 종료 시 migration 결과가 유실되지 않도록.)
-    if (codexChanged) {
+    // migration 이 실제로 실행됐으면 바로 persist. (schemaVersion 자체도
+    // 영속화해야 다음 실행 때 skip 되므로 반드시 저장.)
+    if (needsMigration) {
       saveToStorage(STORAGE_KEY, pickPersisted(get()));
     }
   },
@@ -234,12 +279,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // buildSession(createSession) 가 activeBuffs 를 받아 hero snapshot 에
     // stat / affinity / healStart / critBonus 를 반영한다. 따라서 buffs 는
     // 반드시 네 번째 인자로 넘겨줘야 실제 전투에 효과가 적용된다.
+    // Phase 5a.1: level 에 따라 base stat 이 자동 성장한 hero 를 전달.
     const updatedPasses = { ...state.passes, [dungeonId]: passes - 1 };
     const progress = state.dungeons[dungeonId];
     const startFloor = (progress?.floorReached ?? 0) + 1;
+    const level = useGameStore.getState().progress.level ?? 1;
+    const leveledHero = computeHeroForLevel(state.hero, level);
     const session: CombatSession = buildSession(
       dungeonId,
-      state.hero,
+      leveledHero,
       startFloor,
       buffs,
     );
@@ -264,7 +312,10 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const updatedPasses = { ...state.passes, [dungeonId]: passes - 1 };
     const progress = state.dungeons[dungeonId];
     const startFloor = (progress?.floorReached ?? 0) + 1;
-    const session = buildSession(dungeonId, state.hero, startFloor);
+    // Phase 5a.1: level 기반 성장 반영
+    const level = useGameStore.getState().progress.level ?? 1;
+    const leveledHero = computeHeroForLevel(state.hero, level);
+    const session = buildSession(dungeonId, leveledHero, startFloor);
     const newState = {
       passes: updatedPasses,
       currentSession: session,
@@ -314,88 +365,44 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const session = state.currentSession;
     if (!session || session.status !== "completed") return;
 
-    // 종료 사유 확인 — heroDied 면 페널티 적용
-    const lastEntry = session.log[session.log.length - 1];
-    const reason =
-      lastEntry?.type === "sessionEnd" ? lastEntry.reason : undefined;
-    const heroDied = reason === "heroDied" || reason === "defeat";
+    // Phase 5a.2 — 5개 side-effect 를 pure helper 로 분리 (sessionReward.ts).
+    // 각 helper 는 state-in → state-out, 외부 store mutation 없음.
 
-    // === Phase 4c-balance: 사망 페널티 ===
-    // 영웅이 전투나 선택지에서 쓰러지면 획득한 drops 의 절반을 잃는다.
-    // (floor(N/2) 만큼만 인벤토리에 들어감. 코인·XP 는 유지 — 완전 손실은 과함)
-    // 보스 처치 / 시간 소진 / 자발 복귀는 전량 유지.
-    const keptDrops = heroDied
-      ? session.rewards.drops.slice(0, Math.floor(session.rewards.drops.length / 2))
-      : session.rewards.drops;
+    // 1. 사망 페널티 계산 → drops 절반 (또는 전량)
+    const keptDrops = calculateKeptDrops(session);
 
-    const newCoins = state.coins + session.rewards.coins;
-
-    // dungeons.floorReached 갱신
+    // 2. 보스 처치 기록 — log 기반 실제 승리 entry 스캔
     const curProgress = state.dungeons[session.dungeonId];
-    const reached = Math.max(curProgress?.floorReached ?? 0, session.currentFloor);
-    const bossesDefeated = curProgress?.bossesDefeated ?? [];
+    const newBossesDefeated = calculateBossesDefeated(
+      session.log,
+      curProgress?.bossesDefeated ?? [],
+    );
 
-    // 보스 처치 기록 — log 에서 실제 승리 entry 스캔 (Phase 4c-fix).
-    // 이전 버전은 reason 에만 의존해서, 미니보스 10F 처치 후 13F 에서 사망
-    // → reason="heroDied" → 10F 보스 기록 누락 버그가 있었다.
-    //
-    // 로그 순회 중 "boss" entry 로 floor 기억 → 이어지는 "victory" + isBoss
-    // 만나면 기록. 같은 보스가 다시 뜨지 않는다는 가정 하에 정확.
-    const killedBossFloors = new Set<number>(bossesDefeated);
-    let lastBossFloor: number | null = null;
-    for (const entry of session.log) {
-      if (entry.type === "boss") lastBossFloor = entry.floor;
-      if (
-        entry.type === "victory" &&
-        entry.monster.isBoss &&
-        lastBossFloor != null
-      ) {
-        killedBossFloors.add(lastBossFloor);
-        lastBossFloor = null;
-      }
-    }
-    const newBossesDefeated = [...killedBossFloors].sort((a, b) => a - b);
-
+    // 3. 던전 진행 상황 갱신
     const dungeons = {
       ...state.dungeons,
-      [session.dungeonId]: {
-        dungeonId: session.dungeonId,
-        floorReached: reached,
-        bossesDefeated: newBossesDefeated,
-      },
+      [session.dungeonId]: calculateDungeonProgress(
+        session,
+        curProgress,
+        newBossesDefeated,
+      ),
     };
 
-    // inventory 추가 (사망 시 절반만)
-    const newInventory = [...state.inventory, ...keptDrops];
+    // 4. codex (monster/boss/equipment 발견 기록)
+    const codex = calculateCodexDelta(session.log, state.codex);
 
-    // codex 업데이트 — Phase 4c-feature: name 기반 저장 (기존 id 기반 entry 와 공존).
-    // 장비는 id 기반 유지 (각 drop 은 고유 item 이라 문제 없음).
-    const codexMonstersSet = new Set(state.codex.monsters);
-    const codexBossesSet = new Set(state.codex.bosses);
-    const codexEqSet = new Set(state.codex.equipment);
-    for (const entry of session.log) {
-      if (entry.type === "encounter") {
-        if (entry.monster.isBoss) codexBossesSet.add(entry.monster.name);
-        else codexMonstersSet.add(entry.monster.name);
-      }
-      if (entry.type === "drop") codexEqSet.add(entry.equipment.id);
-    }
-    const codex = {
-      monsters: [...codexMonstersSet],
-      bosses: [...codexBossesSet],
-      equipment: [...codexEqSet],
-    };
-
-    // useGameStore.progress.xp 직접 mutation — zustand 권장 안함이지만 간단성 위해
+    // 5. 외부 store (useGameStore) 로 XP 반영 — cross-store 는 여기 남김.
     const gameStore = useGameStore.getState();
     const newProgress = {
       ...gameStore.progress,
       xp: gameStore.progress.xp + session.rewards.xp,
     };
     useGameStore.setState({ progress: newProgress });
-    // 게임스토어는 자체 save 가 없으므로 storage 직접
     saveToStorage("progress", newProgress);
 
+    // state commit + persist
+    const newCoins = state.coins + session.rewards.coins;
+    const newInventory = [...state.inventory, ...keptDrops];
     const newState = {
       coins: newCoins,
       inventory: newInventory,
@@ -549,12 +556,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     ];
     const uniqueEffects = [...new Set(mergedEffects)];
 
+    // Phase 5a.5: 카테고리 계승 — 현재는 첫 재료 (a) 의 category 승계.
+    // 실전에서는 drop 이 dungeon 별로 고정이라 같은 카테고리 끼리 합치기
+    // 대부분. 다른 카테고리 조합은 수동 인벤토리 조작 시에만 발생하는 엣지.
+    // 이 경우에도 a.category 를 유지해 friction 없이 동작 (affinity 혜택은
+    // a.category 기준으로 계속 받음).
+    const inheritedCategory = a.category;
+
     const newItem: Equipment = {
       id: `enh_${a.type}_${newRarity}_${Date.now() % 100000}_${Math.floor(Math.random() * 1000)}`,
       name: `${a.name} +`,
       type: a.type,
       rarity: newRarity,
-      category: a.category,
+      category: inheritedCategory,
       iconName: a.iconName,
       stats: newStats,
       effects: uniqueEffects.length > 0 ? uniqueEffects : undefined,

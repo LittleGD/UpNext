@@ -296,6 +296,12 @@ export interface UpHeroState {
   cosmetics: Cosmetics;
   /** 오프라인 누적 계산용 */
   lastIdleAccrualAt: number;
+  /**
+   * Phase 5a.3 — 저장 스키마 버전.
+   * initialize 에서 이 값이 CURRENT_SCHEMA_VERSION 보다 낮으면 migration 을
+   * 실행하고 새 버전으로 갱신한다. undefined 이면 legacy 로 간주 (Phase 4c 이전).
+   */
+  schemaVersion?: number;
   isLoaded: boolean;
 }
 
@@ -376,6 +382,53 @@ export function computeEffectiveStats(hero: Hero): HeroBaseStats {
     }
   }
   return stats;
+}
+
+/**
+ * Phase 5a — 영웅 레벨별 base stat 자동 성장.
+ *
+ * 공식: hero.baseStats (Lv1 reference) 에 `(level - 1)` 만큼 선형 가산.
+ * 매 레벨마다 5 주요 스탯 각 +1, HP +10.
+ *
+ * 정상 path — 기본 생성 hero (str/int/vit/dex/agi = 10, HP 100):
+ * - Lv 1  : 각 10, HP 100
+ * - Lv 10 : 각 19, HP 190
+ * - Lv 30 : 각 39, HP 390  (class 분화 경계)
+ * - Lv 50 : 각 59, HP 590
+ *
+ * baseStats 는 Lv1 reference point — 기본 생성 이후 수정될 일 없음.
+ * 미래 "영구 bonus" (업적 보상 등) 로 올라갈 수는 있음.
+ *
+ * crit / slotBonus 는 레벨 성장에 영향 없음 (장비/버프 전용).
+ * hp 는 기존 hp/maxHp 비율을 보존 — 풀피면 새 maxHp 풀피, 반피면 반피.
+ *
+ * 이 함수는 pure — 원본 hero 를 mutate 하지 않음.
+ */
+export function computeHeroForLevel(hero: Hero, level: number): Hero {
+  const lvl = Math.max(1, level);
+  const delta = lvl - 1;
+  const base = hero.baseStats;
+  const baseStats: HeroBaseStats = {
+    str: base.str + delta,
+    int: base.int + delta,
+    vit: base.vit + delta,
+    dex: base.dex + delta,
+    agi: base.agi + delta,
+    crit: base.crit,
+    slotBonus: base.slotBonus,
+  };
+  // maxHp 는 Lv1 기본 (100) + level delta × 10 으로 항상 constant 재계산.
+  // 호출이 누적되지 않도록 hero.maxHp 를 base 로 쓰지 않음 (idempotent).
+  const newMaxHp = 100 + delta * 10;
+  // 기존 hp 비율 유지 (부상 상태면 새 maxHp 에서도 같은 비율)
+  const hpRatio = hero.maxHp > 0 ? hero.hp / hero.maxHp : 1;
+  const newHp = Math.round(newMaxHp * hpRatio);
+  return {
+    ...hero,
+    baseStats,
+    maxHp: newMaxHp,
+    hp: newHp,
+  };
 }
 
 // ─────────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
 import {
   computeEffectiveStats,
+  computeHeroForLevel,
   getHeroAppearanceVariant,
 } from "@/types/uphero";
 import type { EquipSlot, HeroBaseStats } from "@/types/uphero";
@@ -49,8 +50,11 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   const level = useGameStore((s) => s.progress.level);
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
 
-  const effective = computeEffectiveStats(hero);
-  const base = hero.baseStats;
+  // Phase 5a.1 — level 기반 base stat 자동 성장을 display 에 반영.
+  // hero 를 그대로 쓰면 Lv1 기본 (str=10 등) 만 보이고 성장 감각이 없다.
+  const leveledHero = computeHeroForLevel(hero, level);
+  const effective = computeEffectiveStats(leveledHero);
+  const base = leveledHero.baseStats;
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -124,7 +128,13 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
             className="typo-caption mt-3 tabular-nums"
             style={{ color: GB.light }}
           >
-            Lv.{level} · HP {hero.hp}/{hero.maxHp}
+            Lv.{level} · HP {leveledHero.hp}/{leveledHero.maxHp}
+          </div>
+          {/* Phase 5a.1 — 다음 레벨에 영웅이 얻는 성장 안내 */}
+          <div
+            className={`typo-caption mt-1 ${gbClass.textDim} tabular-nums`}
+          >
+            다음 Lv.{level + 1} — 모든 스탯 +1, HP +10
           </div>
         </section>
 
