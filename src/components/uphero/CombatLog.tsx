@@ -123,21 +123,34 @@ function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
 
     case "combat": {
       const isHero = entry.attacker === "hero";
-      if (entry.dodged) {
+
+      // Phase 3 — narrative 가 있으면 단문 렌더 (outcome 별 컬러 분기)
+      if (entry.narrative) {
+        const narrativeColor =
+          entry.outcome === "crit"
+            ? GB_LEGEND // 크리 → 금색
+            : entry.outcome === "miss" || entry.outcome === "dodge"
+              ? GB.light // 허탕/회피 → 은은
+              : isHero
+                ? GB.lightest // 영웅 hit → 밝은 녹
+                : GB_ENEMY; // 적 hit → 붉은 톤
+        const dim = entry.outcome === "miss" || entry.outcome === "dodge";
         return (
-          <div style={{ ...style, color: GB.light }} className="opacity-70 pl-3">
-            {isHero ? "영웅" : "적"} 공격 — 회피!
+          <div
+            style={{ ...style, color: narrativeColor }}
+            className={`pl-3 ${dim ? "opacity-75" : ""}`}
+          >
+            {entry.narrative}
           </div>
         );
       }
+
+      // Fallback: narrative 없는 일반 hit (50%) 또는 legacy 엔트리
       const arrow = isHero ? "→" : "←";
       const color = isHero ? GB.lightest : GB_ENEMY;
       return (
         <div style={{ ...style, color: GB.light }} className="pl-3">
           {arrow} {isHero ? "영웅" : "적"}{" "}
-          {entry.critical && (
-            <span style={{ color: GB_LEGEND }}>CRIT! </span>
-          )}
           <span style={{ color }}>−{entry.damage}</span>
         </div>
       );
