@@ -40,6 +40,7 @@ import {
   calculateDungeonProgress,
 } from "@/lib/sessionReward";
 import { calculateIdleReward } from "@/lib/idleAccrual";
+import { classXpMult, classCoinMult } from "@/lib/upHeroCombat";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
 import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
@@ -259,11 +260,21 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // Phase 5b.1 — idle accrual: 마지막 실행 이후 경과 시간 ≥5분이면 보상.
     // useGameStore 의 level 을 참조해야 하므로 여기서 계산.
     // 사용자에겐 UI 토스트로 표시, state 에는 idleReward 로 보관 (transient).
+    // Phase 5c-fix #3: mage (xp +20%) / bard (coin +25%) 패시브를
+    // idle reward 에도 적용. calculator 는 class 무관 pure 유지, caller 가 곱.
     const now = Date.now();
     const lastIdleAt = saved?.lastIdleAccrualAt ?? now;
     const gameStore = useGameStore.getState();
     const curLevel = gameStore.progress.level ?? 1;
-    const idleReward = calculateIdleReward(now - lastIdleAt, curLevel);
+    const rawIdleReward = calculateIdleReward(now - lastIdleAt, curLevel);
+    const heroClass = mergedHero.classType;
+    const idleReward = rawIdleReward
+      ? {
+          ...rawIdleReward,
+          xp: Math.round(rawIdleReward.xp * classXpMult(heroClass)),
+          coins: Math.round(rawIdleReward.coins * classCoinMult(heroClass)),
+        }
+      : null;
 
     // 지급 — useGameStore.xp 증가 + coins 증가 (Up Hero store).
     let coins = saved?.coins ?? 0;
@@ -277,6 +288,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       coins = coins + idleReward.coins;
     }
 
+    // Phase 5c-fix #2: lastIdleAccrualAt 는 reward 가 실제로 지급됐을 때만
+    // now 로 갱신. 5분 미만 reload 시에는 기존 timestamp 유지 → 누적 보전.
+    // (이전: reward 유무 무관 now 로 갱신 → 잦은 reload 시 누적 손실 발생)
+    const newLastIdleAt = idleReward ? now : lastIdleAt;
+
     set({
       hero: mergedHero,
       inventory: saved?.inventory ?? [],
@@ -287,7 +303,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       pendingDungeon: null, // transient, 재시작 시 항상 null
       codex,
       cosmetics: saved?.cosmetics ?? {},
-      lastIdleAccrualAt: now, // 즉시 갱신해서 다음 새로고침 때 중복 지급 방지
+      lastIdleAccrualAt: newLastIdleAt,
       idleReward,
       pendingClassAwaken: null, // transient
       schemaVersion: CURRENT_SCHEMA_VERSION,
