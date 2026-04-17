@@ -14,7 +14,6 @@ import type {
   HeroBaseStats,
   LogEntry,
   Monster,
-  Dungeon,
   Equipment,
   ChoiceOption,
   ChoiceEffect,
@@ -489,11 +488,11 @@ function computeEnemyDamage(
 
 /**
  * narrative 생성 확률.
- * hit (일반) 는 50% 만 narrative 로 렌더하여 로그 장황함 방지,
+ * hit (일반) 는 3턴당 1개 꼴 (33%) 로 낮춰 시각적 리듬 일관화.
  * crit / miss / dodge 는 특수 상황이므로 항상 narrative.
  */
 function shouldNarrate(outcome: CombatOutcome): number {
-  return outcome === "hit" ? 0.5 : 1.0;
+  return outcome === "hit" ? 0.33 : 1.0;
 }
 
 /** 드롭 리스트 중 신규 장비만 (중복 방지) */

@@ -124,11 +124,15 @@ function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
     case "combat": {
       const isHero = entry.attacker === "hero";
 
-      // Phase 3 — narrative 가 있으면 단문 렌더 (outcome 별 컬러 분기)
+      // Phase 3 — narrative 가 있으면 단문 렌더 (outcome + attacker 별 컬러)
       if (entry.narrative) {
+        // crit 색: 영웅 crit = 금색(유리), 적 crit = 빨강(위기)
+        //         → 플레이어가 위기 상황 한눈에 식별
         const narrativeColor =
           entry.outcome === "crit"
-            ? GB_LEGEND // 크리 → 금색
+            ? isHero
+              ? GB_LEGEND // 영웅 crit → 금색 (승리의 순간)
+              : GB_ENEMY // 적 crit → 빨강 (위기 경고)
             : entry.outcome === "miss" || entry.outcome === "dodge"
               ? GB.light // 허탕/회피 → 은은
               : isHero
@@ -145,7 +149,7 @@ function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
         );
       }
 
-      // Fallback: narrative 없는 일반 hit (50%) 또는 legacy 엔트리
+      // Fallback: narrative 없는 일반 hit (67%) 또는 legacy 엔트리
       const arrow = isHero ? "→" : "←";
       const color = isHero ? GB.lightest : GB_ENEMY;
       return (
