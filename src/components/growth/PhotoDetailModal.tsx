@@ -288,11 +288,10 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                           draggable={false}
                         />
                       )}
-                      {/* 스티커 오버레이 — 뷰잉 모드에서도 drag 가능 */}
+                      {/* 스티커 오버레이 — 뷰잉 모드는 read-only.
+                          Edit 모드에서만 드래그/변형 가능. 사진 둘러보다 실수로 옮기는 것 방지. */}
                       <StickerLayer
                         stickers={stickers}
-                        editable
-                        onChange={handleStickersChange}
                         className="z-10"
                       />
                     </div>
