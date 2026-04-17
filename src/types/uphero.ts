@@ -180,7 +180,20 @@ export interface CombatSession {
   pendingChoiceIndex?: number;
   /** tick 속도 배율 */
   speed: 1 | 2 | 4;
+  /** Phase 4b — 던전 진입 전 선택한 카드 버프 (전투/드롭/보상에 적용됨) */
+  activeBuffs?: CardBuff[];
   startedAt: number;
+}
+
+/**
+ * Phase 4b — 던전 진입 전 버프 drawing 상태.
+ * 사용자가 던전 선택 → 6장 카드 drawn → N장 선택 대기.
+ * confirmDungeon 시 탐험권 소모 + 세션 시작. cancel 시 null.
+ */
+export interface PendingDungeonPrep {
+  dungeonId: DungeonId;
+  /** draw 된 카드 id 목록 (ChallengeCard.id 참조) */
+  drawnCardIds: string[];
 }
 
 /** 도감 — 발견한 몬스터/장비/보스 ID 모음 */
@@ -204,6 +217,8 @@ export interface UpHeroState {
   passes: ExpeditionPasses;
   dungeons: Partial<Record<DungeonId, DungeonProgress>>;
   currentSession: CombatSession | null;
+  /** Phase 4b — 버프 drawing 중 (confirm 대기) */
+  pendingDungeon: PendingDungeonPrep | null;
   codex: Codex;
   cosmetics: Cosmetics;
   /** 오프라인 누적 계산용 */

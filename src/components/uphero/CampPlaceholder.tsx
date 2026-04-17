@@ -30,6 +30,7 @@ import HeroSprite from "./HeroSprite";
 import { getHeroAppearanceVariant } from "@/types/uphero";
 import EquipmentInventory from "./EquipmentInventory";
 import HeroStatPanel from "./HeroStatPanel";
+import BuffDrawPanel from "./BuffDrawPanel";
 
 /** 카테고리 → pixelarticons 이름 (라이브러리에서 고른 무드 매칭) */
 const CATEGORY_ICON: Record<DungeonId, string> = {
@@ -49,6 +50,7 @@ export default function CampPlaceholder() {
   const coins = useUpHeroStore((s) => s.coins);
   const passes = useUpHeroStore((s) => s.passes);
   const hero = useUpHeroStore((s) => s.hero);
+  const pendingDungeon = useUpHeroStore((s) => s.pendingDungeon);
   const level = useGameStore((s) => s.progress.level);
   const tickets = useGameStore((s) => s.progress.tickets ?? 0);
 
@@ -99,9 +101,10 @@ export default function CampPlaceholder() {
         </div>
       </header>
 
-      {/* === Body — view 전환 === */}
+      {/* === Body — view 전환. pendingDungeon 이 최우선 (confirm/cancel 대기) === */}
       <div className="flex-1 min-h-0 flex flex-col">
-        {view === "home" && (
+        {pendingDungeon && <BuffDrawPanel />}
+        {!pendingDungeon && view === "home" && (
           <HomeView
             hero={hero}
             heroLevel={level}
@@ -118,13 +121,13 @@ export default function CampPlaceholder() {
             onOpenStats={() => setStatsOpen(true)}
           />
         )}
-        {view === "dungeons" && (
+        {!pendingDungeon && view === "dungeons" && (
           <DungeonsView
             onBack={() => setView("home")}
             onNotify={notify}
           />
         )}
-        {view === "shop" && (
+        {!pendingDungeon && view === "shop" && (
           <ShopView
             onBack={() => setView("home")}
             coins={coins}
@@ -132,7 +135,7 @@ export default function CampPlaceholder() {
             onNotify={notify}
           />
         )}
-        {view === "equipment" && (
+        {!pendingDungeon && view === "equipment" && (
           <EquipmentInventory
             onBack={() => setView("home")}
             onNotify={notify}
@@ -312,15 +315,27 @@ function DungeonsView({
 }) {
   const passes = useUpHeroStore((s) => s.passes);
   const dungeons = useUpHeroStore((s) => s.dungeons);
+  const prepareBuffDraw = useUpHeroStore((s) => s.prepareBuffDraw);
   const enterDungeon = useUpHeroStore((s) => s.enterDungeon);
   const { play } = useSound();
 
   const onEnter = (dungeonId: DungeonId) => {
-    const ok = enterDungeon(dungeonId);
-    if (!ok) {
+    const result = prepareBuffDraw(dungeonId);
+    if (result === "no-pass") {
       onNotify("탐험권이 필요해요");
       return;
     }
+    if (result === "no-cards") {
+      // 보유 카드 없음 — 버프 스킵, 바로 진입
+      const ok = enterDungeon(dungeonId);
+      if (!ok) {
+        onNotify("탐험권이 필요해요");
+        return;
+      }
+      play("select");
+      return;
+    }
+    // "ready" — pendingDungeon 설정됨, CampPlaceholder 상위가 BuffDrawPanel 로 전환
     play("select");
   };
 
