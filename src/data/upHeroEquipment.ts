@@ -278,10 +278,17 @@ export function createEquipmentFromTemplate(
   const critBonus =
     rarity === "legend" ? 7 : rarity === "unique" ? 3 : 0;
 
+  // Phase 4b — accessory / talisman 타입이면서 unique 이상이면 slotBonus +1
+  // (Lv5+ 기본 2슬롯 + 최대 +2 = 4개 슬롯까지 가능)
+  const isSlotBearer =
+    (template.type === "accessory" || template.type === "talisman") &&
+    (rarity === "unique" || rarity === "legend");
+
   const stats: Partial<import("@/types/uphero").HeroBaseStats> = {
     [template.statBoost]: baseStatValue,
   };
   if (critBonus > 0) stats.crit = critBonus;
+  if (isSlotBearer) stats.slotBonus = 1;
 
   return {
     id: `eq_${template.baseName.replace(/\s/g, "")}_${rarity}_${Date.now() % 100000}_${Math.floor(Math.random() * 1000)}`,
