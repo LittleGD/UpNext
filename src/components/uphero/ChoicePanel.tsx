@@ -7,7 +7,7 @@
  * 하단 오버레이로 슬라이드 업. 선택 시 resolveChoice() 호출.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { GB, EASE_OUT, EASE_DRAWER, gbClass } from "@/lib/upHeroPalette";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -30,9 +30,42 @@ export default function ChoicePanel() {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  if (!session || session.pendingChoiceIndex == null) return null;
-  const entry = session.log[session.pendingChoiceIndex];
-  if (entry?.type !== "choice") return null;
+  // 읽기 safety
+  const choiceIdx = session?.pendingChoiceIndex ?? null;
+  const entry =
+    choiceIdx != null && session ? session.log[choiceIdx] : null;
+  const isChoice = entry?.type === "choice";
+  const isEncounter = isChoice && entry.variant === "encounter";
+  const timeoutMs = isChoice ? entry.timeoutMs : undefined;
+  const defaultIdx = isChoice ? entry.defaultOptionIndex : undefined;
+
+  // Encounter choice 전용 5초 auto-select countdown
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const timerStartRef = useRef<number>(0);
+  useEffect(() => {
+    if (!isChoice || !timeoutMs || defaultIdx == null) {
+      setRemainingMs(null);
+      return;
+    }
+    timerStartRef.current = Date.now();
+    setRemainingMs(timeoutMs);
+    const interval = window.setInterval(() => {
+      const elapsed = Date.now() - timerStartRef.current;
+      const left = timeoutMs - elapsed;
+      if (left <= 0) {
+        window.clearInterval(interval);
+        setRemainingMs(0);
+        resolveChoice(defaultIdx);
+      } else {
+        setRemainingMs(left);
+      }
+    }, 100);
+    return () => window.clearInterval(interval);
+    // choice entry 의 timestamp 로 identity 구분 (새 encounter choice 마다 리셋)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry && isChoice ? entry.timestamp : null]);
+
+  if (!session || !isChoice) return null;
 
   return (
     <div
@@ -78,9 +111,11 @@ export default function ChoicePanel() {
           ))}
         </div>
 
-        {/* hint — 포기 버튼은 footer 에 이미 있으므로 여기선 생략 */}
+        {/* hint — encounter 는 남은 초, 일반 이벤트는 "시간이 멈춘다" */}
         <div className={`typo-caption mt-3 text-center ${gbClass.textDim}`}>
-          선택 전까지 시간은 멈춘다
+          {isEncounter && remainingMs != null
+            ? `${Math.ceil(remainingMs / 1000)}초 안에 선택 — 무응답 시 자동으로 "싸운다"`
+            : "선택 전까지 시간은 멈춘다"}
         </div>
       </div>
     </div>
