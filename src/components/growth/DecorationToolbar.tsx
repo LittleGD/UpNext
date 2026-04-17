@@ -43,7 +43,12 @@ interface Props {
   onColorChange: (color: string) => void;
   selectedWidth: number; // multiplier (0.6, 1.0, 1.5)
   onWidthChange: (multiplier: number) => void;
-  onAddSticker: (type: "emoji" | "image", content: string) => void;
+  /** position 이 주어지면 드래그-앤-드롭 결과 (% 좌표), 없으면 탭 → 중앙 (50,50) */
+  onAddSticker: (
+    type: "emoji" | "image",
+    content: string,
+    position?: { x: number; y: number },
+  ) => void;
 }
 
 export default function DecorationToolbar({
@@ -53,6 +58,94 @@ export default function DecorationToolbar({
   onWidthChange,
   onAddSticker,
 }: Props) {
+  /**
+   * 스티커 드래그-앤-드롭:
+   *  - pointerdown 부터 추적 시작
+   *  - 8px 넘게 움직이면 drag 모드 진입 → ghost element 가 손가락 따라옴
+   *  - pointerup 시:
+   *    · drag 모드 + 폴라로이드 위 (data-sticker-target) → onAddSticker(x%, y%)
+   *    · drag 모드 + 폴라로이드 밖 → 무시 (cancel)
+   *    · drag 모드 아님 (그냥 tap) → onAddSticker(없이) → 중앙 (50,50) 추가
+   *
+   * 디자인 결정:
+   *  - 같은 버튼이 tap + drag 둘 다 지원 (threshold 로 구분)
+   *  - ghost 는 button 의 cloneNode — 정확히 같은 모양 보임
+   *  - Pointer Events 사용 → 터치/마우스 동시 지원
+   */
+  const handleStickerPointerDown = (
+    e: React.PointerEvent<HTMLButtonElement>,
+    sticker: (typeof STICKER_PRESETS)[number],
+  ) => {
+    // 우클릭/멀티터치 무시
+    if (e.button !== 0 && e.button !== undefined) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const button = e.currentTarget;
+    let isDragging = false;
+    let ghost: HTMLDivElement | null = null;
+
+    const createGhost = (x: number, y: number) => {
+      const g = document.createElement("div");
+      g.style.position = "fixed";
+      g.style.left = `${x}px`;
+      g.style.top = `${y}px`;
+      g.style.transform = "translate(-50%, -50%) scale(1.4)";
+      g.style.pointerEvents = "none";
+      g.style.zIndex = "99999";
+      g.style.opacity = "0.92";
+      // 버튼 내용 그대로 복제 (이모지/UpNext 로고 모두 동일하게)
+      g.innerHTML = button.innerHTML;
+      // 이모지 사이즈 보정
+      g.style.fontSize = "36px";
+      g.style.lineHeight = "1";
+      g.style.filter = "drop-shadow(0 4px 8px rgba(0,0,0,0.5))";
+      return g;
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!isDragging && Math.hypot(dx, dy) > 8) {
+        isDragging = true;
+        ghost = createGhost(ev.clientX, ev.clientY);
+        document.body.appendChild(ghost);
+      }
+      if (isDragging && ghost) {
+        ghost.style.left = `${ev.clientX}px`;
+        ghost.style.top = `${ev.clientY}px`;
+      }
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      ghost?.remove();
+
+      if (!isDragging) {
+        // 그냥 tap — 중앙에 추가 (기존 동작 유지)
+        onAddSticker(sticker.type, sticker.content);
+        return;
+      }
+      // Drag — 드롭 위치가 폴라로이드 위인지 확인
+      const elem = document.elementFromPoint(ev.clientX, ev.clientY);
+      const target = elem?.closest("[data-sticker-target]") as HTMLElement | null;
+      if (!target) return; // 폴라로이드 밖에 떨어뜨림 → 취소
+      const rect = target.getBoundingClientRect();
+      const xPct = ((ev.clientX - rect.left) / rect.width) * 100;
+      const yPct = ((ev.clientY - rect.top) / rect.height) * 100;
+      // 클램프 — 경계 너머 살짝 떨어뜨려도 안에 들어오게
+      const x = Math.max(0, Math.min(100, xPct));
+      const y = Math.max(0, Math.min(100, yPct));
+      onAddSticker(sticker.type, sticker.content, { x, y });
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+  };
+
   return (
     <div className="w-full max-w-[300px] mx-auto rounded-xl bg-bg-elevated/90 backdrop-blur-sm p-2.5 flex flex-col gap-2.5">
       {/* 잉크 색상 + 펜 굵기 한 행 — 라벨 제거로 공간 확보 */}
@@ -112,14 +205,15 @@ export default function DecorationToolbar({
       {/* 구분선 */}
       <div className="h-px bg-text-tertiary/10" />
 
-      {/* 스티커 팔레트 — UpNext 첫번째 (브랜드 우선) */}
+      {/* 스티커 팔레트 — UpNext 첫번째 (브랜드 우선).
+          탭 = 중앙에 추가 / 드래그 = 폴라로이드 위 정확한 위치에 배치 */}
       <div className="flex items-center justify-center gap-1.5 flex-wrap">
         {STICKER_PRESETS.map((s) => (
           <button
             key={s.id}
-            onClick={() => onAddSticker(s.type, s.content)}
-            aria-label={`Add ${s.id} sticker`}
-            className="h-8 rounded-md flex items-center justify-center text-lg active:scale-90 transition-transform hover:bg-text-tertiary/10"
+            onPointerDown={(e) => handleStickerPointerDown(e, s)}
+            aria-label={`Add ${s.id} sticker (tap or drag onto polaroid)`}
+            className="h-8 rounded-md flex items-center justify-center text-lg active:scale-90 transition-transform hover:bg-text-tertiary/10 touch-none"
             style={{
               minWidth: s.id === "upnext" ? 48 : 32,
               padding: s.id === "upnext" ? "0 4px" : 0,
