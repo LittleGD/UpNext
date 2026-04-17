@@ -140,45 +140,16 @@ export function tickSession(session: CombatSession): CombatSession {
         return s;
       }
 
+      // Phase 4b: encounter 직후 + 일반 몬스터 → encounter choice 삽입 (싸운다/도망/이벤트)
+      // 보스는 기존대로 바로 전투.
+      const hasPostEncounterEntries = s.log.length > encounterIdx + 1;
+      if (lastEntry.type === "encounter" && !monster.isBoss && !hasPostEncounterEntries) {
+        pushEncounterChoice(s, monster, stats);
+        return s;
+      }
+
       // --- 다음 전투 round ---
-      // 영웅 공격
-      {
-        const outcome = rollHeroOutcome(stats, monster);
-        const dmg =
-          outcome === "miss" || outcome === "dodge"
-            ? 0
-            : computeHeroDamage(stats, monster, outcome === "crit");
-        const narrative = Math.random() < shouldNarrate(outcome)
-          ? heroAttackNarrative(monster, outcome, dmg)
-          : undefined;
-        s.log.push({
-          type: "combat",
-          attacker: "hero",
-          damage: dmg,
-          outcome,
-          narrative,
-          timestamp: Date.now(),
-        });
-      }
-      // 몬스터 공격
-      {
-        const outcome = rollEnemyOutcome(monster, stats);
-        const dmg =
-          outcome === "miss" || outcome === "dodge"
-            ? 0
-            : computeEnemyDamage(monster, stats, outcome === "crit");
-        const narrative = Math.random() < shouldNarrate(outcome)
-          ? monsterAttackNarrative(monster, outcome, dmg)
-          : undefined;
-        s.log.push({
-          type: "combat",
-          attacker: "enemy",
-          damage: dmg,
-          outcome,
-          narrative,
-          timestamp: Date.now(),
-        });
-      }
+      executeCombatRound(s, monster, stats);
       return s;
     }
   }
@@ -367,18 +338,168 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
       });
       break;
     case "revealBoss":
-      // 다음 floor 를 보스 floor 로 강제
-      // (간단화: 바로 10F 로 점프 아니고, 다음 tick 에서 encounter 가 boss 로 나옴)
-      // Phase 1-2 MVP 에서는 narrative 로만 처리
       session.log.push({
         type: "narrative",
         text: "보스의 기운이 느껴진다.",
         timestamp: Date.now(),
       });
       break;
+    case "fight": {
+      // "싸운다" 선택 — encounter 된 몬스터로 즉시 첫 전투 round 진행
+      const encounterIdx = findLastEncounterIndex(session.log);
+      if (encounterIdx < 0) break;
+      const monster = (session.log[encounterIdx] as { type: "encounter"; monster: Monster }).monster;
+      const stats = computeEffectiveStats(session.hero);
+      executeCombatRound(session, monster, stats);
+      break;
+    }
+    case "flee": {
+      // "도망간다" — 확률 성공 체크
+      const encounterIdx = findLastEncounterIndex(session.log);
+      if (encounterIdx < 0) break;
+      const monster = (session.log[encounterIdx] as { type: "encounter"; monster: Monster }).monster;
+      const success = Math.random() < effect.successChance;
+      if (success) {
+        // 도망 성공 — 몬스터 무시하고 다음 floor 진행
+        // narrative 추가, 세션 계속 (다음 tick 에서 floor 전환)
+        session.log.push({
+          type: "narrative",
+          text: `영웅이 ${monster.name} 에게서 재빠르게 도망쳤다.`,
+          timestamp: Date.now(),
+        });
+      } else {
+        // 도망 실패 — narrative + 몬스터의 기습 공격 1회
+        session.log.push({
+          type: "narrative",
+          text: `도망치려 했지만 ${monster.name} 에게 막혔다!`,
+          timestamp: Date.now(),
+        });
+        const stats = computeEffectiveStats(session.hero);
+        // 몬스터만 공격 (기습)
+        const outcome = rollEnemyOutcome(monster, stats);
+        const dmg =
+          outcome === "miss" || outcome === "dodge"
+            ? 0
+            : computeEnemyDamage(monster, stats, outcome === "crit");
+        const narrative = Math.random() < shouldNarrate(outcome)
+          ? monsterAttackNarrative(monster, outcome, dmg)
+          : undefined;
+        session.log.push({
+          type: "combat",
+          attacker: "enemy",
+          damage: dmg,
+          outcome,
+          narrative,
+          timestamp: Date.now(),
+        });
+      }
+      break;
+    }
     case "nothing":
       break;
   }
+}
+
+/**
+ * 일반 몬스터 encounter 직후 삽입되는 선택지.
+ * 옵션: 싸운다 / 도망 (확률 표시) / 랜덤 이벤트 (30% 확률로만).
+ * 5초 후 자동 "싸운다".
+ */
+function pushEncounterChoice(
+  s: CombatSession,
+  monster: Monster,
+  stats: { agi: number },
+): void {
+  // 도망 성공률: base 20% + agi × 3% - 몬스터 level × 2%. [20%, 85%] 범위
+  const fleeChance = Math.min(
+    0.85,
+    Math.max(0.2, 0.2 + stats.agi * 0.03 - monster.level * 0.02),
+  );
+  const fleePct = Math.round(fleeChance * 100);
+
+  const options: ChoiceOption[] = [
+    {
+      label: "⚔ 싸운다",
+      effect: { kind: "fight" },
+    },
+    {
+      label: `🏃 도망간다 (${fleePct}%)`,
+      effect: { kind: "flee", successChance: fleeChance },
+    },
+  ];
+
+  // 30% 확률로 랜덤 이벤트 옵션 추가 (던전 flavor 에서 1개)
+  if (Math.random() < 0.3) {
+    const ev = pickEvent(s.dungeonId);
+    // 이벤트에서 첫 옵션 하나만 picks — 단일 추가 선택지
+    const evOption = ev.options[0];
+    if (evOption) {
+      options.push({
+        label: `✦ ${evOption.label}`,
+        effect: evOption.effect,
+        resultText: evOption.resultText,
+      });
+    }
+  }
+
+  const logIdx = s.log.length;
+  s.log.push({
+    type: "choice",
+    variant: "encounter",
+    prompt: `${monster.name} 을(를) 만났다.`,
+    options,
+    defaultOptionIndex: 0, // 5초 timeout 시 "싸운다"
+    timeoutMs: 5000,
+    timestamp: Date.now(),
+  });
+  s.status = "awaitingChoice";
+  s.pendingChoiceIndex = logIdx;
+}
+
+/**
+ * 전투 한 round (영웅 공격 + 몬스터 공격).
+ * log 에 2개 combat entry push.
+ */
+function executeCombatRound(
+  s: CombatSession,
+  monster: Monster,
+  stats: { str: number; vit: number; agi: number; dex: number; crit: number; int: number; slotBonus: number },
+): void {
+  // 영웅 공격
+  const heroOutcome = rollHeroOutcome(stats, monster);
+  const heroDmg =
+    heroOutcome === "miss" || heroOutcome === "dodge"
+      ? 0
+      : computeHeroDamage(stats, monster, heroOutcome === "crit");
+  const heroNarrative = Math.random() < shouldNarrate(heroOutcome)
+    ? heroAttackNarrative(monster, heroOutcome, heroDmg)
+    : undefined;
+  s.log.push({
+    type: "combat",
+    attacker: "hero",
+    damage: heroDmg,
+    outcome: heroOutcome,
+    narrative: heroNarrative,
+    timestamp: Date.now(),
+  });
+
+  // 몬스터 공격
+  const enemyOutcome = rollEnemyOutcome(monster, stats);
+  const enemyDmg =
+    enemyOutcome === "miss" || enemyOutcome === "dodge"
+      ? 0
+      : computeEnemyDamage(monster, stats, enemyOutcome === "crit");
+  const enemyNarrative = Math.random() < shouldNarrate(enemyOutcome)
+    ? monsterAttackNarrative(monster, enemyOutcome, enemyDmg)
+    : undefined;
+  s.log.push({
+    type: "combat",
+    attacker: "enemy",
+    damage: enemyDmg,
+    outcome: enemyOutcome,
+    narrative: enemyNarrative,
+    timestamp: Date.now(),
+  });
 }
 
 /** 세션 포기 */

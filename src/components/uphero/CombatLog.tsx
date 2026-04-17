@@ -150,12 +150,16 @@ function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
       }
 
       // Fallback: narrative 없는 일반 hit (67%) 또는 legacy 엔트리
-      const arrow = isHero ? "→" : "←";
-      const color = isHero ? GB.lightest : GB_ENEMY;
+      // "공격자 → 방어자 −N" 형식 — 누가 때리고 누가 맞았는지 명확하게
+      const attackerLabel = isHero ? "영웅" : "적";
+      const defenderLabel = isHero ? "적" : "영웅";
+      const dmgColor = isHero ? GB.lightest : GB_ENEMY;
       return (
         <div style={{ ...style, color: GB.light }} className="pl-3">
-          {arrow} {isHero ? "영웅" : "적"}{" "}
-          <span style={{ color }}>−{entry.damage}</span>
+          <span style={{ color: GB.lightest }}>{attackerLabel}</span>
+          <span className={gbClass.textDim}> → </span>
+          <span>{defenderLabel}</span>{" "}
+          <span style={{ color: dmgColor }}>−{entry.damage}</span>
         </div>
       );
     }

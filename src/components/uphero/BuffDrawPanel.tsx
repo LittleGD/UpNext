@@ -111,9 +111,6 @@ export default function BuffDrawPanel() {
         >
           버프 카드 선택 · {selectedIds.length}/{maxSlots}
         </div>
-        <div className={`typo-caption mt-0.5 ${gbClass.textDim}`}>
-          최대 {maxSlots}장까지 선택 가능 (0장도 가능)
-        </div>
       </header>
 
       {/* === Drawn cards grid === */}

@@ -123,7 +123,21 @@ export type ChoiceEffect =
   | { kind: "heal"; amount: number }
   | { kind: "skipFloors"; count: number }
   | { kind: "revealBoss" }
-  | { kind: "nothing" };
+  | { kind: "nothing" }
+  /** 일반 몬스터 encounter 에서 "싸운다" — 즉시 전투 round 시작 */
+  | { kind: "fight" }
+  /**
+   * 일반 몬스터 encounter 에서 "도망간다" — agi/level 기반 확률 성공.
+   * 성공 시 전투 없이 다음 floor. 실패 시 전투 시작 + 한 턴 반격 허용.
+   */
+  | { kind: "flee"; successChance: number };
+
+/**
+ * Choice entry 구분자.
+ * - "event" (기본): 기존 분기 이벤트 (수상한 상인, 샘 등)
+ * - "encounter": 일반 몬스터 조우 시 싸운다/도망/이벤트 선택
+ */
+export type ChoiceVariant = "event" | "encounter";
 
 export interface ChoiceOption {
   label: string;
@@ -160,6 +174,12 @@ export type LogEntry =
       options: ChoiceOption[];
       /** 사용자가 선택 완료 시 resolvedIndex set */
       resolvedIndex?: number;
+      /** "event" (기본) 또는 "encounter" (몬스터 조우 시 싸운다/도망) */
+      variant?: ChoiceVariant;
+      /** 자동 선택까지 남은 시간 (ms) — encounter 는 5000. timeout 시 defaultOptionIndex 자동 resolve */
+      timeoutMs?: number;
+      /** timeout 시 자동 선택될 option index (encounter 는 "싸운다" = 0) */
+      defaultOptionIndex?: number;
       timestamp: number;
     }
   | { type: "sessionEnd"; reason: "victory" | "defeat" | "abandoned"; timestamp: number };
