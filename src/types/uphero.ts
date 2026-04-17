@@ -124,6 +124,8 @@ export type ChoiceEffect =
   | { kind: "skipFloors"; count: number }
   | { kind: "revealBoss" }
   | { kind: "nothing" }
+  /** 탐험 시간 조정 — 음수 = 소모, 양수 = 회복 */
+  | { kind: "time"; delta: number }
   /** 일반 몬스터 encounter 에서 "싸운다" — 즉시 전투 round 시작 */
   | { kind: "fight" }
   /**
@@ -141,13 +143,49 @@ export type ChoiceVariant = "event" | "encounter";
 
 export interface ChoiceOption {
   label: string;
-  effect: ChoiceEffect;
-  /** 선택 후 결과 narrative */
+  /**
+   * 단일 효과 (legacy) — outcomes 가 없을 때 fallback 으로 적용.
+   * 기존 데이터 호환 및 단순 옵션 (fight/flee/nothing) 에서 사용.
+   */
+  effect?: ChoiceEffect;
+  /**
+   * 여러 outcome 중 가중치 기반 확률 분기 — outcomes 가 있으면 effect 대신 사용.
+   * 유저에게는 label 만 보이고 어떤 outcome 이 골라질지 미리 알려주지 않는다.
+   */
+  outcomes?: ChoiceOutcome[];
+  /** 선택 후 결과 narrative (legacy fallback — outcomes 에는 각 outcome 별 resultText) */
   resultText?: string;
+}
+
+/**
+ * Choice 옵션의 확률적 결과 — 같은 선택지여도 내부에서 weight 로 뽑혀
+ * 완전히 다른 상황으로 전개될 수 있다. Phase 4c.3.
+ */
+export interface ChoiceOutcome {
+  /** 상대 가중치 (합산되어 normalize). 예: [70, 20, 10] = 성공 70%, 실패 20%, 대박 10% */
+  weight: number;
+  /** 이 outcome 이 골라졌을 때 로그에 남길 narrative */
+  resultText: string;
+  /** 순차 적용할 효과 (여러 개 가능 — 예: 시간 -5 + damage 10 + coin 30) */
+  effects: ChoiceEffect[];
 }
 
 /** 전투 결과 — Phase 3: miss (공격자 실수) / dodge (방어자 회피) 구분 */
 export type CombatOutcome = "hit" | "crit" | "dodge" | "miss";
+
+/**
+ * 세션 종료 사유 — 결과 모달과 로그에서 구체적으로 표시.
+ * Phase 4c.1 — 기존 "victory" / "defeat" / "abandoned" 는 legacy fallback 으로 계속 허용.
+ */
+export type SessionEndReason =
+  | "bossDefeated" // 최종 보스 처치 (미니/중간/최종 모두 이 reason 으로 묶되 detail 로 구분)
+  | "heroDied" // HP 0 — detail 에 몬스터 이름
+  | "timeExpired" // 탐험 시간 소진
+  | "heroAbandoned" // 사용자 자발 복귀
+  // legacy — 기존 localStorage 세션 호환용
+  | "victory"
+  | "defeat"
+  | "abandoned";
 
 /** 전투 로그 엔트리 — discriminated union */
 export type LogEntry =
@@ -182,7 +220,13 @@ export type LogEntry =
       defaultOptionIndex?: number;
       timestamp: number;
     }
-  | { type: "sessionEnd"; reason: "victory" | "defeat" | "abandoned"; timestamp: number };
+  | {
+      type: "sessionEnd";
+      reason: SessionEndReason;
+      /** 사유 상세 (예: 쓰러진 몬스터 이름, 처치한 보스 이름) — 결과 모달에서 표시 */
+      detail?: string;
+      timestamp: number;
+    };
 
 export type CombatSessionStatus = "active" | "paused" | "awaitingChoice" | "completed";
 
@@ -202,6 +246,15 @@ export interface CombatSession {
   speed: 1 | 2 | 4;
   /** Phase 4b — 던전 진입 전 선택한 카드 버프 (전투/드롭/보상에 적용됨) */
   activeBuffs?: CardBuff[];
+  /**
+   * Phase 4c.1 — 탐험 시간 리소스.
+   * 매 이벤트/전투 라운드/층 이동마다 소모. 0 이 되면 timeExpired 로 세션 종료.
+   * 이벤트 결과에 따라 ±N (시간 절약 outcome, 시간 낭비 outcome).
+   * 단위는 추상적 "시간" — 실시간 분/초 아님.
+   */
+  time: number;
+  /** 시작 시 최대 시간 — UI bar 계산용. healStart 처럼 나중 timeBoost buff 로 확장 가능 */
+  maxTime: number;
   startedAt: number;
 }
 

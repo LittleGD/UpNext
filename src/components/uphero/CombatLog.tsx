@@ -226,34 +226,48 @@ function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
       );
 
     case "sessionEnd": {
-      const label =
-        entry.reason === "victory"
-          ? "모험 완료"
-          : entry.reason === "defeat"
-            ? "영웅 쓰러짐"
-            : "캠프로 복귀";
-      const color =
-        entry.reason === "victory"
-          ? GB.lightest
-          : entry.reason === "defeat"
-            ? GB_ENEMY
-            : GB.light;
-      const iconName =
-        entry.reason === "victory"
-          ? "Trophy"
-          : entry.reason === "defeat"
-            ? "Skull"
-            : "Flag";
+      // Phase 4c.1 — 사유별 구체 레이블/색/아이콘. legacy reason 도 매핑.
+      const { label, color, iconName } = resolveSessionEndDisplay(entry.reason);
       return (
         <div
           style={{ ...style, color, borderTop: `1px dashed ${GB.dark}` }}
-          className="mt-2 pt-2 flex items-center gap-1.5"
+          className="mt-2 pt-2 flex items-start gap-1.5"
         >
           <PixelIcon name={iconName} size={14} color={color} />
-          <span>{label}</span>
+          <div className="flex-1">
+            <div>{label}</div>
+            {entry.detail && (
+              <div className={gbClass.textDim}>— {entry.detail}</div>
+            )}
+          </div>
         </div>
       );
     }
+  }
+}
+
+/**
+ * Phase 4c.1 — 세션 종료 사유별 CombatLog 렌더.
+ * legacy reason 도 신규 reason 으로 매핑.
+ */
+function resolveSessionEndDisplay(reason: string): {
+  label: string;
+  color: string;
+  iconName: string;
+} {
+  switch (reason) {
+    case "bossDefeated":
+    case "victory":
+      return { label: "보스 처치 — 모험 종료", color: GB.lightest, iconName: "Trophy" };
+    case "heroDied":
+    case "defeat":
+      return { label: "영웅 쓰러짐", color: GB_ENEMY, iconName: "Skull" };
+    case "timeExpired":
+      return { label: "탐험 시간 소진", color: GB.light, iconName: "Clock" };
+    case "heroAbandoned":
+    case "abandoned":
+    default:
+      return { label: "캠프로 복귀", color: GB.light, iconName: "Flag" };
   }
 }
 
