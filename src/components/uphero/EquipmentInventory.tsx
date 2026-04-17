@@ -231,7 +231,12 @@ export default function EquipmentInventory({
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
             style={{ width: 80, height: 80 }}
           >
-            <HeroSprite variant={variant} size={80} color={GB.lightest} />
+            <HeroSprite
+              variant={variant}
+              classType={hero.classType}
+              size={80}
+              color={GB.lightest}
+            />
           </div>
 
           {/* 4 슬롯 */}

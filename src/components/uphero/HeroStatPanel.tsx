@@ -124,7 +124,12 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
           >
             {hero.name}
           </div>
-          <HeroSprite variant={variant} size={96} color={GB.lightest} />
+          <HeroSprite
+            variant={variant}
+            classType={hero.classType}
+            size={96}
+            color={GB.lightest}
+          />
           <div
             className="typo-caption mt-3 tabular-nums"
             style={{ color: GB.light }}

@@ -194,7 +194,7 @@ function HomeView({
   onOpenCodex,
   onOpenStats,
 }: {
-  hero: { name: string };
+  hero: { name: string; classType: import("@/types/uphero").ClassType | null };
   heroLevel: number;
   totalPasses: number;
   onOpenDungeons: () => void;
@@ -243,7 +243,12 @@ function HomeView({
           style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
           aria-label="영웅 스탯 보기"
         >
-          <HeroSprite variant={variant} size={80} color={GB.lightest} />
+          <HeroSprite
+            variant={variant}
+            classType={hero.classType}
+            size={80}
+            color={GB.lightest}
+          />
           {/* 그림자 — 발 밑에 작은 타원 */}
           <div
             className="absolute left-1/2 -bottom-1 -translate-x-1/2 rounded-full pointer-events-none"

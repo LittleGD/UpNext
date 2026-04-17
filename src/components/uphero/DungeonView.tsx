@@ -274,6 +274,7 @@ export default function DungeonView() {
           <div className="flex items-center gap-2">
             <HeroSprite
               variant={heroVariant}
+              classType={session.hero.classType}
               size={32}
               color={GB.lightest}
               state={heroState}
