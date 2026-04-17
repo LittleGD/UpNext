@@ -153,6 +153,9 @@ interface UpHeroActions {
   /** Phase 5c.1 — ClassAwakenModal 닫을 때 호출. pendingClassAwaken null 로. */
   acknowledgeClassAwaken(): void;
 
+  /** Phase 6b — 자동 스킬 발동 on/off 토글. 기본 true. */
+  toggleAutoSkill(): void;
+
   // 장비
   equipItem(itemId: string, slot: EquipSlot): void;
   unequipItem(slot: EquipSlot): void;
@@ -366,6 +369,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   acknowledgeClassAwaken() {
     if (!get().pendingClassAwaken) return;
     set({ pendingClassAwaken: null });
+  },
+
+  toggleAutoSkill() {
+    const state = get();
+    // undefined (legacy) 도 true 로 간주 → 첫 토글 시 false
+    const current = state.hero.autoSkillEnabled ?? true;
+    const newHero = { ...state.hero, autoSkillEnabled: !current };
+    set({ hero: newHero });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
   },
 
   grantExpeditionPass(dungeonId, rarity) {

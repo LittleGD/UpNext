@@ -31,6 +31,7 @@ import {
   heroAttackNarrative,
   monsterAttackNarrative,
 } from "@/lib/upHeroNarrative";
+import { maybeFireSkill, advanceSkillCounters } from "@/lib/classSkills";
 
 /**
  * Phase 4c.1 — 탐험 시간 리소스 밸런스.
@@ -305,12 +306,17 @@ export function tickSession(session: CombatSession): CombatSession {
       if (combatState.monsterHp <= 0) {
         // 몬스터 처치 — victory. Phase 4b.3: xpBoost/coinBoost 반영
         // Phase 5c.2: mage class → XP +20%, bard class → coin +25%
+        // Phase 6b: bard 노래 (nextCoinMult) 있으면 이번 victory 한정 추가 곱, 후 소모
         const xpMult =
           (1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100) *
           classXpMult(s.hero.classType);
-        const coinMult =
+        let coinMult =
           (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
           classCoinMult(s.hero.classType);
+        if (s.nextCoinMult && s.nextCoinMult > 1) {
+          coinMult *= s.nextCoinMult;
+          s.nextCoinMult = undefined;
+        }
         const gainedXp = Math.round(monster.xpReward * xpMult);
         const gainedCoin = Math.round(monster.coinReward * coinMult);
         s.log.push({
@@ -735,12 +741,22 @@ function executeCombatRound(
   monster: Monster,
   stats: { str: number; vit: number; agi: number; dex: number; crit: number; int: number; slotBonus: number },
 ): void {
+  // Phase 6b — combat round 시작 전 액티브 스킬 발동 시도
+  maybeFireSkill(s, monster);
+
   // 영웅 공격
   const heroOutcome = rollHeroOutcome(stats, monster);
-  const heroDmg =
+  let heroDmg =
     heroOutcome === "miss" || heroOutcome === "dodge"
       ? 0
       : computeHeroDamage(stats, monster, heroOutcome === "crit");
+
+  // Phase 6b — warrior 강타: 다음 공격 damage 2배 후 소모
+  if (heroDmg > 0 && s.nextHeroDamageMult && s.nextHeroDamageMult > 1) {
+    heroDmg = Math.round(heroDmg * s.nextHeroDamageMult);
+    s.nextHeroDamageMult = undefined;
+  }
+
   const heroNarrative = Math.random() < shouldNarrate(heroOutcome)
     ? heroAttackNarrative(monster, heroOutcome, heroDmg)
     : undefined;
@@ -754,11 +770,21 @@ function executeCombatRound(
   });
 
   // 몬스터 공격 — Phase 5c.2: monk class 는 dodge 확률 추가 (stats.agi 보강)
-  const enemyOutcome = rollEnemyOutcome(
-    monster,
-    stats,
-    classDodgeBonus(s.hero.classType),
-  );
+  // Phase 6b: monk 선정 중이면 강제 dodge, illusionist 환영 중이면 강제 miss.
+  let enemyOutcome: CombatOutcome;
+  if (s.forcedEnemyMisses && s.forcedEnemyMisses > 0) {
+    enemyOutcome = "miss";
+    s.forcedEnemyMisses -= 1;
+    if (s.forcedEnemyMisses <= 0) delete s.forcedEnemyMisses;
+  } else if (s.forcedDodgeRounds && s.forcedDodgeRounds > 0) {
+    enemyOutcome = "dodge";
+  } else {
+    enemyOutcome = rollEnemyOutcome(
+      monster,
+      stats,
+      classDodgeBonus(s.hero.classType),
+    );
+  }
   const enemyDmg =
     enemyOutcome === "miss" || enemyOutcome === "dodge"
       ? 0
@@ -780,6 +806,9 @@ function executeCombatRound(
   if (regen > 0 && s.hero.hp > 0) {
     s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + regen);
   }
+
+  // Phase 6b — round 종료 시 쿨다운 감소 + 지속 스킬 카운터 감소
+  advanceSkillCounters(s);
 }
 
 /** 세션 포기 — 사용자가 자발적으로 캠프 복귀 선택 */

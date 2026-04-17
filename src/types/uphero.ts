@@ -101,6 +101,11 @@ export interface Hero {
   equipped: Partial<Record<EquipSlot, Equipment>>;
   classType: ClassType | null;
   appearanceVariant: number; // 0-2 (Lv별 외형)
+  /**
+   * Phase 6b — 액티브 스킬 자동 발동 on/off. 기본 true.
+   * false 면 cooldown 차도 스킬 안 터짐 (상세 플레이 관찰 용도).
+   */
+  autoSkillEnabled?: boolean;
 }
 
 /** 장비 카드 (기존 ChallengeCard 프레임/RarityTexture 재활용) */
@@ -276,6 +281,17 @@ export type LogEntry =
       /** 사유 상세 (예: 쓰러진 몬스터 이름, 처치한 보스 이름) — 결과 모달에서 표시 */
       detail?: string;
       timestamp: number;
+    }
+  | {
+      /** Phase 6b — 액티브 스킬 발동 로그 */
+      type: "skill";
+      /** 발동한 class (icon / color 결정용) */
+      classType: ClassType;
+      /** 스킬 이름 (예: "강타", "성스러운 빛") */
+      skillName: string;
+      /** 발동 narrative (예: "영웅이 강타를 준비한다 — 다음 공격 2배") */
+      narrative: string;
+      timestamp: number;
     };
 
 export type CombatSessionStatus = "active" | "paused" | "awaitingChoice" | "completed";
@@ -305,6 +321,31 @@ export interface CombatSession {
   time: number;
   /** 시작 시 최대 시간 — UI bar 계산용. healStart 처럼 나중 timeBoost buff 로 확장 가능 */
   maxTime: number;
+  /**
+   * Phase 6b — 액티브 스킬 남은 쿨다운 (round 단위).
+   * 0 이면 fire 가능. 세션 시작 시 0. round 종료마다 -1 (min 0).
+   */
+  skillCooldown?: number;
+  /**
+   * Phase 6b — 다음 영웅 공격 damage 배율 (warrior 강타 등).
+   * 1 이상 — 공격 발생 후 reset (1 로 돌아감).
+   */
+  nextHeroDamageMult?: number;
+  /**
+   * Phase 6b — 영웅 dodge 강제 100% 유지할 남은 round 수 (monk 선정).
+   * round 종료마다 -1.
+   */
+  forcedDodgeRounds?: number;
+  /**
+   * Phase 6b — 적 공격 강제 miss 유지 남은 횟수 (illusionist 환영).
+   * 적이 공격 발생 때마다 -1.
+   */
+  forcedEnemyMisses?: number;
+  /**
+   * Phase 6b — 다음 victory 에 적용할 coin 배율 (bard 노래).
+   * 1 이상 — 첫 victory 후 reset.
+   */
+  nextCoinMult?: number;
   startedAt: number;
 }
 
@@ -439,6 +480,7 @@ export function createDefaultHero(): Hero {
     equipped: {},
     classType: null,
     appearanceVariant: 0,
+    autoSkillEnabled: true,
   };
 }
 
