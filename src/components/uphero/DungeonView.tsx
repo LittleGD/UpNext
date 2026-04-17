@@ -110,6 +110,26 @@ export default function DungeonView() {
     return () => window.clearInterval(id);
   }, [session, speed, paused]);
 
+  // Time bar pulse — 시간이 ≥5 한 번에 빠지면 bar 가 한 번 번쩍.
+  // 이벤트 outcome (대피 -15, 보스 -8, 악몽 -10 등) 처럼 "큰 비용" 순간을
+  // 시각적으로 강조. rAF restart 패턴으로 keyframe 다시 재생.
+  const prevTimeRef = useRef(session?.time ?? 0);
+  const [timeFlashing, setTimeFlashing] = useState(false);
+  useEffect(() => {
+    const current = session?.time ?? 0;
+    const diff = prevTimeRef.current - current;
+    prevTimeRef.current = current;
+    if (diff >= 5) {
+      setTimeFlashing(false);
+      const raf = requestAnimationFrame(() => setTimeFlashing(true));
+      const t = window.setTimeout(() => setTimeFlashing(false), 340);
+      return () => {
+        cancelAnimationFrame(raf);
+        window.clearTimeout(t);
+      };
+    }
+  }, [session?.time]);
+
   if (!session) return null;
 
   const dungeon = DUNGEONS[session.dungeonId];
@@ -197,13 +217,16 @@ export default function DungeonView() {
 
         {/* Phase 4c.2 — 탐험 시간 bar.
              이벤트/전투 결과가 시간을 소모/회복하면 여기서 즉시 시각화.
-             0 도달 시 timeExpired 로 세션 종료. */}
+             0 도달 시 timeExpired 로 세션 종료.
+             Phase 4c-polish: 시간 ≥5 급감 시 outer 컨테이너에 pulse (box-shadow 기반). */}
         <div className="mt-1.5 flex items-center gap-2">
           <span className="typo-caption" style={{ color: GB.light }}>
             TIME
           </span>
           <div
-            className="flex-1 h-1.5 rounded-sm relative overflow-hidden"
+            className={`flex-1 h-1.5 rounded-sm relative overflow-hidden ${
+              timeFlashing ? "uphero-time-flash" : ""
+            }`}
             style={{ background: GB.dark }}
           >
             <div

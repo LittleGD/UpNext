@@ -253,6 +253,19 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-card-select 280ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* === Up Hero — 탐험 시간 bar 급감 pulse ===
+   이벤트 outcome 이 시간 5+ 소모했을 때 한 번 번쩍.
+   box-shadow 기반이라 bar 의 width 애니메이션과 간섭 없음.
+   GB.lightest (#cdf564) 하드코딩 — keyframe 은 CSS 변수 일관 사용 어려움. */
+@keyframes uphero-time-flash {
+  0%   { box-shadow: 0 0 0 0 transparent, inset 0 0 0 0 transparent; }
+  35%  { box-shadow: 0 0 0 2px #cdf564cc, inset 0 0 6px #cdf56466; }
+  100% { box-shadow: 0 0 0 0 transparent, inset 0 0 0 0 transparent; }
+}
+.uphero-time-flash {
+  animation: uphero-time-flash 320ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 /* === 모바일 safe area (개별 고정 요소에서 처리) === */
 
 /* === 스크롤바 전역 숨김 — 네이티브 앱 느낌 ===
