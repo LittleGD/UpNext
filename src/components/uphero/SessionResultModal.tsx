@@ -11,8 +11,9 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { DUNGEONS } from "@/data/upHeroDungeons";
-import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
+import { GB, EASE_OUT, gbClass, GB_ENEMY } from "@/lib/upHeroPalette";
 import PixelIcon from "@/components/icons/PixelIcon";
+import DropRevealCard from "./DropRevealCard";
 
 export default function SessionResultModal() {
   const session = useUpHeroStore((s) => s.currentSession);
@@ -105,7 +106,7 @@ export default function SessionResultModal() {
           />
           <div>
             <div
-              className="typo-caption mb-1.5 inline-flex items-center gap-1.5"
+              className="typo-caption mb-2 inline-flex items-center gap-1.5"
               style={{ color: GB.light }}
             >
               <PixelIcon name="Gift" size={14} color={GB.light} />
@@ -116,17 +117,18 @@ export default function SessionResultModal() {
                 없음
               </div>
             ) : (
-              <div className="flex flex-col gap-1 pl-4">
+              // 개별 flip — 한 장씩 탭해서 공개 (사용자 결정)
+              <div className="flex flex-wrap gap-2 justify-center py-2">
                 {session.rewards.drops.map((eq) => (
-                  <div
-                    key={eq.id}
-                    className="typo-caption inline-flex items-center gap-1.5"
-                    style={{ color: rarityColor(eq.rarity) }}
-                  >
-                    <PixelIcon name="Shield" size={14} color={rarityColor(eq.rarity)} />
-                    {eq.name}
-                  </div>
+                  <DropRevealCard key={eq.id} equipment={eq} />
                 ))}
+              </div>
+            )}
+            {session.rewards.drops.length > 0 && (
+              <div
+                className={`typo-caption ${gbClass.textDim} text-center mt-1`}
+              >
+                카드를 탭해서 확인
               </div>
             )}
           </div>
@@ -199,15 +201,3 @@ function RewardRow({
   );
 }
 
-function rarityColor(rarity: string): string {
-  switch (rarity) {
-    case "legend":
-      return GB_LEGEND;
-    case "unique":
-      return GB_UNIQUE;
-    case "rare":
-      return GB_RARE;
-    default:
-      return GB.light;
-  }
-}

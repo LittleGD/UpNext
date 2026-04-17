@@ -13,6 +13,7 @@ import {
   PASS_GRANT_BY_RARITY,
   PASS_CAP_PER_CATEGORY,
   SHOP_PRICES,
+  SELL_PRICE,
   type UpHeroState,
   type DungeonId,
   type Equipment,
@@ -47,6 +48,10 @@ interface UpHeroActions {
   // 장비
   equipItem(itemId: string, slot: EquipSlot): void;
   unequipItem(slot: EquipSlot): void;
+  /** 판매 — inventory 제거 + 등급별 코인 환급 */
+  sellItem(itemId: string): number; // 환급 코인 반환
+  /** 버리기 — inventory 제거, 환급 없음 */
+  discardItem(itemId: string): void;
 
   // 갓생 코인 sink
   purchaseTicket(): boolean;
@@ -76,10 +81,16 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   initialize() {
     if (get().isLoaded) return;
     const saved = loadFromStorage<Partial<UpHeroState>>(STORAGE_KEY);
-    // 이전 버전 Hero 에 name 등 신규 필드가 없을 수 있어 default 와 merge
+    // 이전 버전 Hero 에 name/baseStats.crit 등 신규 필드가 없을 수 있어 default 와 deep merge.
+    // baseStats 는 nested 객체라 별도 spread 로 crit 필드 포함시킨다.
+    const defaults = createDefaultHero();
     const mergedHero = saved?.hero
-      ? { ...createDefaultHero(), ...saved.hero }
-      : createDefaultHero();
+      ? {
+          ...defaults,
+          ...saved.hero,
+          baseStats: { ...defaults.baseStats, ...(saved.hero.baseStats ?? {}) },
+        }
+      : defaults;
     set({
       hero: mergedHero,
       inventory: saved?.inventory ?? [],
@@ -253,6 +264,33 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const newInventory = [...state.inventory, item];
     set({ hero, inventory: newInventory });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero, inventory: newInventory }));
+  },
+
+  sellItem(itemId) {
+    const state = get();
+    const item = state.inventory.find((i) => i.id === itemId);
+    if (!item) return 0;
+    const refund = SELL_PRICE[item.rarity];
+    const newInventory = state.inventory.filter((i) => i.id !== itemId);
+    const newCoins = state.coins + refund;
+    set({ inventory: newInventory, coins: newCoins });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, inventory: newInventory, coins: newCoins }),
+    );
+    return refund;
+  },
+
+  discardItem(itemId) {
+    const state = get();
+    const item = state.inventory.find((i) => i.id === itemId);
+    if (!item) return;
+    const newInventory = state.inventory.filter((i) => i.id !== itemId);
+    set({ inventory: newInventory });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, inventory: newInventory }),
+    );
   },
 
   purchaseTicket() {

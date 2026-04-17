@@ -437,8 +437,10 @@ function rollHeroOutcome(
   // 방어자(몬스터) 회피 — 고층 몬스터 더 잘 피함
   const dodgeChance = Math.min(0.2, monster.level * 0.005);
   if (Math.random() < dodgeChance) return "dodge";
-  // 공격자(영웅) 크리 — dex scaling
-  const critChance = Math.min(0.35, 0.05 + stats.dex * 0.003);
+  // 공격자(영웅) 크리 — dex scaling + 장비 crit 보너스 (Phase 4a)
+  //   stats.crit 은 장비에서만 합산 (영웅 base = 0)
+  //   1 포인트 = +1% crit 확률
+  const critChance = Math.min(0.5, 0.05 + stats.dex * 0.003 + stats.crit * 0.01);
   if (Math.random() < critChance) return "crit";
   return "hit";
 }

@@ -23,6 +23,8 @@ export interface HeroBaseStats {
   vit: number;
   dex: number;
   agi: number;
+  /** 크리 보너스 스탯 (%) — 장비로만 획득, hero base = 0 */
+  crit: number;
 }
 
 /** 클래스 타입 — 30레벨 이후 가장 많이 한 카테고리로 분화 (Phase 5+) */
@@ -228,6 +230,14 @@ export const SHOP_PRICES = {
   reroll: 50,
 } as const;
 
+/** 장비 판매 환급 (Phase 4a) */
+export const SELL_PRICE: Record<Rarity, number> = {
+  normal: 5,
+  rare: 15,
+  unique: 50,
+  legend: 200,
+};
+
 /** 영웅 외형 variant 결정 (레벨 기반) */
 export function getHeroAppearanceVariant(level: number): number {
   if (level >= 30) return 2;
@@ -253,7 +263,7 @@ export function createDefaultHero(): Hero {
     name: rollHeroName(),
     hp: 100,
     maxHp: 100,
-    baseStats: { str: 10, int: 10, vit: 10, dex: 10, agi: 10 },
+    baseStats: { str: 10, int: 10, vit: 10, dex: 10, agi: 10, crit: 0 },
     equipped: {},
     classType: null,
     appearanceVariant: 0,
