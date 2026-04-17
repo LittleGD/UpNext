@@ -13,6 +13,7 @@ import { useGameStore } from "@/store/useGameStore";
 import CampPlaceholder from "./CampPlaceholder";
 import DungeonView from "./DungeonView";
 import SessionResultModal from "./SessionResultModal";
+import IdleRewardToast from "./IdleRewardToast";
 import { GB } from "@/lib/upHeroPalette";
 
 export default function UpHeroGame() {
@@ -47,6 +48,8 @@ export default function UpHeroGame() {
       {inDungeon ? <DungeonView /> : <CampPlaceholder />}
       {/* 완료된 세션 결산 modal — camp 상태일 때 노출 */}
       {currentSession?.status === "completed" && <SessionResultModal />}
+      {/* Phase 5b.1 — 앱 재진입 시 idle accrual 토스트. 상단 배너로 표시. */}
+      <IdleRewardToast />
     </>
   );
 }

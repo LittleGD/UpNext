@@ -36,19 +36,23 @@ import {
   calculateCodexDelta,
   calculateDungeonProgress,
 } from "@/lib/sessionReward";
+import { calculateIdleReward } from "@/lib/idleAccrual";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
 import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
+import {
+  ALL_EQUIPMENT_TEMPLATES,
+  findTemplateByLegacyId,
+} from "@/data/upHeroEquipment";
 import { useGameStore } from "./useGameStore";
 
 /**
- * Phase 5a.3 — 저장 스키마 현재 버전.
+ * Phase 5a.3 / 5b.2 — 저장 스키마 현재 버전.
  *
  * v1: codex.monsters/bosses 를 monster.name 기반으로 전환 (legacy 는 instance ID)
- *
- * 미래: v2 에서 codex.equipment 를 template name 기반으로 전환 예정 (Phase 5b.2).
+ * v2: codex.equipment 를 template baseName 기반으로 전환 (legacy 는 instance ID)
  */
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 /**
  * Phase 4c-fix: Codex legacy ID → name migration.
@@ -72,6 +76,30 @@ function migrateCodexMonsters(entries: string[]): string[] {
     const template = ALL_MONSTER_TEMPLATES.find((t) => t.id === templateId);
     if (template) result.add(template.name);
     // 템플릿 매칭 실패 (구 데이터 또는 삭제된 템플릿) → 버림 (복원 불가)
+  }
+  return [...result];
+}
+
+/**
+ * Phase 5b.2 — Codex equipment legacy instance ID → template baseName 변환.
+ *
+ * 이전 버전은 드롭할 때마다 생긴 고유 ID (`eq_{name}_{rarity}_{ts}_{rnd}`) 를
+ * codex.equipment 에 저장. 같은 템플릿을 여러 번 드롭받으면 누적돼 불필요.
+ * 이제 baseName 기반 (한 템플릿 = 한 entry).
+ *
+ * 기존 baseName 처럼 보이는 entry (이미 Korean) 는 그대로 통과.
+ */
+function migrateCodexEquipment(entries: string[]): string[] {
+  const result = new Set<string>();
+  for (const entry of entries) {
+    // Legacy instance id 포맷 감지 — eq_ 로 시작
+    if (!entry.startsWith("eq_")) {
+      result.add(entry);
+      continue;
+    }
+    const template = findTemplateByLegacyId(entry);
+    if (template) result.add(template.baseName);
+    // 매칭 실패 → 버림
   }
   return [...result];
 }
@@ -105,6 +133,9 @@ interface UpHeroActions {
   resumeSession(): void; // 보스 연출 종료 후 호출 — status "paused" → "active"
   abandonSession(): void;
   acknowledgeSessionEnd(): void; // 결산 modal 닫은 후 currentSession = null 로
+
+  /** Phase 5b.1 — idle reward 토스트 닫을 때 호출. idleReward 를 null 로 클리어. */
+  acknowledgeIdleReward(): void;
 
   // 장비
   equipItem(itemId: string, slot: EquipSlot): void;
@@ -172,6 +203,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   codex: { monsters: [], equipment: [], bosses: [] },
   cosmetics: {},
   lastIdleAccrualAt: Date.now(),
+  idleReward: null,
   isLoaded: false,
 
   initialize() {
@@ -187,43 +219,76 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
           baseStats: { ...defaults.baseStats, ...(saved.hero.baseStats ?? {}) },
         }
       : defaults;
-    // Phase 5a.3 — schemaVersion gating: migration 은 첫 1회만 실행.
-    // 이전 버전 (undefined) 이면 monsters/bosses legacy ID → template name 변환.
+    // Phase 5a.3 / 5b.2 — schemaVersion gating: migration 은 첫 1회만 실행.
+    // - v1 (Phase 5a): monsters/bosses legacy ID → template name
+    // - v2 (Phase 5b.2): equipment legacy ID → template baseName
+    // 저장된 버전이 CURRENT 보다 낮으면 해당 이상의 migration 을 실행.
     const savedVersion = saved?.schemaVersion ?? 0;
     const needsMigration = savedVersion < CURRENT_SCHEMA_VERSION;
     const rawCodex = saved?.codex ?? { monsters: [], equipment: [], bosses: [] };
-    const codex = needsMigration
-      ? {
-          monsters: migrateCodexMonsters(rawCodex.monsters ?? []),
-          bosses: migrateCodexMonsters(rawCodex.bosses ?? []),
-          equipment: rawCodex.equipment ?? [],
-        }
-      : {
-          monsters: rawCodex.monsters ?? [],
-          bosses: rawCodex.bosses ?? [],
-          equipment: rawCodex.equipment ?? [],
-        };
+
+    const monsters =
+      savedVersion < 1
+        ? migrateCodexMonsters(rawCodex.monsters ?? [])
+        : (rawCodex.monsters ?? []);
+    const bosses =
+      savedVersion < 1
+        ? migrateCodexMonsters(rawCodex.bosses ?? [])
+        : (rawCodex.bosses ?? []);
+    const equipment =
+      savedVersion < 2
+        ? migrateCodexEquipment(rawCodex.equipment ?? [])
+        : (rawCodex.equipment ?? []);
+    const codex = { monsters, bosses, equipment };
+
+    // Phase 5b.1 — idle accrual: 마지막 실행 이후 경과 시간 ≥5분이면 보상.
+    // useGameStore 의 level 을 참조해야 하므로 여기서 계산.
+    // 사용자에겐 UI 토스트로 표시, state 에는 idleReward 로 보관 (transient).
+    const now = Date.now();
+    const lastIdleAt = saved?.lastIdleAccrualAt ?? now;
+    const gameStore = useGameStore.getState();
+    const curLevel = gameStore.progress.level ?? 1;
+    const idleReward = calculateIdleReward(now - lastIdleAt, curLevel);
+
+    // 지급 — useGameStore.xp 증가 + coins 증가 (Up Hero store).
+    let coins = saved?.coins ?? 0;
+    if (idleReward) {
+      const newProgress = {
+        ...gameStore.progress,
+        xp: (gameStore.progress.xp ?? 0) + idleReward.xp,
+      };
+      useGameStore.setState({ progress: newProgress });
+      saveToStorage("progress", newProgress);
+      coins = coins + idleReward.coins;
+    }
 
     set({
       hero: mergedHero,
       inventory: saved?.inventory ?? [],
-      coins: saved?.coins ?? 0,
+      coins,
       passes: saved?.passes ?? {},
       dungeons: saved?.dungeons ?? {},
       currentSession: saved?.currentSession ?? null,
       pendingDungeon: null, // transient, 재시작 시 항상 null
       codex,
       cosmetics: saved?.cosmetics ?? {},
-      lastIdleAccrualAt: saved?.lastIdleAccrualAt ?? Date.now(),
+      lastIdleAccrualAt: now, // 즉시 갱신해서 다음 새로고침 때 중복 지급 방지
+      idleReward,
       schemaVersion: CURRENT_SCHEMA_VERSION,
       isLoaded: true,
     });
 
-    // migration 이 실제로 실행됐으면 바로 persist. (schemaVersion 자체도
-    // 영속화해야 다음 실행 때 skip 되므로 반드시 저장.)
-    if (needsMigration) {
+    // migration 이 실제로 실행됐거나 idle reward 가 지급됐으면 즉시 persist.
+    // (schemaVersion / coins / lastIdleAccrualAt 모두 영속화 대상.)
+    if (needsMigration || idleReward) {
       saveToStorage(STORAGE_KEY, pickPersisted(get()));
     }
+  },
+
+  acknowledgeIdleReward() {
+    if (!get().idleReward) return;
+    set({ idleReward: null });
+    // persist 할 필요 없음 — idleReward 는 transient.
   },
 
   grantExpeditionPass(dungeonId, rarity) {
