@@ -9,6 +9,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle } from "@/i18n";
 import PolaroidFrame from "./PolaroidFrame";
 import PolaroidFlip from "./PolaroidFlip";
+import PolaroidTilt from "./PolaroidTilt";
 import SignatureCanvas from "./SignatureCanvas";
 import MemoEditor from "./MemoEditor";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -241,7 +242,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     setCapturePhase("ejecting");
 
     setTimeout(() => play("polaroidSlide"), 400);
-    setTimeout(() => setCapturePhase("polaroid"), 3400);
+    setTimeout(() => setCapturePhase("polaroid"), 2500);
   }, [stopCamera, play, setCapturePhase]);
 
   // 파일 선택 폴백
@@ -258,7 +259,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
       setTimeout(() => setShowFlash(false), 200);
       setCapturePhase("ejecting");
       setTimeout(() => play("polaroidSlide"), 400);
-      setTimeout(() => setCapturePhase("polaroid"), 3400);
+      setTimeout(() => setCapturePhase("polaroid"), 2500);
     };
     reader.readAsDataURL(file);
   }, [play, setCapturePhase]);
@@ -298,7 +299,9 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] flex flex-col bg-black"
+        className={`fixed inset-0 z-[60] flex flex-col ${
+          capturePhase === "camera" ? "bg-[#DCD5BC]" : "bg-black"
+        }`}
       >
         {/* 헤더 — 카메라/이젝팅 시에는 숨김 */}
         {(capturePhase === "polaroid" || capturePhase === "memo") && (
@@ -312,16 +315,21 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
         )}
 
         {/* 콘텐츠 */}
-        <div className={`flex-1 flex flex-col items-center px-4 overflow-hidden ${
-          capturePhase === "ejecting" ? "justify-start pt-8" : "justify-center"
+        <div className={`flex-1 flex flex-col items-center px-4 ${
+          capturePhase === "ejecting"
+            ? "justify-start pt-8"
+            : "justify-center overflow-hidden"
         }`}>
 
           {/* ========== CAMERA PHASE — Figma node 340:2189 (정밀 구현) ========== */}
+          {/* 모바일 기준 max-width 430px — 데스크탑/태블릿에서도 모바일 카메라 바디 크기 유지.
+              세로는 inset-y-0 로 뷰포트 풀 스트레치, 가로는 max-w + mx-auto 로 중앙 정렬.
+              좌우 여백은 outer wrapper 의 bg-[#DCD5BC] (카메라 바디 엣지색) 로 채워져 이음새 자연스러움. */}
           {capturePhase === "camera" && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden"
+              className="absolute inset-0 mx-auto max-w-[430px] flex flex-col items-center justify-between overflow-hidden"
               style={{
                 paddingTop: "calc(env(safe-area-inset-top) + 80px)",
                 paddingLeft: 8,
@@ -959,7 +967,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
               폴라로이드는 슬롯 라인에서 위로 숨겨진 채 시작 → y 증가로 슬롯 밖으로 밀려나옴.
               위쪽 부분은 top-layer 가 가려주고, 아래쪽 부분만 bottom-layer 위에서 드러난다. */}
           {capturePhase === "ejecting" && capturedImage && (
-            <div className="relative w-full max-w-[340px] flex flex-col items-center">
+            <div className="relative w-full max-w-[340px] mx-auto flex flex-col items-center">
               {/* 플래시 잔상 */}
               {showFlash && (
                 <motion.div
@@ -970,16 +978,14 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                 />
               )}
 
-              {/* 카메라 샌드위치 조립체 — 오버플로우 노출 (폴라로이드가 하단 밖으로 나옴)
-                  타임라인 (총 3.4s):
-                    0  → 2.2s   폴라로이드가 슬롯에서 슬라이드 아웃 (카메라 유지)
-                    2.2 → 3.4s  카메라(두 레이어)가 위로 사라지며 폴라로이드는 상승·확대 */}
+              {/* 카메라 샌드위치 조립체 — 3키프레임 시퀀스 (총 2.5s)
+                  ① 0→50%  직선 슬라이드 아웃
+                  ② 50→100% 카메라 퇴장 + 폴라로이드 확대 1.3x + 화면 중앙 */}
               <div
                 className="relative w-full"
                 style={{ aspectRatio: "1525 / 1426" }}
               >
-                {/* Bottom layer (z=1) — 슬롯 입구 + 카메라 베이스 (1525×188, 전체의 13.2%)
-                    top-layer 와 동일한 y/opacity 타임라인 → 두 레이어가 리지드 바디로 함께 이동. */}
+                {/* Bottom layer (z=1) — 위로 빠르게 퇴장 */}
                 <motion.img
                   src="/polaroid-bottom.png"
                   alt=""
@@ -987,49 +993,48 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                   draggable={false}
                   className="absolute inset-x-0 bottom-0 w-full select-none pointer-events-none"
                   style={{ height: `${(188 / 1426) * 100}%`, zIndex: 1 }}
-                  initial={{ y: 0, opacity: 1 }}
-                  animate={{ y: [0, 0, -380], opacity: [1, 1, 0] }}
+                  initial={{ y: 0 }}
+                  animate={{ y: [0, 0, -700] }}
                   transition={{
-                    duration: 3.4,
-                    times: [0, 0.647, 1],
-                    ease: ["linear", "easeIn"],
+                    duration: 2.5,
+                    times: [0, 0.5, 1],
+                    ease: ["linear", [0.33, 1, 0.68, 1]],
                   }}
                 />
 
-                {/* Polaroid (z=2) — 슬롯 사이에서 출력 후 확대·상승
-                    times: 0 → 0.647(=2.2/3.4) 사이에 y -100% → 0% 로 슬라이드 아웃.
-                    이후 0.647 → 1.0 사이에 y -85%, scale 1.35 로 확대되며 위로 이동. */}
+                {/* Polaroid (z=2) — 3키프레임: 직선출력 → 퇴장+확대
+                    left:50% + framer x:"-50%" — Tailwind translate 충돌 방지 */}
                 <motion.div
-                  className="absolute left-1/2 -translate-x-1/2"
+                  className="absolute"
                   style={{
                     top: `${(1238 / 1426) * 100}%`,
+                    left: "50%",
                     width: "62%",
                     zIndex: 2,
                     transformOrigin: "center top",
                   }}
-                  initial={{ y: "-100%", scale: 1, rotate: 0 }}
+                  initial={{ x: "-50%", y: "-100%", scale: 1 }}
                   animate={{
-                    y: ["-100%", "0%", "-82%"],
-                    rotate: [0, -2.5, 0],
-                    scale: [1, 1, 1.35],
+                    x: "-50%",
+                    y: ["-100%", "15%", "-45%"],
+                    scale: [1, 1, 1.3],
                   }}
                   transition={{
-                    duration: 3.4,
-                    times: [0, 0.647, 1],
-                    ease: "easeInOut",
+                    duration: 2.5,
+                    times: [0, 0.5, 1],
+                    ease: [[0.23, 1, 0.32, 1], [0.77, 0, 0.175, 1]],
                   }}
                 >
                   <motion.div
                     initial={{ filter: "sepia(0.8) brightness(0.85) contrast(0.9)" }}
                     animate={{ filter: "sepia(0) brightness(1) contrast(1)" }}
-                    transition={{ duration: 1.8, delay: 1.0, ease: "easeOut" }}
+                    transition={{ duration: 1.8, delay: 0.6, ease: [0.23, 1, 0.32, 1] }}
                   >
                     <PolaroidFrame imageSrc={capturedImage} timestamp={captureTimestamp} />
                   </motion.div>
                 </motion.div>
 
-                {/* Top layer (z=3) — 카메라 본체 (렌즈/로고/레인보우) / 슬롯 위 폴라로이드를 가려준다
-                    bottom-layer 와 동일한 -380 / opacity 커브 → 두 레이어가 한 몸처럼 함께 퇴장. */}
+                {/* Top layer (z=3) — 위로 빠르게 퇴장 */}
                 <motion.img
                   src="/polaroid-top.png"
                   alt=""
@@ -1037,12 +1042,12 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                   draggable={false}
                   className="absolute inset-x-0 top-0 w-full select-none pointer-events-none"
                   style={{ height: `${(1238 / 1426) * 100}%`, zIndex: 3 }}
-                  initial={{ y: 0, opacity: 1 }}
-                  animate={{ y: [0, 0, -380], opacity: [1, 1, 0] }}
+                  initial={{ y: 0 }}
+                  animate={{ y: [0, 0, -700] }}
                   transition={{
-                    duration: 3.4,
-                    times: [0, 0.647, 1],
-                    ease: ["linear", "easeIn"],
+                    duration: 2.5,
+                    times: [0, 0.5, 1],
+                    ease: ["linear", [0.33, 1, 0.68, 1]],
                   }}
                 />
               </div>
@@ -1052,17 +1057,18 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
           {/* ========== POLAROID PHASE — 서명 + 메모 편집 ========== */}
           {(capturePhase === "polaroid" || capturePhase === "memo") && capturedImage && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, scale: 0.97, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
               className="w-full max-w-[320px] flex flex-col items-center gap-5"
             >
-              {/* x축 위글 힌트 (플립 가능 알림) */}
+              {/* 수평 넛지 힌트 (플립 가능 알림) — rotateZ 대신 translateX 가 더 직관적 */}
               <motion.div
-                initial={{ rotateZ: 0 }}
-                animate={{ rotateZ: [0, 2, -2, 1, 0] }}
-                transition={{ duration: 0.8, delay: 0.5, ease: "easeInOut" }}
+                initial={{ x: 0 }}
+                animate={{ x: [0, 4, -4, 2, 0] }}
+                transition={{ duration: 0.6, delay: 0.5, ease: [0.77, 0, 0.175, 1] }}
               >
+                <PolaroidTilt>
                 <PolaroidFlip
                   flipped={isFlipped}
                   onFlip={setIsFlipped}
@@ -1074,7 +1080,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                           <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: [0.4, 0.8, 0.4] }}
-                            transition={{ duration: 2, repeat: Infinity }}
+                            transition={{ duration: 2.5, repeat: 2 }}
                             className="absolute inset-0 rounded-md pointer-events-none"
                             style={{
                               border: "1px dashed rgba(0,0,0,0.2)",
@@ -1101,6 +1107,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                     </div>
                   }
                 />
+                </PolaroidTilt>
               </motion.div>
 
               {/* 저장 버튼 */}

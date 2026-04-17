@@ -7,6 +7,7 @@ import { getPhotoBlob, getSignatureBlob, blobToUrl } from "@/lib/photoStorage";
 import { useTranslation } from "@/hooks/useTranslation";
 import PolaroidFrame from "./PolaroidFrame";
 import PolaroidFlip from "./PolaroidFlip";
+import PolaroidTilt from "./PolaroidTilt";
 import MemoEditor from "./MemoEditor";
 import PixelIcon from "@/components/icons/PixelIcon";
 import type { PhotoMeta } from "@/types/growth";
@@ -61,6 +62,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-[340px] space-y-4"
         >
+          <PolaroidTilt>
           <PolaroidFlip
             flipped={isFlipped}
             onFlip={setIsFlipped}
@@ -96,6 +98,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
               </div>
             }
           />
+          </PolaroidTilt>
 
           {/* 메타 정보 */}
           <div className="flex items-center justify-between px-2">
