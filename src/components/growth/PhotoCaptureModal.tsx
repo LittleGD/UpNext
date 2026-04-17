@@ -268,23 +268,26 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     else onComplete(); // savePhoto 가 null 반환 (pendingCaptureCardId 없음)
   }, [capturedImage, signatureData, stickers, savePhoto, card, language, play, onComplete]);
 
-  // 스티커 추가 — 폴라로이드 중앙에 새 스티커 배치.
+  // 스티커 추가 — position 주어지면 그 위치 (드래그-앤-드롭 결과), 없으면 중앙 (탭).
   // UpNext 로고는 항상 최상단 (zIndex 999), 다른 스티커는 시퀀셜.
-  const handleAddSticker = useCallback((type: "emoji" | "image", content: string) => {
-    setStickers((prev) => [
-      ...prev,
-      {
-        id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        type,
-        content,
-        x: 50,
-        y: 50,
-        rotation: (Math.random() - 0.5) * 20,
-        scale: 1,
-        zIndex: content === "upnext-logo" ? 999 : prev.length + 1,
-      },
-    ]);
-  }, []);
+  const handleAddSticker = useCallback(
+    (type: "emoji" | "image", content: string, position?: { x: number; y: number }) => {
+      setStickers((prev) => [
+        ...prev,
+        {
+          id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          type,
+          content,
+          x: position?.x ?? 50,
+          y: position?.y ?? 50,
+          rotation: (Math.random() - 0.5) * 20,
+          scale: 1,
+          zIndex: content === "upnext-logo" ? 999 : prev.length + 1,
+        },
+      ]);
+    },
+    [],
+  );
 
   // 건너뛰기
   const handleSkip = useCallback(() => {
@@ -1086,8 +1089,9 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
               transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
               className="w-full max-w-[320px] flex flex-col items-center gap-3"
             >
-              {/* 폴라로이드 (사진 + 사인 + 스티커) */}
-              <div className="w-full max-w-[300px] relative">
+              {/* 폴라로이드 (사진 + 사인 + 스티커).
+                  data-sticker-target — DecorationToolbar 의 sticker 드래그-앤-드롭 대상. */}
+              <div className="w-full max-w-[300px] relative" data-sticker-target>
                 <PolaroidFrame imageSrc={capturedImage} timestamp={captureTimestamp} />
                 {/* 사인 캔버스 — 폴라로이드 전체 위 absolute */}
                 <div

@@ -146,21 +146,24 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
     setEditedSignature(null);
   }, [editedSignature, editedStickers, stickers, meta.id, updatePhotoSignature, handleStickersChange, play]);
 
-  const handleAddSticker = useCallback((type: "emoji" | "image", content: string) => {
-    setEditedStickers((prev) => [
-      ...prev,
-      {
-        id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        type,
-        content,
-        x: 50,
-        y: 50,
-        rotation: (Math.random() - 0.5) * 20,
-        scale: 1,
-        zIndex: content === "upnext-logo" ? 999 : prev.length + 1,
-      },
-    ]);
-  }, []);
+  const handleAddSticker = useCallback(
+    (type: "emoji" | "image", content: string, position?: { x: number; y: number }) => {
+      setEditedStickers((prev) => [
+        ...prev,
+        {
+          id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          type,
+          content,
+          x: position?.x ?? 50,
+          y: position?.y ?? 50,
+          rotation: (Math.random() - 0.5) * 20,
+          scale: 1,
+          zIndex: content === "upnext-logo" ? 999 : prev.length + 1,
+        },
+      ]);
+    },
+    [],
+  );
 
   // ── Share — 합성 후 Web Share API ──
   const handleShare = useCallback(async () => {
@@ -217,7 +220,11 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
           {/* ── 편집 모드 ── */}
           {isEditing ? (
             <>
-              <div className="w-full max-w-[300px] mx-auto relative">
+              {/* data-sticker-target — DecorationToolbar drag-drop 대상 */}
+              <div
+                className="w-full max-w-[300px] mx-auto relative"
+                data-sticker-target
+              >
                 <PolaroidFrame imageSrc={photoUrl} timestamp={meta.timestamp} />
                 <div className="absolute inset-0 z-[5]">
                   <SignatureCanvas
