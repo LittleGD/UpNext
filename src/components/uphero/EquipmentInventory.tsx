@@ -14,11 +14,12 @@
  *  3. 또는 슬롯 탭 → 해제 (다시 인벤토리로)
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { getHeroAppearanceVariant, SELL_PRICE } from "@/types/uphero";
+import { getHeroAppearanceVariant, SELL_PRICE, SHOP_PRICES } from "@/types/uphero";
 import type { Equipment, EquipSlot } from "@/types/uphero";
-import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
+import type { Rarity } from "@/types/card";
+import { GB, EASE_OUT, gbClass, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
 import { useGameStore } from "@/store/useGameStore";
 import { useSound } from "@/hooks/useSound";
 import EquipmentCard from "./EquipmentCard";
@@ -70,10 +71,12 @@ export default function EquipmentInventory({
 }: EquipmentInventoryProps) {
   const hero = useUpHeroStore((s) => s.hero);
   const inventory = useUpHeroStore((s) => s.inventory);
+  const coins = useUpHeroStore((s) => s.coins);
   const equipItem = useUpHeroStore((s) => s.equipItem);
   const unequipItem = useUpHeroStore((s) => s.unequipItem);
   const sellItem = useUpHeroStore((s) => s.sellItem);
   const discardItem = useUpHeroStore((s) => s.discardItem);
+  const enhanceItem = useUpHeroStore((s) => s.enhanceItem);
   const level = useGameStore((s) => s.progress.level);
   const { play } = useSound();
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
@@ -112,6 +115,70 @@ export default function EquipmentInventory({
     play("cancel");
     onNotify("버렸다");
     setSelectedId(null);
+  };
+
+  // Phase 4c-feature: 강화 가능한 쌍 탐색.
+  //   같은 type + rarity 가 2개 이상이고, rarity 가 legend 가 아닌 그룹만.
+  //   각 그룹에서 첫 2개를 합성 대상으로 선정.
+  const enhanceableGroups = useMemo(() => {
+    const buckets = new Map<string, Equipment[]>();
+    for (const item of inventory) {
+      if (item.rarity === "legend") continue;
+      // 장착 중인 아이템은 제외 (hero.equipped 에 있으면 inventory 에 없으니 OK)
+      const key = `${item.type}_${item.rarity}`;
+      const arr = buckets.get(key) ?? [];
+      arr.push(item);
+      buckets.set(key, arr);
+    }
+    return [...buckets.entries()]
+      .filter(([, items]) => items.length >= 2)
+      .map(([key, items]) => {
+        const [type, rarity] = key.split("_") as [EquipSlot, Rarity];
+        return { type, rarity, items };
+      });
+  }, [inventory]);
+
+  const RARITY_LABEL: Record<Rarity, string> = {
+    normal: "일반",
+    rare: "희귀",
+    unique: "고유",
+    legend: "전설",
+  };
+  const RARITY_COLOR: Record<Rarity, string> = {
+    normal: GB.light,
+    rare: GB_RARE,
+    unique: GB_UNIQUE,
+    legend: GB_LEGEND,
+  };
+  const RARITY_COST: Record<Rarity, number> = {
+    normal: SHOP_PRICES.enhance,
+    rare: SHOP_PRICES.enhance * 2,
+    unique: SHOP_PRICES.enhance * 4,
+    legend: Number.POSITIVE_INFINITY,
+  };
+  const NEXT_RARITY: Record<Rarity, Rarity> = {
+    normal: "rare",
+    rare: "unique",
+    unique: "legend",
+    legend: "legend",
+  };
+
+  const onEnhance = (items: Equipment[], rarity: Rarity) => {
+    const cost = RARITY_COST[rarity];
+    if (
+      !confirm(
+        `${RARITY_LABEL[rarity]} 2개 → ${RARITY_LABEL[NEXT_RARITY[rarity]]} 1개로 합성할까요?\n\n비용: ${cost} 코인 (보유 ${coins})`,
+      )
+    )
+      return;
+    const result = enhanceItem(items[0].id, items[1].id);
+    if (result.ok && result.newItem) {
+      play("collect");
+      onNotify(`합성 성공 — ${result.newItem.name}`);
+    } else {
+      play("cancel");
+      onNotify(result.error ?? "합성 실패");
+    }
   };
 
   return (
@@ -264,6 +331,67 @@ export default function EquipmentInventory({
               />
             ))}
           </div>
+        )}
+
+        {/* Phase 4c-feature: 강화 가능한 쌍. 같은 타입 + 등급 2개 이상이면 등장. */}
+        {enhanceableGroups.length > 0 && (
+          <section className="mt-5 pt-4" style={{ borderTop: `1px dashed ${GB.dark}` }}>
+            <div className="typo-caption mb-2 inline-flex items-center gap-1.5" style={{ color: GB.lightest }}>
+              <PixelIcon name="Fire" size={14} color={GB.lightest} />
+              강화 가능 — 같은 슬롯 · 등급 2장 합성
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {enhanceableGroups.map(({ type, rarity, items }) => {
+                const cost = RARITY_COST[rarity];
+                const canAfford = coins >= cost;
+                return (
+                  <div
+                    key={`${type}_${rarity}`}
+                    className="flex items-center gap-2 rounded px-2.5 py-2"
+                    style={{
+                      background: `${GB.dark}66`,
+                      border: `1px solid ${RARITY_COLOR[rarity]}55`,
+                    }}
+                  >
+                    <div
+                      className="typo-caption"
+                      style={{ color: RARITY_COLOR[rarity], minWidth: 78 }}
+                    >
+                      {RARITY_LABEL[rarity]} {SLOT_LABEL[type]}
+                    </div>
+                    <div className={`typo-caption tabular-nums ${gbClass.textDim}`}>
+                      ×{items.length}
+                    </div>
+                    <div className="flex-1" />
+                    <button
+                      type="button"
+                      disabled={!canAfford}
+                      onClick={() => onEnhance(items.slice(0, 2), rarity)}
+                      className="uphero-enhance-btn typo-caption rounded"
+                      style={{
+                        padding: "5px 10px",
+                        minHeight: 30,
+                        background: canAfford ? RARITY_COLOR[rarity] : `${GB.dark}aa`,
+                        color: canAfford ? GB.darkest : GB.light,
+                        border: `1px solid ${canAfford ? RARITY_COLOR[rarity] : GB.dark}`,
+                        opacity: canAfford ? 1 : 0.55,
+                      }}
+                    >
+                      합성 −{cost}C
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <style jsx>{`
+              .uphero-enhance-btn {
+                transition: transform 120ms ${EASE_OUT};
+              }
+              .uphero-enhance-btn:not(:disabled):active {
+                transform: scale(0.96);
+              }
+            `}</style>
+          </section>
         )}
       </div>
     </div>
