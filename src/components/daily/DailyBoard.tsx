@@ -466,9 +466,18 @@ export default function DailyBoard() {
                 exit={{ y: 40, opacity: 0, scale: 0.97 }}
                 transition={{ type: "spring", duration: 0.45, bounce: 0.15 }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-sm rounded-2xl overflow-hidden"
+                className="w-full max-w-sm rounded-2xl overflow-hidden relative"
                 style={{ backgroundColor: "var(--bg-elevated)" }}
               >
+                {/* Close 버튼 — 우상단, backdrop 탭 외 명시적 닫기 */}
+                <button
+                  onClick={() => { play("select"); setConfirmCard(null); }}
+                  aria-label="Close"
+                  className="absolute top-3 right-3 z-10 p-1.5 rounded-full active:opacity-60 transition-opacity"
+                >
+                  <PixelIcon name="Cancel" size={16} color="var(--text-tertiary)" />
+                </button>
+
                 {/* Rarity accent line */}
                 <div
                   className="h-[2px] w-full"
@@ -477,61 +486,47 @@ export default function DailyBoard() {
                   }}
                 />
 
-                {/* Content */}
+                {/* Content — 간결화: 아이콘 + 타이틀(+XP) + 설명 + 1차/2차 액션 */}
                 <div className="px-6 pt-7 pb-6 flex flex-col items-center text-center">
                   {/* Icon */}
-                  <div
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
-                    style={{ backgroundColor: `${rarity.color}12` }}
-                  >
-                    <div style={{ color: rarity.color }}>
-                      <PixelIcon name={confirmCard.icon} size={32} />
-                    </div>
+                  <div style={{ color: rarity.color }} className="mb-4">
+                    <PixelIcon name={confirmCard.icon} size={32} />
                   </div>
 
-                  {/* Title + desc */}
-                  <h3 className="typo-heading text-text-primary leading-snug">
-                    {cardTitle(confirmCard, language)}
-                  </h3>
-                  <p className="typo-body text-text-secondary mt-1.5 leading-relaxed">
+                  {/* Title + XP (한 줄에 묶음) */}
+                  <div className="flex items-center gap-2 flex-wrap justify-center">
+                    <h3 className="typo-heading text-text-primary leading-snug">
+                      {cardTitle(confirmCard, language)}
+                    </h3>
+                    <span
+                      className="typo-micro tabular-nums px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: `${rarity.color}15`, color: rarity.color }}
+                    >
+                      +{xp} XP
+                    </span>
+                  </div>
+
+                  {/* Description (한 줄로 압축) */}
+                  <p className="typo-caption text-text-tertiary mt-2 leading-relaxed">
                     {cardDesc(confirmCard, language)}
                   </p>
 
-                  {/* XP reward badge */}
-                  <div className="flex items-center gap-1.5 mt-4 px-3 py-1.5 rounded-full bg-accent/8">
-                    <PixelIcon name="Zap" size={14} color="var(--accent-primary)" />
-                    <span className="typo-caption text-accent">+{xp} XP</span>
-                  </div>
-
-                  {/* Prompt */}
-                  <p className="typo-body text-text-tertiary mt-5">
-                    {t("daily.board.confirmPrompt")}
-                  </p>
-
-                  {/* 기록 남기기 CTA */}
+                  {/* Primary CTA — 사진 기록 */}
                   <button
                     onClick={handleConfirmWithPhoto}
-                    className="w-full mt-5 py-3.5 rounded-xl bg-accent text-bg-primary typo-body transition-colors active:scale-[0.97] flex items-center justify-center gap-2"
+                    className="w-full mt-6 py-3.5 rounded-xl bg-accent text-bg-primary typo-body transition-transform active:scale-[0.97] flex items-center justify-center gap-2"
                   >
                     <PixelIcon name="Camera" size={16} color="var(--bg-primary)" />
                     {t("playground.capture.record")}
                   </button>
 
-                  {/* 완료 / 취소 */}
-                  <div className="flex w-full gap-3 mt-2">
-                    <button
-                      onClick={() => { play("select"); setConfirmCard(null); }}
-                      className="flex-1 py-3.5 rounded-xl bg-bg-elevated text-text-secondary typo-body transition-colors active:scale-[0.97]"
-                    >
-                      {t("common.cancel")}
-                    </button>
-                    <button
-                      onClick={handleConfirm}
-                      className="flex-1 py-3.5 rounded-xl bg-bg-elevated text-text-primary typo-body transition-colors active:scale-[0.97]"
-                    >
-                      {t("common.done")}
-                    </button>
-                  </div>
+                  {/* Secondary — 사진 없이 완료 (text link 스타일로 약하게) */}
+                  <button
+                    onClick={handleConfirm}
+                    className="mt-3 typo-caption text-text-secondary active:text-text-primary transition-colors"
+                  >
+                    {t("common.done")}
+                  </button>
                 </div>
               </motion.div>
             </motion.div>

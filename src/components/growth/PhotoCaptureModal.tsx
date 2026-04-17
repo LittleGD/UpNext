@@ -302,14 +302,20 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
           capturePhase === "camera" ? "bg-[#DCD5BC]" : "bg-black"
         }`}
       >
-        {/* 헤더 — 카메라/이젝팅 시에는 숨김 */}
+        {/* 헤더 — 카메라/이젝팅 시에는 숨김.
+            Close 버튼: 아이콘 + "Close" 텍스트 (다른 모달과 일관성). */}
         {(capturePhase === "polaroid" || capturePhase === "memo") && (
           <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
-            <button onClick={handleClose} className="p-2 active:opacity-60">
-              <PixelIcon name="Cancel" size={20} color="var(--text-secondary)" />
+            <button
+              onClick={handleClose}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-md active:opacity-60 transition-opacity"
+              aria-label="Close"
+            >
+              <PixelIcon name="Cancel" size={18} color="var(--text-secondary)" />
+              <span className="typo-caption text-text-secondary">Close</span>
             </button>
             <h2 className="typo-body text-text-primary">{t("playground.capture.title")}</h2>
-            <div className="w-9" />
+            <div className="w-[60px]" />
           </div>
         )}
 
@@ -1053,14 +1059,13 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
             </div>
           )}
 
-          {/* ========== POLAROID PHASE — 서명 + 메모 편집 ==========
-              ⚠ PolaroidTilt 제거 이유: 서명 캔버스의 pointermove 와 충돌해서
-                서명 그리는 동안 폴라로이드가 흔들림. 틸트 인터랙션은 PhotoDetailModal
-                (관람 전용) 에서만 활성. Capture flow 는 액션 중심.
-
+          {/* ========== POLAROID PHASE — 프레임 전체 위 자유 낙서 + 사인 후 Save 노출 ==========
               ⚠ wiggle motion.div 에 명시적 width 필요: flex-col items-center 부모에서
                 width 미지정 자식은 min-content 로 0×0 이 됨 (PolaroidFrame 의 w-full
-                이 0 이 되어 폴라로이드 통째로 사라지는 버그). max-w-[300px] w-full 로 고정. */}
+                이 0 이 되어 폴라로이드 통째로 사라지는 버그). max-w-[300px] w-full 로 고정.
+
+              SignatureCanvas 는 폴라로이드 프레임 전체 위 absolute 오버레이. 사진 위에도
+              마커 펜으로 그리는 빈티지 폴라로이드 느낌. PolaroidTilt 제거 — 서명 pointermove 와 충돌. */}
           {(capturePhase === "polaroid" || capturePhase === "memo") && capturedImage && (
             <motion.div
               initial={{ opacity: 0, scale: 0.97, y: 8 }}
@@ -1078,42 +1083,42 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                 <PolaroidFlip
                   flipped={isFlipped}
                   onFlip={setIsFlipped}
+                  showFlipHint={false}
                   front={
-                    <PolaroidFrame imageSrc={capturedImage} timestamp={captureTimestamp}>
-                      {/* 서명 영역 — 비어있을 때 placeholder + 펄스로 유도 */}
-                      <div onClick={(e) => e.stopPropagation()} className="relative">
-                        {!signatureData && (
-                          <motion.div
-                            initial={{ opacity: 0.5 }}
-                            animate={{ opacity: [0.5, 0.9, 0.5] }}
-                            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute inset-0 rounded-md pointer-events-none"
-                            style={{
-                              border: "1.5px dashed rgba(0,0,0,0.35)",
-                              background: "rgba(205, 245, 100, 0.10)",
-                            }}
-                          />
-                        )}
+                    <div className="relative">
+                      <PolaroidFrame imageSrc={capturedImage} timestamp={captureTimestamp} />
+                      {/* 폴라로이드 프레임 전체 위 자유 낙서 캔버스 (absolute overlay).
+                          width 는 폴라로이드 표시 폭 = 300px, height 는 aspectRatio 184/223 → ~363px */}
+                      <div
+                        className="absolute inset-0 z-[5]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <SignatureCanvas
-                          width={274}
-                          height={50}
+                          width={300}
+                          height={363}
                           onSignatureChange={setSignatureData}
+                          className="w-full h-full"
                         />
-                        {!signatureData && (
-                          <p
-                            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 600,
-                              color: "rgba(0,0,0,0.45)",
-                              letterSpacing: "0.02em",
-                            }}
-                          >
-                            ✍ {t("playground.capture.sign")}
-                          </p>
-                        )}
                       </div>
-                    </PolaroidFrame>
+                      {/* 펄스 안내 — 미사인 시 "프레임 전체에 낙서하세요" 힌트 */}
+                      {!signatureData && (
+                        <motion.p
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: [0.5, 0.9, 0.5] }}
+                          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                          className="absolute bottom-3 left-0 right-0 text-center pointer-events-none z-[6]"
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "rgba(0,0,0,0.55)",
+                            letterSpacing: "0.02em",
+                            textShadow: "0 1px 2px rgba(255,255,255,0.5)",
+                          }}
+                        >
+                          ✍ {t("playground.capture.sign")}
+                        </motion.p>
+                      )}
+                    </div>
                   }
                   back={
                     <div onClick={(e) => e.stopPropagation()}>
@@ -1123,41 +1128,19 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                 />
               </motion.div>
 
-              {/* 액션 영역 — 서명 안내 → 저장 → 건너뛰기 (위에서 아래로 우선순위) */}
-              <div className="w-full flex flex-col items-stretch gap-2.5 mt-1">
-                {/* 서명 안내 — 미서명 시에만, 저장 버튼 바로 위에 명확히 */}
-                {!signatureData && !isFlipped && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -4 }}
+              {/* 액션 영역 — 사인 후에만 Save 노출. Skip 은 헤더 Close 가 대신함. */}
+              <div className="w-full flex flex-col items-stretch gap-2.5 mt-1 min-h-[60px]">
+                {signatureData ? (
+                  <motion.button
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4, duration: 0.3 }}
-                    className="typo-caption text-text-secondary text-center"
+                    transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                    onClick={handleSave}
+                    className="w-full py-3.5 rounded-xl bg-accent text-bg-primary typo-body active:scale-[0.97] transition-transform"
                   >
-                    ↑ {t("playground.capture.signRequired")}
-                  </motion.p>
-                )}
-
-                {/* 저장 버튼 — 미서명 시 비활성, 서명 시 accent */}
-                <button
-                  onClick={handleSave}
-                  disabled={!signatureData}
-                  aria-disabled={!signatureData}
-                  className={`w-full py-3.5 rounded-xl typo-body active:scale-[0.97] transition-all ${
-                    signatureData
-                      ? "bg-accent text-bg-primary"
-                      : "bg-bg-elevated text-text-tertiary cursor-not-allowed"
-                  }`}
-                >
-                  {t("playground.capture.save")}
-                </button>
-
-                {/* 건너뛰기 — 명확한 버튼 영역 (탭 타겟 확보) */}
-                <button
-                  onClick={handleSkip}
-                  className="w-full py-3 typo-caption text-text-secondary active:opacity-60 transition-opacity"
-                >
-                  {t("playground.capture.skip")}
-                </button>
+                    {t("playground.capture.save")}
+                  </motion.button>
+                ) : null}
               </div>
             </motion.div>
           )}

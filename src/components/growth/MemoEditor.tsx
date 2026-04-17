@@ -1,46 +1,102 @@
 "use client";
 
 import { useTranslation } from "@/hooks/useTranslation";
+import {
+  PAPER_FIBER_URL,
+  FRAME_DROP_SHADOW,
+  FRAME_EDGE_SHADOW,
+} from "@/lib/photoFilter";
 
 interface Props {
   value: string;
-  onChange: (v: string) => void;
+  onChange?: (v: string) => void;
+  /** 읽기 전용 — 디테일 뷰에서 사용. textarea 대신 p 로 렌더 */
+  readOnly?: boolean;
 }
 
 const MAX_CHARS = 200;
 
-export default function MemoEditor({ value, onChange }: Props) {
+/**
+ * MemoEditor — 폴라로이드 뒷면 메모 작성 영역.
+ *
+ * ⚠ 폴라로이드 프레임과 동일한 사이즈 (max-w-300px + aspectRatio 184/223) →
+ *   "사진 뒷면에 메모를 남긴다" 는 물리적 일관성. 플립해도 카드가 같은 크기로 회전.
+ *
+ * 디자인:
+ *  - 베이지 종이 배경 (#f9f8f5) — 폴라로이드 Frame5 와 동일 톤
+ *  - 종이 섬유질 텍스처 — 실물 종이 뒷면 느낌
+ *  - 라인 노트 패턴 — 손글씨 가이드
+ *  - 드롭/엣지 섀도우 — 프레임과 동일한 두께감
+ */
+export default function MemoEditor({ value, onChange, readOnly = false }: Props) {
   const { t } = useTranslation();
 
   return (
-    <div className="bg-[#f5f2eb] rounded-[3px] shadow-lg mx-auto max-w-[300px] min-h-[280px] flex flex-col">
-      {/* 빈티지 노트 라인 효과 */}
+    <div
+      className="mx-auto max-w-[300px] w-full relative overflow-hidden flex flex-col"
+      style={{
+        aspectRatio: "184 / 223",
+        backgroundColor: "#f9f8f5",
+        borderRadius: 2,
+        boxShadow: FRAME_DROP_SHADOW,
+      }}
+    >
+      {/* 종이 섬유질 — 실물 뒷면 텍스처 */}
       <div
-        className="flex-1 m-3 relative"
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: "repeating-linear-gradient(transparent, transparent 23px, #d4c9b8 23px, #d4c9b8 24px)",
+          backgroundImage: PAPER_FIBER_URL,
+          backgroundSize: "200px 200px",
+          opacity: 0.10,
+          mixBlendMode: "multiply",
+        }}
+      />
+      {/* 가장자리 어두움 — 프레임과 동일 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{ boxShadow: FRAME_EDGE_SHADOW }}
+      />
+
+      {/* 라인 노트 영역 */}
+      <div
+        className="relative flex-1 m-4 mb-2"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(transparent, transparent 23px, #d4c9b8 23px, #d4c9b8 24px)",
           backgroundPosition: "0 8px",
         }}
       >
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value.slice(0, MAX_CHARS))}
-          placeholder={t("playground.capture.memo")}
-          className="w-full h-full min-h-[220px] bg-transparent resize-none outline-none text-[#2a2a2a] leading-[24px] pt-[9px] typo-body"
-          style={{
-            fontFamily: "'April16', sans-serif",
-            caretColor: "#2a2a2a",
-          }}
-        />
+        {readOnly ? (
+          <p
+            className="w-full h-full text-[#2a2a2a] leading-[24px] pt-[9px] typo-body whitespace-pre-wrap overflow-auto"
+            style={{ fontFamily: "'April16', sans-serif" }}
+          >
+            {value || <span className="text-[#a09080]">{t("playground.capture.memo")}</span>}
+          </p>
+        ) : (
+          <textarea
+            value={value}
+            onChange={(e) => onChange?.(e.target.value.slice(0, MAX_CHARS))}
+            placeholder={t("playground.capture.memo")}
+            className="w-full h-full bg-transparent resize-none outline-none text-[#2a2a2a] leading-[24px] pt-[9px] typo-body placeholder:text-[#a09080]"
+            style={{
+              fontFamily: "'April16', sans-serif",
+              caretColor: "#2a2a2a",
+            }}
+          />
+        )}
       </div>
 
-      {/* 글자 수 */}
-      <div className="px-4 pb-2 text-right">
+      {/* 글자 수 카운터 — 프레임 하단 우측 (날짜 스탬프 위치 일관) */}
+      <div className="relative px-4 pb-3 text-right">
         <span
           className="font-mono tabular-nums"
           style={{
             fontSize: 10,
             color: value.length > MAX_CHARS * 0.9 ? "#c44" : "#a09080",
+            letterSpacing: "0.02em",
           }}
         >
           {value.length}/{MAX_CHARS}
