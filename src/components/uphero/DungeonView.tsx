@@ -41,10 +41,42 @@ export default function DungeonView() {
 
   const [speed, setSpeed] = useState<1 | 2 | 4>(1);
   const [paused, setPaused] = useState(false);
+  /** 치명타 발생 시 root shake 트리거 — 260ms 후 자동 해제 */
+  const [critShake, setCritShake] = useState(false);
   const { play } = useSound();
 
   const tickRef = useRef(tickSession);
   tickRef.current = tickSession;
+
+  // 치명타 (crit) 발생 감지 — log 의 새 combat 엔트리 중 outcome==="crit" 탐지
+  // 같은 엔트리에 대해 중복 발동 방지 위해 처리 완료된 log index 저장.
+  const seenCritIdxRef = useRef<Set<number>>(new Set());
+  const shakeTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!session) return;
+    session.log.forEach((entry, idx) => {
+      if (entry.type !== "combat") return;
+      if (entry.outcome !== "crit") return;
+      if (seenCritIdxRef.current.has(idx)) return;
+      seenCritIdxRef.current.add(idx);
+      // 사운드 + 진동 (impactShake = 충격 효과 사운드/haptic)
+      play("impactShake");
+      // 화면 흔들기 — setTimeout 중첩 방지
+      if (shakeTimerRef.current) window.clearTimeout(shakeTimerRef.current);
+      setCritShake(true);
+      shakeTimerRef.current = window.setTimeout(() => {
+        setCritShake(false);
+        shakeTimerRef.current = null;
+      }, 260);
+    });
+  }, [session, play]);
+
+  // 세션 바뀌면 seen set 초기화 (다른 던전 / 재시작)
+  useEffect(() => {
+    if (!session) {
+      seenCritIdxRef.current.clear();
+    }
+  }, [session?.startedAt, session]);
 
   // 보스 등장 감지 — session.status === "paused" 이고 last log 가 "boss" 엔트리
   // combat.ts 에서 보스 등장 시 자동으로 status = "paused" 로 세팅
@@ -101,7 +133,7 @@ export default function DungeonView() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 overflow-hidden flex flex-col"
+      className={`fixed inset-0 z-50 overflow-hidden flex flex-col ${critShake ? "uphero-crit-shake" : ""}`}
       style={{
         background: GB.darkest,
         color: GB.light,
@@ -231,6 +263,8 @@ export default function DungeonView() {
           onDone={resumeSession}
         />
       )}
+
+      {/* 치명타 shake keyframe 은 globals.css 에 정의됨 (uphero-crit-shake) */}
     </div>,
     document.body,
   );

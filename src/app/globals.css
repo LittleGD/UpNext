@@ -229,6 +229,19 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   border-radius: var(--radius-md);
 }
 
+/* === Up Hero — 치명타 shake === */
+@keyframes uphero-crit-shake {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-4px, -3px); }
+  40%  { transform: translate(4px, 2px); }
+  60%  { transform: translate(-3px, 3px); }
+  80%  { transform: translate(3px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+.uphero-crit-shake {
+  animation: uphero-crit-shake 260ms steps(5, end);
+}
+
 /* === 모바일 safe area (개별 고정 요소에서 처리) === */
 
 /* === 스크롤바 전역 숨김 — 네이티브 앱 느낌 ===
