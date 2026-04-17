@@ -14,6 +14,7 @@ import CampPlaceholder from "./CampPlaceholder";
 import DungeonView from "./DungeonView";
 import SessionResultModal from "./SessionResultModal";
 import IdleRewardToast from "./IdleRewardToast";
+import ClassAwakenModal from "./ClassAwakenModal";
 import { GB } from "@/lib/upHeroPalette";
 
 export default function UpHeroGame() {
@@ -50,6 +51,8 @@ export default function UpHeroGame() {
       {currentSession?.status === "completed" && <SessionResultModal />}
       {/* Phase 5b.1 — 앱 재진입 시 idle accrual 토스트. 상단 배너로 표시. */}
       <IdleRewardToast />
+      {/* Phase 5c.3 — Lv 30 도달 시 class 분화 풀스크린 연출. */}
+      <ClassAwakenModal />
     </>
   );
 }

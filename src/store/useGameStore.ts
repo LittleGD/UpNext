@@ -520,6 +520,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
+    // Phase 5c.1: Lv 30 도달 시 영웅 class 자동 분화
+    // 이전 레벨 < 30 & 새 레벨 >= 30 인 edge 에서만 시도.
+    if (prevLevel < 30 && updatedProgress.level >= 30) {
+      try {
+        useUpHeroStore.getState().assignClass();
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useGameStore] assignClass failed:", e);
+        }
+      }
+    }
+
     // 알림 갱신
     if (updatedProgress.notificationsEnabled) {
       if (allDone) {
