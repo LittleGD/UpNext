@@ -69,3 +69,51 @@ export function computeVintageOpacity(timestamp: number, now: number = Date.now(
  *   이미 빈티지를 담당하므로 추가 변화 최소화).
  */
 export const VINTAGE_AMBER = "rgba(200, 165, 114, 1)";
+
+/* ────────────────────────────────────────────────────────
+ * 폴라로이드 프레임 리얼리즘 상수
+ * ──────────────────────────────────────────────────────── */
+
+/**
+ * 프레임 드롭 섀도우 — 실물 인화지의 물리적 두께감.
+ * 이중 섀도우: 근접 하드(종이 두께) + 원거리 소프트(주변광 그림자).
+ */
+export const FRAME_DROP_SHADOW =
+  "0 1px 2px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08)";
+
+/**
+ * 프레임 가장자리 어두움 — 종이 엣지의 자연스러운 그림자.
+ * 실제 폴라로이드는 가장자리가 중앙보다 미세하게 어둡다.
+ */
+export const FRAME_EDGE_SHADOW =
+  "inset 0 0 12px rgba(0,0,0,0.04), inset 0 0 3px rgba(0,0,0,0.03)";
+
+/**
+ * 사진-프레임 경계 인셋 섀도우 — 에뮬전이 종이에 눌린 날카로운 경계.
+ * 기존 `inset 0 0 10px` 는 너무 부드러움 → 하드 엣지 + 미세 스프레드.
+ */
+export const PHOTO_RECESS_SHADOW =
+  "inset 0 0 2px 0.5px rgba(0,0,0,0.10), inset 0 0 6px rgba(0,0,0,0.03)";
+
+/**
+ * 거친 종이 섬유질 텍스처 — 기존 FILM_GRAIN 보다 저주파(큰 입자).
+ * baseFrequency 0.45 = 종이 섬유 패턴, seed=11 로 FILM_GRAIN 과 다른 패턴.
+ */
+const PAPER_FIBER_SVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.45' numOctaves='3' seed='11' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1'/></filter><rect width='100%' height='100%' filter='url(#p)'/></svg>`;
+export const PAPER_FIBER_URL = `url("data:image/svg+xml;utf8,${encodeURIComponent(PAPER_FIBER_SVG)}")`;
+
+/**
+ * 하단 엠보스 패턴 — 실제 폴라로이드 SX-70/600 필름의 다이아몬드 크로스해치.
+ * repeating-linear-gradient 로 45° + -45° 교차 패턴 생성.
+ */
+export const BOTTOM_EMBOSS_PATTERN =
+  "repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.015) 3px, rgba(0,0,0,0.015) 4px), " +
+  "repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.015) 3px, rgba(0,0,0,0.015) 4px)";
+
+/**
+ * 표면 반사광 — 광택 인화지의 대각선 글로스 밴드.
+ * 115° 각도로 좁은 화이트 밴드를 깔아 실물 폴라로이드의 광택면 느낌.
+ * 최대 opacity 0.10 — 눈에 "보이진 않지만 없으면 티나는" 정도의 미묘한 레벨.
+ */
+export const FRAME_REFLECTION =
+  "linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.06) 46%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0.06) 54%, transparent 60%)";

@@ -4,8 +4,14 @@ import { useEffect, useState } from "react";
 import {
   KODAK_FILM_FILTER,
   FILM_GRAIN_URL,
+  PAPER_FIBER_URL,
   VINTAGE_VIGNETTE,
   VINTAGE_AMBER,
+  FRAME_DROP_SHADOW,
+  FRAME_EDGE_SHADOW,
+  PHOTO_RECESS_SHADOW,
+  BOTTOM_EMBOSS_PATTERN,
+  FRAME_REFLECTION,
   computeVintageOpacity,
 } from "@/lib/photoFilter";
 
@@ -24,8 +30,6 @@ interface Props {
  *  - 검은 사진 영역: 원본 좌표 x=15/y=14/154×157 (퍼센트 기반)
  *  - 우상단 모서리 fold (`frame-right-top-fold.png`, 19×7 원본 크기 그대로)
  *    mix-blend-multiply 로 베이지 톤과 섞음
- *  - 하단 엣지 테이프 (`frame-left-edge-tape.png`, 152×44 원본 크기 그대로)
- *    프레임 하단 엣지에 절반쯤 걸쳐 좌측으로 살짝 삐져나간 배치 — 벽에 붙인 느낌
  *  - 사진 영역 내부: Kodak 필터 + 필름 그레인 + 비네트 + 인셋 섀도우 + 오렌지 날짜 스탬프
  */
 export default function PolaroidFrame2({ imageSrc, timestamp, children }: Props) {
@@ -51,31 +55,55 @@ export default function PolaroidFrame2({ imageSrc, timestamp, children }: Props)
   // (프레임만 반응형 스케일, 장식은 고정 크기)
   const FOLD_W = 19;
   const FOLD_H = 7;
-  const TAPE_W = 152;
-  const TAPE_H = 44;
-  // 테이프를 프레임 하단 엣지에 걸침 — 절반쯤 프레임 밖으로 삐져나오게
-  const TAPE_LEFT = -16; // 좌측에서 살짝 프레임 밖
-  const TAPE_BOTTOM = -TAPE_H / 2; // 하단 엣지에서 절반 밖 (≈ -22)
 
   return (
     <div
       className="mx-auto max-w-[300px] w-full relative overflow-hidden"
       style={{
         aspectRatio: "184 / 223",
-        backgroundColor: "#e8e7e3",
-        borderBottom: "1px solid #423F3C",
-        borderRadius: 4,
+        backgroundColor: "#f2f1ee",
+        borderRadius: 2,
+        boxShadow: FRAME_DROP_SHADOW,
       }}
     >
-      {/* 종이 질감 그레인 — 프레임 여백에 옅게 깔림 (사진은 위에 덮여 그레인이 안 보임) */}
+      {/* 미세 그레인 */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: FILM_GRAIN_URL,
           backgroundSize: "160px 160px",
-          opacity: 0.15,
+          opacity: 0.18,
           mixBlendMode: "multiply",
+        }}
+      />
+      {/* 거친 종이 섬유질 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: PAPER_FIBER_URL,
+          backgroundSize: "200px 200px",
+          opacity: 0.08,
+          mixBlendMode: "multiply",
+        }}
+      />
+      {/* 프레임 가장자리 어두움 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{ boxShadow: FRAME_EDGE_SHADOW }}
+      />
+      {/* 하단 엠보스 패턴 */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          left: 0,
+          right: 0,
+          top: `${((14 + 157) / 223) * 100}%`,
+          bottom: 0,
+          background: BOTTOM_EMBOSS_PATTERN,
         }}
       />
       {/* 사진 영역 (검은 배경 + 이미지 + 필터 레이어) */}
@@ -110,10 +138,10 @@ export default function PolaroidFrame2({ imageSrc, timestamp, children }: Props)
           className="absolute inset-0 pointer-events-none"
           style={{ background: VINTAGE_VIGNETTE }}
         />
-        {/* 인셋 섀도우 — 프레임 밀착감 */}
+        {/* 사진 리세스 */}
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{ boxShadow: "inset 0 0 10px rgba(0,0,0,0.15)" }}
+          style={{ boxShadow: PHOTO_RECESS_SHADOW }}
         />
         {/* 오렌지 날짜 스탬프 — 필름 카메라 스타일 */}
         <div
@@ -158,21 +186,6 @@ export default function PolaroidFrame2({ imageSrc, timestamp, children }: Props)
         }}
       />
 
-      {/* 하단 엣지 테이프 — PNG 원본 크기, 좌하단에 절반쯤 삐져나옴 */}
-      <img
-        src="/polaroid/frame-left-edge-tape.png"
-        alt=""
-        aria-hidden
-        draggable={false}
-        className="absolute pointer-events-none block"
-        style={{
-          left: TAPE_LEFT,
-          bottom: TAPE_BOTTOM,
-          width: TAPE_W,
-          height: TAPE_H,
-        }}
-      />
-
       {/* 빈티지 에이징 오버레이 — 21일에 걸쳐 누렇게 바래지는 앰버 레이어 */}
       {vintageOpacity > 0 && (
         <div
@@ -185,6 +198,13 @@ export default function PolaroidFrame2({ imageSrc, timestamp, children }: Props)
           }}
         />
       )}
+
+      {/* 표면 반사광 — 광택 인화지의 대각선 글로스 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: FRAME_REFLECTION }}
+      />
     </div>
   );
 }

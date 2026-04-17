@@ -4,8 +4,14 @@ import { useEffect, useState } from "react";
 import {
   KODAK_FILM_FILTER,
   FILM_GRAIN_URL,
+  PAPER_FIBER_URL,
   VINTAGE_VIGNETTE,
   VINTAGE_AMBER,
+  FRAME_DROP_SHADOW,
+  FRAME_EDGE_SHADOW,
+  PHOTO_RECESS_SHADOW,
+  BOTTOM_EMBOSS_PATTERN,
+  FRAME_REFLECTION,
   computeVintageOpacity,
 } from "@/lib/photoFilter";
 
@@ -24,23 +30,16 @@ interface Props {
  * 장식 없음 — "기본형" 카드, 특별한 날이나 일반 기록용으로 사용 가능.
  */
 
-const S = 300 / 184; // ≈ 1.6304
+// Figma 원본 좌표 (184×223 기준) → 퍼센트로 변환해 반응형 스케일
+// 사진 영역: x=15 / y=14 / 154×157
+const photoLeftPct = (15 / 184) * 100; // 8.152%
+const photoTopPct = (14 / 223) * 100; // 6.278%
+const photoWidthPct = (154 / 184) * 100; // 83.696%
+const photoHeightPct = (157 / 223) * 100; // 70.404%
 
-// 프레임 실제 크기
-const FRAME_W = 300;
-const FRAME_H = 223 * S; // ≈ 363.59
-
-// 이미지 슬롯 (Frame1과 동일 규격)
-const IMG_W = 154 * S;
-const IMG_H = 157 * S;
-const IMG_LEFT = (FRAME_W - IMG_W) / 2; // 수평 중앙
-const IMG_TOP = FRAME_H / 2 - 18.5 * S - IMG_H / 2; // 세로 중앙에서 18.5*S 위로 오프셋
-
-// 캡션 슬롯 (이미지 아래 ~ 프레임 하단)
-const CAPTION_LEFT = IMG_LEFT;
-const CAPTION_TOP = IMG_TOP + IMG_H;
-const CAPTION_W = IMG_W;
-const CAPTION_H = FRAME_H - CAPTION_TOP;
+// 캡션 영역: 이미지 바로 아래 ~ 프레임 하단
+const captionTopPct = ((14 + 157) / 223) * 100; // 76.682%
+const captionHeightPct = ((223 - 171) / 223) * 100; // 23.318%
 
 export default function PolaroidFrame5({ imageSrc, timestamp, children }: Props) {
   // 경과 일수 기반 빈티지 에이징 — 3일 간격 step, 21일에서 최대.
@@ -56,35 +55,63 @@ export default function PolaroidFrame5({ imageSrc, timestamp, children }: Props)
 
   return (
     <div
-      className="mx-auto relative"
+      className="mx-auto max-w-[300px] w-full relative"
       style={{
-        width: FRAME_W,
-        height: FRAME_H,
-        backgroundColor: "#ffffff",
-        borderRadius: 4,
-        borderBottom: "1px solid #423F3C",
+        aspectRatio: "184 / 223",
+        backgroundColor: "#f9f8f5",
+        borderRadius: 2,
+        boxShadow: FRAME_DROP_SHADOW,
         overflow: "hidden",
       }}
     >
-      {/* 종이 질감 그레인 — 프레임 여백에 옅게 깔림 (사진은 위에 덮여 그레인이 안 보임) */}
+      {/* 미세 그레인 — 인화지 표면의 디지털 노이즈 */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: FILM_GRAIN_URL,
           backgroundSize: "160px 160px",
-          opacity: 0.15,
+          opacity: 0.18,
           mixBlendMode: "multiply",
+        }}
+      />
+      {/* 거친 종이 섬유질 — 저주파 노이즈로 종이 느낌 강화 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: PAPER_FIBER_URL,
+          backgroundSize: "200px 200px",
+          opacity: 0.08,
+          mixBlendMode: "multiply",
+        }}
+      />
+      {/* 프레임 가장자리 어두움 — 종이 두께에 의한 자연 그림자 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{ boxShadow: FRAME_EDGE_SHADOW }}
+      />
+      {/* 하단 엠보스 패턴 — 폴라로이드 특유의 다이아몬드 크로스해치 */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          left: 0,
+          right: 0,
+          top: `${captionTopPct}%`,
+          bottom: 0,
+          background: BOTTOM_EMBOSS_PATTERN,
         }}
       />
       {/* 사진 영역 — 검은 배경 + 이미지 + 필터 레이어 */}
       <div
         className="absolute overflow-hidden"
         style={{
-          left: IMG_LEFT,
-          top: IMG_TOP,
-          width: IMG_W,
-          height: IMG_H,
+          left: `${photoLeftPct}%`,
+          top: `${photoTopPct}%`,
+          width: `${photoWidthPct}%`,
+          height: `${photoHeightPct}%`,
           backgroundColor: "#010101",
         }}
       >
@@ -109,10 +136,10 @@ export default function PolaroidFrame5({ imageSrc, timestamp, children }: Props)
           className="absolute inset-0 pointer-events-none"
           style={{ background: VINTAGE_VIGNETTE }}
         />
-        {/* 미묘한 인셋 섀도우 — 프레임 밀착감 */}
+        {/* 사진 리세스 — 에뮬전이 프레임에 눌린 날카로운 경계 */}
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{ boxShadow: "inset 0 0 10px rgba(0,0,0,0.15)" }}
+          style={{ boxShadow: PHOTO_RECESS_SHADOW }}
         />
         {/* 날짜 스탬프 — 필름 카메라 스타일 (우하단 오렌지) */}
         <div
@@ -135,10 +162,10 @@ export default function PolaroidFrame5({ imageSrc, timestamp, children }: Props)
       <div
         className="absolute"
         style={{
-          left: CAPTION_LEFT,
-          top: CAPTION_TOP,
-          width: CAPTION_W,
-          height: CAPTION_H,
+          left: `${photoLeftPct}%`,
+          top: `${captionTopPct}%`,
+          width: `${photoWidthPct}%`,
+          height: `${captionHeightPct}%`,
         }}
       >
         {children}
@@ -156,6 +183,13 @@ export default function PolaroidFrame5({ imageSrc, timestamp, children }: Props)
           }}
         />
       )}
+
+      {/* 표면 반사광 — 광택 인화지의 대각선 글로스 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: FRAME_REFLECTION }}
+      />
     </div>
   );
 }

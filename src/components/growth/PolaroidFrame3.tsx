@@ -4,8 +4,14 @@ import { useEffect, useState } from "react";
 import {
   KODAK_FILM_FILTER,
   FILM_GRAIN_URL,
+  PAPER_FIBER_URL,
   VINTAGE_VIGNETTE,
   VINTAGE_AMBER,
+  FRAME_DROP_SHADOW,
+  FRAME_EDGE_SHADOW,
+  PHOTO_RECESS_SHADOW,
+  BOTTOM_EMBOSS_PATTERN,
+  FRAME_REFLECTION,
   computeVintageOpacity,
 } from "@/lib/photoFilter";
 
@@ -23,21 +29,16 @@ interface Props {
 //   · 사진 하단 크랙 (`frame-crack.png`, 141×21) — 좌측 밖까지 뻗는 얇은 균열
 //
 // 렌더 시 ~300px 폭으로 확대 (300 / 184 ≈ 1.6304).
-const S = 300 / 184; // ≈ 1.6304
-const FRAME_W = 184 * S; // 300
-const FRAME_H = 223 * S; // ≈ 363.59
+// Figma 원본 좌표 (184×223 기준) → 퍼센트로 변환해 반응형 스케일
+// 사진 영역: x=15 / y=14 / 154×157
+const photoLeftPct = (15 / 184) * 100; // 8.152%
+const photoTopPct = (14 / 223) * 100; // 6.278%
+const photoWidthPct = (154 / 184) * 100; // 83.696%
+const photoHeightPct = (157 / 223) * 100; // 70.404%
 
-// 이미지 슬롯
-const IMG_LEFT = 15 * S;
-const IMG_TOP = 14 * S;
-const IMG_W = 154 * S;
-const IMG_H = 157 * S;
-
-// 하단 캡션 영역
-const CAP_LEFT = 15 * S;
-const CAP_TOP = (14 + 157) * S; // 171 * S
-const CAP_W = 154 * S;
-const CAP_H = (223 - 171) * S; // 52 * S
+// 캡션 영역: 이미지 바로 아래 ~ 프레임 하단
+const captionTopPct = ((14 + 157) / 223) * 100; // 76.682%
+const captionHeightPct = ((223 - 171) / 223) * 100; // 23.318%
 
 // 장식은 PNG 원본 픽셀 크기 그대로 — 업스케일 해상도 손실 방지
 const FOLD_W = 13;
@@ -48,7 +49,7 @@ const CRACK_H = 21;
 // 크랙은 사진 하단~캡션 경계를 가로지르며 좌측 밖까지 살짝 뻗는 위치
 // Figma 원본 y=189 위치(프레임의 약 84.8%)에 배치
 const CRACK_LEFT = -16; // 좌측에서 살짝 프레임 밖
-const CRACK_TOP = Math.round(189 * S); // ≈ 308 — 사진 하단 엣지 근처
+const crackTopPct = (189 / 223) * 100; // 84.753%
 
 export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props) {
   // 경과 일수 기반 빈티지 에이징 — 3일 간격 step, 21일에서 최대.
@@ -64,37 +65,64 @@ export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props)
 
   return (
     <div
-      className="mx-auto relative overflow-hidden"
+      className="mx-auto max-w-[300px] w-full relative overflow-hidden"
       style={{
-        width: FRAME_W,
-        height: FRAME_H,
-        backgroundColor: "#e8e7e3",
-        borderBottom: "1px solid #423F3C",
-        borderRadius: 4,
-        boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
+        aspectRatio: "184 / 223",
+        backgroundColor: "#f2f1ee",
+        borderRadius: 2,
+        boxShadow: FRAME_DROP_SHADOW,
       }}
       data-node-id="346:2616"
       data-name="p-frame3"
     >
-      {/* 종이 질감 그레인 — 프레임 여백에 옅게 깔림 (사진은 위에 덮여 그레인이 안 보임) */}
+      {/* 미세 그레인 */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: FILM_GRAIN_URL,
           backgroundSize: "160px 160px",
-          opacity: 0.15,
+          opacity: 0.18,
           mixBlendMode: "multiply",
+        }}
+      />
+      {/* 거친 종이 섬유질 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: PAPER_FIBER_URL,
+          backgroundSize: "200px 200px",
+          opacity: 0.08,
+          mixBlendMode: "multiply",
+        }}
+      />
+      {/* 프레임 가장자리 어두움 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{ boxShadow: FRAME_EDGE_SHADOW }}
+      />
+      {/* 하단 엠보스 패턴 */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          left: 0,
+          right: 0,
+          top: `${captionTopPct}%`,
+          bottom: 0,
+          background: BOTTOM_EMBOSS_PATTERN,
         }}
       />
       {/* 이미지 슬롯 (Frame 39) */}
       <div
         className="absolute overflow-hidden"
         style={{
-          left: IMG_LEFT,
-          top: IMG_TOP,
-          width: IMG_W,
-          height: IMG_H,
+          left: `${photoLeftPct}%`,
+          top: `${photoTopPct}%`,
+          width: `${photoWidthPct}%`,
+          height: `${photoHeightPct}%`,
           backgroundColor: "#010101",
         }}
         data-node-id="346:2617"
@@ -120,10 +148,10 @@ export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props)
           className="absolute inset-0 pointer-events-none"
           style={{ background: VINTAGE_VIGNETTE }}
         />
-        {/* 미묘한 인셋 섀도우 — 프레임 밀착감 */}
+        {/* 사진 리세스 */}
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{ boxShadow: "inset 0 0 10px rgba(0,0,0,0.15)" }}
+          style={{ boxShadow: PHOTO_RECESS_SHADOW }}
         />
         {/* 날짜 스탬프 — 필름 카메라 스타일 (우하단 오렌지) */}
         <div
@@ -149,7 +177,7 @@ export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props)
         className="absolute pointer-events-none block"
         style={{
           left: CRACK_LEFT,
-          top: CRACK_TOP,
+          top: `${crackTopPct}%`,
           width: CRACK_W,
           height: CRACK_H,
           mixBlendMode: "multiply",
@@ -177,10 +205,10 @@ export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props)
       <div
         className="absolute"
         style={{
-          left: CAP_LEFT,
-          top: CAP_TOP,
-          width: CAP_W,
-          height: CAP_H,
+          left: `${photoLeftPct}%`,
+          top: `${captionTopPct}%`,
+          width: `${photoWidthPct}%`,
+          height: `${captionHeightPct}%`,
         }}
       >
         {children}
@@ -198,6 +226,13 @@ export default function PolaroidFrame3({ imageSrc, timestamp, children }: Props)
           }}
         />
       )}
+
+      {/* 표면 반사광 — 광택 인화지의 대각선 글로스 */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: FRAME_REFLECTION }}
+      />
     </div>
   );
 }
