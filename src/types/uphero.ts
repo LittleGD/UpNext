@@ -128,6 +128,9 @@ export interface ChoiceOption {
   resultText?: string;
 }
 
+/** 전투 결과 — Phase 3: miss (공격자 실수) / dodge (방어자 회피) 구분 */
+export type CombatOutcome = "hit" | "crit" | "dodge" | "miss";
+
 /** 전투 로그 엔트리 — discriminated union */
 export type LogEntry =
   | { type: "narrative"; text: string; timestamp: number }
@@ -136,9 +139,10 @@ export type LogEntry =
       type: "combat";
       attacker: "hero" | "enemy";
       damage: number;
-      ability?: string;
-      critical?: boolean;
-      dodged?: boolean;
+      /** Phase 3 신규 — miss/dodge/crit/hit 판정 */
+      outcome: CombatOutcome;
+      /** 생성된 narrative 문장 (있으면 렌더에서 우선 표시) */
+      narrative?: string;
       timestamp: number;
     }
   | { type: "victory"; monster: Monster; xp: number; coins: number; timestamp: number }

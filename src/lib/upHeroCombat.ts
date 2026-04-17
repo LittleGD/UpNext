@@ -8,8 +8,10 @@
  */
 
 import type {
+  CombatOutcome,
   CombatSession,
   Hero,
+  HeroBaseStats,
   LogEntry,
   Monster,
   Dungeon,
@@ -22,6 +24,10 @@ import { createMonsterForFloor } from "@/data/upHeroMonsters";
 import { pickNarrative, pickTreasureDescription, pickEvent } from "@/data/upHeroFlavor";
 import { rollEquipmentDrop, rollDropRarity } from "@/data/upHeroEquipment";
 import { DUNGEONS } from "@/data/upHeroDungeons";
+import {
+  heroAttackNarrative,
+  monsterAttackNarrative,
+} from "@/lib/upHeroNarrative";
 
 /** 세션 시작 — 빈 log 로 생성 */
 export function createSession(
@@ -135,53 +141,42 @@ export function tickSession(session: CombatSession): CombatSession {
         return s;
       }
 
-      // 다음 전투 round
-      const heroCritical = Math.random() < 0.1;
-      const heroDodge = Math.random() < Math.min(0.2, stats.agi * 0.005);
-      const enemyDodge = Math.random() < Math.min(0.15, monster.level * 0.005);
-
+      // --- 다음 전투 round ---
       // 영웅 공격
-      if (enemyDodge) {
+      {
+        const outcome = rollHeroOutcome(stats, monster);
+        const dmg =
+          outcome === "miss" || outcome === "dodge"
+            ? 0
+            : computeHeroDamage(stats, monster, outcome === "crit");
+        const narrative = Math.random() < shouldNarrate(outcome)
+          ? heroAttackNarrative(monster, outcome, dmg)
+          : undefined;
         s.log.push({
           type: "combat",
           attacker: "hero",
-          damage: 0,
-          dodged: true,
-          timestamp: Date.now(),
-        });
-      } else {
-        const dmg = Math.max(
-          1,
-          stats.str + Math.floor(Math.random() * 7) - 3 - monster.def,
-        );
-        const actualDmg = heroCritical ? dmg * 2 : dmg;
-        s.log.push({
-          type: "combat",
-          attacker: "hero",
-          damage: actualDmg,
-          critical: heroCritical,
+          damage: dmg,
+          outcome,
+          narrative,
           timestamp: Date.now(),
         });
       }
-
-      // 적 공격 (영웅이 회피 못하면)
-      if (heroDodge) {
-        s.log.push({
-          type: "combat",
-          attacker: "enemy",
-          damage: 0,
-          dodged: true,
-          timestamp: Date.now(),
-        });
-      } else {
-        const dmg = Math.max(
-          1,
-          monster.atk + Math.floor(Math.random() * 5) - 2 - Math.floor(stats.vit / 2),
-        );
+      // 몬스터 공격
+      {
+        const outcome = rollEnemyOutcome(monster, stats);
+        const dmg =
+          outcome === "miss" || outcome === "dodge"
+            ? 0
+            : computeEnemyDamage(monster, stats, outcome === "crit");
+        const narrative = Math.random() < shouldNarrate(outcome)
+          ? monsterAttackNarrative(monster, outcome, dmg)
+          : undefined;
         s.log.push({
           type: "combat",
           attacker: "enemy",
           damage: dmg,
+          outcome,
+          narrative,
           timestamp: Date.now(),
         });
       }
@@ -419,11 +414,86 @@ function computeCombatState(
   for (let i = encounterIdx + 1; i < log.length; i++) {
     const e = log[i];
     if (e.type !== "combat") continue;
-    if (e.dodged) continue;
+    // damage 0 이면 miss/dodge — HP 에 영향 없음
+    if (e.damage === 0) continue;
     if (e.attacker === "hero") monsterHp -= e.damage;
     else heroHp -= e.damage;
   }
   return { heroHp: Math.max(0, heroHp), monsterHp: Math.max(0, monsterHp) };
+}
+
+// ─────────────────────────────────────────────────────────
+// Phase 3 — 치명타 / 회피 / 미스 롤 + 데미지 공식
+// 판정 순서: miss → dodge → crit → hit (각 독립 롤)
+// ─────────────────────────────────────────────────────────
+
+/** 영웅 공격의 outcome 판정 */
+function rollHeroOutcome(
+  stats: HeroBaseStats,
+  monster: Monster,
+): CombatOutcome {
+  // 공격자(영웅) 실수 — 낮은 dex 일수록 빗나감 (base 5%, dex 60 에서 2% 바닥)
+  const missChance = Math.max(0.02, 0.05 - stats.dex * 0.0005);
+  if (Math.random() < missChance) return "miss";
+  // 방어자(몬스터) 회피 — 고층 몬스터 더 잘 피함
+  const dodgeChance = Math.min(0.2, monster.level * 0.005);
+  if (Math.random() < dodgeChance) return "dodge";
+  // 공격자(영웅) 크리 — dex scaling
+  const critChance = Math.min(0.35, 0.05 + stats.dex * 0.003);
+  if (Math.random() < critChance) return "crit";
+  return "hit";
+}
+
+/** 몬스터 공격의 outcome 판정 */
+function rollEnemyOutcome(
+  monster: Monster,
+  stats: HeroBaseStats,
+): CombatOutcome {
+  // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 8%, floor 60 에서 2% 바닥)
+  const missChance = Math.max(0.02, 0.08 - monster.level * 0.001);
+  if (Math.random() < missChance) return "miss";
+  // 방어자(영웅) 회피 — agi scaling
+  const dodgeChance = Math.min(0.25, stats.agi * 0.006);
+  if (Math.random() < dodgeChance) return "dodge";
+  // 공격자(몬스터) 크리 — level scaling
+  const critChance = Math.min(0.25, 0.03 + monster.level * 0.004);
+  if (Math.random() < critChance) return "crit";
+  return "hit";
+}
+
+/** 영웅 데미지 — crit 시 1.8배 */
+function computeHeroDamage(
+  stats: HeroBaseStats,
+  monster: Monster,
+  crit: boolean,
+): number {
+  const base = Math.max(
+    1,
+    stats.str + Math.floor(Math.random() * 7) - 3 - monster.def,
+  );
+  return crit ? Math.floor(base * 1.8) : base;
+}
+
+/** 몬스터 데미지 — crit 시 1.7배 */
+function computeEnemyDamage(
+  monster: Monster,
+  stats: HeroBaseStats,
+  crit: boolean,
+): number {
+  const base = Math.max(
+    1,
+    monster.atk + Math.floor(Math.random() * 5) - 2 - Math.floor(stats.vit / 2),
+  );
+  return crit ? Math.floor(base * 1.7) : base;
+}
+
+/**
+ * narrative 생성 확률.
+ * hit (일반) 는 50% 만 narrative 로 렌더하여 로그 장황함 방지,
+ * crit / miss / dodge 는 특수 상황이므로 항상 narrative.
+ */
+function shouldNarrate(outcome: CombatOutcome): number {
+  return outcome === "hit" ? 0.5 : 1.0;
 }
 
 /** 드롭 리스트 중 신규 장비만 (중복 방지) */
