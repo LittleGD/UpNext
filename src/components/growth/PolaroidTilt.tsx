@@ -72,10 +72,21 @@ export default function PolaroidTilt({ children, enabled = true, autoHint = fals
   // ellipse 80% 65% = 더 넓은 sheen, transparent 100% = 부드러운 끝맺음.
   const reflectGradient = useMotionTemplate`radial-gradient(ellipse 80% 65% at ${reflectX}% ${reflectY}%, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.06) 45%, transparent 100%)`;
 
-  /* ���─ 포인터 추적 ── */
+  /* ── 포인터 추적 ──
+     editable 요소 (textarea/input/button) 또는 [data-no-tilt] 위에서는 tilt skip.
+     이유: textarea 클릭 시 작은 마우스 드리프트가 카드를 회전시켜 focus 가 방해됨.
+     PolaroidFlip 의 동일 패턴 (target.closest) 으로 일관성 유지. */
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!enabled || !containerRef.current) return;
+      const target = e.target as HTMLElement;
+      if (target.closest("textarea, input, button, [data-no-tilt]")) {
+        // editable 위 — tilt 0 으로 복귀하고 종료
+        targetRotateX.set(0);
+        targetRotateY.set(0);
+        isPointerActiveRef.current = false;
+        return;
+      }
       const rect = containerRef.current.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;

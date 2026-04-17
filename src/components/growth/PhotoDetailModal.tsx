@@ -54,6 +54,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
   const [editedSignature, setEditedSignature] = useState<string | null>(null);
   const [editedStickers, setEditedStickers] = useState<Sticker[]>(meta.stickers ?? []);
   const [editPenColor, setEditPenColor] = useState<string>(INK_COLORS[0]);
+  const [editPenWidth, setEditPenWidth] = useState<number>(1.0);
   const [isSharing, setIsSharing] = useState(false);
 
   // 메모 — 뒷면에서 편집 가능 (debounced auto-save)
@@ -156,7 +157,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
         y: 50,
         rotation: (Math.random() - 0.5) * 20,
         scale: 1,
-        zIndex: prev.length + 1,
+        zIndex: content === "upnext-logo" ? 999 : prev.length + 1,
       },
     ]);
   }, []);
@@ -224,6 +225,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                     height={363}
                     initialDataUrl={signatureUrl}
                     inkColor={editPenColor}
+                    widthMultiplier={editPenWidth}
                     onSignatureChange={setEditedSignature}
                     className="w-full h-full"
                   />
@@ -238,6 +240,8 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
               <DecorationToolbar
                 selectedColor={editPenColor}
                 onColorChange={setEditPenColor}
+                selectedWidth={editPenWidth}
+                onWidthChange={setEditPenWidth}
                 onAddSticker={handleAddSticker}
               />
               <div className="flex gap-2 mt-2">
@@ -287,7 +291,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                     </div>
                   }
                   back={
-                    <div data-no-flip>
+                    <div data-no-flip data-no-tilt>
                       <MemoEditor value={memoDraft} onChange={handleMemoChange} />
                     </div>
                   }
