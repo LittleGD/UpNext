@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import UpNextLogoMark from "./UpNextLogoMark";
 
 /**
@@ -61,6 +60,10 @@ export default function DecorationToolbar({
         <div className="flex items-center gap-1.5">
           {INK_COLORS.map((color) => {
             const isSelected = color === selectedColor;
+            // Selected indicator: inset 라이트 그레이 ring (모든 swatch 동일 외곽 사이즈 유지).
+            // 검은 잉크에서도 잘 보이고, 다른 색에서도 자연스러움.
+            const baseShadow = "0 1px 2px rgba(0,0,0,0.3)";
+            const insetRing = "inset 0 0 0 2px rgba(220,220,220,0.95)";
             return (
               <button
                 key={color}
@@ -69,19 +72,9 @@ export default function DecorationToolbar({
                 className="relative w-6 h-6 rounded-full active:scale-90 transition-transform"
                 style={{
                   backgroundColor: color,
-                  boxShadow: isSelected
-                    ? `0 0 0 2px var(--bg-primary), 0 0 0 4px ${color}`
-                    : "0 1px 2px rgba(0,0,0,0.3)",
+                  boxShadow: isSelected ? `${insetRing}, ${baseShadow}` : baseShadow,
                 }}
-              >
-                {isSelected && (
-                  <motion.span
-                    layoutId="ink-selected-ring"
-                    className="absolute inset-0 rounded-full"
-                    initial={false}
-                  />
-                )}
-              </button>
+              />
             );
           })}
         </div>
@@ -89,7 +82,7 @@ export default function DecorationToolbar({
         {/* 세로 구분선 */}
         <div className="w-px h-5 bg-text-tertiary/15 mx-1" />
 
-        {/* 펜 굵기 토글 — dot 크기로 시각 표현 */}
+        {/* 펜 굵기 토글 — dot 크기로 시각 표현. inset ring 으로 사이즈 차이 없음. */}
         <div className="flex items-center gap-1.5">
           {PEN_WIDTHS.map((w) => {
             const isSelected = w.multiplier === selectedWidth;
@@ -101,7 +94,7 @@ export default function DecorationToolbar({
                 className="w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-transform"
                 style={{
                   boxShadow: isSelected
-                    ? "0 0 0 1.5px var(--accent-primary)"
+                    ? "inset 0 0 0 1.5px var(--accent-primary)"
                     : undefined,
                 }}
               >

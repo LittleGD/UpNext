@@ -208,10 +208,14 @@ export default function StickerLayer({ stickers, editable = false, onChange, cla
     [editable, onChange, stickers],
   );
 
+  // ⚠ 컨테이너는 항상 pointer-events: none — 빈 공간은 아래 레이어 (SignatureCanvas)
+  // 가 받게 함. 개별 sticker 만 editable 시 pointer-events: auto.
+  // 이전 버그: editable=true 시 컨테이너가 absolute inset-0 으로 모든 pointer 흡수
+  // → 캔버스에 그릴 수가 없었음 (특히 PhotoDetailModal Edit 모드).
   return (
     <div
       ref={containerRef}
-      className={`absolute inset-0 ${editable ? "" : "pointer-events-none"} ${className || ""}`}
+      className={`absolute inset-0 pointer-events-none ${className || ""}`}
     >
       {stickers.map((s) => (
         <StickerView
@@ -249,7 +253,7 @@ function StickerView({ sticker, editable, onPointerDown, onPointerMove, onPointe
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onDoubleClick={(e) => onDoubleClick(e, sticker.id)}
-      className={`absolute select-none ${editable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`absolute select-none ${editable ? "cursor-grab active:cursor-grabbing pointer-events-auto" : "pointer-events-none"}`}
       style={{
         left: `${sticker.x}%`,
         top: `${sticker.y}%`,
