@@ -31,28 +31,13 @@ export default function SessionResultModal() {
   const dungeon = DUNGEONS[session.dungeonId];
   const lastEntry = session.log[session.log.length - 1];
   const reason =
-    lastEntry?.type === "sessionEnd" ? lastEntry.reason : "victory";
+    lastEntry?.type === "sessionEnd" ? lastEntry.reason : "heroAbandoned";
+  const detail =
+    lastEntry?.type === "sessionEnd" ? lastEntry.detail : undefined;
 
-  const title =
-    reason === "victory"
-      ? "모험 완료"
-      : reason === "defeat"
-        ? "영웅이 쓰러졌다"
-        : "캠프로 복귀";
-
-  const titleColor =
-    reason === "victory"
-      ? GB.lightest
-      : reason === "defeat"
-        ? GB_ENEMY
-        : GB.light;
-
-  const iconName =
-    reason === "victory"
-      ? "Trophy"
-      : reason === "defeat"
-        ? "Skull"
-        : "Flag";
+  // Phase 4c.1 — 사유별 구체 타이틀/아이콘/색
+  // legacy reason ("victory"/"defeat"/"abandoned") 도 매핑 (이전 세션 호환).
+  const { title, titleColor, iconName } = resolveReasonDisplay(reason);
 
   return createPortal(
     <div
@@ -88,6 +73,15 @@ export default function SessionResultModal() {
           >
             {title}
           </div>
+          {/* Phase 4c.1 — 사유 상세 (예: "시간이 다했다", "산악의 거인을 쓰러뜨렸다") */}
+          {detail && (
+            <div
+              className="typo-caption px-2"
+              style={{ color: GB.light, opacity: 0.85 }}
+            >
+              {detail}
+            </div>
+          )}
         </div>
 
         {/* Rewards */}
@@ -172,6 +166,29 @@ export default function SessionResultModal() {
     </div>,
     document.body,
   );
+}
+
+/**
+ * Phase 4c.1 — 종료 사유별 타이틀/색/아이콘 매핑.
+ * legacy reason 도 알맞은 신규 reason 으로 mapping.
+ */
+function resolveReasonDisplay(
+  reason: string,
+): { title: string; titleColor: string; iconName: string } {
+  switch (reason) {
+    case "bossDefeated":
+    case "victory": // legacy
+      return { title: "보스 처치", titleColor: GB.lightest, iconName: "Trophy" };
+    case "heroDied":
+    case "defeat": // legacy
+      return { title: "영웅이 쓰러졌다", titleColor: GB_ENEMY, iconName: "Skull" };
+    case "timeExpired":
+      return { title: "시간이 다했다", titleColor: GB.light, iconName: "Clock" };
+    case "heroAbandoned":
+    case "abandoned": // legacy
+    default:
+      return { title: "캠프로 복귀", titleColor: GB.light, iconName: "Flag" };
+  }
 }
 
 function RewardRow({

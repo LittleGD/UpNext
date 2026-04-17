@@ -18,6 +18,7 @@ import type {
   Equipment,
   ChoiceOption,
   ChoiceEffect,
+  SessionEndReason,
   SpecialEffect,
 } from "@/types/uphero";
 import { computeEffectiveStats } from "@/types/uphero";
@@ -29,6 +30,22 @@ import {
   heroAttackNarrative,
   monsterAttackNarrative,
 } from "@/lib/upHeroNarrative";
+
+/**
+ * Phase 4c.1 — 탐험 시간 리소스 밸런스.
+ * baseTime=100 에 1 탐험당 평균 ~6 정도 소모 → 15~18 층 진행 가능.
+ * 10F 미니보스까진 대체로 여유, 30F 최종 보스는 빡빡 (이벤트 결과에 따라 변동).
+ */
+const BASE_EXPEDITION_TIME = 100;
+const TIME_COST = {
+  narrative: 2,
+  encounter: 3,
+  treasure: 2,
+  floor: 5,
+  combatRound: 2, // 영웅+몬스터 1 round 세트
+  boss: 8, // 보스 전투 round 당 추가 소모
+  choice: 1, // choice 해소 자체
+} as const;
 
 /**
  * 세션 시작 — 빈 log 로 생성.
@@ -45,6 +62,7 @@ export function createSession(
   activeBuffs?: CardBuff[],
 ): CombatSession {
   const buffedHero = applyStatAndHealBuffs(hero, activeBuffs ?? [], dungeonId);
+  const maxTime = BASE_EXPEDITION_TIME;
   return {
     dungeonId,
     startFloor,
@@ -67,8 +85,42 @@ export function createSession(
     status: "active",
     speed: 1,
     activeBuffs: activeBuffs && activeBuffs.length > 0 ? activeBuffs : undefined,
+    time: maxTime,
+    maxTime,
     startedAt: Date.now(),
   };
+}
+
+/**
+ * Phase 4c.1 — 시간 소모 헬퍼.
+ * delta 는 음수(소모) 또는 양수(회복). 0 이하로 떨어지면 세션 종료.
+ * 반환값 true = 세션이 시간 소진으로 종료됨.
+ */
+function consumeTime(s: CombatSession, delta: number): boolean {
+  s.time = Math.max(0, Math.min(s.maxTime, s.time + delta));
+  if (s.time <= 0 && s.status === "active") {
+    endSession(s, "timeExpired", "탐험 시간이 소진됐다");
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 세션 종료 — 로그에 sessionEnd 엔트리 추가하고 status=completed.
+ * reason 별로 SessionResultModal 과 CombatLog 가 문구를 다르게 렌더.
+ */
+function endSession(
+  s: CombatSession,
+  reason: SessionEndReason,
+  detail?: string,
+): void {
+  s.log.push({
+    type: "sessionEnd",
+    reason,
+    detail,
+    timestamp: Date.now(),
+  });
+  s.status = "completed";
 }
 
 /**
@@ -161,10 +213,9 @@ export function tickSession(session: CombatSession): CombatSession {
       const combatState = computeCombatState(s.log, encounterIdx, monster, s.hero.hp);
 
       if (combatState.heroHp <= 0) {
-        // 영웅 패배
-        s.log.push({ type: "sessionEnd", reason: "defeat", timestamp: Date.now() });
-        s.status = "completed";
+        // 영웅 패배 — 어떤 몬스터에게 쓰러졌는지 detail 로 기록
         s.hero.hp = 0;
+        endSession(s, "heroDied", `${monster.name} 에게 쓰러졌다`);
         return s;
       }
       if (combatState.monsterHp <= 0) {
@@ -190,9 +241,8 @@ export function tickSession(session: CombatSession): CombatSession {
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
           s.rewards.drops.push(eq);
-          // 세션 종료 (보스 도달 == 목표 달성)
-          s.log.push({ type: "sessionEnd", reason: "victory", timestamp: Date.now() });
-          s.status = "completed";
+          // 보스 처치 → 세션 종료. detail 로 보스 이름.
+          endSession(s, "bossDefeated", `${monster.name} 을(를) 쓰러뜨렸다`);
           return s;
         }
 
@@ -217,16 +267,18 @@ export function tickSession(session: CombatSession): CombatSession {
 
       // --- 다음 전투 round ---
       executeCombatRound(s, monster, stats);
+      // 전투 round 당 시간 소모 (보스는 더 많이)
+      const cost = monster.isBoss ? TIME_COST.boss : TIME_COST.combatRound;
+      consumeTime(s, -cost);
       return s;
     }
   }
 
-  // 전투 중이 아닐 때: 다음 floor 로 가거나 새 이벤트/encounter 생성
-  // 세션 종료 조건: currentFloor 가 startFloor + 10 이상이고 보스 도달 시 완료
-  // (보스는 위에서 처리됨)
+  // 전투 중이 아닐 때: 다음 floor 로 가거나 새 이벤트/encounter 생성.
+  // Phase 4c.1 이후 세션 종료 조건은 (a) 시간 소진 (b) 보스 처치 (c) 영웅 사망
+  // (d) 사용자 포기 중 하나. 자연 종료 (N floors) 는 제거됨 — 시간이 리소스.
 
   // BOSS 연출 직후 (resumeSession 로 status=active 로 복귀한 다음 tick) — encounter 로 진입
-  // 자연 종료 체크보다 먼저! floorsTraveled 에 걸려 잘리지 않게.
   if (lastEntry?.type === "boss") {
     s.log.push({
       type: "encounter",
@@ -246,15 +298,6 @@ export function tickSession(session: CombatSession): CombatSession {
   const nextFloor = s.currentFloor + 1;
   const isBossFloor = nextFloor % 10 === 0 && nextFloor <= 30;
 
-  // 이미 이번 세션에서 시작 층부터 여러 층 진행했다면 자연 종료 (보스 전까지 최대 10층)
-  const floorsTraveled = s.currentFloor - s.startFloor;
-  if (floorsTraveled >= 5 && !isBossFloor) {
-    // 자연 종료 (목표 층 도달)
-    s.log.push({ type: "sessionEnd", reason: "victory", timestamp: Date.now() });
-    s.status = "completed";
-    return s;
-  }
-
   // 층 이동
   if (lastEntry?.type === "victory" || lastEntry?.type === "drop" || lastEntry?.type === "treasure" || lastEntry?.type === "narrative") {
     // 층 진입
@@ -265,6 +308,8 @@ export function tickSession(session: CombatSession): CombatSession {
       timestamp: Date.now(),
     });
     s.currentFloor = nextFloor;
+    // Phase 4c.1 — 층 이동마다 시간 소모
+    if (consumeTime(s, -TIME_COST.floor)) return s;
 
     // 보스 floor 면 boss 엔트리만 push 하고 세션 일시 정지 (BossBanner 연출 동안)
     // encounter 는 사용자가 연출을 본 후 resumeSession() 호출 시 다음 tick 에서 push
@@ -287,7 +332,7 @@ export function tickSession(session: CombatSession): CombatSession {
 
   const roll = Math.random();
   if (roll < 0.25) {
-    // choice 이벤트 — 사용자 선택 필요
+    // choice 이벤트 — 사용자 선택 필요 (시간 소모는 resolveChoice 에서)
     const ev = pickEvent(s.dungeonId);
     const logIdx = s.log.length;
     s.log.push({
@@ -307,6 +352,7 @@ export function tickSession(session: CombatSession): CombatSession {
       text: pickNarrative(s.dungeonId),
       timestamp: Date.now(),
     });
+    consumeTime(s, -TIME_COST.narrative);
     return s;
   }
   if (roll < encounterThreshold) {
@@ -320,16 +366,24 @@ export function tickSession(session: CombatSession): CombatSession {
       timestamp: Date.now(),
     });
     s.rewards.coins += coins;
+    consumeTime(s, -TIME_COST.treasure);
     return s;
   }
 
   // 나머지: encounter (monsterFreqDelta 만큼 확률 증감)
   const monster = createMonsterForFloor(s.dungeonId, s.currentFloor, false);
   s.log.push({ type: "encounter", monster, timestamp: Date.now() });
+  consumeTime(s, -TIME_COST.encounter);
   return s;
 }
 
-/** 사용자 choice 선택 처리 → 효과 적용 + 진행 재개 */
+/** 사용자 choice 선택 처리 → 효과 적용 + 진행 재개.
+ *
+ *  Phase 4c.1/4c.3:
+ *  - option.outcomes 있으면 weight 기반 하나 뽑아 effects 순차 적용
+ *  - 없으면 option.effect 단일 (legacy/fight/flee/nothing)
+ *  - 유저는 label 만 보고 어떤 outcome 이 뽑혔는지 미리 알 수 없다
+ */
 export function resolveChoice(
   session: CombatSession,
   optionIndex: number,
@@ -361,21 +415,52 @@ export function resolveChoice(
   // choice 엔트리에 선택 표시
   s.log[choiceIdx] = { ...choiceEntry, resolvedIndex: optionIndex };
 
-  // 결과 narrative 기록
-  if (option.resultText) {
+  // outcomes 우선 — weight 기반 분기. 없으면 legacy effect.
+  if (option.outcomes && option.outcomes.length > 0) {
+    const outcome = pickWeighted(option.outcomes);
     s.log.push({
       type: "narrative",
-      text: `> ${option.label} → ${option.resultText}`,
+      text: `> ${option.label} → ${outcome.resultText}`,
       timestamp: Date.now(),
     });
+    for (const effect of outcome.effects) {
+      applyChoiceEffect(s, effect);
+      // 효과 중에 세션이 끝났으면 더 이상 뒤 효과 적용 X
+      if (s.status === "completed") break;
+    }
+  } else {
+    // Legacy: 결과 narrative + 단일 effect
+    if (option.resultText) {
+      s.log.push({
+        type: "narrative",
+        text: `> ${option.label} → ${option.resultText}`,
+        timestamp: Date.now(),
+      });
+    }
+    if (option.effect) applyChoiceEffect(s, option.effect);
   }
 
-  // 효과 적용
-  applyChoiceEffect(s, option.effect);
+  // 세션이 이미 종료됐으면 (damage effect 가 hero HP 0 만들었거나) 그대로 리턴
+  if (s.status === "completed") return s;
+
+  // choice 해소 자체의 시간 소모
+  if (consumeTime(s, -TIME_COST.choice)) return s;
 
   s.status = "active";
   s.pendingChoiceIndex = undefined;
   return s;
+}
+
+/** weight 기반 랜덤 outcome pick. weight 합 0 가드. */
+function pickWeighted<T extends { weight: number }>(outcomes: T[]): T {
+  const total = outcomes.reduce((sum, o) => sum + Math.max(0, o.weight), 0);
+  if (total <= 0) return outcomes[0];
+  let roll = Math.random() * total;
+  for (const o of outcomes) {
+    roll -= Math.max(0, o.weight);
+    if (roll <= 0) return o;
+  }
+  return outcomes[outcomes.length - 1];
 }
 
 function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
@@ -395,9 +480,12 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
     case "damage":
       session.hero.hp = Math.max(0, session.hero.hp - effect.amount);
       if (session.hero.hp <= 0) {
-        session.log.push({ type: "sessionEnd", reason: "defeat", timestamp: Date.now() });
-        session.status = "completed";
+        endSession(session, "heroDied", "선택의 대가로 쓰러졌다");
       }
+      break;
+    case "time":
+      // delta 음수 = 시간 소모, 양수 = 시간 회복
+      consumeTime(session, effect.delta);
       break;
     case "heal":
       session.hero.hp = Math.min(session.hero.maxHp, session.hero.hp + effect.amount);
@@ -576,11 +664,19 @@ function executeCombatRound(
   });
 }
 
-/** 세션 포기 */
+/** 세션 포기 — 사용자가 자발적으로 캠프 복귀 선택 */
 export function abandonSession(session: CombatSession): CombatSession {
   return {
     ...session,
-    log: [...session.log, { type: "sessionEnd", reason: "abandoned", timestamp: Date.now() }],
+    log: [
+      ...session.log,
+      {
+        type: "sessionEnd",
+        reason: "heroAbandoned",
+        detail: `F${session.currentFloor} 에서 캠프로 복귀`,
+        timestamp: Date.now(),
+      },
+    ],
     status: "completed",
   };
 }
