@@ -102,11 +102,16 @@ export function createSession(
  *
  * Phase 5c.2: chronomancer class 는 소모량 (음수 delta) 에 0.75x 곱.
  * 회복 (양수 delta) 은 그대로 반영.
+ *
+ * Phase 5c-fix #5: chronomancer 0.75x 가 -3.75 같은 소수점 값을 만들어
+ * s.time 이 fractional 로 누적되던 문제 해결. round 처리로 정수 유지.
  */
 function consumeTime(s: CombatSession, delta: number): boolean {
   let effectiveDelta = delta;
   if (delta < 0) {
-    effectiveDelta = delta * classTimeMult(s.hero.classType);
+    effectiveDelta = Math.round(delta * classTimeMult(s.hero.classType));
+    // 최소 -1 보장 — classTimeMult 로 -1 이 0 에 반올림되면 cost 가 사라져버림
+    if (delta < 0 && effectiveDelta === 0) effectiveDelta = -1;
   }
   s.time = Math.max(0, Math.min(s.maxTime, s.time + effectiveDelta));
   if (s.time <= 0 && s.status === "active") {
