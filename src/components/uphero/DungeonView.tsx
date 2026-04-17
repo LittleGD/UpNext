@@ -116,6 +116,10 @@ export default function DungeonView() {
   const hp = session.hero.hp;
   const maxHp = session.hero.maxHp;
   const hpPct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+  // Phase 4c.2 — 탐험 시간 리소스. HP 와 같은 bar 패턴, 30%/15% 에서 경고색.
+  const time = session.time;
+  const maxTime = session.maxTime;
+  const timePct = Math.max(0, Math.min(100, (time / maxTime) * 100));
   const stats = computeEffectiveStats(session.hero);
 
   const awaitingChoice = session.status === "awaitingChoice";
@@ -188,6 +192,43 @@ export default function DungeonView() {
             style={{ color: GB.lightest, minWidth: 56, textAlign: "right" }}
           >
             {hp}/{maxHp}
+          </span>
+        </div>
+
+        {/* Phase 4c.2 — 탐험 시간 bar.
+             이벤트/전투 결과가 시간을 소모/회복하면 여기서 즉시 시각화.
+             0 도달 시 timeExpired 로 세션 종료. */}
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="typo-caption" style={{ color: GB.light }}>
+            TIME
+          </span>
+          <div
+            className="flex-1 h-1.5 rounded-sm relative overflow-hidden"
+            style={{ background: GB.dark }}
+          >
+            <div
+              className="absolute inset-y-0 left-0 rounded-sm"
+              style={{
+                width: `${timePct}%`,
+                background:
+                  timePct > 50
+                    ? GB.light
+                    : timePct > 20
+                      ? GB_WARN
+                      : GB_ENEMY,
+                transition: `width 240ms ${EASE_OUT}, background 240ms ${EASE_OUT}`,
+              }}
+            />
+          </div>
+          <span
+            className="typo-caption tabular-nums"
+            style={{
+              color: timePct > 20 ? GB.light : GB_ENEMY,
+              minWidth: 56,
+              textAlign: "right",
+            }}
+          >
+            {Math.round(time)}/{maxTime}
           </span>
         </div>
       </header>
