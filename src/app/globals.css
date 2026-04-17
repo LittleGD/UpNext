@@ -253,6 +253,18 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-card-select 280ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* === Up Hero — Warrior HP regen floating text ===
+   매 전투 round 끝에 HP +2 가 회복될 때 HP bar 오른쪽 위에 뜨는 마이크로
+   숫자. 800ms 동안 translate-up + fade-out. */
+@keyframes uphero-hp-regen-float {
+  0%   { opacity: 0; transform: translateY(0); }
+  15%  { opacity: 1; transform: translateY(-3px); }
+  100% { opacity: 0; transform: translateY(-18px); }
+}
+.uphero-hp-regen-float {
+  animation: uphero-hp-regen-float 800ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 /* === Up Hero — 탐험 시간 bar 급감 pulse ===
    이벤트 outcome 이 시간 5+ 소모했을 때 한 번 번쩍.
    box-shadow 기반이라 bar 의 width 애니메이션과 간섭 없음.

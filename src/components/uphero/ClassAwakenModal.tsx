@@ -35,9 +35,12 @@ export default function ClassAwakenModal() {
       return;
     }
     play("impactShake");
-    const t1 = window.setTimeout(() => setStage(1), 150);
-    const t2 = window.setTimeout(() => setStage(2), 700);
-    const t3 = window.setTimeout(() => setStage(3), 1200);
+    // Phase 5d: stage 0 을 30ms 로 줄여 빈 gradient 공백 제거.
+    // rAF 직후 바로 stage 1 로 전환 → 타이틀이 즉시 fade-in 시작.
+    // 타이틀 → 아이콘 간격은 유지 (500ms), 아이콘 → 설명 간격도 유지 (500ms).
+    const t1 = window.setTimeout(() => setStage(1), 30);
+    const t2 = window.setTimeout(() => setStage(2), 530);
+    const t3 = window.setTimeout(() => setStage(3), 1030);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);

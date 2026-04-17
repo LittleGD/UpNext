@@ -131,27 +131,6 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
           >
             Lv.{level} · HP {leveledHero.hp}/{leveledHero.maxHp}
           </div>
-          {/* Phase 5c.3 — class 분화된 영웅이면 class 이름 + 패시브 표시. */}
-          {hero.classType && (
-            <div
-              className="typo-caption mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded"
-              style={{
-                color: GB.lightest,
-                border: `1px solid ${GB.light}`,
-                background: `${GB.dark}aa`,
-              }}
-            >
-              <PixelIcon
-                name={CLASS_META[hero.classType].icon}
-                size={12}
-                color={GB.lightest}
-              />
-              {CLASS_META[hero.classType].name}
-              <span className={`${gbClass.textDim} ml-1`}>
-                · {CLASS_META[hero.classType].passive}
-              </span>
-            </div>
-          )}
           {/* Phase 5a.1 — 다음 레벨에 영웅이 얻는 성장 안내 */}
           <div
             className={`typo-caption mt-1 ${gbClass.textDim} tabular-nums`}
@@ -159,6 +138,47 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
             다음 Lv.{level + 1} — 모든 스탯 +1, HP +10
           </div>
         </section>
+
+        {/* Phase 5c.3 → 5d: class 분화된 영웅이면 별도 섹션으로.
+             이전에는 한 줄 inline-flex 라 passive 문구가 좁은 화면에서 잘림.
+             block 섹션으로 분리하면 icon + name 줄과 passive 설명 줄이
+             2단으로 자연스럽게 wrap. 장비 섹션 패턴과 통일. */}
+        {hero.classType && (
+          <section
+            className="px-5 pb-5"
+            style={{ borderTop: `1px solid ${GB.dark}` }}
+          >
+            <div className={`typo-caption pt-4 pb-3 ${gbClass.textDim}`}>
+              클래스
+            </div>
+            <div
+              className="flex items-center gap-3 rounded px-3 py-2.5"
+              style={{
+                background: `${GB.dark}80`,
+                border: `1px solid ${GB.light}`,
+              }}
+            >
+              <PixelIcon
+                name={CLASS_META[hero.classType].icon}
+                size={20}
+                color={GB.lightest}
+              />
+              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                <div
+                  className="typo-caption"
+                  style={{ color: GB.lightest }}
+                >
+                  {CLASS_META[hero.classType].name}
+                </div>
+                <div
+                  className={`typo-caption ${gbClass.textDim} leading-tight`}
+                >
+                  {CLASS_META[hero.classType].passive}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* 스탯 bar */}
         <section
