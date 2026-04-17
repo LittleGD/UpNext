@@ -31,7 +31,33 @@ import {
 import { drawBuffCards } from "@/lib/buffDraw";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
+import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
 import { useGameStore } from "./useGameStore";
+
+/**
+ * Phase 4c-fix: Codex legacy ID → name migration.
+ *
+ * 이전 버전은 `${templateId}_f{floor}_{timestamp}` 포맷 인스턴스 ID 를
+ * codex 에 저장했음. 같은 템플릿을 여러 번 만나면 다른 entry 로 누적됨.
+ * 현재는 template.name 기반으로 저장. initialize 때 한 번 변환 + dedup.
+ */
+function migrateCodexMonsters(entries: string[]): string[] {
+  const result = new Set<string>();
+  for (const entry of entries) {
+    // Legacy 인스턴스 ID 포맷: "prefix_with_underscores_f{N}_{M}" (all ascii).
+    // Korean name entries 는 이 패턴에 매칭되지 않으므로 그대로 통과.
+    const legacyMatch = entry.match(/^([a-z][a-z_]*?)_f\d+_\d+$/);
+    if (!legacyMatch) {
+      result.add(entry);
+      continue;
+    }
+    const templateId = legacyMatch[1];
+    const template = ALL_MONSTER_TEMPLATES.find((t) => t.id === templateId);
+    if (template) result.add(template.name);
+    // 템플릿 매칭 실패 (구 데이터 또는 삭제된 템플릿) → 버림 (복원 불가)
+  }
+  return [...result];
+}
 
 const STORAGE_KEY = "uphero";
 
@@ -122,6 +148,17 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
           baseStats: { ...defaults.baseStats, ...(saved.hero.baseStats ?? {}) },
         }
       : defaults;
+    // Codex migration — legacy id entry → template name (dedup).
+    const rawCodex = saved?.codex ?? { monsters: [], equipment: [], bosses: [] };
+    const migratedCodex = {
+      monsters: migrateCodexMonsters(rawCodex.monsters ?? []),
+      bosses: migrateCodexMonsters(rawCodex.bosses ?? []),
+      equipment: rawCodex.equipment ?? [],
+    };
+    const codexChanged =
+      migratedCodex.monsters.length !== (rawCodex.monsters ?? []).length ||
+      migratedCodex.bosses.length !== (rawCodex.bosses ?? []).length;
+
     set({
       hero: mergedHero,
       inventory: saved?.inventory ?? [],
@@ -130,11 +167,18 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       dungeons: saved?.dungeons ?? {},
       currentSession: saved?.currentSession ?? null,
       pendingDungeon: null, // transient, 재시작 시 항상 null
-      codex: saved?.codex ?? { monsters: [], equipment: [], bosses: [] },
+      codex: migratedCodex,
       cosmetics: saved?.cosmetics ?? {},
       lastIdleAccrualAt: saved?.lastIdleAccrualAt ?? Date.now(),
       isLoaded: true,
     });
+
+    // migration 이 실제로 entry 를 변경했으면 바로 persist.
+    // (다음 업데이트 때 기록되긴 하지만 명시적으로 한 번 저장해서 예기치 못한
+    // 페이지 종료 시 migration 결과가 유실되지 않도록.)
+    if (codexChanged) {
+      saveToStorage(STORAGE_KEY, pickPersisted(get()));
+    }
   },
 
   grantExpeditionPass(dungeonId, rarity) {
@@ -290,19 +334,27 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const curProgress = state.dungeons[session.dungeonId];
     const reached = Math.max(curProgress?.floorReached ?? 0, session.currentFloor);
     const bossesDefeated = curProgress?.bossesDefeated ?? [];
-    // 보스 처치 기록 — bossDefeated reason 일 때만 (heroDied 면 보스 못 잡은 것)
-    const bossFloors = [10, 20, 30];
-    const isBossVictory = reason === "bossDefeated" || reason === "victory";
-    const newBossesDefeated = isBossVictory
-      ? [
-          ...new Set([
-            ...bossesDefeated,
-            ...bossFloors.filter(
-              (f) => f <= session.currentFloor && !bossesDefeated.includes(f),
-            ),
-          ]),
-        ]
-      : bossesDefeated;
+
+    // 보스 처치 기록 — log 에서 실제 승리 entry 스캔 (Phase 4c-fix).
+    // 이전 버전은 reason 에만 의존해서, 미니보스 10F 처치 후 13F 에서 사망
+    // → reason="heroDied" → 10F 보스 기록 누락 버그가 있었다.
+    //
+    // 로그 순회 중 "boss" entry 로 floor 기억 → 이어지는 "victory" + isBoss
+    // 만나면 기록. 같은 보스가 다시 뜨지 않는다는 가정 하에 정확.
+    const killedBossFloors = new Set<number>(bossesDefeated);
+    let lastBossFloor: number | null = null;
+    for (const entry of session.log) {
+      if (entry.type === "boss") lastBossFloor = entry.floor;
+      if (
+        entry.type === "victory" &&
+        entry.monster.isBoss &&
+        lastBossFloor != null
+      ) {
+        killedBossFloors.add(lastBossFloor);
+        lastBossFloor = null;
+      }
+    }
+    const newBossesDefeated = [...killedBossFloors].sort((a, b) => a - b);
 
     const dungeons = {
       ...state.dungeons,
@@ -489,6 +541,14 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       newStats[key] = Math.max(va, vb) + 2;
     }
 
+    // Phase 4c-fix: 양쪽 effects 를 모두 물려받는다 (이전에는 a.effects 만
+    // 복사해서 b 의 특수 효과가 사라졌음). 동일 문자열은 dedup.
+    const mergedEffects = [
+      ...(a.effects ?? []),
+      ...(b.effects ?? []),
+    ];
+    const uniqueEffects = [...new Set(mergedEffects)];
+
     const newItem: Equipment = {
       id: `enh_${a.type}_${newRarity}_${Date.now() % 100000}_${Math.floor(Math.random() * 1000)}`,
       name: `${a.name} +`,
@@ -497,7 +557,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       category: a.category,
       iconName: a.iconName,
       stats: newStats,
-      effects: a.effects,
+      effects: uniqueEffects.length > 0 ? uniqueEffects : undefined,
       flavor: `강화로 벼려낸 ${a.name}`,
     };
 

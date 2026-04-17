@@ -273,16 +273,21 @@ export default function DungeonView() {
               </div>
             )}
             {currentEnemy ? (
+              // Phase 4c-fix: 보스 ↔ 일반 전환 시 size 를 하드 스왑하면 레이아웃이
+              // 툭 튀므로 transform scale 로 부드럽게. sprite 자체는 고정 32px
+              // 로 렌더, 보스면 1.25× scale 해서 40px 효과.
+              // transform-origin center right 로 오른쪽 앵커 유지 (경계 정렬 보존).
               <div
                 style={{
-                  transform: enemyHurt ? "translateX(3px)" : "translateX(0)",
+                  transformOrigin: "center right",
+                  transform: `scale(${currentEnemy.isBoss ? 1.25 : 1}) translateX(${enemyHurt ? 3 : 0}px)`,
                   filter: enemyHurt ? "brightness(0.55)" : "brightness(1)",
-                  transition: `transform 160ms ${EASE_OUT}, filter 160ms ${EASE_OUT}`,
+                  transition: `transform 180ms ${EASE_OUT}, filter 160ms ${EASE_OUT}`,
                 }}
               >
                 <MonsterSprite
                   kind={currentEnemy.kind}
-                  size={currentEnemy.isBoss ? 40 : 32}
+                  size={32}
                   color={currentEnemy.isBoss ? GB_ENEMY : GB.lightest}
                 />
               </div>
@@ -294,55 +299,68 @@ export default function DungeonView() {
           </div>
         </div>
 
-        {/* Phase 4c-polish: Floor progress bar (0-30F).
-             최종 보스 (30F) 까지의 여정을 시각화. 10/20/30 마커로 보스 지점 표시.
-             현재 floor 위치 = 얇은 accent 원. 읽기 보조용이라 매우 얇게 (2px). */}
-        <div className="mt-2 relative h-1.5" aria-hidden="true">
-          {/* track */}
-          <div
-            className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
-            style={{ background: GB.dark }}
-          />
-          {/* traveled */}
-          <div
-            className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
-            style={{
-              width: `${Math.max(0, Math.min(100, (session.currentFloor / 30) * 100))}%`,
-              background: GB.light,
-              transition: `width 320ms ${EASE_OUT}`,
-            }}
-          />
-          {/* 보스 마커 10/20/30 */}
-          {[10, 20, 30].map((f) => {
-            const pct = (f / 30) * 100;
-            const reached = session.currentFloor >= f;
-            return (
+        {/* Phase 4c-polish: Floor progress bar.
+             startFloor → 30F (최종 보스) 까지의 여정을 "이번 세션 기준" 으로
+             상대화. 이전에는 currentFloor / 30 이라 F29 시작 세션이 입장
+             즉시 97% 찬 모양새로 긴장감이 없었다.
+             startFloor 가 30 이상이면 range=1 로 clamp (최종 보스 이후 진입). */}
+        {(() => {
+          const start = session.startFloor;
+          const target = 30;
+          const range = Math.max(1, target - start);
+          const pct = Math.max(
+            0,
+            Math.min(100, ((session.currentFloor - start) / range) * 100),
+          );
+          // 보스 마커: startFloor 이후 ~ 30F 사이에 남은 것만
+          const relevantBosses = [10, 20, 30].filter(
+            (f) => f > start && f <= target,
+          );
+          return (
+            <div className="mt-2 relative h-1.5" aria-hidden="true">
               <div
-                key={f}
+                className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
+                style={{ background: GB.dark }}
+              />
+              <div
+                className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
+                style={{
+                  width: `${pct}%`,
+                  background: GB.light,
+                  transition: `width 320ms ${EASE_OUT}`,
+                }}
+              />
+              {relevantBosses.map((f) => {
+                const markerPct = ((f - start) / range) * 100;
+                const reached = session.currentFloor >= f;
+                return (
+                  <div
+                    key={f}
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
+                    style={{
+                      left: `${markerPct}%`,
+                      width: 6,
+                      height: 6,
+                      background: reached ? GB.lightest : GB.darkest,
+                      border: `1px solid ${reached ? GB.lightest : GB.light}`,
+                    }}
+                  />
+                );
+              })}
+              <div
                 className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
                 style={{
                   left: `${pct}%`,
-                  width: 6,
-                  height: 6,
-                  background: reached ? GB.lightest : GB.darkest,
-                  border: `1px solid ${reached ? GB.lightest : GB.light}`,
+                  width: 8,
+                  height: 8,
+                  background: GB.lightest,
+                  boxShadow: `0 0 6px ${GB.lightest}`,
+                  transition: `left 320ms ${EASE_OUT}`,
                 }}
               />
-            );
-          })}
-          {/* 현재 위치 마커 (traveled 끝) — 30F 초과 대비 clamp */}
-          <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
-            style={{
-              left: `${Math.max(0, Math.min(100, (session.currentFloor / 30) * 100))}%`,
-              width: 8,
-              height: 8,
-              background: GB.lightest,
-              boxShadow: `0 0 6px ${GB.lightest}`,
-              transition: `left 320ms ${EASE_OUT}`,
-            }}
-          />
-        </div>
+            </div>
+          );
+        })()}
         {/* HP bar */}
         <div className="mt-2.5 flex items-center gap-2">
           <span className="typo-caption" style={{ color: GB.light }}>
