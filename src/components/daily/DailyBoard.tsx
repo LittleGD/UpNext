@@ -469,15 +469,6 @@ export default function DailyBoard() {
                 className="w-full max-w-sm rounded-2xl overflow-hidden relative"
                 style={{ backgroundColor: "var(--bg-elevated)" }}
               >
-                {/* Close 버튼 — 우상단, backdrop 탭 외 명시적 닫기 */}
-                <button
-                  onClick={() => { play("select"); setConfirmCard(null); }}
-                  aria-label="Close"
-                  className="absolute top-3 right-3 z-10 p-1.5 rounded-full active:opacity-60 transition-opacity"
-                >
-                  <PixelIcon name="Cancel" size={16} color="var(--text-tertiary)" />
-                </button>
-
                 {/* Rarity accent line */}
                 <div
                   className="h-[2px] w-full"
@@ -486,7 +477,7 @@ export default function DailyBoard() {
                   }}
                 />
 
-                {/* Content — 간결화: 아이콘 + 타이틀(+XP) + 설명 + 1차/2차 액션 */}
+                {/* Content — 아이콘 + 타이틀(+XP) + 설명 + 3 stack 액션 (primary/secondary/cancel) */}
                 <div className="px-6 pt-7 pb-6 flex flex-col items-center text-center">
                   {/* Icon */}
                   <div style={{ color: rarity.color }} className="mb-4">
@@ -506,27 +497,41 @@ export default function DailyBoard() {
                     </span>
                   </div>
 
-                  {/* Description (한 줄로 압축) */}
+                  {/* Description */}
                   <p className="typo-caption text-text-tertiary mt-2 leading-relaxed">
                     {cardDesc(confirmCard, language)}
                   </p>
 
-                  {/* Primary CTA — 사진 기록 */}
-                  <button
-                    onClick={handleConfirmWithPhoto}
-                    className="w-full mt-6 py-3.5 rounded-xl bg-accent text-bg-primary typo-body transition-transform active:scale-[0.97] flex items-center justify-center gap-2"
-                  >
-                    <PixelIcon name="Camera" size={16} color="var(--bg-primary)" />
-                    {t("playground.capture.record")}
-                  </button>
+                  {/* 액션 영역 — 위에서 아래로 우선순위:
+                      ① Primary: 사진으로 인증하고 완료 (accent, 명확한 챌린지 완료 의도)
+                      ② Secondary: 사진없이 완료 (gray button, "Done" 의 모호함 해소)
+                      ③ Cancel: 취소 (text link 보다 살짝 약한 inline 버튼) */}
+                  <div className="w-full mt-6 flex flex-col gap-2">
+                    {/* ① Primary — 명시적 완료 의도 ("기록"이 아닌 "완료") */}
+                    <button
+                      onClick={handleConfirmWithPhoto}
+                      className="w-full py-3.5 rounded-xl bg-accent text-bg-primary typo-body transition-transform active:scale-[0.97] flex items-center justify-center gap-2"
+                    >
+                      <PixelIcon name="Camera" size={16} color="var(--bg-primary)" />
+                      {t("daily.confirm.completeWithPhoto")}
+                    </button>
 
-                  {/* Secondary — 사진 없이 완료 (text link 스타일로 약하게) */}
-                  <button
-                    onClick={handleConfirm}
-                    className="mt-3 typo-caption text-text-secondary active:text-text-primary transition-colors"
-                  >
-                    {t("common.done")}
-                  </button>
+                    {/* ② Secondary — 사진 없이 완료 (BUTTON 스타일, "Done" 모호함 제거) */}
+                    <button
+                      onClick={handleConfirm}
+                      className="w-full py-3 rounded-xl bg-bg-surface text-text-secondary typo-body transition-transform active:scale-[0.97]"
+                    >
+                      {t("daily.confirm.completeWithoutPhoto")}
+                    </button>
+
+                    {/* ③ Cancel — 가장 약함 (X 버튼 대신 모달 하단에 명시적으로) */}
+                    <button
+                      onClick={() => { play("select"); setConfirmCard(null); }}
+                      className="w-full py-2.5 typo-caption text-text-tertiary active:text-text-secondary transition-colors"
+                    >
+                      {t("common.cancel")}
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </motion.div>

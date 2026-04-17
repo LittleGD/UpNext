@@ -116,6 +116,8 @@ const ko = {
   "playground.archive.empty": "아직 인증 사진이 없어요",
   "playground.archive.photoCount": "사진 {count}장",
   "playground.archive.photoCountPlural": "사진 {count}장",
+  "daily.confirm.completeWithPhoto": "사진으로 인증하고 완료",
+  "daily.confirm.completeWithoutPhoto": "사진없이 완료",
   "playground.capture.title": "챌린지 인증",
   "playground.capture.take": "사진 찍기",
   "playground.capture.skip": "건너뛰기",
