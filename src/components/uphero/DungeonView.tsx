@@ -207,8 +207,14 @@ export default function DungeonView() {
   if (typeof window === "undefined") return null;
 
   const onExit = () => {
-    // 긴장감 있는 포기 플로우 — 획득한 보상은 유지된다고 명시
-    const msg = `탐험을 포기하고 캠프로 돌아갈까요?\n\n지금까지 획득한 보상 (XP, 코인, 장비) 은 모두 유지됩니다.\n단, F${session.currentFloor} 의 보스는 놓칩니다.`;
+    // Phase 4c-fix: 이전에는 "F{N} 의 보스는 놓칩니다" 라 F5 에서도 같은
+    // 문구가 떠서 거짓말이었음 (보스는 10/20/30F 에만). 남은 다음 보스 floor 를
+    // 계산해서 실제로 놓치는 지점만 안내.
+    const nextBoss = [10, 20, 30].find((f) => f > session.currentFloor);
+    const bossWarning = nextBoss
+      ? `\n단, 다음 보스 (F${nextBoss}) 에 도전할 기회를 놓칩니다.`
+      : "";
+    const msg = `탐험을 포기하고 캠프로 돌아갈까요?\n\n지금까지 획득한 보상 (XP, 코인, 장비) 은 모두 유지됩니다.${bossWarning}`;
     if (confirm(msg)) {
       abandonSession();
     }
