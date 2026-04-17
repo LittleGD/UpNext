@@ -274,32 +274,36 @@ function HomeView({
 
         {/* Phase 4c-polish: 탐험권 카테고리별 시각화.
              8개 던전의 테마컬러 pill. 수량 0 은 dim 처리해서 "비어있음" 이
-             한눈에 보인다. 어떤 챌린지를 해야 밸런스가 맞을지 의사결정 단서. */}
-        <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
-          {DUNGEON_LIST.map((d) => {
-            const count = passes[d.id] ?? 0;
-            const empty = count === 0;
-            return (
-              <div
-                key={d.id}
-                className="flex items-center justify-center rounded tabular-nums typo-micro"
-                style={{
-                  minWidth: 26,
-                  height: 20,
-                  padding: "0 6px",
-                  background: empty ? `${GB.dark}80` : `${d.themeColor}55`,
-                  color: empty ? `${GB.light}80` : GB.lightest,
-                  border: `1px solid ${empty ? GB.dark : d.themeColor}`,
-                  letterSpacing: "0.03em",
-                }}
-                title={`${d.name} ×${count}`}
-                aria-label={`${d.name} 탐험권 ${count}장`}
-              >
-                {count}
-              </div>
-            );
-          })}
-        </div>
+             한눈에 보인다. 어떤 챌린지를 해야 밸런스가 맞을지 의사결정 단서.
+             Phase 4c-fix: 전체 0 인 경우 CTA 힌트가 이미 "챌린지 완료로 획득"
+             을 전달하므로 pill 섹션 자체를 숨겨 중복 부정 신호를 줄임. */}
+        {totalPasses > 0 && (
+          <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
+            {DUNGEON_LIST.map((d) => {
+              const count = passes[d.id] ?? 0;
+              const empty = count === 0;
+              return (
+                <div
+                  key={d.id}
+                  className="flex items-center justify-center rounded tabular-nums typo-micro"
+                  style={{
+                    minWidth: 26,
+                    height: 20,
+                    padding: "0 6px",
+                    background: empty ? `${GB.dark}80` : `${d.themeColor}55`,
+                    color: empty ? `${GB.light}80` : GB.lightest,
+                    border: `1px solid ${empty ? GB.dark : d.themeColor}`,
+                    letterSpacing: "0.03em",
+                  }}
+                  title={`${d.name} ×${count}`}
+                  aria-label={`${d.name} 탐험권 ${count}장`}
+                >
+                  {count}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* 하단 CTA 3개 (stacked) */}
