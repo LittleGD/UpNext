@@ -28,6 +28,8 @@ import { useSound } from "@/hooks/useSound";
 import PixelIcon from "@/components/icons/PixelIcon";
 import HeroSprite from "./HeroSprite";
 import { getHeroAppearanceVariant } from "@/types/uphero";
+import EquipmentInventory from "./EquipmentInventory";
+import HeroStatPanel from "./HeroStatPanel";
 
 /** 카테고리 → pixelarticons 이름 (라이브러리에서 고른 무드 매칭) */
 const CATEGORY_ICON: Record<DungeonId, string> = {
@@ -41,7 +43,7 @@ const CATEGORY_ICON: Record<DungeonId, string> = {
   trending: "Sparkle",
 };
 
-type View = "home" | "dungeons" | "shop";
+type View = "home" | "dungeons" | "shop" | "equipment";
 
 export default function CampPlaceholder() {
   const coins = useUpHeroStore((s) => s.coins);
@@ -52,6 +54,7 @@ export default function CampPlaceholder() {
 
   const [view, setView] = useState<View>("home");
   const [toast, setToast] = useState<string | null>(null);
+  const [statsOpen, setStatsOpen] = useState(false);
 
   const totalPasses = Object.values(passes).reduce(
     (a, b) => (a ?? 0) + (b ?? 0),
@@ -111,6 +114,8 @@ export default function CampPlaceholder() {
               setView("dungeons");
             }}
             onOpenShop={() => setView("shop")}
+            onOpenEquipment={() => setView("equipment")}
+            onOpenStats={() => setStatsOpen(true)}
           />
         )}
         {view === "dungeons" && (
@@ -127,7 +132,16 @@ export default function CampPlaceholder() {
             onNotify={notify}
           />
         )}
+        {view === "equipment" && (
+          <EquipmentInventory
+            onBack={() => setView("home")}
+            onNotify={notify}
+          />
+        )}
       </div>
+
+      {/* HeroStatPanel — 영웅 sprite 탭 시 overlay */}
+      {statsOpen && <HeroStatPanel onClose={() => setStatsOpen(false)} />}
 
       {/* === Toast === */}
       {toast && (
@@ -168,12 +182,16 @@ function HomeView({
   totalPasses,
   onOpenDungeons,
   onOpenShop,
+  onOpenEquipment,
+  onOpenStats,
 }: {
   hero: { name: string };
   heroLevel: number;
   totalPasses: number;
   onOpenDungeons: () => void;
   onOpenShop: () => void;
+  onOpenEquipment: () => void;
+  onOpenStats: () => void;
 }) {
   const { play } = useSound();
   const variant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
@@ -202,13 +220,21 @@ function HomeView({
           {hero.name}
         </div>
 
-        {/* 픽셀 영웅 sprite — 12×12 grid, 2-프레임 idle 애니메이션.
-            MonsterSprite 와 동일 스타일이라 몬스터와 같은 세계관에 속해 보임. */}
-        <div className="relative">
+        {/* 픽셀 영웅 sprite — 탭하면 HeroStatPanel 오버레이. */}
+        <button
+          type="button"
+          onClick={() => {
+            play("select");
+            onOpenStats();
+          }}
+          className="uphero-hero-tap relative"
+          style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
+          aria-label="영웅 스탯 보기"
+        >
           <HeroSprite variant={variant} size={80} color={GB.lightest} />
           {/* 그림자 — 발 밑에 작은 타원 */}
           <div
-            className="absolute left-1/2 -bottom-1 -translate-x-1/2 rounded-full"
+            className="absolute left-1/2 -bottom-1 -translate-x-1/2 rounded-full pointer-events-none"
             style={{
               width: 40,
               height: 4,
@@ -216,7 +242,15 @@ function HomeView({
               opacity: 0.6,
             }}
           />
-        </div>
+          <style jsx>{`
+            .uphero-hero-tap {
+              transition: transform 120ms ${EASE_OUT};
+            }
+            .uphero-hero-tap:active {
+              transform: scale(0.97);
+            }
+          `}</style>
+        </button>
 
         {/* 분위기 텍스트 — 이모지 제거, 선형 장식으로 대체 */}
         <div
@@ -253,11 +287,13 @@ function HomeView({
           hint="티켓 / 카드팩"
         />
         <SecondaryCTA
-          onClick={() => {}}
-          disabled
+          onClick={() => {
+            play("select");
+            onOpenEquipment();
+          }}
           iconName="Shield"
           label="장비"
-          hint="다음 업데이트"
+          hint="장착 · 판매 · 버리기"
         />
       </section>
 

@@ -272,6 +272,17 @@ export function createEquipmentFromTemplate(
 ): Equipment {
   const mult = template.rarityMult[rarity];
   const baseStatValue = Math.round((5 + dungeonFloor * 0.5) * mult);
+
+  // Phase 4a — unique/legend 장비에 crit 보너스 부여
+  // unique: +3% crit, legend: +7% crit (확률에 추가)
+  const critBonus =
+    rarity === "legend" ? 7 : rarity === "unique" ? 3 : 0;
+
+  const stats: Partial<import("@/types/uphero").HeroBaseStats> = {
+    [template.statBoost]: baseStatValue,
+  };
+  if (critBonus > 0) stats.crit = critBonus;
+
   return {
     id: `eq_${template.baseName.replace(/\s/g, "")}_${rarity}_${Date.now() % 100000}_${Math.floor(Math.random() * 1000)}`,
     name: `${RARITY_PREFIX[rarity]}${template.baseName}`,
@@ -279,7 +290,7 @@ export function createEquipmentFromTemplate(
     rarity,
     category: template.category,
     iconName: template.iconName,
-    stats: { [template.statBoost]: baseStatValue },
+    stats,
     flavor: template.flavor,
   };
 }
