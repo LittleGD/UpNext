@@ -297,9 +297,11 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                     </div>
                   }
                   back={
-                    <div data-no-flip data-no-tilt>
-                      <MemoEditor value={memoDraft} onChange={handleMemoChange} />
-                    </div>
+                    // ⚠ 의도적으로 data-no-tilt/no-flip 안 붙임.
+                    // textarea 자체는 PolaroidTilt/Flip 의 selector ("textarea, ...")
+                    // 로 자동 차단됨 → margin 영역 (textarea 밖 = 폴라로이드 frame edge)
+                    // 에서는 tilt/flip 정상 동작 → 사진 둘러보며 sticker 같이 자연스러움.
+                    <MemoEditor value={memoDraft} onChange={handleMemoChange} />
                   }
                 />
               </PolaroidTilt>

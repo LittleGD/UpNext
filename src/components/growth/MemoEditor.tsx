@@ -59,9 +59,9 @@ export default function MemoEditor({ value, onChange, readOnly = false }: Props)
         style={{ boxShadow: FRAME_EDGE_SHADOW }}
       />
 
-      {/* 라인 노트 영역 */}
+      {/* 라인 노트 영역 — 마진 살짝 늘려서 사진 둘러보다 사이드 잡고 tilt/flip 가능. */}
       <div
-        className="relative flex-1 m-4 mb-2"
+        className="relative flex-1 mx-6 mt-6 mb-2"
         style={{
           backgroundImage:
             "repeating-linear-gradient(transparent, transparent 23px, #d4c9b8 23px, #d4c9b8 24px)",
