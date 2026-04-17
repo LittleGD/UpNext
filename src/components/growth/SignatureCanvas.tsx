@@ -11,6 +11,8 @@ interface Props {
   initialDataUrl?: string | null;
   /** 잉크 색 (CSS color string) — DecorationToolbar 에서 변경 */
   inkColor?: string;
+  /** 펜 굵기 배율 (1 = 기본, 0.6 = thin, 1.5 = thick) */
+  widthMultiplier?: number;
 }
 
 interface Pt {
@@ -44,14 +46,17 @@ export default function SignatureCanvas({
   className,
   initialDataUrl,
   inkColor = "rgba(22,18,14,0.92)",
+  widthMultiplier = 1,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
   const points = useRef<Pt[]>([]);
   const [hasStrokes, setHasStrokes] = useState(false);
-  // ink color 를 ref 로도 보관 — useCallback closure 안에서 최신 값 참조
+  // ink color / width multiplier 를 ref 로도 보관 — useCallback closure 에서 최신 값 참조
   const inkColorRef = useRef(inkColor);
+  const widthMultRef = useRef(widthMultiplier);
   useEffect(() => { inkColorRef.current = inkColor; }, [inkColor]);
+  useEffect(() => { widthMultRef.current = widthMultiplier; }, [widthMultiplier]);
 
   const getPos = useCallback((e: PointerEvent | React.PointerEvent): Pt => {
     const canvas = canvasRef.current!;
@@ -67,20 +72,34 @@ export default function SignatureCanvas({
     };
   }, []);
 
-  // 속도/필압 → 굵기. 만년필 느낌의 가변 두께.
+  // 속도/필압 → 굵기. 만년필 느낌의 가변 두께. widthMultiplier 로 펜 굵기 토글 반영.
   const computeWidth = useCallback((p1: Pt, p2: Pt): number => {
-    // 펜 입력이 진짜 필압을 줬으면 (0.5 가 아닌 값) 필압 우선
+    let base: number;
     const usingPen = p2.pressure > 0 && p2.pressure !== 0.5;
     if (usingPen) {
-      // 필압 0~1 → 1.2~3.6px
-      return 1.2 + p2.pressure * 2.4;
+      base = 1.2 + p2.pressure * 2.4; // 필압 0~1 → 1.2~3.6
+    } else {
+      const dt = Math.max(1, p2.time - p1.time);
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const speed = dist / dt;
+      base = Math.max(1.2, Math.min(3.2, 3.2 - speed * 0.5));
     }
-    // 속도 기반: dt 시간 동안 dist 만큼 이동 → px/ms
-    const dt = Math.max(1, p2.time - p1.time);
-    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    const speed = dist / dt;
-    // 속도 0.1 px/ms (느림) → 3.2px / 속도 4 px/ms (빠름) → 1.2px
-    return Math.max(1.2, Math.min(3.2, 3.2 - speed * 0.5));
+    // 토글 배율 적용 + 안전 클램프 (0.6~6px)
+    return Math.max(0.6, Math.min(6, base * widthMultRef.current));
+  }, []);
+
+  // 흰 halo 와 함께 stroke — 어두운 사진 배경에서도 잉크 보이게.
+  // canvas shadow 는 stroke 바깥 테두리에 약한 흰색 글로우 추가. reset 필수.
+  const applyHaloAndStroke = useCallback((ctx: CanvasRenderingContext2D, width: number) => {
+    ctx.shadowColor = "rgba(255,255,255,0.55)";
+    ctx.shadowBlur = 1.6;
+    ctx.strokeStyle = inkColorRef.current;
+    ctx.lineWidth = width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
   }, []);
 
   // Catmull-Rom 보간으로 부드러운 베지어 곡선 그리기.
@@ -99,16 +118,13 @@ export default function SignatureCanvas({
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-      ctx.strokeStyle = inkColorRef.current;
-      ctx.lineWidth = computeWidth(p1, p2);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
+      applyHaloAndStroke(ctx, computeWidth(p1, p2));
     },
-    [computeWidth],
+    [computeWidth, applyHaloAndStroke],
   );
 
-  // 짧은 스트로크 (포인트 1~3개) — 단순 직선
+  // 짧은 스트로크 (포인트 1~3개) — 단순 직선.
+  // ⚠ inkColorRef 사용 (Fix 1 — 하드코딩 색 대신 현재 잉크 색)
   const drawSimpleSegment = useCallback(
     (p1: Pt, p2: Pt) => {
       const ctx = canvasRef.current?.getContext("2d");
@@ -116,13 +132,9 @@ export default function SignatureCanvas({
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
-      ctx.strokeStyle = "rgba(22, 18, 14, 0.92)";
-      ctx.lineWidth = computeWidth(p1, p2);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
+      applyHaloAndStroke(ctx, computeWidth(p1, p2));
     },
-    [computeWidth],
+    [computeWidth, applyHaloAndStroke],
   );
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
