@@ -318,7 +318,31 @@ function CardsTab({
   }).filter((g) => g.cards.length > 0);
 
   if (cardsByCategory.length === 0) {
-    return <p className="text-center text-text-tertiary py-12 typo-body">{translate("collection.cards.empty", language)}</p>;
+    // Phase 12 R10 — 빈 상태 UX 보강. 기존 단문 → 아이콘 + 맥락 hint + 필터
+    //   전환 CTA. "왜 비었는지" / "어떻게 채울지" 를 즉시 전달.
+    const isFiltered = filter !== "all";
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div
+          className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+          style={{ background: "var(--bg-elevated)" }}
+        >
+          <PixelIcon
+            name={isFiltered ? "Search" : "Archive"}
+            size={28}
+            color="var(--text-tertiary)"
+          />
+        </div>
+        <p className="typo-body text-text-secondary mb-1">
+          {translate("collection.cards.empty", language)}
+        </p>
+        <p className="typo-caption text-text-tertiary max-w-[280px]">
+          {isFiltered
+            ? "다른 필터로 확인하거나 새 카드를 모아보세요."
+            : "챌린지를 완료하고 카드팩을 열어 수집해보세요."}
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -441,7 +465,30 @@ function TitlesTab({
   }).filter((g) => g.filtered.length > 0);
 
   if (groups.length === 0) {
-    return <p className="text-center text-text-tertiary py-12 typo-body">{translate("collection.titles.empty", language)}</p>;
+    // Phase 12 R10 — 빈 상태 보강 (카드 empty 와 동일 패턴).
+    const isFiltered = filter !== "all";
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div
+          className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+          style={{ background: "var(--bg-elevated)" }}
+        >
+          <PixelIcon
+            name={isFiltered ? "Search" : "Trophy"}
+            size={28}
+            color="var(--text-tertiary)"
+          />
+        </div>
+        <p className="typo-body text-text-secondary mb-1">
+          {translate("collection.titles.empty", language)}
+        </p>
+        <p className="typo-caption text-text-tertiary max-w-[280px]">
+          {isFiltered
+            ? "다른 필터로 확인해보세요."
+            : "챌린지를 반복하면 칭호를 획득할 수 있어요."}
+        </p>
+      </div>
+    );
   }
 
   return (
