@@ -88,8 +88,11 @@ export default function DungeonHelpModal({ onClose }: DungeonHelpModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="typo-caption rounded px-2 py-1"
+            className="typo-caption rounded inline-flex items-center justify-center"
             style={{
+              minHeight: 44,
+              minWidth: 44,
+              padding: "8px 12px",
               background: "transparent",
               color: GB.light,
               border: `1px solid ${GB.dark}`,

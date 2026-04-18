@@ -495,7 +495,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                 </div>
                 <button
                   onClick={handleClose}
-                  className="relative flex items-center justify-center active:scale-[0.97] active:brightness-90 transition-all"
+                  className="relative flex items-center justify-center active:scale-[0.97] active:brightness-90 transition-[transform,filter] duration-160 ease-[cubic-bezier(0.23,1,0.32,1)]"
                   style={{
                     width: 80,
                     height: 40,
@@ -607,7 +607,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                             letterSpacing: "0.02em",
                           }}
                         >
-                          카메라에 접근할 수 없어요
+                          {t("playground.capture.cameraError.title")}
                         </span>
                         <span
                           style={{
@@ -616,7 +616,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                             lineHeight: 1.4,
                           }}
                         >
-                          탭하면 갤러리에서 사진을 선택할 수 있어요
+                          {t("playground.capture.cameraError.hint")}
                         </span>
                       </button>
                     )}
@@ -1225,7 +1225,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: [0.5, 0.9, 0.5] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute bottom-3 left-0 right-0 text-center pointer-events-none z-[15]"
+                    className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1 pointer-events-none z-[15]"
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
@@ -1234,7 +1234,14 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                       textShadow: "0 1px 2px rgba(255,255,255,0.5)",
                     }}
                   >
-                    ✍ {t("playground.capture.sign")}
+                    {/* Phase 13 design review — emoji ✍ → PixelIcon PenSquare
+                         (cross-platform 렌더 + SR 일관성). */}
+                    <PixelIcon
+                      name="PenSquare"
+                      size={12}
+                      color="rgba(0,0,0,0.55)"
+                    />
+                    <span>{t("playground.capture.sign")}</span>
                   </motion.p>
                 )}
               </div>

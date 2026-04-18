@@ -31,6 +31,17 @@
   --rarity-unique: #F037A5;
   --rarity-legend: #CDF564;
 
+  /* Phase 13 design review — backdrop 3단 토큰.
+     - modal: 가벼운 정보 모달 (PatchNotes / ChallengeConfirm)
+     - dialog: 카드/상세 디테일 (CardDetail)
+     - immersive: 풀스크린 몰입 (PhotoDetail / 폴라로이드 편집) */
+  --backdrop-modal: rgba(0, 0, 0, 0.6);
+  --backdrop-dialog: rgba(0, 0, 0, 0.7);
+  --backdrop-immersive: rgba(0, 0, 0, 0.85);
+
+  /* Phase 13 design review — 공용 card-in 모션 easing 토큰 */
+  --ease-gb-out: cubic-bezier(0.23, 1, 0.32, 1);
+
   /* 폰트 — CSS variable 기반 (next/font에서 주입) */
   --font-display: var(--font-april16), sans-serif;
   --font-body: var(--font-april16), sans-serif;
@@ -868,4 +879,35 @@ html[lang="zh"] {
 }
 html[lang="zh"] body {
   font-family: 'ZCOOL QingKe HuangYou', sans-serif;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Phase 13 design review — 공용 모달 card-in 모션.
+ *
+ * 5개 uphero 모달 (ChoiceResult / DungeonHelp / MonsterCodex /
+ * Minigame / EnhanceResult) 이 각각 다른 이름의 동일 keyframe 을
+ * 복붙하던 것을 `gb-card-in` 한 곳에 통일.
+ *
+ * 사용: `className="gb-card-in"` — 컴포넌트 rendered 시 1회 재생.
+ * Reduced-motion 유저에게는 자동으로 비활성 (transform 없음).
+ * ───────────────────────────────────────────────────────────── */
+@keyframes gb-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.gb-card-in {
+  animation: gb-card-in 220ms var(--ease-gb-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gb-card-in {
+    animation: none;
+  }
 }

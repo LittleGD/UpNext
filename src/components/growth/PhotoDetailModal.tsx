@@ -237,7 +237,9 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
         <motion.div
           initial={{ y: 40, opacity: 0, scale: 0.95 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: 40, opacity: 0, scale: 0.95 }}
+          // Phase 13 design review — exit 비대칭 가속 (rule #14).
+          //   enter: spring ~500ms / exit: ease-in 180ms — 닫기는 결단력 있게.
+          exit={{ opacity: 0, scale: 0.97 }}
           transition={{ type: "spring", duration: 0.5, bounce: 0.18 }}
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-[320px] flex flex-col gap-3"
@@ -341,7 +343,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
               <div className="flex justify-center">
                 <button
                   onClick={() => { play("select"); setIsFlipped((v) => !v); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-[0.97] transition-transform duration-160 ease-[cubic-bezier(0.23,1,0.32,1)]"
                   aria-label={t(
                     isFlipped
                       ? "photo.detail.flip.aria.toPhoto"
@@ -365,7 +367,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
               <div className="flex items-center justify-center gap-1.5 mt-1">
                 <button
                   onClick={handleEdit}
-                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
+                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-[0.97] transition-transform duration-160 ease-[cubic-bezier(0.23,1,0.32,1)]"
                   aria-label={t("photo.detail.action.edit")}
                 >
                   <PixelIcon name="PenSquare" size={12} color="currentColor" />
@@ -375,7 +377,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                   onClick={handleShare}
                   disabled={isSharing}
                   aria-busy={isSharing}
-                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform disabled:opacity-50"
+                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-[0.97] transition-transform duration-160 ease-[cubic-bezier(0.23,1,0.32,1)] disabled:opacity-50"
                   aria-label={t("photo.detail.action.share")}
                 >
                   <PixelIcon name="Send" size={12} color="currentColor" />
@@ -390,7 +392,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                     play("select");
                     setShowDeleteConfirm(true);
                   }}
-                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated typo-caption active:scale-95 transition-transform"
+                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated typo-caption active:scale-[0.97] transition-transform duration-160 ease-[cubic-bezier(0.23,1,0.32,1)]"
                   style={{ color: "#e88b7a" }}
                   aria-label={t("photo.detail.action.delete")}
                 >
@@ -399,7 +401,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                 </button>
                 <button
                   onClick={onClose}
-                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
+                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-[0.97] transition-transform duration-160 ease-[cubic-bezier(0.23,1,0.32,1)]"
                   aria-label={t("photo.detail.action.close")}
                 >
                   <PixelIcon name="Cancel" size={12} color="currentColor" />

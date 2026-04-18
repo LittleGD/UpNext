@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { DUNGEONS } from "@/data/upHeroDungeons";
-import { GB, EASE_OUT, gbClass, GB_ENEMY } from "@/lib/upHeroPalette";
+import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -178,14 +178,14 @@ export default function SessionResultModal() {
           <PixelIcon
             name={iconName}
             size={f30FirstClear ? 28 : 22}
-            color={f30FirstClear ? "#e8b887" : titleColor}
+            color={f30FirstClear ? GB_LEGEND : titleColor}
           />
           <div
             id="session-result-title"
             ref={titleRef}
             tabIndex={-1}
             className="typo-heading"
-            style={{ color: f30FirstClear ? "#e8b887" : titleColor, outline: "none" }}
+            style={{ color: f30FirstClear ? GB_LEGEND : titleColor, outline: "none" }}
           >
             {f30FirstClear ? t("uphero.session.f30FirstClear") : title}
           </div>
@@ -211,9 +211,9 @@ export default function SessionResultModal() {
             <div
               className="typo-caption px-3 py-1.5 mt-1 rounded"
               style={{
-                color: "#e8b887",
-                background: `${"#e8b887"}15`,
-                border: `1px solid ${"#e8b887"}44`,
+                color: GB_LEGEND,
+                background: `${GB_LEGEND}15`,
+                border: `1px solid ${GB_LEGEND}44`,
                 transition: `opacity 300ms ${EASE_OUT}, transform 300ms ${EASE_OUT}`,
               }}
             >

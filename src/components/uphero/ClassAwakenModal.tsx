@@ -20,6 +20,7 @@ import { DUNGEONS } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, EASE_DRAWER } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
 import { className as classNameI18n, classPassive } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -29,6 +30,8 @@ export default function ClassAwakenModal() {
   const pending = useUpHeroStore((s) => s.pendingClassAwaken);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeClassAwaken);
   const { play } = useSound();
+  // Phase 13 design review — RM 유저는 reveal 지연(1030ms) 전체 스킵, 즉시 stage=3.
+  const reducedMotion = useReducedMotion();
 
   // 다단계 reveal state — 0: 배경만, 1: 타이틀, 2: 아이콘, 3: 이름+설명
   const [stage, setStage] = useState(0);
@@ -39,6 +42,11 @@ export default function ClassAwakenModal() {
       return;
     }
     play("impactShake");
+    if (reducedMotion) {
+      // RM: stage 2 번의 delay (30/530/1030ms) 스킵. 모든 레이어 즉시 노출.
+      setStage(3);
+      return;
+    }
     // Phase 5d: stage 0 을 30ms 로 줄여 빈 gradient 공백 제거.
     // rAF 직후 바로 stage 1 로 전환 → 타이틀이 즉시 fade-in 시작.
     // 타이틀 → 아이콘 간격은 유지 (500ms), 아이콘 → 설명 간격도 유지 (500ms).
@@ -50,7 +58,7 @@ export default function ClassAwakenModal() {
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [pending, play]);
+  }, [pending, play, reducedMotion]);
 
   const onDismiss = () => {
     play("confirm");
@@ -153,7 +161,7 @@ export default function ClassAwakenModal() {
         <button
           type="button"
           onClick={onDismiss}
-          className="typo-caption rounded px-6"
+          className="awaken-cta typo-caption rounded px-6"
           style={{
             minHeight: 44,
             background: GB.lightest,
@@ -166,6 +174,16 @@ export default function ClassAwakenModal() {
           disabled={stage < 3}
         >
           {t("uphero.class.toCamp")}
+          {/* Phase 13 design review — other uphero CTAs (Enhance/Choice/Session)
+               all have :active press feedback. Match that pattern here. */}
+          <style jsx>{`
+            .awaken-cta {
+              transition: transform 160ms ${EASE_OUT};
+            }
+            .awaken-cta:not(:disabled):active {
+              transform: scale(0.97) translateY(0);
+            }
+          `}</style>
         </button>
       </div>
     </div>,
