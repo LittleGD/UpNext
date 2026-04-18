@@ -26,7 +26,7 @@ import {
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
 import type { Monster } from "@/types/uphero";
-import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN } from "@/lib/upHeroPalette";
+import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import { useAnnounce } from "@/hooks/useAnnounce";
 import CombatLog from "./CombatLog";
@@ -623,9 +623,11 @@ export default function DungeonView() {
                   Lv {currentEnemy.level}
                 </span>
                 {/* Phase 12 — 적 HP bar (수치 없이). 유저 피드백: "적 수치는 안 보여주더라도
-                     체력 bar 는 보여주는 게 더 재밌을 것". progressbar role 지원. */}
+                     체력 bar 는 보여주는 게 더 재밌을 것". progressbar role 지원.
+                     Phase 12 R2 — 두께 h-1 → h-1.5 (영웅 bar 와 일관). 보스 full HP 는
+                     GB_LEGEND (금) 으로 "위세" 표현, 저하 시 붉게 변해 긴장감 ↑. */}
                 <div
-                  className="w-16 h-1 rounded-sm overflow-hidden"
+                  className="w-16 h-1.5 rounded-sm overflow-hidden"
                   role="progressbar"
                   aria-label={`${currentEnemy.name} 체력`}
                   aria-valuenow={Math.round(enemyHpPct)}
@@ -641,10 +643,10 @@ export default function DungeonView() {
                       background:
                         enemyHpPct > 50
                           ? currentEnemy.isBoss
-                            ? GB_ENEMY
+                            ? GB_LEGEND
                             : GB.lightest
                           : enemyHpPct > 20
-                            ? "#e8d88b"
+                            ? GB_WARN
                             : GB_ENEMY,
                       transition: `width 240ms ${EASE_OUT}, background 240ms ${EASE_OUT}`,
                     }}

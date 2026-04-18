@@ -253,16 +253,15 @@ const LogLine = memo(function LogLine({
       }
 
       // Fallback: narrative 없는 일반 hit (67%) 또는 legacy 엔트리.
-      //   Phase 12 bugfix — 기존 "영웅 → 적 −70" 포맷이 긴 말줄임 + 느린 prefix
-      //   로 유저에게 "−70" 숫자만 보이는 혼란 제보. 짧은 완성문 (주어+동사) 으로 대체.
-      //   damage 0 은 miss/dodge → narrative 가 항상 존재해 이 경로 도달 안 함.
+      //   Phase 12 R2 — TypewriterText 적용해 narrative 와 일관된 타이핑 리듬.
+      //   기존 punch-in 방식 (즉시 표시) 은 narrative (타이핑) 와 속도 불일치.
       if (entry.damage <= 0) return null; // 방어: 0 fallback 렌더 금지
-      const heroHitText = isHero ? "영웅이 공격 — " : "영웅이 피격 — ";
-      const dmgColor = isHero ? GB.lightest : GB_ENEMY;
+      const fallbackText = isHero
+        ? `영웅이 공격 — −${entry.damage}`
+        : `영웅이 피격 — −${entry.damage}`;
       return (
         <div style={{ ...style, color: GB.light }} className="pl-3">
-          <span style={{ color: GB.light }}>{heroHitText}</span>
-          <span style={{ color: dmgColor }}>−{entry.damage}</span>
+          <TypewriterText text={fallbackText} enabled={isLatest} />
         </div>
       );
     }

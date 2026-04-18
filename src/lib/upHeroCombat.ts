@@ -618,10 +618,13 @@ export function tickSession(session: CombatSession): CombatSession {
       timestamp: Date.now(),
     });
     // Phase 12 R1 — 최근 본 event prompt LRU buffer (반복 피로 완화).
+    //   Phase 12 R2 — LRU cap 을 pool 크기 대비 축소 (작은 pool 에서 고갈 방지).
+    //   예: 던전 pool 4 개 + universal 6 = 실제 10 에서 최대 LRU 3 으로 충분,
+    //   pool 4 만 보는 경우도 3 개 제외 1 남음. 보수적으로 3 유지 + pool 기준 clamp.
     const recent = [...(s.recentEventPrompts ?? [])];
     recent.push(ev.prompt);
-    // cap 3
-    while (recent.length > 3) recent.shift();
+    const LRU_CAP = 3;
+    while (recent.length > LRU_CAP) recent.shift();
     s.recentEventPrompts = recent;
     s.status = "awaitingChoice";
     s.pendingChoiceIndex = logIdx;
@@ -1165,8 +1168,8 @@ function executeCombatRound(
   }
 
   // Phase 11b — "강단" counter-attack: 피격 (enemyDmg > 0) 시 counterChance 에
-  //   monster HP 에 +1 고정 damage 를 combat log 에 추가 push. "hit" 으로 표시.
-  //   monster HP 는 다음 tick 의 computeCombatState 가 계산하므로 여기선 log 만.
+  //   monster HP 에 반격 damage 를 combat log 에 추가 push. "hit" 으로 표시.
+  //   monster HP 는 다음 tick 의 computeMonsterHp 가 log 누적으로 계산하므로 여기선 log 만.
   let counterLogged = false;
   if (enemyDmg > 0 && tMods.counterChance > 0 && Math.random() < tMods.counterChance) {
     counterLogged = true;
@@ -1191,11 +1194,14 @@ function executeCombatRound(
   // counter attack — 짧은 narrative 와 함께 hero attack entry 추가 push
   //   Phase 12 R1 — 기존 1 고정 피해는 후반 무의미 (F30 보스 HP 대비 0.01%).
   //   이제 hero str 기반 + heroAtkBonusRounds mult 적용 (광폭화/분신 등 영향).
+  //   Phase 12 R2 — str×0.25 → ×0.5 로 상향. 희귀 talisman 만 발동되는 반격이니
+  //   적절한 DPS 기여 보장. cap str×1.5 로 오버플로 방지 (3× buff 중첩 엣지 케이스).
   if (counterLogged) {
-    let counterDmg = Math.max(1, Math.floor(effStats.str * 0.25));
+    let counterDmg = Math.max(1, Math.floor(effStats.str * 0.5));
     if (s.heroAtkBonusRounds && s.heroAtkBonusRounds.rounds > 0) {
       counterDmg = Math.round(counterDmg * s.heroAtkBonusRounds.mult);
     }
+    counterDmg = Math.min(counterDmg, Math.floor(effStats.str * 1.5));
     s.log.push({
       type: "combat",
       attacker: "hero",
@@ -1238,8 +1244,8 @@ function executeCombatRound(
   // Phase 12 bugfix — 이번 round 의 enemy 피해를 즉시 s.hero.hp 에 반영.
   //   기존: executeCombatRound 는 log 에 combat entry 만 push, s.hero.hp 는 encounter
   //   끝 (victory/death) 에만 업데이트. 결과: UI 가 584/592 고정된 상태로 보이다가
-  //   다음 tick 의 computeCombatState 누적 판정 만나면 갑자기 "영웅이 쓰러졌다".
-  //   이제 매 round 정산으로 UI 와 내부 상태 완전 일치.
+  //   다음 tick 에 death 판정 만나면 갑자기 "영웅이 쓰러졌다".
+  //   이제 매 round 정산으로 UI 와 내부 상태 완전 일치. monster HP 만 log 누적 derive.
   //
   //   counter attack (talisman 강단) 은 hero attacker entry 를 추가 push 해 monster
   //   HP 만 영향 — hero.hp 와 무관. enemyDmg 는 이 round 의 enemy 공격 피해.
@@ -1269,10 +1275,13 @@ export function resolveMinigame(
     rewards: { ...session.rewards, drops: [...session.rewards.drops] },
   };
   const effects = success ? pending.successEffects : pending.failEffects;
+  // Phase 12 R2 — effectSummary 로 수치 요약 (일반 choice 와 일관된 UX).
+  //   이전엔 undefined 로 두어 ChoiceResultModal 의 요약 chip 이 렌더 안 됐음.
+  const summary = summarizeEffects(effects as ChoiceEffect[]);
   s.log.push({
     type: "choiceResult",
     text: success ? "> 도전 성공" : "> 도전 실패",
-    effectSummary: undefined,
+    effectSummary: summary || undefined,
     timestamp: Date.now(),
   });
   for (const e of effects) {
