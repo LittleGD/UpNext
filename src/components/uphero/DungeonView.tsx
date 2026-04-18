@@ -38,6 +38,7 @@ import GbConfirm from "./GbConfirm";
 import NumberRoll from "./NumberRoll";
 import DungeonAtmosphere from "./DungeonAtmosphere";
 import ChoiceResultModal from "./ChoiceResultModal";
+import ClassResourceBar from "./ClassResourceBar";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
@@ -830,6 +831,16 @@ export default function DungeonView() {
               </span>
             ))}
         </div>
+
+        {/* Phase 12d — 클래스 자원 bar (warrior 분노 / mage 마나 등). 전직 후만 노출. */}
+        {session.hero.classType && (
+          <div className="mt-1.5">
+            <ClassResourceBar
+              classType={session.hero.classType}
+              value={session.classResource ?? 0}
+            />
+          </div>
+        )}
 
         {/* Phase 6c — Mage XP / Bard coin float (전투 로그 상단, 오른쪽 정렬).
              victory 순간 잠시 뜸. pointer-events 없어서 UI 방해 X. */}

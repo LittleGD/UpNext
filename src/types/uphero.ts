@@ -393,6 +393,12 @@ export interface CombatSession {
    */
   skillCooldown?: number;
   /**
+   * Phase 12d — 클래스별 자원 (warrior 분노, mage 마나 등). 0-100.
+   *   세션 시작 시 0. 이벤트 (공격/피격/dodge/heal 등) 시 CLASS_RESOURCE.gain 만큼 획득.
+   *   스킬 발동 시 소모 (ClassSkill.resourceCost).
+   */
+  classResource?: number;
+  /**
    * Phase 6b — 다음 영웅 공격 damage 배율 (warrior 강타 등).
    * 1 이상 — 공격 발생 후 reset (1 로 돌아감).
    */
@@ -894,6 +900,88 @@ export function computeEffectiveStats(hero: Hero): HeroBaseStats {
  *
  * Phase 12c — 클래스 전직 후 CLASS_STAT_GROWTH bias 반영.
  */
+
+/**
+ * Phase 12d — 클래스별 고유 자원 시스템.
+ *   각 클래스가 다른 자원을 쓰며 획득 트리거가 다름 → 플레이 패턴 차별화.
+ *   스킬 발동 시 자원 소모 (스킬 데이터의 resourceCost 필드).
+ *
+ *   max 는 모든 클래스 100 (동일 척도). 초기값 0.
+ */
+export type ResourceEvent =
+  | "attack"       // 영웅 공격 (hit/crit)
+  | "hit"          // 영웅 피격
+  | "dodge"        // 영웅 dodge 성공
+  | "crit"         // 영웅 crit 성공
+  | "heal"         // heal 효과 발동
+  | "victory"      // 일반 몬스터 처치
+  | "floor"        // 층 이동
+  | "choice"       // 이벤트 선택 해결
+  | "roundStart";  // 전투 round 시작
+
+export interface ClassResourceSpec {
+  /** 표시 이름 (예: "분노", "마나") */
+  name: string;
+  /** 2-3 자 약어 (UI bar 표기용) */
+  short: string;
+  /** 자원 bar 색상 */
+  color: string;
+  /** 각 이벤트별 gain 량 (기본 0) */
+  gain: Partial<Record<ResourceEvent, number>>;
+}
+
+export const CLASS_RESOURCE: Record<ClassType, ClassResourceSpec> = {
+  warrior: {
+    name: "분노",
+    short: "RAGE",
+    color: "#e88b7a",
+    gain: { attack: 15, hit: 10, crit: 20 },
+  },
+  mage: {
+    name: "마나",
+    short: "MANA",
+    color: "#8bb9e8",
+    gain: { roundStart: 10, victory: 15 },
+  },
+  monk: {
+    name: "기",
+    short: "CHI",
+    color: "#cdb887",
+    gain: { hit: 20, attack: 5, dodge: 15 },
+  },
+  druid: {
+    name: "자연력",
+    short: "NAT",
+    color: "#87c87a",
+    gain: { roundStart: 5, heal: 15, floor: 10 },
+  },
+  bard: {
+    name: "영감",
+    short: "INSP",
+    color: "#e8c76b",
+    gain: { victory: 15, attack: 8 },
+  },
+  chronomancer: {
+    name: "시간 파편",
+    short: "TIME",
+    color: "#a5c8db",
+    gain: { floor: 15, choice: 10, roundStart: 5 },
+  },
+  priest: {
+    name: "신앙",
+    short: "FAITH",
+    color: "#e8e0cd",
+    gain: { heal: 15, dodge: 10, victory: 10 },
+  },
+  illusionist: {
+    name: "환기",
+    short: "ESNC",
+    color: "#c88be8",
+    gain: { dodge: 25, crit: 15, attack: 5 },
+  },
+};
+
+export const CLASS_RESOURCE_MAX = 100;
 
 /**
  * Phase 12c — 클래스별 레벨당 성장 편향 테이블.
