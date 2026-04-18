@@ -13,33 +13,12 @@ import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, gbClass, GB_ENEMY } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useCountUp } from "@/hooks/useCountUp";
 import PixelIcon from "@/components/icons/PixelIcon";
 import DropRevealCard from "./DropRevealCard";
 
-/** Phase 8b — count-up hook (IdleRewardToast 와 동일 패턴, 공용화 전단계).
- *   세션 결산 modal 에서 XP/coin 이 0 → 실제 값으로 700ms 올라간다. */
-function useCountUp(target: number, duration = 700, enabled = true): number {
-  const [n, setN] = useState(enabled ? 0 : target);
-  const rafRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!enabled) {
-      setN(target);
-      return;
-    }
-    const start = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setN(Math.round(target * eased));
-      if (t < 1) rafRef.current = requestAnimationFrame(step);
-    };
-    rafRef.current = requestAnimationFrame(step);
-    return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    };
-  }, [target, duration, enabled]);
-  return n;
-}
+// Phase 9b — useCountUp 은 hooks/useCountUp.ts 로 공용화. 이전엔 이 파일 +
+//   IdleRewardToast 양쪽에 같은 rAF 로직이 복붙돼 있던 걸 정리.
 
 export default function SessionResultModal() {
   const session = useUpHeroStore((s) => s.currentSession);

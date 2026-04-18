@@ -74,14 +74,16 @@ export default function BottomNav() {
   const hideForMinigame =
     (pathname === "/minigame" || pathname === "/playground") && minigamePhase !== "idle";
 
-  // Up Hero 던전 진행 중엔 네비 숨김 — 이벤트 페널/포기 CTA 와 겹침 방지
-  const upHeroSession = useUpHeroStore((s) => s.currentSession);
+  // Up Hero 던전 진행 중엔 네비 숨김 — 이벤트 페널/포기 CTA 와 겹침 방지.
+  // Phase 9b — 전체 session 객체가 아닌 status 만 구독.
+  //   tick 마다 session.log 가 바뀌면 BottomNav 도 리렌더되던 문제 해결.
+  //   status 변화는 세션 시작/awaitingChoice/종료 시 드물게 발생.
+  const upHeroStatus = useUpHeroStore((s) => s.currentSession?.status);
   const hideForUpHero =
     pathname === "/playground" &&
-    upHeroSession != null &&
-    (upHeroSession.status === "active" ||
-      upHeroSession.status === "paused" ||
-      upHeroSession.status === "awaitingChoice");
+    (upHeroStatus === "active" ||
+      upHeroStatus === "paused" ||
+      upHeroStatus === "awaitingChoice");
 
   if (
     !isLoaded ||

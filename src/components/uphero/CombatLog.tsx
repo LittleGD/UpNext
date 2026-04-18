@@ -12,7 +12,7 @@
  *  - 이모지 사용 없음 — MonsterSprite / PixelIcon 사용
  */
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { LogEntry } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -100,8 +100,16 @@ export default function CombatLog({ log }: CombatLogProps) {
         scrollbarColor: `${GB.dark} transparent`,
       }}
     >
+      {/* Phase 9b — key 를 idx 가 아닌 timestamp 로.
+            이전 key={i} 는 로그 추가될 때마다 마지막 라인의 key 가 달라지며
+            React 가 기존 LogLine 까지 reconcile. timestamp 는 entry 단위 고유값이라
+            rearrange 불가능 + memo 효과 극대화. */}
       {log.map((entry, i) => (
-        <LogLine key={i} entry={entry} isLatest={i === log.length - 1} />
+        <LogLine
+          key={entry.timestamp ?? i}
+          entry={entry}
+          isLatest={i === log.length - 1}
+        />
       ))}
 
       <style jsx>{`
@@ -122,7 +130,16 @@ export default function CombatLog({ log }: CombatLogProps) {
 
 /* ──────────────────────────────────────────────────────── */
 
-function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
+// Phase 9b — memo 로 감싸서 과거 log entry 는 재렌더 skip.
+//   parent 에 새 entry 가 push 되면 isLatest 가 바뀌는 마지막 두 라인만 리렌더.
+//   30F 세션 log 200+ 에서 reconciliation 비용 ↓.
+const LogLine = memo(function LogLine({
+  entry,
+  isLatest,
+}: {
+  entry: LogEntry;
+  isLatest: boolean;
+}) {
   const style: React.CSSProperties = {
     animation: isLatest ? `uphero-log-enter 200ms ${EASE_OUT} both` : undefined,
   };
@@ -336,7 +353,7 @@ function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
         </div>
       );
   }
-}
+});
 
 /**
  * Phase 4c.1 — 세션 종료 사유별 CombatLog 렌더.
