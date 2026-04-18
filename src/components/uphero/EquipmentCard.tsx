@@ -46,7 +46,7 @@ const DIMENSIONS: Record<
 > = {
   sm: {
     width: 80,
-    height: 100,
+    height: 96,
     iconSize: 28,
     nameClass: "typo-micro",
     statClass: "typo-micro",
@@ -148,17 +148,23 @@ export default function EquipmentCard({
         )}
       </div>
 
-      {/* 이름 */}
+      {/* 이름 — Phase 8a: mt-auto → mt-1.5 고정 spacing.
+           line-clamp-2 로 3줄 이상 wrap 방지, 카드간 bottom alignment 통일. */}
       <div
-        className={`${dim.nameClass} mt-auto leading-tight`}
-        style={{ color: selected ? GB.lightest : rarityColor }}
+        className={`${dim.nameClass} mt-1.5 leading-tight overflow-hidden`}
+        style={{
+          color: selected ? GB.lightest : rarityColor,
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+        }}
       >
         {equipment.name}
       </div>
 
-      {/* 스탯 (sm 에선 1개만, md/lg 에선 전체) */}
+      {/* 스탯 (sm 에선 1개만, md/lg 에선 전체) — mt-auto 로 바닥 정렬 */}
       {statEntries.length > 0 && (
-        <div className={`${dim.statClass} mt-1 tabular-nums`}>
+        <div className={`${dim.statClass} mt-auto tabular-nums`}>
           {(size === "sm" ? statEntries.slice(0, 1) : statEntries).map(
             ([k, v]) => (
               <div key={k} style={{ color: GB.light }}>

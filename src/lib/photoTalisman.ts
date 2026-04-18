@@ -93,19 +93,24 @@ export function buildPhotoTalisman(
     stats.crit = 3;
   }
 
+  // Phase 8a: 이름 단축 — rarity prefix + "부적" 제거, title 5 글자 max.
+  // rarity 는 card border 색 / accent dot 으로 이미 전달, "부적" 은 썸네일 +
+  // talisman 슬롯 위치로 맥락 전달. 짧을수록 sm 카드 (80×100) 에서 2줄 이내.
   const shortTitle =
-    photo.challengeTitle.length > 10
-      ? photo.challengeTitle.slice(0, 10) + "…"
+    photo.challengeTitle.length > 5
+      ? photo.challengeTitle.slice(0, 5) + "…"
       : photo.challengeTitle;
 
   const dateLabel = formatPhotoDate(photo);
-  const flavor = photo.memo
+  // flavor 에 rarity prefix 텍스트 흡수 ("빛바랜 100 Jump Ropes — 2026.04.16")
+  const flavorOriginal = photo.memo
     ? photo.memo.slice(0, 60)
-    : `${dateLabel} — ${shortTitle}`;
+    : `${dateLabel} — ${photo.challengeTitle}`;
+  const flavor = `${RARITY_PREFIX[rarity]}${flavorOriginal}`;
 
   return {
     id: `photoTal_${photo.id}`,
-    name: `${RARITY_PREFIX[rarity]}${shortTitle} 부적`,
+    name: shortTitle,
     type: "talisman",
     rarity,
     category: photo.category as DungeonId,
