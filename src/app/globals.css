@@ -525,7 +525,10 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   .uphero-dodge-pulse,
   .uphero-fire-flicker,
   .uphero-typewriter-caret,
-  .uphero-card-select {
+  .uphero-card-select,
+  /* Phase 11c R4 R2 — NumberRoll slot-machine 롤 (260ms scaleY shift) 제거. */
+  .num-roll-new,
+  .num-roll-old {
     animation: none !important;
   }
   /* 미세 호흡 — 완전히 끄지 않고 정적인 최종 상태로 snap */

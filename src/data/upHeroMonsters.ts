@@ -4,7 +4,7 @@
  * 이모지 대신 MonsterSprite (직접 그린 8×8 dot-matrix) 를 사용.
  */
 
-import type { DungeonId, Monster, MonsterKind } from "@/types/uphero";
+import { ngPlusScaleMult, type DungeonId, type Monster, type MonsterKind } from "@/types/uphero";
 
 /** 몬스터 템플릿 — 정확한 stats 는 floor 에 따라 스케일링 */
 export interface MonsterTemplate {
@@ -186,7 +186,10 @@ function scaleMonster(
 ): Monster {
   const { ngPlusLevel = 0, hpMult = 1, atkMult = 1 } = opts;
   const bossMult = t.isBoss ? 4 : 1;
-  const ngMult = 1 + 0.5 * Math.max(0, ngPlusLevel);
+  // Phase 11c R4 — 기존 하드코딩 `1 + 0.5 * ngPlusLevel` 을 `ngPlusScaleMult` 로 교체.
+  //   R4 R1 에서 `ngPlusScaleMult` 를 0.5n → 0.4n 로 변경했으나 여기서 import 되지
+  //   않아 orphan 함수였음. 이제 실제로 적용됨.
+  const ngMult = ngPlusScaleMult(ngPlusLevel);
   const base = 20 + floor * 5;
   return {
     id: `${t.id}_f${floor}_${Date.now() % 10000}`,

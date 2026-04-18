@@ -161,18 +161,26 @@ export default function ChoicePanel() {
             )}
           </span>
         </div>
-        {/* 선택지 — prompt 가 타이핑 중이면 살짝 dim + pointer-events none.
-            타이핑 완료 직후에만 tappable. 조급한 오탭 방지 + 극적 pacing. */}
+        {/* 선택지 — prompt 가 타이핑 중이면 살짝 dim + 키보드/클릭 완전 차단.
+            타이핑 완료 직후에만 tappable. 조급한 오탭 방지 + 극적 pacing.
+            Phase 11c R4 R2 — 기존엔 pointerEvents 만 막고 keyboard focus 가능했음
+            → promptDone 전에 Enter 로 조기 선택 가능. disabled 로 완전 차단. */}
         <div
           className="flex flex-col gap-1.5"
+          role="radiogroup"
+          aria-label="선택지"
           style={{
             opacity: promptDone ? 1 : 0.45,
-            pointerEvents: promptDone ? "auto" : "none",
             transition: `opacity 180ms ${EASE_OUT}`,
           }}
         >
           {entry.options.map((opt, i) => (
-            <ChoiceButton key={i} onClick={() => resolveChoice(i)}>
+            <ChoiceButton
+              key={i}
+              onClick={() => resolveChoice(i)}
+              disabled={!promptDone}
+              autoFocus={promptDone && i === 0}
+            >
               <span className="typo-caption" style={{ color: GB.light }}>
                 {i + 1}.
               </span>{" "}
@@ -222,20 +230,27 @@ export default function ChoicePanel() {
 function ChoiceButton({
   children,
   onClick,
+  disabled = false,
+  autoFocus = false,
 }: {
   children: React.ReactNode;
   onClick: () => void;
+  disabled?: boolean;
+  autoFocus?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
+      autoFocus={autoFocus}
       className="choice-btn font-mono text-[11px] text-left px-3 py-2.5 rounded"
       style={{
         minHeight: 44,
         background: `${GB.dark}aa`,
         border: `1px solid ${GB.light}`,
         color: GB.light,
+        cursor: disabled ? "default" : "pointer",
       }}
     >
       {children}

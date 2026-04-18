@@ -31,7 +31,7 @@ import {
 } from "@/types/uphero";
 import type { Equipment, EquipSlot } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
-import { GB, EASE_OUT, gbClass, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
+import { GB, EASE_OUT, gbClass, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { useGameStore } from "@/store/useGameStore";
 import { useSound } from "@/hooks/useSound";
 import EquipmentCard from "./EquipmentCard";
@@ -609,6 +609,10 @@ export default function EquipmentInventory({
                   const rate = enhanceSuccessRate(item.rarity, level, streak);
                   const canAfford = coins >= cost;
                   const rColor = RARITY_COLOR[item.rarity];
+                  // Phase 11c R4 R2 — 장착 중인 아이템인지 표시 (destroy 시 스탯 하락 경고).
+                  const isEquipped = (["weapon", "armor", "accessory", "talisman"] as const).some(
+                    (s) => hero.equipped[s]?.id === item.id,
+                  );
                   return (
                     <div
                       key={item.id}
@@ -643,6 +647,15 @@ export default function EquipmentInventory({
                             </span>
                           )}
                           <span>보존 {Math.round(ENHANCE_PRESERVE_BY_RARITY[item.rarity] * 100)}%</span>
+                          {/* Phase 11c R4 R2 — 장착 중 배지. 실패-소실 시 즉시 스탯 감소 안내. */}
+                          {isEquipped && (
+                            <span
+                              style={{ color: GB_WARN, fontWeight: 600 }}
+                              aria-label="장착 중 장비, 실패-소실 시 스탯 감소"
+                            >
+                              장착 중
+                            </span>
+                          )}
                         </div>
                       </div>
                       <button
@@ -715,6 +728,17 @@ export default function EquipmentInventory({
               실패 시 <span style={{ color: GB.lightest }}>{Math.round(ENHANCE_PRESERVE_BY_RARITY[pending.item.rarity] * 100)}%</span> 확률로 아이템 보존 · 나머지는 소실
               <br />
               비용 <span style={{ color: GB.lightest }}>{pending.cost}</span> 코인 (보유 {coins})
+              {/* Phase 11c R4 R2 — equipped 장비 강화 시 추가 경고 (소실 → 스탯 즉시 하락). */}
+              {(["weapon", "armor", "accessory", "talisman"] as const).some(
+                (s) => hero.equipped[s]?.id === pending.item.id,
+              ) && (
+                <>
+                  <br />
+                  <span style={{ color: GB_WARN }}>
+                    ⚠ 장착 중 — 소실 시 스탯이 즉시 하락합니다
+                  </span>
+                </>
+              )}
             </>
           ) : undefined
         }

@@ -250,12 +250,14 @@ export default function EquipmentCard({
   );
 
   if (clickable) {
-    // Phase 11c R4 — rarity / enhance level / selected state 를 SR 에 전달.
-    //   innerText 만 읽히던 기존: "검 · str 5" → aria-label: "레어 검 강화 +3, 선택됨".
+    // Phase 11c R4 — rarity / enhance level / stats 를 SR 에 전달.
+    //   R2 수정: "선택됨" 을 aria-label 에서 제거 (aria-pressed 와 중복 공지 방지).
+    //   stats 는 legend 는 모든 affix 포함 (최대 5개), 그 외 상위 3개.
     const rarityLabel = { normal: "일반", rare: "레어", unique: "유니크", legend: "전설" }[equipment.rarity];
     const enhance = equipment.enhanceLevel ?? 0;
+    const statLimit = equipment.rarity === "legend" ? 5 : 3;
     const statsBrief = statEntries
-      .slice(0, 3)
+      .slice(0, statLimit)
       .map(([k, v]) => `${STAT_LABEL[k] ?? k} ${v}`)
       .join(", ");
     const srLabel = [
@@ -263,7 +265,6 @@ export default function EquipmentCard({
       equipment.name,
       enhance > 0 ? `강화 +${enhance}` : null,
       statsBrief,
-      selected ? "선택됨" : null,
     ]
       .filter(Boolean)
       .join(", ");
