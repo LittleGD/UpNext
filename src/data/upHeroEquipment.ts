@@ -12,6 +12,11 @@ import type { Rarity } from "@/types/card";
 
 /** 장비 템플릿 — instance 생성 시 랜덤 ID 부여 */
 interface EquipmentTemplate {
+  /**
+   * Phase 13a — 다국어 이름 lookup 용 stable id. ko 키 `uphero.equip.<baseId>.name`
+   * 으로 매핑됨. baseName 은 한국어 fallback 으로 유지.
+   */
+  baseId: string;
   baseName: string;
   type: EquipSlot;
   category: DungeonId;
@@ -26,6 +31,7 @@ interface EquipmentTemplate {
 const TEMPLATES: EquipmentTemplate[] = [
   // === 운동 (fitness) — 친화: 무기 ===
   {
+    baseId: "self_control_sword",
     baseName: "자기절제의 검",
     type: "weapon",
     category: "fitness",
@@ -35,6 +41,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
   },
   {
+    baseId: "persistence_shield",
     baseName: "꾸준함의 방패",
     type: "armor",
     category: "fitness",
@@ -44,6 +51,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
   },
   {
+    baseId: "endurance_bracer",
     baseName: "끈기의 완대",
     type: "accessory",
     category: "fitness",
@@ -55,6 +63,7 @@ const TEMPLATES: EquipmentTemplate[] = [
 
   // === 학습 (learning) — 친화: 액세서리 ===
   {
+    baseId: "wisdom_glasses",
     baseName: "지혜의 안경",
     type: "accessory",
     category: "learning",
@@ -64,6 +73,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
   },
   {
+    baseId: "memo_pen",
     baseName: "메모의 펜",
     type: "weapon",
     category: "learning",
@@ -73,6 +83,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
   },
   {
+    baseId: "bookmark_charm",
     baseName: "책갈피의 부적",
     type: "talisman",
     category: "learning",
@@ -84,6 +95,7 @@ const TEMPLATES: EquipmentTemplate[] = [
 
   // === 명상 (mindfulness) — 친화: 부적 ===
   {
+    baseId: "serenity_charm",
     baseName: "평정의 부적",
     type: "talisman",
     category: "mindfulness",
@@ -93,6 +105,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
   },
   {
+    baseId: "zen_beads",
     baseName: "선정의 염주",
     type: "accessory",
     category: "mindfulness",
@@ -102,6 +115,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
   },
   {
+    baseId: "silence_robe",
     baseName: "침묵의 로브",
     type: "armor",
     category: "mindfulness",
@@ -113,6 +127,7 @@ const TEMPLATES: EquipmentTemplate[] = [
 
   // === 식단 (nutrition) — 친화: 갑옷 ===
   {
+    baseId: "grain_armor",
     baseName: "곡물의 갑옷",
     type: "armor",
     category: "nutrition",
@@ -122,6 +137,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
   },
   {
+    baseId: "moderation_spoon",
     baseName: "절제의 수저",
     type: "weapon",
     category: "nutrition",
@@ -131,6 +147,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
   },
   {
+    baseId: "aroma_charm",
     baseName: "향기의 부적",
     type: "talisman",
     category: "nutrition",
@@ -142,6 +159,7 @@ const TEMPLATES: EquipmentTemplate[] = [
 
   // === 소통 (social) — 친화: 액세서리 ===
   {
+    baseId: "smile_ring",
     baseName: "미소의 반지",
     type: "accessory",
     category: "social",
@@ -151,6 +169,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
   },
   {
+    baseId: "dialogue_lute",
     baseName: "대화의 류트",
     type: "weapon",
     category: "social",
@@ -160,6 +179,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
   },
   {
+    baseId: "friendship_cape",
     baseName: "우정의 망토",
     type: "armor",
     category: "social",
@@ -171,6 +191,7 @@ const TEMPLATES: EquipmentTemplate[] = [
 
   // === 생산성 (productivity) — 친화: 액세서리 ===
   {
+    baseId: "focus_clock",
     baseName: "집중의 시계",
     type: "accessory",
     category: "productivity",
@@ -180,6 +201,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
   },
   {
+    baseId: "efficiency_axe",
     baseName: "효율의 도끼",
     type: "weapon",
     category: "productivity",
@@ -189,6 +211,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
   },
   {
+    baseId: "timeblock_charm",
     baseName: "타임블록 부적",
     type: "talisman",
     category: "productivity",
@@ -200,6 +223,7 @@ const TEMPLATES: EquipmentTemplate[] = [
 
   // === 건강 (wellness) — 친화: 갑옷 ===
   {
+    baseId: "recovery_robe",
     baseName: "회복의 로브",
     type: "armor",
     category: "wellness",
@@ -209,6 +233,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
   },
   {
+    baseId: "deepsleep_charm",
     baseName: "숙면의 부적",
     type: "talisman",
     category: "wellness",
@@ -218,6 +243,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
   },
   {
+    baseId: "balance_bracer",
     baseName: "균형의 완대",
     type: "accessory",
     category: "wellness",
@@ -229,6 +255,7 @@ const TEMPLATES: EquipmentTemplate[] = [
 
   // === 트렌딩 (trending) — 친화: 부적 (랜덤 효과) ===
   {
+    baseId: "mutation_charm",
     baseName: "변화의 부적",
     type: "talisman",
     category: "trending",
@@ -238,6 +265,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
   },
   {
+    baseId: "viral_sword",
     baseName: "바이럴 검",
     type: "weapon",
     category: "trending",
@@ -247,6 +275,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
   },
   {
+    baseId: "trend_ring",
     baseName: "트렌드의 반지",
     type: "accessory",
     category: "trending",
@@ -380,6 +409,9 @@ export function createEquipmentFromTemplate(
   return {
     id: `eq_${template.baseName.replace(/\s/g, "")}_${rarity}_${Date.now() % 100000}_${Math.floor(Math.random() * 1000)}`,
     name: `${RARITY_PREFIX[rarity]}${template.baseName}${affixSuffix}`,
+    // Phase 13a — 다국어 lookup 용 stable id. UI 가 equipmentNameById(baseId, ...)
+    //   호출 시 i18n 키 `uphero.equip.<baseId>.name` 으로 조회.
+    baseId: template.baseId,
     type: template.type,
     rarity,
     category: template.category,

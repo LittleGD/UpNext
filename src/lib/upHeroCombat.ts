@@ -295,7 +295,9 @@ function consumeTime(s: CombatSession, delta: number): boolean {
   }
   s.time = Math.max(0, Math.min(s.maxTime, s.time + effectiveDelta));
   if (s.time <= 0 && s.status === "active") {
-    endSession(s, "timeExpired", "탐험 시간이 소진됐다");
+    endSession(s, "timeExpired", "탐험 시간이 소진됐다", {
+      detailKey: "uphero.session.detail.timeOver",
+    });
     return true;
   }
   return false;
@@ -304,16 +306,26 @@ function consumeTime(s: CombatSession, delta: number): boolean {
 /**
  * 세션 종료 — 로그에 sessionEnd 엔트리 추가하고 status=completed.
  * reason 별로 SessionResultModal 과 CombatLog 가 문구를 다르게 렌더.
+ *
+ * Phase 13a — i18n 옵션. monster 가 있으면 detailKey + monster templateId 를
+ *   기록 → 모달에서 다국어로 풀어냄. 한국어 detail string 도 legacy fallback 으로 유지.
  */
 function endSession(
   s: CombatSession,
   reason: SessionEndReason,
   detail?: string,
+  i18n?: {
+    detailKey?: string;
+    monster?: { templateId?: string; name: string };
+  },
 ): void {
   s.log.push({
     type: "sessionEnd",
     reason,
     detail,
+    detailKey: i18n?.detailKey,
+    detailMonsterTemplateId: i18n?.monster?.templateId,
+    detailMonsterFallback: i18n?.monster?.name,
     timestamp: Date.now(),
   });
   s.status = "completed";
@@ -503,7 +515,10 @@ export function tickSession(session: CombatSession): CombatSession {
         } else {
           // 영웅 패배 — 어떤 몬스터에게 쓰러졌는지 detail 로 기록
           s.hero.hp = 0;
-          endSession(s, "heroDied", `${monster.name} 에게 쓰러졌다`);
+          endSession(s, "heroDied", `${monster.name} 에게 쓰러졌다`, {
+            detailKey: "uphero.session.detail.killedBy",
+            monster: { templateId: monster.templateId, name: monster.name },
+          });
           return s;
         }
       }
@@ -560,7 +575,10 @@ export function tickSession(session: CombatSession): CombatSession {
             consumeTime(s, tMods.bossTimeRecover);
           }
           // 보스 처치 → 세션 종료. detail 로 보스 이름.
-          endSession(s, "bossDefeated", `${monster.name} 을(를) 쓰러뜨렸다`);
+          endSession(s, "bossDefeated", `${monster.name} 을(를) 쓰러뜨렸다`, {
+            detailKey: "uphero.session.detail.bossDefeated",
+            monster: { templateId: monster.templateId, name: monster.name },
+          });
           return s;
         }
 
@@ -975,7 +993,9 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
     case "damage":
       session.hero.hp = Math.max(0, session.hero.hp - effect.amount);
       if (session.hero.hp <= 0) {
-        endSession(session, "heroDied", "선택의 대가로 쓰러졌다");
+        endSession(session, "heroDied", "선택의 대가로 쓰러졌다", {
+          detailKey: "uphero.session.detail.choiceCost",
+        });
       }
       break;
     case "time":

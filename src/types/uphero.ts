@@ -139,6 +139,12 @@ export interface Hero {
 export interface Equipment {
   id: string;
   name: string; // i18n key 또는 직접 문자열
+  /**
+   * Phase 13a — 장비 baseId. EQUIPMENT_TEMPLATES 의 baseId 와 매핑되며,
+   * `equipmentNameById(baseId, name, language)` 헬퍼로 다국어 표시.
+   * legacy 저장본은 undefined → name (한국어) 그대로 fallback.
+   */
+  baseId?: string;
   type: EquipSlot;
   rarity: Rarity;
   category: DungeonId; // 출처 카테고리
@@ -394,6 +400,14 @@ export type LogEntry =
       reason: SessionEndReason;
       /** 사유 상세 (예: 쓰러진 몬스터 이름, 처치한 보스 이름) — 결과 모달에서 표시 */
       detail?: string;
+      /**
+       * Phase 13a — 다국어 detail. detailKey 가 있으면 컴포넌트가 t(detailKey, detailParams)
+       * 로 표시. detailMonsterTemplateId 는 monster name 을 i18n 으로 풀어내기 위한 보조.
+       * legacy 세이브는 detail (한국어 string) fallback.
+       */
+      detailKey?: string;
+      detailMonsterTemplateId?: string;
+      detailMonsterFallback?: string;
       timestamp: number;
     }
   | {

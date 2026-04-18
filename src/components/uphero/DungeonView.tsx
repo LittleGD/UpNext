@@ -30,7 +30,7 @@ import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHer
 import { useSound } from "@/hooks/useSound";
 import { useAnnounce } from "@/hooks/useAnnounce";
 import { useTranslation } from "@/hooks/useTranslation";
-import { monsterName, skillName } from "@/lib/upHeroI18n";
+import { dungeonName, monsterName, skillName } from "@/lib/upHeroI18n";
 import CombatLog from "./CombatLog";
 import ChoicePanel from "./ChoicePanel";
 import BossBanner from "./BossBanner";
@@ -704,7 +704,7 @@ export default function DungeonView() {
             />
             <div className="flex flex-col leading-tight">
               <span className="typo-caption" style={{ color: GB.lightest }}>
-                {dungeon.name}
+                {dungeonName(dungeon.id, dungeon.name, language)}
               </span>
               <span className={`typo-caption ${gbClass.textDim}`}>
                 Floor {session.currentFloor}

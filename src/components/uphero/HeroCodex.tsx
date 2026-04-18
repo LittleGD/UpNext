@@ -33,7 +33,7 @@ import type { DungeonId } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
-import { monsterNameById } from "@/lib/upHeroI18n";
+import { monsterNameById, dungeonName, equipmentNameById } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 import MonsterCodexDetailModal from "./MonsterCodexDetailModal";
@@ -55,6 +55,7 @@ const RARITY_COLOR: Record<Rarity, string> = {
 
 export default function HeroCodex({ onBack }: HeroCodexProps) {
   const { t } = useTranslation();
+  // language is destructured in children (MonsterCodex/EquipmentCodex).
   const codex = useUpHeroStore((s) => s.codex);
   const { play } = useSound();
   const [tab, setTab] = useState<Tab>("monsters");
@@ -264,7 +265,7 @@ function MonsterCodex({
                 }}
               />
               <div className="typo-caption" style={{ color: GB.lightest }}>
-                {DUNGEONS[dungeon.id].name}
+                {dungeonName(dungeon.id, DUNGEONS[dungeon.id].name, language)}
               </div>
               <div
                 className={`typo-caption tabular-nums ${gbClass.textDim}`}
@@ -357,7 +358,7 @@ function MonsterCodex({
 /* ────────────────────────────────────────────── */
 
 function EquipmentCodex({ codex }: { codex: { equipment: string[] } }) {
-  const { t: tr } = useTranslation();
+  const { t: tr, language } = useTranslation();
   // 발견 여부 — baseName 기반 (Phase 5b.2 migration 이후).
   // Legacy instance ID (eq_ 로 시작) 가 남아있다면 startsWith 로 매칭 fallback.
   const discoveredSet = new Set<string>(codex.equipment);
@@ -409,7 +410,7 @@ function EquipmentCodex({ codex }: { codex: { equipment: string[] } }) {
                 }}
               />
               <div className="typo-caption" style={{ color: GB.lightest }}>
-                {DUNGEONS[dungeon.id].name}
+                {dungeonName(dungeon.id, DUNGEONS[dungeon.id].name, language)}
               </div>
               <div
                 className={`typo-caption tabular-nums ${gbClass.textDim}`}
@@ -420,6 +421,11 @@ function EquipmentCodex({ codex }: { codex: { equipment: string[] } }) {
             <div className="grid grid-cols-3 gap-2">
               {templates.map((t) => {
                 const found = isDiscovered(t.baseName);
+                const localizedName = equipmentNameById(
+                  t.baseId,
+                  t.baseName,
+                  language,
+                );
                 return (
                   <div
                     key={t.baseName}
@@ -431,7 +437,7 @@ function EquipmentCodex({ codex }: { codex: { equipment: string[] } }) {
                       }`,
                       minHeight: 84,
                     }}
-                    aria-label={found ? t.baseName : tr("uphero.codex.equipmentUnknownAria")}
+                    aria-label={found ? localizedName : tr("uphero.codex.equipmentUnknownAria")}
                   >
                     <PixelIcon
                       name={t.iconName}
@@ -447,7 +453,7 @@ function EquipmentCodex({ codex }: { codex: { equipment: string[] } }) {
                         minHeight: 22,
                       }}
                     >
-                      {found ? t.baseName : "???"}
+                      {found ? localizedName : "???"}
                     </div>
                     {found && (
                       <div
