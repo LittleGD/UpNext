@@ -33,6 +33,7 @@ import BossBanner from "./BossBanner";
 import HeroSprite, { type HeroSpriteState } from "./HeroSprite";
 import MonsterSprite from "./MonsterSprite";
 import GbConfirm from "./GbConfirm";
+import NumberRoll from "./NumberRoll";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
@@ -564,11 +565,19 @@ export default function DungeonView() {
               }}
             />
           </div>
+          {/* Phase 9c — HP 숫자 NumberRoll.
+               전투 tick 마다 변하는 핵심 지표. hard swap 이면 "언제 몇 깎였는지"
+               감각이 약함. lossColor 를 GB_ENEMY 로 → 피격 순간 붉은 tick 피드백. */}
           <span
             className="typo-caption tabular-nums"
             style={{ color: GB.lightest, minWidth: 56, textAlign: "right" }}
           >
-            {hp}/{maxHp}
+            <NumberRoll
+              value={hp}
+              format={(v) => `${v}/${maxHp}`}
+              style={{ color: GB.lightest }}
+              lossColor={GB_ENEMY}
+            />
           </span>
           {/* Phase 5d — Warrior HP regen float.
                숫자 오른쪽 위에서 떠오르며 800ms fade. 누적 float 은 각각
@@ -642,6 +651,8 @@ export default function DungeonView() {
               }}
             />
           </div>
+          {/* Phase 9c — TIME 숫자 NumberRoll. 이벤트/전투 후 큰 폭 감소 (−5+) 순간
+               rolling 이 bar 의 timeFlashing 과 동조. 20% 미만일 때 붉은 톤 유지. */}
           <span
             className="typo-caption tabular-nums"
             style={{
@@ -650,7 +661,12 @@ export default function DungeonView() {
               textAlign: "right",
             }}
           >
-            {Math.round(time)}/{maxTime}
+            <NumberRoll
+              value={Math.round(time)}
+              format={(v) => `${v}/${maxTime}`}
+              style={{ color: timePct > 20 ? GB.light : GB_ENEMY }}
+              lossColor={GB_ENEMY}
+            />
           </span>
           {/* Phase 6c — Chronomancer time save micro tag (-25%) 매 floor 진입 시 */}
           {genericFloats

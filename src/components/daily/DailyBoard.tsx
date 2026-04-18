@@ -380,8 +380,9 @@ export default function DailyBoard() {
                   `}>
                     {isCompleted ? (
                       <motion.div
-                        initial={{ scale: 0, rotate: -45 }}
-                        animate={{ scale: 1, rotate: 0 }}
+                        // Phase 9c — scale 0 → 0.4 (Emil 원칙)
+                        initial={{ scale: 0.4, rotate: -45, opacity: 0 }}
+                        animate={{ scale: 1, rotate: 0, opacity: 1 }}
                         transition={{ type: "spring", stiffness: 400, damping: 15 }}
                       >
                         <PixelIcon name="Check" size={36} color="var(--accent-primary)" />
@@ -608,17 +609,18 @@ export default function DailyBoard() {
                 );
               })}
 
-              {/* Center content */}
+              {/* Center content.
+                   Phase 9c — scale 0 → 0.4 (Emil 원칙). */}
               <motion.div
-                initial={{ scale: 0, opacity: 0 }}
+                initial={{ scale: 0.4, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
                 className="flex flex-col items-center text-center relative"
               >
                 {/* Check icon with glow */}
                 <motion.div
-                  initial={{ scale: 0, rotate: -90 }}
-                  animate={{ scale: 1, rotate: 0 }}
+                  initial={{ scale: 0.4, rotate: -90, opacity: 0 }}
+                  animate={{ scale: 1, rotate: 0, opacity: 1 }}
                   transition={{ type: "spring", stiffness: 500, damping: 18, delay: 0.15 }}
                   className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
                   style={{

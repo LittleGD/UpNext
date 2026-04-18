@@ -73,8 +73,10 @@ export default function DropRevealCard({
           }}
         >
           <RarityTexture rarity={equipment.rarity} borderRadius={8} />
+          {/* Phase 9c — "?" 호흡. campfire flicker 와 동일 4.2s 주기 —
+               "아직 열리지 않은 상자" tension. reduced-motion 에선 정적. */}
           <div
-            className="typo-title"
+            className="uphero-fire-flicker typo-title"
             style={{
               color: rarityColor,
               textShadow: `0 0 8px color-mix(in srgb, ${rarityColor} 40%, transparent)`,

@@ -216,6 +216,9 @@ export default function ChoicePanel() {
   );
 }
 
+// Phase 9c — inline onMouseDown/Up/Leave/TouchStart/TouchEnd 5핸들러가 복잡했던
+//   구식 패턴 → CSS :active / :hover 로 단일화. min-height 44 로 tap target 확보.
+//   다른 uphero 버튼들과 같은 구조.
 function ChoiceButton({
   children,
   onClick,
@@ -227,33 +230,27 @@ function ChoiceButton({
     <button
       type="button"
       onClick={onClick}
-      className="font-mono text-[11px] text-left px-3 py-2 rounded transition-transform"
+      className="choice-btn font-mono text-[11px] text-left px-3 py-2.5 rounded"
       style={{
+        minHeight: 44,
         background: `${GB.dark}aa`,
         border: `1px solid ${GB.light}`,
         color: GB.light,
-        transition: `transform 120ms ${EASE_OUT}, background 160ms ${EASE_OUT}`,
-      }}
-      onMouseDown={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.97)";
-        (e.currentTarget as HTMLButtonElement).style.background = GB.dark;
-      }}
-      onMouseUp={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-        (e.currentTarget as HTMLButtonElement).style.background = `${GB.dark}aa`;
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-        (e.currentTarget as HTMLButtonElement).style.background = `${GB.dark}aa`;
-      }}
-      onTouchStart={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.97)";
-      }}
-      onTouchEnd={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
       }}
     >
       {children}
+      <style jsx>{`
+        .choice-btn {
+          transition: transform 120ms ${EASE_OUT}, background 160ms ${EASE_OUT};
+        }
+        .choice-btn:hover {
+          background: ${GB.dark};
+        }
+        .choice-btn:active {
+          transform: scale(0.97);
+          background: ${GB.dark};
+        }
+      `}</style>
     </button>
   );
 }

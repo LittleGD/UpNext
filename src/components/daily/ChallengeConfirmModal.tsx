@@ -102,10 +102,12 @@ export default function ChallengeConfirmModal({
           ))}
 
           <div className="relative z-10 px-7 pt-8 pb-7 flex flex-col items-center text-center">
-            {/* Icon — clean, no box */}
+            {/* Icon — clean, no box.
+                Phase 9c: Emil 원칙 — 실생활에서 아무것도 없다 나타나는 건 없다.
+                scale 0 → 0.4 로 시작해 "작은 실루엣이 커지는" 느낌. */}
             <motion.div
-              initial={{ scale: 0, rotate: -20 }}
-              animate={{ scale: 1, rotate: 0 }}
+              initial={{ scale: 0.4, rotate: -20, opacity: 0 }}
+              animate={{ scale: 1, rotate: 0, opacity: 1 }}
               transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.1 }}
               className="relative mb-6"
             >
