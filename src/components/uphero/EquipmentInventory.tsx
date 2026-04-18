@@ -823,7 +823,8 @@ function SlotPhotoThumb({ photoId, size }: { photoId: string; size: number }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={url}
-      alt="photo talisman"
+      alt=""
+      aria-hidden="true"
       className="rounded-sm"
       style={{
         width: size,
