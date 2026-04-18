@@ -406,6 +406,12 @@ export interface CombatSession {
    * round 종료마다 +agiRoundAccum 씩 증가, agiRoundCap 에서 saturate.
    */
   talismanAgiStack?: number;
+  /**
+   * Phase 11b-fix — round 순번 카운터 (1부터 증가).
+   * "대지의 축복" (2 round 마다 regen) 판정용으로만 사용. 항상 +1 씩 증가하고
+   *   cap 없음 — 이전에는 agiStack 과 겸용되어 cap 도달 시 판정이 왜곡되던 버그.
+   */
+  roundCounter?: number;
   startedAt: number;
 }
 

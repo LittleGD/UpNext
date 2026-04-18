@@ -216,8 +216,9 @@ export default function EquipmentInventory({
         return;
       }
 
-      play(result.ok ? "collect" : "cancel");
-      // ritual 먼저, 끝나면 result modal
+      // Phase 11b-fix — 소리는 ritual 연출 끝에 재생해야 결과 스포일 방지.
+      //   이전엔 여기서 play() 를 했지만 "collect" vs "cancel" 이 2초 연출보다
+      //   먼저 들려 유저가 결과 예측 가능. 이제 ritual onDone 에서 재생.
       setRitual({ item: pending.item, outcome });
       // result 를 state 로 저장해놨다가 ritual onDone 에서 열기
       setPendingResult(
@@ -692,12 +693,23 @@ export default function EquipmentInventory({
         onCancel={() => setPending(null)}
       />
 
-      {/* Phase 11a — 강화 연출 (2s) → 결과 모달 순서 */}
+      {/* Phase 11a — 강화 연출 (2s) → 결과 모달 순서.
+           Phase 11b-fix — 소리는 ritual 이 끝날 때 재생해야 2초 연출 동안 결과
+           스포일러 안 됨. 이전엔 ritual 시작 직전 play 로 즉시 결과 추측 가능했음. */}
       {ritual && (
         <EnhanceRitualOverlay
           item={ritual.item}
           outcome={ritual.outcome}
           onDone={() => {
+            // outcome 별 sound 재생 — ritual 종료와 result modal 등장 사이.
+            if (ritual.outcome === "success") {
+              play("collect");
+            } else if (ritual.outcome === "destroyed") {
+              play("cancel");
+            } else {
+              // keep — 애매한 결과. cancel 은 너무 negative 하니 아무 소리 안 냄
+              // (정적 → modal 이 직접 메시지 전달).
+            }
             setRitual(null);
             if (pendingResult) {
               setResultModal(pendingResult);
