@@ -412,6 +412,23 @@ export interface CombatSession {
    *   cap 없음 — 이전에는 agiStack 과 겸용되어 cap 도달 시 판정이 왜곡되던 버그.
    */
   roundCounter?: number;
+  /**
+   * Phase 11c — NG+ 레벨. 세션 시작 시점의 ngPlusLevel 스냅샷.
+   *   createMonsterForFloor / rollDropRarity 에서 난이도/드롭 보정에 사용.
+   *   UI 헤더 badge 용.
+   */
+  ngPlusLevel?: number;
+  /**
+   * Phase 11c — 이 세션이 "주간 악몽 던전" 모드인지.
+   *   true 면 weekly affix 적용 + 종료 시 점수 계산/Firestore 업로드.
+   *   false/undefined 면 일반 탐험 (legacy flow 동일).
+   */
+  isWeeklyVariant?: boolean;
+  /**
+   * Phase 11c — 이 세션에 적용된 weekly affix id.
+   *   combat.ts 의 affix 별 분기 (rollHeroOutcome, createMonsterForFloor 등) 에서 참조.
+   */
+  weeklyAffixId?: string;
   startedAt: number;
 }
 
@@ -469,6 +486,26 @@ export interface UpHeroState {
   shopDaily?: {
     date: string;
     passesBought: number;
+  };
+  /**
+   * Phase 11c — F30 보스 처치 시 +1. 다음 세션부터 난이도 × (1 + 0.5 × n)
+   * 로 상향되며 legend drop 확률도 상승. 0 / undefined = 미해금.
+   */
+  ngPlusLevel?: number;
+  /**
+   * Phase 11c — 주간 악몽 던전 진행 상태.
+   * week: ISO week id (예: "2026-W16"). 바뀌면 자동 리셋.
+   * affixId: 이번 주 랜덤 pick 된 affix. 모든 유저 동일 (seed = week).
+   * clearedDungeons: 이번 주 F30 변이 던전을 클리어한 dungeonId 목록.
+   * bestScore: 이번 주 최고 점수 (UI/리더보드 업로드용).
+   * lastUploadedAt: Firestore 리더보드 마지막 업로드 timestamp.
+   */
+  weeklyVariant?: {
+    week: string;
+    affixId: string;
+    clearedDungeons: DungeonId[];
+    bestScore: number;
+    lastUploadedAt?: number;
   };
   /**
    * Phase 5a.3 — 저장 스키마 버전.
@@ -530,6 +567,60 @@ export const SHOP_PRICES = {
 
 /** Phase 11a — 상점에서 하루에 살 수 있는 탐험권 cap. */
 export const DAILY_PASS_PURCHASE_CAP = 2;
+
+/**
+ * Phase 11c — NG+ 난이도 스케일.
+ * monster hp/atk/def 와 drop rarity 보정에 사용.
+ *   ngPlusLevel=0 → 1.0 (기본)
+ *   ngPlusLevel=1 → 1.5
+ *   ngPlusLevel=2 → 2.0 ...
+ */
+export function ngPlusScaleMult(ngPlusLevel: number | undefined): number {
+  return 1 + 0.5 * Math.max(0, ngPlusLevel ?? 0);
+}
+
+/** Phase 11c — NG+ legend drop bonus (0.01 = +1%p). NG+ 1 당 +2%p. */
+export function ngPlusLegendBonus(ngPlusLevel: number | undefined): number {
+  return Math.max(0, ngPlusLevel ?? 0) * 0.02;
+}
+
+/**
+ * Phase 11c — ISO week id 계산 ("2026-W16" 형식).
+ * 매주 월요일 00:00 (KST) 기준으로 새 주 번호. useGameStore 의 getTodayString()
+ * 처럼 새벽 1시 보정은 하지 않음 — weekly 는 coarser 단위라 60분 shift 불필요.
+ *
+ * 참고: ISO 8601 week numbering. 한 해의 첫 번째 목요일이 포함된 주가 Week 1.
+ */
+export function getISOWeekId(date: Date = new Date()): string {
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
+  // 목요일 기준으로 shift
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil(
+    ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+  );
+  return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+/**
+ * Phase 11c — 주간 악몽 점수 공식.
+ *   score = (30 - floorsCleared) × 100 + remainingTime × 2 + heroLevel × 5
+ * floorsCleared 가 30 일수록, 시간 남을수록, Lv 높을수록 점수 높음.
+ * 단, floorsCleared 30 미만이면 음수 페널티 — "완주 보장" 설계.
+ */
+export function computeWeeklyScore(
+  floorsCleared: number,
+  remainingTime: number,
+  heroLevel: number,
+): number {
+  const completionBonus = Math.max(0, 30 - (30 - floorsCleared)) * 100; // == floorsCleared * 100
+  const timeBonus = Math.max(0, remainingTime) * 2;
+  const levelBonus = Math.max(1, heroLevel) * 5;
+  return completionBonus + timeBonus + levelBonus;
+}
 
 /* ══════════════════════════════════════════════════════════════════════
  * Phase 11a — 강화 (enhanceItem) 시스템 상수

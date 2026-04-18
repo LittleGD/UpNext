@@ -43,6 +43,7 @@ import {
   emptyTalismanMods,
   type TalismanModifiers,
 } from "@/lib/talismanSkills";
+import { getWeeklyAffixById } from "@/data/weeklyAffixes";
 
 /**
  * Phase 4c.1 → 11a rebalance — 탐험 시간 리소스.
@@ -80,11 +81,21 @@ const TIME_COST = {
  *  - healStart: maxHp + hp 증가
  *  - xpBoost/coinBoost/dropRate/critBonus/monsterFrequency 는 tick 중 참조용으로 activeBuffs 에 저장
  */
+export interface CreateSessionOptions {
+  /** Phase 11c — NG+ 레벨 스냅샷. createMonsterForFloor / rollDropRarity 에서 참조. */
+  ngPlusLevel?: number;
+  /** Phase 11c — 주간 악몽 던전 모드 여부. */
+  isWeeklyVariant?: boolean;
+  /** Phase 11c — 주간 affix id (isWeeklyVariant=true 일 때만 의미). */
+  weeklyAffixId?: string;
+}
+
 export function createSession(
   dungeonId: CombatSession["dungeonId"],
   hero: Hero,
   startFloor: number,
   activeBuffs?: CardBuff[],
+  options?: CreateSessionOptions,
 ): CombatSession {
   const buffedHero = applyStatAndHealBuffs(hero, activeBuffs ?? [], dungeonId);
   // Phase 5c.2 — class 패시브 중 session start 효과 적용 (priest maxHp,
@@ -123,10 +134,23 @@ export function createSession(
     extraDropAvailable: talismanMods.extraDropChance > 0,
     talismanAgiStack: 0,
     roundCounter: 0,
+    // Phase 11c — NG+ / weekly variant flags 저장.
+    ngPlusLevel: options?.ngPlusLevel ?? 0,
+    isWeeklyVariant: options?.isWeeklyVariant,
+    weeklyAffixId: options?.weeklyAffixId,
     startedAt: Date.now(),
   };
   // Phase 11b — start-time effects (startHpMult/Flat, startXp) 를 session 에 반영.
   applyTalismanSkillStartEffects(session, talismanMods);
+
+  // Phase 11c — weekly affix 적용 (glass_cannon / time_pressure / iron_will 등).
+  //   session 생성 후 mutate 방식. runtime affix (rollHeroOutcome / monster scale)
+  //   는 affixId 기반 런타임 분기.
+  if (options?.isWeeklyVariant && options.weeklyAffixId) {
+    const affix = getWeeklyAffixById(options.weeklyAffixId);
+    if (affix) affix.apply(session);
+  }
+
   return session;
 }
 
@@ -379,7 +403,11 @@ export function tickSession(session: CombatSession): CombatSession {
 
         // 보스 처치면 드롭 확정 + 높은 등급
         if (monster.isBoss) {
-          const rarity = rollDropRarity(s.currentFloor + 10, tMods.legendDropBonus); // 보스는 rarity 상승
+          // Phase 11c — NG+ legend bonus 도 가산.
+          const rarity = rollDropRarity(
+            s.currentFloor + 10,
+            tMods.legendDropBonus + (s.ngPlusLevel ?? 0) * 0.02,
+          );
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
           s.rewards.drops.push(eq);
@@ -397,7 +425,10 @@ export function tickSession(session: CombatSession): CombatSession {
         // 일반 몬스터 drop 확률 — base 30% + dropRate buff %
         const dropChance = 0.3 + getBuffBoost(s.activeBuffs, "dropRate") / 100;
         if (Math.random() < dropChance) {
-          const rarity = rollDropRarity(s.currentFloor, tMods.legendDropBonus);
+          const rarity = rollDropRarity(
+            s.currentFloor,
+            tMods.legendDropBonus + (s.ngPlusLevel ?? 0) * 0.02,
+          );
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
           s.rewards.drops.push(eq);
@@ -412,7 +443,7 @@ export function tickSession(session: CombatSession): CombatSession {
           s.extraDropAvailable = false;
           const bonusRarity = rollDropRarity(
             s.currentFloor + 5,
-            tMods.legendDropBonus,
+            tMods.legendDropBonus + (s.ngPlusLevel ?? 0) * 0.02,
           );
           const bonusEq = rollEquipmentDrop(
             s.dungeonId,
@@ -483,7 +514,12 @@ export function tickSession(session: CombatSession): CombatSession {
     // 보스 floor 면 boss 엔트리만 push 하고 세션 일시 정지 (BossBanner 연출 동안)
     // encounter 는 사용자가 연출을 본 후 resumeSession() 호출 시 다음 tick 에서 push
     if (isBossFloor) {
-      const boss = createMonsterForFloor(s.dungeonId, nextFloor, true);
+      const boss = createMonsterForFloor(
+        s.dungeonId,
+        nextFloor,
+        true,
+        s.ngPlusLevel ?? 0,
+      );
       s.log.push({ type: "boss", monster: boss, floor: nextFloor, timestamp: Date.now() });
       s.status = "paused";
       return s;
@@ -559,7 +595,12 @@ export function tickSession(session: CombatSession): CombatSession {
   }
 
   // 나머지: encounter (monsterFreqDelta 만큼 확률 증감)
-  const monster = createMonsterForFloor(s.dungeonId, s.currentFloor, false);
+  const monster = createMonsterForFloor(
+    s.dungeonId,
+    s.currentFloor,
+    false,
+    s.ngPlusLevel ?? 0,
+  );
   s.log.push({ type: "encounter", monster, timestamp: Date.now() });
   consumeTime(s, -TIME_COST.encounter);
   return s;

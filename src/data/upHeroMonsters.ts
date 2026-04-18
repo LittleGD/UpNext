@@ -149,37 +149,49 @@ export const ALL_MONSTER_TEMPLATES: MonsterTemplate[] = (() => {
 /**
  * 던전/floor 에 맞는 몬스터 랜덤 선택 후 stats 스케일링.
  * floor 10/20/30 에서는 보스 사용 (caller 가 결정).
+ *
+ * Phase 11c — `ngPlusLevel` 인자 추가. 0 (기본) 이면 legacy. 1+ 이면 hp/atk/def 에
+ * `(1 + 0.5 × n)` 곱해서 NG+ 반복 플레이 난이도 상승. xp/coin 보상도 같은 비율로 ↑.
  */
 export function createMonsterForFloor(
   dungeonId: DungeonId,
   floor: number,
   isBoss = false,
+  ngPlusLevel = 0,
 ): Monster {
   const pool = TEMPLATES[dungeonId];
   if (isBoss) {
     // 10F / 20F / 30F 에 각각 다른 보스
     const bossIdx = Math.min(Math.floor((floor - 1) / 10), 2);
     const template = pool.bosses[bossIdx];
-    return scaleMonster(template, dungeonId, floor);
+    return scaleMonster(template, dungeonId, floor, ngPlusLevel);
   }
   const template = pool.normal[Math.floor(Math.random() * pool.normal.length)];
-  return scaleMonster(template, dungeonId, floor);
+  return scaleMonster(template, dungeonId, floor, ngPlusLevel);
 }
 
-/** floor + power 기반 stats 스케일링 */
-function scaleMonster(t: MonsterTemplate, dungeonId: DungeonId, floor: number): Monster {
+/** floor + power 기반 stats 스케일링 (+ NG+ 보정) */
+function scaleMonster(
+  t: MonsterTemplate,
+  dungeonId: DungeonId,
+  floor: number,
+  ngPlusLevel = 0,
+): Monster {
   const bossMult = t.isBoss ? 4 : 1;
+  const ngMult = 1 + 0.5 * Math.max(0, ngPlusLevel);
   const base = 20 + floor * 5;
   return {
     id: `${t.id}_f${floor}_${Date.now() % 10000}`,
     name: t.name,
     kind: t.kind,
     level: floor,
-    hp: Math.round(base * t.power * bossMult),
-    atk: Math.round((5 + floor * 1.5) * t.power * bossMult),
-    def: Math.round((2 + floor) * t.power),
-    xpReward: Math.round((10 + floor * 3) * t.power * bossMult),
-    coinReward: Math.round((3 + floor * 2) * t.power * (t.isBoss ? 10 : 1)),
+    hp: Math.round(base * t.power * bossMult * ngMult),
+    atk: Math.round((5 + floor * 1.5) * t.power * bossMult * ngMult),
+    def: Math.round((2 + floor) * t.power * ngMult),
+    xpReward: Math.round((10 + floor * 3) * t.power * bossMult * ngMult),
+    coinReward: Math.round(
+      (3 + floor * 2) * t.power * (t.isBoss ? 10 : 1) * ngMult,
+    ),
     isBoss: t.isBoss,
     dungeonId,
   };
