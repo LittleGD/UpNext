@@ -504,10 +504,11 @@ export default function DungeonView() {
   const currentEnemy = findActiveEnemy(session.log);
   // Phase 12 bugfix — 적 HP 를 log 누적으로 계산해 bar 표시 (수치는 숨김).
   //   몬스터는 static hp 에서 hero-attacker combat entry 의 damage 만 누적 감산.
-  const enemyHpPct = (() => {
+  // Phase 12 R3 — useMemo 래핑: log 길이 / currentEnemy 변화 시에만 재계산.
+  //   speed toggle / paused / other state 변경에 의한 무상관 recompute 제거.
+  const enemyHpPct = useMemo(() => {
     if (!currentEnemy) return 100;
     let hp = currentEnemy.hp;
-    // last encounter 이후만 카운트
     let startIdx = -1;
     for (let i = session.log.length - 1; i >= 0; i--) {
       if (session.log[i].type === "encounter") {
@@ -522,7 +523,7 @@ export default function DungeonView() {
       if (e.damage > 0) hp -= e.damage;
     }
     return Math.max(0, Math.min(100, (hp / currentEnemy.hp) * 100));
-  })();
+  }, [currentEnemy, session.log]);
   const heroVariant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
 
   const awaitingChoice = session.status === "awaitingChoice";

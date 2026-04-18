@@ -645,11 +645,17 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
    * Phase 12d — 전투 중 수동 스킬 발동. 자원/쿨다운 체크 후 apply.
    */
   resolveMinigame(success) {
+    // Phase 12 R3 — persist 누락 수정. 기존 set 만 수행 → 미니게임 완료 직후 ~1200ms
+    //   (첫 tick 전) 에 새로고침 시 reward 손실 + 미니게임 재플레이 edge case.
     const state = get();
     const session = state.currentSession;
     if (!session || session.status !== "awaitingMinigame") return;
     const next = applyResolveMinigame(session, success);
     set({ currentSession: next });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, currentSession: next }),
+    );
   },
 
   fireSkillManual(skillId) {
@@ -948,6 +954,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     if (state.currentSession.status !== "awaitingChoice") return;
     const next = applyChoice(state.currentSession, optionIndex);
     set({ currentSession: next });
+    // Phase 12 R3 — persist 추가. 선택 직후 새로고침 시 reward/effects 손실 방지.
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, currentSession: next }),
+    );
   },
 
   resumeSession() {
