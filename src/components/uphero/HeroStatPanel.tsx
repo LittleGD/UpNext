@@ -93,34 +93,40 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
         outline: "none",
       }}
     >
-      {/* === Header === */}
+      {/* === Header === Phase 11b-fix: 제목 typo-body 승격 + 닫기 ghost. */}
       <header
-        className="px-4 py-2.5 flex items-center justify-between shrink-0"
+        className="px-4 py-2 flex items-center justify-between shrink-0"
         style={{ borderBottom: `1px solid ${GB.dark}` }}
       >
-        <div className="typo-caption" style={{ color: GB.lightest }}>
+        <div
+          className="typo-body"
+          style={{ color: GB.lightest, fontWeight: 500 }}
+        >
           영웅 상세
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="uphero-stat-close typo-caption rounded inline-flex items-center gap-1"
+          className="uphero-stat-close typo-caption rounded inline-flex items-center gap-0.5"
           style={{
             minHeight: 40,
-            padding: "8px 12px",
-            background: `${GB.dark}cc`,
+            padding: "6px 8px",
+            background: "transparent",
             color: GB.light,
-            border: `1px solid ${GB.light}`,
+            border: "none",
           }}
+          aria-label="닫기"
         >
           <span style={{ fontWeight: 700 }}>✕</span>
           닫기
           <style jsx>{`
             .uphero-stat-close {
-              transition: transform 120ms ${EASE_OUT};
+              transition: transform 120ms ${EASE_OUT},
+                background 160ms ${EASE_OUT};
             }
             .uphero-stat-close:active {
-              transform: scale(0.97);
+              transform: scale(0.96);
+              background: ${GB.dark}66;
             }
           `}</style>
         </button>

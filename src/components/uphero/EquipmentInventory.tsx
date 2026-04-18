@@ -277,35 +277,41 @@ export default function EquipmentInventory({
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       {/* === SubHeader === */}
+      {/* Phase 11b-fix — subheader 균형: 뒤로 ghost, 제목 typo-body. */}
       <header
-        className="px-3 py-2.5 flex items-center gap-3 shrink-0"
+        className="px-3 py-2 flex items-center gap-1 shrink-0"
         style={{ borderBottom: `1px solid ${GB.dark}` }}
       >
         <button
           type="button"
           onClick={onBack}
-          className="uphero-back-btn typo-caption inline-flex items-center gap-1"
+          className="uphero-back-btn typo-caption inline-flex items-center gap-0.5 rounded"
           style={{
             minHeight: 40,
-            padding: "8px 12px",
-            background: `${GB.dark}cc`,
-            border: `1px solid ${GB.light}`,
+            padding: "6px 8px",
+            background: "transparent",
+            border: "none",
             color: GB.light,
-            borderRadius: 6,
           }}
+          aria-label="뒤로"
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
           뒤로
           <style jsx>{`
             .uphero-back-btn {
-              transition: transform 120ms ${EASE_OUT};
+              transition: transform 120ms ${EASE_OUT},
+                background 160ms ${EASE_OUT};
             }
             .uphero-back-btn:active {
-              transform: scale(0.97);
+              transform: scale(0.96);
+              background: ${GB.dark}66;
             }
           `}</style>
         </button>
-        <div className="typo-caption" style={{ color: GB.lightest }}>
+        <div
+          className="typo-body ml-1"
+          style={{ color: GB.lightest, fontWeight: 500 }}
+        >
           장비
         </div>
       </header>
