@@ -629,7 +629,8 @@ function RitualAnimation({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={url}
-            alt="ritual"
+            alt=""
+            aria-hidden="true"
             style={{
               width: "100%",
               height: "100%",

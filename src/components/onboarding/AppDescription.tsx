@@ -236,11 +236,11 @@ function CardFanGraphic() {
         </motion.div>
       ))}
 
-      {/* 스파클 파티클 */}
+      {/* 스파클 파티클. Phase 9d: scale 0 → 0.4 (Emil 원칙) */}
       {SPARKLES_1.map((s) => (
         <motion.div
           key={s.id}
-          initial={{ opacity: 0, scale: 0 }}
+          initial={{ opacity: 0, scale: 0.4 }}
           animate={{
             opacity: [0, 0.8, 0],
             scale: [0, 1, 0],
@@ -311,9 +311,9 @@ function EnergyPulseGraphic() {
         />
       ))}
 
-      {/* 중앙 Zap 아이콘 */}
+      {/* 중앙 Zap 아이콘. Phase 9d: scale 0 → 0.4 */}
       <motion.div
-        initial={{ scale: 0, opacity: 0 }}
+        initial={{ scale: 0.4, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ ...springBouncy, delay: 0.2 }}
         className="relative z-10"
