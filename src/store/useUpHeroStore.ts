@@ -35,7 +35,7 @@ import {
 import { pickWeeklyAffix } from "@/data/weeklyAffixes";
 import type { Category } from "@/types/card";
 import type { Rarity } from "@/types/card";
-import { getLevelFromXP } from "@/types/game";
+import { getLevelFromXP, DAILY_CARDMATCH_TICKET_CAP } from "@/types/game";
 import {
   createSession as buildSession,
   tickSession as stepSession,
@@ -186,6 +186,8 @@ interface UpHeroActions {
 
   /** Phase 6b — 자동 스킬 발동 on/off 토글. 기본 true. */
   toggleAutoSkill(): void;
+  /** Phase 12a — 영웅 이름 변경 (최대 16자, 공백만 입력은 무시). */
+  renameHero(name: string): void;
 
   /**
    * Phase 7 — 사진 부적 바인딩 의식.
@@ -556,6 +558,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
   },
 
+  /**
+   * Phase 12a — 영웅 이름 변경. 길이 cap 16자, 공백만 입력은 무시.
+   *   기본값 "갓생 영웅" 은 hero 생성 시 자동 배정된 이름 (기존 로직 유지).
+   */
+  renameHero(name: string) {
+    const trimmed = name.trim().slice(0, 16);
+    if (trimmed.length === 0) return;
+    const state = get();
+    const newHero = { ...state.hero, name: trimmed };
+    set({ hero: newHero });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+  },
+
   bindPhotoAsTalisman(photoId) {
     const state = get();
     const photo = useGrowthStore
@@ -652,7 +667,16 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   },
 
   grantExpeditionPass(dungeonId, rarity) {
+    // Phase 12a — defense: dungeonId/rarity 가 유효하지 않은 경우 silent no-op.
+    //   이전엔 `PASS_GRANT_BY_RARITY[undefined]` → undefined → NaN 으로 persistence
+    //   실패 가능성. 유저가 "탐험권이 안 들어와" 라 보고한 edge case 대응.
     const grant = PASS_GRANT_BY_RARITY[rarity];
+    if (!dungeonId || typeof grant !== "number" || Number.isNaN(grant)) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[grantExpeditionPass] invalid input", { dungeonId, rarity });
+      }
+      return;
+    }
     const current = get().passes[dungeonId] ?? 0;
     const next = Math.min(PASS_CAP_PER_CATEGORY, current + grant);
     const passes = { ...get().passes, [dungeonId]: next };
@@ -1025,15 +1049,28 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   },
 
   purchaseTicket() {
+    // Phase 12a — 하루 2장 cap 추가. date 가 오늘이 아니면 자동 reset.
     const state = get();
     if (state.coins < SHOP_PRICES.ticket) return false;
     const gameStore = useGameStore.getState();
     const MAX_TICKETS = 10;
     if ((gameStore.progress.tickets ?? 0) >= MAX_TICKETS) return false;
 
+    const today = getTodayString();
+    const prevDaily = gameStore.progress.cardmatchShopDaily;
+    const curDaily =
+      prevDaily && prevDaily.date === today
+        ? prevDaily
+        : { date: today, bought: 0 };
+    if (curDaily.bought >= DAILY_CARDMATCH_TICKET_CAP) return false;
+
     const newCoins = state.coins - SHOP_PRICES.ticket;
     const newTickets = Math.min(MAX_TICKETS, (gameStore.progress.tickets ?? 0) + 1);
-    const newProgress = { ...gameStore.progress, tickets: newTickets };
+    const newProgress = {
+      ...gameStore.progress,
+      tickets: newTickets,
+      cardmatchShopDaily: { date: today, bought: curDaily.bought + 1 },
+    };
     useGameStore.setState({ progress: newProgress });
     saveToStorage("progress", newProgress);
 

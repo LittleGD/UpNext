@@ -19,7 +19,8 @@
 
 import { Suspense, lazy, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { useGameStore } from "@/store/useGameStore";
+import { useGameStore, getTodayString } from "@/store/useGameStore";
+import { DAILY_CARDMATCH_TICKET_CAP } from "@/types/game";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import {
@@ -62,6 +63,8 @@ export default function CampPlaceholder() {
   const coins = useUpHeroStore((s) => s.coins);
   const passes = useUpHeroStore((s) => s.passes);
   const hero = useUpHeroStore((s) => s.hero);
+  // Phase 12a — header 에 hero.name 노출. 하드코딩 "갓생 영웅" 대체.
+  const heroName = hero.name?.trim() || "갓생 영웅";
   const pendingDungeon = useUpHeroStore((s) => s.pendingDungeon);
   // Phase 9d — 영웅 전용 레벨 사용 (챌린지 Lv 와 분리).
   //   신규 영웅 유저는 heroStartLevel=gameLevel 로 seed → 영웅 Lv 1.
@@ -95,13 +98,21 @@ export default function CampPlaceholder() {
         minHeight: 480,
       }}
     >
-      {/* === Header (글로벌) === */}
+      {/* === Header (글로벌) ===
+           Phase 12a — "갓생 영웅" 하드코딩 → hero.name 표시. 카드매치 티켓 표기
+           제거 (탐험권과 혼동 방지). 티켓은 상점/카드매치 진입 시에만 표시. */}
       <header
         className="px-4 py-3 flex items-center justify-between shrink-0 typo-caption"
         style={{ borderBottom: `1px solid ${GB.dark}` }}
       >
-        <div className="flex items-center gap-3">
-          <span style={{ color: GB.lightest }}>갓생 영웅</span>
+        <div className="flex items-center gap-3 min-w-0">
+          <span
+            style={{ color: GB.lightest }}
+            className="truncate"
+            title={heroName}
+          >
+            {heroName}
+          </span>
           <span className={gbClass.textDim}>Lv.{level}</span>
         </div>
         <div className="flex items-center gap-3 tabular-nums">
@@ -113,16 +124,6 @@ export default function CampPlaceholder() {
               style={{ color: GB.lightest }}
               gainColor="#e8c76b"
               lossColor="#e88b7a"
-            />
-          </span>
-          <span className={gbClass.textDim}>|</span>
-          <span className="inline-flex items-center gap-1">
-            <PixelIcon name="Card" size={14} color={GB.light} />
-            <NumberRoll
-              value={tickets}
-              format={(v) => `${v}/10`}
-              style={{ color: GB.light }}
-              gainColor={GB.lightest}
             />
           </span>
         </div>
@@ -578,6 +579,12 @@ function ShopView({
   const purchasePass = useUpHeroStore((s) => s.purchasePass);
   const shopDaily = useUpHeroStore((s) => s.shopDaily);
   const passes = useUpHeroStore((s) => s.passes);
+  // Phase 12a — 카드매치 티켓 하루 구매 현황.
+  const cardmatchShopDaily = useGameStore((s) => s.progress.cardmatchShopDaily);
+  const cardmatchBoughtToday =
+    cardmatchShopDaily?.date === getTodayString()
+      ? cardmatchShopDaily.bought
+      : 0;
   const { play } = useSound();
 
   const passesBoughtToday = shopDaily?.passesBought ?? 0;
@@ -587,9 +594,13 @@ function ShopView({
     const ok = purchaseTicket();
     if (ok) {
       play("collect");
-      onNotify(`티켓 +1 (${Math.min(10, tickets + 1)}/10)`);
+      onNotify(`카드매치 티켓 +1 (${Math.min(10, tickets + 1)}/10)`);
+    } else if (tickets >= 10) {
+      onNotify("카드매치 티켓이 가득 찼어요");
+    } else if (cardmatchBoughtToday >= DAILY_CARDMATCH_TICKET_CAP) {
+      onNotify(`오늘 카드매치 티켓 구매 한도 (${DAILY_CARDMATCH_TICKET_CAP}장) 도달`);
     } else {
-      onNotify(tickets >= 10 ? "티켓이 가득 찼어요" : "코인이 부족해요");
+      onNotify("코인이 부족해요");
     }
   };
 
@@ -628,11 +639,15 @@ function ShopView({
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 flex flex-col gap-2">
         <ShopRow
           iconName="Card"
-          name="미니게임 티켓"
-          desc={`현재 ${tickets}/10`}
+          name="카드매치 티켓"
+          desc={`현재 ${tickets}/10 · 오늘 ${cardmatchBoughtToday}/${DAILY_CARDMATCH_TICKET_CAP}`}
           price={SHOP_PRICES.ticket}
           onBuy={onBuyTicket}
-          canAfford={coins >= SHOP_PRICES.ticket && tickets < 10}
+          canAfford={
+            coins >= SHOP_PRICES.ticket &&
+            tickets < 10 &&
+            cardmatchBoughtToday < DAILY_CARDMATCH_TICKET_CAP
+          }
         />
         <ShopRow
           iconName="CardText"

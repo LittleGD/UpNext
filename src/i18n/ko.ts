@@ -112,7 +112,7 @@ const ko = {
   "uphero.camp.shop.heading": "갓생 상점",
   "uphero.camp.empty": "챌린지를 완료하면 탐험권을 얻어요",
   "uphero.camp.pass.required": "탐험권이 필요해요",
-  "uphero.shop.ticket.name": "미니게임 티켓",
+  "uphero.shop.ticket.name": "카드매치 티켓",
   "uphero.shop.ticket.desc": "현재 {current}/{max}",
   "uphero.shop.ticket.full": "티켓이 가득 찼어요",
   "uphero.shop.pack.small.name": "보너스 카드 (1장)",

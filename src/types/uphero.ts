@@ -619,7 +619,9 @@ export const SHOP_PRICES = {
 } as const;
 
 /** Phase 11a — 상점에서 하루에 살 수 있는 탐험권 cap. */
-export const DAILY_PASS_PURCHASE_CAP = 2;
+// Phase 12a — 하루 4장까지 (기존 2장 → 4장). 유저 피드백: 챌린지 클리어
+//   전에 상점에서 능동적 구매도 더 유연해야 한다.
+export const DAILY_PASS_PURCHASE_CAP = 4;
 
 /**
  * Phase 11c — NG+ 난이도 스케일.
