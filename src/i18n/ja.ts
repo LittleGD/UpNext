@@ -776,6 +776,7 @@ const ja: Record<DictKey, string> = {
   "uphero.leaderboard.loginRequired": "ログイン後にランキングを表示できます",
   "uphero.leaderboard.fetchFail": "読み込み失敗",
   "uphero.leaderboard.mineLabel": "あなた",
+  "uphero.leaderboard.anonymous": "匿名の勇者",
   "uphero.leaderboard.title": "今週の悪夢ランキング",
   "uphero.leaderboard.empty": "まだ挑戦記録がありません。最初の走者になりましょう！",
   "uphero.leaderboard.myRankHeading": "自分の順位",

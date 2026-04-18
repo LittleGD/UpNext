@@ -776,6 +776,7 @@ const zh: Record<DictKey, string> = {
   "uphero.leaderboard.loginRequired": "登录后可查看排行榜",
   "uphero.leaderboard.fetchFail": "加载失败",
   "uphero.leaderboard.mineLabel": "我的记录",
+  "uphero.leaderboard.anonymous": "匿名勇者",
   "uphero.leaderboard.title": "本周噩梦排名",
   "uphero.leaderboard.empty": "还没有挑战记录。来当第一个挑战者吧!",
   "uphero.leaderboard.myRankHeading": "我的排名",

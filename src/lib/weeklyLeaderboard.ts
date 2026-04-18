@@ -236,13 +236,21 @@ export async function fetchMyRank(
   }
 }
 
-/** 현재 로그인된 유저의 displayName. 없으면 "익명 영웅". */
-export async function getDisplayName(): Promise<string> {
-  if (!isFirebaseConfigured) return "익명 영웅";
+/**
+ * 현재 로그인된 유저의 displayName. 없으면 fallback.
+ *
+ * Phase 13 review #13 — fallback 을 caller 에서 결정 (i18n 된 string 전달).
+ *   이전엔 하드코딩 "익명 영웅" 반환해 EN/JA/ZH 유저도 리더보드에 한국어 노출.
+ *   legacy 호출자 호환 위해 `anonymousFallback` 미지정 시 "익명 영웅" 유지.
+ */
+export async function getDisplayName(
+  anonymousFallback = "익명 영웅",
+): Promise<string> {
+  if (!isFirebaseConfigured) return anonymousFallback;
   try {
     const { auth } = await getFirebase();
-    return auth.currentUser?.displayName ?? "익명 영웅";
+    return auth.currentUser?.displayName ?? anonymousFallback;
   } catch {
-    return "익명 영웅";
+    return anonymousFallback;
   }
 }

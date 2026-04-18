@@ -292,6 +292,28 @@ export function describeCardBuff(
   return parts.join(" · ");
 }
 
+/**
+ * Phase 13 review — ChoicePanel / CombatLog 에서 반복되던 monsterTemplateId →
+ *   현재 언어 monster name 치환을 한 곳에 모음. narrative / prompt / label params
+ *   모두 동일 shape 이라 재사용.
+ *
+ *   params.monsterTemplateId 가 있으면 monsterNameById 로 resolve 한 값을
+ *   params.monster 에 주입 (없으면 원본 그대로). 입력 객체 불변.
+ */
+export function resolveMonsterInParams(
+  params: Record<string, string | number> | undefined,
+  language: Language,
+): Record<string, string | number> | undefined {
+  if (!params) return params;
+  const templateId = params.monsterTemplateId;
+  if (typeof templateId !== "string" || templateId.length === 0) return params;
+  const koName = typeof params.monster === "string" ? params.monster : "";
+  return {
+    ...params,
+    monster: monsterNameById(templateId, koName, language),
+  };
+}
+
 /** Phase 13b — 주간 affix 이름 + 설명 다국어 */
 export function weeklyAffixName(
   affixId: string,

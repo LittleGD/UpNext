@@ -78,6 +78,7 @@ import {
 } from "@/data/upHeroEquipment";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { useGameStore, getTodayString } from "./useGameStore";
+import { t } from "@/i18n";
 
 /**
  * Phase 5a.3 / 5b.2 / 9d / 11a / 11c — 저장 스키마 현재 버전.
@@ -1094,7 +1095,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         const capturedVariantWeek = newWeeklyVariant.week;
         queueMicrotask(() => {
           import("@/lib/weeklyLeaderboard").then(async (mod) => {
-            const displayName = await mod.getDisplayName();
+            // Phase 13 review #13 — 익명 fallback 을 현재 언어로 i18n.
+            //   리더보드는 전세계 유저가 공유하므로 유저 각자의 앱 언어에 맞는
+            //   익명 라벨이 저장 → EN 유저가 업로드하면 "Anonymous Hero" 로 저장.
+            const lang = useGameStore.getState().progress.language;
+            const anon = t("uphero.leaderboard.anonymous", lang);
+            const displayName = await mod.getDisplayName(anon);
             const result = await mod.uploadWeeklyScore(capturedVariantWeek, {
               displayName,
               score,

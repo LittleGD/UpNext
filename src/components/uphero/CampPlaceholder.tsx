@@ -17,7 +17,7 @@
  * 크기: `calc(100dvh - 208px)` — tab/BottomNav/헤더 제외한 window 형태
  */
 
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore, getTodayString } from "@/store/useGameStore";
 import { DAILY_CARDMATCH_TICKET_CAP, getXPProgress } from "@/types/game";
@@ -100,9 +100,27 @@ export default function CampPlaceholder() {
     0,
   ) as number;
 
+  // Phase 13 review #10 — toast dismiss timer cleanup.
+  //   이전엔 `setTimeout(() => setToast(null), 2000)` 가 unmount 이후에도 fire →
+  //   dev console 의 "state update on unmounted component" warning. 이제 ref 로
+  //   timer id 추적 + unmount cleanup + 중복 호출 시 이전 timer clear.
+  const toastTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current != null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
   const notify = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2000);
+    if (toastTimerRef.current != null) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 2000);
   };
 
   return (

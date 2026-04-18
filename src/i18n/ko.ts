@@ -774,6 +774,7 @@ const ko = {
   "uphero.leaderboard.loginRequired": "리더보드는 로그인 후에 볼 수 있어요",
   "uphero.leaderboard.fetchFail": "불러오기 실패",
   "uphero.leaderboard.mineLabel": "내 기록",
+  "uphero.leaderboard.anonymous": "익명 영웅",
   "uphero.leaderboard.title": "이번 주 악몽 순위",
   "uphero.leaderboard.empty": "아직 아무도 도전 기록이 없어요. 첫 주자가 되어보세요!",
   "uphero.leaderboard.myRankHeading": "내 순위",

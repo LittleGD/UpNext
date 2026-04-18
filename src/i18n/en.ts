@@ -776,6 +776,7 @@ const en: Record<DictKey, string> = {
   "uphero.leaderboard.loginRequired": "Sign in to view the leaderboard.",
   "uphero.leaderboard.fetchFail": "Failed to load.",
   "uphero.leaderboard.mineLabel": "You",
+  "uphero.leaderboard.anonymous": "Anonymous Hero",
   "uphero.leaderboard.title": "This week's nightmare ranking",
   "uphero.leaderboard.empty": "No challengers yet. Be the first to set a record!",
   "uphero.leaderboard.myRankHeading": "My rank",
