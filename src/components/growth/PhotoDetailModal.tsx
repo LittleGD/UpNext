@@ -183,6 +183,9 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
   );
 
   // ── Share — 합성 후 Web Share API ──
+  //   Phase 13 review Critical — 공유 PNG 에 스티커 포함. 이전엔 뷰/썸네일에
+  //   보이던 스티커가 공유 이미지에선 사라져 유저가 가장 공들인 데코가 유실됨.
+  //   저장된 stickers (meta.stickers) 를 composite 에 전달.
   const handleShare = useCallback(async () => {
     if (!photoBlob || isSharing) return;
     setIsSharing(true);
@@ -192,14 +195,25 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
         photoBlob,
         signatureBlob,
         timestamp: meta.timestamp,
+        stickers: meta.stickers,
       });
       await sharePolaroid(blob, `polaroid-${meta.date}.png`);
     } catch (err) {
-      console.error("[PhotoDetailModal] share failed", err);
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[PhotoDetailModal] share failed", err);
+      }
     } finally {
       setIsSharing(false);
     }
-  }, [photoBlob, signatureBlob, meta.timestamp, meta.date, isSharing, play]);
+  }, [
+    photoBlob,
+    signatureBlob,
+    meta.timestamp,
+    meta.stickers,
+    meta.date,
+    isSharing,
+    play,
+  ]);
 
   // 마운트 후에만 portal 렌더 — SSR safe
   const [mounted, setMounted] = useState(false);

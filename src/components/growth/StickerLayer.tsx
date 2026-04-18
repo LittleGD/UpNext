@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 import type { Sticker } from "@/types/growth";
 import UpNextLogoMark from "./UpNextLogoMark";
 
@@ -69,16 +69,30 @@ export default function StickerLayer({ stickers, editable = false, onChange, cla
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
 
+  // Phase 13 review Critical — drag 성능 개선. 이전엔 매 pointermove 마다
+  //   onChange(stickers.map(...)) 호출로 부모 (PhotoCaptureModal /
+  //   PhotoDetailModal) state 업데이트 → 전체 트리 re-render → drag 중 60fps
+  //   떨어짐. 이제 drag 중엔 localStickers state 로만 update (StickerLayer 내부
+  //   만 re-render), pointerup 에서 onChange flush.
+  //
+  //   useState(stickers) 초기화 + 외부 prop 변경 시 동기화. drag 중이면 외부
+  //   동기화 건너뛰어 덮어쓰기 방지.
+  const [localStickers, setLocalStickers] = useState(stickers);
+  useEffect(() => {
+    if (!dragRef.current) {
+      setLocalStickers(stickers);
+    }
+  }, [stickers]);
+
   // 컨테이너 좌표계 helpers
   const getContainerRect = () => containerRef.current?.getBoundingClientRect();
 
-  const updateSticker = useCallback(
-    (id: string, patch: Partial<Sticker>) => {
-      if (!onChange) return;
-      onChange(stickers.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-    },
-    [onChange, stickers],
-  );
+  const updateSticker = useCallback((id: string, patch: Partial<Sticker>) => {
+    // Drag 중 local update 만 — onChange 는 pointerup 에서 flush.
+    setLocalStickers((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+    );
+  }, []);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, sticker: Sticker) => {
@@ -141,7 +155,8 @@ export default function StickerLayer({ stickers, editable = false, onChange, cla
       const rect = getContainerRect();
       if (!rect) return;
 
-      const sticker = stickers.find((s) => s.id === drag.stickerId);
+      // Phase 13 review — drag 중엔 localStickers 기준 (최신 drag override 반영).
+      const sticker = localStickers.find((s) => s.id === drag.stickerId);
       if (!sticker) return;
 
       if (drag.pointers.size === 1 && drag.initialPos) {
@@ -180,7 +195,7 @@ export default function StickerLayer({ stickers, editable = false, onChange, cla
         });
       }
     },
-    [editable, stickers, updateSticker],
+    [editable, localStickers, updateSticker],
   );
 
   const handlePointerUp = useCallback(
@@ -190,24 +205,29 @@ export default function StickerLayer({ stickers, editable = false, onChange, cla
       const target = e.currentTarget as HTMLElement;
       if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
       dragRef.current.pointers.delete(e.pointerId);
-      // 모든 포인터 떨어지면 drag 종료
+      // 모든 포인터 떨어지면 drag 종료 + onChange flush
       if (dragRef.current.pointers.size === 0) {
         dragRef.current = null;
+        // Phase 13 review — pointerup 시점에만 부모 onChange 호출 (drag 종료).
+        if (onChange) onChange(localStickers);
       } else {
         // 일부만 떨어지면 pinch 상태 reset (남은 포인터로 다시 시작)
         dragRef.current.initialPinch = undefined;
       }
     },
-    [editable],
+    [editable, localStickers, onChange],
   );
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent, id: string) => {
       if (!editable || !onChange) return;
       e.stopPropagation();
-      onChange(stickers.filter((s) => s.id !== id));
+      // 삭제는 즉시 flush + local + 부모 동시 update.
+      const next = localStickers.filter((s) => s.id !== id);
+      setLocalStickers(next);
+      onChange(next);
     },
-    [editable, onChange, stickers],
+    [editable, onChange, localStickers],
   );
 
   // ⚠ 컨테이너는 항상 pointer-events: none — 빈 공간은 아래 레이어 (SignatureCanvas)
@@ -219,7 +239,8 @@ export default function StickerLayer({ stickers, editable = false, onChange, cla
       ref={containerRef}
       className={`absolute inset-0 pointer-events-none ${className || ""}`}
     >
-      {stickers.map((s) => (
+      {/* Phase 13 review — drag 중엔 localStickers 기준 렌더 (60fps 유지). */}
+      {localStickers.map((s) => (
         <StickerView
           key={s.id}
           sticker={s}
