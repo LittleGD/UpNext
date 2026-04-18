@@ -52,6 +52,91 @@ export const MINDFULNESS_EVENTS: DungeonEvent[] = [
       ],
     },
     {
+      prompt: "바위에 앉은 수행자가 호흡법을 전수해 주겠다고 한다.",
+      options: [
+        {
+          label: "배운다",
+          outcomes: [
+            {
+              weight: 70,
+              resultText: "깊은 호흡이 정신을 가다듬었다.",
+              effects: [
+                { kind: "heal", amount: 25 },
+                { kind: "reward", xp: 30 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "집중이 흐트러져 진전이 없었다.",
+              effects: [{ kind: "time", delta: -5 }],
+            },
+          ],
+        },
+        {
+          label: "조용히 인사",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "수행자가 가볍게 끄덕였다.",
+              effects: [
+                { kind: "heal", amount: 10 },
+                { kind: "time", delta: -1 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "종소리가 울리는 오래된 사당을 발견했다.",
+      options: [
+        {
+          label: "종을 울린다",
+          outcomes: [
+            {
+              weight: 55,
+              resultText: "맑은 종소리가 마음을 씻었다.",
+              effects: [
+                { kind: "heal", amount: 40 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "너무 크게 울려 수호자가 깨어났다.",
+              effects: [
+                { kind: "damage", amount: 15 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "세 번의 종소리에 길이 열렸다.",
+              effects: [
+                { kind: "heal", amount: 20 },
+                { kind: "skipFloors", count: 1 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "지켜보기만 한다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "정적이 마음을 평온하게 한다.",
+              effects: [
+                { kind: "heal", amount: 15 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
       prompt: "그림자가 말을 건다: 진실을 보고 싶은가?",
       options: [
         {

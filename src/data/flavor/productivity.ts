@@ -53,6 +53,107 @@ export const PRODUCTIVITY_EVENTS: DungeonEvent[] = [
       ],
     },
     {
+      prompt: "먼지 쌓인 서류 더미. 중요한 계약서가 숨어 있다는 소문이 있다.",
+      options: [
+        {
+          label: "서류 정리",
+          outcomes: [
+            {
+              weight: 55,
+              resultText: "빠르게 훑어 중요 서류를 찾았다.",
+              effects: [
+                { kind: "reward", coins: 30, xp: 15 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "종이 베임이 반복되어 손이 욱신거린다.",
+              effects: [
+                { kind: "damage", amount: 8 },
+                { kind: "reward", coins: 10 },
+                { kind: "time", delta: -6 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "전임자의 비밀 장부를 발견했다.",
+              effects: [
+                { kind: "reward", coins: 80, xp: 30 },
+                { kind: "time", delta: -6 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "통째로 불태우기",
+          outcomes: [
+            {
+              weight: 60,
+              resultText: "무의미한 짓을 했다.",
+              effects: [{ kind: "time", delta: -2 }],
+            },
+            {
+              weight: 40,
+              resultText: "불 속에서 금속 보관함이 드러났다!",
+              effects: [
+                { kind: "reward", coins: 40 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "빈 일정표에 빈자리 3개가 보인다. 뭘 채울까?",
+      options: [
+        {
+          label: "수련 (XP)",
+          outcomes: [
+            {
+              weight: 80,
+              resultText: "집중된 시간. 경험이 쌓인다.",
+              effects: [
+                { kind: "reward", xp: 45 },
+                { kind: "time", delta: -6 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "과로했다.",
+              effects: [
+                { kind: "damage", amount: 10 },
+                { kind: "reward", xp: 60 },
+                { kind: "time", delta: -7 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "휴식 (HP)",
+          outcomes: [
+            {
+              weight: 80,
+              resultText: "충분한 휴식이 몸을 회복시켰다.",
+              effects: [
+                { kind: "heal", amount: 50 },
+                { kind: "time", delta: -6 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "지나친 휴식이 오히려 권태를 불렀다.",
+              effects: [
+                { kind: "heal", amount: 15 },
+                { kind: "time", delta: -8 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
       prompt: "고장난 시계를 발견했다.",
       options: [
         {
