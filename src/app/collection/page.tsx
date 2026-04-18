@@ -9,6 +9,7 @@ import type { Category } from "@/types/card";
 import type { TitleDefinition } from "@/types/title";
 import PixelIcon from "@/components/icons/PixelIcon";
 import AccordionSection from "@/components/ui/AccordionSection";
+import ArchiveSheet from "@/components/growth/ArchiveSheet";
 import { AnimatePresence, motion } from "framer-motion";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
@@ -19,7 +20,10 @@ import type { ChallengeCard } from "@/types/card";
 import type { Language } from "@/types/game";
 import CardDetailModal from "@/components/cards/CardDetailModal";
 
-type Tab = "cards" | "titles";
+// Phase 8c — 앨범(archive) 을 playground 에서 Collection 으로 이동.
+//   카드/칭호/앨범 모두 "수집된 것" 카테고리라 Collection 이 의미상 더 정확.
+//   탭 룩은 EquipmentInventory (아지트) 의 sliding underline 패턴과 통일.
+type Tab = "cards" | "titles" | "album";
 type Filter = "all" | "owned" | "unowned";
 
 const CATEGORY_ORDER: Category[] = [
@@ -66,56 +70,223 @@ export default function CollectionPage() {
   const seenIds = progress.seenTitleIds || [];
   const newTitleCount = earnedIds.filter((id) => !seenIds.includes(id)).length;
 
+  // Phase 8c — 앨범 탭 배지: photoMetas 개수.
   return (
     <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
-      {/* 탭 */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => { play("select"); setTab("cards"); setFilter("all"); }}
-          className={`flex-1 py-2.5 rounded-md typo-body transition-all ${
-            tab === "cards" ? "bg-accent text-bg-primary" : "bg-bg-surface text-text-secondary"
-          }`}
-        >
-          {t("collection.tab.cards")} ({unlockedCount}/{totalCount})
-        </button>
-        <button
-          onClick={() => { play("select"); setTab("titles"); setFilter("all"); }}
-          className={`flex-1 py-2.5 rounded-md typo-body transition-all relative ${
-            tab === "titles" ? "bg-accent text-bg-primary" : "bg-bg-surface text-text-secondary"
-          }`}
-        >
-          {t("collection.tab.titles")} ({earnedTitleCount}/{ALL_TITLES.length})
-          {newTitleCount > 0 && tab !== "titles" && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent-secondary rounded-full typo-micro text-bg-primary flex items-center justify-center">
-              {newTitleCount}
-            </span>
-          )}
-        </button>
-      </div>
+      {/* Phase 8c — 탭 (아지트 스타일).
+            각 버튼 flex-1 로 균일, 부모에 sliding underline indicator.
+            탭 간 전환 시 밑줄이 하나의 객체로 옮겨가는 지각 (gestalt common fate). */}
+      <CollectionTabs
+        tab={tab}
+        onChange={(t) => {
+          play("select");
+          setTab(t);
+          setFilter("all");
+        }}
+        unlockedCount={unlockedCount}
+        totalCount={totalCount}
+        earnedTitleCount={earnedTitleCount}
+        totalTitles={ALL_TITLES.length}
+        newTitleCount={newTitleCount}
+        cardsLabel={t("collection.tab.cards")}
+        titlesLabel={t("collection.tab.titles")}
+        albumLabel={t("collection.tab.album")}
+      />
 
-      {/* 필터 */}
-      <div className="flex gap-1.5 mb-5">
-        {([["all", t("collection.filter.all")], ["owned", t("collection.filter.owned")], ["unowned", t("collection.filter.unowned")]] as [Filter, string][]).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => { play("select"); setFilter(key); }}
-            className={`px-3 py-1.5 rounded-md typo-caption transition-all ${
-              filter === key
-                ? "bg-text-primary text-bg-primary"
-                : "bg-bg-surface text-text-tertiary"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "cards" ? (
-        <CardsTab progress={progress} filter={filter} language={language} />
-      ) : (
-        <TitlesTab progress={progress} earnedIds={earnedIds} equipTitle={equipTitle} filter={filter} play={play} language={language} />
+      {/* 필터 — 앨범 탭에선 불필요 (사진은 시간순만) */}
+      {tab !== "album" && (
+        <div className="flex gap-1.5 mb-5 mt-4">
+          {([["all", t("collection.filter.all")], ["owned", t("collection.filter.owned")], ["unowned", t("collection.filter.unowned")]] as [Filter, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => { play("select"); setFilter(key); }}
+              className={`collection-filter-btn px-3 py-1.5 rounded-md typo-caption ${
+                filter === key
+                  ? "bg-text-primary text-bg-primary"
+                  : "bg-bg-surface text-text-tertiary"
+              }`}
+            >
+              {label}
+              <style jsx>{`
+                .collection-filter-btn {
+                  transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1),
+                    color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+                    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+                }
+                .collection-filter-btn:active {
+                  transform: scale(0.96);
+                }
+              `}</style>
+            </button>
+          ))}
+        </div>
       )}
+
+      {/* 탭 컨텐츠 — key={tab} 로 remount 하여 fade+slide enter keyframe 재생.
+          EquipmentInventory 의 .eq-tab-content 와 동일 감각 (200ms fade + 4px up). */}
+      <motion.div
+        key={tab}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+      >
+        {tab === "cards" && (
+          <CardsTab progress={progress} filter={filter} language={language} />
+        )}
+        {tab === "titles" && (
+          <TitlesTab progress={progress} earnedIds={earnedIds} equipTitle={equipTitle} filter={filter} play={play} language={language} />
+        )}
+        {tab === "album" && <ArchiveSheet />}
+      </motion.div>
     </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────── */
+
+/**
+ * Phase 8c — Collection 탭 바 (EquipmentInventory 의 탭 패턴과 동일 룩).
+ *
+ * 설계:
+ *  - 3개 버튼 flex-1 로 균일 너비
+ *  - 부모 relative 에 sliding underline indicator (2px) — translateX 로 이동
+ *  - 활성 탭: accent color + underline 이 해당 위치로 slide (240ms easeOut)
+ *  - 버튼 press: scale(0.97) 120ms (고빈도 인터랙션, 즉각 반응)
+ *  - 카운트는 label 옆 (숫자/숫자) 형식 — 로그라이크 감성 (tabular-nums)
+ *  - 칭호 탭에만 newTitleCount 뱃지 (우상단 pulse 도트)
+ */
+function CollectionTabs({
+  tab,
+  onChange,
+  unlockedCount,
+  totalCount,
+  earnedTitleCount,
+  totalTitles,
+  newTitleCount,
+  cardsLabel,
+  titlesLabel,
+  albumLabel,
+}: {
+  tab: Tab;
+  onChange: (t: Tab) => void;
+  unlockedCount: number;
+  totalCount: number;
+  earnedTitleCount: number;
+  totalTitles: number;
+  newTitleCount: number;
+  cardsLabel: string;
+  titlesLabel: string;
+  albumLabel: string;
+}) {
+  const tabIndex = tab === "cards" ? 0 : tab === "titles" ? 1 : 2;
+
+  return (
+    <nav
+      className="relative flex items-stretch"
+      style={{ borderBottom: "1px solid rgb(255 255 255 / 0.06)" }}
+    >
+      <CollectionTabButton
+        active={tab === "cards"}
+        onClick={() => onChange("cards")}
+        label={cardsLabel}
+        count={unlockedCount}
+        total={totalCount}
+      />
+      <CollectionTabButton
+        active={tab === "titles"}
+        onClick={() => onChange("titles")}
+        label={titlesLabel}
+        count={earnedTitleCount}
+        total={totalTitles}
+        newBadge={newTitleCount > 0 && tab !== "titles" ? newTitleCount : 0}
+      />
+      <CollectionTabButton
+        active={tab === "album"}
+        onClick={() => onChange("album")}
+        label={albumLabel}
+      />
+      {/* Sliding underline — 3 탭 균등 width 33.333%. Emil: one object moving. */}
+      <div
+        aria-hidden="true"
+        className="absolute bottom-[-1px] h-[2px]"
+        style={{
+          width: "33.3333%",
+          left: 0,
+          background: "var(--accent-primary)",
+          transform: `translateX(${tabIndex * 100}%)`,
+          transition: "transform 240ms cubic-bezier(0.23, 1, 0.32, 1)",
+          boxShadow: "0 0 4px color-mix(in srgb, var(--accent-primary) 40%, transparent)",
+        }}
+      />
+    </nav>
+  );
+}
+
+function CollectionTabButton({
+  active,
+  onClick,
+  label,
+  count,
+  total,
+  newBadge = 0,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count?: number;
+  total?: number;
+  newBadge?: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="collection-tab-btn relative flex-1 py-2.5 typo-body"
+      style={{
+        color: active ? "var(--accent-primary)" : "var(--text-secondary)",
+        background: "transparent",
+      }}
+      aria-current={active ? "page" : undefined}
+    >
+      <span className="inline-flex items-center gap-1.5 justify-center">
+        <span>{label}</span>
+        {count != null && total != null && (
+          <span
+            className="typo-caption tabular-nums"
+            style={{
+              color: active
+                ? "color-mix(in srgb, var(--accent-primary) 75%, transparent)"
+                : "var(--text-tertiary)",
+            }}
+          >
+            {count}/{total}
+          </span>
+        )}
+      </span>
+      {newBadge > 0 && (
+        <span
+          className="absolute top-1 right-2 rounded-full typo-micro flex items-center justify-center"
+          style={{
+            minWidth: 16,
+            height: 16,
+            padding: "0 4px",
+            background: "var(--accent-secondary)",
+            color: "var(--bg-primary)",
+          }}
+        >
+          {newBadge}
+        </span>
+      )}
+      <style jsx>{`
+        .collection-tab-btn {
+          transition: color 180ms cubic-bezier(0.23, 1, 0.32, 1),
+            transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        .collection-tab-btn:active {
+          transform: scale(0.97);
+        }
+      `}</style>
+    </button>
   );
 }
 
