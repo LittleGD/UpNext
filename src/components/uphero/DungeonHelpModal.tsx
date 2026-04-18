@@ -11,41 +11,45 @@ import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { DictKey } from "@/i18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 interface DungeonHelpModalProps {
   onClose: () => void;
 }
 
-const HELP_ITEMS: Array<{ icon: string; title: string; desc: string }> = [
+// Phase 12 i18n — 항목을 i18n key 로 보관. 렌더 시점에 t() 조회.
+const HELP_ITEMS: Array<{ icon: string; titleKey: DictKey; descKey: DictKey }> = [
   {
     icon: "Heart",
-    title: "HP · TIME",
-    desc: "HP 0 또는 시간 0 이면 탐험 종료. 시간은 층 이동 · 전투 · 이벤트로 소모.",
+    titleKey: "uphero.help.item.hpTime.title",
+    descKey: "uphero.help.item.hpTime.desc",
   },
   {
     icon: "Zap",
-    title: "자원 bar",
-    desc: "클래스마다 다른 자원 (분노/마나/기 등). 전투 중 획득해 스킬 발동에 소모.",
+    titleKey: "uphero.help.item.resource.title",
+    descKey: "uphero.help.item.resource.desc",
   },
   {
     icon: "Star",
-    title: "스킬 버튼",
-    desc: "자원 충족 + 쿨다운 0 시 탭으로 즉시 발동. 스탯창의 스킬트리에서 해금.",
+    titleKey: "uphero.help.item.skill.title",
+    descKey: "uphero.help.item.skill.desc",
   },
   {
     icon: "Play",
-    title: "속도 / 일시정지",
-    desc: "1× / 2× / 4× 로 tick 속도 조정. 중앙 버튼으로 일시정지.",
+    titleKey: "uphero.help.item.speed.title",
+    descKey: "uphero.help.item.speed.desc",
   },
   {
     icon: "Flag",
-    title: "포기",
-    desc: "자발적으로 캠프 복귀. 지금까지 얻은 drop 은 모두 유지.",
+    titleKey: "uphero.help.item.abandon.title",
+    descKey: "uphero.help.item.abandon.desc",
   },
 ];
 
 export default function DungeonHelpModal({ onClose }: DungeonHelpModalProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   useModalA11y(containerRef, onClose, { noScrollLock: true });
   if (typeof window === "undefined") return null;
@@ -79,7 +83,7 @@ export default function DungeonHelpModal({ onClose }: DungeonHelpModalProps) {
             className="typo-body"
             style={{ color: GB.lightest, fontWeight: 600 }}
           >
-            탐험 도움말
+            {t("uphero.help.title")}
           </div>
           <button
             type="button"
@@ -90,14 +94,14 @@ export default function DungeonHelpModal({ onClose }: DungeonHelpModalProps) {
               color: GB.light,
               border: `1px solid ${GB.dark}`,
             }}
-            aria-label="도움말 닫기"
+            aria-label={t("uphero.help.close")}
           >
-            닫기
+            {t("uphero.help.close")}
           </button>
         </div>
         <div className="px-4 py-3 flex flex-col gap-3">
           {HELP_ITEMS.map((item) => (
-            <div key={item.title} className="flex items-start gap-2.5">
+            <div key={item.titleKey} className="flex items-start gap-2.5">
               <div
                 className="rounded p-1 mt-0.5 shrink-0"
                 style={{ background: `${GB.dark}aa` }}
@@ -109,10 +113,10 @@ export default function DungeonHelpModal({ onClose }: DungeonHelpModalProps) {
                   className="typo-caption"
                   style={{ color: GB.lightest, fontWeight: 600 }}
                 >
-                  {item.title}
+                  {t(item.titleKey)}
                 </div>
                 <div className={`typo-micro ${gbClass.textDim}`}>
-                  {item.desc}
+                  {t(item.descKey)}
                 </div>
               </div>
             </div>

@@ -16,6 +16,8 @@ import { useModalA11y } from "@/hooks/useModalA11y";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useAnnounce } from "@/hooks/useAnnounce";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { DictKey } from "@/i18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 import DropRevealCard from "./DropRevealCard";
 
@@ -25,6 +27,7 @@ import DropRevealCard from "./DropRevealCard";
 export default function SessionResultModal() {
   const session = useUpHeroStore((s) => s.currentSession);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeSessionEnd);
+  const { t } = useTranslation();
   // Phase 11c R2 — F30 첫 클리어 감지: 현재 session 에 F30 보스 victory 가 있고,
   //   store dungeons 의 해당 dungeon 이 아직 F30 미기록이면 "최초 돌파" 로 간주.
   //   acknowledge() 호출 시에만 state 가 반영되므로 modal 렌더 시점엔 still "없음" 상태.
@@ -103,7 +106,8 @@ export default function SessionResultModal() {
 
   // Phase 4c.1 — 사유별 구체 타이틀/아이콘/색
   // legacy reason ("victory"/"defeat"/"abandoned") 도 매핑 (이전 세션 호환).
-  const { title, titleColor, iconName } = resolveReasonDisplay(reason);
+  const { titleKey, titleColor, iconName } = resolveReasonDisplay(reason);
+  const title = t(titleKey);
 
   // Phase 4c-balance — 사망 시 drops 절반 잃음. 표시 위해 분리 계산.
   // store 의 acknowledgeSessionEnd 와 동일한 로직을 미러링 (slice(0, floor/2)).
@@ -199,13 +203,13 @@ export default function SessionResultModal() {
         <div className="px-4 py-4 flex flex-col gap-2.5">
           <RewardRow
             iconName="Sparkle"
-            label="경험치"
+            label={t("uphero.session.result.xp")}
             value={`+${xpDisplay} XP`}
             accent={rewardsXp > 0}
           />
           <RewardRow
             iconName="Coins"
-            label="갓생 코인"
+            label={t("uphero.session.result.coins")}
             value={`+${coinDisplay} C`}
             accent={rewardsCoins > 0}
           />
@@ -215,17 +219,19 @@ export default function SessionResultModal() {
               style={{ color: GB.light }}
             >
               <PixelIcon name="Gift" size={14} color={GB.light} />
-              장비 획득 ({keptCount}
-              {lostCount > 0 && (
-                <span style={{ color: GB_ENEMY }}>
-                  {" / "}쓰러지며 {lostCount} 분실
-                </span>
-              )}
-              )
+              {/* i18n — lost 개수에 따라 다른 key 사용 */}
+              {lostCount > 0
+                ? t("uphero.session.result.dropsLabelWithLost", {
+                    kept: keptCount,
+                    lost: lostCount,
+                  })
+                : t("uphero.session.result.dropsLabel", {
+                    kept: keptCount,
+                  })}
             </div>
             {allDrops.length === 0 ? (
               <div className={`typo-caption ${gbClass.textDim} pl-4`}>
-                없음
+                {t("uphero.session.result.noDrops")}
               </div>
             ) : (
               <div className="flex flex-wrap gap-2 justify-center py-2">
@@ -238,7 +244,7 @@ export default function SessionResultModal() {
                     key={`lost-${eq.id}`}
                     className="relative"
                     style={{ opacity: 0.35, filter: "saturate(0.4)" }}
-                    aria-label={`${eq.name} 분실`}
+                    aria-label={t("uphero.session.result.dropLostAria", { name: eq.name })}
                   >
                     <DropRevealCard equipment={eq} />
                     <div
@@ -283,7 +289,7 @@ export default function SessionResultModal() {
               border: `1px solid ${GB.lightest}`,
             }}
           >
-            캠프로 돌아가기
+            {t("uphero.session.result.cta")}
             <style jsx>{`
               .session-result-cta {
                 transition: transform 120ms ${EASE_OUT};
@@ -304,22 +310,42 @@ export default function SessionResultModal() {
  * Phase 4c.1 — 종료 사유별 타이틀/색/아이콘 매핑.
  * legacy reason 도 알맞은 신규 reason 으로 mapping.
  */
+/**
+ * Phase 12 i18n — 종료 사유를 i18n key + 색/아이콘 메타로 반환.
+ *   실제 제목 텍스트는 호출 측에서 `t(titleKey)` 로 현재 언어 조회.
+ */
 function resolveReasonDisplay(
   reason: string,
-): { title: string; titleColor: string; iconName: string } {
+): { titleKey: DictKey; titleColor: string; iconName: string } {
   switch (reason) {
     case "bossDefeated":
     case "victory": // legacy
-      return { title: "보스 처치", titleColor: GB.lightest, iconName: "Trophy" };
+      return {
+        titleKey: "uphero.session.result.title.bossDefeated",
+        titleColor: GB.lightest,
+        iconName: "Trophy",
+      };
     case "heroDied":
     case "defeat": // legacy
-      return { title: "영웅이 쓰러졌다", titleColor: GB_ENEMY, iconName: "Skull" };
+      return {
+        titleKey: "uphero.session.result.title.heroDied",
+        titleColor: GB_ENEMY,
+        iconName: "Skull",
+      };
     case "timeExpired":
-      return { title: "시간이 다했다", titleColor: GB.light, iconName: "Clock" };
+      return {
+        titleKey: "uphero.session.result.title.timeExpired",
+        titleColor: GB.light,
+        iconName: "Clock",
+      };
     case "heroAbandoned":
     case "abandoned": // legacy
     default:
-      return { title: "캠프로 복귀", titleColor: GB.light, iconName: "Flag" };
+      return {
+        titleKey: "uphero.session.result.title.abandoned",
+        titleColor: GB.light,
+        iconName: "Flag",
+      };
   }
 }
 

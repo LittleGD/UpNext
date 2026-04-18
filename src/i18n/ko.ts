@@ -669,6 +669,73 @@ const ko = {
 
   // Weekly ribbon
   "uphero.ribbon.weeklyTitle": "이번 주 악몽",
+
+  // === Session result modal ===
+  "uphero.session.result.xp": "경험치",
+  "uphero.session.result.coins": "갓생 코인",
+  "uphero.session.result.dropsLabel": "장비 획득 ({kept})",
+  "uphero.session.result.dropsLabelWithLost": "장비 획득 ({kept} / 쓰러지며 {lost} 분실)",
+  "uphero.session.result.noDrops": "없음",
+  "uphero.session.result.dropLostAria": "{name} 분실",
+  "uphero.session.result.cta": "캠프로 돌아가기",
+  "uphero.session.result.title.bossDefeated": "보스 처치",
+  "uphero.session.result.title.heroDied": "영웅이 쓰러졌다",
+  "uphero.session.result.title.timeExpired": "시간이 다했다",
+  "uphero.session.result.title.abandoned": "캠프로 복귀",
+
+  // === Choice result modal ===
+  "uphero.choice.result.ariaLabel": "선택 결과",
+  "uphero.choice.result.resultHeader": "결과",
+  "uphero.choice.result.effectSummary": "{summary}",
+  "uphero.choice.result.cta": "계속",
+
+  // === Idle reward toast ===
+  "uphero.idle.title": "영웅의 수련 성과",
+  "uphero.idle.body": "영웅이 {elapsed} 동안 수련했어요",
+  "uphero.idle.capped": " · 최대 8시간",
+  "uphero.idle.explain.1": "영웅은 앱이 꺼진 동안에도 캠프에서 조용히 단련합니다.",
+  "uphero.idle.explain.2": "돌아오면 그동안의 경험치 · 코인을 받아요.",
+  "uphero.idle.explain.3": "최대 8시간까지 누적 · 영웅 Lv 이 높을수록 더 많이",
+  "uphero.idle.close": "닫기",
+  "uphero.idle.expandAria": "수련 보상이란?",
+  "uphero.idle.ok": "확인",
+  "uphero.idle.xpGained": "경험치 +{xp}",
+  "uphero.idle.coinsGained": "코인 +{coins}",
+  "uphero.idle.duration": "{hours}시간",
+  "uphero.idle.claim": "받기",
+  "uphero.idle.dismiss": "닫기",
+  "uphero.idle.more": "자세히",
+
+  // === Enhance result modal ===
+  "uphero.enhance.success.title": "강화 성공!",
+  "uphero.enhance.fail.title": "강화 실패",
+  "uphero.enhance.preserve.title": "등급 보호",
+  "uphero.enhance.level": "+{level}",
+  "uphero.enhance.resultCta": "계속",
+
+  // === Dungeon help modal ===
+  "uphero.help.title": "탐험 도움말",
+  "uphero.help.close": "닫기",
+  "uphero.help.item.hpTime.title": "HP · TIME",
+  "uphero.help.item.hpTime.desc": "HP 0 또는 시간 0 이면 탐험 종료. 시간은 층 이동 · 전투 · 이벤트로 소모.",
+  "uphero.help.item.resource.title": "자원 bar",
+  "uphero.help.item.resource.desc": "클래스마다 다른 자원 (분노/마나/기 등). 전투 중 획득해 스킬 발동에 소모.",
+  "uphero.help.item.skill.title": "스킬 버튼",
+  "uphero.help.item.skill.desc": "자원 충족 + 쿨다운 0 시 탭으로 즉시 발동. 스탯창의 스킬트리에서 해금.",
+  "uphero.help.item.speed.title": "속도 / 일시정지",
+  "uphero.help.item.speed.desc": "1× / 2× / 4× 로 tick 속도 조정. 중앙 버튼으로 일시정지.",
+  "uphero.help.item.abandon.title": "포기",
+  "uphero.help.item.abandon.desc": "자발적으로 캠프 복귀. 지금까지 얻은 drop 은 모두 유지.",
+
+  // === Minigame modal ===
+  "uphero.minigame.title.pair_match": "기억의 카드",
+  "uphero.minigame.title.sequence_memo": "고대 주문",
+  "uphero.minigame.title.pipe_connect": "막힌 파이프",
+  "uphero.minigame.header": "{title} · 난이도 {difficulty}",
+  "uphero.minigame.giveUp": "포기",
+  "uphero.minigame.difficulty.1": "쉬움",
+  "uphero.minigame.difficulty.2": "보통",
+  "uphero.minigame.difficulty.3": "어려움",
 } as const;
 
 export type DictKey = keyof typeof ko;

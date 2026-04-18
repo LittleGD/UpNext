@@ -671,6 +671,73 @@ const zh: Record<DictKey, string> = {
 
   // Weekly ribbon
   "uphero.ribbon.weeklyTitle": "本周噩梦",
+
+  // === Session result modal ===
+  "uphero.session.result.xp": "经验",
+  "uphero.session.result.coins": "金币",
+  "uphero.session.result.dropsLabel": "装备获得 ({kept})",
+  "uphero.session.result.dropsLabelWithLost": "装备获得 ({kept} / 倒下时丢失 {lost})",
+  "uphero.session.result.noDrops": "无",
+  "uphero.session.result.dropLostAria": "{name} 丢失",
+  "uphero.session.result.cta": "返回营地",
+  "uphero.session.result.title.bossDefeated": "击败首领",
+  "uphero.session.result.title.heroDied": "英雄倒下了",
+  "uphero.session.result.title.timeExpired": "时间耗尽",
+  "uphero.session.result.title.abandoned": "返回营地",
+
+  // === Choice result modal ===
+  "uphero.choice.result.ariaLabel": "选择结果",
+  "uphero.choice.result.resultHeader": "结果",
+  "uphero.choice.result.effectSummary": "{summary}",
+  "uphero.choice.result.cta": "继续",
+
+  // === Idle reward toast ===
+  "uphero.idle.title": "英雄的修炼成果",
+  "uphero.idle.body": "英雄修炼了 {elapsed}",
+  "uphero.idle.capped": " · 最多 8 小时",
+  "uphero.idle.explain.1": "应用关闭期间英雄也在营地里默默修炼。",
+  "uphero.idle.explain.2": "回来后可以领取期间的经验与金币。",
+  "uphero.idle.explain.3": "最多累积 8 小时 · 英雄等级越高收益越多",
+  "uphero.idle.close": "关闭",
+  "uphero.idle.expandAria": "什么是修炼奖励?",
+  "uphero.idle.ok": "确定",
+  "uphero.idle.xpGained": "经验 +{xp}",
+  "uphero.idle.coinsGained": "金币 +{coins}",
+  "uphero.idle.duration": "{hours}小时",
+  "uphero.idle.claim": "领取",
+  "uphero.idle.dismiss": "关闭",
+  "uphero.idle.more": "详情",
+
+  // === Enhance result modal ===
+  "uphero.enhance.success.title": "强化成功!",
+  "uphero.enhance.fail.title": "强化失败",
+  "uphero.enhance.preserve.title": "品质保留",
+  "uphero.enhance.level": "+{level}",
+  "uphero.enhance.resultCta": "继续",
+
+  // === Dungeon help modal ===
+  "uphero.help.title": "探险帮助",
+  "uphero.help.close": "关闭",
+  "uphero.help.item.hpTime.title": "HP · TIME",
+  "uphero.help.item.hpTime.desc": "HP 0 或时间 0 探险结束。时间随楼层移动、战斗、事件消耗。",
+  "uphero.help.item.resource.title": "资源条",
+  "uphero.help.item.resource.desc": "不同职业有不同资源(怒气/法力/气等)。战斗中获取,释放技能消耗。",
+  "uphero.help.item.skill.title": "技能按钮",
+  "uphero.help.item.skill.desc": "资源充足 + 冷却为 0 时可立刻释放。在属性面板的技能树中解锁。",
+  "uphero.help.item.speed.title": "速度 / 暂停",
+  "uphero.help.item.speed.desc": "1× / 2× / 4× 调整 tick 速度。中央按钮暂停。",
+  "uphero.help.item.abandon.title": "放弃",
+  "uphero.help.item.abandon.desc": "主动返回营地。至今获得的掉落物全部保留。",
+
+  // === Minigame modal ===
+  "uphero.minigame.title.pair_match": "记忆卡牌",
+  "uphero.minigame.title.sequence_memo": "古代咒语",
+  "uphero.minigame.title.pipe_connect": "堵塞的管道",
+  "uphero.minigame.header": "{title} · 难度 {difficulty}",
+  "uphero.minigame.giveUp": "放弃",
+  "uphero.minigame.difficulty.1": "简单",
+  "uphero.minigame.difficulty.2": "普通",
+  "uphero.minigame.difficulty.3": "困难",
 };
 
 export default zh;

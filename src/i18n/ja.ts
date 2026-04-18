@@ -671,6 +671,73 @@ const ja: Record<DictKey, string> = {
 
   // Weekly ribbon
   "uphero.ribbon.weeklyTitle": "今週の悪夢",
+
+  // === Session result modal ===
+  "uphero.session.result.xp": "経験値",
+  "uphero.session.result.coins": "コイン",
+  "uphero.session.result.dropsLabel": "装備獲得 ({kept})",
+  "uphero.session.result.dropsLabelWithLost": "装備獲得 ({kept} / 敗北時に {lost} 失う)",
+  "uphero.session.result.noDrops": "なし",
+  "uphero.session.result.dropLostAria": "{name} 紛失",
+  "uphero.session.result.cta": "キャンプに戻る",
+  "uphero.session.result.title.bossDefeated": "ボス撃破",
+  "uphero.session.result.title.heroDied": "勇者が倒れた",
+  "uphero.session.result.title.timeExpired": "時間切れ",
+  "uphero.session.result.title.abandoned": "キャンプに戻る",
+
+  // === Choice result modal ===
+  "uphero.choice.result.ariaLabel": "選択結果",
+  "uphero.choice.result.resultHeader": "結果",
+  "uphero.choice.result.effectSummary": "{summary}",
+  "uphero.choice.result.cta": "続ける",
+
+  // === Idle reward toast ===
+  "uphero.idle.title": "勇者の修練成果",
+  "uphero.idle.body": "勇者は {elapsed} 修練した",
+  "uphero.idle.capped": " · 最大 8時間",
+  "uphero.idle.explain.1": "勇者はアプリを閉じている間もキャンプで静かに鍛えている。",
+  "uphero.idle.explain.2": "戻ってくるとその間の経験値 · コインを受け取れる。",
+  "uphero.idle.explain.3": "最大 8時間まで蓄積 · 勇者 Lv が高いほど多く",
+  "uphero.idle.close": "閉じる",
+  "uphero.idle.expandAria": "修練報酬とは?",
+  "uphero.idle.ok": "OK",
+  "uphero.idle.xpGained": "経験値 +{xp}",
+  "uphero.idle.coinsGained": "コイン +{coins}",
+  "uphero.idle.duration": "{hours}時間",
+  "uphero.idle.claim": "受け取る",
+  "uphero.idle.dismiss": "閉じる",
+  "uphero.idle.more": "詳細",
+
+  // === Enhance result modal ===
+  "uphero.enhance.success.title": "強化成功!",
+  "uphero.enhance.fail.title": "強化失敗",
+  "uphero.enhance.preserve.title": "等級保護",
+  "uphero.enhance.level": "+{level}",
+  "uphero.enhance.resultCta": "続ける",
+
+  // === Dungeon help modal ===
+  "uphero.help.title": "探索ヘルプ",
+  "uphero.help.close": "閉じる",
+  "uphero.help.item.hpTime.title": "HP · TIME",
+  "uphero.help.item.hpTime.desc": "HP 0 または時間 0 で探索終了。時間は階移動・戦闘・イベントで消費。",
+  "uphero.help.item.resource.title": "リソースバー",
+  "uphero.help.item.resource.desc": "クラスごとに異なるリソース (怒り/マナ/気など)。戦闘中に獲得しスキル発動に消費。",
+  "uphero.help.item.skill.title": "スキルボタン",
+  "uphero.help.item.skill.desc": "リソース充足 + クールダウン 0 でタップして即発動。スキルツリーから解放。",
+  "uphero.help.item.speed.title": "速度 / 一時停止",
+  "uphero.help.item.speed.desc": "1× / 2× / 4× で tick 速度調整。中央ボタンで一時停止。",
+  "uphero.help.item.abandon.title": "撤退",
+  "uphero.help.item.abandon.desc": "自発的にキャンプ復帰。これまで得た drop はすべて保持。",
+
+  // === Minigame modal ===
+  "uphero.minigame.title.pair_match": "記憶のカード",
+  "uphero.minigame.title.sequence_memo": "古代の呪文",
+  "uphero.minigame.title.pipe_connect": "詰まったパイプ",
+  "uphero.minigame.header": "{title} · 難易度 {difficulty}",
+  "uphero.minigame.giveUp": "諦める",
+  "uphero.minigame.difficulty.1": "やさしい",
+  "uphero.minigame.difficulty.2": "ふつう",
+  "uphero.minigame.difficulty.3": "むずかしい",
 };
 
 export default ja;

@@ -26,6 +26,7 @@ import { useEffect, useRef, useState } from "react";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 interface ChoiceResultModalProps {
@@ -49,6 +50,7 @@ export default function ChoiceResultModal({
   autoMs = 2600,
 }: ChoiceResultModalProps) {
   const reducedMotion = useReducedMotion();
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   // Esc + focus trap. scrollLock 은 DungeonView 자체가 이미 풀스크린 portal
   // 이라 불필요 (중복 락 방지).
@@ -93,7 +95,7 @@ export default function ChoiceResultModal({
       {/* backdrop — 반투명 + 미세 blur. click 은 dismiss 로 */}
       <button
         type="button"
-        aria-label="결과 모달 닫기"
+        aria-label={t("uphero.choice.result.ariaLabel")}
         onClick={onDismiss}
         className="choice-result-backdrop absolute inset-0 pointer-events-auto"
         style={{
