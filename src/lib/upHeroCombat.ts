@@ -531,7 +531,15 @@ export function tickSession(session: CombatSession): CombatSession {
 
     // 보스 floor 면 boss 엔트리만 push 하고 세션 일시 정지 (BossBanner 연출 동안)
     // encounter 는 사용자가 연출을 본 후 resumeSession() 호출 시 다음 tick 에서 push
+    //
+    // Phase 11c R4 bugfix — 같은 floor 에 이미 boss 엔트리가 있으면 중복 push 금지.
+    //   BossBanner 연출 중 paused→active handoff race 에서 tick 이 한 번 더 실행되면
+    //   같은 floor 에 boss 2번 찍혀 "보스 재등장" 현상.
     if (isBossFloor) {
+      const hasExistingBoss = s.log.some(
+        (e) => e.type === "boss" && e.floor === nextFloor,
+      );
+      if (hasExistingBoss) return s;
       const boss = createMonsterForFloor(s.dungeonId, nextFloor, true, {
         ngPlusLevel: s.ngPlusLevel ?? 0,
         hpMult: s.monsterHpMult ?? 1,
@@ -664,11 +672,14 @@ export function resolveChoice(
 
   // outcomes 우선 — weight 기반 분기. 없으면 legacy effect.
   // Phase 11c R1 — narrative prefix 매칭 대신 explicit "choiceResult" variant.
+  // Phase 11c R4 — effectSummary 필드로 구체 수치 노출.
   if (option.outcomes && option.outcomes.length > 0) {
     const outcome = pickWeighted(option.outcomes);
+    const summary = summarizeEffects(outcome.effects);
     s.log.push({
       type: "choiceResult",
       text: `> ${option.label} → ${outcome.resultText}`,
+      effectSummary: summary || undefined,
       timestamp: Date.now(),
     });
     for (const effect of outcome.effects) {
@@ -678,10 +689,13 @@ export function resolveChoice(
     }
   } else {
     // Legacy: 결과 narrative + 단일 effect
+    const legacyEffects = option.effect ? [option.effect] : [];
+    const summary = summarizeEffects(legacyEffects);
     if (option.resultText) {
       s.log.push({
         type: "choiceResult",
         text: `> ${option.label} → ${option.resultText}`,
+        effectSummary: summary || undefined,
         timestamp: Date.now(),
       });
     }
@@ -709,6 +723,43 @@ function pickWeighted<T extends { weight: number }>(outcomes: T[]): T {
     if (roll <= 0) return o;
   }
   return outcomes[outcomes.length - 1];
+}
+
+/**
+ * Phase 11c R4 — choice effects 를 사람이 읽기 좋은 한 줄 요약으로 포맷.
+ *   narrative 는 분위기 문구 ("지혜를 전수받았다") 라 구체 수치가 빠짐 → 유저가
+ *   "내 선택이 뭘 바꿨는지" 모호. summary 는 이 요약을 (XP +50, 시간 -3) 형태로
+ *   ChoiceResultModal 에 별도 표시.
+ *
+ * heal 은 heroClass/talisman mult 가 곱해지므로 "예상 수치" (명시된 amount 기준).
+ * fight/flee/revealBoss/skipFloors 같은 구조 이벤트는 summary 에서 제외.
+ */
+function summarizeEffects(effects: readonly ChoiceEffect[]): string {
+  const parts: string[] = [];
+  let totalCoins = 0;
+  let totalXp = 0;
+  let totalDamage = 0;
+  let totalHeal = 0;
+  let totalTimeDelta = 0;
+  for (const e of effects) {
+    if (e.kind === "reward") {
+      if (e.coins) totalCoins += e.coins;
+      if (e.xp) totalXp += e.xp;
+    } else if (e.kind === "damage") {
+      totalDamage += e.amount;
+    } else if (e.kind === "heal") {
+      totalHeal += e.amount;
+    } else if (e.kind === "time") {
+      totalTimeDelta += e.delta;
+    }
+  }
+  if (totalXp > 0) parts.push(`경험치 +${totalXp}`);
+  if (totalCoins > 0) parts.push(`코인 +${totalCoins}`);
+  if (totalHeal > 0) parts.push(`체력 +${totalHeal}`);
+  if (totalDamage > 0) parts.push(`체력 −${totalDamage}`);
+  if (totalTimeDelta > 0) parts.push(`시간 +${totalTimeDelta}`);
+  else if (totalTimeDelta < 0) parts.push(`시간 ${totalTimeDelta}`);
+  return parts.join(" · ");
 }
 
 function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {

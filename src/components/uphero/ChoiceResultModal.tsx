@@ -31,6 +31,11 @@ import PixelIcon from "@/components/icons/PixelIcon";
 interface ChoiceResultModalProps {
   /** "> 선택 → 결과" narrative. 비어있지 않음. */
   text: string;
+  /**
+   * Phase 11c R4 — effects 요약 (예: "경험치 +50 · 시간 -3"). null/undefined 면 표시 안 함.
+   * narrative 가 분위기 문구라 구체 수치가 묻힘 → 별도 행으로 표시.
+   */
+  summary?: string | null;
   /** 닫기 콜백 — auto-dismiss 또는 유저 "계속" 탭 모두 호출. */
   onDismiss: () => void;
   /** 자동 dismiss 시간 (기본 2600ms). reduced-motion 이면 무시 → CTA 만. */
@@ -39,6 +44,7 @@ interface ChoiceResultModalProps {
 
 export default function ChoiceResultModal({
   text,
+  summary,
   onDismiss,
   autoMs = 2600,
 }: ChoiceResultModalProps) {
@@ -49,6 +55,13 @@ export default function ChoiceResultModal({
   useModalA11y(containerRef, onDismiss, { noScrollLock: true });
 
   // Countdown bar — rAF 기반. reduced-motion 이면 스킵 (즉시 CTA 로 직행).
+  //
+  // Phase 11c R4 bugfix — onDismiss 를 ref 패턴으로 안정화. 부모 (DungeonView) 가
+  //   inline arrow 로 넘기기 때문에 매 render 마다 새 identity → 이전엔 deps 에
+  //   포함되어 effect 재실행 → performance.now() 새로 찍혀 remaining 이 full 로
+  //   점프 → "바가 튀면서 줄어드는" 현상. 이제 onDismiss 는 deps 에서 제외.
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
   const [remaining, setRemaining] = useState(autoMs);
   useEffect(() => {
     if (reducedMotion) return;
@@ -59,14 +72,14 @@ export default function ChoiceResultModal({
       const left = Math.max(0, autoMs - elapsed);
       setRemaining(left);
       if (left <= 0) {
-        onDismiss();
+        onDismissRef.current();
         return;
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [autoMs, onDismiss, reducedMotion]);
+  }, [autoMs, reducedMotion]);
 
   // "> 선택 → 결과" prefix 를 잘라 선택 / 결과 두 줄로 분리.
   //   "> 싸운다 → 영웅이 적을 쓰러뜨렸다" → action="싸운다" / result="영웅이 적을..."
@@ -125,6 +138,22 @@ export default function ChoiceResultModal({
             >
               {parsed.result}
             </div>
+            {/* Phase 11c R4 — 효과 수치 요약. "경험치 +50 · 시간 -3" 등. */}
+            {summary && (
+              <div
+                className="typo-caption tabular-nums mt-2"
+                style={{
+                  color: GB.lightest,
+                  background: `${GB.dark}66`,
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  border: `1px solid ${GB.dark}`,
+                  display: "inline-block",
+                }}
+              >
+                {summary}
+              </div>
+            )}
           </div>
         </div>
         {/* Footer — 카운트다운 bar + 계속 CTA */}

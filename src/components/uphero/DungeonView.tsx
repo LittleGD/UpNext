@@ -63,8 +63,13 @@ export default function DungeonView() {
   /** Phase 9a — 포기 confirm 다이얼로그 state (native confirm 대체) */
   const [abandonOpen, setAbandonOpen] = useState(false);
   /** Phase 10 — 방금 resolve 된 event choice 의 결과 narrative.
-   *   null 이 아니면 결과 모달 표시 + tick pause. 유저 "계속" 또는 2.6s 후 null. */
-  const [choiceResultText, setChoiceResultText] = useState<string | null>(null);
+   *   null 이 아니면 결과 모달 표시 + tick pause. 유저 "계속" 또는 2.6s 후 null.
+   *   Phase 11c R4 — text + effectSummary 2 필드로 수치 별도 표시. */
+  const [choiceResultData, setChoiceResultData] = useState<{
+    text: string;
+    summary: string | null;
+  } | null>(null);
+  const choiceResultText = choiceResultData?.text ?? null;
   const { play } = useSound();
   // Phase 11c R4 — screen reader 공지. 시각 float 이 aria-hidden 이므로 여기서 backup.
   const { announce } = useAnnounce();
@@ -119,7 +124,10 @@ export default function DungeonView() {
       if (entry.type !== "choiceResult") continue;
       if (seenChoiceResultRef.current.has(idx)) continue;
       seenChoiceResultRef.current.add(idx);
-      setChoiceResultText(entry.text);
+      setChoiceResultData({
+        text: entry.text,
+        summary: entry.effectSummary ?? null,
+      });
       break;
     }
   }, [session, choiceResultText]);
@@ -128,7 +136,7 @@ export default function DungeonView() {
   useEffect(() => {
     if (!session) {
       seenChoiceResultRef.current.clear();
-      setChoiceResultText(null);
+      setChoiceResultData(null);
     }
   }, [session?.startedAt, session]);
 
@@ -915,11 +923,13 @@ export default function DungeonView() {
 
       {/* Phase 10 — 이벤트 선택 결과 모달.
             "> {label} → {result}" narrative 가 새로 push 되는 순간 감지돼 2.6s 표시.
-            열려있는 동안 tick 은 pause (useEffect dep). 유저는 "계속" 로 즉시 진행 가능. */}
-      {choiceResultText && (
+            열려있는 동안 tick 은 pause (useEffect dep). 유저는 "계속" 로 즉시 진행 가능.
+            Phase 11c R4 — effectSummary 로 구체 수치 노출 (XP/코인/시간/HP 변화). */}
+      {choiceResultData && (
         <ChoiceResultModal
-          text={choiceResultText}
-          onDismiss={() => setChoiceResultText(null)}
+          text={choiceResultData.text}
+          summary={choiceResultData.summary}
+          onDismiss={() => setChoiceResultData(null)}
         />
       )}
 
