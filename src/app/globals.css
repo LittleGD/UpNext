@@ -442,6 +442,27 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-fire-flicker 4.2s ease-in-out infinite;
 }
 
+/* === Phase 12 — 캠프 분위기 텍스트 crossfade ===
+   CAMP_AMBIENCE 15 줄을 20s 주기로 교체. key 가 바뀌면 이 애니가 1회 재생돼
+   새 문구가 살짝 블러에서 선명해지며 위로 올라온다. fire-flicker 와 같은 요소
+   에 함께 적용해도 charge 가 분리되지 않도록 outer/inner 로 분리해서 사용
+   (CampPlaceholder 에서 구조 분리). blur 는 3px 미만으로 억제 — 가독성 보호. */
+@keyframes uphero-ambience-in {
+  0% {
+    opacity: 0;
+    filter: blur(2.5px);
+    transform: translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+.uphero-ambience-in {
+  animation: uphero-ambience-in 520ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
 /* === Phase 8b — Floor divider sweep ===
    "━━━ Floor N ━━━━━━" 라벨에 빛이 한 번 지나간다 (1회, 900ms).
    로그 entry 의 새 floor 진입이 "의미 있는 이벤트" 로 느껴지게.
@@ -524,6 +545,7 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   .uphero-crit-pulse,
   .uphero-dodge-pulse,
   .uphero-fire-flicker,
+  .uphero-ambience-in,
   .uphero-typewriter-caret,
   .uphero-card-select,
   /* Phase 11c R4 R2 — NumberRoll slot-machine 롤 (260ms scaleY shift) 제거. */
