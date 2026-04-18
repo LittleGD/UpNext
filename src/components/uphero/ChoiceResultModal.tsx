@@ -107,22 +107,13 @@ export default function ChoiceResultModal({
   // "> 선택 → 결과" prefix 를 잘라 선택 / 결과 두 줄로 분리.
   //   "> 싸운다 → 영웅이 적을 쓰러뜨렸다" → action="싸운다" / result="영웅이 적을..."
   // Phase 13b — i18n 키가 있으면 t() 로 풀어서 사용. 없으면 text parsing.
-  const parsedFromKeys =
-    actionLabelFallback || resultTextFallback
-      ? {
-          action: actionLabelFallback
-            ? actionLabelKey
-              ? t(actionLabelKey as import("@/i18n").DictKey)
-              : actionLabelFallback
-            : null,
-          result: resultTextFallback
-            ? resultTextKey
-              ? t(resultTextKey as import("@/i18n").DictKey)
-              : resultTextFallback
-            : "",
-        }
-      : null;
-  const parsed = parsedFromKeys ?? parseChoiceNarrative(text);
+  const parsed =
+    resolveChoiceNarrative(t, {
+      actionLabelKey,
+      actionLabelFallback,
+      resultTextKey,
+      resultTextFallback,
+    }) ?? parseChoiceNarrative(text);
 
   return (
     <div
@@ -277,6 +268,35 @@ export default function ChoiceResultModal({
       </div>
     </div>
   );
+}
+
+/**
+ * Phase 13 review P3 — i18n 키가 있으면 t() 로 풀어서 action/result 2 줄 빌드.
+ *   둘 다 없으면 null 반환 → 호출자가 text parsing fallback.
+ */
+function resolveChoiceNarrative(
+  t: (
+    key: import("@/i18n").DictKey,
+    params?: Record<string, string | number>,
+  ) => string,
+  opts: {
+    actionLabelKey?: string;
+    actionLabelFallback?: string;
+    resultTextKey?: string;
+    resultTextFallback?: string;
+  },
+): { action: string | null; result: string } | null {
+  const { actionLabelKey, actionLabelFallback, resultTextKey, resultTextFallback } = opts;
+  if (!actionLabelFallback && !resultTextFallback) return null;
+  const resolve = (key?: string, fallback?: string): string => {
+    if (!fallback) return "";
+    if (!key) return fallback;
+    return t(key as import("@/i18n").DictKey);
+  };
+  return {
+    action: actionLabelFallback ? resolve(actionLabelKey, actionLabelFallback) : null,
+    result: resolve(resultTextKey, resultTextFallback),
+  };
 }
 
 /** "> 선택 → 결과" 텍스트를 action / result 로 분리. 포맷 불일치 시 통째로 result. */

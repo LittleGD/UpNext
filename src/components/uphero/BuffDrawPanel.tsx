@@ -14,7 +14,7 @@
  *  - 선택됨 상태: accent 배경 + 체크
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
 import { getBuffSlotCount, getEffectiveHeroLevel } from "@/types/uphero";
@@ -26,6 +26,7 @@ import type { ChallengeCard, Rarity } from "@/types/card";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { dungeonName, describeCardBuff } from "@/lib/upHeroI18n";
+import { cardTitle } from "@/i18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const RARITY_COLOR: Record<Rarity, string> = {
@@ -224,7 +225,17 @@ function BuffCardPreview({
   onToggle: () => void;
 }) {
   const { language } = useTranslation();
-  const buff = getCardBuff(card);
+  const buff = useMemo(() => getCardBuff(card), [card]);
+  // Phase 13 review P3 — describeCardBuff 가 effects 배열 × 여러 dictT 호출 수행.
+  //   buff / language 가 바뀌지 않는 한 결과 동일 → 메모이즈.
+  const buffDesc = useMemo(
+    () => describeCardBuff(buff, language),
+    [buff, language],
+  );
+  const displayTitle = useMemo(
+    () => cardTitle(card, language),
+    [card, language],
+  );
   const rarityColor = RARITY_COLOR[card.rarity];
 
   // 선택 순간 pulse — selected 가 false → true 로 바뀐 edge 에서만 재생.
@@ -297,18 +308,12 @@ function BuffCardPreview({
         )}
       </div>
 
-      {/* 이름 — Phase 13b: 카드 데이터의 title* 다국어 필드 활용 */}
+      {/* 이름 — Phase 13b: 카드 title 다국어 (cardTitle 헬퍼 사용) */}
       <div
         className="typo-caption leading-tight truncate"
         style={{ color: selected ? GB.lightest : rarityColor }}
       >
-        {language === "en" && card.titleEn
-          ? card.titleEn
-          : language === "ja" && card.titleJa
-            ? card.titleJa
-            : language === "zh" && card.titleZh
-              ? card.titleZh
-              : card.title}
+        {displayTitle}
       </div>
 
       {/* 버프 설명 */}
@@ -316,7 +321,7 @@ function BuffCardPreview({
         className="typo-caption leading-tight mt-1"
         style={{ color: GB.light }}
       >
-        {describeCardBuff(buff, language)}
+        {buffDesc}
       </div>
 
       <style jsx>{`

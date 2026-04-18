@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:i18n": "npx tsx scripts/check-i18n-placeholders.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

@@ -35,6 +35,8 @@ import {
 import { useSound } from "@/hooks/useSound";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
+import { cardTitle } from "@/i18n";
+import { ALL_CARDS } from "@/data/cards";
 import PixelIcon from "@/components/icons/PixelIcon";
 import GbConfirm from "./GbConfirm";
 
@@ -519,6 +521,7 @@ function PhotoThumb({
   onClick: () => void;
   disabled?: boolean;
 }) {
+  const { language } = useTranslation();
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -537,6 +540,15 @@ function PhotoThumb({
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [photo.id]);
+
+  // Phase 13 review P1 — photo.challengeTitle 은 촬영 시점의 한국어 스냅샷.
+  //   photo.challengeCardId 로 ALL_CARDS 다국어 title lookup. 카드가 없어진 경우
+  //   (legacy) challengeTitle fallback.
+  const displayTitle = useMemo(() => {
+    const card = ALL_CARDS.find((c) => c.id === photo.challengeCardId);
+    if (!card) return photo.challengeTitle;
+    return cardTitle(card, language);
+  }, [photo.challengeCardId, photo.challengeTitle, language]);
 
   const dateLabel = new Date(photo.timestamp).toLocaleDateString("ko-KR", {
     month: "numeric",
@@ -569,7 +581,7 @@ function PhotoThumb({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={url}
-            alt={photo.challengeTitle}
+            alt={displayTitle}
             style={{
               width: "100%",
               height: "100%",
@@ -609,7 +621,7 @@ function PhotoThumb({
           className="typo-micro truncate"
           style={{ color: GB.lightest, letterSpacing: "0.03em" }}
         >
-          {photo.challengeTitle}
+          {displayTitle}
         </div>
         <div
           className={`typo-micro tabular-nums ${gbClass.textDim}`}
