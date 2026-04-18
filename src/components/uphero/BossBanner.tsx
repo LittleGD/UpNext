@@ -30,18 +30,26 @@ interface BossBannerProps {
 }
 
 const BANNER_DURATION = 2400;
+const BANNER_DURATION_REDUCED = 600;
 
 export default function BossBanner({ monster, floor, onDone }: BossBannerProps) {
   // onDone reference 가 매 render 마다 변해도 effect 재실행 막기 — ref 패턴
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
+  // Phase 11c R3 — prefers-reduced-motion 유저는 520ms 빨간 flash + tremor 가 가장
+  //   공격적인 모션. 짧게 끊고 애니메이션 제거 (아래 style jsx 의 @media 쿼리).
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const duration = prefersReducedMotion ? BANNER_DURATION_REDUCED : BANNER_DURATION;
+
   useEffect(() => {
     const id = window.setTimeout(() => {
       onDoneRef.current();
-    }, BANNER_DURATION);
+    }, duration);
     return () => window.clearTimeout(id);
-  }, []); // mount 시 1회만
+  }, [duration]); // mount 시 1회만 (duration 은 render 고정)
 
   // Phase 11c R2 — tap-to-skip. 30-run/day 유저가 매번 2.4s 대기 안 하도록.
   //   첫 etc 유저도 화면 대기 부담 없이 자연스럽게 탭하면 skip.
@@ -51,7 +59,7 @@ export default function BossBanner({ monster, floor, onDone }: BossBannerProps) 
 
   return (
     <div
-      className="absolute inset-0 z-40 flex items-center justify-center font-mono cursor-pointer"
+      className="boss-banner-root absolute inset-0 z-40 flex items-center justify-center font-mono cursor-pointer"
       onClick={handleSkip}
       role="button"
       tabIndex={0}
@@ -62,7 +70,7 @@ export default function BossBanner({ monster, floor, onDone }: BossBannerProps) 
           handleSkip();
         }
       }}
-      style={{ animation: `boss-fade ${BANNER_DURATION}ms ${EASE_OUT} forwards` }}
+      style={{ animation: `boss-fade ${duration}ms ${EASE_OUT} forwards` }}
     >
       {/* 빨간 flash 레이어 */}
       <div
@@ -188,6 +196,30 @@ export default function BossBanner({ monster, floor, onDone }: BossBannerProps) 
           }
           75% {
             transform: translate(-1px, 1px);
+          }
+        }
+        /* Phase 11c R3 — keyboard focus outline. 전체화면 cursor-pointer 라
+           :focus-visible 없으면 탭 위치 파악 불가. */
+        .boss-banner-root:focus-visible {
+          outline: 2px solid var(--accent-secondary);
+          outline-offset: -6px;
+        }
+        /* Phase 11c R3 — reduced-motion: flash/tremor/scale 제거, fade 만 짧게. */
+        @media (prefers-reduced-motion: reduce) {
+          .boss-banner-root {
+            animation: boss-fade-reduced 600ms linear forwards !important;
+          }
+          .boss-banner-root :global(*) {
+            animation: none !important;
+          }
+          @keyframes boss-fade-reduced {
+            0%,
+            70% {
+              opacity: 1;
+            }
+            100% {
+              opacity: 0;
+            }
           }
         }
       `}</style>
