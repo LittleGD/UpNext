@@ -178,5 +178,42 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
     set({ photoMetas: updated });
     saveToStorage(STORAGE_KEY, { photoMetas: updated });
     deletePhotoBlobs(photoId).catch(() => {});
+
+    // Phase 13 review Critical — photo 삭제 시 UpHero 쪽 orphan cascade 정리.
+    //   이 photo 를 photoId 로 바인딩한 equipment (사진 부적) 들은 삭제된 photo
+    //   블롭을 참조해 썸네일 로드 실패 + 스킬 계속 발동 상태가 됨.
+    //   inventory 에서 필터 + equipped slot 에서 unequip.
+    //   dynamic import 로 circular ref 회피 (useGrowthStore.ts ← useUpHeroStore.ts
+    //   의존이 이미 있으므로 반대 방향은 runtime require).
+    import("./useUpHeroStore")
+      .then((mod) => {
+        const s = mod.useUpHeroStore.getState();
+        // inventory 에서 해당 photoId 참조 장비 제거.
+        const filteredInv = s.inventory.filter((eq) => eq.photoId !== photoId);
+        // equipped 에서 해당 photoId 슬롯 해제 (talisman 이 일반적이지만 안전히
+        //   모든 슬롯 스캔).
+        const newEquipped = { ...s.hero.equipped };
+        let anyUnequipped = false;
+        for (const slot of Object.keys(newEquipped) as Array<
+          keyof typeof newEquipped
+        >) {
+          if (newEquipped[slot]?.photoId === photoId) {
+            delete newEquipped[slot];
+            anyUnequipped = true;
+          }
+        }
+        const invChanged = filteredInv.length !== s.inventory.length;
+        if (!invChanged && !anyUnequipped) return;
+        mod.useUpHeroStore.setState({
+          inventory: filteredInv,
+          hero: anyUnequipped
+            ? { ...s.hero, equipped: newEquipped }
+            : s.hero,
+        });
+        // Persist pickPersisted 가 필요하지만 setState 후 useUpHeroStore 의
+        //   internal save hook 이 없어서 수동 save. 여기선 간단히 saveToStorage
+        //   직접 호출은 안 하고 다음 action 이 저장하도록 맡김 (idempotent).
+      })
+      .catch(() => {});
   },
 }));

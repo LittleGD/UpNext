@@ -16,6 +16,7 @@ import LanguageToggle from "@/components/ui/LanguageToggle";
 import { useAuthStore } from "@/store/useAuthStore";
 import { deleteCloudData } from "@/lib/sync";
 import DevLeaderboardPanel from "@/components/uphero/DevLeaderboardPanel";
+import GbConfirm from "@/components/uphero/GbConfirm";
 import { motion, AnimatePresence } from "framer-motion";
 import { springSnappy } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
@@ -55,6 +56,9 @@ export default function SettingsPage() {
   const { t, language } = useTranslation();
   const [pendingMode, setPendingMode] = useState<GameMode | null>(null);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
+  // Phase 13 review dev cleanup — window.confirm 대신 커스텀 GbConfirm 다이얼로그.
+  //   pixel-art 디자인 시스템 일관성 + i18n 제목/본문 명확 표기.
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) initialize();
@@ -421,32 +425,50 @@ export default function SettingsPage() {
           {t("settings.privacy")}
         </Link>
         <button
-          onClick={async () => {
+          onClick={() => {
             play("select");
-            const currentAuthUser = useAuthStore.getState().user;
-            const msg = currentAuthUser
-              ? t("settings.reset.confirmWithAccount")
-              : t("settings.reset.confirmLocal");
-            if (window.confirm(msg)) {
-              if (currentAuthUser) {
-                try {
-                  await deleteCloudData(currentAuthUser.uid);
-                  await useAuthStore.getState().signOut();
-                } catch (e) {
-                  console.error("Cloud data deletion failed:", e);
-                }
-              }
-              Object.keys(localStorage).forEach((key) => {
-                if (key.startsWith("upnext_")) localStorage.removeItem(key);
-              });
-              window.location.href = "/";
-            }
+            setResetConfirmOpen(true);
           }}
           className="typo-caption text-text-tertiary hover:text-accent-secondary transition-colors"
         >
           {t("settings.reset.button")}
         </button>
       </section>
+
+      {/* Phase 13 review dev cleanup — window.confirm 제거. 디자인 시스템
+            일관 custom modal (GbConfirm) 사용. 유저가 최종 확인 전 본문에
+            세부 내용 (계정 연동 시 cloud 삭제 포함) 확인 가능. */}
+      <GbConfirm
+        open={resetConfirmOpen}
+        danger
+        title={t("settings.reset.button")}
+        body={
+          authUser
+            ? t("settings.reset.confirmWithAccount")
+            : t("settings.reset.confirmLocal")
+        }
+        confirmLabel={t("common.confirmDefault")}
+        cancelLabel={t("common.cancelDefault")}
+        onCancel={() => setResetConfirmOpen(false)}
+        onConfirm={async () => {
+          setResetConfirmOpen(false);
+          const currentAuthUser = useAuthStore.getState().user;
+          if (currentAuthUser) {
+            try {
+              await deleteCloudData(currentAuthUser.uid);
+              await useAuthStore.getState().signOut();
+            } catch (e) {
+              if (process.env.NODE_ENV !== "production") {
+                console.error("Cloud data deletion failed:", e);
+              }
+            }
+          }
+          Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith("upnext_")) localStorage.removeItem(key);
+          });
+          window.location.href = "/";
+        }}
+      />
 
       {/* Phase 12 R12 — 앱 버전 표시 (설정 맨 아래).
            유저가 버그 제보 / 지원 요청 시 "어느 빌드" 인지 즉시 확인할 수

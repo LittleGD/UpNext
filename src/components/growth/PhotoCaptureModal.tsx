@@ -259,19 +259,33 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   // Done — 사진 저장 + 디테일 뷰 표시 (즉시 close 안 함)
   // savedMeta 가 set 되면 PhotoDetailModal 이 렌더되어 사용자가 바로 확인/편집 가능.
   // 디테일 뷰 close 시 onComplete (챌린지 완료 + 모달 닫기) 호출됨.
+  //
+  // Phase 13 review Critical — double-click 가드. 이전엔 await 중 재탭 시
+  //   compressImage + savePhoto 2회 실행 → 같은 순간 두 id 로 중복 저장 +
+  //   IndexedDB 블롭 2배. `isSaving` ref 로 in-flight lock.
+  const isSavingRef = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
   const handleDone = useCallback(async () => {
     if (!capturedImage || !signatureData) return;
-    const meta = await savePhoto(
-      capturedImage,
-      signatureData,
-      "", // memo 는 capture 단계에서 입력 안 함 — detail 뷰에서 이어서 작성
-      cardTitle(card, language),
-      card.category,
-      stickers,
-    );
-    play("collect");
-    if (meta) setSavedMeta(meta);
-    else onComplete(); // savePhoto 가 null 반환 (pendingCaptureCardId 없음)
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    setIsSaving(true);
+    try {
+      const meta = await savePhoto(
+        capturedImage,
+        signatureData,
+        "", // memo 는 capture 단계에서 입력 안 함 — detail 뷰에서 이어서 작성
+        cardTitle(card, language),
+        card.category,
+        stickers,
+      );
+      play("collect");
+      if (meta) setSavedMeta(meta);
+      else onComplete(); // savePhoto 가 null 반환 (pendingCaptureCardId 없음)
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
   }, [capturedImage, signatureData, stickers, savePhoto, card, language, play, onComplete]);
 
   // 스티커 추가 — position 주어지면 그 위치 (드래그-앤-드롭 결과), 없으면 중앙 (탭).
@@ -1202,10 +1216,11 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
                   onClick={handleDone}
-                  disabled={!signatureData}
+                  disabled={!signatureData || isSaving}
+                  aria-busy={isSaving}
                   className="w-full py-3.5 rounded-xl bg-accent text-bg-primary typo-body active:scale-[0.97] transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                 >
-                  {t("common.done")}
+                  {isSaving ? "…" : t("common.done")}
                 </motion.button>
                 {!signatureData && (
                   <div

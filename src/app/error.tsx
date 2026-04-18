@@ -19,6 +19,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import PixelIcon from "@/components/icons/PixelIcon";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -26,6 +27,7 @@ interface ErrorPageProps {
 }
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
+  const { t } = useTranslation();
   // 에러 로깅 — 배포 환경에서도 브라우저 콘솔에 stack 이 남도록. Analytics /
   //   Sentry 훅이 생기면 여기서 send_exception 호출.
   useEffect(() => {
@@ -48,12 +50,11 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
       </div>
 
       <h1 className="typo-title text-text-primary mb-2">
-        잠시 문제가 발생했어요
+        {t("error.boundary.title")}
       </h1>
 
       <p className="typo-caption text-text-tertiary max-w-[320px] mb-6 leading-relaxed">
-        예상치 못한 오류로 화면이 멈췄어요. 다시 시도해도 계속되면
-        잠시 후 새로 고침 해 주세요.
+        {t("error.boundary.body")}
       </p>
 
       {/* 디버그 정보 — production 에서도 digest 는 사용자가 지원팀에 전달
@@ -64,7 +65,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           style={{ letterSpacing: "0.03em" }}
         >
           {error.digest
-            ? `오류 ID: ${error.digest}`
+            ? t("error.boundary.errorId", { id: error.digest })
             : error.message || "Unknown error"}
         </p>
       )}
@@ -75,13 +76,13 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           onClick={() => reset()}
           className="w-full py-3 rounded-xl bg-accent text-bg-primary typo-body transition-transform active:scale-[0.97]"
         >
-          다시 시도
+          {t("error.boundary.retry")}
         </button>
         <Link
           href="/"
           className="w-full py-3 rounded-xl bg-bg-surface text-text-secondary typo-body transition-colors active:text-text-primary text-center"
         >
-          처음 화면으로
+          {t("error.boundary.goHome")}
         </Link>
       </div>
     </main>
