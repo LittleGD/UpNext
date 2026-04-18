@@ -54,9 +54,9 @@ export default function HeroCodex({ onBack }: HeroCodexProps) {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-      {/* === SubHeader === */}
+      {/* === SubHeader === Phase 11b-fix: 뒤로 ghost, 제목 typo-body. */}
       <header
-        className="px-3 py-2.5 flex items-center gap-3 shrink-0"
+        className="px-3 py-2 flex items-center gap-1 shrink-0"
         style={{ borderBottom: `1px solid ${GB.dark}` }}
       >
         <button
@@ -65,30 +65,33 @@ export default function HeroCodex({ onBack }: HeroCodexProps) {
             play("cancel");
             onBack();
           }}
-          className="uphero-codex-back typo-caption inline-flex items-center gap-1"
+          className="uphero-codex-back typo-caption inline-flex items-center gap-0.5 rounded"
           style={{
             minHeight: 40,
-            padding: "8px 12px",
-            background: `${GB.dark}cc`,
-            border: `1px solid ${GB.light}`,
+            padding: "6px 8px",
+            background: "transparent",
+            border: "none",
             color: GB.light,
-            borderRadius: 6,
           }}
+          aria-label="뒤로"
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
           뒤로
         </button>
-        <div className="flex flex-col leading-tight flex-1">
-          <div className="typo-caption" style={{ color: GB.lightest }}>
-            도감
-          </div>
+        <div
+          className="typo-body ml-1"
+          style={{ color: GB.lightest, fontWeight: 500 }}
+        >
+          도감
         </div>
         <style jsx>{`
           .uphero-codex-back {
-            transition: transform 120ms ${EASE_OUT};
+            transition: transform 120ms ${EASE_OUT},
+              background 160ms ${EASE_OUT};
           }
           .uphero-codex-back:active {
-            transform: scale(0.97);
+            transform: scale(0.96);
+            background: ${GB.dark}66;
           }
         `}</style>
       </header>

@@ -212,34 +212,48 @@ export default function PhotoTalismanPicker({
     >
       {/* === Header === */}
       <header
-        className="px-3 py-2.5 flex items-center gap-3 shrink-0"
+        // Phase 11b-fix — subheader 균형.
+        className="px-3 py-2 flex items-center gap-1 shrink-0"
         style={{ borderBottom: `1px solid ${GB.dark}` }}
       >
         <button
           type="button"
           onClick={onClose}
-          className="typo-caption inline-flex items-center gap-1 rounded"
+          className="picker-back typo-caption inline-flex items-center gap-0.5 rounded"
           style={{
             minHeight: 40,
-            padding: "8px 12px",
-            background: `${GB.dark}cc`,
-            border: `1px solid ${GB.light}`,
+            padding: "6px 8px",
+            background: "transparent",
+            border: "none",
             color: GB.light,
           }}
+          aria-label="뒤로"
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
           뒤로
         </button>
-        <div className="flex flex-col leading-tight flex-1">
-          <div className="typo-caption" style={{ color: GB.lightest }}>
-            사진 부적 — 바인딩 의식
+        <div className="flex flex-col leading-tight flex-1 ml-1 min-w-0">
+          <div
+            className="typo-body truncate"
+            style={{ color: GB.lightest, fontWeight: 500 }}
+          >
+            사진 부적
           </div>
-          <div className={`typo-caption ${gbClass.textDim} tabular-nums`}>
-            미바인딩 {unboundPhotos.length} · 재의식 가능 {boundPhotos.length}
-            {" · "}
-            의식 {PHOTO_TALISMAN_RITUAL_COST} 코인
+          <div className={`typo-micro ${gbClass.textDim} tabular-nums`}>
+            미바인딩 {unboundPhotos.length} · 재의식 {boundPhotos.length} ·{" "}
+            {PHOTO_TALISMAN_RITUAL_COST}C
           </div>
         </div>
+        <style jsx>{`
+          .picker-back {
+            transition: transform 120ms ${EASE_OUT},
+              background 160ms ${EASE_OUT};
+          }
+          .picker-back:active {
+            transform: scale(0.96);
+            background: ${GB.dark}66;
+          }
+        `}</style>
       </header>
 
       {/* === Rarity 확률 표 — 의식 전 투명성 확보 === */}

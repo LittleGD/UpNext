@@ -705,6 +705,11 @@ function ShopView({
 
 /* ──────────────────────────────────────────────────────── */
 
+// Phase 11b-fix — SubHeader 균형 조정.
+//   이전: 뒤로 버튼이 border + solid bg 로 묵직한 박스, 제목은 작은 typo-caption
+//     → 시각 무게 역전 (보조 action 이 메인 제목보다 dominant).
+//   수정: 버튼을 ghost (no border, subtle bg, typo-caption) + 제목을 typo-body
+//     (크고 밝게) → 정보 우선순위 일치. tap target 은 여전히 min-height 40.
 function SubHeader({
   title,
   onBack,
@@ -714,27 +719,40 @@ function SubHeader({
 }) {
   return (
     <header
-      className="px-3 py-2.5 flex items-center gap-3 shrink-0"
+      className="px-3 py-2 flex items-center gap-1 shrink-0"
       style={{ borderBottom: `1px solid ${GB.dark}` }}
     >
-      <PressButton
+      <button
+        type="button"
         onClick={onBack}
+        className="uphero-subheader-back typo-caption inline-flex items-center gap-0.5 rounded"
         style={{
           minHeight: 40,
-          padding: "8px 12px",
-          background: `${GB.dark}cc`,
-          border: `1px solid ${GB.light}`,
+          padding: "6px 8px",
+          background: "transparent",
           color: GB.light,
+          border: "none",
         }}
+        aria-label="뒤로"
       >
-        <span className="inline-flex items-center gap-1 typo-caption">
-          <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
-          뒤로
-        </span>
-      </PressButton>
-      <div className="typo-caption" style={{ color: GB.lightest }}>
+        <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
+        뒤로
+      </button>
+      <div
+        className="typo-body ml-1"
+        style={{ color: GB.lightest, fontWeight: 500 }}
+      >
         {title}
       </div>
+      <style jsx>{`
+        .uphero-subheader-back {
+          transition: transform 120ms ${EASE_OUT}, background 160ms ${EASE_OUT};
+        }
+        .uphero-subheader-back:active {
+          transform: scale(0.96);
+          background: ${GB.dark}66;
+        }
+      `}</style>
     </header>
   );
 }
