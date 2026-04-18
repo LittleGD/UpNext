@@ -20,6 +20,7 @@ import {
   computeHeroForLevel,
   getHeroAppearanceVariant,
   CLASS_META,
+  CLASS_THEME_COLOR,
 } from "@/types/uphero";
 import type { EquipSlot, HeroBaseStats } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
@@ -128,7 +129,11 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
             variant={variant}
             classType={hero.classType}
             size={96}
-            color={GB.lightest}
+            color={
+              hero.classType
+                ? CLASS_THEME_COLOR[hero.classType]
+                : GB.lightest
+            }
           />
           <div
             className="typo-caption mt-3 tabular-nums"
@@ -270,10 +275,25 @@ import type { Hero } from "@/types/uphero";
 
 function ClassSection({ hero }: { hero: Hero }) {
   const toggleAutoSkill = useUpHeroStore((s) => s.toggleAutoSkill);
+  // Phase 6 polish — 전투 중이면 실시간 cooldown 표시.
+  const currentSession = useUpHeroStore((s) => s.currentSession);
   if (!hero.classType) return null;
   const meta = CLASS_META[hero.classType];
   const skill = CLASS_SKILLS[hero.classType];
   const autoEnabled = hero.autoSkillEnabled ?? true;
+
+  // 활성 세션이 있으면 skillCooldown 참조. 없으면 "준비됨" 정적 표시.
+  const sessionActive =
+    currentSession != null &&
+    currentSession.status !== "completed" &&
+    currentSession.hero.classType === hero.classType;
+  const currentCooldown = sessionActive
+    ? (currentSession.skillCooldown ?? 0)
+    : 0;
+  const ready = currentCooldown === 0;
+  const cooldownPct = sessionActive
+    ? ((skill.cooldown - currentCooldown) / skill.cooldown) * 100
+    : 100;
 
   return (
     <section
@@ -303,7 +323,7 @@ function ClassSection({ hero }: { hero: Hero }) {
         </div>
       </div>
 
-      {/* Phase 6b — 액티브 스킬 카드 + 자동 발동 토글 */}
+      {/* Phase 6b → polish — 액티브 스킬 카드 + 자동 토글 + 실시간 cooldown */}
       <div
         className="mt-2.5 flex items-center gap-3 rounded px-3 py-2.5"
         style={{
@@ -313,12 +333,46 @@ function ClassSection({ hero }: { hero: Hero }) {
       >
         <PixelIcon name="Zap" size={18} color={GB.lightest} />
         <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-          <div className="typo-caption" style={{ color: GB.lightest }}>
-            액티브 — {skill.name}
+          <div className="flex items-center gap-2 typo-caption">
+            <span style={{ color: GB.lightest }}>
+              액티브 — {skill.name}
+            </span>
+            {sessionActive && (
+              <span
+                className={`typo-micro tabular-nums ${
+                  ready ? "" : gbClass.textDim
+                }`}
+                style={{
+                  color: ready ? GB.lightest : undefined,
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {ready ? "READY" : `cd ${currentCooldown}`}
+              </span>
+            )}
           </div>
           <div className={`typo-caption ${gbClass.textDim} leading-tight`}>
-            쿨다운 {skill.cooldown} round · 조건 만족 시 자동 발동
+            {sessionActive
+              ? "조건 만족 시 자동 발동"
+              : `쿨다운 ${skill.cooldown} round · 조건 만족 시 자동 발동`}
           </div>
+          {/* 실시간 cooldown bar — 세션 active 일 때만 */}
+          {sessionActive && (
+            <div
+              className="mt-1.5 h-[2px] rounded-full w-full overflow-hidden"
+              style={{ background: GB.dark }}
+              aria-hidden="true"
+            >
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${cooldownPct}%`,
+                  background: ready ? GB.lightest : GB.light,
+                  transition: `width 280ms ${EASE_OUT}, background 200ms ${EASE_OUT}`,
+                }}
+              />
+            </div>
+          )}
         </div>
         <button
           type="button"
