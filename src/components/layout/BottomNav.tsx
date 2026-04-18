@@ -12,6 +12,7 @@ import { useGrowthStore } from "@/store/useGrowthStore";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { MODE_CARD_COUNT, PHASE_MAX_CARDS } from "@/types/game";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSound } from "@/hooks/useSound";
 import type { DictKey } from "@/i18n";
@@ -28,6 +29,9 @@ export default function BottomNav() {
   const { t } = useTranslation();
   const { play } = useSound();
   const isMd = useMediaQuery("(min-width: 768px)");
+  // Phase 12 R8 — 전정계 민감 사용자 대응. rise-in 애니 스킵 + whileTap scale
+  //   을 0.9 (강한) 대신 0.97 (Emil 표준) 으로 약화. reduce 일 땐 아예 생략.
+  const reducedMotion = useReducedMotion();
   const capturePhase = useGrowthStore((s) => s.capturePhase);
   const isLoaded = useGameStore((s) => s.isLoaded);
   const hasCompletedOnboarding = useGameStore((s) => s.hasCompletedOnboarding);
@@ -101,7 +105,8 @@ export default function BottomNav() {
     <motion.nav
       // 스플래시 종료 직후 첫 mount 시 하단에서 부드럽게 rise-in.
       // 이후 같은 세션 내 재마운트는 거의 없음(layout 지속) — mount 시 1회만 재생.
-      initial={{ y: 30, opacity: 0 }}
+      // Phase 12 R8 — reduced-motion 시 rise-in 스킵 (정적 표시).
+      initial={reducedMotion ? false : { y: 30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
       className="fixed bottom-5 left-1/2 -translate-x-1/2 z-10 pb-[env(safe-area-inset-bottom)]"
@@ -110,10 +115,20 @@ export default function BottomNav() {
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
-            <Link key={item.href} href={item.href} onClick={() => play("select")}>
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => play("select")}
+              aria-label={t(item.labelKey)}
+              aria-current={isActive ? "page" : undefined}
+            >
               <motion.div
-                whileTap={{ scale: 0.9 }}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all ${
+                /* Phase 12 R8 — Apple HIG / WCAG 2.5.5 최소 터치 영역 44×44px.
+                     기존 px-4 py-2 (=32px 터치) → px-4 py-2.5 + min-h-[44px]
+                     로 세로 확보. 가로는 active 시 label 포함 48px+ 로 충분.
+                     whileTap scale 0.9 → 0.97 (Emil 표준). reduced-motion 시 생략. */
+                whileTap={reducedMotion ? undefined : { scale: 0.97 }}
+                className={`flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-full transition-all ${
                   isActive
                     ? "bg-accent text-bg-primary"
                     : "text-text-tertiary hover:text-text-secondary"
