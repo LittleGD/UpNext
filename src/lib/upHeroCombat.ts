@@ -122,6 +122,7 @@ export function createSession(
     talismanMods,
     extraDropAvailable: talismanMods.extraDropChance > 0,
     talismanAgiStack: 0,
+    roundCounter: 0,
     startedAt: Date.now(),
   };
   // Phase 11b — start-time effects (startHpMult/Flat, startXp) 를 session 에 반영.
@@ -962,24 +963,27 @@ function executeCombatRound(
     s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + regen);
   }
 
-  // Phase 11b — "대지의 축복" 2 round 마다 HP +N regen (log 기반 근사).
-  //   log 의 combat entry 수 기준으로 경과 round 파악. Simplest: every other call.
-  //   실제로 round 개수 세는 세션 필드 없으니 talismanAgiStack 을 round 카운터 겸용
-  //   (무념 + 대지 의 조합이 stack 에 의존). 짝수 round 에 regen.
+  // Phase 11b — round counter 증가 (regen 판정 전). 이전 버그: talismanAgiStack
+  //   을 cap(8) 있는 agi stack 과 "round 카운터" 로 겸용 → 무념 cap 도달 후 stack=8
+  //   로 고정되면 `stack % 2 === 0` 매 round true → 대지의 축복이 매 round 발동.
+  //   지금은 roundCounter (무제한 증가) 와 talismanAgiStack (capped) 분리.
+  const nextRoundCounter = (s.roundCounter ?? 0) + 1;
+  s.roundCounter = nextRoundCounter;
+
+  // Phase 11b — "대지의 축복" 2 round 마다 HP +N regen.
+  //   roundCounter 기준 짝수에서만 발동.
   const regen2 = tMods.hpRegenEvery2Rounds;
-  if (regen2 > 0 && s.hero.hp > 0 && agiStack > 0 && agiStack % 2 === 0) {
+  if (regen2 > 0 && s.hero.hp > 0 && nextRoundCounter % 2 === 0) {
     s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + regen2);
   }
 
   // Phase 11b — agi stack 증가 (다음 round 용). cap saturate.
+  //   accum 없으면 갱신 불필요 (regen2 는 이제 roundCounter 기준).
   if (tMods.agiRoundAccum > 0) {
     s.talismanAgiStack = Math.min(
       tMods.agiRoundCap,
       agiStack + tMods.agiRoundAccum,
     );
-  } else {
-    // accum 없어도 regen2 의 round 카운터로 쓰이니 항상 +1
-    s.talismanAgiStack = (agiStack + 1) % 1000; // overflow 방지
   }
 
   // Phase 6b — round 종료 시 쿨다운 감소 + 지속 스킬 카운터 감소
