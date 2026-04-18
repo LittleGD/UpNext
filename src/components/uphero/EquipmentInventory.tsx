@@ -345,9 +345,11 @@ export default function EquipmentInventory({
         </section>
       )}
 
-      {/* === Phase 8a: 탭 switcher (가방 / 사진 부적 / 강화) === */}
+      {/* === Phase 8a: 탭 switcher (가방 / 사진 부적 / 강화)
+           Phase 8b: sliding underline indicator — 두 객체(A↓/B↑) 가 아닌 하나의
+           underline 이 옮겨가는 지각. translateX 로 0/100/200% 이동. === */}
       <nav
-        className="flex items-center gap-0 px-3 shrink-0"
+        className="relative flex items-stretch shrink-0"
         style={{ borderBottom: `1px solid ${GB.dark}` }}
       >
         <EqTabButton
@@ -365,18 +367,30 @@ export default function EquipmentInventory({
           onClick={() => setTab("enhance")}
           label="강화"
         />
+        <div
+          aria-hidden="true"
+          className="absolute bottom-[-1px] h-[2px]"
+          style={{
+            width: "33.3333%",
+            left: 0,
+            background: GB.lightest,
+            transform: `translateX(${tab === "bag" ? "0%" : tab === "photo" ? "100%" : "200%"})`,
+            transition: `transform 240ms ${EASE_OUT}`,
+            boxShadow: `0 0 4px ${GB.lightest}66`,
+          }}
+        />
       </nav>
 
-      {/* === 탭 컨텐츠 === */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
+      {/* === 탭 컨텐츠 — key={tab} 로 DOM remount 해서 enter keyframe 재생.
+           "탭 전환 = 새로운 공간" 이라는 감각을 200ms fade + 4px slide 로 전달. === */}
+      <div
+        key={tab}
+        className="eq-tab-content flex-1 min-h-0 overflow-y-auto px-3 py-3"
+      >
         {/* 가방 — 현재 인벤토리 grid */}
         {tab === "bag" &&
           (inventory.length === 0 ? (
-            <div
-              className={`typo-caption ${gbClass.textDim} text-center py-8`}
-            >
-              장비가 없어요. 던전에서 획득하거나 사진 부적을 만들어 보세요.
-            </div>
+            <EmptyState text="장비가 없어요. 던전에서 획득하거나 사진 부적을 만들어 보세요" />
           ) : (
             <div className="grid grid-cols-3 gap-2">
               {inventory.map((eq) => (
@@ -410,7 +424,7 @@ export default function EquipmentInventory({
                 setPhotoPickerOpen(true);
               }}
               disabled={photoCounts.unboundCount === 0}
-              className="w-full rounded px-3 py-3 typo-caption flex items-center gap-2"
+              className="uphero-ritual-cta w-full rounded px-3 py-3 typo-caption flex items-center gap-2"
               style={{
                 background:
                   photoCounts.unboundCount > 0
@@ -419,7 +433,6 @@ export default function EquipmentInventory({
                 border: `1px dashed ${photoCounts.unboundCount > 0 ? GB.light : GB.dark}80`,
                 color: GB.light,
                 textAlign: "left",
-                opacity: photoCounts.unboundCount === 0 ? 0.55 : 1,
               }}
             >
               <PixelIcon name="Image" size={14} color={GB.light} />
@@ -429,6 +442,24 @@ export default function EquipmentInventory({
                   : "바인딩할 수 있는 사진 없음"}
               </span>
               <span className={gbClass.textDim}>80 C · 랜덤</span>
+              <style jsx>{`
+                .uphero-ritual-cta {
+                  transition: transform 140ms ${EASE_OUT},
+                    border-color 200ms ${EASE_OUT},
+                    filter 220ms ${EASE_OUT};
+                }
+                .uphero-ritual-cta:not(:disabled):active {
+                  transform: scale(0.985);
+                }
+                .uphero-ritual-cta:not(:disabled):hover {
+                  border-color: ${GB.lightest};
+                }
+                .uphero-ritual-cta:disabled {
+                  filter: saturate(0.25) brightness(0.85);
+                  opacity: 0.55;
+                  cursor: not-allowed;
+                }
+              `}</style>
             </button>
 
             {/* 카운트 라벨 */}
@@ -468,11 +499,7 @@ export default function EquipmentInventory({
               강화 — 같은 슬롯 · 같은 등급 2장 합성
             </div>
             {enhanceableGroups.length === 0 ? (
-              <div
-                className={`typo-caption ${gbClass.textDim} text-center py-8 leading-relaxed`}
-              >
-                합성 가능한 쌍 없음 — 같은 슬롯 · 등급 장비 2개 이상 필요해요
-              </div>
+              <EmptyState text="합성 가능한 쌍 없음 — 같은 슬롯 · 등급 장비 2개 이상 필요해요" />
             ) : (
               <div className="flex flex-col gap-1.5">
                 {enhanceableGroups.map(({ type, rarity, items }) => {
@@ -591,7 +618,10 @@ function ActionButton({
   );
 }
 
-/** Phase 8a — 탭 버튼 (HeroCodex 의 TabButton 패턴과 동일 룩) */
+/** Phase 8a → 8b — 탭 버튼.
+ *   underline 은 nav 부모의 sliding indicator 가 담당 (shared element).
+ *   여기선 flex-1 balanced + press feedback 만 책임.
+ *   탭은 하루 수십 번 눌리는 고빈도라 120ms 로 짧게, 0.97 scale 로 미묘하게. */
 function EqTabButton({
   active,
   onClick,
@@ -605,19 +635,56 @@ function EqTabButton({
     <button
       type="button"
       onClick={onClick}
-      className="typo-caption"
+      className="eq-tab-btn typo-caption flex-1"
       style={{
-        padding: "10px 16px",
+        padding: "10px 8px",
         color: active ? GB.lightest : GB.light,
         background: "transparent",
-        borderBottom: `2px solid ${active ? GB.lightest : "transparent"}`,
-        marginBottom: -1,
-        transition: `color 180ms ${EASE_OUT}, border-color 180ms ${EASE_OUT}`,
       }}
       aria-current={active ? "page" : undefined}
     >
       {label}
+      <style jsx>{`
+        .eq-tab-btn {
+          transition: color 180ms ${EASE_OUT}, transform 120ms ${EASE_OUT};
+        }
+        .eq-tab-btn:active {
+          transform: scale(0.97);
+        }
+      `}</style>
     </button>
+  );
+}
+
+/** Phase 8b — 로그라이크 감성 Empty state.
+ *   텍스트 뒤에 깜빡이는 cursor caret 을 붙여 "터미널 / prompt 대기" 느낌.
+ *   정적 placeholder 보다 "앱이 살아있다" 는 시그널. */
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div
+      className={`typo-caption ${gbClass.textDim} text-center py-8 leading-relaxed`}
+    >
+      {text}
+      <span className="uphero-caret" aria-hidden="true">
+        _
+      </span>
+      <style jsx>{`
+        .uphero-caret {
+          display: inline-block;
+          margin-left: 2px;
+          animation: uphero-caret-blink 1.1s steps(2, end) infinite;
+        }
+        @keyframes uphero-caret-blink {
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0;
+          }
+        }
+      `}</style>
+    </div>
   );
 }
 

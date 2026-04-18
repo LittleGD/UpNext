@@ -9,11 +9,41 @@
  * 스타일: 다른 toast 와 유사하게 상단 배너 (z-30).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { formatElapsed } from "@/lib/idleAccrual";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import PixelIcon from "@/components/icons/PixelIcon";
+
+/**
+ * Phase 8b — 작은 count-up hook.
+ * 0 → target 으로 duration 동안 올라간다. idle reward toast 처럼
+ * "이만큼이나 얻었어!" 감각을 주는 숫자에 쓴다.
+ * tabular-nums 로 layout shift 없음.
+ */
+function useCountUp(target: number, duration = 700, enabled = true): number {
+  const [n, setN] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!enabled) {
+      setN(target);
+      return;
+    }
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3);
+      setN(Math.round(target * eased));
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [target, duration, enabled]);
+  return n;
+}
 
 export default function IdleRewardToast() {
   const reward = useUpHeroStore((s) => s.idleReward);
@@ -41,6 +71,11 @@ export default function IdleRewardToast() {
       window.clearTimeout(dismissTimer);
     };
   }, [reward, acknowledge, blocked]);
+
+  // Phase 8b — mount 후 XP/coin 을 count-up 으로 올려 "이만큼이나!" 감각 전달.
+  // mounted 가 true 된 뒤에만 started — reward 가 바뀌어도 key effect 로 재실행됨.
+  const xpDisplay = useCountUp(reward?.xp ?? 0, 700, mounted);
+  const coinDisplay = useCountUp(reward?.coins ?? 0, 700, mounted);
 
   if (!reward) return null;
   if (blocked) return null;
@@ -84,8 +119,8 @@ export default function IdleRewardToast() {
         )}
         <br />
         <span className="tabular-nums">
-          +<span style={{ color: GB.lightest }}>{reward.xp}</span> XP · +
-          <span style={{ color: GB.lightest }}>{reward.coins}</span> C
+          +<span style={{ color: GB.lightest }}>{xpDisplay}</span> XP · +
+          <span style={{ color: GB.lightest }}>{coinDisplay}</span> C
         </span>
       </div>
     </button>

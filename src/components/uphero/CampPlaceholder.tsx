@@ -36,6 +36,7 @@ import EquipmentInventory from "./EquipmentInventory";
 import HeroCodex from "./HeroCodex";
 import HeroStatPanel from "./HeroStatPanel";
 import BuffDrawPanel from "./BuffDrawPanel";
+import NumberRoll from "./NumberRoll";
 
 /** 카테고리 → pixelarticons 이름 (라이브러리에서 고른 무드 매칭) */
 const CATEGORY_ICON: Record<DungeonId, string> = {
@@ -96,12 +97,23 @@ export default function CampPlaceholder() {
         <div className="flex items-center gap-3 tabular-nums">
           <span className="inline-flex items-center gap-1">
             <PixelIcon name="Coins" size={14} color={GB.light} />
-            <span style={{ color: GB.lightest }}>{coins}</span>
+            {/* Phase 8b — coin 변화 시 slot-roll 로 "획득/소모" 감각 전달 */}
+            <NumberRoll
+              value={coins}
+              style={{ color: GB.lightest }}
+              gainColor="#e8c76b"
+              lossColor="#e88b7a"
+            />
           </span>
           <span className={gbClass.textDim}>|</span>
           <span className="inline-flex items-center gap-1">
             <PixelIcon name="Card" size={14} color={GB.light} />
-            <span>{tickets}/10</span>
+            <NumberRoll
+              value={tickets}
+              format={(v) => `${v}/10`}
+              style={{ color: GB.light }}
+              gainColor={GB.lightest}
+            />
           </span>
         </div>
       </header>
@@ -277,9 +289,10 @@ function HomeView({
           `}</style>
         </button>
 
-        {/* 분위기 텍스트 — 이모지 제거, 선형 장식으로 대체 */}
+        {/* 분위기 텍스트 — Phase 8b: 실제로 타오르듯 flicker.
+             opacity + warm text-shadow 를 4.2s 주기로 호흡. */}
         <div
-          className="mt-5 typo-caption text-center"
+          className="uphero-fire-flicker mt-5 typo-caption text-center"
           style={{ color: GB.light }}
         >
           — 모닥불이 조용히 타오른다 —

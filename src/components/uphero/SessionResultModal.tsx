@@ -7,13 +7,38 @@
  * acknowledgeSessionEnd() 호출로 reward 적용 + session 초기화.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, gbClass, GB_ENEMY } from "@/lib/upHeroPalette";
 import PixelIcon from "@/components/icons/PixelIcon";
 import DropRevealCard from "./DropRevealCard";
+
+/** Phase 8b — count-up hook (IdleRewardToast 와 동일 패턴, 공용화 전단계).
+ *   세션 결산 modal 에서 XP/coin 이 0 → 실제 값으로 700ms 올라간다. */
+function useCountUp(target: number, duration = 700, enabled = true): number {
+  const [n, setN] = useState(enabled ? 0 : target);
+  const rafRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!enabled) {
+      setN(target);
+      return;
+    }
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setN(Math.round(target * eased));
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [target, duration, enabled]);
+  return n;
+}
 
 export default function SessionResultModal() {
   const session = useUpHeroStore((s) => s.currentSession);
@@ -31,6 +56,14 @@ export default function SessionResultModal() {
       window.clearTimeout(detailTimer);
     };
   }, []);
+
+  // Phase 8b — count-up: detail 등장 이후 시작해서 visual hierarchy 지킴.
+  //   결산 타이틀 → detail fade-in (280ms) → reward 숫자 count-up (700ms)
+  //   결국 1초 이내에 모든 정보가 자리잡음.
+  const rewardsXp = session?.rewards.xp ?? 0;
+  const rewardsCoins = session?.rewards.coins ?? 0;
+  const xpDisplay = useCountUp(rewardsXp, 700, detailMounted);
+  const coinDisplay = useCountUp(rewardsCoins, 700, detailMounted);
 
   if (!session || session.status !== "completed") return null;
   if (typeof window === "undefined") return null;
@@ -111,14 +144,14 @@ export default function SessionResultModal() {
           <RewardRow
             iconName="Sparkle"
             label="경험치"
-            value={`+${session.rewards.xp} XP`}
-            accent={session.rewards.xp > 0}
+            value={`+${xpDisplay} XP`}
+            accent={rewardsXp > 0}
           />
           <RewardRow
             iconName="Coins"
             label="갓생 코인"
-            value={`+${session.rewards.coins} C`}
-            accent={session.rewards.coins > 0}
+            value={`+${coinDisplay} C`}
+            accent={rewardsCoins > 0}
           />
           <div>
             <div
