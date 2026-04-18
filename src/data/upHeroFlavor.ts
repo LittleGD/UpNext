@@ -94,7 +94,11 @@ export function pickEvent(
 
   const useDungeon = Math.random() < 0.6;
   const pool = useDungeon ? EVENT_POOL[dungeonId] : UNIVERSAL_EVENTS;
-  const filtered = pool.filter((ev) => !recent.includes(ev.prompt));
+  // Phase 12 R2 — 작은 pool 에서 LRU 고갈 방지. pool 크기 기준 max(1, pool-1) 개만 제외.
+  //   예: pool 4 + recent 3 전부 pool 원소 → 필터 결과 1 남음 (OK). pool 3 은 최대 2 만 제외.
+  const maxExclude = Math.max(1, pool.length - 1);
+  const excludeSet = new Set(recent.slice(-maxExclude));
+  const filtered = pool.filter((ev) => !excludeSet.has(ev.prompt));
   const effective = filtered.length > 0 ? filtered : pool;
   return effective[Math.floor(Math.random() * effective.length)];
 }

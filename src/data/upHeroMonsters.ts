@@ -193,7 +193,10 @@ function scaleMonster(
   //   NG+2 F30 보스 atk = 375 → 300 (1.8× ngMult). crit = 281, Lv30 maxHp 448
   //   에서 1.6 hit 여전히 위험하나 이전 350 대비 완화.
   const bossHpMult = t.isBoss ? 4 : 1;
-  const bossAtkMult = t.isBoss ? 2.0 : 1;
+  // Phase 12 R2 — NG+2 F30 에서 crit 한 방에 maxHp 의 50%+ 깎여 2 hit 사망 위험.
+  //   2.0 → 1.85 로 완화. F10 atk 111 (crit 102 vs Lv9 maxHp 196 = 1.9 hit).
+  //   F30 NG+2 atk 450 (crit 210 vs Lv30 maxHp 448 = 2.1 hit 생존).
+  const bossAtkMult = t.isBoss ? 1.85 : 1;
   // Phase 11c R4 — 기존 하드코딩 `1 + 0.5 * ngPlusLevel` 을 `ngPlusScaleMult` 로 교체.
   //   R4 R1 에서 `ngPlusScaleMult` 를 0.5n → 0.4n 로 변경했으나 여기서 import 되지
   //   않아 orphan 함수였음. 이제 실제로 적용됨.

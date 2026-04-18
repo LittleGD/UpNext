@@ -68,9 +68,10 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
             kind: "startMinigame",
             minigame: "sequence_memo",
             difficulty: 2,
+            // Phase 12 R2 — 기존 skipFloors 보너스 제거 (다른 미니게임 대비 과보상).
+            //   xp 65 + coin 25 로 3 미니게임 균형.
             successEffects: [
-              { kind: "reward", xp: 60, coins: 15 },
-              { kind: "skipFloors", count: 1 },
+              { kind: "reward", xp: 65, coins: 25 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [
