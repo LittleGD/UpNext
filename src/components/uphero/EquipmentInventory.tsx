@@ -410,7 +410,8 @@ export default function EquipmentInventory({
                     transition: transform 120ms ${EASE_OUT};
                   }
                   .uphero-slot-btn:not(:disabled):active {
-                    transform: ${translate} scale(0.95);
+                    /* Emil — press 0.97 통일. 기존 0.95 는 강한 strobe 감. */
+                    transform: ${translate} scale(0.97);
                   }
                 `}</style>
               </button>
@@ -832,7 +833,8 @@ function ActionButton({
           transition: transform 120ms ${EASE_OUT};
         }
         .uphero-action-btn:active {
-          transform: scale(0.95);
+          /* Emil — press 0.97 통일 */
+          transform: scale(0.97);
         }
       `}</style>
     </button>
