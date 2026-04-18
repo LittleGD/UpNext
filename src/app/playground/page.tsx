@@ -53,7 +53,8 @@ export default function PlaygroundPage() {
   }
 
   return (
-    <div className={`${inUpHeroDungeon ? "px-0 py-0 pb-0" : "px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+96px)]"} max-w-lg md:max-w-xl lg:max-w-2xl mx-auto`}>
+    // Phase 9d-ⅰ — compact Header 와 탭 사이가 더 가까이 붙음 (pt-3 → pt-2).
+    <div className={`${inUpHeroDungeon ? "px-0 py-0 pb-0" : "px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+96px)]"} max-w-lg md:max-w-xl lg:max-w-2xl mx-auto`}>
       {/* Phase 9a — Collection 과 동일한 sliding underline 탭.
             이전엔 per-button border-opacity 로 두 객체 (A↓/B↑) 가 깜빡였음.
             하나의 밑줄이 옮겨가는 common-fate 지각 + flex-1 균일 width 로 일관성. */}
