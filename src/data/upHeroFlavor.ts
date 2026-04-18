@@ -74,10 +74,29 @@ export function pickRestDescription(): string {
  * 랜덤 이벤트 — 던전 고유 이벤트 + 범용 이벤트 를 섞어서 풍부하게.
  * 60% 던전 고유, 40% 범용.
  */
-export function pickEvent(dungeonId: DungeonId): DungeonEvent {
+/**
+ * Phase 12 R1 — session 또는 dungeonId 받기. recentEventPrompts (LRU 3) 에 포함된
+ *   이벤트는 제외해 연속 반복 완화. pool 전체가 recent 인 엣지 케이스는 원래 pool.
+ */
+export function pickEvent(
+  sessionOrDungeon:
+    | DungeonId
+    | { dungeonId: DungeonId; recentEventPrompts?: string[] },
+): DungeonEvent {
+  const dungeonId =
+    typeof sessionOrDungeon === "string"
+      ? sessionOrDungeon
+      : sessionOrDungeon.dungeonId;
+  const recent =
+    typeof sessionOrDungeon === "string"
+      ? []
+      : (sessionOrDungeon.recentEventPrompts ?? []);
+
   const useDungeon = Math.random() < 0.6;
   const pool = useDungeon ? EVENT_POOL[dungeonId] : UNIVERSAL_EVENTS;
-  return pool[Math.floor(Math.random() * pool.length)];
+  const filtered = pool.filter((ev) => !recent.includes(ev.prompt));
+  const effective = filtered.length > 0 ? filtered : pool;
+  return effective[Math.floor(Math.random() * effective.length)];
 }
 
 /**

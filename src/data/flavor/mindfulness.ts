@@ -52,6 +52,39 @@ export const MINDFULNESS_EVENTS: DungeonEvent[] = [
       ],
     },
     {
+      prompt: "기억의 연못. 물결 위에 떠오른 그림자가 흐려진다. 같은 쌍을 찾아라.",
+      options: [
+        {
+          label: "응시한다",
+          effect: {
+            kind: "startMinigame",
+            minigame: "pair_match",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 65 },
+              { kind: "heal", amount: 25 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 8 },
+              { kind: "time", delta: -4 },
+            ],
+          },
+          resultText: "잔상이 엉킨다...",
+        },
+        {
+          label: "고개를 돌린다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "기억을 두고 떠난다.",
+              effects: [{ kind: "time", delta: -2 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
       prompt: "바위에 앉은 수행자가 호흡법을 전수해 주겠다고 한다.",
       options: [
         {

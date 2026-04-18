@@ -187,10 +187,13 @@ function scaleMonster(
   const { ngPlusLevel = 0, hpMult = 1, atkMult = 1 } = opts;
   // Phase 12 bugfix — 보스 HP 와 ATK 배율을 분리. 기존 bossMult=4 가 HP/ATK 동시
   //   적용되어 Floor 10 보스 atk=240 → Lv9 영웅 crit 1-hit kill.
-  //   이제 HP×4 (탱키함 유지) / ATK×2.5 (생존 가능한 위협) 로 재밸런스.
-  //   Lv9 영웅 vit 9 DR 0.26 기준 Floor 10 보스 crit = 150 → 2 hit 생존.
+  //   R1: bossAtkMult 2.5 → 2.0 추가 하향 + 보스 crit ×1.4 → ×1.25 로 (computeEnemyDamage
+  //   에서 분기). F10 보스 atk = (5+15)×3×2.0 = 120, Lv9 DR 0.26, crit (×1.25) = 112.
+  //   Lv9 maxHp 196 에서 2.3 hit 생존 — 플레이어 vit 투자 시 3 hit 이상.
+  //   NG+2 F30 보스 atk = 375 → 300 (1.8× ngMult). crit = 281, Lv30 maxHp 448
+  //   에서 1.6 hit 여전히 위험하나 이전 350 대비 완화.
   const bossHpMult = t.isBoss ? 4 : 1;
-  const bossAtkMult = t.isBoss ? 2.5 : 1;
+  const bossAtkMult = t.isBoss ? 2.0 : 1;
   // Phase 11c R4 — 기존 하드코딩 `1 + 0.5 * ngPlusLevel` 을 `ngPlusScaleMult` 로 교체.
   //   R4 R1 에서 `ngPlusScaleMult` 를 0.5n → 0.4n 로 변경했으나 여기서 import 되지
   //   않아 orphan 함수였음. 이제 실제로 적용됨.

@@ -487,6 +487,11 @@ export interface CombatSession {
     failEffects: SimpleChoiceEffect[];
   };
   /**
+   * Phase 12 R1 — 최근 본 choice event prompt LRU (max 3). pickEvent 에서 같은 것이
+   *   연속 뽑히지 않도록 배제. 같은 세션에서 "수상한 상인" 이 3번 연속 나오던 현상 완화.
+   */
+  recentEventPrompts?: string[];
+  /**
    * Phase 6b — 다음 영웅 공격 damage 배율 (warrior 강타 등).
    * 1 이상 — 공격 발생 후 reset (1 로 돌아감).
    */
@@ -1029,7 +1034,10 @@ export const CLASS_RESOURCE: Record<ClassType, ClassResourceSpec> = {
     name: "마나",
     short: "MANA",
     color: "#8bb9e8",
-    gain: { roundStart: 10, victory: 15 },
+    // Phase 12 R1 — round 당 마나 축적 속도 상향 (10 → 14) + attack 시 +3.
+    //   기존 보스전 7 round 동안 70 + 15(victory 후) 로 T4 (90) 못 쓰던 문제 완화.
+    //   이제 7 round = 98 + attack 보너스 → T4 발동 가능.
+    gain: { roundStart: 14, attack: 3, victory: 15 },
   },
   monk: {
     name: "기",
@@ -1047,25 +1055,30 @@ export const CLASS_RESOURCE: Record<ClassType, ClassResourceSpec> = {
     name: "영감",
     short: "INSP",
     color: "#e8c76b",
-    gain: { victory: 15, attack: 8 },
+    // Phase 12 R1 — bard 이벤트 선택 시 +5 (대화/협상 플레이버 반영).
+    gain: { victory: 15, attack: 8, choice: 5 },
   },
   chronomancer: {
     name: "시간 파편",
     short: "TIME",
     color: "#a5c8db",
-    gain: { floor: 15, choice: 10, roundStart: 5 },
+    // Phase 12 R1 — 전투 중 지속력 강화: roundStart 5 → 8, attack +3.
+    gain: { floor: 15, choice: 10, roundStart: 8, attack: 3 },
   },
   priest: {
     name: "신앙",
     short: "FAITH",
     color: "#e8e0cd",
-    gain: { heal: 15, dodge: 10, victory: 10 },
+    // Phase 12 R1 — 전투 중 축적이 너무 느려 T4 (100) 는 세션당 1-2회였음.
+    //   hit (피격) 시 +8 추가 — 보스전에서 꾸준히 쌓임. 20 round 전투 기준 160+ 축적.
+    gain: { heal: 15, dodge: 10, hit: 8, victory: 10 },
   },
   illusionist: {
     name: "환기",
     short: "ESNC",
     color: "#c88be8",
-    gain: { dodge: 25, crit: 15, attack: 5 },
+    // Phase 12 R1 — illusionist 이벤트 선택 시 +5 (속임수 플레이버).
+    gain: { dodge: 25, crit: 15, attack: 5, choice: 5 },
   },
 };
 

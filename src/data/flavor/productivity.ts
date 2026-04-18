@@ -154,6 +154,38 @@ export const PRODUCTIVITY_EVENTS: DungeonEvent[] = [
       ],
     },
     {
+      prompt: "공장의 배관이 끊어졌다. 조각을 맞춰 연결해야 한다.",
+      options: [
+        {
+          label: "배관 연결",
+          effect: {
+            kind: "startMinigame",
+            minigame: "pipe_connect",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 70, coins: 30 },
+              { kind: "time", delta: 5 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 10 },
+              { kind: "time", delta: -6 },
+            ],
+          },
+          resultText: "조각을 돌려 본다...",
+        },
+        {
+          label: "우회로 찾기",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "시간이 걸리지만 안전.",
+              effects: [{ kind: "time", delta: -8 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
       prompt: "고장난 시계를 발견했다.",
       options: [
         {
