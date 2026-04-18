@@ -54,6 +54,7 @@ const RARITY_COLOR: Record<Rarity, string> = {
 };
 
 export default function HeroCodex({ onBack }: HeroCodexProps) {
+  const { t } = useTranslation();
   const codex = useUpHeroStore((s) => s.codex);
   const { play } = useSound();
   const [tab, setTab] = useState<Tab>("monsters");
@@ -79,7 +80,7 @@ export default function HeroCodex({ onBack }: HeroCodexProps) {
             border: "none",
             color: GB.light,
           }}
-          aria-label="뒤로"
+          aria-label={t("uphero.codex.back.aria")}
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
           뒤로

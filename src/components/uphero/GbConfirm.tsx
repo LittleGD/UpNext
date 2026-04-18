@@ -25,6 +25,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 interface GbConfirmProps {
@@ -44,12 +45,15 @@ export default function GbConfirm({
   open,
   title,
   body,
-  confirmLabel = "확인",
-  cancelLabel = "취소",
+  confirmLabel,
+  cancelLabel,
   danger = false,
   onConfirm,
   onCancel,
 }: GbConfirmProps) {
+  const { t } = useTranslation();
+  const confirmText = confirmLabel ?? t("common.confirmDefault");
+  const cancelText = cancelLabel ?? t("common.cancelDefault");
   const containerRef = useRef<HTMLDivElement>(null);
   useModalA11y(containerRef, onCancel, { disabled: !open });
 
@@ -141,7 +145,7 @@ export default function GbConfirm({
               border: `1px solid ${GB.light}`,
             }}
           >
-            {cancelLabel}
+            {cancelText}
           </button>
           <button
             type="button"
@@ -157,7 +161,7 @@ export default function GbConfirm({
             }}
             autoFocus
           >
-            {confirmLabel}
+            {confirmText}
           </button>
         </div>
       </div>

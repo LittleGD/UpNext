@@ -729,6 +729,27 @@ const en: Record<DictKey, string> = {
   "uphero.help.item.abandon.title": "Abandon",
   "uphero.help.item.abandon.desc": "Return to camp voluntarily. All drops so far are kept.",
 
+  // === Misc hero UI (residuals) ===
+  "uphero.boss.appearAria": "Boss appears — tap to skip",
+  "uphero.buff.enter": "Enter",
+  "uphero.buff.enterN": "Enter with {count}",
+  "uphero.choice.choicesAria": "Choices",
+  "uphero.choice.hint.encounter": "Choose within {sec}s — auto-fights if idle",
+  "uphero.choice.hint.event": "Expedition is paused until you choose",
+  "uphero.class.awakenAria": "Class awakening",
+  "uphero.log.sessionEnd.victory": "Boss defeated — expedition complete",
+  "uphero.log.sessionEnd.died": "Your hero fell",
+  "uphero.log.sessionEnd.timeout": "Expedition time ran out",
+  "uphero.log.sessionEnd.abandoned": "Returned to camp",
+  "uphero.codex.back.aria": "Back",
+  "uphero.enhance.success.fullTitle": "Enhance succeeded",
+  "uphero.enhance.fail.keepTitle": "Enhance failed — item kept",
+  "uphero.enhance.destroyed.title": "Item destroyed",
+  "uphero.enhance.continue": "Continue",
+  "uphero.enhance.comfort": "It's okay",
+  "common.confirmDefault": "Confirm",
+  "common.cancelDefault": "Cancel",
+
   // === Equipment inventory ===
   "uphero.equip.tabBag": "Bag",
   "uphero.equip.tabTalisman": "Photo Talismans",

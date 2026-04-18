@@ -24,6 +24,7 @@ import { DUNGEONS } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, EASE_DRAWER, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
 import type { ChallengeCard, Rarity } from "@/types/card";
 import { useSound } from "@/hooks/useSound";
+import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const RARITY_COLOR: Record<Rarity, string> = {
@@ -34,6 +35,7 @@ const RARITY_COLOR: Record<Rarity, string> = {
 };
 
 export default function BuffDrawPanel() {
+  const { t } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
   const pending = useUpHeroStore((s) => s.pendingDungeon);
   const confirmDungeon = useUpHeroStore((s) => s.confirmDungeon);
@@ -187,7 +189,9 @@ export default function BuffDrawPanel() {
             opacity: selectedIds.length > 0 ? 1 : 0.6,
           }}
         >
-          {selectedIds.length > 0 ? `${selectedIds.length}장 진입` : "진입"}
+          {selectedIds.length > 0
+            ? t("uphero.buff.enterN", { count: selectedIds.length })
+            : t("uphero.buff.enter")}
         </button>
         <style jsx>{`
           .uphero-draw-btn {

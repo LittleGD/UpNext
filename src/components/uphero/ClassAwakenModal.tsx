@@ -20,9 +20,11 @@ import { DUNGEONS } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, EASE_DRAWER } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function ClassAwakenModal() {
+  const { t } = useTranslation();
   const pending = useUpHeroStore((s) => s.pendingClassAwaken);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeClassAwaken);
   const { play } = useSound();
@@ -73,7 +75,7 @@ export default function ClassAwakenModal() {
       ref={containerRef}
       role="dialog"
       aria-modal="true"
-      aria-label="클래스 분화"
+      aria-label={t("uphero.class.awakenAria")}
       className="fixed inset-0 z-50 flex flex-col items-center justify-center"
       style={{
         background: `radial-gradient(ellipse at center, ${dungeon.themeColor}22 0%, ${GB.darkest}ee 65%, ${GB.darkest} 100%)`,

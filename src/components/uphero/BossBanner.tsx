@@ -21,6 +21,8 @@
 import { useEffect, useRef } from "react";
 import type { Monster } from "@/types/uphero";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
+import { useTranslation } from "@/hooks/useTranslation";
+import { monsterName } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 
 interface BossBannerProps {
@@ -33,6 +35,7 @@ const BANNER_DURATION = 2400;
 const BANNER_DURATION_REDUCED = 600;
 
 export default function BossBanner({ monster, floor, onDone }: BossBannerProps) {
+  const { t, language } = useTranslation();
   // onDone reference 가 매 render 마다 변해도 effect 재실행 막기 — ref 패턴
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -63,7 +66,7 @@ export default function BossBanner({ monster, floor, onDone }: BossBannerProps) 
       onClick={handleSkip}
       role="button"
       tabIndex={0}
-      aria-label="보스 등장 — 탭해서 건너뛰기"
+      aria-label={t("uphero.boss.appearAria")}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -131,7 +134,7 @@ export default function BossBanner({ monster, floor, onDone }: BossBannerProps) 
             textShadow: "0 0 12px color-mix(in srgb, var(--accent-secondary) 50%, transparent)",
           }}
         >
-          {monster.name}
+          {monsterName(monster, language)}
         </div>
 
         {/* 층 / 스탯 */}

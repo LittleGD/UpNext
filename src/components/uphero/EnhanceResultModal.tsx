@@ -16,6 +16,8 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { GB, EASE_OUT, GB_ENEMY, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { DictKey } from "@/i18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 import type { Equipment } from "@/types/uphero";
 
@@ -38,6 +40,7 @@ export default function EnhanceResultModal({
 }: EnhanceResultModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalA11y(containerRef, onClose, { noScrollLock: true });
+  const { t } = useTranslation();
 
   // success 만 auto dismiss, keep/destroyed 는 유저 확인까지 대기.
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function EnhanceResultModal({
 
   if (typeof window === "undefined") return null;
 
-  const { title, tone, body, cta, icon } = resolveVariant(variant);
+  const { title, tone, body, cta, icon } = resolveVariant(variant, t);
 
   return createPortal(
     <div
@@ -150,7 +153,10 @@ export default function EnhanceResultModal({
 }
 
 /** variant 별 title / tone / body / cta / icon 결정. */
-function resolveVariant(variant: EnhanceModalVariant): {
+function resolveVariant(
+  variant: EnhanceModalVariant,
+  t: (key: DictKey, params?: Record<string, string | number>) => string,
+): {
   title: string;
   tone: string;
   body: React.ReactNode;
@@ -161,7 +167,7 @@ function resolveVariant(variant: EnhanceModalVariant): {
     const { newItem, prevLevel } = variant;
     const newLevel = newItem.enhanceLevel ?? prevLevel + 1;
     return {
-      title: "강화 성공",
+      title: t("uphero.enhance.success.fullTitle"),
       tone: newLevel >= 10 ? GB_LEGEND : GB.lightest,
       icon: "Check",
       body: (
@@ -172,41 +178,27 @@ function resolveVariant(variant: EnhanceModalVariant): {
           <div className="mt-1.5 tabular-nums">
             +{prevLevel} → <span style={{ color: GB.lightest }}>+{newLevel}</span>
           </div>
-          {newLevel >= 10 && (
-            <div
-              className="mt-2 typo-micro"
-              style={{
-                color: GB_LEGEND,
-                letterSpacing: "0.05em",
-              }}
-            >
-              ✦ 최대 강화 도달
-            </div>
-          )}
         </>
       ),
-      cta: "계속",
+      cta: t("uphero.enhance.continue"),
     };
   }
   if (variant.kind === "keep") {
     return {
-      title: "강화 실패 — 아이템은 남았다",
+      title: t("uphero.enhance.fail.keepTitle"),
       tone: "#e8d88b", // GB_WARN
       icon: "WarningDiamond",
       body: (
         <>
           <div style={{ color: GB.lightest }}>{variant.item.name}</div>
-          <div className="mt-1.5" style={{ opacity: 0.85 }}>
-            이번 시도는 실패했지만, 장비는 그대로 유지됐다.
-          </div>
         </>
       ),
-      cta: "계속",
+      cta: t("uphero.enhance.continue"),
     };
   }
   // destroyed
   return {
-    title: "아이템 소실",
+    title: t("uphero.enhance.destroyed.title"),
     tone: GB_ENEMY,
     icon: "Skull",
     body: (
@@ -214,11 +206,8 @@ function resolveVariant(variant: EnhanceModalVariant): {
         <div style={{ color: GB_ENEMY, fontWeight: 600 }}>
           {variant.lostItemName}
         </div>
-        <div className="mt-1.5" style={{ opacity: 0.85 }}>
-          강화의 대가로 아이템이 사라졌다. 다음 기회에 다시 도전.
-        </div>
       </>
     ),
-    cta: "위로",
+    cta: t("uphero.enhance.comfort"),
   };
 }

@@ -20,6 +20,7 @@ import PixelIcon from "@/components/icons/PixelIcon";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
+import { useTranslation } from "@/hooks/useTranslation";
 
 /** Phase 11b — skill id → 표시 이름 (없으면 id 그대로). */
 function talismanSkillName(id: string): string {
@@ -102,6 +103,7 @@ export default function EquipmentCard({
   style,
   className,
 }: EquipmentCardProps) {
+  const { t } = useTranslation();
   const dim = DIMENSIONS[size];
   const rarityColor = RARITY_COLOR[equipment.rarity];
   const clickable = !!onClick;
@@ -253,7 +255,7 @@ export default function EquipmentCard({
     // Phase 11c R4 — rarity / enhance level / stats 를 SR 에 전달.
     //   R2 수정: "선택됨" 을 aria-label 에서 제거 (aria-pressed 와 중복 공지 방지).
     //   stats 는 legend 는 모든 affix 포함 (최대 5개), 그 외 상위 3개.
-    const rarityLabel = { normal: "일반", rare: "레어", unique: "유니크", legend: "전설" }[equipment.rarity];
+    const rarityLabel = t(`uphero.rarity.${equipment.rarity}` as const);
     const enhance = equipment.enhanceLevel ?? 0;
     const statLimit = equipment.rarity === "legend" ? 5 : 3;
     const statsBrief = statEntries
