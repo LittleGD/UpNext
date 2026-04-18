@@ -53,39 +53,57 @@ export default function PlaygroundPage() {
   }
 
   return (
-    <div className={`${inUpHeroDungeon ? "px-0 py-0 pb-0" : "px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+96px)]"} max-w-lg md:max-w-xl lg:max-w-2xl mx-auto`}>
-      {/* Underline tabs — 공간 절약 + 진짜 탭 감성.
-          typo-caption 으로 크기 축소, underline 으로 active 표시. */}
+    <div className={`${inUpHeroDungeon ? "px-0 py-0 pb-0" : "px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+96px)]"} max-w-lg md:max-w-xl lg:max-w-2xl mx-auto`}>
+      {/* Phase 9a — Collection 과 동일한 sliding underline 탭.
+            이전엔 per-button border-opacity 로 두 객체 (A↓/B↑) 가 깜빡였음.
+            하나의 밑줄이 옮겨가는 common-fate 지각 + flex-1 균일 width 로 일관성. */}
       {!inUpHeroDungeon && (
-        <div
-          className="flex gap-1 mb-4"
-          style={{ borderBottom: "1px solid rgb(255 255 255 / 0.05)" }}
+        <nav
+          className="relative flex items-stretch mb-5"
+          style={{ borderBottom: "1px solid rgb(255 255 255 / 0.06)" }}
         >
           {TABS.map(({ key, labelKey }) => {
             const active = tab === key;
             return (
               <button
                 key={key}
+                type="button"
                 onClick={() => { play("select"); setTab(key); }}
-                className={`relative px-3 py-2 typo-caption transition-colors ${
-                  active
-                    ? "text-accent"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
+                className="playground-tab-btn flex-1 py-2.5 typo-body"
+                style={{
+                  color: active
+                    ? "var(--accent-primary)"
+                    : "var(--text-secondary)",
+                  background: "transparent",
+                }}
+                aria-current={active ? "page" : undefined}
               >
                 {t(labelKey)}
-                {/* active underline indicator */}
-                <span
-                  className="absolute left-2 right-2 -bottom-px h-0.5 transition-opacity"
-                  style={{
-                    background: "var(--accent-primary)",
-                    opacity: active ? 1 : 0,
-                  }}
-                />
               </button>
             );
           })}
-        </div>
+          <div
+            aria-hidden="true"
+            className="absolute bottom-[-1px] h-[2px]"
+            style={{
+              width: `${100 / TABS.length}%`,
+              left: 0,
+              background: "var(--accent-primary)",
+              transform: `translateX(${TABS.findIndex((t) => t.key === tab) * 100}%)`,
+              transition: "transform 240ms cubic-bezier(0.23, 1, 0.32, 1)",
+              boxShadow: "0 0 4px color-mix(in srgb, var(--accent-primary) 40%, transparent)",
+            }}
+          />
+          <style jsx>{`
+            .playground-tab-btn {
+              transition: color 180ms cubic-bezier(0.23, 1, 0.32, 1),
+                transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+            }
+            .playground-tab-btn:active {
+              transform: scale(0.97);
+            }
+          `}</style>
+        </nav>
       )}
 
       {/* Tab content */}

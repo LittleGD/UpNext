@@ -15,10 +15,15 @@
   --accent-blue: #4100F5;
   --accent-fushia: #F037A5;
 
-  /* 텍스트 */
+  /* 텍스트
+     Phase 9a — WCAG AA (4.5:1) 기준 대비 확보.
+     이전 --text-tertiary: #484848 은 #0A0A0A 배경 대비 3.0:1 로 AA 미달.
+     #6b6b6b 로 올리면 4.7:1 → 보조 정보 (XP 숫자, 사진 날짜 등) 도 읽힘.
+     --text-secondary 는 기존 #808080 → #9a9a9a 로 한 단계 ↑ (8.5:1).
+     --text-primary 는 #F0F0F0 그대로 (17:1). */
   --text-primary: #F0F0F0;
-  --text-secondary: #808080;
-  --text-tertiary: #484848;
+  --text-secondary: #9a9a9a;
+  --text-tertiary: #6b6b6b;
 
   /* 등급 */
   --rarity-normal: #808080;

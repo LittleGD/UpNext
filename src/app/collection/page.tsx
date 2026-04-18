@@ -71,8 +71,10 @@ export default function CollectionPage() {
   const newTitleCount = earnedIds.filter((id) => !seenIds.includes(id)).length;
 
   // Phase 8c — 앨범 탭 배지: photoMetas 개수.
+  // Phase 9a — playground 와 동일한 pt-3 로 상단 여백 통일.
+  //   이전 py-6 (24px) 가 Header XP 바와 탭 사이를 너무 벌려 허전했음.
   return (
-    <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
+    <div className="px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
       {/* Phase 8c — 탭 (아지트 스타일).
             각 버튼 flex-1 로 균일, 부모에 sliding underline indicator.
             탭 간 전환 시 밑줄이 하나의 객체로 옮겨가는 지각 (gestalt common fate). */}
