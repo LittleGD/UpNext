@@ -448,6 +448,16 @@ export default function SettingsPage() {
         </button>
       </section>
 
+      {/* Phase 12 R12 — 앱 버전 표시 (설정 맨 아래).
+           유저가 버그 제보 / 지원 요청 시 "어느 빌드" 인지 즉시 확인할 수
+           있도록. 작게 dim 처리해 시각 무게 최소. 향후 build metadata
+           (git sha / build date) 확장 가능. */}
+      <section className="pt-2 text-center">
+        <p className="typo-micro text-text-tertiary opacity-60 tabular-nums">
+          UpNext v0.1.0
+        </p>
+      </section>
+
       {/* Phase 11c — Dev 도구 (production 제외).
            리더보드/NG+/주간 변이 테스트 단축. */}
       {process.env.NODE_ENV === "development" && <DevLeaderboardPanel />}
