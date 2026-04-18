@@ -14,7 +14,7 @@
  *  3. 또는 슬롯 탭 → 해제 (다시 인벤토리로)
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { isPhotoBound } from "@/lib/photoTalisman";
@@ -31,9 +31,12 @@ import { useGameStore } from "@/store/useGameStore";
 import { useSound } from "@/hooks/useSound";
 import EquipmentCard from "./EquipmentCard";
 import HeroSprite from "./HeroSprite";
-import PhotoTalismanPicker from "./PhotoTalismanPicker";
 import GbConfirm from "./GbConfirm";
 import PixelIcon from "@/components/icons/PixelIcon";
+
+// Phase 9b — PhotoTalismanPicker 는 picker 버튼 탭 시에만 필요.
+//   631줄 + PhotoMeta/DUNGEONS import → 장비 탭 첫 진입에서 번들링 제외.
+const PhotoTalismanPicker = lazy(() => import("./PhotoTalismanPicker"));
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 
 /** Phase 9a — confirm 다이얼로그 state. 판매/버리기/합성 3액션 공유. */
@@ -578,12 +581,16 @@ export default function EquipmentInventory({
         )}
       </div>
 
-      {/* Phase 7 — 사진 부적 Picker (overlay portal) */}
+      {/* Phase 7 — 사진 부적 Picker (overlay portal).
+           Phase 9b — lazy. picker 는 Portal 기반 + 첫 open 시 fade-in 자체가 로딩
+           시간 감춤 → fallback=null 이면 네이티브처럼 느껴짐. */}
       {photoPickerOpen && (
-        <PhotoTalismanPicker
-          onClose={() => setPhotoPickerOpen(false)}
-          onNotify={onNotify}
-        />
+        <Suspense fallback={null}>
+          <PhotoTalismanPicker
+            onClose={() => setPhotoPickerOpen(false)}
+            onNotify={onNotify}
+          />
+        </Suspense>
       )}
 
       {/* Phase 9a — 판매/버리기/합성 confirm 다이얼로그 (기존 native confirm 대체).
