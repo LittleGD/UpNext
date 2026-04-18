@@ -34,3 +34,23 @@ export function removeFromStorage(key: string): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(PREFIX + key);
 }
+
+/**
+ * 모든 upnext_* 키 제거. 로그아웃 시 사용자 간 상태 누출 방지 용도.
+ * Firebase Auth signOut 과 별개로 호출 필요 — Firebase 는 Auth 세션만 지운다.
+ */
+export function clearAllAppStorage(): void {
+  if (typeof window === "undefined") return;
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(PREFIX)) keysToRemove.push(k);
+  }
+  for (const k of keysToRemove) {
+    try {
+      localStorage.removeItem(k);
+    } catch {
+      // ignore
+    }
+  }
+}

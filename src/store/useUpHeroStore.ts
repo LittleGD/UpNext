@@ -91,9 +91,13 @@ const CURRENT_SCHEMA_VERSION = 5;
  * 현재는 template.name 기반으로 저장. initialize 때 한 번만 변환 + dedup
  * (schemaVersion gating).
  */
-function migrateCodexMonsters(entries: string[]): string[] {
+function migrateCodexMonsters(entries: unknown): string[] {
+  // Phase 11c R4 보안 — input 이 항상 string[] 인 게 아닐 수 있음 (devtools 조작
+  //   또는 corrupted storage). typeof 사전 필터로 .match throw 방지.
+  if (!Array.isArray(entries)) return [];
   const result = new Set<string>();
   for (const entry of entries) {
+    if (typeof entry !== "string") continue;
     // Legacy 인스턴스 ID 포맷: "prefix_with_underscores_f{N}_{M}" (all ascii).
     // Korean name entries 는 이 패턴에 매칭되지 않으므로 그대로 통과.
     const legacyMatch = entry.match(/^([a-z][a-z_]*?)_f\d+_\d+$/);
@@ -118,9 +122,12 @@ function migrateCodexMonsters(entries: string[]): string[] {
  *
  * 기존 baseName 처럼 보이는 entry (이미 Korean) 는 그대로 통과.
  */
-function migrateCodexEquipment(entries: string[]): string[] {
+function migrateCodexEquipment(entries: unknown): string[] {
+  // Phase 11c R4 보안 — array + string 필터 (corrupted input 방지).
+  if (!Array.isArray(entries)) return [];
   const result = new Set<string>();
   for (const entry of entries) {
+    if (typeof entry !== "string") continue;
     // Legacy instance id 포맷 감지 — eq_ 로 시작
     if (!entry.startsWith("eq_")) {
       result.add(entry);

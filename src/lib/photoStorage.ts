@@ -96,6 +96,23 @@ export async function deletePhotoBlobs(id: string): Promise<void> {
   });
 }
 
+/**
+ * 로그아웃 시 전체 사진 blob wipe. IndexedDB 의 DB 자체를 delete.
+ * Phase 11c R4 보안 수정 — 사용자 간 기기 공유 시 이전 유저 사진 노출 방지.
+ */
+export async function clearAllPhotoStorage(): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.deleteDatabase(DB_NAME);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve(); // best-effort
+      req.onblocked = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+}
+
 // === 이미지 압축 유틸 ===
 
 /** dataURL → 리사이즈 + JPEG 압축 → Blob */
