@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { useGrowthStore } from "@/store/useGrowthStore";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { getThumbnailBlob, getSignatureBlob, blobToUrl } from "@/lib/photoStorage";
 import { KODAK_FILM_FILTER, FILM_GRAIN_URL, VINTAGE_VIGNETTE } from "@/lib/photoFilter";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -13,7 +14,16 @@ import StickerLayer from "./StickerLayer";
 import type { PhotoMeta } from "@/types/growth";
 
 // === ArchiveSlot — 미니 폴라로이드 프레임 ===
-function ArchiveSlot({ meta, onTap }: { meta: PhotoMeta; onTap: () => void }) {
+function ArchiveSlot({
+  meta,
+  onTap,
+  bound,
+}: {
+  meta: PhotoMeta;
+  onTap: () => void;
+  /** Phase 7 polish — Up Hero 의 부적으로 바인딩된 사진. 표시 overlay */
+  bound: boolean;
+}) {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [sigUrl, setSigUrl] = useState<string | null>(null);
 
@@ -110,6 +120,24 @@ function ArchiveSlot({ meta, onTap }: { meta: PhotoMeta; onTap: () => void }) {
         {meta.stickers && meta.stickers.length > 0 && (
           <StickerLayer stickers={meta.stickers} editable={false} />
         )}
+
+        {/* Phase 7 polish — 부적으로 바인딩된 사진 표시.
+             우상단 corner 에 작은 원형 배지 + Sparkle 아이콘. */}
+        {bound && (
+          <div
+            className="absolute top-1 right-1 rounded-full flex items-center justify-center z-[10]"
+            style={{
+              width: 20,
+              height: 20,
+              background: "#cdf564",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.35)",
+            }}
+            aria-label="부적으로 바인딩됨"
+            title="부적으로 바인딩됨"
+          >
+            <PixelIcon name="Sparkle" size={12} color="#0a1f0a" />
+          </div>
+        )}
       </div>
 
       {/* 라벨 — 날짜만, 챌린지 제목은 디테일 모달에서 표시 */}
@@ -125,6 +153,23 @@ export default function ArchiveSheet() {
   const photoMetas = useGrowthStore((s) => s.photoMetas);
   const { t, language } = useTranslation();
   const [selectedMeta, setSelectedMeta] = useState<PhotoMeta | null>(null);
+
+  // Phase 7 polish — Up Hero 의 부적으로 바인딩된 photo id 집합.
+  // inventory + equipped 양쪽에서 photoId 를 긁어 Set 으로 효율적 lookup.
+  // 두 개의 store slice 를 따로 구독해 memo 로 Set 조립 (새 Set 을 selector
+  // 반환값으로 주면 매 render 마다 identity 가 달라져 re-render 유발).
+  const inventory = useUpHeroStore((s) => s.inventory);
+  const equipped = useUpHeroStore((s) => s.hero.equipped);
+  const boundPhotoIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const eq of inventory) {
+      if (eq.photoId) ids.add(eq.photoId);
+    }
+    for (const eq of Object.values(equipped)) {
+      if (eq?.photoId) ids.add(eq.photoId);
+    }
+    return ids;
+  }, [inventory, equipped]);
 
   if (photoMetas.length === 0) {
     return (
@@ -147,7 +192,12 @@ export default function ArchiveSheet() {
       >
         <div className="grid grid-cols-3 gap-3">
           {photoMetas.map((meta) => (
-            <ArchiveSlot key={meta.id} meta={meta} onTap={() => setSelectedMeta(meta)} />
+            <ArchiveSlot
+              key={meta.id}
+              meta={meta}
+              onTap={() => setSelectedMeta(meta)}
+              bound={boundPhotoIds.has(meta.id)}
+            />
           ))}
         </div>
         <p className="typo-micro text-text-tertiary text-center">

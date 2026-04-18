@@ -45,6 +45,13 @@ export default function PhotoTalismanPicker({
 
   const [mounted, setMounted] = useState(false);
   const [revealedItem, setRevealedItem] = useState<Equipment | null>(null);
+  // Phase 7 polish — "의식" 연출. photoId + 결과 item 을 3초 애니메이션 동안
+  // 보관하고 끝날 때 reveal 로 전환. 코인 차감 / inventory 추가 / rarity roll
+  // 은 애니메이션 시작 직후 즉시 (UI 는 애니메이션 재생 중 바뀐 상태를 보여주지
+  // 않도록 availablePhotos 갱신이 애니메이션 끝날 때 반영되어도 OK — 방어적
+  // 으로 ritual photo 는 그 photo 객체를 snapshot 으로 들고 있음).
+  const [ritualPhoto, setRitualPhoto] = useState<PhotoMeta | null>(null);
+  const [ritualItem, setRitualItem] = useState<Equipment | null>(null);
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
@@ -74,7 +81,13 @@ export default function PhotoTalismanPicker({
     const result = bindPhotoAsTalisman(photo.id);
     if (result.ok && result.newItem) {
       play("collect");
-      setRevealedItem(result.newItem);
+      setRitualPhoto(photo);
+      setRitualItem(result.newItem);
+      // 3 초 후 reveal 모달로 전환
+      window.setTimeout(() => {
+        setRitualPhoto(null);
+        setRevealedItem(result.newItem!);
+      }, 3000);
     } else {
       play("cancel");
       onNotify(result.error ?? "실패");
@@ -126,6 +139,28 @@ export default function PhotoTalismanPicker({
         </div>
       </header>
 
+      {/* === Rarity 확률 표 — 의식 전 투명성 확보 === */}
+      <div
+        className="px-3 py-2.5 shrink-0"
+        style={{
+          borderBottom: `1px solid ${GB.dark}`,
+          background: `${GB.dark}33`,
+        }}
+      >
+        <div
+          className={`typo-micro ${gbClass.textDim} mb-1.5`}
+          style={{ letterSpacing: "0.05em" }}
+        >
+          RARITY 확률
+        </div>
+        <div className="flex items-center gap-3 flex-wrap typo-micro tabular-nums">
+          <RarityProb color={GB.light} label="일반" pct={50} />
+          <RarityProb color={GB_RARE} label="희귀" pct={35} />
+          <RarityProb color={GB_UNIQUE} label="고유" pct={12} />
+          <RarityProb color={GB_LEGEND} label="전설" pct={3} />
+        </div>
+      </div>
+
       {/* === Body === */}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
         {availablePhotos.length === 0 ? (
@@ -150,6 +185,11 @@ export default function PhotoTalismanPicker({
         )}
       </div>
 
+      {/* === Ritual 연출 === */}
+      {ritualPhoto && ritualItem && (
+        <RitualAnimation photo={ritualPhoto} item={ritualItem} />
+      )}
+
       {/* === Reveal modal === */}
       {revealedItem && (
         <RitualReveal
@@ -165,6 +205,33 @@ export default function PhotoTalismanPicker({
 }
 
 /* ────────────────────────────────────────── */
+
+/** rarity 확률 표 pill — 색 dot + 한글 이름 + 퍼센트 */
+function RarityProb({
+  color,
+  label,
+  pct,
+}: {
+  color: string;
+  label: string;
+  pct: number;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1.5">
+      <div
+        className="rounded-full"
+        style={{
+          width: 6,
+          height: 6,
+          background: color,
+          boxShadow: `0 0 3px ${color}aa`,
+        }}
+      />
+      <span style={{ color }}>{label}</span>
+      <span className={gbClass.textDim}>{pct}%</span>
+    </div>
+  );
+}
 
 /** 썸네일 한 장 — IndexedDB 에서 blob 가져와 URL 로 렌더 */
 function PhotoThumb({
@@ -360,6 +427,150 @@ function RitualReveal({
             인벤토리로
           </button>
         </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/* ────────────────────────────────────────── */
+
+/**
+ * Phase 7 polish — 의식 연출. 3 초 동안 photo 가 회전/확대 + 파편 + flash.
+ * 끝나면 parent 가 RitualReveal 로 전환.
+ */
+function RitualAnimation({
+  photo,
+  item,
+}: {
+  photo: PhotoMeta;
+  item: Equipment;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+    getThumbnailBlob(photo.id)
+      .then((blob) => {
+        if (!active || !blob) return;
+        objectUrl = blobToUrl(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [photo.id]);
+
+  const rarityColor =
+    item.rarity === "legend"
+      ? GB_LEGEND
+      : item.rarity === "unique"
+        ? GB_UNIQUE
+        : item.rarity === "rare"
+          ? GB_RARE
+          : GB.light;
+
+  // 8 방향 파편 — 각도별로 계산해서 inline style 변수 전달
+  const sparks = useMemo(() => {
+    const arr: Array<{ sx: number; sy: number; fx: number; fy: number; delay: number }> = [];
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
+      const midR = 60;
+      const farR = 140;
+      arr.push({
+        sx: Math.cos(angle) * midR,
+        sy: Math.sin(angle) * midR,
+        fx: Math.cos(angle) * farR,
+        fy: Math.sin(angle) * farR,
+        delay: 600 + (i * 90),
+      });
+    }
+    return arr;
+  }, []);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[55] flex items-center justify-center pointer-events-none"
+      style={{ background: `${GB.darkest}ee` }}
+    >
+      {/* 중앙 glow */}
+      <div
+        className="uphero-ritual-glow absolute rounded-full"
+        style={{
+          width: 240,
+          height: 240,
+          background: `radial-gradient(circle, ${rarityColor}66 0%, ${rarityColor}22 40%, transparent 70%)`,
+        }}
+        aria-hidden="true"
+      />
+      {/* 파편 */}
+      {sparks.map((s, i) => (
+        <span
+          key={i}
+          className="uphero-ritual-spark absolute typo-caption pointer-events-none"
+          style={
+            {
+              color: rarityColor,
+              fontSize: 14,
+              textShadow: `0 0 6px ${rarityColor}`,
+              "--sx": `${s.sx}px`,
+              "--sy": `${s.sy}px`,
+              "--fx": `${s.fx}px`,
+              "--fy": `${s.fy}px`,
+              animationDelay: `${s.delay}ms`,
+            } as React.CSSProperties
+          }
+          aria-hidden="true"
+        >
+          ✦
+        </span>
+      ))}
+
+      {/* photo 본체 */}
+      <div
+        className="uphero-ritual-photo relative overflow-hidden rounded"
+        style={{
+          width: 150,
+          height: 150,
+          border: `2px solid ${rarityColor}`,
+          boxShadow: `0 0 24px ${rarityColor}aa`,
+        }}
+      >
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt="ritual"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              background: GB.dark,
+            }}
+          />
+        )}
+      </div>
+
+      {/* 텍스트 — "의식이 진행 중..." */}
+      <div
+        className="absolute typo-caption"
+        style={{
+          bottom: "calc(50% - 140px)",
+          color: GB.lightest,
+          letterSpacing: "0.1em",
+        }}
+      >
+        의식이 진행되고 있다…
       </div>
     </div>,
     document.body,
