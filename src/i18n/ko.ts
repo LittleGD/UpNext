@@ -373,6 +373,102 @@ const ko = {
   "patchnotes.title": "업데이트 노트",
   "patchnotes.close": "확인했어요",
   "patchnotes.version": "v{version}",
+
+  // === Up Hero — Combat / Dungeon UI ===
+  "uphero.combat.expedition": "원정",
+  "uphero.combat.hp": "HP",
+  "uphero.combat.time": "TIME",
+  "uphero.combat.hp.aria": "영웅 체력",
+  "uphero.combat.time.aria": "탐험 시간",
+  "uphero.combat.hp.danger": "위험",
+  "uphero.combat.hp.warn": "경고",
+  "uphero.combat.time.danger": "시간 위험",
+  "uphero.combat.time.warn": "시간 경고",
+  "uphero.combat.enemyHp.aria": "{name} 체력",
+  "uphero.combat.expedition.aria": "원정 진행도 — 이번 cycle F{start}~F{end}",
+  "uphero.combat.expedition.valueText": "F{start} 에서 F{end} 까지, 현재 F{current}",
+  "uphero.combat.expedition.title": "F{start} → F{end} · 현재 F{current} (? 는 수상한 이벤트)",
+  "uphero.combat.expedition.toEnd": "→ F{end}",
+  "uphero.combat.boss.marker": "F{floor} 보스",
+  "uphero.combat.boss.clearedSuffix": " (클리어)",
+  "uphero.combat.mystery.marker": "F{floor} — 수상한 이벤트",
+  "uphero.combat.helpAria": "인터랙션 도움말",
+  "uphero.combat.pause": "일시정지",
+  "uphero.combat.resume": "재개",
+  "uphero.combat.speed": "속도",
+  "uphero.combat.speedX": "{x}×",
+  "uphero.combat.abandon": "포기",
+  "uphero.combat.continue": "계속",
+  "uphero.combat.confirm.title": "탐험을 포기하고 캠프로 돌아갈까요?",
+  "uphero.combat.confirm.keepRewards": "지금까지 획득한 보상 (XP · 코인 · 장비) 은 모두 유지됩니다.",
+  "uphero.combat.confirm.missBoss": "단, 다음 보스 (F{floor}) 에 도전할 기회를 놓칩니다.",
+
+  // Announce / session end reasons
+  "uphero.announce.bossDefeated": "보스 처치 승리",
+  "uphero.announce.heroDied": "영웅이 쓰러졌습니다",
+  "uphero.announce.timeExpired": "시간이 다했습니다",
+  "uphero.announce.ended": "탐험 종료",
+  "uphero.announce.skillFired": "스킬 {name} 발동",
+  "uphero.announce.bossAppear": "{name} 등장. HP {hp}",
+  "uphero.announce.bossVictory": "{name} 처치. 경험치 +{xp}, 코인 +{coins}",
+  "uphero.announce.drop": "{rarity} {name} 획득",
+
+  // Rarity labels
+  "uphero.rarity.normal": "일반",
+  "uphero.rarity.rare": "레어",
+  "uphero.rarity.unique": "유니크",
+  "uphero.rarity.legend": "전설",
+
+  // Combat log (short)
+  "uphero.log.bossAppear": "보스 등장 — {name}",
+  "uphero.log.victory": "{name} 처치",
+  "uphero.log.heroAttackFallback": "영웅이 공격 — −{damage}",
+  "uphero.log.heroHitFallback": "영웅이 피격 — −{damage}",
+  "uphero.log.dropGained": "장비 획득: {name}",
+  "uphero.log.mystery": "수상한 이벤트",
+  "uphero.log.mysteryAria": "수상한 이벤트 · 효과 증폭",
+
+  // Hero stat panel
+  "uphero.stat.title": "영웅 상세",
+  "uphero.stat.closeAria": "닫기",
+  "uphero.stat.close": "닫기",
+  "uphero.stat.nextLevel": "다음 Lv.{level} — 모든 스탯 +1, HP +10",
+
+  // Equipment slot labels
+  "uphero.slot.weapon": "무기",
+  "uphero.slot.armor": "갑옷",
+  "uphero.slot.accessory": "액세서리",
+  "uphero.slot.talisman": "부적",
+
+  // Skill tree
+  "uphero.skillTree.title": "스킬트리",
+  "uphero.skillTree.resource": "자원",
+  "uphero.skillTree.spGainHint": "레벨업마다 SP +1",
+  "uphero.skillTree.unlock": "해금",
+  "uphero.skillTree.sp": "SP",
+  "uphero.skillTree.cost": "비용",
+
+  // Choice panel
+  "uphero.choice.mysteryBadge": "수상한 이벤트",
+  "uphero.choice.mysteryBadgeAria": "수상한 이벤트 · 효과 증폭",
+
+  // Shop — toasts / misc
+  "uphero.shop.boughtTicket": "카드매치 티켓 +1 ({current}/{max})",
+  "uphero.shop.ticketDailyCap": "오늘 카드매치 티켓 구매 한도 ({cap}장) 도달",
+  "uphero.shop.packFull": "카드팩 획득",
+  "uphero.shop.packSmall": "보너스 카드 +1",
+  "uphero.shop.passDailyCap": "오늘은 {cap}장까지만 구매 가능",
+  "uphero.shop.passFull": "이 던전 탐험권이 가득 찼어요",
+  "uphero.shop.passGranted": "{dungeonName} 탐험권 +1",
+  "uphero.shop.confirmFullPackTitle": "풀 카드팩을 구매할까요?",
+  "uphero.shop.confirmFullPackBody": "카드 5 장을 한 번에 뽑습니다.",
+  "uphero.shop.confirmFullPackPrice": "비용 {price} 코인 · 잔액 {coins} 코인",
+  "uphero.shop.buy": "구매",
+
+  // Camp / weekly toasts
+  "uphero.camp.passRequired.withHint": "탐험권이 없어요. 챌린지를 완료하세요",
+  "uphero.weekly.beatF30First": "먼저 이 던전의 F30 을 돌파하세요",
+  "uphero.weekly.loading": "주간 데이터 로딩 중",
 } as const;
 
 export type DictKey = keyof typeof ko;

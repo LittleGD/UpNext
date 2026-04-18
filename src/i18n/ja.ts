@@ -375,6 +375,102 @@ const ja: Record<DictKey, string> = {
   "patchnotes.title": "アップデート情報",
   "patchnotes.close": "確認しました",
   "patchnotes.version": "v{version}",
+
+  // === Up Hero — Combat / Dungeon UI ===
+  "uphero.combat.expedition": "遠征",
+  "uphero.combat.hp": "HP",
+  "uphero.combat.time": "TIME",
+  "uphero.combat.hp.aria": "勇者のHP",
+  "uphero.combat.time.aria": "探索時間",
+  "uphero.combat.hp.danger": "危険",
+  "uphero.combat.hp.warn": "警告",
+  "uphero.combat.time.danger": "時間危険",
+  "uphero.combat.time.warn": "時間警告",
+  "uphero.combat.enemyHp.aria": "{name} のHP",
+  "uphero.combat.expedition.aria": "遠征進行度 — 今サイクル F{start}~F{end}",
+  "uphero.combat.expedition.valueText": "F{start} から F{end} まで、現在 F{current}",
+  "uphero.combat.expedition.title": "F{start} → F{end} · 現在 F{current} (? は怪しいイベント)",
+  "uphero.combat.expedition.toEnd": "→ F{end}",
+  "uphero.combat.boss.marker": "F{floor} ボス",
+  "uphero.combat.boss.clearedSuffix": " (撃破)",
+  "uphero.combat.mystery.marker": "F{floor} — 怪しいイベント",
+  "uphero.combat.helpAria": "操作ガイド",
+  "uphero.combat.pause": "一時停止",
+  "uphero.combat.resume": "再開",
+  "uphero.combat.speed": "速度",
+  "uphero.combat.speedX": "{x}×",
+  "uphero.combat.abandon": "撤退",
+  "uphero.combat.continue": "続ける",
+  "uphero.combat.confirm.title": "探索をやめてキャンプに戻りますか?",
+  "uphero.combat.confirm.keepRewards": "これまでに得た報酬 (XP · コイン · 装備) はすべて保持されます。",
+  "uphero.combat.confirm.missBoss": "ただし、次のボス (F{floor}) に挑戦する機会を失います。",
+
+  // Announce / session end reasons
+  "uphero.announce.bossDefeated": "ボス撃破 — 勝利",
+  "uphero.announce.heroDied": "勇者が倒れました",
+  "uphero.announce.timeExpired": "時間切れ",
+  "uphero.announce.ended": "探索終了",
+  "uphero.announce.skillFired": "スキル {name} 発動",
+  "uphero.announce.bossAppear": "{name} 出現。HP {hp}",
+  "uphero.announce.bossVictory": "{name} 撃破。経験値 +{xp}, コイン +{coins}",
+  "uphero.announce.drop": "{rarity} {name} 獲得",
+
+  // Rarity labels
+  "uphero.rarity.normal": "通常",
+  "uphero.rarity.rare": "レア",
+  "uphero.rarity.unique": "ユニーク",
+  "uphero.rarity.legend": "レジェンド",
+
+  // Combat log
+  "uphero.log.bossAppear": "ボス出現 — {name}",
+  "uphero.log.victory": "{name} を撃破",
+  "uphero.log.heroAttackFallback": "勇者が攻撃 — −{damage}",
+  "uphero.log.heroHitFallback": "勇者が被弾 — −{damage}",
+  "uphero.log.dropGained": "装備入手: {name}",
+  "uphero.log.mystery": "怪しいイベント",
+  "uphero.log.mysteryAria": "怪しいイベント · 効果増幅",
+
+  // Hero stat panel
+  "uphero.stat.title": "勇者詳細",
+  "uphero.stat.closeAria": "閉じる",
+  "uphero.stat.close": "閉じる",
+  "uphero.stat.nextLevel": "次 Lv.{level} — 全ステータス +1, HP +10",
+
+  // Equipment slot labels
+  "uphero.slot.weapon": "武器",
+  "uphero.slot.armor": "鎧",
+  "uphero.slot.accessory": "アクセサリー",
+  "uphero.slot.talisman": "お守り",
+
+  // Skill tree
+  "uphero.skillTree.title": "スキルツリー",
+  "uphero.skillTree.resource": "リソース",
+  "uphero.skillTree.spGainHint": "レベルアップごとに SP +1",
+  "uphero.skillTree.unlock": "解放",
+  "uphero.skillTree.sp": "SP",
+  "uphero.skillTree.cost": "コスト",
+
+  // Choice panel
+  "uphero.choice.mysteryBadge": "怪しいイベント",
+  "uphero.choice.mysteryBadgeAria": "怪しいイベント · 効果増幅",
+
+  // Shop
+  "uphero.shop.boughtTicket": "カードマッチチケット +1 ({current}/{max})",
+  "uphero.shop.ticketDailyCap": "本日のカードマッチチケット購入上限 ({cap}枚) に到達",
+  "uphero.shop.packFull": "カードパック入手",
+  "uphero.shop.packSmall": "ボーナスカード +1",
+  "uphero.shop.passDailyCap": "1日に {cap} 枚まで購入可能",
+  "uphero.shop.passFull": "このダンジョンの探索券は満杯です",
+  "uphero.shop.passGranted": "{dungeonName} 探索券 +1",
+  "uphero.shop.confirmFullPackTitle": "フルカードパックを購入しますか?",
+  "uphero.shop.confirmFullPackBody": "カード5枚を一度に引きます。",
+  "uphero.shop.confirmFullPackPrice": "費用 {price} コイン · 残高 {coins} コイン",
+  "uphero.shop.buy": "購入",
+
+  // Camp / weekly toasts
+  "uphero.camp.passRequired.withHint": "探索券がありません。チャレンジを完了しましょう",
+  "uphero.weekly.beatF30First": "まずこのダンジョンの F30 を突破してください",
+  "uphero.weekly.loading": "週間データ読み込み中",
 };
 
 export default ja;

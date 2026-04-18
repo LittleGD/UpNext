@@ -375,6 +375,102 @@ const en: Record<DictKey, string> = {
   "patchnotes.title": "What's New",
   "patchnotes.close": "Got it",
   "patchnotes.version": "v{version}",
+
+  // === Up Hero — Combat / Dungeon UI ===
+  "uphero.combat.expedition": "Expedition",
+  "uphero.combat.hp": "HP",
+  "uphero.combat.time": "TIME",
+  "uphero.combat.hp.aria": "Hero HP",
+  "uphero.combat.time.aria": "Expedition time",
+  "uphero.combat.hp.danger": "Danger",
+  "uphero.combat.hp.warn": "Caution",
+  "uphero.combat.time.danger": "Time critical",
+  "uphero.combat.time.warn": "Time low",
+  "uphero.combat.enemyHp.aria": "{name} HP",
+  "uphero.combat.expedition.aria": "Expedition progress — this cycle F{start}–F{end}",
+  "uphero.combat.expedition.valueText": "F{start} to F{end}, currently F{current}",
+  "uphero.combat.expedition.title": "F{start} → F{end} · currently F{current} (? = mystery event)",
+  "uphero.combat.expedition.toEnd": "→ F{end}",
+  "uphero.combat.boss.marker": "F{floor} boss",
+  "uphero.combat.boss.clearedSuffix": " (cleared)",
+  "uphero.combat.mystery.marker": "F{floor} — mystery event",
+  "uphero.combat.helpAria": "Interaction help",
+  "uphero.combat.pause": "Pause",
+  "uphero.combat.resume": "Resume",
+  "uphero.combat.speed": "Speed",
+  "uphero.combat.speedX": "{x}×",
+  "uphero.combat.abandon": "Abandon",
+  "uphero.combat.continue": "Continue",
+  "uphero.combat.confirm.title": "Abandon expedition and return to camp?",
+  "uphero.combat.confirm.keepRewards": "All rewards earned so far (XP · coins · gear) are kept.",
+  "uphero.combat.confirm.missBoss": "But you'll miss the chance at the next boss (F{floor}).",
+
+  // Announce / session end reasons
+  "uphero.announce.bossDefeated": "Boss defeated — victory",
+  "uphero.announce.heroDied": "Your hero has fallen",
+  "uphero.announce.timeExpired": "Time is up",
+  "uphero.announce.ended": "Expedition ended",
+  "uphero.announce.skillFired": "Skill {name} fired",
+  "uphero.announce.bossAppear": "{name} appears. HP {hp}",
+  "uphero.announce.bossVictory": "{name} defeated. +{xp} XP, +{coins} coins",
+  "uphero.announce.drop": "{rarity} {name} obtained",
+
+  // Rarity labels
+  "uphero.rarity.normal": "Common",
+  "uphero.rarity.rare": "Rare",
+  "uphero.rarity.unique": "Unique",
+  "uphero.rarity.legend": "Legend",
+
+  // Combat log
+  "uphero.log.bossAppear": "Boss appears — {name}",
+  "uphero.log.victory": "{name} defeated",
+  "uphero.log.heroAttackFallback": "Hero attacks — −{damage}",
+  "uphero.log.heroHitFallback": "Hero hit — −{damage}",
+  "uphero.log.dropGained": "Gear acquired: {name}",
+  "uphero.log.mystery": "Mystery event",
+  "uphero.log.mysteryAria": "Mystery event · amplified",
+
+  // Hero stat panel
+  "uphero.stat.title": "Hero details",
+  "uphero.stat.closeAria": "Close",
+  "uphero.stat.close": "Close",
+  "uphero.stat.nextLevel": "Next Lv.{level} — all stats +1, HP +10",
+
+  // Equipment slot labels
+  "uphero.slot.weapon": "Weapon",
+  "uphero.slot.armor": "Armor",
+  "uphero.slot.accessory": "Accessory",
+  "uphero.slot.talisman": "Talisman",
+
+  // Skill tree
+  "uphero.skillTree.title": "Skill tree",
+  "uphero.skillTree.resource": "Resource",
+  "uphero.skillTree.spGainHint": "+1 SP per level",
+  "uphero.skillTree.unlock": "Unlock",
+  "uphero.skillTree.sp": "SP",
+  "uphero.skillTree.cost": "Cost",
+
+  // Choice panel
+  "uphero.choice.mysteryBadge": "Mystery event",
+  "uphero.choice.mysteryBadgeAria": "Mystery event · amplified effects",
+
+  // Shop
+  "uphero.shop.boughtTicket": "Card match ticket +1 ({current}/{max})",
+  "uphero.shop.ticketDailyCap": "Daily card match ticket limit ({cap}) reached",
+  "uphero.shop.packFull": "Card pack obtained",
+  "uphero.shop.packSmall": "Bonus card +1",
+  "uphero.shop.passDailyCap": "Daily limit is {cap} passes",
+  "uphero.shop.passFull": "This dungeon's passes are full",
+  "uphero.shop.passGranted": "{dungeonName} pass +1",
+  "uphero.shop.confirmFullPackTitle": "Buy the full card pack?",
+  "uphero.shop.confirmFullPackBody": "Draw 5 cards at once.",
+  "uphero.shop.confirmFullPackPrice": "Cost {price} coins · balance {coins} coins",
+  "uphero.shop.buy": "Buy",
+
+  // Camp / weekly toasts
+  "uphero.camp.passRequired.withHint": "No expedition pass — complete a challenge to earn one",
+  "uphero.weekly.beatF30First": "Clear this dungeon's F30 first",
+  "uphero.weekly.loading": "Loading weekly data",
 };
 
 export default en;

@@ -16,6 +16,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import type { LogEntry } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useTranslation } from "@/hooks/useTranslation";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 
@@ -145,6 +146,7 @@ const LogLine = memo(function LogLine({
   entry: LogEntry;
   isLatest: boolean;
 }) {
+  const { t } = useTranslation();
   const style: React.CSSProperties = {
     animation: isLatest ? `uphero-log-enter 200ms ${EASE_OUT} both` : undefined,
   };
@@ -220,7 +222,7 @@ const LogLine = memo(function LogLine({
           className="my-1 flex items-center gap-1.5"
         >
           <PixelIcon name="WarningDiamond" size={14} color={GB_ENEMY} />
-          <span>보스 등장 — {entry.monster.name}</span>
+          <span>{t("uphero.log.bossAppear", { name: entry.monster.name })}</span>
         </div>
       );
 
@@ -257,8 +259,8 @@ const LogLine = memo(function LogLine({
       //   기존 punch-in 방식 (즉시 표시) 은 narrative (타이핑) 와 속도 불일치.
       if (entry.damage <= 0) return null; // 방어: 0 fallback 렌더 금지
       const fallbackText = isHero
-        ? `영웅이 공격 — −${entry.damage}`
-        : `영웅이 피격 — −${entry.damage}`;
+        ? t("uphero.log.heroAttackFallback", { damage: entry.damage })
+        : t("uphero.log.heroHitFallback", { damage: entry.damage });
       return (
         <div style={{ ...style, color: GB.light }} className="pl-3">
           <TypewriterText text={fallbackText} enabled={isLatest} />
@@ -273,7 +275,7 @@ const LogLine = memo(function LogLine({
           className="flex items-center gap-1.5"
         >
           <PixelIcon name="Check" size={14} color={GB.lightest} />
-          <span>{entry.monster.name} 처치</span>
+          <span>{t("uphero.log.victory", { name: entry.monster.name })}</span>
           <span className={gbClass.textDim}>
             +{entry.xp} XP / +{entry.coins} C
           </span>
@@ -287,7 +289,7 @@ const LogLine = memo(function LogLine({
           className="flex items-center gap-1.5"
         >
           <PixelIcon name="Gift" size={14} color={rarityColor(entry.equipment.rarity)} />
-          <span>장비 획득: {entry.equipment.name}</span>
+          <span>{t("uphero.log.dropGained", { name: entry.equipment.name })}</span>
         </div>
       );
 
@@ -326,7 +328,7 @@ const LogLine = memo(function LogLine({
                   fontWeight: 700,
                   letterSpacing: "0.05em",
                 }}
-                aria-label="수상한 이벤트"
+                aria-label={t("uphero.log.mystery")}
               >
                 ?
               </span>
