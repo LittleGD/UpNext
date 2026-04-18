@@ -502,6 +502,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const levelsGained = newLevel - prevLevel;
       updatedProgress.level = newLevel;
       updatedProgress.pendingPacks += levelsGained;
+      // Phase 12d — Lv30+ (전직 후) 레벨업마다 스킬 포인트 +1 지급.
+      //   Lv31 부터 유효. prevLevel < 30, newLevel = 35 라면 35-30 = 5 포인트.
+      try {
+        if (newLevel > 30) {
+          const pointsToGrant =
+            prevLevel < 30
+              ? newLevel - 30 // 첫 전직 구간 : Lv31 ~ newLevel 까지 total
+              : levelsGained; // 이미 Lv30+ 였으면 획득한 level 만큼
+          if (pointsToGrant > 0) {
+            const heroStore = useUpHeroStore.getState();
+            const curPoints = heroStore.hero.skillPoints ?? 0;
+            heroStore.grantSkillPoints(pointsToGrant);
+            void curPoints;
+          }
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useGameStore] grantSkillPoints failed:", e);
+        }
+      }
     }
 
     const shouldOpenPack = updatedProgress.pendingPacks > (progress.pendingPacks || 0);

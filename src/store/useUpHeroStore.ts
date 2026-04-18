@@ -31,6 +31,8 @@ import {
   type CombatSession,
   type CardBuff,
   type HeroBaseStats,
+  type Monster,
+  getEffectiveHeroLevel,
 } from "@/types/uphero";
 import { pickWeeklyAffix } from "@/data/weeklyAffixes";
 import type { Category } from "@/types/card";
@@ -50,7 +52,8 @@ import {
   calculateDungeonProgress,
 } from "@/lib/sessionReward";
 import { calculateIdleReward } from "@/lib/idleAccrual";
-import { classXpMult, classCoinMult } from "@/lib/upHeroCombat";
+import { classXpMult, classCoinMult, findLastEncounterIndex } from "@/lib/upHeroCombat";
+import { findSkillById, canFireSkill, fireSkill, CLASS_SKILL_TREES } from "@/lib/classSkills";
 import {
   PHOTO_TALISMAN_RITUAL_COST,
   buildPhotoTalisman,
@@ -188,6 +191,12 @@ interface UpHeroActions {
   toggleAutoSkill(): void;
   /** Phase 12a — 영웅 이름 변경 (최대 16자, 공백만 입력은 무시). */
   renameHero(name: string): void;
+  /** Phase 12d — 레벨업 시 스킬 포인트 부여. */
+  grantSkillPoints(amount: number): void;
+  /** Phase 12d — 스킬 해금 (skill points 소모). */
+  learnSkill(skillId: string): "ok" | "no-points" | "already" | "not-found" | "level" | "class";
+  /** Phase 12d — 전투 중 수동 스킬 발동. 자원 + 쿨다운 체크 후 apply. */
+  fireSkillManual(skillId: string): "ok" | "no-session" | "cooldown" | "resource" | "locked" | "no-monster";
 
   /**
    * Phase 7 — 사진 부적 바인딩 의식.
@@ -538,10 +547,30 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const classType = CLASS_BY_DUNGEON[bestCategory];
     if (!classType) return null;
 
-    const newHero = { ...state.hero, classType };
+    // Phase 12d — 전직 시 해당 클래스의 T1 스킬 자동 해금.
+    const t1Skill = CLASS_SKILL_TREES[classType].find((s) => s.tier === 1);
+    const learnedSkills = t1Skill ? [t1Skill.id] : [];
+    const newHero = {
+      ...state.hero,
+      classType,
+      learnedSkills,
+      skillPoints: state.hero.skillPoints ?? 0,
+    };
     set({ hero: newHero, pendingClassAwaken: classType });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
     return classType;
+  },
+
+  /**
+   * Phase 12d — 스킬 포인트 부여 (레벨업 훅 용). 음수/0 은 무시.
+   */
+  grantSkillPoints(amount: number) {
+    if (amount <= 0) return;
+    const state = get();
+    const cur = state.hero.skillPoints ?? 0;
+    const newHero = { ...state.hero, skillPoints: cur + amount };
+    set({ hero: newHero });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
   },
 
   acknowledgeClassAwaken() {
@@ -569,6 +598,73 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const newHero = { ...state.hero, name: trimmed };
     set({ hero: newHero });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+  },
+
+  /**
+   * Phase 12d — 스킬트리 해금.
+   *   - 해당 skill 이 hero.classType 와 일치해야 함
+   *   - hero level ≥ skill.requiredLevel
+   *   - hero.skillPoints ≥ skill.pointCost
+   *   - 아직 learned 에 없어야 함
+   *   성공 시 learnedSkills 에 추가 + skillPoints 차감.
+   */
+  learnSkill(skillId) {
+    const state = get();
+    const cls = state.hero.classType;
+    if (!cls) return "class";
+    const skill = findSkillById(skillId);
+    if (!skill) return "not-found";
+    if (skill.class !== cls) return "class";
+    const heroLevel = getEffectiveHeroLevel(
+      useGameStore.getState().progress.level,
+      state.heroStartLevel,
+    );
+    if (heroLevel < skill.requiredLevel) return "level";
+    const learned = state.hero.learnedSkills ?? [];
+    if (learned.includes(skillId)) return "already";
+    const points = state.hero.skillPoints ?? 0;
+    if (points < skill.pointCost) return "no-points";
+    const newHero = {
+      ...state.hero,
+      learnedSkills: [...learned, skillId],
+      skillPoints: points - skill.pointCost,
+    };
+    set({ hero: newHero });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+    return "ok";
+  },
+
+  /**
+   * Phase 12d — 전투 중 수동 스킬 발동. 자원/쿨다운 체크 후 apply.
+   */
+  fireSkillManual(skillId) {
+    const state = get();
+    const session = state.currentSession;
+    if (!session || session.status !== "active") return "no-session";
+    // 마지막 encounter 의 monster (전투 중 아니면 null — chrono 시간 되감기 같은
+    // non-combat 스킬 발동 허용).
+    const encounterIdx = findLastEncounterIndex(session.log);
+    const monster =
+      encounterIdx >= 0
+        ? ((session.log[encounterIdx] as { type: "encounter"; monster: Monster }).monster)
+        : null;
+    const check = canFireSkill(session, skillId);
+    if (!check.ok) {
+      if (check.reason === "locked") return "locked";
+      if (check.reason === "cooldown") return "cooldown";
+      if (check.reason === "resource") return "resource";
+    }
+    // 세션 deep copy (immutable)
+    const next: CombatSession = {
+      ...session,
+      log: [...session.log],
+      hero: { ...session.hero },
+      rewards: { ...session.rewards, drops: [...session.rewards.drops] },
+    };
+    const ok = fireSkill(next, skillId, monster);
+    if (!ok) return "cooldown";
+    set({ currentSession: next });
+    return "ok";
   },
 
   bindPhotoAsTalisman(photoId) {

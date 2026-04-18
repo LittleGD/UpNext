@@ -404,10 +404,36 @@ export function tickSession(session: CombatSession): CombatSession {
       const combatState = computeCombatState(s.log, encounterIdx, monster, s.hero.hp);
 
       if (combatState.heroHp <= 0) {
-        // 영웅 패배 — 어떤 몬스터에게 쓰러졌는지 detail 로 기록
-        s.hero.hp = 0;
-        endSession(s, "heroDied", `${monster.name} 에게 쓰러졌다`);
-        return s;
+        // Phase 12d — priest 부활 (revivePending) 체크. 사용 시 1회 소모.
+        if (s.revivePending) {
+          s.revivePending = false;
+          const revivedHp = Math.round(s.hero.maxHp * 0.5);
+          // computeCombatState 는 log 기반 cumulative → 기존 누적 피해 offset
+          //   하기 위해 synthetic 음수 damage entry (enemy attacker) 로 HP 복원.
+          //   필요량 = revivedHp - combatState.heroHp (음수였을 수치).
+          const offset = revivedHp - combatState.heroHp;
+          s.log.push({
+            type: "combat",
+            attacker: "enemy",
+            damage: -offset, // 음수 damage = heal (computeCombatState 에서 heroHp += offset)
+            outcome: "miss",
+            narrative: "성스러운 빛이 영웅을 부활시킨다",
+            timestamp: Date.now(),
+          });
+          s.hero.hp = revivedHp;
+          s.log.push({
+            type: "skill",
+            classType: "priest",
+            skillName: "부활",
+            narrative: `영웅이 부활한다 — HP +${revivedHp}`,
+            timestamp: Date.now(),
+          });
+        } else {
+          // 영웅 패배 — 어떤 몬스터에게 쓰러졌는지 detail 로 기록
+          s.hero.hp = 0;
+          endSession(s, "heroDied", `${monster.name} 에게 쓰러졌다`);
+          return s;
+        }
       }
       if (combatState.monsterHp <= 0) {
         // 몬스터 처치 — victory. Phase 4b.3: xpBoost/coinBoost 반영
@@ -1014,7 +1040,18 @@ function executeCombatRound(
   };
 
   // 영웅 공격
-  const heroOutcome = rollHeroOutcome(effStats, monster);
+  let heroOutcome = rollHeroOutcome(effStats, monster);
+  // Phase 12d — bard "대서사시": 다음 N 공격 반드시 crit.
+  if (
+    s.guaranteedCritAttacks &&
+    s.guaranteedCritAttacks > 0 &&
+    heroOutcome !== "miss" &&
+    heroOutcome !== "dodge"
+  ) {
+    heroOutcome = "crit";
+    s.guaranteedCritAttacks -= 1;
+    if (s.guaranteedCritAttacks <= 0) delete s.guaranteedCritAttacks;
+  }
   let heroDmg =
     heroOutcome === "miss" || heroOutcome === "dodge"
       ? 0
@@ -1024,6 +1061,12 @@ function executeCombatRound(
   if (heroDmg > 0 && s.nextHeroDamageMult && s.nextHeroDamageMult > 1) {
     heroDmg = Math.round(heroDmg * s.nextHeroDamageMult);
     s.nextHeroDamageMult = undefined;
+  }
+
+  // Phase 12d — heroAtkBonusRounds (warrior 광폭화, bard 협연, monk 태극 등).
+  //   round 단위 지속 효과. advanceSkillCounters 에서 rounds 감소.
+  if (heroDmg > 0 && s.heroAtkBonusRounds && s.heroAtkBonusRounds.rounds > 0) {
+    heroDmg = Math.round(heroDmg * s.heroAtkBonusRounds.mult);
   }
 
   // Phase 11b — "현자" crit damage +N%. hero crit 일 때만 추가 배율.
@@ -1061,8 +1104,12 @@ function executeCombatRound(
   // 몬스터 공격 — Phase 5c.2: monk class 는 dodge 확률 추가 (stats.agi 보강)
   // Phase 6b: monk 선정 중이면 강제 dodge, illusionist 환영 중이면 강제 miss.
   // Phase 11b: talisman dodgeBonus / enemyMissBonus 추가 (각각 monk 와 stacks).
+  // Phase 12d: enemyStunnedRounds (mage/druid/chrono/illus skill) — 강제 miss.
+  //            heroInvulnerableRounds (monk 연화, illus 환몽) — 피해 0.
   let enemyOutcome: CombatOutcome;
-  if (s.forcedEnemyMisses && s.forcedEnemyMisses > 0) {
+  if (s.enemyStunnedRounds && s.enemyStunnedRounds > 0) {
+    enemyOutcome = "miss"; // 봉인 효과는 miss 로 표현
+  } else if (s.forcedEnemyMisses && s.forcedEnemyMisses > 0) {
     enemyOutcome = "miss";
     s.forcedEnemyMisses -= 1;
     if (s.forcedEnemyMisses <= 0) delete s.forcedEnemyMisses;
@@ -1077,10 +1124,19 @@ function executeCombatRound(
       s.monsterCritBonus ?? 0,
     );
   }
-  const enemyDmg =
+  let enemyDmg =
     enemyOutcome === "miss" || enemyOutcome === "dodge"
       ? 0
       : computeEnemyDamage(monster, effStats, enemyOutcome === "crit");
+  // Phase 12d — 무적 (heroInvulnerableRounds). 피해 0 으로 강제.
+  if (s.heroInvulnerableRounds && s.heroInvulnerableRounds > 0 && enemyDmg > 0) {
+    enemyDmg = 0;
+    enemyOutcome = "miss";
+  }
+  // Phase 12d — 피해 감소 (priest 정화, druid 숲의 포옹, bard 영웅가).
+  if (enemyDmg > 0 && s.heroDmgReductionRounds && s.heroDmgReductionRounds.rounds > 0) {
+    enemyDmg = Math.max(1, Math.round(enemyDmg * (1 - s.heroDmgReductionRounds.reduction)));
+  }
 
   // Phase 11b — "강단" counter-attack: 피격 (enemyDmg > 0) 시 counterChance 에
   //   monster HP 에 +1 고정 damage 를 combat log 에 추가 push. "hit" 으로 표시.
@@ -1170,7 +1226,7 @@ export function abandonSession(session: CombatSession): CombatSession {
 
 // --- helpers ---
 
-function findLastEncounterIndex(log: LogEntry[]): number {
+export function findLastEncounterIndex(log: LogEntry[]): number {
   for (let i = log.length - 1; i >= 0; i--) {
     const e = log[i];
     if (e.type === "encounter") return i;
