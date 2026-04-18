@@ -70,7 +70,8 @@ export default function SessionResultModal() {
     if (!f30FirstClear) return;
     if (didAnnounceF30Ref.current) return;
     didAnnounceF30Ref.current = true;
-    announce("F30 최초 돌파. NG+ 와 주간 악몽이 해금되었습니다.", "assertive");
+    // Phase 11c R4 R3 — title 이 이미 "F30 최초 돌파" 공지하므로 unlock 내용만 중계.
+    announce("NG+ 와 주간 악몽이 해금되었습니다.", "assertive");
   }, [detailMounted, f30FirstClear, announce]);
 
   // Phase 8b — count-up: detail 등장 이후 시작해서 visual hierarchy 지킴.

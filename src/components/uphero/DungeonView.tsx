@@ -295,6 +295,10 @@ export default function DungeonView() {
       setPulseOverlay(null);
       seenGenericRef.current.clear();
       seenPulseIdxRef.current.clear();
+      // Phase 11c R4 R3 — announce seen idx 도 새 세션에서 -1 로 reset.
+      //   기존엔 session === null 분기에만 reset 되어, 세션 교체 시 stale idx 로
+      //   새 session.log[0..N] 공지 누락 가능.
+      seenLogIdxRef.current = -1;
     }
   }, [session?.startedAt, session]);
 

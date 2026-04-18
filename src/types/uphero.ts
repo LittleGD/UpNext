@@ -731,7 +731,8 @@ export const ENHANCE_DECAY_PER_LEVEL: Record<Rarity, number> = {
  *   평균 수렴 시도 수: 33,000회 → 약 55회 수준으로 현실화.
  *   성공 시 streak = 0, 실패 (보존 or 소실) 시 streak += 1.
  */
-export const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
+// Phase 11c R4 R3 — 내부 전용 (enhanceSuccessRate 에서만 참조). export 제거.
+const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
   normal: 0,
   rare: 0,
   unique: 0.02, // +2%p / fail

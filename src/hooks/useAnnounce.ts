@@ -106,10 +106,16 @@ export function useAnnounce(): {
       if (!text.trim()) return;
       ensureNodes();
       if (priority === "assertive") {
+        // assertive 는 무손실 — 보스 등장/사망 같은 중요 이벤트는 다 공지되게.
         assertiveQueue.push(text);
         if (Date.now() - lastAssertiveAt >= MIN_INTERVAL_MS) flushAssertive();
       } else {
+        // Phase 11c R4 R3 — polite 는 cap 3. 보스전에서 스킬 공지 폭주 시
+        //   오래된 것부터 drop 해 실시간성 유지 (10개 쌓여 4초 지연 방지).
         politeQueue.push(text);
+        if (politeQueue.length > 3) {
+          politeQueue.splice(0, politeQueue.length - 3);
+        }
         if (Date.now() - lastPoliteAt >= MIN_INTERVAL_MS) flushPolite();
       }
     },

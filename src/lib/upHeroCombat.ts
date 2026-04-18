@@ -1199,7 +1199,10 @@ function computeEnemyDamage(
     Math.round(rawDmg * (1 - dr)) - Math.floor(vit / 4),
   );
   const finalDmg = Math.max(1, base);
-  return crit ? Math.floor(finalDmg * 1.7) : finalDmg;
+  // Phase 11c R4 R3 — 몬스터 crit 배율 1.7 → 1.4. Lv30 기준 maxHp 448 에서 NG+1
+  //   crit 이 542 (1.7×) 로 1-hit 나던 문제 해결. 신규: 319 × 1.4 = 446 → 1.0 hit
+  //   마진. 영웅 crit 은 1.8× 유지 — "치명타는 영웅의 특권" 디자인 내러티브.
+  return crit ? Math.floor(finalDmg * 1.4) : finalDmg;
 }
 
 /**
