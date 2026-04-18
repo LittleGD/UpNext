@@ -732,7 +732,13 @@ export default function DungeonView() {
              startFloor → 30F (최종 보스) 까지의 여정을 "이번 세션 기준" 으로
              상대화. 이전에는 currentFloor / 30 이라 F29 시작 세션이 입장
              즉시 97% 찬 모양새로 긴장감이 없었다.
-             startFloor 가 30 이상이면 range=1 로 clamp (최종 보스 이후 진입). */}
+             startFloor 가 30 이상이면 range=1 로 clamp (최종 보스 이후 진입).
+
+             Phase 12 — 유저 피드백: "HP 위 프로그래스 바가 뭘 의미하는지, 뭐랑
+             연동되는지 감이 안 와." 라벨 부재가 원인 → HP/TIME 패턴대로 좌측
+             의미 라벨 + 우측 목표 readout 추가. 바 안쪽 보스 마커 위에
+             [10/20/30] 숫자 tooltip (title) 으로 "왜 저 점이 있나" 설명.
+             role="progressbar" + aria-valuetext 로 스크린리더도 맥락 전달. */}
         {(() => {
           const start = session.startFloor;
           const target = 30;
@@ -745,48 +751,92 @@ export default function DungeonView() {
           const relevantBosses = [10, 20, 30].filter(
             (f) => f > start && f <= target,
           );
+          // NG+ 진입 (startFloor >= 30) 에선 target 이 이미 지나친 상태이므로
+          //   label 에 별도 표기. 바 자체는 가득 찬 상태 유지 (visual consistency).
+          const postTarget = start >= target;
           return (
-            <div className="mt-2 relative h-1.5" aria-hidden="true">
+            <div className="mt-2 flex items-center gap-2">
+              <span
+                className="typo-caption"
+                style={{ color: GB.light, opacity: 0.8 }}
+                aria-hidden="true"
+              >
+                원정
+              </span>
               <div
-                className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
-                style={{ background: GB.dark }}
-              />
-              <div
-                className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
+                className="flex-1 relative h-1.5"
+                role="progressbar"
+                aria-label={`원정 진행도 — 보스 층 F${target} 까지`}
+                aria-valuenow={Math.round(pct)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuetext={
+                  postTarget
+                    ? `보스 층 F${target} 통과 후 진행 중 (현재 F${session.currentFloor})`
+                    : `F${start} 에서 F${target} 까지, 현재 F${session.currentFloor}`
+                }
+                title={
+                  postTarget
+                    ? `최종 보스 F${target} 통과 후 진행 중`
+                    : `F${start} → F${target} (최종 보스) · 현재 F${session.currentFloor}`
+                }
+              >
+                <div
+                  className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
+                  style={{ background: GB.dark }}
+                />
+                <div
+                  className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
+                  style={{
+                    width: `${pct}%`,
+                    background: GB.light,
+                    transition: `width 320ms ${EASE_OUT}`,
+                  }}
+                />
+                {relevantBosses.map((f) => {
+                  const markerPct = ((f - start) / range) * 100;
+                  const reached = session.currentFloor >= f;
+                  return (
+                    <div
+                      key={f}
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
+                      style={{
+                        left: `${markerPct}%`,
+                        width: 6,
+                        height: 6,
+                        background: reached ? GB.lightest : GB.darkest,
+                        border: `1px solid ${reached ? GB.lightest : GB.light}`,
+                      }}
+                      title={`F${f} 보스${reached ? " (클리어)" : ""}`}
+                      aria-hidden="true"
+                    />
+                  );
+                })}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
+                  style={{
+                    left: `${pct}%`,
+                    width: 8,
+                    height: 8,
+                    background: GB.lightest,
+                    boxShadow: `0 0 6px ${GB.lightest}`,
+                    transition: `left 320ms ${EASE_OUT}`,
+                  }}
+                  aria-hidden="true"
+                />
+              </div>
+              <span
+                className="typo-caption tabular-nums"
                 style={{
-                  width: `${pct}%`,
-                  background: GB.light,
-                  transition: `width 320ms ${EASE_OUT}`,
+                  color: GB.light,
+                  opacity: 0.8,
+                  minWidth: 40,
+                  textAlign: "right",
                 }}
-              />
-              {relevantBosses.map((f) => {
-                const markerPct = ((f - start) / range) * 100;
-                const reached = session.currentFloor >= f;
-                return (
-                  <div
-                    key={f}
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
-                    style={{
-                      left: `${markerPct}%`,
-                      width: 6,
-                      height: 6,
-                      background: reached ? GB.lightest : GB.darkest,
-                      border: `1px solid ${reached ? GB.lightest : GB.light}`,
-                    }}
-                  />
-                );
-              })}
-              <div
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
-                style={{
-                  left: `${pct}%`,
-                  width: 8,
-                  height: 8,
-                  background: GB.lightest,
-                  boxShadow: `0 0 6px ${GB.lightest}`,
-                  transition: `left 320ms ${EASE_OUT}`,
-                }}
-              />
+                aria-hidden="true"
+              >
+                {postTarget ? `+${session.currentFloor - target}` : `→ F${target}`}
+              </span>
             </div>
           );
         })()}
