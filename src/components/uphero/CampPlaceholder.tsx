@@ -17,11 +17,12 @@
  * 크기: `calc(100dvh - 208px)` — tab/BottomNav/헤더 제외한 window 형태
  */
 
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore, getTodayString } from "@/store/useGameStore";
 import { DAILY_CARDMATCH_TICKET_CAP, getXPProgress } from "@/types/game";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
+import { pickCampAmbience } from "@/data/upHeroFlavor";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import {
   SHOP_PRICES,
@@ -274,6 +275,22 @@ function HomeView({
     ngPlusLevel > 0 ||
     Object.values(dungeons).some((d) => d?.bossesDefeated?.includes(30));
 
+  // Phase 12 — 캠프 분위기 텍스트 로테이션.
+  //   초기값은 "모닥불이 조용히 타오른다" 고정 (SSR hydration 안정 — 서버/첫
+  //   CSR 렌더 동일). mount 직후 랜덤 전환 + 20s 주기 교체. 직전 문구는
+  //   pickCampAmbience(prev) 로 연속 회피. state/effect 를 HomeView 에 두어
+  //   다른 view (상점/장비 등) 로 이동 시 interval 이 자동 정리되도록 수명 제한.
+  const [ambienceLine, setAmbienceLine] = useState(
+    "모닥불이 조용히 타오른다",
+  );
+  useEffect(() => {
+    setAmbienceLine((prev) => pickCampAmbience(prev));
+    const id = window.setInterval(() => {
+      setAmbienceLine((prev) => pickCampAmbience(prev));
+    }, 20000);
+    return () => window.clearInterval(id);
+  }, []);
+
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       {/* 영웅 캠프 공간 — 큰 hero sprite + 분위기 */}
@@ -380,12 +397,22 @@ function HomeView({
         </button>
 
         {/* 분위기 텍스트 — Phase 8b: 실제로 타오르듯 flicker.
-             opacity + warm text-shadow 를 4.2s 주기로 호흡. */}
-        <div
-          className="uphero-fire-flicker mt-5 typo-caption text-center"
-          style={{ color: GB.light }}
-        >
-          — 모닥불이 조용히 타오른다 —
+             opacity + warm text-shadow 를 4.2s 주기로 호흡.
+             Phase 12 — 15 줄 pool 에서 랜덤 선택 + 20s 주기 교체. outer 에
+             key 기반 crossfade (blur 2.5px → 0, Y -3px → 0, 520ms) / inner 에
+             infinite fire-flicker 분리. 두 애니가 같은 opacity 를 건드리지
+             않도록 outer=fade/blur/transform, inner=opacity/text-shadow 로
+             역할 나눔 → compositing 상에서 두 효과가 곱으로 자연스럽게 합쳐짐. */}
+        <div className="mt-5 text-center">
+          <div key={ambienceLine} className="uphero-ambience-in inline-block">
+            <div
+              className="uphero-fire-flicker typo-caption"
+              style={{ color: GB.light }}
+              aria-live="off"
+            >
+              — {ambienceLine} —
+            </div>
+          </div>
         </div>
 
         {/* Phase 4c-polish → 5a.4 redesign: 탐험권 카테고리별 시각화.
