@@ -127,6 +127,22 @@ textarea,
   user-select: text;
 }
 
+/* === 접근성 — 키보드 focus ring 공용 정책 ===
+   Emil 원칙: 키보드 유저는 현재 focus 된 element 를 즉시 식별할 수 있어야 함.
+   `:focus-visible` 을 사용해 mouse/touch 발동을 자동 제외 (기본 outline 제거
+   후 명시적 ring 부여 — 디자인 시스템 accent 녹 = `var(--accent-primary)`).
+   `.daily-card-btn` 같이 opt-in 하는 요소에만 적용 — 전역 override 는 과도.
+   outline-offset -2px 로 rounded 경계 안쪽에 떠 디자인 해치지 않음. */
+.daily-card-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+  border-radius: 16px;
+}
+/* 키보드가 아닌 클릭/터치 focus 에서는 ring 제거 */
+.daily-card-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* ============================================
    타이포그래피 시스템 — 6단계 스케일
    typo-display > typo-title > typo-heading > typo-body > typo-caption > typo-micro
