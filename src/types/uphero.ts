@@ -200,6 +200,13 @@ export type MonsterKind =
 export interface Monster {
   id: string;
   name: string;
+  /**
+   * Phase 12 i18n — 원본 MonsterTemplate id. monster.name 은 session 생성
+   *   시점의 (한국어) 고정 문자열이라 다국어 표시 시 신뢰할 수 없음. 이
+   *   field 로 `t("uphero.monster." + templateId)` 조회해 현재 언어 반영.
+   *   legacy save (이 field 없음) 은 monster.name 그대로 폴백.
+   */
+  templateId?: string;
   /** 픽셀 sprite 타입 — 이모지 대신 직접 그린 dot-matrix SVG */
   kind: MonsterKind;
   level: number;

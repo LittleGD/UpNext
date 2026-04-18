@@ -215,6 +215,8 @@ function scaleMonster(
   return {
     id: `${t.id}_f${floor}_${Date.now() % 10000}`,
     name: t.name,
+    // Phase 12 i18n — 원본 template id (monster.name i18n 조회용)
+    templateId: t.id,
     kind: t.kind,
     level: floor,
     hp: Math.round(base * t.power * bossHpMult * ngMult * hpMult),

@@ -15,6 +15,8 @@ import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { GB, EASE_OUT, GB_ENEMY, gbClass } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useTranslation } from "@/hooks/useTranslation";
+import { monsterNameById } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { DUNGEONS } from "@/data/upHeroDungeons";
@@ -32,9 +34,11 @@ export default function MonsterCodexDetailModal({
 }: MonsterCodexDetailModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalA11y(containerRef, onClose, { noScrollLock: true });
+  const { language } = useTranslation();
   if (typeof window === "undefined") return null;
 
   const lore = getMonsterLore(template.id, template.kind);
+  const displayName = monsterNameById(template.id, template.name, language);
   const dungeon = template.dungeonId
     ? DUNGEONS[template.dungeonId]
     : undefined;
@@ -71,7 +75,7 @@ export default function MonsterCodexDetailModal({
               className="typo-body truncate"
               style={{ color: accent, fontWeight: 600 }}
             >
-              {template.name}
+              {displayName}
             </div>
             {template.isBoss && (
               <span

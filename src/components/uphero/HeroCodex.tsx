@@ -32,6 +32,8 @@ import {
 import type { DungeonId } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
 import { useSound } from "@/hooks/useSound";
+import { useTranslation } from "@/hooks/useTranslation";
+import { monsterNameById } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 import MonsterCodexDetailModal from "./MonsterCodexDetailModal";
@@ -197,6 +199,7 @@ function MonsterCodex({
   // Phase 12 — 발견된 몬스터 탭 시 디테일 모달. 미발견은 클릭 불가
   //   (spoiler 방지). sound cue 는 기존 codex 의 "select" 재사용.
   const { play } = useSound();
+  const { language } = useTranslation();
   const [detailTemplate, setDetailTemplate] =
     useState<MonsterTemplate | null>(null);
 
@@ -297,8 +300,8 @@ function MonsterCodex({
                     }}
                     aria-label={
                       found
-                        ? `${t.name}${t.isBoss ? " (보스)" : ""} — 상세 보기`
-                        : "미발견"
+                        ? `${monsterNameById(t.id, t.name, language)}${t.isBoss ? " (BOSS)" : ""}`
+                        : "???"
                     }
                   >
                     <MonsterSprite
@@ -319,7 +322,7 @@ function MonsterCodex({
                         minHeight: 22,
                       }}
                     >
-                      {found ? t.name : "???"}
+                      {found ? monsterNameById(t.id, t.name, language) : "???"}
                     </div>
                   </Tag>
                 );

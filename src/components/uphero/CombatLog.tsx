@@ -17,6 +17,7 @@ import type { LogEntry } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
+import { monsterName } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 
@@ -146,7 +147,7 @@ const LogLine = memo(function LogLine({
   entry: LogEntry;
   isLatest: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const style: React.CSSProperties = {
     animation: isLatest ? `uphero-log-enter 200ms ${EASE_OUT} both` : undefined,
   };
@@ -204,7 +205,7 @@ const LogLine = memo(function LogLine({
           className="flex items-center gap-1.5"
         >
           <MonsterSprite kind={entry.monster.kind} size={14} color={GB.lightest} />
-          <span>{entry.monster.name}</span>
+          <span>{monsterName(entry.monster, language)}</span>
           <span className={gbClass.textDim}>
             (HP {entry.monster.hp} · ATK {entry.monster.atk})
           </span>
@@ -222,7 +223,7 @@ const LogLine = memo(function LogLine({
           className="my-1 flex items-center gap-1.5"
         >
           <PixelIcon name="WarningDiamond" size={14} color={GB_ENEMY} />
-          <span>{t("uphero.log.bossAppear", { name: entry.monster.name })}</span>
+          <span>{t("uphero.log.bossAppear", { name: monsterName(entry.monster, language) })}</span>
         </div>
       );
 
@@ -275,7 +276,7 @@ const LogLine = memo(function LogLine({
           className="flex items-center gap-1.5"
         >
           <PixelIcon name="Check" size={14} color={GB.lightest} />
-          <span>{t("uphero.log.victory", { name: entry.monster.name })}</span>
+          <span>{t("uphero.log.victory", { name: monsterName(entry.monster, language) })}</span>
           <span className={gbClass.textDim}>
             +{entry.xp} XP / +{entry.coins} C
           </span>
