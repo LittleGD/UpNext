@@ -196,12 +196,22 @@ function scaleMonster(
   // Phase 12 R2 — NG+2 F30 에서 crit 한 방에 maxHp 의 50%+ 깎여 2 hit 사망 위험.
   //   2.0 → 1.85 로 완화. F10 atk 111 (crit 102 vs Lv9 maxHp 196 = 1.9 hit).
   //   F30 NG+2 atk 450 (crit 210 vs Lv30 maxHp 448 = 2.1 hit 생존).
-  const bossAtkMult = t.isBoss ? 1.85 : 1;
+  // Phase 12 R2-review — NG+2 F30 기준 crit 210 vs maxHp 448 (2.1 hit) 은
+  //   vit 투자 없는 유저에게 여전히 marginal. 1.85 → 1.70 으로 추가 완화.
+  //   F10 atk = (5+15)×3×1.70 = 102 (crit 92 vs Lv9 maxHp 196 = 2.1 hit).
+  //   NG+2 F30 atk = 300×(1+0.4·2)×1.70 = 459 → crit 214 vs 448 = 2.1 hit 생존.
+  //   (NG+ 배율이 이미 +80% 라 bossAtkMult 조정 효과는 normal vs boss 갭만 조절).
+  const bossAtkMult = t.isBoss ? 1.7 : 1;
   // Phase 11c R4 — 기존 하드코딩 `1 + 0.5 * ngPlusLevel` 을 `ngPlusScaleMult` 로 교체.
   //   R4 R1 에서 `ngPlusScaleMult` 를 0.5n → 0.4n 로 변경했으나 여기서 import 되지
   //   않아 orphan 함수였음. 이제 실제로 적용됨.
   const ngMult = ngPlusScaleMult(ngPlusLevel);
   const base = 20 + floor * 5;
+  // Phase 12 R2-review — 초기 floor (F1-F10) normal 몬스터 coin 보상 +30% 부스트.
+  //   현재 F1 normal power1 coin = 5, F5 power2 = 26 → ticket(50)/pass(80) 구매
+  //   까지 누적 시간 과다. Lv10 도달까지 최소 코인 체감 개선.
+  //   보스 (×10) 와 후반 floor 는 적용 안 함 — 비율 왜곡 방지.
+  const earlyCoinBoost = !t.isBoss && floor <= 10 ? 1.3 : 1;
   return {
     id: `${t.id}_f${floor}_${Date.now() % 10000}`,
     name: t.name,
@@ -213,7 +223,7 @@ function scaleMonster(
     // XP / Coin 보상은 HP 기반 (탱키한 적 더 많은 보상) — bossHpMult 유지.
     xpReward: Math.round((10 + floor * 3) * t.power * bossHpMult * ngMult),
     coinReward: Math.round(
-      (3 + floor * 2) * t.power * (t.isBoss ? 10 : 1) * ngMult,
+      (3 + floor * 2) * t.power * (t.isBoss ? 10 : 1) * ngMult * earlyCoinBoost,
     ),
     isBoss: t.isBoss,
     dungeonId,
