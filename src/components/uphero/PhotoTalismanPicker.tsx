@@ -8,14 +8,15 @@
  * 80 코인 지불 확인 → 랜덤 rarity 로 Equipment 생성 → reveal.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 import { isPhotoBound, PHOTO_TALISMAN_RITUAL_COST } from "@/lib/photoTalisman";
+import { DUNGEONS } from "@/data/upHeroDungeons";
 import type { PhotoMeta } from "@/types/growth";
-import type { Equipment } from "@/types/uphero";
+import type { Equipment, DungeonId } from "@/types/uphero";
 import {
   GB,
   EASE_OUT,
@@ -52,9 +53,24 @@ export default function PhotoTalismanPicker({
   // 으로 ritual photo 는 그 photo 객체를 snapshot 으로 들고 있음).
   const [ritualPhoto, setRitualPhoto] = useState<PhotoMeta | null>(null);
   const [ritualItem, setRitualItem] = useState<Equipment | null>(null);
+  /**
+   * Phase 7 polish fix — 의식 타이머 ref.
+   * unmount 시 / 동일 photo 연속 바인딩 시 cleanup. React warning 방지 +
+   * 사용자가 picker 를 닫을 때 뒤늦게 reveal 이 뜨는 현상 차단.
+   */
+  const ritualTimerRef = useRef<number | null>(null);
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
+  }, []);
+  // unmount 시 살아있는 ritual 타이머 제거
+  useEffect(() => {
+    return () => {
+      if (ritualTimerRef.current) {
+        window.clearTimeout(ritualTimerRef.current);
+        ritualTimerRef.current = null;
+      }
+    };
   }, []);
 
   // 아직 바인딩 안 된 photo 만 — 바인딩된 photo 는 inventory 에 photoId 로 존재
@@ -83,11 +99,17 @@ export default function PhotoTalismanPicker({
       play("collect");
       setRitualPhoto(photo);
       setRitualItem(result.newItem);
-      // 3 초 후 reveal 모달로 전환
-      window.setTimeout(() => {
+      // 기존 타이머 정리 — 의식 중 다른 photo 탭 방어
+      if (ritualTimerRef.current) {
+        window.clearTimeout(ritualTimerRef.current);
+      }
+      // 2800ms 후 reveal 로 전환 — keyframe 의 90-100% fade-out 구간 (2700-3000ms)
+      // 이 자연스럽게 reveal 등장과 교차하도록.
+      ritualTimerRef.current = window.setTimeout(() => {
         setRitualPhoto(null);
         setRevealedItem(result.newItem!);
-      }, 3000);
+        ritualTimerRef.current = null;
+      }, 2800);
     } else {
       play("cancel");
       onNotify(result.error ?? "실패");
@@ -267,6 +289,10 @@ function PhotoThumb({
     day: "numeric",
   });
 
+  // Phase 7 polish — 카테고리 색 dot 우상단. 8개 photo 섞여있을 때 한눈에
+  // "운동/학습/명상..." 구분 가능. DUNGEONS.themeColor 재사용.
+  const categoryColor = DUNGEONS[photo.category as DungeonId]?.themeColor;
+
   return (
     <button
       type="button"
@@ -303,6 +329,19 @@ function PhotoThumb({
           >
             …
           </div>
+        )}
+        {/* 카테고리 dot — 우상단 overlay */}
+        {categoryColor && (
+          <div
+            className="absolute top-1 right-1 rounded-full"
+            style={{
+              width: 8,
+              height: 8,
+              background: categoryColor,
+              boxShadow: `0 0 4px ${categoryColor}, 0 1px 2px rgba(0,0,0,0.4)`,
+            }}
+            aria-label={`${photo.category} 카테고리`}
+          />
         )}
       </div>
       <div
@@ -472,35 +511,49 @@ function RitualAnimation({
           ? GB_RARE
           : GB.light;
 
-  // 8 방향 파편 — 각도별로 계산해서 inline style 변수 전달
+  // 파편 수 + glow 반경 rarity 별 차등 — "의식 규모" 자체가 결과 힌트.
+  // 평범한 일반 결과는 6 파편 작은 glow, 전설은 20 파편 큰 glow.
+  const { sparkCount, glowSize, farR } = useMemo(() => {
+    switch (item.rarity) {
+      case "legend":
+        return { sparkCount: 20, glowSize: 320, farR: 170 };
+      case "unique":
+        return { sparkCount: 14, glowSize: 280, farR: 150 };
+      case "rare":
+        return { sparkCount: 10, glowSize: 240, farR: 140 };
+      default:
+        return { sparkCount: 6, glowSize: 200, farR: 120 };
+    }
+  }, [item.rarity]);
+
+  // N 방향 파편 — 각도별로 계산해서 inline style 변수 전달
   const sparks = useMemo(() => {
     const arr: Array<{ sx: number; sy: number; fx: number; fy: number; delay: number }> = [];
-    for (let i = 0; i < 10; i++) {
-      const angle = (i / 10) * Math.PI * 2;
+    for (let i = 0; i < sparkCount; i++) {
+      const angle = (i / sparkCount) * Math.PI * 2;
       const midR = 60;
-      const farR = 140;
       arr.push({
         sx: Math.cos(angle) * midR,
         sy: Math.sin(angle) * midR,
         fx: Math.cos(angle) * farR,
         fy: Math.sin(angle) * farR,
-        delay: 600 + (i * 90),
+        delay: 600 + i * (sparkCount >= 14 ? 60 : 90),
       });
     }
     return arr;
-  }, []);
+  }, [sparkCount, farR]);
 
   return createPortal(
     <div
       className="fixed inset-0 z-[55] flex items-center justify-center pointer-events-none"
       style={{ background: `${GB.darkest}ee` }}
     >
-      {/* 중앙 glow */}
+      {/* 중앙 glow — rarity 에 따라 크기 차등 */}
       <div
         className="uphero-ritual-glow absolute rounded-full"
         style={{
-          width: 240,
-          height: 240,
+          width: glowSize,
+          height: glowSize,
           background: `radial-gradient(circle, ${rarityColor}66 0%, ${rarityColor}22 40%, transparent 70%)`,
         }}
         aria-hidden="true"
