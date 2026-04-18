@@ -335,6 +335,17 @@ export type LogEntry =
       /** 발동 narrative (예: "영웅이 강타를 준비한다 — 다음 공격 2배") */
       narrative: string;
       timestamp: number;
+    }
+  | {
+      /**
+       * Phase 11c R1 — event choice 해소 결과. DungeonView 의 ChoiceResultModal
+       *   trigger 를 narrative prefix 매칭 (`"> "`) 대신 명시적 variant 로 치환.
+       *   CombatLog 는 이 entry 를 narrative 처럼 렌더 (text 그대로).
+       */
+      type: "choiceResult";
+      /** `> {label} → {resultText}` 형식의 full narrative */
+      text: string;
+      timestamp: number;
     };
 
 export type CombatSessionStatus = "active" | "paused" | "awaitingChoice" | "completed";
@@ -444,6 +455,21 @@ export interface CombatSession {
    *   victory 지급 시 기존 xpMult 체인에 곱. 예: "풍요의 수확" 0.75 (XP -25%).
    */
   xpMult?: number;
+  /**
+   * Phase 11c R1 — "깨지기 쉬운 세계" affix runtime. 몬스터 crit 확률에 가산.
+   *   기본 0, affix 적용 시 0.15. rollEnemyOutcome 에서 참조.
+   */
+  monsterCritBonus?: number;
+  /**
+   * Phase 11c R1 — "혼돈의 보물" affix runtime. true 면 rollDropRarity 가
+   *   4 등급 균등 확률 (25% 씩) 으로 뽑음. 고등급 확률 ↑ but 저등급도 자주.
+   */
+  flattenDropRarity?: boolean;
+  /**
+   * Phase 11c R1 — "긴 행군" affix runtime. 휴식처 확률 가산 (treasure branch).
+   *   기본 0, affix 적용 시 0.30 → rest 기본 35% + 30% = 65%.
+   */
+  restChanceBonus?: number;
   startedAt: number;
 }
 
@@ -647,23 +673,47 @@ export function computeWeeklyScore(
 /** 강화 가능 최대 레벨 (inclusive). */
 export const MAX_ENHANCE_LEVEL = 10;
 
-/** 강화 실패 시 아이템 보존 확률 (30%). 나머지 70% 는 소실. */
+/**
+ * @deprecated Phase 11c R1 — rarity 별 보존 확률 `ENHANCE_PRESERVE_BY_RARITY` 사용.
+ * legend +10 접근성을 위해 rarity 별 차등 보존 도입됨 (normal/rare 30%, unique 40%, legend 50%).
+ */
 export const ENHANCE_PRESERVE_ON_FAIL = 0.3;
 
-/** 등급별 base 성공률 (+0 → +1). 백분율 0-100 */
+/**
+ * 등급별 base 성공률 (+0 → +1). 백분율 0-100.
+ * Phase 11c R1 fix: legend 60 → 75. 이전 값으로는 +0→+10 누적 성공률 ≈ 0.0001%
+ * (백만 번에 1회) 로 legend +10 이 수학적 도달 불가능했음. 목표로 설정 가능한
+ * 수치로 상향.
+ */
 export const ENHANCE_BASE_SUCCESS: Record<Rarity, number> = {
   normal: 95,
   rare: 90,
-  unique: 70,
-  legend: 60,
+  unique: 75,
+  legend: 75,
 };
 
-/** 등급별 level 당 감쇠율. 백분율 포인트. */
+/**
+ * 등급별 level 당 감쇠율. 백분율 포인트.
+ * Phase 11c R1 fix: 전체적으로 완화. legend +0→+10 누적 ≈ 75×68×61×54×47×40×33×26×19×12 (%)
+ * = 약 0.03%. 여전히 희귀하지만 500-1000 시도로 가능.
+ */
 export const ENHANCE_DECAY_PER_LEVEL: Record<Rarity, number> = {
   normal: 3,
   rare: 4,
   unique: 5,
-  legend: 6,
+  legend: 7,
+};
+
+/**
+ * Phase 11c R1 fix — legend 만 보존 확률 상향 (30% → 50%).
+ * legend 는 코인 비용도 훨씬 비싸 (×4 rarityMult) 실패 시 손실이 극단적.
+ * normal/rare/unique 는 기존 30% 유지.
+ */
+export const ENHANCE_PRESERVE_BY_RARITY: Record<Rarity, number> = {
+  normal: 0.3,
+  rare: 0.3,
+  unique: 0.4,
+  legend: 0.5,
 };
 
 /** 등급별 비용 배율 (base coin × level 증분 × 이 값). */

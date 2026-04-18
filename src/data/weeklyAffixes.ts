@@ -13,6 +13,7 @@
  */
 
 import type { CombatSession } from "@/types/uphero";
+import { emptyTalismanMods } from "@/lib/talismanSkills";
 
 export interface WeeklyAffix {
   id: string;
@@ -63,7 +64,7 @@ export const WEEKLY_AFFIX_POOL: WeeklyAffix[] = [
       s.hero.baseStats.agi += 10;
       // 이익: dodge +15%. talismanMods 에 가산 (없으면 새로 생성).
       if (!s.talismanMods) {
-        s.talismanMods = emptyMods();
+        s.talismanMods = emptyTalismanMods();
       }
       s.talismanMods.dodgeBonus += 0.15;
     },
@@ -93,11 +94,10 @@ export const WEEKLY_AFFIX_POOL: WeeklyAffix[] = [
     name: "깨지기 쉬운 세계",
     description: "모든 치명타 확률 +15% (양측)",
     apply(s) {
-      // 영웅 crit +15% (talismanMods 의 critDmgBonus 가 아닌 base crit chance 에 추가).
-      // base crit 은 stats.crit 으로 계산되니 baseStats.crit +15 추가.
+      // 영웅 crit +15 — baseStats.crit 에 누적 (1 포인트 = 1% crit).
       s.hero.baseStats.crit += 15;
-      // 몬스터 crit 은 공식에 직접 반영 필요 — rollEnemyOutcome 에서 affixId 체크.
-      // 지금은 no-op, UI 만 표시 (Phase 12 runtime 검증에서 강화).
+      // Phase 11c R1 — 몬스터 crit +15% runtime: rollEnemyOutcome 에서 참조.
+      s.monsterCritBonus = 0.15;
     },
   },
   {
@@ -135,9 +135,9 @@ export const WEEKLY_AFFIX_POOL: WeeklyAffix[] = [
     id: "chaos_treasures",
     name: "혼돈의 보물",
     description: "드롭 등급이 무작위 (저등급·고등급 모두 동일 확률)",
-    apply() {
-      // rollDropRarity 분기는 Phase 12 에서 affixId 기반 구현 — 현재 no-op.
-      // 설명 문구는 이미 정직 (legend 확률 ↑ 되지만 normal 도 더 자주).
+    apply(s) {
+      // Phase 11c R1 — rollDropRarity 에서 flag 체크 → 4 등급 균등 분배.
+      s.flattenDropRarity = true;
     },
   },
   {
@@ -156,36 +156,11 @@ export const WEEKLY_AFFIX_POOL: WeeklyAffix[] = [
     apply(s) {
       // 페널티: monster HP +25% → 전투 길어짐
       s.monsterHpMult = 1.25;
-      // 이익: 휴식처 확률 +30%. Runtime 분기 — tickSession 의 treasure 분기에서
-      //   affixId==="long_march" 체크. 아직 no-op, UI 설명 정직 (현재 base 35%).
-      //   Phase 12 에서 runtime +30% 실제 반영 예정.
+      // Phase 11c R1 — 휴식처 확률 +30% runtime. 기본 35% → 65%.
+      s.restChanceBonus = 0.3;
     },
   },
 ];
-
-/** empty talisman modifier bucket — emptyTalismanMods() 복제 (cyclic dep 회피). */
-function emptyMods(): NonNullable<CombatSession["talismanMods"]> {
-  return {
-    dodgeBonus: 0,
-    enemyMissBonus: 0,
-    critDmgBonus: 0,
-    coinMult: 1,
-    timeCostMult: 1,
-    healEffectMult: 1,
-    hpRegenEvery2Rounds: 0,
-    extraDropChance: 0,
-    legendDropBonus: 0,
-    bossTimeRecover: 0,
-    counterChance: 0,
-    lowHpDmgBonus: 0,
-    agiRoundAccum: 0,
-    agiRoundCap: 0,
-    classSkillCdReduce: 0,
-    startXp: 0,
-    startHpMult: 1,
-    startHpFlat: 0,
-  };
-}
 
 /** week id 기반 결정론적 pick — 모든 유저가 같은 affix */
 export function pickWeeklyAffix(weekId: string): WeeklyAffix {

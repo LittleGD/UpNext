@@ -405,10 +405,11 @@ export function tickSession(session: CombatSession): CombatSession {
 
         // 보스 처치면 드롭 확정 + 높은 등급
         if (monster.isBoss) {
-          // Phase 11c — NG+ legend bonus 도 가산.
+          // Phase 11c — NG+ legend bonus 도 가산. chaos_treasures affix 시 flatten.
           const rarity = rollDropRarity(
             s.currentFloor + 10,
             tMods.legendDropBonus + (s.ngPlusLevel ?? 0) * 0.02,
+            s.flattenDropRarity ?? false,
           );
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
@@ -430,6 +431,7 @@ export function tickSession(session: CombatSession): CombatSession {
           const rarity = rollDropRarity(
             s.currentFloor,
             tMods.legendDropBonus + (s.ngPlusLevel ?? 0) * 0.02,
+            s.flattenDropRarity ?? false,
           );
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
@@ -446,6 +448,7 @@ export function tickSession(session: CombatSession): CombatSession {
           const bonusRarity = rollDropRarity(
             s.currentFloor + 5,
             tMods.legendDropBonus + (s.ngPlusLevel ?? 0) * 0.02,
+            s.flattenDropRarity ?? false,
           );
           const bonusEq = rollEquipmentDrop(
             s.dungeonId,
@@ -565,7 +568,9 @@ export function tickSession(session: CombatSession): CombatSession {
     // treasure — Phase 4b.3: coinBoost 반영. Phase 5c.2: bard +25%.
     // Phase 11a rebalance — 35% 확률로 "휴식처" 변주: 코인 대신 시간 회복 (+10~15).
     //   시간 밸런스가 빡빡한 중후반 F20+ 구간에서 핵심 자원. 평균 3-4 탐험 1회 등장.
-    const isRest = Math.random() < 0.35;
+    //   Phase 11c R1 — long_march affix 시 +30% → 65%.
+    const restChance = 0.35 + (s.restChanceBonus ?? 0);
+    const isRest = Math.random() < restChance;
     if (isRest) {
       const recoverAmount = 10 + Math.floor(Math.random() * 6); // 10~15 회복
       const restDesc = pickRestDescription();
@@ -645,10 +650,11 @@ export function resolveChoice(
   s.log[choiceIdx] = { ...choiceEntry, resolvedIndex: optionIndex };
 
   // outcomes 우선 — weight 기반 분기. 없으면 legacy effect.
+  // Phase 11c R1 — narrative prefix 매칭 대신 explicit "choiceResult" variant.
   if (option.outcomes && option.outcomes.length > 0) {
     const outcome = pickWeighted(option.outcomes);
     s.log.push({
-      type: "narrative",
+      type: "choiceResult",
       text: `> ${option.label} → ${outcome.resultText}`,
       timestamp: Date.now(),
     });
@@ -661,7 +667,7 @@ export function resolveChoice(
     // Legacy: 결과 narrative + 단일 effect
     if (option.resultText) {
       s.log.push({
-        type: "narrative",
+        type: "choiceResult",
         text: `> ${option.label} → ${option.resultText}`,
         timestamp: Date.now(),
       });
@@ -779,10 +785,13 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
         });
         const stats = computeEffectiveStats(session.hero);
         // 몬스터만 공격 (기습). Phase 5c.2: monk class dodge bonus 동일 적용.
+        //   Phase 11c R1: fragile_world affix 시 monsterCritBonus 전달.
         const outcome = rollEnemyOutcome(
           monster,
           stats,
           classDodgeBonus(session.hero.classType),
+          0,
+          session.monsterCritBonus ?? 0,
         );
         const dmg =
           outcome === "miss" || outcome === "dodge"
@@ -960,6 +969,7 @@ function executeCombatRound(
       effStats,
       classDodgeBonus(s.hero.classType) + tMods.dodgeBonus,
       tMods.enemyMissBonus,
+      s.monsterCritBonus ?? 0,
     );
   }
   const enemyDmg =
@@ -1107,12 +1117,14 @@ function rollHeroOutcome(
  * 몬스터 공격의 outcome 판정.
  * @param dodgeBonus Phase 5c.2 — monk class + Phase 11b talisman dodgeBonus 합산. 기본 0.
  * @param enemyMissBonus Phase 11b — talisman "변덕" 등 적 miss 확률 가산.
+ * @param monsterCritBonus Phase 11c R1 — "깨지기 쉬운 세계" affix runtime. 몬스터 crit +0.15.
  */
 function rollEnemyOutcome(
   monster: Monster,
   stats: HeroBaseStats,
   dodgeBonus = 0,
   enemyMissBonus = 0,
+  monsterCritBonus = 0,
 ): CombatOutcome {
   // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 8%, floor 60 에서 2% 바닥)
   //   Phase 11b talisman "변덕" → enemyMissBonus 추가.
@@ -1121,8 +1133,8 @@ function rollEnemyOutcome(
   // 방어자(영웅) 회피 — agi scaling + class bonus + talisman bonus. cap 0.45 (monk + 변덕 최대).
   const dodgeChance = Math.min(0.45, stats.agi * 0.006 + dodgeBonus);
   if (Math.random() < dodgeChance) return "dodge";
-  // 공격자(몬스터) 크리 — level scaling
-  const critChance = Math.min(0.25, 0.03 + monster.level * 0.004);
+  // 공격자(몬스터) 크리 — level scaling + affix bonus (cap 0.4 로 올림, fragile_world 대비).
+  const critChance = Math.min(0.4, 0.03 + monster.level * 0.004 + monsterCritBonus);
   if (Math.random() < critChance) return "crit";
   return "hit";
 }
@@ -1140,17 +1152,36 @@ function computeHeroDamage(
   return crit ? Math.floor(base * 1.8) : base;
 }
 
-/** 몬스터 데미지 — crit 시 1.7배 */
+/**
+ * 몬스터 데미지 — crit 시 1.7배.
+ *
+ * Phase 11c-balance fix: 이전 공식은 flat `-vit/2` 로 감산이라 NG+ scale × 1.5+
+ * 이후 monster.atk 가 1000+ 로 뛸 때 vit 감산이 무의미해져 영웅이 1-hit kill 당함
+ * (NG+2 F30 에서 클리어 수학적 불가능).
+ *
+ * 새 공식: **퍼센트 기반 damage reduction (DR)** + flat vit 감산 병용.
+ *   DR = min(0.6, vit / (vit + 40))   ← cap 60%, vit 60 에서 60% 가까이
+ *   rawDmg = monster.atk + random(0..4) - 2
+ *   finalDmg = max(1, rawDmg × (1 - DR) - floor(vit / 4))
+ *   crit ×1.7 (변경 없음)
+ *
+ * Lv30 vit 39 기준 DR ≈ 50% → NG+2 atk 1000 → 500 × (1 - 0.5) = 250 (여전히 아프지만
+ * maxHp 390 에서 1.5hit 소요, 생존 가능).
+ */
 function computeEnemyDamage(
   monster: Monster,
   stats: HeroBaseStats,
   crit: boolean,
 ): number {
+  const vit = Math.max(0, stats.vit);
+  const dr = Math.min(0.6, vit / (vit + 40));
+  const rawDmg = monster.atk + Math.floor(Math.random() * 5) - 2;
   const base = Math.max(
     1,
-    monster.atk + Math.floor(Math.random() * 5) - 2 - Math.floor(stats.vit / 2),
+    Math.round(rawDmg * (1 - dr)) - Math.floor(vit / 4),
   );
-  return crit ? Math.floor(base * 1.7) : base;
+  const finalDmg = Math.max(1, base);
+  return crit ? Math.floor(finalDmg * 1.7) : finalDmg;
 }
 
 /**

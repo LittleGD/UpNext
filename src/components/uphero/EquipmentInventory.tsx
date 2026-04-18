@@ -23,7 +23,7 @@ import {
   getEffectiveHeroLevel,
   enhanceSuccessRate,
   enhanceCost,
-  ENHANCE_PRESERVE_ON_FAIL,
+  ENHANCE_PRESERVE_BY_RARITY,
   MAX_ENHANCE_LEVEL,
   SELL_PRICE,
   SHOP_PRICES,
@@ -192,26 +192,49 @@ export default function EquipmentInventory({
       //   연출 → 연출 끝나면 결과 모달. 순서 주의: enhanceItem 이 이미 store 를
       //   mutate 했으므로 UI 에서 보이는 아이템 reference 는 staleness 주의.
       //   ritual 은 "입력 아이템" 기준으로 보여주므로 stale 문제 없음.
+      //
+      // Phase 11c R1 — exhaustive switch 로 재구성. 새로운 EnhanceResult 분기가
+      //   추가될 때 TS 에러 로 포착되도록 default 에 assertExhaustive 패턴.
       const result: EnhanceResult = enhanceItem(pending.item.id);
-      const outcome: EnhanceRitualOutcome =
-        result.ok
-          ? "success"
-          : result.reason === "keep"
-            ? "keep"
-            : result.reason === "destroyed"
-              ? "destroyed"
-              : "keep"; // coin/maxed/not-found 는 ritual 없이 즉시 모달 (handled below)
 
-      // coin/maxed/not-found 는 ritual 없이 즉시 toast
-      if (!result.ok && (result.reason === "coin" || result.reason === "maxed" || result.reason === "not-found")) {
-        play("cancel");
-        const msg =
-          result.reason === "coin"
-            ? `코인 부족 (${result.cost} 필요)`
-            : result.reason === "maxed"
-              ? "이미 +10 최대 강화"
-              : "아이템을 찾을 수 없음";
-        onNotify(msg);
+      // coin/maxed/not-found 는 ritual 없이 즉시 toast — 상호작용 abort
+      if (!result.ok) {
+        if (result.reason === "coin") {
+          play("cancel");
+          onNotify(`코인 부족 (${result.cost} 필요)`);
+          setPending(null);
+          return;
+        }
+        if (result.reason === "maxed") {
+          play("cancel");
+          onNotify("이미 +10 최대 강화");
+          setPending(null);
+          return;
+        }
+        if (result.reason === "not-found") {
+          play("cancel");
+          onNotify("아이템을 찾을 수 없음");
+          setPending(null);
+          return;
+        }
+      }
+
+      // 시각 outcome + modal variant 을 exhaustive 하게 결정.
+      let outcome: EnhanceRitualOutcome;
+      let modal: EnhanceModalVariant;
+      if (result.ok) {
+        outcome = "success";
+        modal = { kind: "success", newItem: result.newItem, prevLevel: result.prevLevel };
+      } else if (result.reason === "keep") {
+        outcome = "keep";
+        modal = { kind: "keep", item: result.item };
+      } else if (result.reason === "destroyed") {
+        outcome = "destroyed";
+        modal = { kind: "destroyed", lostItemName: result.lostItemName };
+      } else {
+        // unreachable — coin/maxed/not-found 위에서 처리됨. TS exhaustiveness 보장.
+        const _exhaustive: never = result;
+        void _exhaustive;
         setPending(null);
         return;
       }
@@ -220,15 +243,7 @@ export default function EquipmentInventory({
       //   이전엔 여기서 play() 를 했지만 "collect" vs "cancel" 이 2초 연출보다
       //   먼저 들려 유저가 결과 예측 가능. 이제 ritual onDone 에서 재생.
       setRitual({ item: pending.item, outcome });
-      // result 를 state 로 저장해놨다가 ritual onDone 에서 열기
-      setPendingResult(
-        result.ok
-          ? { kind: "success", newItem: result.newItem, prevLevel: result.prevLevel }
-          : result.reason === "keep"
-            ? { kind: "keep", item: result.item }
-            : { kind: "destroyed", lostItemName: result.lostItemName },
-      );
-
+      setPendingResult(modal);
       setSelectedId(null);
     }
     setPending(null);
@@ -609,7 +624,7 @@ export default function EquipmentInventory({
                           <span style={{ color: rColor }}>
                             {Math.round(rate * 100)}%
                           </span>
-                          <span>보존 {Math.round(ENHANCE_PRESERVE_ON_FAIL * 100)}%</span>
+                          <span>보존 {Math.round(ENHANCE_PRESERVE_BY_RARITY[item.rarity] * 100)}%</span>
                         </div>
                       </div>
                       <button
@@ -679,7 +694,7 @@ export default function EquipmentInventory({
             <>
               성공률 <span style={{ color: GB.lightest }}>{Math.round(pending.successRate * 100)}%</span>
               <br />
-              실패 시 <span style={{ color: GB.lightest }}>{Math.round(ENHANCE_PRESERVE_ON_FAIL * 100)}%</span> 확률로 아이템 보존 · 나머지는 소실
+              실패 시 <span style={{ color: GB.lightest }}>{Math.round(ENHANCE_PRESERVE_BY_RARITY[pending.item.rarity] * 100)}%</span> 확률로 아이템 보존 · 나머지는 소실
               <br />
               비용 <span style={{ color: GB.lightest }}>{pending.cost}</span> 코인 (보유 {coins})
             </>

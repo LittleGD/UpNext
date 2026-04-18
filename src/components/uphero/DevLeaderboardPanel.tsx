@@ -19,7 +19,8 @@
  */
 
 import { useState } from "react";
-import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { useUpHeroStore, pickPersisted } from "@/store/useUpHeroStore";
+import { saveToStorage } from "@/lib/storage";
 import { useAuthStore } from "@/store/useAuthStore";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { getISOWeekId } from "@/types/uphero";
@@ -61,53 +62,15 @@ export default function DevLeaderboardPanel() {
       };
     }
     useUpHeroStore.setState({ dungeons: newDungeons });
-    // persist
-    const state = useUpHeroStore.getState();
-    localStorage.setItem(
-      "uphero",
-      JSON.stringify({
-        hero: state.hero,
-        inventory: state.inventory,
-        coins: state.coins,
-        passes: state.passes,
-        dungeons: newDungeons,
-        currentSession: state.currentSession,
-        codex: state.codex,
-        cosmetics: state.cosmetics,
-        lastIdleAccrualAt: state.lastIdleAccrualAt,
-        heroStartLevel: state.heroStartLevel,
-        shopDaily: state.shopDaily,
-        ngPlusLevel: state.ngPlusLevel,
-        weeklyVariant: state.weeklyVariant,
-        schemaVersion: 5,
-      }),
-    );
+    // persist — pickPersisted 재사용 (schema drift 방지).
+    saveToStorage("uphero", pickPersisted(useUpHeroStore.getState()));
     appendLog("✓ 모든 던전 F30 해금 (보스 10/20/30 기록)");
   };
 
   /** 2. NG+ 레벨 강제 설정 */
   const setNgPlus = (n: number) => {
     useUpHeroStore.setState({ ngPlusLevel: n });
-    const state = useUpHeroStore.getState();
-    localStorage.setItem(
-      "uphero",
-      JSON.stringify({
-        hero: state.hero,
-        inventory: state.inventory,
-        coins: state.coins,
-        passes: state.passes,
-        dungeons: state.dungeons,
-        currentSession: state.currentSession,
-        codex: state.codex,
-        cosmetics: state.cosmetics,
-        lastIdleAccrualAt: state.lastIdleAccrualAt,
-        heroStartLevel: state.heroStartLevel,
-        shopDaily: state.shopDaily,
-        ngPlusLevel: n,
-        weeklyVariant: state.weeklyVariant,
-        schemaVersion: 5,
-      }),
-    );
+    saveToStorage("uphero", pickPersisted(useUpHeroStore.getState()));
     appendLog(`✓ NG+ 레벨 ${n} 로 설정`);
   };
 

@@ -397,16 +397,7 @@ function HomeView({
         className="px-4 pt-3 pb-4 flex flex-col gap-2 shrink-0"
         style={{ borderTop: `1px solid ${GB.dark}` }}
       >
-        {/* Phase 11c — 주간 악몽 던전 카드. F30 최초 클리어 후만 노출. */}
-        {f30Unlocked && weeklyVariant && (
-          <WeeklyNightmareCard
-            weekId={weeklyVariant.week}
-            affixId={weeklyVariant.affixId}
-            clearedCount={weeklyVariant.clearedDungeons.length}
-            bestScore={weeklyVariant.bestScore}
-            onOpen={onOpenWeekly}
-          />
-        )}
+        {/* Primary CTA — "탐험 시작" 이 홈의 명확한 주 행동. 최상단 고정. */}
         <PrimaryCTA
           onClick={() => {
             play("select");
@@ -418,6 +409,16 @@ function HomeView({
           badge={`×${totalPasses}`}
           hint={totalPasses > 0 ? "던전 선택" : "챌린지 완료로 탐험권 획득"}
         />
+        {/* Phase 11c R1 — 주간 악몽 compact ribbon. PrimaryCTA 아래로 이동, 시각 가중치 ↓. */}
+        {f30Unlocked && weeklyVariant && (
+          <WeeklyNightmareRibbon
+            weekId={weeklyVariant.week}
+            affixId={weeklyVariant.affixId}
+            clearedCount={weeklyVariant.clearedDungeons.length}
+            bestScore={weeklyVariant.bestScore}
+            onOpen={onOpenWeekly}
+          />
+        )}
         <SecondaryCTA
           onClick={() => {
             play("select");
@@ -1009,8 +1010,14 @@ function PressButton({
 
 import { getWeeklyAffixById } from "@/data/weeklyAffixes";
 
-/** 홈 상단에 표시되는 "이번 주 악몽" 카드. */
-function WeeklyNightmareCard({
+/**
+ * 홈 CTA 스택 내에서 PrimaryCTA 아래 표시되는 compact ribbon.
+ *
+ * Phase 11c R1 — 이전 버전은 gradient 큰 카드로 PrimaryCTA ("탐험 시작") 위에 위치해
+ * 주 시선을 빼앗았음. 이제 상단 accent line + 1-line 형태로 축약, SecondaryCTA 와
+ * 비슷한 높이 ·  따뜻한 색 accent 만 유지.
+ */
+function WeeklyNightmareRibbon({
   weekId,
   affixId,
   clearedCount,
@@ -1024,44 +1031,38 @@ function WeeklyNightmareCard({
   onOpen: () => void;
 }) {
   const affix = getWeeklyAffixById(affixId);
+  const SAND = "#e8b887";
   return (
     <PressButton
       onClick={onOpen}
       style={{
-        background: `linear-gradient(135deg, ${"#e8b887"}22 0%, ${GB.dark}cc 100%)`,
-        color: GB.lightest,
-        border: `1px solid ${"#e8b887"}`,
+        // 왼쪽에 sand accent bar 로 "주간 악몽" 임을 표시, 메인 배경은 어두운 톤 유지
+        background: `${GB.dark}cc`,
+        color: GB.light,
+        border: `1px solid ${GB.dark}`,
+        borderLeft: `3px solid ${SAND}`,
         padding: "10px 12px",
       }}
     >
       <div className="flex items-center gap-2.5">
-        <PixelIcon name="WarningDiamond" size={18} color="#e8b887" />
+        <PixelIcon name="WarningDiamond" size={14} color={SAND} />
         <div className="flex-1 min-w-0 text-left">
-          <div className="flex items-center gap-1.5">
-            <span className="typo-body" style={{ color: GB.lightest, fontWeight: 500 }}>
-              이번 주 악몽
-            </span>
-            <span
-              className="typo-micro tabular-nums"
-              style={{ color: "#e8b887", opacity: 0.85, fontSize: 10 }}
-            >
-              {weekId}
-            </span>
-          </div>
           <div
             className="typo-caption truncate"
-            style={{ color: GB.light }}
+            style={{ color: GB.lightest }}
           >
-            {affix?.name ?? "이번 주 악몽"}
-            {clearedCount > 0 && (
-              <span className="tabular-nums" style={{ opacity: 0.7 }}>
-                {" · "}클리어 {clearedCount}/8
-                {bestScore > 0 && ` · 최고 ${bestScore.toLocaleString()}점`}
-              </span>
-            )}
+            이번 주 악몽 · {affix?.name ?? "—"}
+          </div>
+          <div
+            className="typo-micro truncate tabular-nums"
+            style={{ color: GB.light, opacity: 0.7 }}
+          >
+            {weekId}
+            {clearedCount > 0 && ` · ${clearedCount}/8`}
+            {bestScore > 0 && ` · 최고 ${bestScore.toLocaleString()}`}
           </div>
         </div>
-        <PixelIcon name="ChevronRight" size={14} color={GB.lightest} />
+        <PixelIcon name="ChevronRight" size={12} color={GB.light} />
       </div>
     </PressButton>
   );

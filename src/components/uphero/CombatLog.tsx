@@ -157,6 +157,14 @@ const LogLine = memo(function LogLine({
         </div>
       );
 
+    case "choiceResult":
+      // Phase 11c R1 — event choice 결과. narrative 와 유사 스타일, 약간 밝게 강조.
+      return (
+        <div style={{ ...style, color: GB.lightest }} className="opacity-90">
+          <TypewriterText text={entry.text} enabled={isLatest} />
+        </div>
+      );
+
     case "floor":
       // Phase 8b — 새 floor 진입 시 divider 에 한 번 sweep.
       // isLatest 일 때만 sweep 재생 (과거 floor 라인까지 반복 재생되면 어지러움).

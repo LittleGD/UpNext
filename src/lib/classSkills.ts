@@ -33,12 +33,10 @@ export interface ClassSkill {
 const warrior: ClassSkill = {
   class: "warrior",
   name: "강타",
-  cooldown: 5,
-  // Phase 9a — 원래 `monster.hp / (monster.hp || 1) > 0.5` 조건은 항상 1>0.5=true
-  //   로 평가되는 dead 분기였음. monster 객체가 "최대 HP" 만 담고 있어 남은 HP
-  //   판정 자체가 불가능. 원래 의도 (HP 50%+ 에서만 발동) 를 구현하려면 caller 가
-  //   remainingHp 를 전달해야 하는데 그 비용보다 "쿨마다 항상 발동" 이 명확한
-  //   설계. 강력한 2x 공격이지만 쿨다운 5 로 밸런스.
+  // Phase 11c R1 fix — cooldown 5 → 4. mage(6) / druid(5) 대비 너무 긴 쿨이라
+  //   짧은 전투에서 거의 발동 안 됨 ("감정 없는 전사"). cooldown 4 면 일반 전투
+  //   2-3턴 기준 1회 + 보스전에서 2-3회 발동 → 실제로 "강타" 가 체감됨.
+  cooldown: 4,
   shouldFire: (_s, monster) => !!monster && monster.hp > 0,
   apply(s) {
     s.nextHeroDamageMult = 2;
