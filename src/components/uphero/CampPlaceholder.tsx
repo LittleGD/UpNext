@@ -25,6 +25,7 @@ import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import {
   SHOP_PRICES,
   PASS_CAP_PER_CATEGORY,
+  DAILY_PASS_PURCHASE_CAP,
   CLASS_THEME_COLOR,
   getEffectiveHeroLevel,
 } from "@/types/uphero";
@@ -524,7 +525,14 @@ function ShopView({
 }) {
   const purchaseTicket = useUpHeroStore((s) => s.purchaseTicket);
   const purchaseCardPack = useUpHeroStore((s) => s.purchaseCardPack);
+  // Phase 11a — 탐험권 상점 구매.
+  const purchasePass = useUpHeroStore((s) => s.purchasePass);
+  const shopDaily = useUpHeroStore((s) => s.shopDaily);
+  const passes = useUpHeroStore((s) => s.passes);
   const { play } = useSound();
+
+  const passesBoughtToday = shopDaily?.passesBought ?? 0;
+  const dailyCapReached = passesBoughtToday >= DAILY_PASS_PURCHASE_CAP;
 
   const onBuyTicket = () => {
     const ok = purchaseTicket();
@@ -543,6 +551,24 @@ function ShopView({
       onNotify(size === "full" ? "카드팩 획득" : "보너스 카드 +1");
     } else {
       onNotify("코인이 부족해요");
+    }
+  };
+
+  const onBuyPass = (dungeonId: DungeonId) => {
+    const result = purchasePass(dungeonId);
+    if (result === "ok") {
+      play("collect");
+      const dName = DUNGEON_LIST.find((d) => d.id === dungeonId)?.name ?? "";
+      onNotify(`${dName} 탐험권 +1`);
+    } else if (result === "no-coin") {
+      play("cancel");
+      onNotify("코인이 부족해요");
+    } else if (result === "daily-cap") {
+      play("cancel");
+      onNotify(`오늘은 ${DAILY_PASS_PURCHASE_CAP}장까지만 구매 가능`);
+    } else {
+      play("cancel");
+      onNotify("이 던전 탐험권이 가득 찼어요");
     }
   };
 
@@ -575,6 +601,92 @@ function ShopView({
           onBuy={() => onBuyPack("full")}
           canAfford={coins >= SHOP_PRICES.cardPackFull}
         />
+
+        {/* Phase 11a — 탐험권 상점. 8 던전 선택 구매 + 일 2장 cap. */}
+        <section
+          className="mt-3 rounded-md p-3"
+          style={{
+            background: `${GB.dark}40`,
+            border: `1px solid ${GB.dark}`,
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div
+              className="typo-caption inline-flex items-center gap-1.5"
+              style={{ color: GB.lightest }}
+            >
+              <PixelIcon name="Target" size={14} color={GB.lightest} />
+              탐험권 구매
+            </div>
+            <div
+              className={`typo-micro tabular-nums ${
+                dailyCapReached ? gbClass.textDim : ""
+              }`}
+              style={{
+                color: dailyCapReached ? undefined : GB.light,
+                letterSpacing: "0.05em",
+              }}
+              aria-label={`오늘 구매 ${passesBoughtToday} 중 ${DAILY_PASS_PURCHASE_CAP} 한도`}
+            >
+              오늘 {passesBoughtToday}/{DAILY_PASS_PURCHASE_CAP}
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {DUNGEON_LIST.map((d) => {
+              const dungeonPasses = passes[d.id] ?? 0;
+              const isFull = dungeonPasses >= PASS_CAP_PER_CATEGORY;
+              const canBuy =
+                !dailyCapReached && !isFull && coins >= SHOP_PRICES.expeditionPass;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => onBuyPass(d.id)}
+                  disabled={!canBuy}
+                  className="shop-pass-btn flex flex-col items-center rounded px-1 py-1.5"
+                  style={{
+                    minHeight: 56,
+                    background: canBuy
+                      ? `${GB.dark}88`
+                      : `${GB.dark}44`,
+                    border: `1px solid ${canBuy ? d.themeColor : GB.dark}`,
+                    color: canBuy ? GB.lightest : GB.light,
+                    opacity: canBuy ? 1 : 0.55,
+                    cursor: canBuy ? "pointer" : "not-allowed",
+                  }}
+                  aria-label={`${d.name} 탐험권 구매 (${SHOP_PRICES.expeditionPass} 코인)`}
+                >
+                  <PixelIcon
+                    name={CATEGORY_ICON[d.id]}
+                    size={16}
+                    color={canBuy ? d.themeColor : GB.light}
+                  />
+                  <span
+                    className="typo-micro mt-0.5 leading-none tabular-nums"
+                    style={{ fontSize: 9 }}
+                  >
+                    {dungeonPasses}/{PASS_CAP_PER_CATEGORY}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div
+            className={`typo-micro mt-2 ${gbClass.textDim} text-center`}
+            style={{ letterSpacing: "0.05em" }}
+          >
+            {SHOP_PRICES.expeditionPass} 코인 / 장 · 하루 {DAILY_PASS_PURCHASE_CAP}장 한정
+          </div>
+          <style jsx>{`
+            .shop-pass-btn {
+              transition: transform 120ms ${EASE_OUT},
+                background 160ms ${EASE_OUT};
+            }
+            .shop-pass-btn:not(:disabled):active {
+              transform: scale(0.96);
+            }
+          `}</style>
+        </section>
 
         <div
           className="mt-2 p-3 typo-caption text-center rounded"

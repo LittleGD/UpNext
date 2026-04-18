@@ -279,6 +279,48 @@ export function getEquipmentBaseName(eq: {
   return eq.name;
 }
 
+/**
+ * Phase 11a — affix 시스템.
+ * rare+ 드롭에 primary 와 다른 stat 1개 랜덤 부여. legend 는 2개.
+ * 값: rare 2 / unique 4 / legend 6. primary 의 약 30% 수준.
+ *
+ * 이름 표기: `"of {key 한글}"` suffix. e.g. "빛나는 자기절제의 검 of 민첩".
+ */
+const AFFIX_VALUE: Record<Rarity, number> = {
+  normal: 0,
+  rare: 2,
+  unique: 4,
+  legend: 6,
+};
+
+const AFFIX_STAT_LABEL: Record<keyof import("@/types/uphero").HeroBaseStats, string> = {
+  str: "힘",
+  int: "지성",
+  vit: "체력",
+  dex: "손재주",
+  agi: "민첩",
+  crit: "치명",
+  slotBonus: "슬롯",
+};
+
+const AFFIX_POOL: Array<keyof import("@/types/uphero").HeroBaseStats> = [
+  "str",
+  "int",
+  "vit",
+  "dex",
+  "agi",
+  "crit",
+];
+
+/** primary 와 같지 않은 stat 랜덤 선택. 이미 뽑힌 것도 exclude. */
+function pickAffix(
+  exclude: Set<string>,
+): keyof import("@/types/uphero").HeroBaseStats | null {
+  const available = AFFIX_POOL.filter((k) => !exclude.has(k));
+  if (available.length === 0) return null;
+  return available[Math.floor(Math.random() * available.length)];
+}
+
 /** 템플릿 + 등급 → Equipment instance */
 export function createEquipmentFromTemplate(
   template: EquipmentTemplate,
@@ -305,15 +347,47 @@ export function createEquipmentFromTemplate(
   if (critBonus > 0) stats.crit = critBonus;
   if (isSlotBearer) stats.slotBonus = 1;
 
+  // Phase 11a — affix 부여. rare+ 에 1개, legend 에 추가 1개 (총 2개).
+  //   primary stat 과 crit (이미 unique+ 에서 부여됨) 은 exclude.
+  //   affix 값은 기존 stats 에 그대로 더해짐 (중복 key 는 자동 합산).
+  const primaryKey = template.statBoost as string;
+  const affix1 =
+    rarity === "normal"
+      ? null
+      : pickAffix(new Set([primaryKey, "crit", "slotBonus"]));
+  const affixList: Array<keyof import("@/types/uphero").HeroBaseStats> = [];
+  if (affix1) {
+    stats[affix1] = (stats[affix1] ?? 0) + AFFIX_VALUE[rarity];
+    affixList.push(affix1);
+  }
+  if (rarity === "legend") {
+    const affix2 = pickAffix(
+      new Set([primaryKey, "crit", "slotBonus", affix1 ?? ""]),
+    );
+    if (affix2) {
+      stats[affix2] = (stats[affix2] ?? 0) + AFFIX_VALUE[rarity];
+      affixList.push(affix2);
+    }
+  }
+
+  // 이름에 affix suffix 부착 — UI 가 읽기 쉽도록 "of {한글}" 형태.
+  //   legend 두 개면 "of 민첩, 힘" 처럼 comma 구분.
+  const affixSuffix =
+    affixList.length > 0
+      ? ` of ${affixList.map((k) => AFFIX_STAT_LABEL[k]).join(", ")}`
+      : "";
+
   return {
     id: `eq_${template.baseName.replace(/\s/g, "")}_${rarity}_${Date.now() % 100000}_${Math.floor(Math.random() * 1000)}`,
-    name: `${RARITY_PREFIX[rarity]}${template.baseName}`,
+    name: `${RARITY_PREFIX[rarity]}${template.baseName}${affixSuffix}`,
     type: template.type,
     rarity,
     category: template.category,
     iconName: template.iconName,
     stats,
     flavor: template.flavor,
+    ...(affixList.length === 1 ? { affix: affixList[0] } : {}),
+    ...(affixList.length > 1 ? { affixes: affixList } : {}),
   };
 }
 

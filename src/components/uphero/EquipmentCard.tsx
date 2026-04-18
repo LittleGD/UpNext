@@ -178,6 +178,32 @@ export default function EquipmentCard({
         </div>
       )}
 
+      {/* Phase 11a — 좌상단 enhance level chip (+1~+10).
+           name 에 이미 " +N" 이 붙어있지만 line-clamp 로 가려질 수 있어
+           별도 chip 으로 강조. +10 은 legend 톤. */}
+      {(equipment.enhanceLevel ?? 0) > 0 && !selected && (
+        <div
+          className="absolute top-1 left-1 typo-micro tabular-nums px-1 rounded-sm pointer-events-none"
+          style={{
+            background:
+              (equipment.enhanceLevel ?? 0) >= 10
+                ? "#e8b887" // GB_LEGEND
+                : `${GB.darkest}dd`,
+            color:
+              (equipment.enhanceLevel ?? 0) >= 10 ? GB.darkest : GB.lightest,
+            border: `1px solid ${
+              (equipment.enhanceLevel ?? 0) >= 10 ? "#e8b887" : rarityColor
+            }`,
+            fontSize: 9,
+            letterSpacing: "0.03em",
+            lineHeight: 1.3,
+          }}
+          aria-label={`강화 +${equipment.enhanceLevel}`}
+        >
+          +{equipment.enhanceLevel}
+        </div>
+      )}
+
       {/* 선택됨 배지 */}
       {selected && (
         <div

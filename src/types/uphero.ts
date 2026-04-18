@@ -143,6 +143,27 @@ export interface Equipment {
    * type 은 항상 "talisman". 바인딩 의식 후 고정.
    */
   photoId?: string;
+  /**
+   * Phase 11a — 강화 레벨. 0 = 미강화, 최대 10.
+   * `undefined` 는 legacy 저장본으로 0 과 동일하게 취급.
+   * 이름 표기: `${baseName} +${enhanceLevel}` (N≥1).
+   * stats 는 enhanceItem 호출 시 각 key 에 누적 가산 (미미한 +0.5 반올림 수준).
+   */
+  enhanceLevel?: number;
+  /**
+   * Phase 11a — 2차 affix stat key (rare+ 드롭에 부여).
+   * primary stat 과 별개로 stats 객체에도 반영됨 — 이 필드는 "어떤 key 가 affix
+   * 였는지" 라벨 용도 (UI 에서 prefix 분리 표기 등). legend 은 `affixes` 배열이 2 개.
+   */
+  affix?: keyof HeroBaseStats;
+  /** Phase 11a — legend 전용 3차 affix (2개 부여) */
+  affixes?: Array<keyof HeroBaseStats>;
+  /**
+   * Phase 11b — 사진 부적 +5 / +10 에서 부여되는 passive skill id 들.
+   * `src/lib/talismanSkills.ts` 의 TalismanSkill.id 와 매칭.
+   * 일반 드롭 장비에는 없음 (사진 부적 전용).
+   */
+  talismanSkills?: string[];
 }
 
 /** 탐험권 보유량 — 카테고리별 */
@@ -417,6 +438,16 @@ export interface UpHeroState {
    */
   heroStartLevel?: number;
   /**
+   * Phase 11a — 갓생 상점의 하루 단위 구매 카운터.
+   * date 는 getTodayString() (새벽 1시 기준) 포맷.
+   * passesBought: 오늘 산 탐험권 개수 (DAILY_PASS_PURCHASE_CAP=2 까지).
+   * 다른 daily reset 이 추가되면 여기에 필드 누적.
+   */
+  shopDaily?: {
+    date: string;
+    passesBought: number;
+  };
+  /**
    * Phase 5a.3 — 저장 스키마 버전.
    * initialize 에서 이 값이 CURRENT_SCHEMA_VERSION 보다 낮으면 migration 을
    * 실행하고 새 버전으로 갱신한다. undefined 이면 legacy 로 간주 (Phase 4c 이전).
@@ -470,7 +501,76 @@ export const SHOP_PRICES = {
   enhance: 30,
   fastForward: 20,
   reroll: 50,
+  /** Phase 11a — 탐험권 1장 가격 (던전 무관 고정). */
+  expeditionPass: 80,
 } as const;
+
+/** Phase 11a — 상점에서 하루에 살 수 있는 탐험권 cap. */
+export const DAILY_PASS_PURCHASE_CAP = 2;
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Phase 11a — 강화 (enhanceItem) 시스템 상수
+ *
+ * 단일 아이템 + 코인 → 확률적 +1 level 시도. 최대 +10.
+ * 성공률: base - enhanceLevel × decay (등급별 decay 다름).
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/** 강화 가능 최대 레벨 (inclusive). */
+export const MAX_ENHANCE_LEVEL = 10;
+
+/** 강화 실패 시 아이템 보존 확률 (30%). 나머지 70% 는 소실. */
+export const ENHANCE_PRESERVE_ON_FAIL = 0.3;
+
+/** 등급별 base 성공률 (+0 → +1). 백분율 0-100 */
+export const ENHANCE_BASE_SUCCESS: Record<Rarity, number> = {
+  normal: 95,
+  rare: 90,
+  unique: 70,
+  legend: 60,
+};
+
+/** 등급별 level 당 감쇠율. 백분율 포인트. */
+export const ENHANCE_DECAY_PER_LEVEL: Record<Rarity, number> = {
+  normal: 3,
+  rare: 4,
+  unique: 5,
+  legend: 6,
+};
+
+/** 등급별 비용 배율 (base coin × level 증분 × 이 값). */
+export const ENHANCE_COST_RARITY_MULT: Record<Rarity, number> = {
+  normal: 1,
+  rare: 1.5,
+  unique: 2.5,
+  legend: 4,
+};
+
+/**
+ * 현재 level → 다음 level 시도의 성공률 (0-1 범위).
+ * targetLevel = currentLevel + 1.
+ */
+export function enhanceSuccessRate(
+  rarity: Rarity,
+  currentLevel: number,
+): number {
+  const base = ENHANCE_BASE_SUCCESS[rarity];
+  const decay = ENHANCE_DECAY_PER_LEVEL[rarity];
+  // +0 → +1 시도는 level=0 으로 base 그대로, +9 → +10 은 level=9 로 decay × 9 차감.
+  const raw = base - Math.max(0, currentLevel) * decay;
+  // 너무 낮아져도 최소 5% 는 남겨둔다 (사용자가 legend +10 도달하려면 극소 확률).
+  return Math.max(0.05, Math.min(1, raw / 100));
+}
+
+/**
+ * 강화 시도 코인 비용 계산. base 30 + level 당 50% 증가 + rarity mult.
+ *   e.g., unique +3 → 30 × (1 + 3 × 0.5) × 2.5 = 30 × 2.5 × 2.5 = 187.5 → 188.
+ */
+export function enhanceCost(rarity: Rarity, currentLevel: number): number {
+  const base = SHOP_PRICES.enhance;
+  const levelMult = 1 + Math.max(0, currentLevel) * 0.5;
+  const rarityMult = ENHANCE_COST_RARITY_MULT[rarity];
+  return Math.round(base * levelMult * rarityMult);
+}
 
 /** 장비 판매 환급 (Phase 4a) */
 export const SELL_PRICE: Record<Rarity, number> = {

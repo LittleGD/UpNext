@@ -16,6 +16,11 @@ import {
   PASS_CAP_PER_CATEGORY,
   SHOP_PRICES,
   SELL_PRICE,
+  MAX_ENHANCE_LEVEL,
+  ENHANCE_PRESERVE_ON_FAIL,
+  DAILY_PASS_PURCHASE_CAP,
+  enhanceSuccessRate,
+  enhanceCost,
   type UpHeroState,
   type DungeonId,
   type ClassType,
@@ -23,6 +28,7 @@ import {
   type EquipSlot,
   type CombatSession,
   type CardBuff,
+  type HeroBaseStats,
 } from "@/types/uphero";
 import type { Category } from "@/types/card";
 import type { Rarity } from "@/types/card";
@@ -57,18 +63,19 @@ import {
   findTemplateByLegacyId,
 } from "@/data/upHeroEquipment";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
-import { useGameStore } from "./useGameStore";
+import { useGameStore, getTodayString } from "./useGameStore";
 
 /**
- * Phase 5a.3 / 5b.2 / 9d — 저장 스키마 현재 버전.
+ * Phase 5a.3 / 5b.2 / 9d / 11a — 저장 스키마 현재 버전.
  *
  * v1: codex.monsters/bosses 를 monster.name 기반으로 전환 (legacy 는 instance ID)
  * v2: codex.equipment 를 template baseName 기반으로 전환 (legacy 는 instance ID)
- * v3: heroStartLevel seed — 영웅 레벨을 챌린지 레벨과 분리. 기존 진행자는
- *     heroStartLevel=1 로 migration (legacy 보존), 신규 진입자는 현재 챌린지
- *     레벨을 seed 로 저장해 Lv 1 부터 시작.
+ * v3: heroStartLevel seed — 영웅 레벨을 챌린지 레벨과 분리.
+ * v4: shopDaily seed — 상점 하루 탐험권 구매 cap 을 위해 shopDaily 초기값
+ *     { date: today, passesBought: 0 } 을 부여. 기존 인벤토리는 enhanceLevel
+ *     없이도 legacy=0 으로 동작하므로 migration 필요 없음.
  */
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 
 /**
  * Phase 4c-fix: Codex legacy ID → name migration.
@@ -191,17 +198,35 @@ interface UpHeroActions {
   purchaseCardPack(size: "small" | "full"): boolean;
 
   /**
-   * Phase 4c-feature — 장비 강화.
-   * 같은 type + 같은 rarity 두 장비 합성 → 한 등급 높은 새 장비.
-   * 코인 소모: normal 30 / rare 60 / unique 120. legend 는 합성 불가 (cap).
-   * 새 아이템 stats: 두 원본의 각 스탯 max + 2. 카테고리는 첫 입력 상속.
-   * 반환값으로 성공/실패 + 결과 아이템 알려줌 — UI 에서 reveal 연출 가능.
+   * Phase 11a — 상점에서 탐험권 구매.
+   * 고정 가격 SHOP_PRICES.expeditionPass, 하루 최대 DAILY_PASS_PURCHASE_CAP 장.
+   * @returns
+   *   - "ok"        — 구매 성공 (passes 증가 + coin 차감 + shopDaily 갱신)
+   *   - "no-coin"   — 코인 부족
+   *   - "daily-cap" — 오늘 이미 2장 구매 완료
+   *   - "pass-cap"  — 해당 던전 passes 가 PASS_CAP_PER_CATEGORY (20) 도달
    */
-  enhanceItem(
-    id1: string,
-    id2: string,
-  ): { ok: boolean; newItem?: Equipment; error?: string };
+  purchasePass(dungeonId: DungeonId): "ok" | "no-coin" | "daily-cap" | "pass-cap";
+
+  /**
+   * Phase 11a — 장비 +N 강화 (기존 2→1 합성 대체).
+   * 단일 아이템 + 코인 → 확률적으로 enhanceLevel +1. 최대 +10.
+   * 실패 시 ENHANCE_PRESERVE_ON_FAIL (30%) 확률로 아이템 보존, 그 외엔 소실.
+   * 성공률 / 코인 비용 공식은 types/uphero.ts 의 enhanceSuccessRate / enhanceCost 참고.
+   *
+   * UI 는 이 반환값 기반으로 Ritual overlay + Result modal 분기.
+   */
+  enhanceItem(id: string): EnhanceResult;
 }
+
+/** Phase 11a — 강화 결과 discriminated union. UI 는 이 타입 기반 3-way 분기. */
+export type EnhanceResult =
+  | { ok: true; reason: "success"; newItem: Equipment; prevLevel: number }
+  | { ok: false; reason: "keep"; item: Equipment }
+  | { ok: false; reason: "destroyed"; lostItemName: string }
+  | { ok: false; reason: "coin"; cost: number }
+  | { ok: false; reason: "maxed" }
+  | { ok: false; reason: "not-found" };
 
 type UpHeroStore = UpHeroState & UpHeroActions;
 
@@ -218,6 +243,7 @@ function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     cosmetics,
     lastIdleAccrualAt,
     heroStartLevel,
+    shopDaily,
     schemaVersion,
   } = s;
   return {
@@ -231,6 +257,7 @@ function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     cosmetics,
     lastIdleAccrualAt,
     heroStartLevel,
+    shopDaily,
     schemaVersion,
   };
 }
@@ -248,6 +275,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   lastIdleAccrualAt: Date.now(),
   // Phase 9d — 초기값 undefined. initialize 에서 seed.
   heroStartLevel: undefined,
+  // Phase 11a — 초기값 undefined. initialize 에서 오늘 날짜로 seed.
+  shopDaily: undefined,
   idleReward: null,
   pendingClassAwaken: null,
   isLoaded: false,
@@ -364,6 +393,14 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // (이전: reward 유무 무관 now 로 갱신 → 잦은 reload 시 누적 손실 발생)
     const newLastIdleAt = idleReward ? now : lastIdleAt;
 
+    // Phase 11a — shopDaily seed. date 가 오늘과 다르면 passesBought=0 리셋.
+    const today = getTodayString();
+    const prevShopDaily = saved?.shopDaily;
+    const shopDaily =
+      prevShopDaily && prevShopDaily.date === today
+        ? prevShopDaily
+        : { date: today, passesBought: 0 };
+
     set({
       hero: mergedHero,
       inventory: saved?.inventory ?? [],
@@ -376,6 +413,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       cosmetics: saved?.cosmetics ?? {},
       lastIdleAccrualAt: newLastIdleAt,
       heroStartLevel,
+      shopDaily,
       idleReward,
       pendingClassAwaken: null, // transient
       schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -767,85 +805,165 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     return true;
   },
 
-  enhanceItem(id1, id2) {
+  purchasePass(dungeonId) {
+    // Phase 11a — 갓생 상점에서 탐험권 1장 구매. 고정 80 코인, 하루 2장 cap.
     const state = get();
-    if (id1 === id2) return { ok: false, error: "같은 아이템 두 번 선택 불가" };
-    const a = state.inventory.find((i) => i.id === id1);
-    const b = state.inventory.find((i) => i.id === id2);
-    if (!a || !b) return { ok: false, error: "인벤토리에 없는 아이템" };
-    if (a.type !== b.type) return { ok: false, error: "같은 슬롯끼리만 합성 가능" };
-    if (a.rarity !== b.rarity) return { ok: false, error: "같은 등급끼리만 합성 가능" };
-    if (a.rarity === "legend") return { ok: false, error: "전설은 최고 등급" };
+    const price = SHOP_PRICES.expeditionPass;
+    if (state.coins < price) return "no-coin";
 
-    // 코인 비용 — rarity 단계별
-    const RARITY_COST: Record<Rarity, number> = {
-      normal: SHOP_PRICES.enhance,
-      rare: SHOP_PRICES.enhance * 2,
-      unique: SHOP_PRICES.enhance * 4,
-      legend: Number.POSITIVE_INFINITY,
-    };
-    const cost = RARITY_COST[a.rarity];
-    if (state.coins < cost) return { ok: false, error: `코인 부족 (${cost} 필요)` };
+    // daily reset 체크 — date 가 바뀌었으면 shopDaily.passesBought 0 으로 리셋해서
+    //   새 cap 기준으로 판정.
+    const today = getTodayString();
+    const daily =
+      state.shopDaily && state.shopDaily.date === today
+        ? state.shopDaily
+        : { date: today, passesBought: 0 };
+    if (daily.passesBought >= DAILY_PASS_PURCHASE_CAP) return "daily-cap";
 
-    // 다음 등급 계산
-    const NEXT_RARITY: Record<Rarity, Rarity> = {
-      normal: "rare",
-      rare: "unique",
-      unique: "legend",
-      legend: "legend",
-    };
-    const newRarity = NEXT_RARITY[a.rarity];
+    // 던전별 cap (PASS_CAP_PER_CATEGORY=20) 체크
+    const currentPasses = state.passes[dungeonId] ?? 0;
+    if (currentPasses >= PASS_CAP_PER_CATEGORY) return "pass-cap";
 
-    // 새 stats: 각 키의 max + 2 (최소한 더 나아진다 보장)
-    const newStats: Equipment["stats"] = {};
-    const keys = new Set<keyof Equipment["stats"]>([
-      ...Object.keys(a.stats),
-      ...Object.keys(b.stats),
-    ] as Array<keyof Equipment["stats"]>);
-    for (const key of keys) {
-      const va = a.stats[key] ?? 0;
-      const vb = b.stats[key] ?? 0;
-      newStats[key] = Math.max(va, vb) + 2;
+    const newPasses = { ...state.passes, [dungeonId]: currentPasses + 1 };
+    const newCoins = state.coins - price;
+    const newShopDaily = { date: today, passesBought: daily.passesBought + 1 };
+
+    set({ coins: newCoins, passes: newPasses, shopDaily: newShopDaily });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({
+        ...state,
+        coins: newCoins,
+        passes: newPasses,
+        shopDaily: newShopDaily,
+      }),
+    );
+    return "ok";
+  },
+
+  enhanceItem(id) {
+    // Phase 11a 재작성 — 단일 아이템 + 코인 → 확률적 +1 level 시도.
+    //
+    // 흐름:
+    //   1. 아이템 & 비용 검증
+    //   2. Math.random() < successRate 체크
+    //   3. 성공: enhanceLevel+1, stats 미미 증가 (+0.5 반올림/키), 이름 suffix 갱신
+    //   4. 실패-보존 (30%): 아이템 그대로 유지
+    //   5. 실패-소실 (70%): inventory 에서 제거
+    //   6. 코인은 성공/실패 무관 차감 (시도 자체의 비용)
+    //
+    // stats 상승 규칙: primary stat 키 한정 +1 (level 이 짝수일 때),
+    // 그 외 기존 키는 +0 (매우 미미). 총 +10 달성 시 primary stat +5 증가.
+    const state = get();
+    const item = state.inventory.find((i) => i.id === id);
+    if (!item) return { ok: false, reason: "not-found" };
+
+    const curLevel = item.enhanceLevel ?? 0;
+    if (curLevel >= MAX_ENHANCE_LEVEL) return { ok: false, reason: "maxed" };
+
+    const cost = enhanceCost(item.rarity, curLevel);
+    if (state.coins < cost) return { ok: false, reason: "coin", cost };
+
+    // 확률 roll
+    const rate = enhanceSuccessRate(item.rarity, curLevel);
+    const roll = Math.random();
+    const success = roll < rate;
+
+    if (success) {
+      const newLevel = curLevel + 1;
+      // stats 미미 상승 — primary stat 키에만 짝수 level 에서 +1 (총 10 단계 중 5 회).
+      //   즉 +2, +4, +6, +8, +10 에서 primary +1 누적. "스킬이 주 보상" 원칙 유지.
+      const newStats: Equipment["stats"] = { ...item.stats };
+      if (newLevel % 2 === 0) {
+        const primaryKey = pickPrimaryStatKey(item.stats);
+        if (primaryKey) {
+          newStats[primaryKey] = (newStats[primaryKey] ?? 0) + 1;
+        }
+      }
+      // 이름에 +N suffix. 기존 "+" 가 legacy 합성 표기로 남아있을 수 있어 strip 후 재부여.
+      const baseName = stripEnhanceSuffix(item.name);
+      const newName = newLevel >= 1 ? `${baseName} +${newLevel}` : baseName;
+      const newItem: Equipment = {
+        ...item,
+        name: newName,
+        stats: newStats,
+        enhanceLevel: newLevel,
+      };
+      const newInventory = state.inventory.map((i) =>
+        i.id === id ? newItem : i,
+      );
+      const newCoins = state.coins - cost;
+      set({ inventory: newInventory, coins: newCoins });
+      saveToStorage(
+        STORAGE_KEY,
+        pickPersisted({ ...state, inventory: newInventory, coins: newCoins }),
+      );
+      return { ok: true, reason: "success", newItem, prevLevel: curLevel };
     }
 
-    // Phase 4c-fix: 양쪽 effects 를 모두 물려받는다 (이전에는 a.effects 만
-    // 복사해서 b 의 특수 효과가 사라졌음). 동일 문자열은 dedup.
-    const mergedEffects = [
-      ...(a.effects ?? []),
-      ...(b.effects ?? []),
-    ];
-    const uniqueEffects = [...new Set(mergedEffects)];
-
-    // Phase 5a.5: 카테고리 계승 — 현재는 첫 재료 (a) 의 category 승계.
-    // 실전에서는 drop 이 dungeon 별로 고정이라 같은 카테고리 끼리 합치기
-    // 대부분. 다른 카테고리 조합은 수동 인벤토리 조작 시에만 발생하는 엣지.
-    // 이 경우에도 a.category 를 유지해 friction 없이 동작 (affinity 혜택은
-    // a.category 기준으로 계속 받음).
-    const inheritedCategory = a.category;
-
-    const newItem: Equipment = {
-      id: `enh_${a.type}_${newRarity}_${Date.now() % 100000}_${Math.floor(Math.random() * 1000)}`,
-      name: `${a.name} +`,
-      type: a.type,
-      rarity: newRarity,
-      category: inheritedCategory,
-      iconName: a.iconName,
-      stats: newStats,
-      effects: uniqueEffects.length > 0 ? uniqueEffects : undefined,
-      flavor: `강화로 벼려낸 ${a.name}`,
-    };
-
-    const newInventory = [
-      ...state.inventory.filter((i) => i.id !== id1 && i.id !== id2),
-      newItem,
-    ];
+    // 실패 — 코인은 어쨌든 차감.
+    const preserved = Math.random() < ENHANCE_PRESERVE_ON_FAIL;
     const newCoins = state.coins - cost;
-
+    if (preserved) {
+      // 아이템 그대로. 실패 이벤트만 UI 에 알림.
+      set({ coins: newCoins });
+      saveToStorage(
+        STORAGE_KEY,
+        pickPersisted({ ...state, coins: newCoins }),
+      );
+      return { ok: false, reason: "keep", item };
+    }
+    // 소실 — inventory 에서 제거.
+    const newInventory = state.inventory.filter((i) => i.id !== id);
+    const lostName = item.name;
     set({ inventory: newInventory, coins: newCoins });
     saveToStorage(
       STORAGE_KEY,
       pickPersisted({ ...state, inventory: newInventory, coins: newCoins }),
     );
-    return { ok: true, newItem };
+    return { ok: false, reason: "destroyed", lostItemName: lostName };
   },
 }));
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Phase 11a — enhanceItem 헬퍼
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 장비의 "primary stat key" 를 찾는다. 드롭 템플릿의 statBoost 가 primary 이지만
+ * Equipment 타입에는 statBoost 가 저장 안 돼 있어 stats 객체에서 최대값 key 로 추정.
+ * 동률 시 defined order (str/int/vit/dex/agi/crit/slotBonus) 로 tie-break.
+ */
+function pickPrimaryStatKey(
+  stats: Equipment["stats"],
+): keyof HeroBaseStats | null {
+  const order: Array<keyof HeroBaseStats> = [
+    "str",
+    "int",
+    "vit",
+    "dex",
+    "agi",
+    "crit",
+    "slotBonus",
+  ];
+  let best: keyof HeroBaseStats | null = null;
+  let bestVal = -Infinity;
+  for (const key of order) {
+    const v = stats[key];
+    if (v == null) continue;
+    if (v > bestVal) {
+      best = key;
+      bestVal = v;
+    }
+  }
+  return best;
+}
+
+/**
+ * 이름에서 " +N" 또는 legacy " +" suffix 제거. enhanceItem 성공 시 매번 재부여.
+ *   "자기절제의 검 +3" → "자기절제의 검"
+ *   "꾸준함의 방패 +"  → "꾸준함의 방패" (legacy 합성 표기)
+ */
+function stripEnhanceSuffix(name: string): string {
+  return name.replace(/\s+\+\d*$/, "");
+}
