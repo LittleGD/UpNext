@@ -979,18 +979,21 @@ function PressButton({
   disabled,
   style,
   className = "",
+  "aria-label": ariaLabel,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
   style?: React.CSSProperties;
   className?: string;
+  "aria-label"?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       className={`uphero-press-btn text-left rounded-md ${className}`}
       style={{
         cursor: disabled ? "not-allowed" : "pointer",
@@ -1038,9 +1041,20 @@ function WeeklyNightmareRibbon({
 }) {
   const affix = getWeeklyAffixById(affixId);
   const SAND = "#e8b887";
+  // Phase 11c R4 — SR 전용 label. 기존 innerText 는 맥락 없이 조각으로 읽힘.
+  const srLabel = [
+    "이번 주 악몽",
+    affix?.name ?? "",
+    weekId,
+    clearedCount > 0 ? `던전 ${clearedCount}/8 클리어` : null,
+    bestScore > 0 ? `최고 ${bestScore.toLocaleString()}점` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
   return (
     <PressButton
       onClick={onOpen}
+      aria-label={srLabel}
       style={{
         // 왼쪽에 sand accent bar 로 "주간 악몽" 임을 표시, 메인 배경은 어두운 톤 유지
         background: `${GB.dark}cc`,

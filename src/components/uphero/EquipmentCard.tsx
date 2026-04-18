@@ -250,10 +250,29 @@ export default function EquipmentCard({
   );
 
   if (clickable) {
+    // Phase 11c R4 — rarity / enhance level / selected state 를 SR 에 전달.
+    //   innerText 만 읽히던 기존: "검 · str 5" → aria-label: "레어 검 강화 +3, 선택됨".
+    const rarityLabel = { normal: "일반", rare: "레어", unique: "유니크", legend: "전설" }[equipment.rarity];
+    const enhance = equipment.enhanceLevel ?? 0;
+    const statsBrief = statEntries
+      .slice(0, 3)
+      .map(([k, v]) => `${STAT_LABEL[k] ?? k} ${v}`)
+      .join(", ");
+    const srLabel = [
+      rarityLabel,
+      equipment.name,
+      enhance > 0 ? `강화 +${enhance}` : null,
+      statsBrief,
+      selected ? "선택됨" : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
     return (
       <button
         type="button"
         onClick={onClick}
+        aria-label={srLabel}
+        aria-pressed={selected ? true : undefined}
         className="eq-card-btn"
         style={{ background: "transparent", padding: 0 }}
       >

@@ -191,9 +191,20 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
               // bar width — crit 은 50 max, 나머지는 40 max 정도
               const maxRef = isCrit ? 50 : 40;
               const pct = Math.min(100, (effVal / maxRef) * 100);
+              // Phase 11c R4 — SR 친화적 통합 label. 기존: "STR 39 +5 INT 24..." 로 조각이 이어짐.
+              const srLabel = `${label} ${effVal}${suffix}${
+                bonus !== 0 ? `, 장비 보너스 ${bonus > 0 ? "+" : ""}${bonus}` : ""
+              }`;
               return (
-                <div key={key}>
-                  <div className="flex items-center justify-between typo-caption mb-1 tabular-nums">
+                <div
+                  key={key}
+                  role="group"
+                  aria-label={srLabel}
+                >
+                  <div
+                    className="flex items-center justify-between typo-caption mb-1 tabular-nums"
+                    aria-hidden="true"
+                  >
                     <span style={{ color: GB.light }}>{label}</span>
                     <span>
                       <span style={{ color: GB.lightest }}>
@@ -215,6 +226,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                   <div
                     className="w-full h-2 rounded-sm overflow-hidden"
                     style={{ background: GB.dark }}
+                    aria-hidden="true"
                   >
                     <div
                       className="h-full rounded-sm"

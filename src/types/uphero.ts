@@ -151,6 +151,12 @@ export interface Equipment {
    */
   enhanceLevel?: number;
   /**
+   * Phase 11c R4 — 연속 강화 실패 streak. 성공 시 0, 실패 시 +1.
+   *   legend/unique 에서 pity 성공률 보너스 계산에 사용 (enhanceSuccessRate).
+   *   legend: streak 당 +4%p, unique: +2%p. 이 item 에만 축적 (다른 item 은 독립).
+   */
+  enhanceFailStreak?: number;
+  /**
    * Phase 11a — 2차 affix stat key (rare+ 드롭에 부여).
    * primary stat 과 별개로 stats 객체에도 반영됨 — 이 필드는 "어떤 key 가 affix
    * 였는지" 라벨 용도 (UI 에서 prefix 분리 표기 등). legend 은 `affixes` 배열이 2 개.
@@ -613,11 +619,16 @@ export const DAILY_PASS_PURCHASE_CAP = 2;
  * Phase 11c — NG+ 난이도 스케일.
  * monster hp/atk/def 와 drop rarity 보정에 사용.
  *   ngPlusLevel=0 → 1.0 (기본)
- *   ngPlusLevel=1 → 1.5
- *   ngPlusLevel=2 → 2.0 ...
+ *   ngPlusLevel=1 → 1.4
+ *   ngPlusLevel=2 → 1.8 ...
+ *
+ * Phase 11c R4 — 스케일 0.5n → 0.4n 하향. NG+2+ 에서 보스 atk 가 1200+ 로 올라
+ *   vit DR cap 과 결합해 1-hit kill 나오던 문제 완화. 동시에 computeEnemyDamage 의
+ *   vit DR 공식도 `vit/(vit+40)` cap 0.6 → `vit/(vit+30)` cap 0.7 로 상향
+ *   (upHeroCombat.ts 참고). 두 변화는 짝.
  */
 export function ngPlusScaleMult(ngPlusLevel: number | undefined): number {
-  return 1 + 0.5 * Math.max(0, ngPlusLevel ?? 0);
+  return 1 + 0.4 * Math.max(0, ngPlusLevel ?? 0);
 }
 
 /** Phase 11c — NG+ legend drop bonus (0.01 = +1%p). NG+ 1 당 +2%p. */
@@ -651,11 +662,12 @@ export function getISOWeekId(date: Date = new Date()): string {
  *   base = floorsCleared × 100
  *   완주 (F30 클리어) 보너스: +2000
  *   time bonus: remainingTime × 2
- *   level bonus: max(1, heroLevel) × 5
+ *   level bonus: max(1, heroLevel)² × 2
  *
- * Phase 11c R2 — 이전 공식은 `Math.max(0, 30 - (30 - floorsCleared)) * 100` 으로
- *   항등식상 `floorsCleared * 100` 이었고 "완주 페널티" 주석이 거짓. 보너스를
- *   실제로 부여하도록 재작성 — 클리어 (floorsCleared ≥ 30) 시 +2000 flat 가산.
+ * Phase 11c R4 — levelBonus 를 heroLevel × 5 (선형) → heroLevel² × 2 (2차) 로 변경.
+ *   기존: Lv30 = 150 pt 로 완주 +2000 의 7.5% — 고레벨 참여 인센티브 미미.
+ *   신규: Lv1 = 2, Lv10 = 200, Lv30 = 1800, Lv50 = 5000. 완주 bonus 와 비슷한 체급이
+ *   되어 "고레벨이 중간층까지만 가도 스코어 경쟁력" 구조 확립.
  */
 export function computeWeeklyScore(
   floorsCleared: number,
@@ -665,7 +677,8 @@ export function computeWeeklyScore(
   const base = Math.max(0, floorsCleared) * 100;
   const completionBonus = floorsCleared >= 30 ? 2000 : 0;
   const timeBonus = Math.max(0, remainingTime) * 2;
-  const levelBonus = Math.max(1, heroLevel) * 5;
+  const lv = Math.max(1, heroLevel);
+  const levelBonus = lv * lv * 2;
   return base + completionBonus + timeBonus + levelBonus;
 }
 
@@ -712,6 +725,19 @@ export const ENHANCE_DECAY_PER_LEVEL: Record<Rarity, number> = {
  * legend 는 코인 비용도 훨씬 비싸 (×4 rarityMult) 실패 시 손실이 극단적.
  * normal/rare/unique 는 기존 30% 유지.
  */
+/**
+ * Phase 11c R4 — Soft pity. 연속 실패 streak 당 pp 보너스. legend/unique 에만 적용.
+ *   legend base 12% (+9→+10) → fail 5회 후 32%, 10회 후 52%, 15회 후 72%.
+ *   평균 수렴 시도 수: 33,000회 → 약 55회 수준으로 현실화.
+ *   성공 시 streak = 0, 실패 (보존 or 소실) 시 streak += 1.
+ */
+export const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
+  normal: 0,
+  rare: 0,
+  unique: 0.02, // +2%p / fail
+  legend: 0.04, // +4%p / fail
+};
+
 export const ENHANCE_PRESERVE_BY_RARITY: Record<Rarity, number> = {
   normal: 0.3,
   rare: 0.3,
@@ -734,13 +760,16 @@ export const ENHANCE_COST_RARITY_MULT: Record<Rarity, number> = {
 export function enhanceSuccessRate(
   rarity: Rarity,
   currentLevel: number,
+  failStreak: number = 0,
 ): number {
   const base = ENHANCE_BASE_SUCCESS[rarity];
   const decay = ENHANCE_DECAY_PER_LEVEL[rarity];
   // +0 → +1 시도는 level=0 으로 base 그대로, +9 → +10 은 level=9 로 decay × 9 차감.
   const raw = base - Math.max(0, currentLevel) * decay;
-  // 너무 낮아져도 최소 5% 는 남겨둔다 (사용자가 legend +10 도달하려면 극소 확률).
-  return Math.max(0.05, Math.min(1, raw / 100));
+  const rawRate = Math.max(0.05, Math.min(1, raw / 100));
+  // Phase 11c R4 — Soft pity 가산. failStreak × 등급별 pp. 최대 100% 까지 cap.
+  const pityBonus = Math.max(0, failStreak) * ENHANCE_PITY_BONUS_PER_FAIL[rarity];
+  return Math.min(1, rawRate + pityBonus);
 }
 
 /**

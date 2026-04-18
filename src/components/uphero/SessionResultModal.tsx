@@ -14,6 +14,7 @@ import { DUNGEONS } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, gbClass, GB_ENEMY } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useCountUp } from "@/hooks/useCountUp";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import DropRevealCard from "./DropRevealCard";
 
@@ -44,6 +45,8 @@ export default function SessionResultModal() {
     );
 
   const [mounted, setMounted] = useState(false);
+  // Phase 11c R4 — reduced-motion 대응. scale 제거, opacity 만 유지.
+  const reducedMotion = useReducedMotion();
   // Phase 4c-polish — detail 은 타이틀 등장 후 280ms 뒤 fade-in.
   // "결과 (모험 완료) → 사유 (거인을 쓰러뜨렸다)" 두 박자 reveal.
   const [detailMounted, setDetailMounted] = useState(false);
@@ -67,8 +70,11 @@ export default function SessionResultModal() {
   // Phase 9a — Esc + focus trap + body scroll lock.
   //   세션 결산 직후 자동 close 가 아니라 사용자 "캠프로 돌아가기" 탭을 기다리므로
   //   Esc 로 빠른 acknowledge 허용 (Esc === acknowledge 로 매핑).
+  // Phase 11c R4 — initialFocus 를 title 에 줘 SR 가 "보스 처치 F30 최초 돌파"
+  //   먼저 읽도록. 기존엔 첫 focusable = DropRevealCard 로 가 제목 놓침.
   const containerRef = useRef<HTMLDivElement>(null);
-  useModalA11y(containerRef, acknowledge);
+  const titleRef = useRef<HTMLDivElement>(null);
+  useModalA11y(containerRef, acknowledge, { initialFocus: titleRef });
 
   if (!session || session.status !== "completed") return null;
   if (typeof window === "undefined") return null;
@@ -111,9 +117,11 @@ export default function SessionResultModal() {
         style={{
           background: GB.darkest,
           border: `1px solid ${GB.light}`,
-          transform: mounted ? "scale(1)" : "scale(0.96)",
+          transform: reducedMotion ? undefined : mounted ? "scale(1)" : "scale(0.96)",
           opacity: mounted ? 1 : 0,
-          transition: `transform 220ms ${EASE_OUT}, opacity 180ms ${EASE_OUT}`,
+          transition: reducedMotion
+            ? `opacity 180ms ${EASE_OUT}`
+            : `transform 220ms ${EASE_OUT}, opacity 180ms ${EASE_OUT}`,
           outline: "none",
         }}
       >
@@ -132,8 +140,10 @@ export default function SessionResultModal() {
           />
           <div
             id="session-result-title"
+            ref={titleRef}
+            tabIndex={-1}
             className="typo-heading"
-            style={{ color: f30FirstClear ? "#e8b887" : titleColor }}
+            style={{ color: f30FirstClear ? "#e8b887" : titleColor, outline: "none" }}
           >
             {f30FirstClear ? "F30 최초 돌파" : title}
           </div>
@@ -152,9 +162,12 @@ export default function SessionResultModal() {
               {detail}
             </div>
           )}
-          {/* Phase 11c R2 — F30 최초 돌파 시 NG+ / 주간 악몽 해금 안내. */}
+          {/* Phase 11c R2 — F30 최초 돌파 시 NG+ / 주간 악몽 해금 안내.
+               R4: role="alert" + aria-live assertive 로 SR 공지. */}
           {f30FirstClear && (
             <div
+              role="alert"
+              aria-live="assertive"
               className="typo-caption px-3 py-1.5 mt-1 rounded"
               style={{
                 color: "#e8b887",

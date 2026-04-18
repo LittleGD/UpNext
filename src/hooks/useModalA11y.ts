@@ -33,6 +33,12 @@ interface UseModalA11yOptions {
   noEscape?: boolean;
   /** body scrollLock 비활성 (Portal 이 scroll 자체 먹고 있으면 불필요) */
   noScrollLock?: boolean;
+  /**
+   * Phase 11c R4 — 초기 focus 대상 override. 지정 ref 에 focus,
+   *   없으면 기본 (첫 focusable). SessionResultModal 처럼 제목을 먼저 읽혀야 할 때
+   *   제목에 tabIndex={-1} 을 주고 이 ref 를 전달.
+   */
+  initialFocus?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -44,7 +50,12 @@ export function useModalA11y(
   onClose: () => void,
   opts: UseModalA11yOptions = {},
 ): void {
-  const { disabled = false, noEscape = false, noScrollLock = false } = opts;
+  const {
+    disabled = false,
+    noEscape = false,
+    noScrollLock = false,
+    initialFocus,
+  } = opts;
 
   useEscapeKey(onClose, !disabled && !noEscape);
   useScrollLock(!disabled && !noScrollLock);
@@ -66,7 +77,12 @@ export function useModalA11y(
         ),
       ).filter((el) => el.offsetParent !== null); // 보이는 것만
 
-    const initial = focusables()[0] ?? container;
+    // Phase 11c R4 — initialFocus override 우선 (제목 같은 non-focusable 안내부).
+    const override = initialFocus?.current ?? null;
+    if (override && !override.hasAttribute("tabindex")) {
+      override.setAttribute("tabindex", "-1");
+    }
+    const initial = override ?? focusables()[0] ?? container;
     // container 자체에 포커스 주려면 tabIndex 가 필요 — 없으면 속성 부여
     if (initial === container && !container.hasAttribute("tabindex")) {
       container.setAttribute("tabindex", "-1");
@@ -105,5 +121,5 @@ export function useModalA11y(
         previouslyFocused.focus({ preventScroll: true });
       }
     };
-  }, [containerRef, disabled]);
+  }, [containerRef, disabled, initialFocus]);
 }

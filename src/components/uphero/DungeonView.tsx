@@ -28,6 +28,7 @@ import {
 import type { Monster } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
+import { useAnnounce } from "@/hooks/useAnnounce";
 import CombatLog from "./CombatLog";
 import ChoicePanel from "./ChoicePanel";
 import BossBanner from "./BossBanner";
@@ -65,6 +66,8 @@ export default function DungeonView() {
    *   null 이 아니면 결과 모달 표시 + tick pause. 유저 "계속" 또는 2.6s 후 null. */
   const [choiceResultText, setChoiceResultText] = useState<string | null>(null);
   const { play } = useSound();
+  // Phase 11c R4 — screen reader 공지. 시각 float 이 aria-hidden 이므로 여기서 backup.
+  const { announce } = useAnnounce();
 
   const tickRef = useRef(tickSession);
   tickRef.current = tickSession;
@@ -294,6 +297,39 @@ export default function DungeonView() {
       seenPulseIdxRef.current.clear();
     }
   }, [session?.startedAt, session]);
+
+  // Phase 11c R4 — 주요 이벤트 SR 공지. 시각 float/banner 는 aria-hidden 이라
+  //   키보드/SR 유저에게 전투 진행이 "조용". 여기서 보스 등장 · 처치 · 스킬 발동 ·
+  //   세션 종료를 announce() 호출로 상황 중계.
+  const seenAnnounceRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!session) {
+      seenAnnounceRef.current.clear();
+      return;
+    }
+    session.log.forEach((entry, idx) => {
+      const key = `announce-${idx}-${entry.type}`;
+      if (seenAnnounceRef.current.has(key)) return;
+      seenAnnounceRef.current.add(key);
+      if (entry.type === "boss") {
+        announce(`${entry.monster.name} 등장. HP ${entry.monster.hp}`, "assertive");
+      } else if (entry.type === "victory" && entry.monster.isBoss) {
+        announce(`${entry.monster.name} 처치. 경험치 +${entry.xp}, 코인 +${entry.coins}`, "polite");
+      } else if (entry.type === "skill") {
+        announce(`스킬 ${entry.skillName} 발동`, "polite");
+      } else if (entry.type === "drop") {
+        const rarityLabel = { normal: "일반", rare: "레어", unique: "유니크", legend: "전설" }[entry.equipment.rarity];
+        announce(`${rarityLabel} ${entry.equipment.name} 획득`, "polite");
+      } else if (entry.type === "sessionEnd") {
+        const reasonMsg =
+          entry.reason === "bossDefeated" ? "보스 처치 승리" :
+          entry.reason === "heroDied" ? "영웅이 쓰러졌습니다" :
+          entry.reason === "timeExpired" ? "시간이 다했습니다" :
+          "탐험 종료";
+        announce(reasonMsg, "assertive");
+      }
+    });
+  }, [session, announce]);
 
   // Mage XP float + Bard coin float — victory entry 감지
   useEffect(() => {
@@ -615,6 +651,14 @@ export default function DungeonView() {
           </span>
           <div
             className="flex-1 h-2.5 rounded-sm relative overflow-hidden"
+            role="progressbar"
+            aria-label="영웅 체력"
+            aria-valuenow={hp}
+            aria-valuemin={0}
+            aria-valuemax={maxHp}
+            aria-valuetext={`${hp} / ${maxHp}${
+              hpPct < 20 ? " · 위험" : hpPct < 50 ? " · 경고" : ""
+            }`}
             style={{ background: GB.dark }}
           >
             <div
@@ -700,6 +744,14 @@ export default function DungeonView() {
           <div
             className={`flex-1 h-1.5 rounded-sm relative overflow-hidden ${
               timeFlashing ? "uphero-time-flash" : ""
+            }`}
+            role="progressbar"
+            aria-label="탐험 시간"
+            aria-valuenow={Math.round(time)}
+            aria-valuemin={0}
+            aria-valuemax={maxTime}
+            aria-valuetext={`${Math.round(time)} / ${maxTime}${
+              timePct < 20 ? " · 시간 위험" : timePct < 50 ? " · 시간 경고" : ""
             }`}
             style={{ background: GB.dark }}
           >

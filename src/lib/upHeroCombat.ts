@@ -98,12 +98,13 @@ export function createSession(
   options?: CreateSessionOptions,
 ): CombatSession {
   const buffedHero = applyStatAndHealBuffs(hero, activeBuffs ?? [], dungeonId);
-  // Phase 5c.2 — class 패시브 중 session start 효과 적용 (priest maxHp,
-  // illusionist crit). chronomancer 는 runtime consumeTime 에서.
-  const classedHero = applyClassStartEffects(buffedHero);
-  // Phase 11b — talisman passive skill modifier 집계. 부적 skill 이 전혀 없으면
-  //   empty bucket (성능: 하위 분기 전부 no-op).
-  const talismanMods = collectTalismanMods(classedHero);
+  // Phase 11c R4 — affix apply 를 class start effects 앞으로 이동. 이유:
+  //   priest 의 `+50 flat HP` + iron_will 의 `×1.3 maxHp` 가 순서에 따라 불공평.
+  //   기존: priest_bonus 50 포함한 HP 에 ×1.3 적용 → priest 만 초과 이득.
+  //   신규: iron_will ×1.3 먼저 → 그다음 모든 클래스 동일하게 priest +50 flat.
+  // Phase 11b — talisman passive skill modifier 집계는 class effect 전에도 계산 가능
+  //   (hero.equipped.talisman 기반). 아래에서 재사용.
+  const talismanMods = collectTalismanMods(buffedHero);
 
   const maxTime = BASE_EXPEDITION_TIME;
   const session: CombatSession = {
@@ -123,7 +124,7 @@ export function createSession(
         timestamp: Date.now(),
       },
     ],
-    hero: classedHero,
+    hero: buffedHero, // class start 는 affix 적용 뒤에.
     rewards: { xp: 0, coins: 0, drops: [] },
     status: "active",
     speed: 1,
@@ -140,16 +141,21 @@ export function createSession(
     weeklyAffixId: options?.weeklyAffixId,
     startedAt: Date.now(),
   };
-  // Phase 11b — start-time effects (startHpMult/Flat, startXp) 를 session 에 반영.
-  applyTalismanSkillStartEffects(session, talismanMods);
 
   // Phase 11c — weekly affix 적용 (glass_cannon / time_pressure / iron_will 등).
-  //   session 생성 후 mutate 방식. runtime affix (rollHeroOutcome / monster scale)
-  //   는 affixId 기반 런타임 분기.
+  //   session 생성 후 mutate 방식. runtime affix 는 affixId 기반 런타임 분기.
   if (options?.isWeeklyVariant && options.weeklyAffixId) {
     const affix = getWeeklyAffixById(options.weeklyAffixId);
     if (affix) affix.apply(session);
   }
+
+  // Phase 5c.2 — class start 효과 (priest +50 maxHp, illusionist crit) 를 affix 뒤에.
+  //   R4 순서 변경으로 priest +50 은 "모든 클래스가 받는 flat +50" 으로 정규화.
+  session.hero = applyClassStartEffects(session.hero);
+
+  // Phase 11b — talisman start 효과 (startHpMult/Flat, startXp) 는 class start 뒤 (최후).
+  //   "안식" skill (startHpMult 110%) 은 affix + class 결과에 곱해져 최종 HP 결정.
+  applyTalismanSkillStartEffects(session, talismanMods);
 
   return session;
 }
@@ -1174,7 +1180,15 @@ function computeEnemyDamage(
   crit: boolean,
 ): number {
   const vit = Math.max(0, stats.vit);
-  const dr = Math.min(0.6, vit / (vit + 40));
+  // Phase 11c R4 — DR 공식 재조정: `vit/(vit+40)` cap 0.6 → `vit/(vit+30)` cap 0.7.
+  //   NG+2+ 에서 여전히 1-hit kill 나던 문제 해결. 후기 vit 효율 ↑ 로 빌드 유도.
+  //   Lv30 vit 39 기준:
+  //     기존: 39/79 = 49% → cap 없이 49%
+  //     신규: 39/69 = 56% → cap 없이 56% (+7%p)
+  //   Lv50 vit 59 기준:
+  //     기존: 59/99 = 60% (cap 도달)
+  //     신규: 59/89 = 66% (aa cap 70% 여유)
+  const dr = Math.min(0.7, vit / (vit + 30));
   const rawDmg = monster.atk + Math.floor(Math.random() * 5) - 2;
   const base = Math.max(
     1,

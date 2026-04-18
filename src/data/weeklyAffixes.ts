@@ -74,10 +74,12 @@ export const WEEKLY_AFFIX_POOL: WeeklyAffix[] = [
   {
     id: "bountiful_harvest",
     name: "풍요의 수확",
-    description: "드롭률 +50%, 코인 +20%, 단 경험치 -25%",
+    description: "드롭률 +50%, 코인 +20%, 단 몬스터 HP +20%",
     apply(s) {
-      // 페널티: XP -25%
-      s.xpMult = 0.75;
+      // Phase 11c R4 — 이전 페널티 "XP -25%" 는 weekly F30 단일 보스전에서 효과 거의 없음
+      //   (40-60 XP 중 12 감소). 동일 강도의 "몬스터 HP +20%" 로 전환 — 전투 시간
+      //   길어져 time 자원 직접 체감 페널티.
+      s.monsterHpMult = (s.monsterHpMult ?? 1) * 1.2;
       // 이익: drop +50%, coin +20%
       s.activeBuffs = [
         ...(s.activeBuffs ?? []),
@@ -119,14 +121,15 @@ export const WEEKLY_AFFIX_POOL: WeeklyAffix[] = [
   {
     id: "iron_will",
     name: "강철 의지",
-    description: "체력 +30%, 단 적 공격 +50%",
+    description: "체력 +30%, 단 적 공격 +35%",
     apply(s) {
-      // Phase 11c R2 — 이전 (HP +50 / 모든 stat +5 / 적 atk +35%) 는 Lv30 에서
-      //   vit+5 로 DR 이 급상승해 net 버프. stat+5 제거, HP 보너스 +30% 로 축소,
-      //   대신 적 공격 +50% 로 리스크 강화 → "HP 쌓아 버티되 반격 급소에 맞으면 죽음".
+      // Phase 11c R4 — atk 배율을 다른 affix 와 톤 통일 (iron_will 1.35, enemy_frenzy 1.25,
+      //   weakened_start 1.15). 이전 1.5× 는 혼자 튀는 수치였고, R2 분석에서 "HP
+      //   여유로 net buff" 였다가 R3 에서 잡혔는데 여전히 공격 배율만 outlier.
+      //   "페널티+대형보상" 밴드의 상단 (1.35) 으로 수렴.
       s.hero.maxHp = Math.round(s.hero.maxHp * 1.3);
       s.hero.hp = s.hero.maxHp;
-      s.monsterAtkMult = 1.5;
+      s.monsterAtkMult = (s.monsterAtkMult ?? 1) * 1.35;
     },
   },
   {

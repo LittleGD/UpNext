@@ -57,6 +57,7 @@ import {
   findBoundTalisman,
   isPhotoBound,
   rebuildTalismanWithLevel,
+  rebindPhotoTalismanCost,
   rollPhotoRarity,
 } from "@/lib/photoTalisman";
 import { useGrowthStore } from "./useGrowthStore";
@@ -577,17 +578,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
   rebindPhotoTalisman(photoId) {
     // Phase 11b — 이미 bound 된 photo 를 대상으로 "재의식" → enhanceLevel +1.
-    //   코인 80 소모, rarity 유지, stat 미미 상승, +5/+10 에 skill 부여.
+    //   rarity 유지, stat 미미 상승, +5/+10 에 skill 부여.
     //   장착 중인 부적도 rebind 가능 (equipped 슬롯 안에서 in-place 교체).
+    // Phase 11c R4 — cost 가 level 스케일 (80 × (1 + curLevel × 0.3)).
+    //   +9→+10 은 296 coin. 총합 +0→+10 ≈ 1,880 coin.
     const state = get();
-    if (state.coins < PHOTO_TALISMAN_RITUAL_COST) {
-      return {
-        ok: false,
-        reason: "coin",
-        error: `코인 부족 (${PHOTO_TALISMAN_RITUAL_COST} 필요)`,
-      };
-    }
-
     const found = findBoundTalisman(photoId, state.inventory, state.hero.equipped);
     if (!found) {
       return {
@@ -602,9 +597,18 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       return { ok: false, reason: "maxed", error: "이미 +10 최대 강화" };
     }
 
+    const cost = rebindPhotoTalismanCost(curLevel);
+    if (state.coins < cost) {
+      return {
+        ok: false,
+        reason: "coin",
+        error: `코인 부족 (${cost} 필요)`,
+      };
+    }
+
     const newLevel = curLevel + 1;
     const newItem = rebuildTalismanWithLevel(current, newLevel);
-    const newCoins = state.coins - PHOTO_TALISMAN_RITUAL_COST;
+    const newCoins = state.coins - cost;
 
     // inventory 또는 equipped 슬롯에서 in-place 교체.
     let newInventory = state.inventory;
@@ -1097,7 +1101,22 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // stats 상승 규칙: primary stat 키 한정 +1 (level 이 짝수일 때),
     // 그 외 기존 키는 +0 (매우 미미). 총 +10 달성 시 primary stat +5 증가.
     const state = get();
-    const item = state.inventory.find((i) => i.id === id);
+    // Phase 11c R4 — 장착 중 아이템도 강화 가능. inventory → equipped slot 순 탐색.
+    //   성공/실패 시 원래 위치 (inventory 혹은 equipped slot) 에 맞게 반영.
+    const invItem = state.inventory.find((i) => i.id === id);
+    let equippedSlot: EquipSlot | null = null;
+    let equippedItem: Equipment | null = null;
+    if (!invItem) {
+      for (const slot of ["weapon", "armor", "accessory", "talisman"] as EquipSlot[]) {
+        const e = state.hero.equipped[slot];
+        if (e?.id === id) {
+          equippedSlot = slot;
+          equippedItem = e;
+          break;
+        }
+      }
+    }
+    const item = invItem ?? equippedItem;
     if (!item) return { ok: false, reason: "not-found" };
 
     const curLevel = item.enhanceLevel ?? 0;
@@ -1106,10 +1125,35 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const cost = enhanceCost(item.rarity, curLevel);
     if (state.coins < cost) return { ok: false, reason: "coin", cost };
 
-    // 확률 roll
-    const rate = enhanceSuccessRate(item.rarity, curLevel);
+    // Phase 11c R4 — pity 적용. 누적된 failStreak 가 성공률 가산.
+    //   legend +4%p / fail, unique +2%p / fail. normal/rare 는 미적용.
+    const curStreak = item.enhanceFailStreak ?? 0;
+    const rate = enhanceSuccessRate(item.rarity, curLevel, curStreak);
     const roll = Math.random();
     const success = roll < rate;
+
+    // 위치별 item 을 새 item 으로 교체하는 헬퍼.
+    const replaceItem = (newItem: Equipment) => {
+      if (equippedSlot) {
+        const newEquipped = { ...state.hero.equipped, [equippedSlot]: newItem };
+        return { inventory: state.inventory, hero: { ...state.hero, equipped: newEquipped } };
+      }
+      return {
+        inventory: state.inventory.map((i) => (i.id === id ? newItem : i)),
+        hero: state.hero,
+      };
+    };
+    const removeItem = () => {
+      if (equippedSlot) {
+        const newEquipped = { ...state.hero.equipped };
+        delete newEquipped[equippedSlot];
+        return { inventory: state.inventory, hero: { ...state.hero, equipped: newEquipped } };
+      }
+      return {
+        inventory: state.inventory.filter((i) => i.id !== id),
+        hero: state.hero,
+      };
+    };
 
     if (success) {
       const newLevel = curLevel + 1;
@@ -1130,15 +1174,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         name: newName,
         stats: newStats,
         enhanceLevel: newLevel,
+        // Phase 11c R4 — 성공 시 streak 리셋. pity 보너스 초기화.
+        enhanceFailStreak: 0,
       };
-      const newInventory = state.inventory.map((i) =>
-        i.id === id ? newItem : i,
-      );
+      const { inventory: newInventory, hero: newHero } = replaceItem(newItem);
       const newCoins = state.coins - cost;
-      set({ inventory: newInventory, coins: newCoins });
+      set({ inventory: newInventory, hero: newHero, coins: newCoins });
       saveToStorage(
         STORAGE_KEY,
-        pickPersisted({ ...state, inventory: newInventory, coins: newCoins }),
+        pickPersisted({ ...state, inventory: newInventory, hero: newHero, coins: newCoins }),
       );
       return { ok: true, reason: "success", newItem, prevLevel: curLevel };
     }
@@ -1147,21 +1191,26 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const preserved = Math.random() < ENHANCE_PRESERVE_BY_RARITY[item.rarity];
     const newCoins = state.coins - cost;
     if (preserved) {
-      // 아이템 그대로. 실패 이벤트만 UI 에 알림.
-      set({ coins: newCoins });
+      // 아이템 그대로 + failStreak +1 (다음 시도에 pity 보너스 적용).
+      const newItem: Equipment = {
+        ...item,
+        enhanceFailStreak: curStreak + 1,
+      };
+      const { inventory: newInventory, hero: newHero } = replaceItem(newItem);
+      set({ coins: newCoins, inventory: newInventory, hero: newHero });
       saveToStorage(
         STORAGE_KEY,
-        pickPersisted({ ...state, coins: newCoins }),
+        pickPersisted({ ...state, coins: newCoins, inventory: newInventory, hero: newHero }),
       );
-      return { ok: false, reason: "keep", item };
+      return { ok: false, reason: "keep", item: newItem };
     }
-    // 소실 — inventory 에서 제거.
-    const newInventory = state.inventory.filter((i) => i.id !== id);
+    // 소실 — inventory 혹은 equipped slot 에서 제거.
+    const { inventory: newInventory, hero: newHero } = removeItem();
     const lostName = item.name;
-    set({ inventory: newInventory, coins: newCoins });
+    set({ inventory: newInventory, hero: newHero, coins: newCoins });
     saveToStorage(
       STORAGE_KEY,
-      pickPersisted({ ...state, inventory: newInventory, coins: newCoins }),
+      pickPersisted({ ...state, inventory: newInventory, hero: newHero, coins: newCoins }),
     );
     return { ok: false, reason: "destroyed", lostItemName: lostName };
   },
