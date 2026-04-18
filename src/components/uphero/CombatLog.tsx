@@ -13,14 +13,42 @@
  */
 
 import { memo, useEffect, useRef, useState } from "react";
-import type { LogEntry } from "@/types/uphero";
+import type { LogEntry, NarrativeParams } from "@/types/uphero";
+import type { Language } from "@/types/game";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
-import { monsterName, skillName } from "@/lib/upHeroI18n";
+import { monsterName, monsterNameById, skillName } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
+
+/**
+ * Phase 13c — narrative i18n helper.
+ *   LogEntry 에 narrativeKey + narrativeParams 가 있으면 현재 언어로 번역.
+ *   params 에 `monsterTemplateId` 가 있으면 monster name 을 먼저 현재 언어로
+ *   풀어낸 뒤 `{monster}` slot 에 주입. fallback 은 저장된 한국어 narrative.
+ */
+function resolveNarrative(
+  t: (key: DictKey, params?: Record<string, string | number>) => string,
+  language: Language,
+  narrative: string | undefined,
+  narrativeKey: string | undefined,
+  narrativeParams: NarrativeParams | undefined,
+): string {
+  if (!narrativeKey) return narrative ?? "";
+  const params: Record<string, string | number> = { ...(narrativeParams ?? {}) };
+  // monsterTemplateId 가 있으면 해당 template 의 다국어 이름으로 {monster} 를 덮어씀.
+  const templateId = params.monsterTemplateId;
+  if (typeof templateId === "string" && templateId.length > 0) {
+    const koName = typeof params.monster === "string" ? params.monster : "";
+    params.monster = monsterNameById(templateId, koName, language);
+  }
+  const translated = t(narrativeKey as DictKey, params);
+  // key 가 없는 경우 t() 는 key 그대로 돌려줌 → fallback 사용.
+  if (translated === narrativeKey) return narrative ?? translated;
+  return translated;
+}
 
 /**
  * Phase 8b — Typewriter 효과.
@@ -154,12 +182,20 @@ const LogLine = memo(function LogLine({
   };
 
   switch (entry.type) {
-    case "narrative":
+    case "narrative": {
+      const resolved = resolveNarrative(
+        t,
+        language,
+        entry.text,
+        entry.narrativeKey,
+        entry.narrativeParams,
+      );
       return (
         <div style={{ ...style, color: GB.light }} className="opacity-80">
-          <TypewriterText text={entry.text} enabled={isLatest} />
+          <TypewriterText text={resolved} enabled={isLatest} />
         </div>
       );
+    }
 
     case "choiceResult": {
       // Phase 11c R1 — event choice 결과. narrative 와 유사 스타일, 약간 밝게 강조.
@@ -248,7 +284,17 @@ const LogLine = memo(function LogLine({
       const isHero = entry.attacker === "hero";
 
       // Phase 3 — narrative 가 있으면 단문 렌더 (outcome + attacker 별 컬러)
-      if (entry.narrative) {
+      // Phase 13c — narrativeKey 우선 (현재 언어로 번역), 없으면 text fallback.
+      const resolvedNarrative = entry.narrative || entry.narrativeKey
+        ? resolveNarrative(
+            t,
+            language,
+            entry.narrative,
+            entry.narrativeKey,
+            entry.narrativeParams,
+          )
+        : "";
+      if (resolvedNarrative) {
         // crit 색: 영웅 crit = 금색(유리), 적 crit = 빨강(위기)
         //         → 플레이어가 위기 상황 한눈에 식별
         const narrativeColor =
@@ -267,7 +313,7 @@ const LogLine = memo(function LogLine({
             style={{ ...style, color: narrativeColor }}
             className={`pl-3 ${dim ? "opacity-75" : ""}`}
           >
-            <TypewriterText text={entry.narrative} enabled={isLatest} />
+            <TypewriterText text={resolvedNarrative} enabled={isLatest} />
           </div>
         );
       }
@@ -311,7 +357,18 @@ const LogLine = memo(function LogLine({
         </div>
       );
 
-    case "treasure":
+    case "treasure": {
+      // Phase 13c — narrativeKey 가 있으면 현재 언어로 번역한 description 사용.
+      //   단, 기존 compact format ("{description} — +{coins} C") 는 유지.
+      const localizedDesc = entry.narrativeKey
+        ? resolveNarrative(
+            t,
+            language,
+            entry.description,
+            entry.narrativeKey,
+            entry.narrativeParams,
+          )
+        : entry.description;
       return (
         <div
           style={{ ...style, color: GB_LEGEND }}
@@ -319,10 +376,12 @@ const LogLine = memo(function LogLine({
         >
           <PixelIcon name="Coins" size={14} color={GB_LEGEND} />
           <span>
-            {entry.description} — +{entry.coins} C
+            {localizedDesc}
+            {entry.coins > 0 ? ` — +${entry.coins} C` : ""}
           </span>
         </div>
       );
+    }
 
     case "choice": {
       // Phase 12 — mystery event 는 GB_WARN (amber) 강조. 일반 choice 는 GB.lightest.
@@ -382,8 +441,16 @@ const LogLine = memo(function LogLine({
       );
     }
 
-    case "skill":
+    case "skill": {
       // Phase 6b — class 액티브 스킬 발동. Boss banner 수준의 prominence.
+      // Phase 13c — skill narrative 도 i18n key 로 번역.
+      const resolvedSkillNarr = resolveNarrative(
+        t,
+        language,
+        entry.narrative,
+        entry.narrativeKey,
+        entry.narrativeParams,
+      );
       return (
         <div
           style={{
@@ -404,10 +471,11 @@ const LogLine = memo(function LogLine({
                   : entry.skillName}
               </span>
             </div>
-            <div className={gbClass.textDim}>{entry.narrative}</div>
+            <div className={gbClass.textDim}>{resolvedSkillNarr}</div>
           </div>
         </div>
       );
+    }
   }
 });
 
