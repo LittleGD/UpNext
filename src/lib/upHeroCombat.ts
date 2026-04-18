@@ -177,6 +177,32 @@ export function createSession(
     (f) => f > startFloor,
   );
 
+  // Phase 13 review Critical — 주간 악몽 (startFloor=30) 세션은 tickSession 의
+  //   isBossFloor 체크가 (nextFloor=31 % 10 !== 0) 로 false 리턴되어 F30 보스가
+  //   스폰되지 않음. 유저는 일반 몬스터만 반복 조우 → 모든 주간 점수 0.
+  //
+  //   해결: weekly variant 면 초기 log 에 F30 boss + paused 상태 push.
+  //   BossBanner → resumeSession → encounter → 전투 정상 진입.
+  if (options?.isWeeklyVariant && startFloor === 30) {
+    const hasExistingBoss = session.log.some(
+      (e) => e.type === "boss" && e.floor === 30,
+    );
+    if (!hasExistingBoss) {
+      const boss = createMonsterForFloor(dungeonId, 30, true, {
+        ngPlusLevel: session.ngPlusLevel ?? 0,
+        hpMult: session.monsterHpMult ?? 1,
+        atkMult: session.monsterAtkMult ?? 1,
+      });
+      session.log.push({
+        type: "boss",
+        monster: boss,
+        floor: 30,
+        timestamp: Date.now(),
+      });
+      session.status = "paused";
+    }
+  }
+
   return session;
 }
 

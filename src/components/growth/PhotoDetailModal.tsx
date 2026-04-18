@@ -44,6 +44,9 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
   const updatePhotoSignature = useGrowthStore((s) => s.updatePhotoSignature);
   const updatePhotoMemo = useGrowthStore((s) => s.updatePhotoMemo);
   const updatePhotoStickers = useGrowthStore((s) => s.updatePhotoStickers);
+  const deletePhoto = useGrowthStore((s) => s.deletePhoto);
+  // Phase 13 review Critical #1 — 사진 삭제 확인 다이얼로그 state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [signatureBlob, setSignatureBlob] = useState<Blob | null>(null);
@@ -338,6 +341,18 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                   <span>{isSharing ? "..." : "Share"}</span>
                 </button>
                 <button
+                  onClick={() => {
+                    play("select");
+                    setShowDeleteConfirm(true);
+                  }}
+                  className="flex items-center justify-center gap-1.5 min-w-[86px] px-4 py-2.5 rounded-full bg-bg-elevated typo-caption active:scale-95 transition-transform"
+                  style={{ color: "#e88b7a" }}
+                  aria-label="Delete photo"
+                >
+                  <PixelIcon name="Trash" size={12} color="#e88b7a" />
+                  <span>Delete</span>
+                </button>
+                <button
                   onClick={onClose}
                   className="flex items-center justify-center gap-1.5 min-w-[86px] px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
                   aria-label="Close"
@@ -347,6 +362,71 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                 </button>
               </div>
             </>
+          )}
+
+          {/* Phase 13 review Critical #1 — 사진 삭제 확인 다이얼로그.
+                 확인 시 deletePhoto → IndexedDB blob + metadata 정리 후 모달 close.
+                 `isPhotoBound` 체크는 UI 레이어 밖 (부적 바인딩된 사진은
+                 useGrowthStore.deletePhoto 내부에서 처리).
+                 modal-in-modal 간단 렌더 — GbConfirm 포팅 대신 inline. */}
+          {showDeleteConfirm && (
+            <div
+              className="fixed inset-0 flex items-center justify-center z-[70]"
+              style={{ background: "rgba(0, 0, 0, 0.7)" }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setShowDeleteConfirm(false);
+              }}
+            >
+              <div
+                className="mx-4 p-5 rounded-xl max-w-sm"
+                style={{ background: "#1a1f1f", border: "1px solid #e88b7a" }}
+              >
+                <div
+                  className="typo-body mb-2"
+                  style={{ color: "#e88b7a", fontWeight: 600 }}
+                >
+                  사진을 삭제할까요?
+                </div>
+                <div
+                  className="typo-caption mb-4"
+                  style={{ color: "rgba(255,255,255,0.7)" }}
+                >
+                  복구할 수 없어요. 바인딩된 부적도 함께 정리됩니다.
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="typo-caption px-4 py-2 rounded active:scale-95 transition-transform"
+                    style={{
+                      background: "transparent",
+                      color: "rgba(255,255,255,0.7)",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                    }}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      play("cancel");
+                      deletePhoto(meta.id);
+                      setShowDeleteConfirm(false);
+                      onClose();
+                    }}
+                    className="typo-caption px-4 py-2 rounded active:scale-95 transition-transform"
+                    style={{
+                      background: "#e88b7a",
+                      color: "#000",
+                      border: "1px solid #e88b7a",
+                      fontWeight: 600,
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </motion.div>
       </motion.div>

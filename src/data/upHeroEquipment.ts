@@ -466,11 +466,16 @@ export function rollDropRarity(
     return "normal";
   }
   const tier = Math.min(Math.floor(floor / 10), 3); // 0-3 tier
-  // 고층일수록 유니크/레전드 확률 ↑. legendDropBonus 는 기존 threshold 에 +.
-  const legendHi = 0.02 + legendDropBonus;
-  const legendMid = 0.05 + legendDropBonus;
-  if (tier >= 3 && r < legendHi) return "legend";
-  if (tier >= 2 && r < legendMid) return "legend";
+  // Phase 13 review Critical #2 — 이전 구조가 dead branch 버그:
+  //   `tier >= 3 && r < 0.02` 가 앞에 있어도 fail 시 `tier >= 2 && r < 0.05`
+  //   로 fall-through → tier 3 (F30+) 유저가 tier 2 와 동일 확률 (5%) 만 얻음.
+  //   의도였던 "고층일수록 legend 확률 ↑" 가 실제로는 F20 = F30. 수정:
+  //   tier 에 따라 legendCut 을 한 번에 결정 후 단일 비교.
+  const legendCut =
+    tier >= 3 ? 0.07 + legendDropBonus : // F30+ 7%
+    tier >= 2 ? 0.05 + legendDropBonus : // F20-F29 5%
+    0;                                    // F0-F19 legend 없음
+  if (legendCut > 0 && r < legendCut) return "legend";
   if (tier >= 1 && r < 0.12) return "unique";
   if (r < 0.05) return "unique";
   if (r < 0.3) return "rare";
