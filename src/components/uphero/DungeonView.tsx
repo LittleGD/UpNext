@@ -39,6 +39,7 @@ import NumberRoll from "./NumberRoll";
 import DungeonAtmosphere from "./DungeonAtmosphere";
 import ChoiceResultModal from "./ChoiceResultModal";
 import ClassResourceBar from "./ClassResourceBar";
+import SkillBar from "./SkillBar";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
@@ -875,6 +876,11 @@ export default function DungeonView() {
         {/* === Choice overlay — footer 위쪽에 sheet 로 올라옴, footer 는 항상 보임 === */}
         {awaitingChoice && !bossReveal && <ChoicePanel />}
       </div>
+
+      {/* Phase 12d — 수동 스킬 발동 bar. 학습된 스킬 있는 경우만 노출. */}
+      {session.hero.classType && (session.hero.learnedSkills?.length ?? 0) > 0 && (
+        <SkillBar session={session} />
+      )}
 
       {/* === Controls — awaitingChoice 상태에서도 항상 노출.
            speed 는 dim/disabled, 포기 는 항상 활성. === */}
