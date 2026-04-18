@@ -76,9 +76,14 @@ export async function uploadWeeklyScore(
     const { auth, db } = await getFirebase();
     const user = auth.currentUser;
     if (!user) return "no-auth";
+    // Phase 11c R4 보안 — displayName 40자 cap. firestore rule 에서도 검증하지만
+    //   client 측에서 먼저 잘라 rule rejection 없이 upload.
+    //   Firebase Auth 는 displayName 길이 제한이 없어 악성 profile 가능.
+    const safeDisplayName = (entry.displayName ?? "익명 영웅").slice(0, 40);
+    const safeEntry = { ...entry, displayName: safeDisplayName };
     const { doc, setDoc } = await import("firebase/firestore");
     const ref = doc(db, "weekly-leaderboard", weekId, "entries", user.uid);
-    await setDoc(ref, { uid: user.uid, ...entry }, { merge: false });
+    await setDoc(ref, { uid: user.uid, ...safeEntry }, { merge: false });
     // Phase 11c R3 — 업로드 성공 시 해당 weekId cache invalidate.
     for (const key of topCache.keys()) {
       if (key.startsWith(`${weekId}:`)) topCache.delete(key);
