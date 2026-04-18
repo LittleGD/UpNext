@@ -26,6 +26,7 @@ import {
   SHOP_PRICES,
   PASS_CAP_PER_CATEGORY,
   CLASS_THEME_COLOR,
+  getEffectiveHeroLevel,
 } from "@/types/uphero";
 import type { DungeonId } from "@/types/uphero";
 import { useSound } from "@/hooks/useSound";
@@ -61,7 +62,11 @@ export default function CampPlaceholder() {
   const passes = useUpHeroStore((s) => s.passes);
   const hero = useUpHeroStore((s) => s.hero);
   const pendingDungeon = useUpHeroStore((s) => s.pendingDungeon);
-  const level = useGameStore((s) => s.progress.level);
+  // Phase 9d — 영웅 전용 레벨 사용 (챌린지 Lv 와 분리).
+  //   신규 영웅 유저는 heroStartLevel=gameLevel 로 seed → 영웅 Lv 1.
+  const gameLevel = useGameStore((s) => s.progress.level);
+  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
+  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
   const tickets = useGameStore((s) => s.progress.tickets ?? 0);
 
   const [view, setView] = useState<View>("home");

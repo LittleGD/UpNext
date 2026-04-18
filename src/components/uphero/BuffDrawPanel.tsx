@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
-import { getBuffSlotCount } from "@/types/uphero";
+import { getBuffSlotCount, getEffectiveHeroLevel } from "@/types/uphero";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
 import { DUNGEONS } from "@/data/upHeroDungeons";
@@ -38,7 +38,10 @@ export default function BuffDrawPanel() {
   const pending = useUpHeroStore((s) => s.pendingDungeon);
   const confirmDungeon = useUpHeroStore((s) => s.confirmDungeon);
   const cancelBuffDraw = useUpHeroStore((s) => s.cancelBuffDraw);
-  const level = useGameStore((s) => s.progress.level);
+  // Phase 9d — buff slot count 도 영웅 레벨 기반.
+  const gameLevel = useGameStore((s) => s.progress.level);
+  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
+  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
   const { play } = useSound();
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

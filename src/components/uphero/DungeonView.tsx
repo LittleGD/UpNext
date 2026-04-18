@@ -22,6 +22,7 @@ import { DUNGEONS } from "@/data/upHeroDungeons";
 import {
   computeEffectiveStats,
   getHeroAppearanceVariant,
+  getEffectiveHeroLevel,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
 import type { Monster } from "@/types/uphero";
@@ -47,7 +48,10 @@ export default function DungeonView() {
   const tickSession = useUpHeroStore((s) => s.tickSession);
   const resumeSession = useUpHeroStore((s) => s.resumeSession);
   const abandonSession = useUpHeroStore((s) => s.abandonSession);
-  const heroLevel = useGameStore((s) => s.progress.level);
+  // Phase 9d — 영웅 전용 레벨 사용. variant 결정 등.
+  const gameLevel = useGameStore((s) => s.progress.level);
+  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
+  const heroLevel = getEffectiveHeroLevel(gameLevel, heroStartLevel);
 
   const [speed, setSpeed] = useState<1 | 2 | 4>(1);
   const [paused, setPaused] = useState(false);

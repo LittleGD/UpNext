@@ -59,12 +59,15 @@ import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { useGameStore } from "./useGameStore";
 
 /**
- * Phase 5a.3 / 5b.2 — 저장 스키마 현재 버전.
+ * Phase 5a.3 / 5b.2 / 9d — 저장 스키마 현재 버전.
  *
  * v1: codex.monsters/bosses 를 monster.name 기반으로 전환 (legacy 는 instance ID)
  * v2: codex.equipment 를 template baseName 기반으로 전환 (legacy 는 instance ID)
+ * v3: heroStartLevel seed — 영웅 레벨을 챌린지 레벨과 분리. 기존 진행자는
+ *     heroStartLevel=1 로 migration (legacy 보존), 신규 진입자는 현재 챌린지
+ *     레벨을 seed 로 저장해 Lv 1 부터 시작.
  */
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 /**
  * Phase 4c-fix: Codex legacy ID → name migration.
@@ -213,6 +216,7 @@ function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     codex,
     cosmetics,
     lastIdleAccrualAt,
+    heroStartLevel,
     schemaVersion,
   } = s;
   return {
@@ -225,6 +229,7 @@ function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     codex,
     cosmetics,
     lastIdleAccrualAt,
+    heroStartLevel,
     schemaVersion,
   };
 }
@@ -240,6 +245,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   codex: { monsters: [], equipment: [], bosses: [] },
   cosmetics: {},
   lastIdleAccrualAt: Date.now(),
+  // Phase 9d — 초기값 undefined. initialize 에서 seed.
+  heroStartLevel: undefined,
   idleReward: null,
   pendingClassAwaken: null,
   isLoaded: false,
@@ -288,7 +295,31 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const lastIdleAt = saved?.lastIdleAccrualAt ?? now;
     const gameStore = useGameStore.getState();
     const curLevel = gameStore.progress.level ?? 1;
-    const rawIdleReward = calculateIdleReward(now - lastIdleAt, curLevel);
+
+    // Phase 9d — heroStartLevel seed / migration.
+    //   - saved 에 이미 heroStartLevel 있으면 그대로 사용 (반복 초기화 포함).
+    //   - 없으면 "기존 유저 vs 신규 유저" 판별 후 결정:
+    //     · hasPlayedUpHero: inventory/codex/session/dungeons 에 흔적이 있음
+    //       → legacy 유저. 기존 진행도 보존 위해 heroStartLevel=1 (영웅 Lv = 챌린지 Lv).
+    //     · 그 외 (이번 진입이 Up Hero 첫 경험) → heroStartLevel=curLevel.
+    //       신규 영웅 게임 유저는 챌린지 Lv 가 높아도 영웅 Lv 1 부터 키움.
+    let heroStartLevel = saved?.heroStartLevel;
+    if (heroStartLevel === undefined) {
+      const hasPlayedUpHero =
+        (saved?.inventory?.length ?? 0) > 0 ||
+        (saved?.codex?.monsters?.length ?? 0) > 0 ||
+        (saved?.codex?.bosses?.length ?? 0) > 0 ||
+        (saved?.codex?.equipment?.length ?? 0) > 0 ||
+        saved?.currentSession != null ||
+        Object.keys(saved?.dungeons ?? {}).length > 0;
+      heroStartLevel = hasPlayedUpHero ? 1 : curLevel;
+    }
+    // 영웅 레벨 — 이후 로직 (idle 스케일 등) 에서 사용
+    const heroLevel = Math.max(1, curLevel - heroStartLevel + 1);
+
+    // idle accrual 도 heroLevel 기준으로 — 챌린지 Lv 41 에 영웅 Lv 1 유저가
+    // Lv 41 수준의 idle reward 를 받으면 "영웅 Lv 1 인데 거대 보상" 이 부자연.
+    const rawIdleReward = calculateIdleReward(now - lastIdleAt, heroLevel);
     const heroClass = mergedHero.classType;
     const idleReward = rawIdleReward
       ? {
@@ -326,6 +357,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       codex,
       cosmetics: saved?.cosmetics ?? {},
       lastIdleAccrualAt: newLastIdleAt,
+      heroStartLevel,
       idleReward,
       pendingClassAwaken: null, // transient
       schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -341,7 +373,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // Phase 5c.1 safety — 이미 Lv30+ 인데 classType 이 null 인 영웅
     // (이 기능 출시 전 Lv30 도달한 유저) 은 여기서 자동 분화 시도.
     // assignClass 는 categoryCompletions 있어야 반환 non-null.
-    if (curLevel >= 30 && mergedHero.classType === null) {
+    // Phase 9d — 챌린지 레벨이 아닌 영웅 레벨 기준 (heroLevel >= 30).
+    //   신규 영웅 유저는 heroStartLevel 부터 30 단계 성장해야 class 분화.
+    if (heroLevel >= 30 && mergedHero.classType === null) {
       get().assignClass();
     }
   },
@@ -479,11 +513,13 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // stat / affinity / healStart / critBonus 를 반영한다. 따라서 buffs 는
     // 반드시 네 번째 인자로 넘겨줘야 실제 전투에 효과가 적용된다.
     // Phase 5a.1: level 에 따라 base stat 이 자동 성장한 hero 를 전달.
+    // Phase 9d: 챌린지 레벨이 아닌 영웅 레벨 (gameLevel - heroStartLevel + 1) 사용.
     const updatedPasses = { ...state.passes, [dungeonId]: passes - 1 };
     const progress = state.dungeons[dungeonId];
     const startFloor = (progress?.floorReached ?? 0) + 1;
-    const level = useGameStore.getState().progress.level ?? 1;
-    const leveledHero = computeHeroForLevel(state.hero, level);
+    const gameLevel = useGameStore.getState().progress.level ?? 1;
+    const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
+    const leveledHero = computeHeroForLevel(state.hero, heroLvl);
     const session: CombatSession = buildSession(
       dungeonId,
       leveledHero,
@@ -511,9 +547,10 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const updatedPasses = { ...state.passes, [dungeonId]: passes - 1 };
     const progress = state.dungeons[dungeonId];
     const startFloor = (progress?.floorReached ?? 0) + 1;
-    // Phase 5a.1: level 기반 성장 반영
-    const level = useGameStore.getState().progress.level ?? 1;
-    const leveledHero = computeHeroForLevel(state.hero, level);
+    // Phase 5a.1: level 기반 성장 반영. Phase 9d: 영웅 레벨 사용.
+    const gameLevel = useGameStore.getState().progress.level ?? 1;
+    const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
+    const leveledHero = computeHeroForLevel(state.hero, heroLvl);
     const session = buildSession(dungeonId, leveledHero, startFloor);
     const newState = {
       passes: updatedPasses,

@@ -20,6 +20,7 @@ import { useGrowthStore } from "@/store/useGrowthStore";
 import { isPhotoBound } from "@/lib/photoTalisman";
 import {
   getHeroAppearanceVariant,
+  getEffectiveHeroLevel,
   SELL_PRICE,
   SHOP_PRICES,
   CLASS_THEME_COLOR,
@@ -96,7 +97,10 @@ export default function EquipmentInventory({
   const sellItem = useUpHeroStore((s) => s.sellItem);
   const discardItem = useUpHeroStore((s) => s.discardItem);
   const enhanceItem = useUpHeroStore((s) => s.enhanceItem);
-  const level = useGameStore((s) => s.progress.level);
+  // Phase 9d — 영웅 전용 레벨.
+  const gameLevel = useGameStore((s) => s.progress.level);
+  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
+  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
   const { play } = useSound();
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
 

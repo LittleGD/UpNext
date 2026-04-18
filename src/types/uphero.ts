@@ -410,6 +410,13 @@ export interface UpHeroState {
   /** 오프라인 누적 계산용 */
   lastIdleAccrualAt: number;
   /**
+   * Phase 9d — 영웅 게임을 처음 시작한 시점의 챌린지 레벨 (seed).
+   * 영웅 Lv = max(1, gameLevel - heroStartLevel + 1).
+   * - undefined: legacy (= 1 로 간주, 기존 유저 보존)
+   * - 신규 유저: initialize 에서 현재 챌린지 레벨로 seed.
+   */
+  heroStartLevel?: number;
+  /**
    * Phase 5a.3 — 저장 스키마 버전.
    * initialize 에서 이 값이 CURRENT_SCHEMA_VERSION 보다 낮으면 migration 을
    * 실행하고 새 버전으로 갱신한다. undefined 이면 legacy 로 간주 (Phase 4c 이전).
@@ -478,6 +485,33 @@ export function getHeroAppearanceVariant(level: number): number {
   if (level >= 30) return 2;
   if (level >= 10) return 1;
   return 0;
+}
+
+/**
+ * Phase 9d — 영웅 전용 레벨 계산.
+ *
+ * 배경: 챌린지 레벨 (useGameStore.progress.level) 을 그대로 영웅 레벨로 쓰면,
+ * Up Hero 가 나중에 release 된 후 이미 챌린지만 해서 Lv 41 인 유저는 영웅도
+ * 즉시 Lv 41 로 시작 → "새 콘텐츠 키우는 맛" 이 사라진다.
+ *
+ * 해결: 영웅을 처음 시작한 시점의 챌린지 레벨 (heroStartLevel) 을 기록하고,
+ * 영웅 레벨은 "그 이후의 성장" 만 반영.
+ *
+ *   effectiveHeroLevel = max(1, gameLevel - heroStartLevel + 1)
+ *
+ * - 신규 영웅 유저 (챌린지 Lv 41) 가 오늘 영웅 시작 → heroStartLevel=41 → 영웅 Lv 1
+ * - 다음 날 챌린지로 Lv 42 달성 → 영웅 Lv 2 (함께 성장)
+ * - 이미 영웅 진행하던 기존 유저 → migration 으로 heroStartLevel=1 (legacy 보존)
+ *
+ * 영웅 Lv 기반 요소 — appearanceVariant, base stat 성장, class 분화 (Lv30+),
+ *   idle accrual 스케일 등 — 전부 이 effective 값 사용.
+ */
+export function getEffectiveHeroLevel(
+  gameLevel: number,
+  heroStartLevel: number | undefined,
+): number {
+  const startLvl = heroStartLevel ?? 1;
+  return Math.max(1, gameLevel - startLvl + 1);
 }
 
 /** 영웅 이름 풀 — 첫 생성 시 랜덤 배정 (추후 리네임 기능) */
