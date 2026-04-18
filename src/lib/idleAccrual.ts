@@ -51,11 +51,30 @@ export function calculateIdleReward(
   };
 }
 
-/** "지난 1시간 20분" 포맷. 60분 미만은 "N분" 만. */
+/** "지난 1시간 20분" 포맷. 60분 미만은 "N분" 만. 한국어 fallback. */
 export function formatElapsed(min: number): string {
   if (min < 60) return `${min}분`;
   const h = Math.floor(min / 60);
   const m = min % 60;
   if (m === 0) return `${h}시간`;
   return `${h}시간 ${m}분`;
+}
+
+/**
+ * Phase 13 review — 다국어 elapsed 포맷.
+ *   t 함수를 받아 i18n key 로 {h}시간 {m}분 조립. 컴포넌트에서 호출.
+ *   formatElapsed 는 legacy (store / ko default) 용도로 유지.
+ */
+export function formatElapsedI18n(
+  min: number,
+  t: (
+    key: import("@/i18n").DictKey,
+    params?: Record<string, string | number>,
+  ) => string,
+): string {
+  if (min < 60) return t("uphero.idle.elapsed.minOnly", { min });
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (m === 0) return t("uphero.idle.elapsed.hourOnly", { h });
+  return t("uphero.idle.elapsed.hourMin", { h, m });
 }

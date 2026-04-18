@@ -18,7 +18,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { formatElapsed } from "@/lib/idleAccrual";
+import { formatElapsedI18n } from "@/lib/idleAccrual";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -69,7 +69,9 @@ export default function IdleRewardToast() {
     window.setTimeout(() => acknowledge(), 240);
   };
 
-  const elapsed = formatElapsed(reward.rawElapsedMin);
+  // Phase 13 review — formatElapsed 는 한국어 하드코딩. 다국어 헬퍼로 교체.
+  //   (구 export 는 다른 non-component 경로 호환 위해 유지.)
+  const elapsed = formatElapsedI18n(reward.rawElapsedMin, t);
   const capped = reward.rawElapsedMin > reward.elapsedMin;
 
   // Phase 9d-fix — IdleRewardToast 는 주로 영웅 탭 (playground) 에서 뜸.
