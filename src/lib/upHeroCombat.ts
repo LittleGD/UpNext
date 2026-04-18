@@ -35,6 +35,7 @@ import {
   pickEvent,
   pickRestDescription,
 } from "@/data/upHeroFlavor";
+import { pickMysteryEvent } from "@/data/flavor/mystery";
 import { rollEquipmentDrop, rollDropRarity } from "@/data/upHeroEquipment";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import {
@@ -694,17 +695,18 @@ export function tickSession(session: CombatSession): CombatSession {
     return s;
   }
 
-  // Phase 12 — mystery "?" floor 도달? 일반 roll 대신 amplified choice event.
-  //   factor 1.6 (+60%) 으로 reward/damage/heal/time 증폭. 일회성 (발동 후 리스트
-  //   에서 제거). isMystery=true 로 마킹해 UI 시각 차별화.
+  // Phase 12 R-exp — mystery "?" floor 도달? 전용 pool (MYSTERY_EVENTS) 에서
+  //   선택. 기존 amplifyChoiceOptions(일반 pool ×1.6) 접근은 "이미 본 이벤트
+  //   의 숫자만 큼" 체감이라 폐기. 전용 pool 은 outcomes 가 이미 극단적
+  //   (high risk / high reward) 으로 설계됨 → amplify 미적용.
+  //   일회성 (발동 후 mysteryFloors 에서 제거). isMystery=true 로 UI 차별화.
   if ((s.mysteryFloors ?? []).includes(s.currentFloor)) {
-    const ev = pickEvent(s);
-    const amplifiedOptions = amplifyChoiceOptions(ev.options, 1.6);
+    const ev = pickMysteryEvent(s.recentEventPrompts ?? []);
     const logIdx = s.log.length;
     s.log.push({
       type: "choice",
       prompt: ev.prompt,
-      options: amplifiedOptions,
+      options: ev.options,
       isMystery: true,
       timestamp: Date.now(),
     });
