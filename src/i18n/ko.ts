@@ -727,6 +727,27 @@ const ko = {
   "uphero.help.item.abandon.title": "포기",
   "uphero.help.item.abandon.desc": "자발적으로 캠프 복귀. 지금까지 얻은 drop 은 모두 유지.",
 
+  // === Equipment inventory ===
+  "uphero.equip.tabBag": "가방",
+  "uphero.equip.tabTalisman": "사진 부적",
+  "uphero.equip.tabEnhance": "강화",
+  "uphero.equip.back.aria": "뒤로",
+  "uphero.equip.empty.bag": "장비가 없어요. 던전에서 획득하거나 사진 부적을 만들어 보세요",
+  "uphero.equip.empty.enhance": "강화 가능한 장비가 없어요 — 드롭이나 사진 부적으로 아이템을 먼저 얻어보세요",
+  "uphero.equip.ritualOpen": "바인딩 의식 열기",
+  "uphero.equip.ritualNoPhotos": "바인딩할 수 있는 사진 없음",
+  "uphero.equip.talismanBound": "부적이 된 사진",
+  "uphero.equip.talismanUnbound": "미바인딩 사진",
+  "uphero.equip.equippedAria": "장착 중 장비, 실패-소실 시 스탯 감소",
+  "uphero.equip.noRefund": "환급 없음 · 복구 불가",
+  "uphero.equip.action.sell": "판매",
+  "uphero.equip.action.discard": "버리기",
+  "uphero.equip.action.enhance": "강화 시도",
+  "uphero.equip.action.confirm": "확인",
+  "uphero.equip.toast.discarded": "버렸다",
+  "uphero.equip.toast.maxEnhance": "이미 +10 최대 강화",
+  "uphero.equip.toast.notFound": "아이템을 찾을 수 없음",
+
   // === Minigame modal ===
   "uphero.minigame.title.pair_match": "기억의 카드",
   "uphero.minigame.title.sequence_memo": "고대 주문",

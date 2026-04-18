@@ -34,6 +34,8 @@ import type { Rarity } from "@/types/card";
 import { GB, EASE_OUT, gbClass, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { useGameStore } from "@/store/useGameStore";
 import { useSound } from "@/hooks/useSound";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { DictKey } from "@/i18n";
 import EquipmentCard from "./EquipmentCard";
 import HeroSprite from "./HeroSprite";
 import GbConfirm from "./GbConfirm";
@@ -68,11 +70,12 @@ interface EquipmentInventoryProps {
   onNotify: (msg: string) => void;
 }
 
-const SLOT_LABEL: Record<EquipSlot, string> = {
-  weapon: "무기",
-  armor: "갑옷",
-  accessory: "액세서리",
-  talisman: "부적",
+// Phase 12 i18n — 슬롯 라벨을 i18n key 로 저장. 렌더 시점 t() 로 언어별 문자열.
+const SLOT_LABEL_KEY: Record<EquipSlot, DictKey> = {
+  weapon: "uphero.slot.weapon",
+  armor: "uphero.slot.armor",
+  accessory: "uphero.slot.accessory",
+  talisman: "uphero.slot.talisman",
 };
 
 /**
@@ -105,6 +108,7 @@ export default function EquipmentInventory({
   onBack,
   onNotify,
 }: EquipmentInventoryProps) {
+  const { t } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
   const inventory = useUpHeroStore((s) => s.inventory);
   const coins = useUpHeroStore((s) => s.coins);
@@ -185,7 +189,7 @@ export default function EquipmentInventory({
     } else if (pending.kind === "discard") {
       discardItem(pending.item.id);
       play("cancel");
-      onNotify("버렸다");
+      onNotify(t("uphero.equip.toast.discarded"));
       setSelectedId(null);
     } else if (pending.kind === "enhance") {
       // Phase 11a — 단일 아이템 + 확률 강화. result 를 먼저 받은 뒤 2초 ritual
@@ -207,13 +211,13 @@ export default function EquipmentInventory({
         }
         if (result.reason === "maxed") {
           play("cancel");
-          onNotify("이미 +10 최대 강화");
+          onNotify(t("uphero.equip.toast.maxEnhance"));
           setPending(null);
           return;
         }
         if (result.reason === "not-found") {
           play("cancel");
-          onNotify("아이템을 찾을 수 없음");
+          onNotify(t("uphero.equip.toast.notFound"));
           setPending(null);
           return;
         }
@@ -315,7 +319,7 @@ export default function EquipmentInventory({
             border: "none",
             color: GB.light,
           }}
-          aria-label="뒤로"
+          aria-label={t("uphero.equip.back.aria")}
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
           뒤로
@@ -365,7 +369,7 @@ export default function EquipmentInventory({
           </div>
 
           {/* 4 슬롯 */}
-          {(Object.keys(SLOT_LABEL) as EquipSlot[]).map((slot) => {
+          {(Object.keys(SLOT_LABEL_KEY) as EquipSlot[]).map((slot) => {
             const equipped = hero.equipped[slot];
             const pos = SLOT_POSITIONS[slot];
             const translate = SLOT_TRANSFORMS[slot];
@@ -402,7 +406,7 @@ export default function EquipmentInventory({
                     className="typo-micro"
                     style={{ color: GB.dark, letterSpacing: "0.05em" }}
                   >
-                    {SLOT_LABEL[slot]}
+                    {t(SLOT_LABEL_KEY[slot])}
                   </div>
                 )}
                 <style jsx>{`
@@ -454,17 +458,17 @@ export default function EquipmentInventory({
         <EqTabButton
           active={tab === "bag"}
           onClick={() => setTab("bag")}
-          label="가방"
+          label={t("uphero.equip.tabBag")}
         />
         <EqTabButton
           active={tab === "photo"}
           onClick={() => setTab("photo")}
-          label="사진 부적"
+          label={t("uphero.equip.tabTalisman")}
         />
         <EqTabButton
           active={tab === "enhance"}
           onClick={() => setTab("enhance")}
-          label="강화"
+          label={t("uphero.equip.tabEnhance")}
         />
         <div
           aria-hidden="true"
@@ -489,7 +493,7 @@ export default function EquipmentInventory({
         {/* 가방 — 현재 인벤토리 grid */}
         {tab === "bag" &&
           (inventory.length === 0 ? (
-            <EmptyState text="장비가 없어요. 던전에서 획득하거나 사진 부적을 만들어 보세요" />
+            <EmptyState text={t("uphero.equip.empty.bag")} />
           ) : (
             <div className="grid grid-cols-3 gap-2">
               {inventory.map((eq) => (
@@ -537,8 +541,8 @@ export default function EquipmentInventory({
               <PixelIcon name="Image" size={14} color={GB.light} />
               <span className="flex-1" style={{ color: GB.lightest }}>
                 {photoCounts.unboundCount > 0
-                  ? "바인딩 의식 열기"
-                  : "바인딩할 수 있는 사진 없음"}
+                  ? t("uphero.equip.ritualOpen")
+                  : t("uphero.equip.ritualNoPhotos")}
               </span>
               <span className={gbClass.textDim}>80 C · 랜덤</span>
               <style jsx>{`
@@ -565,13 +569,13 @@ export default function EquipmentInventory({
             <div className="mt-3 grid grid-cols-2 gap-2">
               <CountTile
                 iconName="Heart"
-                label="부적이 된 사진"
+                label={t("uphero.equip.talismanBound")}
                 count={photoCounts.boundCount}
                 accent={GB.lightest}
               />
               <CountTile
                 iconName="Image"
-                label="미바인딩 사진"
+                label={t("uphero.equip.talismanUnbound")}
                 count={photoCounts.unboundCount}
                 accent={GB.light}
               />
@@ -599,7 +603,7 @@ export default function EquipmentInventory({
               강화 — 장비 한 장 + 코인, 확률로 +1 (최대 +10)
             </div>
             {enhanceableItems.length === 0 ? (
-              <EmptyState text="강화 가능한 장비가 없어요 — 드롭이나 사진 부적으로 아이템을 먼저 얻어보세요" />
+              <EmptyState text={t("uphero.equip.empty.enhance")} />
             ) : (
               <div className="flex flex-col gap-1.5">
                 {enhanceableItems.map((item) => {
@@ -652,7 +656,7 @@ export default function EquipmentInventory({
                           {isEquipped && (
                             <span
                               style={{ color: GB_WARN, fontWeight: 600 }}
-                              aria-label="장착 중 장비, 실패-소실 시 스탯 감소"
+                              aria-label={t("uphero.equip.equippedAria")}
                             >
                               장착 중
                             </span>
@@ -721,7 +725,7 @@ export default function EquipmentInventory({
           pending?.kind === "sell" ? (
             `+${SELL_PRICE[pending.item.rarity]} 코인`
           ) : pending?.kind === "discard" ? (
-            "환급 없음 · 복구 불가"
+            t("uphero.equip.noRefund")
           ) : pending?.kind === "enhance" ? (
             <>
               성공률 <span style={{ color: GB.lightest }}>{Math.round(pending.successRate * 100)}%</span>
@@ -745,12 +749,12 @@ export default function EquipmentInventory({
         }
         confirmLabel={
           pending?.kind === "sell"
-            ? "판매"
+            ? t("uphero.equip.action.sell")
             : pending?.kind === "discard"
-              ? "버리기"
+              ? t("uphero.equip.action.discard")
               : pending?.kind === "enhance"
-                ? "강화 시도"
-                : "확인"
+                ? t("uphero.equip.action.enhance")
+                : t("uphero.equip.action.confirm")
         }
         danger={pending?.kind === "discard" || pending?.kind === "enhance"}
         onConfirm={executePending}
