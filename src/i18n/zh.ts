@@ -375,6 +375,102 @@ const zh: Record<DictKey, string> = {
   "patchnotes.title": "更新日志",
   "patchnotes.close": "知道了",
   "patchnotes.version": "v{version}",
+
+  // === Up Hero — Combat / Dungeon UI ===
+  "uphero.combat.expedition": "远征",
+  "uphero.combat.hp": "HP",
+  "uphero.combat.time": "TIME",
+  "uphero.combat.hp.aria": "英雄生命值",
+  "uphero.combat.time.aria": "探险时间",
+  "uphero.combat.hp.danger": "危险",
+  "uphero.combat.hp.warn": "警告",
+  "uphero.combat.time.danger": "时间紧急",
+  "uphero.combat.time.warn": "时间不足",
+  "uphero.combat.enemyHp.aria": "{name} 生命值",
+  "uphero.combat.expedition.aria": "远征进度 — 本周期 F{start}–F{end}",
+  "uphero.combat.expedition.valueText": "从 F{start} 到 F{end},当前 F{current}",
+  "uphero.combat.expedition.title": "F{start} → F{end} · 当前 F{current} (? 为神秘事件)",
+  "uphero.combat.expedition.toEnd": "→ F{end}",
+  "uphero.combat.boss.marker": "F{floor} 首领",
+  "uphero.combat.boss.clearedSuffix": " (已击败)",
+  "uphero.combat.mystery.marker": "F{floor} — 神秘事件",
+  "uphero.combat.helpAria": "操作帮助",
+  "uphero.combat.pause": "暂停",
+  "uphero.combat.resume": "继续",
+  "uphero.combat.speed": "速度",
+  "uphero.combat.speedX": "{x}×",
+  "uphero.combat.abandon": "放弃",
+  "uphero.combat.continue": "继续",
+  "uphero.combat.confirm.title": "放弃探险并返回营地?",
+  "uphero.combat.confirm.keepRewards": "至今获得的奖励 (XP · 金币 · 装备) 都将保留。",
+  "uphero.combat.confirm.missBoss": "但将失去挑战下一个首领 (F{floor}) 的机会。",
+
+  // Announce / session end reasons
+  "uphero.announce.bossDefeated": "击败首领 — 胜利",
+  "uphero.announce.heroDied": "英雄倒下了",
+  "uphero.announce.timeExpired": "时间到了",
+  "uphero.announce.ended": "探险结束",
+  "uphero.announce.skillFired": "技能 {name} 发动",
+  "uphero.announce.bossAppear": "{name} 出现。HP {hp}",
+  "uphero.announce.bossVictory": "击败 {name}。+{xp} XP,+{coins} 金币",
+  "uphero.announce.drop": "获得 {rarity} {name}",
+
+  // Rarity labels
+  "uphero.rarity.normal": "普通",
+  "uphero.rarity.rare": "稀有",
+  "uphero.rarity.unique": "独特",
+  "uphero.rarity.legend": "传说",
+
+  // Combat log
+  "uphero.log.bossAppear": "首领登场 — {name}",
+  "uphero.log.victory": "击败 {name}",
+  "uphero.log.heroAttackFallback": "英雄攻击 — −{damage}",
+  "uphero.log.heroHitFallback": "英雄被击 — −{damage}",
+  "uphero.log.dropGained": "获得装备: {name}",
+  "uphero.log.mystery": "神秘事件",
+  "uphero.log.mysteryAria": "神秘事件 · 效果增幅",
+
+  // Hero stat panel
+  "uphero.stat.title": "英雄详情",
+  "uphero.stat.closeAria": "关闭",
+  "uphero.stat.close": "关闭",
+  "uphero.stat.nextLevel": "下一等级 Lv.{level} — 全属性 +1,HP +10",
+
+  // Equipment slot labels
+  "uphero.slot.weapon": "武器",
+  "uphero.slot.armor": "护甲",
+  "uphero.slot.accessory": "配饰",
+  "uphero.slot.talisman": "护身符",
+
+  // Skill tree
+  "uphero.skillTree.title": "技能树",
+  "uphero.skillTree.resource": "资源",
+  "uphero.skillTree.spGainHint": "每次升级 +1 SP",
+  "uphero.skillTree.unlock": "解锁",
+  "uphero.skillTree.sp": "SP",
+  "uphero.skillTree.cost": "消耗",
+
+  // Choice panel
+  "uphero.choice.mysteryBadge": "神秘事件",
+  "uphero.choice.mysteryBadgeAria": "神秘事件 · 效果增幅",
+
+  // Shop
+  "uphero.shop.boughtTicket": "卡牌配对门票 +1 ({current}/{max})",
+  "uphero.shop.ticketDailyCap": "今日卡牌配对门票购买上限 ({cap} 张) 已达",
+  "uphero.shop.packFull": "获得卡包",
+  "uphero.shop.packSmall": "奖励卡 +1",
+  "uphero.shop.passDailyCap": "每日最多购买 {cap} 张",
+  "uphero.shop.passFull": "此地下城门票已满",
+  "uphero.shop.passGranted": "{dungeonName} 门票 +1",
+  "uphero.shop.confirmFullPackTitle": "要购买整包卡牌吗?",
+  "uphero.shop.confirmFullPackBody": "一次性抽取 5 张卡。",
+  "uphero.shop.confirmFullPackPrice": "费用 {price} 金币 · 余额 {coins} 金币",
+  "uphero.shop.buy": "购买",
+
+  // Camp / weekly toasts
+  "uphero.camp.passRequired.withHint": "没有探险门票 — 完成挑战即可获得",
+  "uphero.weekly.beatF30First": "请先通关本地下城的 F30",
+  "uphero.weekly.loading": "正在加载每周数据",
 };
 
 export default zh;

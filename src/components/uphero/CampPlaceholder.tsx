@@ -33,6 +33,7 @@ import {
 } from "@/types/uphero";
 import type { DungeonId } from "@/types/uphero";
 import { useSound } from "@/hooks/useSound";
+import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 import GbConfirm from "./GbConfirm";
 import HeroSprite from "./HeroSprite";
@@ -83,6 +84,7 @@ export default function CampPlaceholder() {
   //   NG+ 정보를 header 로 승격 (정보가 사라지지 않도록). ngPlusLevel > 0 일
   //   때만 렌더.
   const ngPlusLevel = useUpHeroStore((s) => s.ngPlusLevel ?? 0);
+  const { t } = useTranslation();
 
   const [view, setView] = useState<View>("home");
   const [toast, setToast] = useState<string | null>(null);
@@ -185,7 +187,7 @@ export default function CampPlaceholder() {
             totalPasses={totalPasses}
             onOpenDungeons={() => {
               if (totalPasses <= 0) {
-                notify("탐험권이 없어요. 챌린지를 완료하세요");
+                notify(t("uphero.camp.passRequired.withHint"));
                 return;
               }
               setView("dungeons");
@@ -508,18 +510,19 @@ function DungeonsView({
   const prepareBuffDraw = useUpHeroStore((s) => s.prepareBuffDraw);
   const enterDungeon = useUpHeroStore((s) => s.enterDungeon);
   const { play } = useSound();
+  const { t } = useTranslation();
 
   const onEnter = (dungeonId: DungeonId) => {
     const result = prepareBuffDraw(dungeonId);
     if (result === "no-pass") {
-      onNotify("탐험권이 필요해요");
+      onNotify(t("uphero.camp.pass.required"));
       return;
     }
     if (result === "no-cards") {
       // 보유 카드 없음 — 버프 스킵, 바로 진입
       const ok = enterDungeon(dungeonId);
       if (!ok) {
-        onNotify("탐험권이 필요해요");
+        onNotify(t("uphero.camp.pass.required"));
         return;
       }
       play("select");
@@ -621,6 +624,7 @@ function ShopView({
       ? cardmatchShopDaily.bought
       : 0;
   const { play } = useSound();
+  const { t } = useTranslation();
 
   const passesBoughtToday = shopDaily?.passesBought ?? 0;
   const dailyCapReached = passesBoughtToday >= DAILY_PASS_PURCHASE_CAP;
@@ -633,13 +637,20 @@ function ShopView({
     const ok = purchaseTicket();
     if (ok) {
       play("collect");
-      onNotify(`카드매치 티켓 +1 (${Math.min(10, tickets + 1)}/10)`);
+      onNotify(
+        t("uphero.shop.boughtTicket", {
+          current: Math.min(10, tickets + 1),
+          max: 10,
+        }),
+      );
     } else if (tickets >= 10) {
-      onNotify("카드매치 티켓이 가득 찼어요");
+      onNotify(t("uphero.shop.ticket.full"));
     } else if (cardmatchBoughtToday >= DAILY_CARDMATCH_TICKET_CAP) {
-      onNotify(`오늘 카드매치 티켓 구매 한도 (${DAILY_CARDMATCH_TICKET_CAP}장) 도달`);
+      onNotify(
+        t("uphero.shop.ticketDailyCap", { cap: DAILY_CARDMATCH_TICKET_CAP }),
+      );
     } else {
-      onNotify("코인이 부족해요");
+      onNotify(t("uphero.shop.insufficient"));
     }
   };
 
@@ -652,9 +663,9 @@ function ShopView({
     const ok = purchaseCardPack(size);
     if (ok) {
       play("collect");
-      onNotify("보너스 카드 +1");
+      onNotify(t("uphero.shop.packSmall"));
     } else {
-      onNotify("코인이 부족해요");
+      onNotify(t("uphero.shop.insufficient"));
     }
   };
 
@@ -663,9 +674,9 @@ function ShopView({
     const ok = purchaseCardPack("full");
     if (ok) {
       play("collect");
-      onNotify("카드팩 획득");
+      onNotify(t("uphero.shop.packFull"));
     } else {
-      onNotify("코인이 부족해요");
+      onNotify(t("uphero.shop.insufficient"));
     }
   };
 
@@ -674,16 +685,16 @@ function ShopView({
     if (result === "ok") {
       play("collect");
       const dName = DUNGEON_LIST.find((d) => d.id === dungeonId)?.name ?? "";
-      onNotify(`${dName} 탐험권 +1`);
+      onNotify(t("uphero.shop.passGranted", { dungeonName: dName }));
     } else if (result === "no-coin") {
       play("cancel");
-      onNotify("코인이 부족해요");
+      onNotify(t("uphero.shop.insufficient"));
     } else if (result === "daily-cap") {
       play("cancel");
-      onNotify(`오늘은 ${DAILY_PASS_PURCHASE_CAP}장까지만 구매 가능`);
+      onNotify(t("uphero.shop.passDailyCap", { cap: DAILY_PASS_PURCHASE_CAP }));
     } else {
       play("cancel");
-      onNotify("이 던전 탐험권이 가득 찼어요");
+      onNotify(t("uphero.shop.passFull"));
     }
   };
 
@@ -1230,6 +1241,7 @@ function WeeklyView({
   const enterWeeklyVariant = useUpHeroStore((s) => s.enterWeeklyVariant);
   const dungeons = useUpHeroStore((s) => s.dungeons);
   const { play } = useSound();
+  const { t } = useTranslation();
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
 
   // Phase 12 R11 — 다음 리셋까지 카운트다운. 분 단위 갱신 (60s interval).
@@ -1255,9 +1267,9 @@ function WeeklyView({
     if (result === "ok") {
       play("select");
     } else if (result === "not-unlocked") {
-      onNotify("먼저 이 던전의 F30 을 돌파하세요");
+      onNotify(t("uphero.weekly.beatF30First"));
     } else {
-      onNotify("주간 데이터 로딩 중");
+      onNotify(t("uphero.weekly.loading"));
     }
   };
 

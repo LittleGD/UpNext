@@ -17,6 +17,7 @@ import {
   GB_WARN,
 } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 /**
@@ -62,6 +63,7 @@ function useChoiceTypewriter(text: string, promptKey: string): {
 export default function ChoicePanel() {
   const session = useUpHeroStore((s) => s.currentSession);
   const resolveChoice = useUpHeroStore((s) => s.resolveChoice);
+  const { t } = useTranslation();
   // Phase 9a — onAbandon 은 DungeonView footer 로 단일화. 여기 중복 정의는 제거.
   //   이전엔 ChoicePanel 에도 붙어있었으나 실제 어떤 JSX 에도 wire 되지 않은 dead code.
   //   abandonSession selector 자체가 쓸모 없어 구독도 제거 → 불필요 re-render 감소.
@@ -165,10 +167,10 @@ export default function ChoicePanel() {
               letterSpacing: "0.08em",
               fontSize: 10,
             }}
-            aria-label="수상한 이벤트 · 효과 증폭"
+            aria-label={t("uphero.choice.mysteryBadgeAria")}
           >
             <span style={{ fontWeight: 700 }}>?</span>
-            <span>수상한 이벤트</span>
+            <span>{t("uphero.choice.mysteryBadge")}</span>
           </div>
         )}
         <div

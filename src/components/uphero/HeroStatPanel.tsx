@@ -27,6 +27,8 @@ import {
 import type { EquipSlot } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { DictKey } from "@/i18n";
 import HeroSprite from "./HeroSprite";
 import HexStatChart from "./HexStatChart";
 import SkillTreePanel from "./SkillTreePanel";
@@ -39,14 +41,17 @@ interface HeroStatPanelProps {
 // Phase 12b — STAT_ROWS 는 HexStatChart 로 대체 (선형 bar 제거).
 //   HeroBaseStats 타입은 아래 effective 객체에서 그대로 사용.
 
-const SLOT_LABEL: Record<EquipSlot, string> = {
-  weapon: "무기",
-  armor: "갑옷",
-  accessory: "액세서리",
-  talisman: "부적",
+// Phase 12 R-i18n — 슬롯 라벨 키. `t()` 를 여기서 호출하려면 함수 컨텍스트
+//   안이어야 하므로 key 만 저장하고 렌더에서 변환.
+const SLOT_LABEL_KEY: Record<EquipSlot, DictKey> = {
+  weapon: "uphero.slot.weapon",
+  armor: "uphero.slot.armor",
+  accessory: "uphero.slot.accessory",
+  talisman: "uphero.slot.talisman",
 };
 
 export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
+  const { t } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
   // Phase 9d — 영웅 전용 레벨.
   const gameLevel = useGameStore((s) => s.progress.level);
@@ -77,7 +82,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
       ref={containerRef}
       role="dialog"
       aria-modal="true"
-      aria-label="영웅 상세"
+      aria-label={t("uphero.stat.title")}
       className="fixed inset-0 z-50 flex flex-col"
       style={{
         background: GB.darkest,
@@ -98,7 +103,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
           className="typo-body"
           style={{ color: GB.lightest, fontWeight: 500 }}
         >
-          영웅 상세
+          {t("uphero.stat.title")}
         </div>
         <button
           type="button"
@@ -111,10 +116,10 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
             color: GB.light,
             border: "none",
           }}
-          aria-label="닫기"
+          aria-label={t("uphero.stat.closeAria")}
         >
           <span style={{ fontWeight: 700 }}>✕</span>
-          닫기
+          {t("uphero.stat.close")}
           <style jsx>{`
             .uphero-stat-close {
               transition: transform 120ms ${EASE_OUT},
@@ -192,7 +197,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
             장착 장비
           </div>
           <div className="flex flex-col gap-2">
-            {(Object.keys(SLOT_LABEL) as EquipSlot[]).map((slot) => {
+            {(Object.keys(SLOT_LABEL_KEY) as EquipSlot[]).map((slot) => {
               const eq = hero.equipped[slot];
               return (
                 <div
@@ -207,7 +212,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                     className="typo-caption"
                     style={{ color: GB.light, minWidth: 60 }}
                   >
-                    {SLOT_LABEL[slot]}
+                    {t(SLOT_LABEL_KEY[slot])}
                   </div>
                   {eq ? (
                     <>

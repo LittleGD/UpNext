@@ -29,6 +29,7 @@ import type { Monster } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import { useAnnounce } from "@/hooks/useAnnounce";
+import { useTranslation } from "@/hooks/useTranslation";
 import CombatLog from "./CombatLog";
 import ChoicePanel from "./ChoicePanel";
 import BossBanner from "./BossBanner";
@@ -81,6 +82,7 @@ export default function DungeonView() {
   const { play } = useSound();
   // Phase 11c R4 — screen reader 공지. 시각 float 이 aria-hidden 이므로 여기서 backup.
   const { announce } = useAnnounce();
+  const { t } = useTranslation();
 
   const tickRef = useRef(tickSession);
   tickRef.current = tickSession;
@@ -374,21 +376,46 @@ export default function DungeonView() {
     for (let idx = startIdx; idx < session.log.length; idx++) {
       const entry = session.log[idx];
       if (entry.type === "boss") {
-        announce(`${entry.monster.name} 등장. HP ${entry.monster.hp}`, "assertive");
+        announce(
+          t("uphero.announce.bossAppear", {
+            name: entry.monster.name,
+            hp: entry.monster.hp,
+          }),
+          "assertive",
+        );
       } else if (entry.type === "victory" && entry.monster.isBoss) {
-        announce(`${entry.monster.name} 처치. 경험치 +${entry.xp}, 코인 +${entry.coins}`, "polite");
+        announce(
+          t("uphero.announce.bossVictory", {
+            name: entry.monster.name,
+            xp: entry.xp,
+            coins: entry.coins,
+          }),
+          "polite",
+        );
       } else if (entry.type === "skill") {
-        announce(`스킬 ${entry.skillName} 발동`, "polite");
+        announce(
+          t("uphero.announce.skillFired", { name: entry.skillName }),
+          "polite",
+        );
       } else if (entry.type === "drop") {
-        const rarityLabel = { normal: "일반", rare: "레어", unique: "유니크", legend: "전설" }[entry.equipment.rarity];
-        announce(`${rarityLabel} ${entry.equipment.name} 획득`, "polite");
+        const rarityKey = `uphero.rarity.${entry.equipment.rarity}` as const;
+        announce(
+          t("uphero.announce.drop", {
+            rarity: t(rarityKey),
+            name: entry.equipment.name,
+          }),
+          "polite",
+        );
       } else if (entry.type === "sessionEnd") {
-        const reasonMsg =
-          entry.reason === "bossDefeated" ? "보스 처치 승리" :
-          entry.reason === "heroDied" ? "영웅이 쓰러졌습니다" :
-          entry.reason === "timeExpired" ? "시간이 다했습니다" :
-          "탐험 종료";
-        announce(reasonMsg, "assertive");
+        const reasonKey =
+          entry.reason === "bossDefeated"
+            ? "uphero.announce.bossDefeated"
+            : entry.reason === "heroDied"
+              ? "uphero.announce.heroDied"
+              : entry.reason === "timeExpired"
+                ? "uphero.announce.timeExpired"
+                : "uphero.announce.ended";
+        announce(t(reasonKey), "assertive");
       }
     }
     seenLogIdxRef.current = session.log.length - 1;
@@ -690,7 +717,7 @@ export default function DungeonView() {
                 lineHeight: 1,
                 cursor: "pointer",
               }}
-              aria-label="인터랙션 도움말"
+              aria-label={t("uphero.combat.helpAria")}
             >
               ?
             </button>
@@ -745,7 +772,7 @@ export default function DungeonView() {
                 <div
                   className="w-16 h-1.5 rounded-sm overflow-hidden"
                   role="progressbar"
-                  aria-label={`${currentEnemy.name} 체력`}
+                  aria-label={t("uphero.combat.enemyHp.aria", { name: currentEnemy.name })}
                   aria-valuenow={Math.round(enemyHpPct)}
                   aria-valuemin={0}
                   aria-valuemax={100}
@@ -844,17 +871,28 @@ export default function DungeonView() {
                 style={{ color: GB.light, opacity: 0.8 }}
                 aria-hidden="true"
               >
-                원정
+                {t("uphero.combat.expedition")}
               </span>
               <div
                 className="flex-1 relative h-1.5"
                 role="progressbar"
-                aria-label={`원정 진행도 — 이번 cycle F${cycleStart}~F${cycleEnd}`}
+                aria-label={t("uphero.combat.expedition.aria", {
+                  start: cycleStart,
+                  end: cycleEnd,
+                })}
                 aria-valuenow={Math.round(pct)}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-valuetext={`F${cycleStart} 에서 F${cycleEnd} 까지, 현재 F${session.currentFloor}`}
-                title={`F${cycleStart} → F${cycleEnd} · 현재 F${session.currentFloor} (? 는 수상한 이벤트)`}
+                aria-valuetext={t("uphero.combat.expedition.valueText", {
+                  start: cycleStart,
+                  end: cycleEnd,
+                  current: session.currentFloor,
+                })}
+                title={t("uphero.combat.expedition.title", {
+                  start: cycleStart,
+                  end: cycleEnd,
+                  current: session.currentFloor,
+                })}
               >
                 <div
                   className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
@@ -882,7 +920,10 @@ export default function DungeonView() {
                         background: reached ? GB.lightest : GB.darkest,
                         border: `1px solid ${reached ? GB.lightest : GB.light}`,
                       }}
-                      title={`F${f} 보스${reached ? " (클리어)" : ""}`}
+                      title={
+                        t("uphero.combat.boss.marker", { floor: f }) +
+                        (reached ? t("uphero.combat.boss.clearedSuffix") : "")
+                      }
                       aria-hidden="true"
                     />
                   );
@@ -909,7 +950,7 @@ export default function DungeonView() {
                         fontWeight: 700,
                         letterSpacing: 0,
                       }}
-                      title={`F${f} — 수상한 이벤트`}
+                      title={t("uphero.combat.mystery.marker", { floor: f })}
                       aria-hidden="true"
                     >
                       ?
@@ -939,7 +980,7 @@ export default function DungeonView() {
                 }}
                 aria-hidden="true"
               >
-                → F{cycleEnd}
+                {t("uphero.combat.expedition.toEnd", { end: cycleEnd })}
               </span>
             </div>
           );
@@ -952,12 +993,16 @@ export default function DungeonView() {
           <div
             className="flex-1 h-1.5 rounded-sm relative overflow-hidden"
             role="progressbar"
-            aria-label="영웅 체력"
+            aria-label={t("uphero.combat.hp.aria")}
             aria-valuenow={hp}
             aria-valuemin={0}
             aria-valuemax={maxHp}
             aria-valuetext={`${hp} / ${maxHp}${
-              hpPct < 20 ? " · 위험" : hpPct < 50 ? " · 경고" : ""
+              hpPct < 20
+                ? ` · ${t("uphero.combat.hp.danger")}`
+                : hpPct < 50
+                  ? ` · ${t("uphero.combat.hp.warn")}`
+                  : ""
             }`}
             style={{ background: GB.dark }}
           >
@@ -1069,12 +1114,16 @@ export default function DungeonView() {
               timeFlashing ? "uphero-time-flash" : ""
             }`}
             role="progressbar"
-            aria-label="탐험 시간"
+            aria-label={t("uphero.combat.time.aria")}
             aria-valuenow={Math.round(time)}
             aria-valuemin={0}
             aria-valuemax={maxTime}
             aria-valuetext={`${Math.round(time)} / ${maxTime}${
-              timePct < 20 ? " · 시간 위험" : timePct < 50 ? " · 시간 경고" : ""
+              timePct < 20
+                ? ` · ${t("uphero.combat.time.danger")}`
+                : timePct < 50
+                  ? ` · ${t("uphero.combat.time.warn")}`
+                  : ""
             }`}
             style={{ background: GB.dark }}
           >
@@ -1230,7 +1279,7 @@ export default function DungeonView() {
           <DangerButton onClick={onExit}>
             <span className="inline-flex items-center gap-1.5">
               <PixelIcon name="Flag" size={14} color={GB_ENEMY} />
-              포기
+              {t("uphero.combat.abandon")}
             </span>
           </DangerButton>
         </div>
@@ -1274,20 +1323,20 @@ export default function DungeonView() {
       {/* Phase 9a — 포기 confirm (native confirm 대체) */}
       <GbConfirm
         open={abandonOpen}
-        title="탐험을 포기하고 캠프로 돌아갈까요?"
+        title={t("uphero.combat.confirm.title")}
         body={
           <>
-            지금까지 획득한 보상 (XP · 코인 · 장비) 은 모두 유지됩니다.
+            {t("uphero.combat.confirm.keepRewards")}
             {nextBossFloor && (
               <>
                 <br />
-                단, 다음 보스 (F{nextBossFloor}) 에 도전할 기회를 놓칩니다.
+                {t("uphero.combat.confirm.missBoss", { floor: nextBossFloor })}
               </>
             )}
           </>
         }
-        confirmLabel="포기"
-        cancelLabel="계속"
+        confirmLabel={t("uphero.combat.abandon")}
+        cancelLabel={t("uphero.combat.continue")}
         danger
         onConfirm={() => {
           setAbandonOpen(false);
