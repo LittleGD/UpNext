@@ -107,7 +107,7 @@ const ja: Record<DictKey, string> = {
   // === playground ===
   "playground.tab.uphero": "勇者",
   "playground.tab.archive": "アルバム",
-  "playground.tab.game": "ゲーム",
+  "playground.tab.game": "カードマッチ",
   "uphero.camp.hero": "ガッセイ勇者",
   "uphero.camp.passes.heading": "探検券",
   "uphero.camp.dungeons.heading": "ダンジョン選択",
@@ -197,6 +197,7 @@ const ja: Record<DictKey, string> = {
   // === collection ===
   "collection.tab.cards": "カード",
   "collection.tab.titles": "称号",
+  "collection.tab.album": "アルバム",
   "collection.filter.all": "すべて",
   "collection.filter.owned": "所持",
   "collection.filter.unowned": "未所持",

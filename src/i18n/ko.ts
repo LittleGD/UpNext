@@ -105,7 +105,7 @@ const ko = {
   // === playground ===
   "playground.tab.uphero": "영웅",
   "playground.tab.archive": "앨범",
-  "playground.tab.game": "게임",
+  "playground.tab.game": "카드매치",
   "uphero.camp.hero": "갓생 영웅",
   "uphero.camp.passes.heading": "탐험권",
   "uphero.camp.dungeons.heading": "던전 선택",
@@ -195,6 +195,7 @@ const ko = {
   // === collection ===
   "collection.tab.cards": "카드",
   "collection.tab.titles": "칭호",
+  "collection.tab.album": "앨범",
   "collection.filter.all": "전체",
   "collection.filter.owned": "보유",
   "collection.filter.unowned": "미보유",

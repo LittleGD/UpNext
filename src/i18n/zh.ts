@@ -107,7 +107,7 @@ const zh: Record<DictKey, string> = {
   // === playground ===
   "playground.tab.uphero": "勇者",
   "playground.tab.archive": "相册",
-  "playground.tab.game": "游戏",
+  "playground.tab.game": "卡牌配对",
   "uphero.camp.hero": "崛起勇者",
   "uphero.camp.passes.heading": "探险券",
   "uphero.camp.dungeons.heading": "选择地下城",
@@ -197,6 +197,7 @@ const zh: Record<DictKey, string> = {
   // === collection ===
   "collection.tab.cards": "卡牌",
   "collection.tab.titles": "称号",
+  "collection.tab.album": "相册",
   "collection.filter.all": "全部",
   "collection.filter.owned": "已拥有",
   "collection.filter.unowned": "未拥有",

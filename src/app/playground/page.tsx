@@ -7,17 +7,18 @@ import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { motion } from "framer-motion";
-import ArchiveSheet from "@/components/growth/ArchiveSheet";
 import type { DictKey } from "@/i18n";
 
 const MinigameHome = lazy(() => import("@/components/minigame/MinigameHome"));
 const UpHeroGame = lazy(() => import("@/components/uphero/UpHeroGame"));
 
-type Tab = "uphero" | "archive" | "game";
+// Phase 8c — 앨범(archive) 은 Collection 페이지로 이동.
+//   playground 에는 영웅(진짜 플레이 공간) + 카드매치(미니게임) 만 남김.
+//   "갈래?" 질문에 대한 답이 더 명확해짐: 영웅 키우기 / 게임 즐기기.
+type Tab = "uphero" | "game";
 
 const TABS: { key: Tab; labelKey: DictKey }[] = [
   { key: "uphero", labelKey: "playground.tab.uphero" },
-  { key: "archive", labelKey: "playground.tab.archive" },
   { key: "game", labelKey: "playground.tab.game" },
 ];
 
@@ -105,7 +106,6 @@ export default function PlaygroundPage() {
             <UpHeroGame />
           </Suspense>
         )}
-        {tab === "archive" && <ArchiveSheet />}
         {tab === "game" && (
           <Suspense
             fallback={

@@ -107,7 +107,7 @@ const en: Record<DictKey, string> = {
   // === playground ===
   "playground.tab.uphero": "Hero",
   "playground.tab.archive": "Album",
-  "playground.tab.game": "Game",
+  "playground.tab.game": "Card Match",
   "uphero.camp.hero": "Up Hero",
   "uphero.camp.passes.heading": "Expedition Passes",
   "uphero.camp.dungeons.heading": "Dungeons",
@@ -197,6 +197,7 @@ const en: Record<DictKey, string> = {
   // === collection ===
   "collection.tab.cards": "Cards",
   "collection.tab.titles": "Titles",
+  "collection.tab.album": "Album",
   "collection.filter.all": "All",
   "collection.filter.owned": "Owned",
   "collection.filter.unowned": "Locked",
