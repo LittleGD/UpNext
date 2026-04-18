@@ -95,7 +95,7 @@ export default function ClassAwakenModal() {
             letterSpacing: "0.1em",
           }}
         >
-          클래스 분화
+          {t("uphero.class.awakenTitle")}
         </div>
 
         <div
@@ -108,7 +108,7 @@ export default function ClassAwakenModal() {
             textAlign: "center",
           }}
         >
-          영웅이 길을 찾았다
+          {t("uphero.class.awakenSubtitle")}
         </div>
 
         <div
@@ -164,7 +164,7 @@ export default function ClassAwakenModal() {
           }}
           disabled={stage < 3}
         >
-          캠프로
+          {t("uphero.class.toCamp")}
         </button>
       </div>
     </div>,

@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Card {
   id: number;
@@ -50,6 +51,7 @@ export default function PairMatch({
   onComplete,
   onCancel,
 }: MinigameProps) {
+  const { t } = useTranslation();
   const config = useMemo(() => {
     switch (difficulty) {
       case 1: return { pairs: 3, cols: 3, timeMs: 20000 };
@@ -182,7 +184,7 @@ export default function PairMatch({
               key={card.id}
               type="button"
               onClick={() => onCardTap(idx)}
-              aria-label={shown ? `${card.symbol}` : "카드 (덮어짐)"}
+              aria-label={shown ? t("uphero.mini.pair.cardAria", { symbol: card.symbol }) : t("uphero.mini.pair.cardCoveredAria")}
               className="pair-card rounded flex items-center justify-center"
               style={{
                 width: 56,
@@ -216,7 +218,7 @@ export default function PairMatch({
             fontWeight: 600,
           }}
         >
-          {done === "success" ? "성공!" : "실패"}
+          {done === "success" ? t("uphero.mini.pair.success") : t("uphero.mini.pair.fail")}
         </div>
       )}
       {!done && (
@@ -229,7 +231,7 @@ export default function PairMatch({
             color: GB.light,
             border: `1px solid ${GB.dark}`,
           }}
-          aria-label="미니게임 포기"
+          aria-label={t("uphero.mini.giveUpAria")}
         >
           포기
         </button>

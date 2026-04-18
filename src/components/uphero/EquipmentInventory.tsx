@@ -148,7 +148,7 @@ export default function EquipmentInventory({
   const onEquip = (item: Equipment) => {
     equipItem(item.id, item.type);
     play("equip");
-    onNotify(`${item.name} 장착`);
+    onNotify(t("uphero.equip.toast.equipped", { name: item.name }));
     setSelectedId(null);
   };
 
@@ -157,7 +157,7 @@ export default function EquipmentInventory({
     if (!item) return;
     unequipItem(slot);
     play("equip");
-    onNotify(`${item.name} 해제`);
+    onNotify(t("uphero.equip.toast.unequipped", { name: item.name }));
   };
 
   // Phase 9a — 직접 confirm() 대신 GbConfirm 상태 설정.
@@ -184,7 +184,7 @@ export default function EquipmentInventory({
     if (pending.kind === "sell") {
       const refund = sellItem(pending.item.id);
       play("collect");
-      onNotify(`판매 +${refund} C`);
+      onNotify(t("uphero.equip.toast.sold", { coins: refund }));
       setSelectedId(null);
     } else if (pending.kind === "discard") {
       discardItem(pending.item.id);
@@ -205,7 +205,7 @@ export default function EquipmentInventory({
       if (!result.ok) {
         if (result.reason === "coin") {
           play("cancel");
-          onNotify(`코인 부족 (${result.cost} 필요)`);
+          onNotify(t("uphero.equip.toast.coinShort", { need: result.cost }));
           setPending(null);
           return;
         }
@@ -322,7 +322,7 @@ export default function EquipmentInventory({
           aria-label={t("uphero.equip.back.aria")}
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
-          뒤로
+          {t("uphero.equip.back")}
           <style jsx>{`
             .uphero-back-btn {
               transition: transform 120ms ${EASE_OUT},
@@ -338,7 +338,7 @@ export default function EquipmentInventory({
           className="typo-body ml-1"
           style={{ color: GB.lightest, fontWeight: 500 }}
         >
-          장비
+          {t("uphero.equip.title")}
         </div>
       </header>
 
@@ -437,13 +437,15 @@ export default function EquipmentInventory({
             {selectedItem.name}
           </div>
           <ActionButton onClick={() => onEquip(selectedItem)} primary>
-            장착
+            {t("uphero.equip.action.equip")}
           </ActionButton>
           <ActionButton onClick={() => onSell(selectedItem)}>
-            판매 +{SELL_PRICE[selectedItem.rarity]}
+            {t("uphero.equip.action.sellPreview", {
+              price: SELL_PRICE[selectedItem.rarity],
+            })}
           </ActionButton>
           <ActionButton onClick={() => onDiscard(selectedItem)} danger>
-            버리기
+            {t("uphero.equip.action.discard")}
           </ActionButton>
         </section>
       )}
@@ -518,7 +520,7 @@ export default function EquipmentInventory({
               style={{ color: GB.lightest }}
             >
               <PixelIcon name="Camera" size={14} color={GB.lightest} />
-              사진 부적 — 챌린지 사진을 운명의 부적으로
+              {t("uphero.equip.photo.heading")}
             </div>
             <button
               type="button"
@@ -544,7 +546,9 @@ export default function EquipmentInventory({
                   ? t("uphero.equip.ritualOpen")
                   : t("uphero.equip.ritualNoPhotos")}
               </span>
-              <span className={gbClass.textDim}>80 C · 랜덤</span>
+              <span className={gbClass.textDim}>
+                {t("uphero.equip.photo.priceMeta")}
+              </span>
               <style jsx>{`
                 .uphero-ritual-cta {
                   transition: transform 140ms ${EASE_OUT},
@@ -585,8 +589,9 @@ export default function EquipmentInventory({
             <div
               className={`typo-caption ${gbClass.textDim} mt-3 text-center leading-relaxed`}
             >
-              아카이브 총 {photoCounts.totalPhotos} 장 · 챌린지를 완료할수록
-              의식 후보가 늘어나요
+              {t("uphero.equip.photo.archiveTotal", {
+                n: photoCounts.totalPhotos,
+              })}
             </div>
           </section>
         )}
@@ -600,7 +605,7 @@ export default function EquipmentInventory({
               style={{ color: GB.lightest }}
             >
               <PixelIcon name="Fire" size={14} color={GB.lightest} />
-              강화 — 장비 한 장 + 코인, 확률로 +1 (최대 +10)
+              {t("uphero.equip.enhance.heading")}
             </div>
             {enhanceableItems.length === 0 ? (
               <EmptyState text={t("uphero.equip.empty.enhance")} />
@@ -646,19 +651,21 @@ export default function EquipmentInventory({
                           {streak > 0 && (
                             <span
                               style={{ color: "#e8b887" }}
-                              aria-label={`연속 실패 ${streak}회, 성공률 보너스 누적`}
+                              aria-label={t("uphero.equip.enhance.pityAria", {
+                                n: streak,
+                              })}
                             >
                               pity ×{streak}
                             </span>
                           )}
-                          <span>보존 {Math.round(ENHANCE_PRESERVE_BY_RARITY[item.rarity] * 100)}%</span>
+                          <span>{t("uphero.equip.enhancePreserveBadge", { pct: Math.round(ENHANCE_PRESERVE_BY_RARITY[item.rarity] * 100) })}</span>
                           {/* Phase 11c R4 R2 — 장착 중 배지. 실패-소실 시 즉시 스탯 감소 안내. */}
                           {isEquipped && (
                             <span
                               style={{ color: GB_WARN, fontWeight: 600 }}
                               aria-label={t("uphero.equip.equippedAria")}
                             >
-                              장착 중
+                              {t("uphero.equip.enhance.equippedBadge")}
                             </span>
                           )}
                         </div>
@@ -677,7 +684,7 @@ export default function EquipmentInventory({
                           opacity: canAfford ? 1 : 0.55,
                         }}
                       >
-                        강화 −{cost}C
+                        {t("uphero.equip.enhance.button", { cost })}
                       </button>
                     </div>
                   );
@@ -714,25 +721,65 @@ export default function EquipmentInventory({
         open={pending != null}
         title={
           pending?.kind === "sell"
-            ? `${pending.item.name} 을(를) 판매할까요?`
+            ? t("uphero.equip.confirm.sellTitle", { name: pending.item.name })
             : pending?.kind === "discard"
-              ? `${pending.item.name} 을(를) 버릴까요?`
+              ? t("uphero.equip.confirm.discardTitle", {
+                  name: pending.item.name,
+                })
               : pending?.kind === "enhance"
-                ? `${pending.item.name} 강화 (+${pending.item.enhanceLevel ?? 0} → +${(pending.item.enhanceLevel ?? 0) + 1})?`
+                ? t("uphero.equip.confirm.enhanceTitle", {
+                    name: pending.item.name,
+                    from: pending.item.enhanceLevel ?? 0,
+                    to: (pending.item.enhanceLevel ?? 0) + 1,
+                  })
                 : ""
         }
         body={
           pending?.kind === "sell" ? (
-            `+${SELL_PRICE[pending.item.rarity]} 코인`
+            t("uphero.equip.confirm.sellBody", {
+              coins: SELL_PRICE[pending.item.rarity],
+            })
           ) : pending?.kind === "discard" ? (
             t("uphero.equip.noRefund")
           ) : pending?.kind === "enhance" ? (
             <>
-              성공률 <span style={{ color: GB.lightest }}>{Math.round(pending.successRate * 100)}%</span>
+              {(() => {
+                // Phase 12 i18n — "성공률 N%" 의 N% 만 강조 색으로 묶기.
+                const pct = Math.round(pending.successRate * 100);
+                const txt = t("uphero.equip.confirm.successRate", {
+                  pct: "__PCT__",
+                });
+                const [before, after] = txt.split("__PCT__");
+                return (
+                  <>
+                    {before}
+                    <span style={{ color: GB.lightest }}>{pct}%</span>
+                    {after}
+                  </>
+                );
+              })()}
               <br />
-              실패 시 <span style={{ color: GB.lightest }}>{Math.round(ENHANCE_PRESERVE_BY_RARITY[pending.item.rarity] * 100)}%</span> 확률로 아이템 보존 · 나머지는 소실
+              {t("uphero.equip.enhancePreserveHint", {
+                pct: Math.round(
+                  ENHANCE_PRESERVE_BY_RARITY[pending.item.rarity] * 100,
+                ),
+              })}
               <br />
-              비용 <span style={{ color: GB.lightest }}>{pending.cost}</span> 코인 (보유 {coins})
+              {(() => {
+                // Phase 12 i18n — cost 숫자만 강조.
+                const txt = t("uphero.equip.enhanceCost", {
+                  cost: "__COST__",
+                  coins,
+                });
+                const [before, after] = txt.split("__COST__");
+                return (
+                  <>
+                    {before}
+                    <span style={{ color: GB.lightest }}>{pending.cost}</span>
+                    {after}
+                  </>
+                );
+              })()}
               {/* Phase 11c R4 R2 — equipped 장비 강화 시 추가 경고 (소실 → 스탯 즉시 하락). */}
               {(["weapon", "armor", "accessory", "talisman"] as const).some(
                 (s) => hero.equipped[s]?.id === pending.item.id,
@@ -740,7 +787,7 @@ export default function EquipmentInventory({
                 <>
                   <br />
                   <span style={{ color: GB_WARN }}>
-                    ⚠ 장착 중 — 소실 시 스탯이 즉시 하락합니다
+                    {t("uphero.equip.confirm.equippedWarn")}
                   </span>
                 </>
               )}

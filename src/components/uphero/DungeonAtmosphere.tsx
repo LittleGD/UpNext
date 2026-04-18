@@ -21,6 +21,7 @@
  */
 
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useTranslation } from "@/hooks/useTranslation";
 import type { DungeonId } from "@/types/uphero";
 
 interface DungeonAtmosphereProps {
@@ -594,9 +595,10 @@ const STATIC_TINTS: Record<DungeonId, string> = {
 };
 
 function StaticTint({ dungeonId }: { dungeonId: DungeonId }) {
+  const { t } = useTranslation();
   return (
     <AtmosphereLayer style={{ background: STATIC_TINTS[dungeonId] }}>
-      <span className="sr-only">던전 분위기 레이어 (motion reduced)</span>
+      <span className="sr-only">{t("uphero.atmosphere.srLabel")}</span>
     </AtmosphereLayer>
   );
 }

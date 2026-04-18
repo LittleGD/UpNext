@@ -27,6 +27,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type Dir = 0 | 1 | 2 | 3; // N, E, S, W
 type Openings = [boolean, boolean, boolean, boolean];
@@ -125,6 +126,7 @@ export default function PipeConnect({
   onComplete,
   onCancel,
 }: MinigameProps) {
+  const { t } = useTranslation();
   const { size, timeMs } = useMemo(() => {
     switch (difficulty) {
       case 1: return { size: 3, timeMs: 30000 };
@@ -307,7 +309,9 @@ export default function PipeConnect({
             fontWeight: 600,
           }}
         >
-          {result === "success" ? "연결 성공!" : "시간 초과"}
+          {result === "success"
+            ? t("uphero.mini.pipe.success")
+            : t("uphero.mini.pipe.timeout")}
         </div>
       )}
       {!result && (
@@ -320,7 +324,7 @@ export default function PipeConnect({
             color: GB.light,
             border: `1px solid ${GB.dark}`,
           }}
-          aria-label="미니게임 포기"
+          aria-label={t("uphero.mini.giveUpAria")}
         >
           포기
         </button>

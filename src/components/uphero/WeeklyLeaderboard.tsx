@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { GB, EASE_OUT, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useTranslation } from "@/hooks/useTranslation";
 import {
   fetchWeeklyTop,
   fetchMyRank,
@@ -37,6 +38,7 @@ export default function WeeklyLeaderboard({
   affixName,
   onClose,
 }: WeeklyLeaderboardProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   useModalA11y(containerRef, onClose);
 
@@ -63,7 +65,7 @@ export default function WeeklyLeaderboard({
         setMyData(mine);
       } catch (e) {
         if (cancelled) return;
-        setError((e as Error).message ?? "불러오기 실패");
+        setError((e as Error).message ?? t("uphero.leaderboard.fetchFail"));
       }
     })();
     return () => {
@@ -106,7 +108,7 @@ export default function WeeklyLeaderboard({
           <div className="flex items-center gap-2 mb-1">
             <PixelIcon name="Trophy" size={18} color={GB_LEGEND} />
             <div id="wl-title" className="typo-body" style={{ color: GB.lightest, fontWeight: 600 }}>
-              이번 주 악몽 순위
+              {t("uphero.leaderboard.title")}
             </div>
           </div>
           <div className="typo-caption tabular-nums" style={{ color: GB.light }}>
@@ -122,8 +124,8 @@ export default function WeeklyLeaderboard({
           {error && (
             <div className="typo-caption text-center py-8" style={{ color: GB.light }}>
               {error === "Firebase 미구성"
-                ? "리더보드는 로그인 후에 볼 수 있어요"
-                : `불러오기 실패: ${error}`}
+                ? t("uphero.leaderboard.loginRequired")
+                : `${t("uphero.leaderboard.fetchFail")}: ${error}`}
             </div>
           )}
           {!error && entries === null && (
@@ -145,7 +147,7 @@ export default function WeeklyLeaderboard({
               className="typo-caption text-center py-10"
               style={{ color: GB.light, opacity: 0.7 }}
             >
-              아직 아무도 도전 기록이 없어요. 첫 주자가 되어보세요!
+              {t("uphero.leaderboard.empty")}
             </div>
           )}
           {!error && entries && entries.length > 0 && (
@@ -172,7 +174,7 @@ export default function WeeklyLeaderboard({
             }}
           >
             <div className="typo-micro mb-1" style={{ color: GB.light, opacity: 0.7 }}>
-              내 순위
+              {t("uphero.leaderboard.myRankHeading")}
             </div>
             {/* Phase 11c R3 — 독립 row 도 list semantics 부여 (role="listitem" parent 필수). */}
             <div role="list">
@@ -204,7 +206,7 @@ export default function WeeklyLeaderboard({
             }}
             autoFocus
           >
-            닫기
+            {t("uphero.leaderboard.close")}
           </button>
           <style jsx>{`
             .wl-close {
@@ -230,15 +232,16 @@ function LeaderboardRow({
   entry: WeeklyLeaderboardEntry;
   isMe?: boolean;
 }) {
+  const { t } = useTranslation();
   const top3Color = rank === 1 ? GB_LEGEND : rank === 2 ? "#cdb887" : rank === 3 ? "#bca88b" : GB.light;
   const className = entry.classType
     ? CLASS_META[entry.classType]?.name ?? ""
     : "";
   // Phase 11c R3 — screen reader 용 합쳐진 label. 시각 렌더 변화 없음.
   const srLabel = [
-    `${rank}위`,
-    isMe ? "내 기록" : entry.displayName,
-    `${entry.score.toLocaleString()}점`,
+    `#${rank}`,
+    isMe ? t("uphero.leaderboard.mineLabel") : entry.displayName,
+    `${entry.score.toLocaleString()}`,
     className && `${className} Lv.${entry.heroLevel}`,
     `F${entry.floorsCleared}`,
   ]

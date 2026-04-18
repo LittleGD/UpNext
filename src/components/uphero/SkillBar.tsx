@@ -55,7 +55,7 @@ export default function SkillBar({ session }: { session: CombatSession }) {
       className="flex items-center justify-center gap-1.5 px-4 py-2 shrink-0"
       style={{ borderTop: `1px solid ${GB.dark}` }}
       role="toolbar"
-      aria-label="스킬"
+      aria-label={t("uphero.skillBar.aria")}
     >
       {learnedSkills.map((skill) => {
         const check = canFireSkill(session, skill.id);

@@ -34,7 +34,8 @@ export default function MonsterCodexDetailModal({
 }: MonsterCodexDetailModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalA11y(containerRef, onClose, { noScrollLock: true });
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
+  const closeAria = t("uphero.codex.detail.close.aria");
   if (typeof window === "undefined") return null;
 
   const lore = getMonsterLore(template.id, template.kind);
@@ -101,7 +102,7 @@ export default function MonsterCodexDetailModal({
               color: GB.light,
               border: `1px solid ${GB.dark}`,
             }}
-            aria-label="도감 닫기"
+            aria-label={closeAria}
           >
             닫기
           </button>

@@ -51,7 +51,7 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
       style={{ borderTop: `1px solid ${GB.dark}` }}
     >
       <div className="flex items-center justify-between pt-4 pb-2">
-        <div className={`typo-caption ${gbClass.textDim}`}>스킬트리</div>
+        <div className={`typo-caption ${gbClass.textDim}`}>{t("uphero.skillTree.title")}</div>
         <div className="typo-caption tabular-nums flex items-center gap-1.5">
           <PixelIcon name="Star" size={12} color={GB.lightest} />
           <span style={{ color: GB.lightest }}>{points}</span>
@@ -59,8 +59,9 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
         </div>
       </div>
       <div className={`typo-micro mb-3 ${gbClass.textDim}`}>
-        자원: <span style={{ color: resourceSpec.color }}>{resourceSpec.name}</span> ·
-        레벨업마다 SP +1
+        {t("uphero.skillTree.resourceLabel")}:{" "}
+        <span style={{ color: resourceSpec.color }}>{resourceSpec.name}</span> ·{" "}
+        {t("uphero.skillTree.spGainHint")}
       </div>
       <div className="flex flex-col gap-3">
         {byTier.map((skills, tierIdx) => {

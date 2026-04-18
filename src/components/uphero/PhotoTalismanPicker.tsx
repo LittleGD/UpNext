@@ -34,6 +34,7 @@ import {
 } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 import GbConfirm from "./GbConfirm";
 
@@ -46,6 +47,7 @@ export default function PhotoTalismanPicker({
   onClose,
   onNotify,
 }: PhotoTalismanPickerProps) {
+  const { t } = useTranslation();
   const photos = useGrowthStore((s) => s.photoMetas);
   const coins = useUpHeroStore((s) => s.coins);
   const inventory = useUpHeroStore((s) => s.inventory);
@@ -133,7 +135,7 @@ export default function PhotoTalismanPicker({
     }
     if ((existing.enhanceLevel ?? 0) >= MAX_ENHANCE_LEVEL) {
       play("cancel");
-      onNotify("이미 +10 최대 강화");
+      onNotify(t("uphero.photo.toast.maxEnhance"));
       return;
     }
     setPendingPhoto({ photo, mode: "rebind", existing });
@@ -160,7 +162,7 @@ export default function PhotoTalismanPicker({
         }, 2800);
       } else {
         play("cancel");
-        onNotify(result.error ?? "실패");
+        onNotify(result.error ?? t("uphero.photo.toast.genericFail"));
       }
       return;
     }
@@ -181,7 +183,7 @@ export default function PhotoTalismanPicker({
       }, 2800);
     } else {
       play("cancel");
-      onNotify(result.error ?? "실패");
+      onNotify(result.error ?? t("uphero.photo.toast.genericFail"));
     }
   };
 
@@ -199,7 +201,7 @@ export default function PhotoTalismanPicker({
       ref={containerRef}
       role="dialog"
       aria-modal="true"
-      aria-label="사진 부적 바인딩"
+      aria-label={t("uphero.photo.bindAria")}
       className="fixed inset-0 z-50 flex flex-col"
       style={{
         background: GB.darkest,
@@ -228,7 +230,7 @@ export default function PhotoTalismanPicker({
             border: "none",
             color: GB.light,
           }}
-          aria-label="뒤로"
+          aria-label={t("uphero.photo.backAria")}
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
           뒤로
