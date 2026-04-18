@@ -1184,6 +1184,41 @@ function WeeklyNightmareRibbon({
 }
 
 /** 주간 악몽 진입 view — 8 던전 선택 + 리더보드 모달. */
+/**
+ * Phase 12 R11 — 다음 ISO 주간 리셋까지 남은 ms 계산.
+ *   ISO 주는 월요일 00:00 UTC 에 시작. 현재 UTC 기준 다음 월요일까지의 시차 반환.
+ *   KST 기준 월요일 오전 9시 = UTC 월요일 00시와 같은 순간. 시간대 오해 방지 위해
+ *   UI 에도 명시.
+ */
+function getNextWeeklyResetMs(now = new Date()): number {
+  const dayOfWeek = now.getUTCDay(); // 0 Sun ~ 6 Sat
+  const daysUntilMonday = dayOfWeek === 1 ? 7 : (8 - dayOfWeek) % 7 || 7;
+  const nextMonday = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + daysUntilMonday,
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+  return nextMonday.getTime() - now.getTime();
+}
+
+/** ms → "N 일 M 시간" / "M 시간 S 분" / "S 분" 포맷. */
+function formatWeeklyCountdown(ms: number): string {
+  if (ms <= 0) return "리셋 중";
+  const totalMin = Math.floor(ms / 60_000);
+  const d = Math.floor(totalMin / (60 * 24));
+  const h = Math.floor((totalMin % (60 * 24)) / 60);
+  const m = totalMin % 60;
+  if (d > 0) return `${d}일 ${h}시간`;
+  if (h > 0) return `${h}시간 ${m}분`;
+  return `${m}분`;
+}
+
 function WeeklyView({
   onBack,
   onNotify,
@@ -1196,6 +1231,17 @@ function WeeklyView({
   const dungeons = useUpHeroStore((s) => s.dungeons);
   const { play } = useSound();
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+
+  // Phase 12 R11 — 다음 리셋까지 카운트다운. 분 단위 갱신 (60s interval).
+  //   유저가 오래 머물지 않으므로 초 단위 표시는 불필요. 시간 단위는 60초
+  //   한 번씩만 업데이트.
+  const [resetMs, setResetMs] = useState(() => getNextWeeklyResetMs());
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setResetMs(getNextWeeklyResetMs());
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const affix = weeklyVariant ? getWeeklyAffixById(weeklyVariant.affixId) : null;
   // 주간 악몽 진입 가능한 던전 — F30 을 **적어도 한 번** 클리어한 것만 (NG+ 가 ≥1이면 모두).
@@ -1329,11 +1375,21 @@ function WeeklyView({
           })}
         </div>
 
+        {/* Phase 12 R11 — 리셋 카운트다운 + 시간대 명시.
+             KST 월요일 오전 9시 = UTC 월요일 00시. "매주 월요일" 만 있으면
+             UTC / 현지 시간 오해 가능. 카운트다운은 유저가 "언제 다시 와야
+             하나" 즉시 판단 가능. */}
         <div
           className="typo-micro mt-3 text-center"
-          style={{ color: GB.light, opacity: 0.6, letterSpacing: "0.05em" }}
+          style={{ color: GB.light, opacity: 0.75, letterSpacing: "0.05em" }}
         >
-          탐험권 소모 없음 · 매주 월요일 새 악몽
+          다음 악몽까지 {formatWeeklyCountdown(resetMs)}
+        </div>
+        <div
+          className="typo-micro mt-0.5 text-center"
+          style={{ color: GB.light, opacity: 0.5, letterSpacing: "0.05em" }}
+        >
+          탐험권 소모 없음 · KST 월요일 오전 9시 리셋
         </div>
       </div>
 
