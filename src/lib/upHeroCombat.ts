@@ -162,7 +162,86 @@ export function createSession(
   //   "안식" skill (startHpMult 110%) 은 affix + class 결과에 곱해져 최종 HP 결정.
   applyTalismanSkillStartEffects(session, talismanMods);
 
+  // Phase 12 — mystery "?" event floor seed. 현재 cycle 의 남은 floor 에서 생성.
+  //   "첫 보스 이후부터" 규칙: cycle 0 (F1-F30) 의 F1-F9 구간은 skip.
+  //   이후 cycle 전환은 tickSession 에서 lazy 생성.
+  const initialCycle = Math.floor((startFloor - 1) / CYCLE_SIZE);
+  session.mysteryFloors = generateMysteryFloors(initialCycle).filter(
+    (f) => f > startFloor,
+  );
+
   return session;
+}
+
+/** Phase 12 — mystery ? 시스템 공용 상수. cycle 당 floor 수. */
+export const CYCLE_SIZE = 30;
+
+/**
+ * Phase 12 — 특정 cycle (0 = F1-F30, 1 = F31-F60, ...) 에 대해 mystery floor 생성.
+ *
+ * 규칙:
+ * - cycle 당 3 개의 inter-boss gap (예: cycle 0 → F1-F9, F11-F19, F21-F29).
+ * - 각 gap 에서 random floor 1 개 선정. 보스 floor 자체 (F10/F20/F30) 는 제외.
+ * - "첫 보스 이후부터" — cycle 0 의 첫 gap (F1-F9) 은 skip. cycle 1+ 는 모두 포함.
+ *
+ * 결과: cycle 0 → 2 floors, cycle 1+ → 3 floors.
+ */
+export function generateMysteryFloors(cycleIndex: number): number[] {
+  const cycleStart = cycleIndex * CYCLE_SIZE + 1;
+  // gap 경계: [lo, hi] inclusive. boss 는 cycleStart+9, +19, +29.
+  const gaps: Array<[number, number]> = [
+    [cycleStart, cycleStart + 8], //       F1-F9    / F31-F39 / ...
+    [cycleStart + 10, cycleStart + 18], // F11-F19  / F41-F49 / ...
+    [cycleStart + 20, cycleStart + 28], // F21-F29  / F51-F59 / ...
+  ];
+  const out: number[] = [];
+  gaps.forEach(([lo, hi], gapIdx) => {
+    // cycle 0 의 첫 gap (F1-F9) 은 "첫 보스 이전" 이라 skip.
+    if (cycleIndex === 0 && gapIdx === 0) return;
+    const floor = lo + Math.floor(Math.random() * (hi - lo + 1));
+    out.push(floor);
+  });
+  return out;
+}
+
+/**
+ * Phase 12 — mystery event 발동 시 ChoiceOption 의 수치 효과를 증폭.
+ *   factor 1.6 (+60%) 기본 — "일반 이벤트보다 더 강하게 영향" 원칙.
+ *   positive (coin/xp/heal/+time) 도 negative (damage/-time) 도 동일 증폭 →
+ *   "high risk, high reward" 감각. skipFloors, fight, flee, startMinigame,
+ *   revealBoss, nothing 은 수치 개념 없어 그대로.
+ */
+export function amplifyChoiceOptions(
+  options: import("@/types/uphero").ChoiceOption[],
+  factor: number,
+): import("@/types/uphero").ChoiceOption[] {
+  type CE = import("@/types/uphero").ChoiceEffect;
+  const amplify = (eff: CE): CE => {
+    switch (eff.kind) {
+      case "reward":
+        return {
+          ...eff,
+          coins: eff.coins != null ? Math.round(eff.coins * factor) : eff.coins,
+          xp: eff.xp != null ? Math.round(eff.xp * factor) : eff.xp,
+        };
+      case "damage":
+        return { ...eff, amount: Math.round(eff.amount * factor) };
+      case "heal":
+        return { ...eff, amount: Math.round(eff.amount * factor) };
+      case "time":
+        return { ...eff, delta: Math.round(eff.delta * factor) };
+      default:
+        return eff;
+    }
+  };
+  return options.map((opt) => ({
+    ...opt,
+    effect: opt.effect ? amplify(opt.effect) : opt.effect,
+    outcomes: opt.outcomes?.map((out) => ({
+      ...out,
+      effects: out.effects.map(amplify),
+    })),
+  }));
 }
 
 /** 세션의 talismanMods 를 안전하게 꺼냄 (undefined 대응). */
@@ -596,6 +675,50 @@ export function tickSession(session: CombatSession): CombatSession {
       s.status = "paused";
       return s;
     }
+    // Phase 12 — 새 cycle 진입 시 mystery "?" floor 를 lazy 생성.
+    //   cycle 전환 (F30→F31 / F60→F61 / ...) 을 감지해 해당 cycle 의 mystery 를
+    //   현재 floor 이후로 추가. 이미 존재하면 no-op.
+    {
+      const newCycle = Math.floor((s.currentFloor - 1) / CYCLE_SIZE);
+      const hasThisCycle = (s.mysteryFloors ?? []).some((f) => {
+        return Math.floor((f - 1) / CYCLE_SIZE) === newCycle;
+      });
+      if (!hasThisCycle) {
+        const fresh = generateMysteryFloors(newCycle).filter(
+          (f) => f >= s.currentFloor,
+        );
+        s.mysteryFloors = [...(s.mysteryFloors ?? []), ...fresh];
+      }
+    }
+    return s;
+  }
+
+  // Phase 12 — mystery "?" floor 도달? 일반 roll 대신 amplified choice event.
+  //   factor 1.6 (+60%) 으로 reward/damage/heal/time 증폭. 일회성 (발동 후 리스트
+  //   에서 제거). isMystery=true 로 마킹해 UI 시각 차별화.
+  if ((s.mysteryFloors ?? []).includes(s.currentFloor)) {
+    const ev = pickEvent(s);
+    const amplifiedOptions = amplifyChoiceOptions(ev.options, 1.6);
+    const logIdx = s.log.length;
+    s.log.push({
+      type: "choice",
+      prompt: ev.prompt,
+      options: amplifiedOptions,
+      isMystery: true,
+      timestamp: Date.now(),
+    });
+    // 발동한 floor 만 제거 (다른 floor 의 mystery 는 유지)
+    s.mysteryFloors = (s.mysteryFloors ?? []).filter(
+      (f) => f !== s.currentFloor,
+    );
+    // LRU 관리 (일반 choice 와 동일 정책)
+    const recent = [...(s.recentEventPrompts ?? [])];
+    recent.push(ev.prompt);
+    const LRU_CAP = 3;
+    while (recent.length > LRU_CAP) recent.shift();
+    s.recentEventPrompts = recent;
+    s.status = "awaitingChoice";
+    s.pendingChoiceIndex = logIdx;
     return s;
   }
 

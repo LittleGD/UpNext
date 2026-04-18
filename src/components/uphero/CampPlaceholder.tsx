@@ -671,38 +671,12 @@ function ShopView({
       <SubHeader title="갓생 상점" onBack={onBack} />
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 flex flex-col gap-2">
-        <ShopRow
-          iconName="Card"
-          name="카드매치 티켓"
-          desc={`현재 ${tickets}/10 · 오늘 ${cardmatchBoughtToday}/${DAILY_CARDMATCH_TICKET_CAP}`}
-          price={SHOP_PRICES.ticket}
-          onBuy={onBuyTicket}
-          canAfford={
-            coins >= SHOP_PRICES.ticket &&
-            tickets < 10 &&
-            cardmatchBoughtToday < DAILY_CARDMATCH_TICKET_CAP
-          }
-        />
-        <ShopRow
-          iconName="CardText"
-          name="보너스 카드 (1장)"
-          desc="다음 뽑기에 +1"
-          price={SHOP_PRICES.cardPackSmall}
-          onBuy={() => onBuyPack("small")}
-          canAfford={coins >= SHOP_PRICES.cardPackSmall}
-        />
-        <ShopRow
-          iconName="Package"
-          name="풀 카드팩 (5장)"
-          desc="팩 열기로 이동"
-          price={SHOP_PRICES.cardPackFull}
-          onBuy={() => onBuyPack("full")}
-          canAfford={coins >= SHOP_PRICES.cardPackFull}
-        />
-
-        {/* Phase 11a — 탐험권 상점. 8 던전 선택 구매 + 일 2장 cap. */}
+        {/* Phase 11a — 탐험권 상점. 8 던전 선택 구매 + 일 2장 cap.
+             Phase 12 — 유저 피드백: "탐험권 구매를 위로, 나머지는 아래로."
+             상점의 primary action 은 탐험권 (영웅 진행의 연료) — 최상단
+             우선순위. 카드매치/보너스/풀 팩 은 보조 구매라 아래로. */}
         <section
-          className="mt-3 rounded-md p-3"
+          className="rounded-md p-3"
           style={{
             background: `${GB.dark}40`,
             border: `1px solid ${GB.dark}`,
@@ -785,6 +759,36 @@ function ShopView({
             }
           `}</style>
         </section>
+
+        {/* Phase 12 — 카드매치 / 보조 구매. 탐험권 이후 secondary. */}
+        <ShopRow
+          iconName="Card"
+          name="카드매치 티켓"
+          desc={`현재 ${tickets}/10 · 오늘 ${cardmatchBoughtToday}/${DAILY_CARDMATCH_TICKET_CAP}`}
+          price={SHOP_PRICES.ticket}
+          onBuy={onBuyTicket}
+          canAfford={
+            coins >= SHOP_PRICES.ticket &&
+            tickets < 10 &&
+            cardmatchBoughtToday < DAILY_CARDMATCH_TICKET_CAP
+          }
+        />
+        <ShopRow
+          iconName="CardText"
+          name="보너스 카드 (1장)"
+          desc="다음 뽑기에 +1"
+          price={SHOP_PRICES.cardPackSmall}
+          onBuy={() => onBuyPack("small")}
+          canAfford={coins >= SHOP_PRICES.cardPackSmall}
+        />
+        <ShopRow
+          iconName="Package"
+          name="풀 카드팩 (5장)"
+          desc="팩 열기로 이동"
+          price={SHOP_PRICES.cardPackFull}
+          onBuy={() => onBuyPack("full")}
+          canAfford={coins >= SHOP_PRICES.cardPackFull}
+        />
 
         <div
           className="mt-2 p-3 typo-caption text-center rounded"

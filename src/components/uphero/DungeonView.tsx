@@ -740,20 +740,34 @@ export default function DungeonView() {
              [10/20/30] 숫자 tooltip (title) 으로 "왜 저 점이 있나" 설명.
              role="progressbar" + aria-valuetext 로 스크린리더도 맥락 전달. */}
         {(() => {
-          const start = session.startFloor;
-          const target = 30;
-          const range = Math.max(1, target - start);
+          // Phase 12 — cycle 기반 floor bar. F1-F30 (cycle 0) → F31-F60 (cycle 1)
+          //   → F61-F90 (cycle 2) ... 각 cycle 의 보스는 +10/+20/+30 offset (즉
+          //   cycle 0 의 F10/F20/F30, cycle 1 의 F40/F50/F60). NG+ 에서도 동일
+          //   구조를 유지해 "보스 사이 진행" 감각 보존.
+          //   유저 요청: "30층이 초과해도 [구조] 유지 / [] 사이 ? 마커 랜덤 배치".
+          const CYCLE = 30;
+          const cycleIdx = Math.floor((session.currentFloor - 1) / CYCLE);
+          const cycleStart = cycleIdx * CYCLE + 1;
+          const cycleEnd = cycleStart + CYCLE - 1;
+          const range = CYCLE - 1;
           const pct = Math.max(
             0,
-            Math.min(100, ((session.currentFloor - start) / range) * 100),
+            Math.min(
+              100,
+              ((session.currentFloor - cycleStart) / range) * 100,
+            ),
           );
-          // 보스 마커: startFloor 이후 ~ 30F 사이에 남은 것만
-          const relevantBosses = [10, 20, 30].filter(
-            (f) => f > start && f <= target,
+          const cycleBosses = [
+            cycleStart + 9, // 예: F10 / F40 / F70 ...
+            cycleStart + 19, // F20 / F50 / F80 ...
+            cycleStart + 29, // F30 / F60 / F90 ...
+          ];
+          // mystery "?" — session.mysteryFloors 중 이 cycle 범위에 해당하고
+          //   아직 방문 전인 것. 방문 후에는 combat.ts 에서 pop 되므로 여기선
+          //   단순 filter.
+          const mysteryInCycle = (session.mysteryFloors ?? []).filter(
+            (f) => f >= cycleStart && f <= cycleEnd,
           );
-          // NG+ 진입 (startFloor >= 30) 에선 target 이 이미 지나친 상태이므로
-          //   label 에 별도 표기. 바 자체는 가득 찬 상태 유지 (visual consistency).
-          const postTarget = start >= target;
           return (
             <div className="mt-2 flex items-center gap-2">
               <span
@@ -766,20 +780,12 @@ export default function DungeonView() {
               <div
                 className="flex-1 relative h-1.5"
                 role="progressbar"
-                aria-label={`원정 진행도 — 보스 층 F${target} 까지`}
+                aria-label={`원정 진행도 — 이번 cycle F${cycleStart}~F${cycleEnd}`}
                 aria-valuenow={Math.round(pct)}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-valuetext={
-                  postTarget
-                    ? `보스 층 F${target} 통과 후 진행 중 (현재 F${session.currentFloor})`
-                    : `F${start} 에서 F${target} 까지, 현재 F${session.currentFloor}`
-                }
-                title={
-                  postTarget
-                    ? `최종 보스 F${target} 통과 후 진행 중`
-                    : `F${start} → F${target} (최종 보스) · 현재 F${session.currentFloor}`
-                }
+                aria-valuetext={`F${cycleStart} 에서 F${cycleEnd} 까지, 현재 F${session.currentFloor}`}
+                title={`F${cycleStart} → F${cycleEnd} · 현재 F${session.currentFloor} (? 는 수상한 이벤트)`}
               >
                 <div
                   className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full"
@@ -793,12 +799,12 @@ export default function DungeonView() {
                     transition: `width 320ms ${EASE_OUT}`,
                   }}
                 />
-                {relevantBosses.map((f) => {
-                  const markerPct = ((f - start) / range) * 100;
+                {cycleBosses.map((f) => {
+                  const markerPct = ((f - cycleStart) / range) * 100;
                   const reached = session.currentFloor >= f;
                   return (
                     <div
-                      key={f}
+                      key={`boss-${f}`}
                       className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
                       style={{
                         left: `${markerPct}%`,
@@ -810,6 +816,35 @@ export default function DungeonView() {
                       title={`F${f} 보스${reached ? " (클리어)" : ""}`}
                       aria-hidden="true"
                     />
+                  );
+                })}
+                {/* Mystery "?" 마커 — 보스 사이 랜덤 floor.
+                     형태: 8px 라운드 + "?" 텍스트 중앙 정렬. 보스 마커 (6px
+                     내부 채움) 와 구분 위해 약간 더 크고 투명 배경 + 테두리.
+                     reduced-motion 영향 없음 (pulse 없이 static). */}
+                {mysteryInCycle.map((f) => {
+                  const markerPct = ((f - cycleStart) / range) * 100;
+                  return (
+                    <div
+                      key={`myst-${f}`}
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center rounded-full"
+                      style={{
+                        left: `${markerPct}%`,
+                        width: 10,
+                        height: 10,
+                        background: GB.darkest,
+                        border: `1px solid ${GB_WARN}`,
+                        color: GB_WARN,
+                        fontSize: 8,
+                        lineHeight: 1,
+                        fontWeight: 700,
+                        letterSpacing: 0,
+                      }}
+                      title={`F${f} — 수상한 이벤트`}
+                      aria-hidden="true"
+                    >
+                      ?
+                    </div>
                   );
                 })}
                 <div
@@ -835,7 +870,7 @@ export default function DungeonView() {
                 }}
                 aria-hidden="true"
               >
-                {postTarget ? `+${session.currentFloor - target}` : `→ F${target}`}
+                → F{cycleEnd}
               </span>
             </div>
           );
