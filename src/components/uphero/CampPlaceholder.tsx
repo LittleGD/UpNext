@@ -66,8 +66,9 @@ export default function CampPlaceholder() {
   const coins = useUpHeroStore((s) => s.coins);
   const passes = useUpHeroStore((s) => s.passes);
   const hero = useUpHeroStore((s) => s.hero);
-  // Phase 12a — header 에 hero.name 노출. 하드코딩 "갓생 영웅" 대체.
-  const heroName = hero.name?.trim() || "갓생 영웅";
+  // Phase 12a — header 에 hero.name 노출. 기본값은 i18n 에서 조회 (언어별).
+  const { t } = useTranslation();
+  const heroName = hero.name?.trim() || t("uphero.home.heroDefault");
   const pendingDungeon = useUpHeroStore((s) => s.pendingDungeon);
   // Phase 12 — XP 진행도 (상단바 표시용). progress.xp 는 챌린지/영웅 공유 pool.
   const totalXp = useGameStore((s) => s.progress.xp ?? 0);
@@ -84,7 +85,6 @@ export default function CampPlaceholder() {
   //   NG+ 정보를 header 로 승격 (정보가 사라지지 않도록). ngPlusLevel > 0 일
   //   때만 렌더.
   const ngPlusLevel = useUpHeroStore((s) => s.ngPlusLevel ?? 0);
-  const { t } = useTranslation();
 
   const [view, setView] = useState<View>("home");
   const [toast, setToast] = useState<string | null>(null);
@@ -294,6 +294,7 @@ function HomeView({
   onOpenWeekly: () => void;
 }) {
   const { play } = useSound();
+  const { t } = useTranslation();
   const variant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
   // Phase 11c — NG+ / 주간 악몽 정보
   const ngPlusLevel = useUpHeroStore((s) => s.ngPlusLevel ?? 0);
@@ -304,17 +305,15 @@ function HomeView({
     Object.values(dungeons).some((d) => d?.bossesDefeated?.includes(30));
 
   // Phase 12 — 캠프 분위기 텍스트 로테이션.
-  //   초기값은 "모닥불이 조용히 타오른다" 고정 (SSR hydration 안정 — 서버/첫
-  //   CSR 렌더 동일). mount 직후 랜덤 전환 + 20s 주기 교체. 직전 문구는
-  //   pickCampAmbience(prev) 로 연속 회피. state/effect 를 HomeView 에 두어
-  //   다른 view (상점/장비 등) 로 이동 시 interval 이 자동 정리되도록 수명 제한.
-  const [ambienceLine, setAmbienceLine] = useState(
-    "모닥불이 조용히 타오른다",
+  //   이제 ambience 는 i18n **key** (예: `uphero.camp.ambience.7`) 를 저장.
+  //   표시 시점에 t() 로 현재 언어 조회. 초기값은 .1 (고정 — SSR 안정).
+  const [ambienceKey, setAmbienceKey] = useState(
+    "uphero.camp.ambience.1",
   );
   useEffect(() => {
-    setAmbienceLine((prev) => pickCampAmbience(prev));
+    setAmbienceKey((prev) => pickCampAmbience(prev));
     const id = window.setInterval(() => {
-      setAmbienceLine((prev) => pickCampAmbience(prev));
+      setAmbienceKey((prev) => pickCampAmbience(prev));
     }, 20000);
     return () => window.clearInterval(id);
   }, []);
@@ -349,7 +348,7 @@ function HomeView({
           }}
           className="uphero-hero-tap relative"
           style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
-          aria-label="영웅 스탯 보기"
+          aria-label={t("uphero.home.statButton.ariaSprite")}
         >
           <HeroSprite
             variant={variant}
@@ -396,10 +395,12 @@ function HomeView({
             border: `1px solid ${GB.light}66`,
             letterSpacing: "0.05em",
           }}
-          aria-label="영웅 스탯 · 스킬트리 열기"
+          aria-label={t("uphero.home.statButton.ariaChip")}
         >
           <PixelIcon name="User" size={10} color={GB.lightest} />
-          {hero.classType ? "스탯 · 스킬트리" : "스탯 보기"}
+          {hero.classType
+            ? t("uphero.home.statButton.withClass")
+            : t("uphero.home.statButton.default")}
         </button>
 
         {/* 분위기 텍스트 — Phase 8b: 실제로 타오르듯 flicker.
@@ -410,13 +411,14 @@ function HomeView({
              않도록 outer=fade/blur/transform, inner=opacity/text-shadow 로
              역할 나눔 → compositing 상에서 두 효과가 곱으로 자연스럽게 합쳐짐. */}
         <div className="mt-5 text-center">
-          <div key={ambienceLine} className="uphero-ambience-in inline-block">
+          <div key={ambienceKey} className="uphero-ambience-in inline-block">
             <div
               className="uphero-fire-flicker typo-caption"
               style={{ color: GB.light }}
               aria-live="off"
             >
-              — {ambienceLine} —
+              {/* Phase 12 i18n — key → 현재 언어 조회. DictKey 제약상 cast. */}
+              — {t(ambienceKey as import("@/i18n").DictKey)} —
             </div>
           </div>
         </div>
@@ -445,12 +447,16 @@ function HomeView({
             else onOpenDungeons();
           }}
           iconName="Target"
-          label={totalPasses > 0 ? "탐험 시작" : "탐험권 구매"}
+          label={
+            totalPasses > 0
+              ? t("uphero.home.cta.startExpedition")
+              : t("uphero.home.cta.buyPass")
+          }
           badge={totalPasses > 0 ? `×${totalPasses}` : undefined}
           hint={
             totalPasses > 0
-              ? "던전 선택"
-              : "챌린지 완료 또는 상점에서 구매"
+              ? t("uphero.home.cta.pickDungeon")
+              : t("uphero.home.cta.completeOrBuy")
           }
         />
         {/* Phase 11c R1 — 주간 악몽 compact ribbon. PrimaryCTA 아래로 이동, 시각 가중치 ↓. */}
@@ -469,8 +475,8 @@ function HomeView({
             onOpenShop();
           }}
           iconName="ShoppingBag"
-          label="갓생 상점"
-          hint="티켓 / 카드팩"
+          label={t("uphero.home.shop.label")}
+          hint={t("uphero.home.shop.hint")}
         />
         <SecondaryCTA
           onClick={() => {
@@ -478,8 +484,8 @@ function HomeView({
             onOpenEquipment();
           }}
           iconName="Shield"
-          label="장비"
-          hint="장착 · 판매 · 강화"
+          label={t("uphero.home.equipment.label")}
+          hint={t("uphero.home.equipment.hint")}
         />
         <SecondaryCTA
           onClick={() => {
@@ -487,8 +493,8 @@ function HomeView({
             onOpenCodex();
           }}
           iconName="BookOpen"
-          label="도감"
-          hint="만난 몬스터 기록"
+          label={t("uphero.home.codex.label")}
+          hint={t("uphero.home.codex.hint")}
         />
       </section>
 
@@ -534,7 +540,7 @@ function DungeonsView({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-      <SubHeader title="던전 선택" onBack={onBack} />
+      <SubHeader title={t("uphero.subheader.dungeons")} onBack={onBack} />
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
         <div className="grid grid-cols-2 gap-2">
@@ -587,7 +593,9 @@ function DungeonsView({
                     opacity: count >= PASS_CAP_PER_CATEGORY ? 1 : 0.75,
                   }}
                 >
-                  {floor > 0 ? `F${floor} 도달` : "미탐험"}
+                  {floor > 0
+                    ? t("uphero.dungeons.floorReached", { floor })
+                    : t("uphero.dungeons.unexplored")}
                 </div>
               </PressButton>
             );
@@ -700,7 +708,7 @@ function ShopView({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-      <SubHeader title="갓생 상점" onBack={onBack} />
+      <SubHeader title={t("uphero.subheader.shop")} onBack={onBack} />
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 flex flex-col gap-2">
         {/* Phase 11a — 탐험권 상점. 8 던전 선택 구매 + 일 2장 cap.
@@ -720,7 +728,7 @@ function ShopView({
               style={{ color: GB.lightest }}
             >
               <PixelIcon name="Target" size={14} color={GB.lightest} />
-              탐험권 구매
+              {t("uphero.shop.expeditionHeading")}
             </div>
             <div
               className={`typo-micro tabular-nums ${
@@ -730,9 +738,15 @@ function ShopView({
                 color: dailyCapReached ? undefined : GB.light,
                 letterSpacing: "0.05em",
               }}
-              aria-label={`오늘 구매 ${passesBoughtToday} 중 ${DAILY_PASS_PURCHASE_CAP} 한도`}
+              aria-label={t("uphero.shop.todayBought", {
+                bought: passesBoughtToday,
+                cap: DAILY_PASS_PURCHASE_CAP,
+              })}
             >
-              오늘 {passesBoughtToday}/{DAILY_PASS_PURCHASE_CAP}
+              {t("uphero.shop.todayBought", {
+                bought: passesBoughtToday,
+                cap: DAILY_PASS_PURCHASE_CAP,
+              })}
             </div>
           </div>
           <div className="grid grid-cols-4 gap-1.5">
@@ -758,7 +772,10 @@ function ShopView({
                     opacity: canBuy ? 1 : 0.55,
                     cursor: canBuy ? "pointer" : "not-allowed",
                   }}
-                  aria-label={`${d.name} 탐험권 구매 (${SHOP_PRICES.expeditionPass} 코인)`}
+                  aria-label={t("uphero.shop.passAria", {
+                    name: d.name,
+                    price: SHOP_PRICES.expeditionPass,
+                  })}
                 >
                   <PixelIcon
                     name={CATEGORY_ICON[d.id]}
@@ -779,7 +796,10 @@ function ShopView({
             className={`typo-micro mt-2 ${gbClass.textDim} text-center`}
             style={{ letterSpacing: "0.05em" }}
           >
-            {SHOP_PRICES.expeditionPass} 코인 / 장 · 하루 {DAILY_PASS_PURCHASE_CAP}장 한정
+            {t("uphero.shop.priceHint", {
+              price: SHOP_PRICES.expeditionPass,
+              cap: DAILY_PASS_PURCHASE_CAP,
+            })}
           </div>
           <style jsx>{`
             .shop-pass-btn {
@@ -795,8 +815,13 @@ function ShopView({
         {/* Phase 12 — 카드매치 / 보조 구매. 탐험권 이후 secondary. */}
         <ShopRow
           iconName="Card"
-          name="카드매치 티켓"
-          desc={`현재 ${tickets}/10 · 오늘 ${cardmatchBoughtToday}/${DAILY_CARDMATCH_TICKET_CAP}`}
+          name={t("uphero.shop.cardmatchTicket.name")}
+          desc={t("uphero.shop.cardmatchTicket.desc", {
+            current: tickets,
+            max: 10,
+            today: cardmatchBoughtToday,
+            cap: DAILY_CARDMATCH_TICKET_CAP,
+          })}
           price={SHOP_PRICES.ticket}
           onBuy={onBuyTicket}
           canAfford={
@@ -807,16 +832,16 @@ function ShopView({
         />
         <ShopRow
           iconName="CardText"
-          name="보너스 카드 (1장)"
-          desc="다음 뽑기에 +1"
+          name={t("uphero.shop.bonusCard.name")}
+          desc={t("uphero.shop.bonusCard.desc")}
           price={SHOP_PRICES.cardPackSmall}
           onBuy={() => onBuyPack("small")}
           canAfford={coins >= SHOP_PRICES.cardPackSmall}
         />
         <ShopRow
           iconName="Package"
-          name="풀 카드팩 (5장)"
-          desc="5장 뽑기 · 희귀 카드 확률 ↑"
+          name={t("uphero.shop.fullPack.name")}
+          desc={t("uphero.shop.fullPack.desc")}
           price={SHOP_PRICES.cardPackFull}
           onBuy={() => onBuyPack("full")}
           canAfford={coins >= SHOP_PRICES.cardPackFull}
@@ -830,7 +855,7 @@ function ShopView({
             border: `1px dashed ${GB.dark}`,
           }}
         >
-          갓생 코인은 던전에서 획득합니다
+          {t("uphero.shop.coinsNote")}
         </div>
       </div>
       {/* Phase 12 R6 — 풀 카드팩 (800 코인) 실수 구매 safeguard. */}
@@ -872,6 +897,8 @@ function SubHeader({
   title: string;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
+  const backAriaLabel = t("uphero.subheader.back.aria");
   return (
     <header
       className="px-3 py-2 flex items-center gap-1 shrink-0"
@@ -888,7 +915,7 @@ function SubHeader({
           color: GB.light,
           border: "none",
         }}
-        aria-label="뒤로"
+        aria-label={backAriaLabel}
       >
         <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
         뒤로
@@ -1145,15 +1172,20 @@ function WeeklyNightmareRibbon({
   bestScore: number;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   const affix = getWeeklyAffixById(affixId);
   const SAND = "#e8b887";
   // Phase 11c R4 — SR 전용 label. 기존 innerText 는 맥락 없이 조각으로 읽힘.
   const srLabel = [
-    "이번 주 악몽",
+    t("uphero.ribbon.weeklyTitle"),
     affix?.name ?? "",
     weekId,
-    clearedCount > 0 ? `던전 ${clearedCount}/8 클리어` : null,
-    bestScore > 0 ? `최고 ${bestScore.toLocaleString()}점` : null,
+    clearedCount > 0
+      ? t("uphero.weekly.clearedCount", { count: clearedCount })
+      : null,
+    bestScore > 0
+      ? t("uphero.weekly.bestScore", { score: bestScore.toLocaleString() })
+      : null,
   ]
     .filter(Boolean)
     .join(", ");
@@ -1177,7 +1209,7 @@ function WeeklyNightmareRibbon({
             className="typo-caption truncate"
             style={{ color: GB.lightest }}
           >
-            이번 주 악몽 · {affix?.name ?? "—"}
+            {t("uphero.ribbon.weeklyTitle")} · {affix?.name ?? "—"}
           </div>
           <div
             className="typo-micro truncate tabular-nums"
@@ -1185,7 +1217,8 @@ function WeeklyNightmareRibbon({
           >
             {weekId}
             {clearedCount > 0 && ` · ${clearedCount}/8`}
-            {bestScore > 0 && ` · 최고 ${bestScore.toLocaleString()}`}
+            {bestScore > 0 &&
+              ` · ${t("uphero.weekly.bestScore", { score: bestScore.toLocaleString() })}`}
           </div>
         </div>
         <PixelIcon name="ChevronRight" size={12} color={GB.light} />
@@ -1218,16 +1251,21 @@ function getNextWeeklyResetMs(now = new Date()): number {
   return nextMonday.getTime() - now.getTime();
 }
 
-/** ms → "N 일 M 시간" / "M 시간 S 분" / "S 분" 포맷. */
-function formatWeeklyCountdown(ms: number): string {
-  if (ms <= 0) return "리셋 중";
+/** ms → "N 일 M 시간" / "M 시간 S 분" / "S 분" 포맷. i18n 적용.
+ *   Note: hook 밖이므로 `t` 함수를 인자로 받음 (closure).
+ */
+function formatWeeklyCountdown(
+  ms: number,
+  t: (key: import("@/i18n").DictKey, params?: Record<string, string | number>) => string,
+): string {
+  if (ms <= 0) return t("uphero.weekly.duration.resetting");
   const totalMin = Math.floor(ms / 60_000);
   const d = Math.floor(totalMin / (60 * 24));
   const h = Math.floor((totalMin % (60 * 24)) / 60);
   const m = totalMin % 60;
-  if (d > 0) return `${d}일 ${h}시간`;
-  if (h > 0) return `${h}시간 ${m}분`;
-  return `${m}분`;
+  if (d > 0) return t("uphero.weekly.duration.dayHour", { d, h });
+  if (h > 0) return t("uphero.weekly.duration.hourMin", { h, m });
+  return t("uphero.weekly.duration.min", { m });
 }
 
 function WeeklyView({
@@ -1275,7 +1313,7 @@ function WeeklyView({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-      <SubHeader title="이번 주 악몽" onBack={onBack} />
+      <SubHeader title={t("uphero.subheader.weekly")} onBack={onBack} />
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
         {/* Affix 설명 카드 */}
@@ -1308,10 +1346,10 @@ function WeeklyView({
                   border: `1px solid ${GB.lightest}66`,
                   color: GB.lightest,
                 }}
-                aria-label="리더보드 보기"
+                aria-label={t("uphero.weekly.leaderboardAria")}
               >
                 <PixelIcon name="Trophy" size={12} color={GB.lightest} />
-                순위
+                {t("uphero.weekly.leaderboardBtn")}
               </button>
             </div>
             <div className="typo-body mb-1" style={{ color: GB.lightest, fontWeight: 500 }}>
@@ -1380,7 +1418,9 @@ function WeeklyView({
                   className="typo-micro tabular-nums mt-0.5"
                   style={{ color: eligible ? "#e8b887" : GB.light, opacity: 0.8 }}
                 >
-                  {eligible ? "F30 변이" : "F30 미도달"}
+                  {eligible
+                    ? t("uphero.weekly.f30Badge")
+                    : t("uphero.weekly.f30Locked")}
                 </div>
               </PressButton>
             );
@@ -1395,13 +1435,15 @@ function WeeklyView({
           className="typo-micro mt-3 text-center"
           style={{ color: GB.light, opacity: 0.75, letterSpacing: "0.05em" }}
         >
-          다음 악몽까지 {formatWeeklyCountdown(resetMs)}
+          {t("uphero.weekly.nextReset", {
+            duration: formatWeeklyCountdown(resetMs, t),
+          })}
         </div>
         <div
           className="typo-micro mt-0.5 text-center"
           style={{ color: GB.light, opacity: 0.5, letterSpacing: "0.05em" }}
         >
-          탐험권 소모 없음 · KST 월요일 오전 9시 리셋
+          {t("uphero.weekly.noExpeditionCost")}
         </div>
       </div>
 
@@ -1409,7 +1451,7 @@ function WeeklyView({
         <Suspense fallback={null}>
           <WeeklyLeaderboardLazy
             weekId={weeklyVariant.week}
-            affixName={affix?.name ?? "이번 주 악몽"}
+            affixName={affix?.name ?? t("uphero.weekly.defaultName")}
             onClose={() => setLeaderboardOpen(false)}
           />
         </Suspense>

@@ -596,6 +596,81 @@ const ja: Record<DictKey, string> = {
   "uphero.skill.needLevel": "{name} — Lv {level} 必要",
   "uphero.skill.needSP": "{name} — SP {cost} 必要",
   "uphero.skill.srLabel": "{name} · コスト {resource} · CD {cd}",
+
+  // === Camp HomeView ===
+  "uphero.home.heroDefault": "勇者",
+  "uphero.home.statButton.default": "ステータス",
+  "uphero.home.statButton.withClass": "ステータス · スキルツリー",
+  "uphero.home.statButton.ariaSprite": "勇者のステータスを表示",
+  "uphero.home.statButton.ariaChip": "勇者ステータス・スキルツリーを開く",
+  "uphero.home.cta.startExpedition": "探索開始",
+  "uphero.home.cta.buyPass": "探索券を購入",
+  "uphero.home.cta.pickDungeon": "ダンジョン選択",
+  "uphero.home.cta.completeOrBuy": "チャレンジ完了、または商店で購入",
+  "uphero.home.shop.label": "商店",
+  "uphero.home.shop.hint": "チケット / カードパック",
+  "uphero.home.equipment.label": "装備",
+  "uphero.home.equipment.hint": "装着 · 売却 · 強化",
+  "uphero.home.codex.label": "図鑑",
+  "uphero.home.codex.hint": "出会ったモンスター記録",
+
+  // === Camp subheaders / common ===
+  "uphero.subheader.dungeons": "ダンジョン選択",
+  "uphero.subheader.shop": "商店",
+  "uphero.subheader.weekly": "今週の悪夢",
+  "uphero.subheader.back.aria": "戻る",
+
+  // === Dungeons grid ===
+  "uphero.dungeons.floorReached": "F{floor} 到達",
+  "uphero.dungeons.unexplored": "未探索",
+
+  // === Shop ===
+  "uphero.shop.cardmatchTicket.name": "カードマッチチケット",
+  "uphero.shop.cardmatchTicket.desc": "所持 {current}/{max} · 本日 {today}/{cap}",
+  "uphero.shop.bonusCard.name": "ボーナスカード (1枚)",
+  "uphero.shop.bonusCard.desc": "次回抽選に +1",
+  "uphero.shop.fullPack.name": "フルカードパック (5枚)",
+  "uphero.shop.fullPack.desc": "5枚抽選 · 希少カード確率↑",
+  "uphero.shop.expeditionHeading": "探索券購入",
+  "uphero.shop.todayBought": "本日 {bought}/{cap}",
+  "uphero.shop.priceHint": "{price} コイン/枚 · 1日 {cap}枚限定",
+  "uphero.shop.coinsNote": "コインはダンジョンで獲得します",
+  "uphero.shop.passAria": "{name} 探索券を購入 ({price} コイン)",
+
+  // === Weekly view ===
+  "uphero.weekly.clearedCount": "ダンジョン {count}/8 クリア",
+  "uphero.weekly.bestScore": "最高 {score}点",
+  "uphero.weekly.noExpeditionCost": "探索券消費なし · KST 月曜 9:00 リセット",
+  "uphero.weekly.nextReset": "次の悪夢まで {duration}",
+  "uphero.weekly.duration.dayHour": "{d}日 {h}時間",
+  "uphero.weekly.duration.hourMin": "{h}時間 {m}分",
+  "uphero.weekly.duration.min": "{m}分",
+  "uphero.weekly.duration.resetting": "リセット中",
+  "uphero.weekly.leaderboardAria": "ランキングを見る",
+  "uphero.weekly.leaderboardBtn": "順位",
+  "uphero.weekly.f30Badge": "F30 変異",
+  "uphero.weekly.f30Locked": "F30 未到達",
+  "uphero.weekly.defaultName": "今週の悪夢",
+
+  // === Camp ambience (15) ===
+  "uphero.camp.ambience.1": "焚き火が静かに燃えている",
+  "uphero.camp.ambience.2": "薪がパチン、と弾けた",
+  "uphero.camp.ambience.3": "灰の中で赤い息が瞬く",
+  "uphero.camp.ambience.4": "煙がゆっくりと空へ広がる",
+  "uphero.camp.ambience.5": "火の粉が風に乗って舞い上がった",
+  "uphero.camp.ambience.6": "鍋が静かに煮立っている",
+  "uphero.camp.ambience.7": "地図をもう一度広げてみる",
+  "uphero.camp.ambience.8": "天幕の向こうに星が滲む",
+  "uphero.camp.ambience.9": "遠くから風が吹いてくる",
+  "uphero.camp.ambience.10": "夜がもう一層深くなった",
+  "uphero.camp.ambience.11": "足音が遠ざかっていく",
+  "uphero.camp.ambience.12": "武器の刃を一度研いでおく",
+  "uphero.camp.ambience.13": "今日の疲れがゆっくり引いていく",
+  "uphero.camp.ambience.14": "焚き火の影が長く伸びる",
+  "uphero.camp.ambience.15": "旅人の日記に一行書き加える",
+
+  // Weekly ribbon
+  "uphero.ribbon.weeklyTitle": "今週の悪夢",
 };
 
 export default ja;

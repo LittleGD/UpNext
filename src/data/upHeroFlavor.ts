@@ -71,45 +71,45 @@ export function pickRestDescription(): string {
 }
 
 /**
- * Phase 12 — 캠프 홈 분위기 텍스트 pool.
+ * Phase 12 — 캠프 홈 분위기 텍스트 pool (i18n keys).
  *
- * 이전에는 "모닥불이 조용히 타오른다" 한 줄 하드코딩 → 캠프에 들를 때마다 같은
- * 문구 → "정지 화면" 느낌. 유저 피드백: "가끔 다른 걸로도 바뀌면 더 재밌을 것
- * 같아." 15 줄의 pool 에서 매 mount 시 랜덤 선택 + 일정 주기로 교체해 "시간이
- * 흐르는 쉼터" 감각. fire-flicker 애니메이션과 어울리도록 불 / 밤 / 여행자 톤
- * 유지 (사이버/테크 톤 배제).
+ * 이전에는 한국어 literal 배열이었으나, Phase 12 i18n 작업에서 각 라인을
+ *   `uphero.camp.ambience.1` ~ `.15` 로 분리. 이 배열은 key 만 반환하고,
+ *   실제 표시는 컴포넌트에서 `t()` 로 현재 언어 조회.
  */
-const CAMP_AMBIENCE = [
-  "모닥불이 조용히 타오른다",
-  "장작이 탁, 하고 튀었다",
-  "재 속에서 붉은 숨이 깜빡인다",
-  "연기가 느리게 하늘로 번진다",
-  "불씨 하나가 바람을 따라 올라갔다",
-  "주전자가 나지막이 끓고 있다",
-  "지도를 다시 펼쳐본다",
-  "천막 너머로 별이 번진다",
-  "바람이 먼 곳에서 불어온다",
-  "밤이 한 겹 더 깊어졌다",
-  "발자국 소리가 멀어진다",
-  "무기의 날을 한 번 갈아둔다",
-  "오늘의 피로가 천천히 가신다",
-  "모닥불 그림자가 길게 늘어진다",
-  "여행자의 일기에 한 줄을 적는다",
+const CAMP_AMBIENCE_KEYS = [
+  "uphero.camp.ambience.1",
+  "uphero.camp.ambience.2",
+  "uphero.camp.ambience.3",
+  "uphero.camp.ambience.4",
+  "uphero.camp.ambience.5",
+  "uphero.camp.ambience.6",
+  "uphero.camp.ambience.7",
+  "uphero.camp.ambience.8",
+  "uphero.camp.ambience.9",
+  "uphero.camp.ambience.10",
+  "uphero.camp.ambience.11",
+  "uphero.camp.ambience.12",
+  "uphero.camp.ambience.13",
+  "uphero.camp.ambience.14",
+  "uphero.camp.ambience.15",
 ] as const;
 
 /**
- * 직전 문구를 `exclude` 로 넘기면 연속 중복을 회피한다. pool 1 개 이하 edge
- *   case 는 그대로 반환 (무한 루프 방지).
+ * 직전 key 를 `exclude` 로 넘기면 연속 중복을 회피한다.
+ * 반환값은 i18n key. 컴포넌트에서 `t(key)` 로 현재 언어 조회.
  */
 export function pickCampAmbience(exclude?: string): string {
-  if (!exclude || CAMP_AMBIENCE.length <= 1) {
-    return CAMP_AMBIENCE[Math.floor(Math.random() * CAMP_AMBIENCE.length)];
+  if (!exclude || CAMP_AMBIENCE_KEYS.length <= 1) {
+    return CAMP_AMBIENCE_KEYS[
+      Math.floor(Math.random() * CAMP_AMBIENCE_KEYS.length)
+    ];
   }
-  const filtered = CAMP_AMBIENCE.filter((line) => line !== exclude);
+  const filtered = CAMP_AMBIENCE_KEYS.filter((k) => k !== exclude);
   return filtered[Math.floor(Math.random() * filtered.length)];
 }
 
-export { CAMP_AMBIENCE };
+export { CAMP_AMBIENCE_KEYS };
 
 /**
  * 랜덤 이벤트 — 던전 고유 이벤트 + 범용 이벤트 를 섞어서 풍부하게.

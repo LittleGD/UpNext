@@ -596,6 +596,81 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.needLevel": "{name} — 需要 Lv {level}",
   "uphero.skill.needSP": "{name} — 需要 SP {cost}",
   "uphero.skill.srLabel": "{name} · 消耗 {resource} · CD {cd}",
+
+  // === Camp HomeView ===
+  "uphero.home.heroDefault": "英雄",
+  "uphero.home.statButton.default": "查看属性",
+  "uphero.home.statButton.withClass": "属性 · 技能树",
+  "uphero.home.statButton.ariaSprite": "查看英雄属性",
+  "uphero.home.statButton.ariaChip": "打开英雄属性与技能树",
+  "uphero.home.cta.startExpedition": "开始远征",
+  "uphero.home.cta.buyPass": "购买门票",
+  "uphero.home.cta.pickDungeon": "选择地下城",
+  "uphero.home.cta.completeOrBuy": "完成挑战或在商店购买",
+  "uphero.home.shop.label": "商店",
+  "uphero.home.shop.hint": "门票 / 卡包",
+  "uphero.home.equipment.label": "装备",
+  "uphero.home.equipment.hint": "装备 · 出售 · 强化",
+  "uphero.home.codex.label": "图鉴",
+  "uphero.home.codex.hint": "遇到的怪物记录",
+
+  // === Camp subheaders ===
+  "uphero.subheader.dungeons": "选择地下城",
+  "uphero.subheader.shop": "商店",
+  "uphero.subheader.weekly": "本周噩梦",
+  "uphero.subheader.back.aria": "返回",
+
+  // === Dungeons grid ===
+  "uphero.dungeons.floorReached": "到达 F{floor}",
+  "uphero.dungeons.unexplored": "未探索",
+
+  // === Shop ===
+  "uphero.shop.cardmatchTicket.name": "卡牌配对门票",
+  "uphero.shop.cardmatchTicket.desc": "拥有 {current}/{max} · 今日 {today}/{cap}",
+  "uphero.shop.bonusCard.name": "奖励卡 (1 张)",
+  "uphero.shop.bonusCard.desc": "下次抽卡 +1",
+  "uphero.shop.fullPack.name": "整包卡牌 (5 张)",
+  "uphero.shop.fullPack.desc": "一次抽 5 张 · 稀有概率↑",
+  "uphero.shop.expeditionHeading": "购买探险门票",
+  "uphero.shop.todayBought": "今日 {bought}/{cap}",
+  "uphero.shop.priceHint": "{price} 金币/张 · 每日 {cap} 张限购",
+  "uphero.shop.coinsNote": "金币在地下城中获取",
+  "uphero.shop.passAria": "购买 {name} 门票 ({price} 金币)",
+
+  // === Weekly view ===
+  "uphero.weekly.clearedCount": "已通关 {count}/8",
+  "uphero.weekly.bestScore": "最高 {score} 分",
+  "uphero.weekly.noExpeditionCost": "无需门票 · 周一上午 9 点(KST)重置",
+  "uphero.weekly.nextReset": "距下次噩梦 {duration}",
+  "uphero.weekly.duration.dayHour": "{d}天 {h}小时",
+  "uphero.weekly.duration.hourMin": "{h}小时 {m}分",
+  "uphero.weekly.duration.min": "{m}分",
+  "uphero.weekly.duration.resetting": "重置中",
+  "uphero.weekly.leaderboardAria": "查看排行榜",
+  "uphero.weekly.leaderboardBtn": "排名",
+  "uphero.weekly.f30Badge": "F30 变异",
+  "uphero.weekly.f30Locked": "F30 未通关",
+  "uphero.weekly.defaultName": "本周噩梦",
+
+  // === Camp ambience (15) ===
+  "uphero.camp.ambience.1": "篝火静静地燃烧着",
+  "uphero.camp.ambience.2": "柴火啪的一声蹦起",
+  "uphero.camp.ambience.3": "灰烬中闪烁着红色的呼吸",
+  "uphero.camp.ambience.4": "烟雾缓缓升向天空",
+  "uphero.camp.ambience.5": "一粒火星随风飘上",
+  "uphero.camp.ambience.6": "锅子低声咕噜咕噜",
+  "uphero.camp.ambience.7": "再次打开地图",
+  "uphero.camp.ambience.8": "帐篷外星光弥漫",
+  "uphero.camp.ambience.9": "风从远处吹来",
+  "uphero.camp.ambience.10": "夜又深了一层",
+  "uphero.camp.ambience.11": "脚步声渐渐远去",
+  "uphero.camp.ambience.12": "把武器的刃磨了一次",
+  "uphero.camp.ambience.13": "今日的疲惫慢慢消散",
+  "uphero.camp.ambience.14": "篝火的影子被拉得很长",
+  "uphero.camp.ambience.15": "在旅人日记里写下一行",
+
+  // Weekly ribbon
+  "uphero.ribbon.weeklyTitle": "本周噩梦",
 };
 
 export default zh;
