@@ -4,9 +4,15 @@
  * Up Hero — Idle reward toast.
  *
  * Phase 5b.1: 앱을 재진입할 때 이전 세션부터 경과한 시간만큼 영웅이 "수련"
- * 했다는 연출 + 보상 표시. 탭하거나 2.4초 후 자동 사라짐.
+ * 했다는 연출 + 보상 표시.
  *
- * 스타일: 다른 toast 와 유사하게 상단 배너 (z-30).
+ * Phase 9d — UX 전면 개편 (유저 피드백 반영):
+ *   - 이전엔 4초 auto-dismiss + "수련 보상" 이름만 있어 유저가 "이게 뭐지?"
+ *     하는 사이 사라져 이해 못 함.
+ *   - 이제 auto-dismiss 제거 → 명시적 "확인" 버튼 탭까지 유지.
+ *   - 기본 카드에 "영웅은 앱이 꺼진 동안에도 수련합니다" 한 줄 설명 추가.
+ *   - 우상단 info 버튼 → 탭 시 자세한 설명 확장 (규칙: 시간/최대/공식).
+ *   - "수련 보상" → "영웅의 수련 성과" 로 의미 전달 강화.
  */
 
 import { useEffect, useState } from "react";
@@ -15,9 +21,6 @@ import { formatElapsed } from "@/lib/idleAccrual";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useCountUp } from "@/hooks/useCountUp";
 import PixelIcon from "@/components/icons/PixelIcon";
-
-// Phase 9b — useCountUp 은 hooks/useCountUp.ts 로 공용화됨.
-//   SessionResultModal 과 같은 rAF 로직이 두 파일에 복붙돼 있던 걸 정리.
 
 export default function IdleRewardToast() {
   const reward = useUpHeroStore((s) => s.idleReward);
@@ -31,20 +34,17 @@ export default function IdleRewardToast() {
     sessionStatus === "completed" || pendingClassAwaken !== null;
 
   const [mounted, setMounted] = useState(false);
+  /** Phase 9d — 자세한 설명 펼침 토글 (info 버튼 탭). */
+  const [expanded, setExpanded] = useState(false);
+
   useEffect(() => {
     if (!reward) return;
-    if (blocked) return; // 대기 — 차단 modal 이 닫히면 재실행
+    if (blocked) return;
     const rafId = requestAnimationFrame(() => setMounted(true));
-    // 4초 자동 dismiss
-    const dismissTimer = window.setTimeout(() => {
-      setMounted(false);
-      window.setTimeout(() => acknowledge(), 240);
-    }, 4000);
-    return () => {
-      cancelAnimationFrame(rafId);
-      window.clearTimeout(dismissTimer);
-    };
-  }, [reward, acknowledge, blocked]);
+    // Phase 9d — auto-dismiss 타이머 제거. 유저가 직접 "확인" 탭할 때까지 유지.
+    //   4초 안에 사라지던 게 "수련 보상이 뭐지" 하는 사이 증발해 의미 반감됐던 문제.
+    return () => cancelAnimationFrame(rafId);
+  }, [reward, blocked]);
 
   // Phase 8b — mount 후 XP/coin 을 count-up 으로 올려 "이만큼이나!" 감각 전달.
   // mounted 가 true 된 뒤에만 started — reward 가 바뀌어도 key effect 로 재실행됨.
@@ -54,7 +54,7 @@ export default function IdleRewardToast() {
   if (!reward) return null;
   if (blocked) return null;
 
-  const onTap = () => {
+  const onDismiss = () => {
     setMounted(false);
     window.setTimeout(() => acknowledge(), 240);
   };
@@ -63,10 +63,11 @@ export default function IdleRewardToast() {
   const capped = reward.rawElapsedMin > reward.elapsedMin;
 
   return (
-    <button
-      type="button"
-      onClick={onTap}
-      className="fixed left-1/2 z-[60] rounded typo-caption text-left"
+    <div
+      role="alertdialog"
+      aria-labelledby="idle-reward-title"
+      aria-describedby="idle-reward-body"
+      className="fixed left-1/2 z-[60] rounded typo-caption"
       style={{
         top: "calc(env(safe-area-inset-top) + 52px)",
         transform: `translateX(-50%) translateY(${mounted ? 0 : "-8px"})`,
@@ -74,29 +75,112 @@ export default function IdleRewardToast() {
         background: GB.darkest,
         color: GB.light,
         border: `1px solid ${GB.lightest}`,
-        padding: "8px 12px",
-        minWidth: 240,
+        padding: "10px 12px",
+        minWidth: 260,
         maxWidth: "calc(100dvw - 32px)",
         transition: `opacity 240ms ${EASE_OUT}, transform 240ms ${EASE_OUT}`,
       }}
-      aria-label={`영웅이 ${elapsed} 동안 수련해서 XP ${reward.xp} 와 코인 ${reward.coins} 을 얻었어요`}
     >
+      {/* Title row: icon + 라벨 + info toggle */}
       <div className="flex items-center gap-2">
         <PixelIcon name="Moon" size={14} color={GB.lightest} />
-        <span style={{ color: GB.lightest }}>수련 보상</span>
-        <span style={{ marginLeft: "auto", opacity: 0.7 }}>탭해서 닫기</span>
+        <span id="idle-reward-title" style={{ color: GB.lightest, fontWeight: 600 }}>
+          영웅의 수련 성과
+        </span>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="idle-reward-info ml-auto rounded"
+          style={{
+            padding: "4px 8px",
+            minHeight: 28,
+            minWidth: 28,
+            background: expanded ? `${GB.lightest}22` : "transparent",
+            color: GB.lightest,
+            border: `1px solid ${GB.lightest}55`,
+            fontSize: 11,
+            letterSpacing: "0.05em",
+          }}
+          aria-expanded={expanded}
+          aria-label={expanded ? "설명 닫기" : "수련 보상이란?"}
+        >
+          {expanded ? "닫기" : "?"}
+        </button>
       </div>
-      <div className="mt-1" style={{ lineHeight: 1.45 }}>
+
+      {/* Body: 수치 + 한 줄 설명 */}
+      <div id="idle-reward-body" className="mt-1.5" style={{ lineHeight: 1.5 }}>
         영웅이 <span style={{ color: GB.lightest }}>{elapsed}</span> 동안 수련했어요
         {capped && (
-          <span style={{ color: GB.light, opacity: 0.6 }}> (8시간까지만 누적)</span>
+          <span style={{ color: GB.light, opacity: 0.7 }}> · 최대 8시간</span>
         )}
         <br />
         <span className="tabular-nums">
-          +<span style={{ color: GB.lightest }}>{xpDisplay}</span> XP · +
-          <span style={{ color: GB.lightest }}>{coinDisplay}</span> C
+          +<span style={{ color: GB.lightest, fontWeight: 600 }}>{xpDisplay}</span> XP
+          {" · "}+
+          <span style={{ color: GB.lightest, fontWeight: 600 }}>{coinDisplay}</span> C
         </span>
       </div>
-    </button>
+
+      {/* Expanded — 자세한 설명.
+          Phase 9d: 유저가 "수련 보상이 뭔지" 이해할 수 있게 규칙을 드러냄.
+          expanded 일 때만 max-height 늘려 smooth reveal. */}
+      <div
+        className="overflow-hidden"
+        style={{
+          maxHeight: expanded ? 160 : 0,
+          opacity: expanded ? 1 : 0,
+          transition: `max-height 240ms ${EASE_OUT}, opacity 180ms ${EASE_OUT}`,
+        }}
+      >
+        <div
+          className="mt-2.5 pt-2.5"
+          style={{
+            borderTop: `1px dashed ${GB.dark}`,
+            color: GB.light,
+            lineHeight: 1.55,
+            fontSize: 12,
+          }}
+        >
+          영웅은 앱이 꺼진 동안에도 캠프에서 조용히 단련합니다.
+          <br />
+          돌아오면 그동안의 <span style={{ color: GB.lightest }}>경험치 · 코인</span>
+          을 받아요.
+          <br />
+          <span style={{ opacity: 0.75 }}>
+            최대 8시간까지 누적 · 영웅 Lv 이 높을수록 더 많이
+          </span>
+        </div>
+      </div>
+
+      {/* Dismiss — 명시적 "확인" 버튼.
+          이전엔 자동 사라짐 + 카드 전체 탭으로만 닫혔음. 이제 분명한 intent. */}
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="idle-reward-dismiss mt-3 w-full rounded typo-caption"
+        style={{
+          minHeight: 36,
+          padding: "8px 12px",
+          background: `${GB.lightest}`,
+          color: GB.darkest,
+          border: `1px solid ${GB.lightest}`,
+          fontWeight: 600,
+        }}
+      >
+        확인
+      </button>
+
+      <style jsx>{`
+        .idle-reward-info,
+        .idle-reward-dismiss {
+          transition: transform 120ms ${EASE_OUT}, background 160ms ${EASE_OUT};
+        }
+        .idle-reward-info:active,
+        .idle-reward-dismiss:active {
+          transform: scale(0.96);
+        }
+      `}</style>
+    </div>
   );
 }
