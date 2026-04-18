@@ -341,6 +341,27 @@ function HomeView({
           `}</style>
         </button>
 
+        {/* Phase 12f — 영웅 탭 안내 chip. 스탯/스킬트리 접근 CTA 가시화.
+             영웅 sprite 가 클릭 가능한지 한눈에 보이지 않던 문제 해결. */}
+        <button
+          type="button"
+          onClick={() => {
+            play("select");
+            onOpenStats();
+          }}
+          className="uphero-stats-hint typo-micro mt-2 px-2 py-1 rounded inline-flex items-center gap-1"
+          style={{
+            background: `${GB.dark}aa`,
+            color: GB.lightest,
+            border: `1px solid ${GB.light}66`,
+            letterSpacing: "0.05em",
+          }}
+          aria-label="영웅 스탯 · 스킬트리 열기"
+        >
+          <PixelIcon name="User" size={10} color={GB.lightest} />
+          {hero.classType ? "스탯 · 스킬트리" : "스탯 보기"}
+        </button>
+
         {/* 분위기 텍스트 — Phase 8b: 실제로 타오르듯 flicker.
              opacity + warm text-shadow 를 4.2s 주기로 호흡. */}
         <div
