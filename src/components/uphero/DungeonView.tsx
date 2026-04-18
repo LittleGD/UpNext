@@ -41,6 +41,7 @@ import ChoiceResultModal from "./ChoiceResultModal";
 import ClassResourceBar from "./ClassResourceBar";
 import SkillBar from "./SkillBar";
 import MinigameModal from "./MinigameModal";
+import DungeonHelpModal from "./DungeonHelpModal";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
@@ -67,6 +68,8 @@ export default function DungeonView() {
   const [critShake, setCritShake] = useState(false);
   /** Phase 9a — 포기 confirm 다이얼로그 state (native confirm 대체) */
   const [abandonOpen, setAbandonOpen] = useState(false);
+  /** Phase 12f — 인터랙션 도움말 overlay. */
+  const [helpOpen, setHelpOpen] = useState(false);
   /** Phase 10 — 방금 resolve 된 event choice 의 결과 narrative.
    *   null 이 아니면 결과 모달 표시 + tick pause. 유저 "계속" 또는 2.6s 후 null.
    *   Phase 11c R4 — text + effectSummary 2 필드로 수치 별도 표시. */
@@ -563,6 +566,24 @@ export default function DungeonView() {
                 Floor {session.currentFloor}
               </span>
             </div>
+            {/* Phase 12f — 인터랙션 안내 버튼 (전투/자원/스킬/미니게임 간단 도움말). */}
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              className="ml-1 rounded-full typo-micro tabular-nums"
+              style={{
+                width: 20,
+                height: 20,
+                background: "transparent",
+                color: GB.light,
+                border: `1px solid ${GB.light}`,
+                lineHeight: 1,
+                cursor: "pointer",
+              }}
+              aria-label="인터랙션 도움말"
+            >
+              ?
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -960,6 +981,11 @@ export default function DungeonView() {
           difficulty={session.pendingMinigame.difficulty}
           onComplete={(success) => resolveMinigame(success)}
         />
+      )}
+
+      {/* Phase 12f — 인터랙션 도움말 오버레이. */}
+      {helpOpen && (
+        <DungeonHelpModal onClose={() => setHelpOpen(false)} />
       )}
 
       {/* === Boss 등장 연출 (2.4s, session.status === "paused" 동안) === */}
