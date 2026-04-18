@@ -19,6 +19,12 @@ import RarityTexture from "@/components/cards/RarityTexture";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
+import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
+
+/** Phase 11b — skill id → 표시 이름 (없으면 id 그대로). */
+function talismanSkillName(id: string): string {
+  return TALISMAN_SKILLS[id]?.name ?? id;
+}
 
 export type EquipmentCardSize = "sm" | "md" | "lg";
 
@@ -177,6 +183,29 @@ export default function EquipmentCard({
           )}
         </div>
       )}
+
+      {/* Phase 11b — talisman skill chip. md/lg 에서만 표기 (sm 은 공간 부족). */}
+      {size !== "sm" &&
+        equipment.talismanSkills &&
+        equipment.talismanSkills.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-0.5">
+            {equipment.talismanSkills.map((id) => (
+              <span
+                key={id}
+                className="typo-micro px-1 py-0.5 rounded-sm"
+                style={{
+                  fontSize: 9,
+                  background: `${GB.lightest}22`,
+                  color: GB.lightest,
+                  border: `1px solid ${GB.lightest}66`,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                ✦ {talismanSkillName(id)}
+              </span>
+            ))}
+          </div>
+        )}
 
       {/* Phase 11a — 좌상단 enhance level chip (+1~+10).
            name 에 이미 " +N" 이 붙어있지만 line-clamp 로 가려질 수 있어

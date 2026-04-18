@@ -13,7 +13,13 @@ import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
-import { isPhotoBound, PHOTO_TALISMAN_RITUAL_COST } from "@/lib/photoTalisman";
+import {
+  findBoundTalisman,
+  isPhotoBound,
+  PHOTO_TALISMAN_RITUAL_COST,
+} from "@/lib/photoTalisman";
+import { MAX_ENHANCE_LEVEL } from "@/types/uphero";
+import { TALISMAN_SKILLS, computeTalismanSkillIds } from "@/lib/talismanSkills";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import type { PhotoMeta } from "@/types/growth";
 import type { Equipment, DungeonId } from "@/types/uphero";
@@ -44,6 +50,7 @@ export default function PhotoTalismanPicker({
   const inventory = useUpHeroStore((s) => s.inventory);
   const equipped = useUpHeroStore((s) => s.hero.equipped);
   const bindPhotoAsTalisman = useUpHeroStore((s) => s.bindPhotoAsTalisman);
+  const rebindPhotoTalisman = useUpHeroStore((s) => s.rebindPhotoTalisman);
   const { play } = useSound();
 
   const [mounted, setMounted] = useState(false);
@@ -75,16 +82,38 @@ export default function PhotoTalismanPicker({
     };
   }, []);
 
-  // 아직 바인딩 안 된 photo 만 — 바인딩된 photo 는 inventory 에 photoId 로 존재
-  const availablePhotos = useMemo(
+  // Phase 11b — 모든 photo 를 노출하되 bound 여부로 분리.
+  //   unbound : 최초 바인딩 (rarity roll)
+  //   bound   : 재의식 (+1 enhanceLevel, rarity 유지).
+  //   상단엔 unbound, 하단엔 bound 섹션으로 명확히 구분.
+  const unboundPhotos = useMemo(
     () => photos.filter((p) => !isPhotoBound(p.id, inventory, equipped)),
+    [photos, inventory, equipped],
+  );
+  const boundPhotos = useMemo(
+    () =>
+      photos
+        .map((p) => {
+          const bound = findBoundTalisman(p.id, inventory, equipped);
+          if (!bound) return null;
+          return { photo: p, item: bound.item };
+        })
+        .filter(
+          (x): x is { photo: PhotoMeta; item: Equipment } => x !== null,
+        ),
     [photos, inventory, equipped],
   );
 
   const canAfford = coins >= PHOTO_TALISMAN_RITUAL_COST;
 
-  /** Phase 9a — GbConfirm 으로 교체. 의식 시작 전 사용자 확인 step. */
-  const [pendingPhoto, setPendingPhoto] = useState<PhotoMeta | null>(null);
+  /** Phase 9a → 11b — GbConfirm 으로 교체. 의식 시작 전 사용자 확인 step.
+   *   mode=bind  : 초기 바인딩 (rarity roll).
+   *   mode=rebind: 재의식 (+1 enhanceLevel). 같은 photo 의 기존 item 을 가리킴. */
+  const [pendingPhoto, setPendingPhoto] = useState<{
+    photo: PhotoMeta;
+    mode: "bind" | "rebind";
+    existing?: Equipment; // rebind 시 현재 부적
+  } | null>(null);
 
   const onBind = (photo: PhotoMeta) => {
     if (!canAfford) {
@@ -92,24 +121,58 @@ export default function PhotoTalismanPicker({
       onNotify(`코인 부족 (${PHOTO_TALISMAN_RITUAL_COST} 필요)`);
       return;
     }
-    setPendingPhoto(photo);
+    setPendingPhoto({ photo, mode: "bind" });
+  };
+
+  const onRebind = (photo: PhotoMeta, existing: Equipment) => {
+    if (!canAfford) {
+      play("cancel");
+      onNotify(`코인 부족 (${PHOTO_TALISMAN_RITUAL_COST} 필요)`);
+      return;
+    }
+    if ((existing.enhanceLevel ?? 0) >= MAX_ENHANCE_LEVEL) {
+      play("cancel");
+      onNotify("이미 +10 최대 강화");
+      return;
+    }
+    setPendingPhoto({ photo, mode: "rebind", existing });
   };
 
   const executeBind = () => {
-    const photo = pendingPhoto;
+    const pending = pendingPhoto;
     setPendingPhoto(null);
-    if (!photo) return;
-    const result = bindPhotoAsTalisman(photo.id);
+    if (!pending) return;
+
+    if (pending.mode === "bind") {
+      const result = bindPhotoAsTalisman(pending.photo.id);
+      if (result.ok && result.newItem) {
+        play("collect");
+        setRitualPhoto(pending.photo);
+        setRitualItem(result.newItem);
+        if (ritualTimerRef.current) {
+          window.clearTimeout(ritualTimerRef.current);
+        }
+        ritualTimerRef.current = window.setTimeout(() => {
+          setRitualPhoto(null);
+          setRevealedItem(result.newItem!);
+          ritualTimerRef.current = null;
+        }, 2800);
+      } else {
+        play("cancel");
+        onNotify(result.error ?? "실패");
+      }
+      return;
+    }
+
+    // rebind — 재의식
+    const result = rebindPhotoTalisman(pending.photo.id);
     if (result.ok && result.newItem) {
       play("collect");
-      setRitualPhoto(photo);
+      setRitualPhoto(pending.photo);
       setRitualItem(result.newItem);
-      // 기존 타이머 정리 — 의식 중 다른 photo 탭 방어
       if (ritualTimerRef.current) {
         window.clearTimeout(ritualTimerRef.current);
       }
-      // 2800ms 후 reveal 로 전환 — keyframe 의 90-100% fade-out 구간 (2700-3000ms)
-      // 이 자연스럽게 reveal 등장과 교차하도록.
       ritualTimerRef.current = window.setTimeout(() => {
         setRitualPhoto(null);
         setRevealedItem(result.newItem!);
@@ -172,8 +235,9 @@ export default function PhotoTalismanPicker({
             사진 부적 — 바인딩 의식
           </div>
           <div className={`typo-caption ${gbClass.textDim} tabular-nums`}>
-            {availablePhotos.length} / {photos.length} 바인딩 가능 · 의식{" "}
-            {PHOTO_TALISMAN_RITUAL_COST} 코인
+            미바인딩 {unboundPhotos.length} · 재의식 가능 {boundPhotos.length}
+            {" · "}
+            의식 {PHOTO_TALISMAN_RITUAL_COST} 코인
           </div>
         </div>
       </header>
@@ -200,27 +264,125 @@ export default function PhotoTalismanPicker({
         </div>
       </div>
 
-      {/* === Body === */}
+      {/* === Body — Phase 11b: unbound + bound 두 섹션 ===
+           unbound: 최초 바인딩 (랜덤 rarity).
+           bound:   재의식 (+N → +(N+1), rarity 유지, +5/+10 skill 부여). */}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
-        {availablePhotos.length === 0 ? (
+        {photos.length === 0 && (
           <div
             className={`typo-caption ${gbClass.textDim} text-center py-10`}
           >
-            {photos.length === 0
-              ? "챌린지를 완료하고 사진을 찍어보세요"
-              : "이미 모든 사진이 부적이 되었어요"}
+            챌린지를 완료하고 사진을 찍어보세요
           </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {availablePhotos.map((p) => (
-              <PhotoThumb
-                key={p.id}
-                photo={p}
-                onClick={() => onBind(p)}
-                disabled={!canAfford}
-              />
-            ))}
-          </div>
+        )}
+
+        {/* 미바인딩 섹션 */}
+        {unboundPhotos.length > 0 && (
+          <section className="mb-5">
+            <div
+              className="typo-caption mb-2 inline-flex items-center gap-1.5"
+              style={{ color: GB.lightest }}
+            >
+              <PixelIcon name="Sparkle" size={14} color={GB.lightest} />
+              최초 의식 · 랜덤 rarity
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {unboundPhotos.map((p) => (
+                <PhotoThumb
+                  key={p.id}
+                  photo={p}
+                  onClick={() => onBind(p)}
+                  disabled={!canAfford}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* 재의식 섹션 — bound photo 들 */}
+        {boundPhotos.length > 0 && (
+          <section>
+            <div
+              className="typo-caption mb-2 inline-flex items-center gap-1.5"
+              style={{ color: GB.lightest }}
+            >
+              <PixelIcon name="Fire" size={14} color={GB.lightest} />
+              재의식 · 기존 부적 +1 (최대 +{MAX_ENHANCE_LEVEL})
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {boundPhotos.map(({ photo: p, item }) => {
+                const level = item.enhanceLevel ?? 0;
+                const isMaxed = level >= MAX_ENHANCE_LEVEL;
+                const skillIds = computeTalismanSkillIds(
+                  item.category,
+                  level,
+                );
+                const nextSkillIds = computeTalismanSkillIds(
+                  item.category,
+                  level + 1,
+                );
+                const gainingSkill = nextSkillIds.length > skillIds.length;
+                return (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-2 rounded px-2.5 py-2"
+                    style={{
+                      background: `${GB.dark}66`,
+                      border: `1px solid ${GB.light}55`,
+                    }}
+                  >
+                    <PixelIcon name="Camera" size={16} color={GB.lightest} />
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="typo-caption truncate"
+                        style={{ color: GB.lightest }}
+                      >
+                        {item.name}
+                      </div>
+                      <div
+                        className={`typo-micro tabular-nums ${gbClass.textDim} flex items-center gap-2 mt-0.5`}
+                      >
+                        <span>+{level} → +{Math.min(MAX_ENHANCE_LEVEL, level + 1)}</span>
+                        {gainingSkill && (
+                          <span style={{ color: GB.lightest }}>
+                            ✦ 새 스킬
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!canAfford || isMaxed}
+                      onClick={() => onRebind(p, item)}
+                      className="uphero-rebind-btn typo-caption tabular-nums rounded"
+                      style={{
+                        padding: "10px 14px",
+                        minHeight: 44,
+                        background: canAfford && !isMaxed ? GB.lightest : `${GB.dark}aa`,
+                        color: canAfford && !isMaxed ? GB.darkest : GB.light,
+                        border: `1px solid ${
+                          canAfford && !isMaxed ? GB.lightest : GB.dark
+                        }`,
+                        opacity: canAfford && !isMaxed ? 1 : 0.55,
+                      }}
+                    >
+                      {isMaxed
+                        ? "MAX"
+                        : `재의식 −${PHOTO_TALISMAN_RITUAL_COST}C`}
+                    </button>
+                  </div>
+                );
+              })}
+              <style jsx>{`
+                .uphero-rebind-btn {
+                  transition: transform 120ms ${EASE_OUT};
+                }
+                .uphero-rebind-btn:not(:disabled):active {
+                  transform: scale(0.96);
+                }
+              `}</style>
+            </div>
+          </section>
         )}
       </div>
 
@@ -239,19 +401,57 @@ export default function PhotoTalismanPicker({
         />
       )}
 
-      {/* Phase 9a — 바인딩 확인 (기존 native confirm 대체).
+      {/* Phase 9a → 11b — 바인딩/재의식 확인 (native confirm 대체).
            중첩 Portal 이라도 z-[70] GbConfirm 이 z-[50] picker 위에 떠서 무방. */}
       <GbConfirm
         open={pendingPhoto != null}
-        title="이 사진을 부적으로 만들까요?"
-        body={
-          <>
-            비용 {PHOTO_TALISMAN_RITUAL_COST} 코인 · Rarity 는 랜덤 (일반/희귀/고유/전설)
-            <br />
-            한 번 바인딩되면 재롤 불가합니다.
-          </>
+        title={
+          pendingPhoto?.mode === "bind"
+            ? "이 사진을 부적으로 만들까요?"
+            : `${pendingPhoto?.existing?.name ?? ""} 을(를) +1 재의식?`
         }
-        confirmLabel="의식 시작"
+        body={
+          pendingPhoto?.mode === "bind" ? (
+            <>
+              비용 {PHOTO_TALISMAN_RITUAL_COST} 코인 · Rarity 는 랜덤 (일반/희귀/고유/전설)
+              <br />
+              이후 같은 사진을 재의식하면 +1 강화 + 5강/10강에서 고유 스킬 획득.
+            </>
+          ) : pendingPhoto?.mode === "rebind" ? (
+            (() => {
+              const cur = pendingPhoto.existing?.enhanceLevel ?? 0;
+              const next = cur + 1;
+              const newSkills = computeTalismanSkillIds(
+                pendingPhoto.existing?.category ?? "fitness",
+                next,
+              );
+              const prevSkills = computeTalismanSkillIds(
+                pendingPhoto.existing?.category ?? "fitness",
+                cur,
+              );
+              const newlyGained = newSkills.filter((id) => !prevSkills.includes(id));
+              return (
+                <>
+                  비용 {PHOTO_TALISMAN_RITUAL_COST} 코인 · Rarity 유지
+                  <br />
+                  강화 <span style={{ color: GB.lightest }}>+{cur} → +{next}</span>
+                  {newlyGained.length > 0 && (
+                    <>
+                      <br />
+                      ✦ 신규 스킬:{" "}
+                      <span style={{ color: GB.lightest }}>
+                        {newlyGained
+                          .map((id) => TALISMAN_SKILLS[id]?.name ?? id)
+                          .join(", ")}
+                      </span>
+                    </>
+                  )}
+                </>
+              );
+            })()
+          ) : null
+        }
+        confirmLabel={pendingPhoto?.mode === "rebind" ? "재의식 시작" : "의식 시작"}
         onConfirm={executeBind}
         onCancel={() => setPendingPhoto(null)}
       />

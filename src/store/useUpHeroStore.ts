@@ -51,7 +51,9 @@ import { classXpMult, classCoinMult } from "@/lib/upHeroCombat";
 import {
   PHOTO_TALISMAN_RITUAL_COST,
   buildPhotoTalisman,
+  findBoundTalisman,
   isPhotoBound,
+  rebuildTalismanWithLevel,
   rollPhotoRarity,
 } from "@/lib/photoTalisman";
 import { useGrowthStore } from "./useGrowthStore";
@@ -178,11 +180,27 @@ interface UpHeroActions {
    * Phase 7 — 사진 부적 바인딩 의식.
    * 코인 차감 + 랜덤 rarity roll + inventory 에 Equipment 추가.
    * 반환값으로 결과 혹은 실패 사유 전달.
+   *
+   * Phase 11b — 이미 bound 된 photoId 면 `rebindPhotoTalisman` 을 쓸 것.
+   *   이 action 은 초기 바인딩 전용 (이미 bound 면 error 반환 유지).
    */
   bindPhotoAsTalisman(photoId: string): {
     ok: boolean;
     newItem?: Equipment;
     error?: string;
+  };
+
+  /**
+   * Phase 11b — 이미 바인딩된 사진의 부적을 +1 강화하는 "재의식".
+   * 코인 80 소모 (동일 비용), rarity/stats 대체로 유지하되 enhanceLevel +1.
+   * +5, +10 도달 시 category 기반 passive skill 자동 부여.
+   * 최대 +10, 초과 시 `maxed` 반환.
+   */
+  rebindPhotoTalisman(photoId: string): {
+    ok: boolean;
+    newItem?: Equipment;
+    error?: string;
+    reason?: "not-found" | "not-bound" | "maxed" | "coin";
   };
 
   // 장비
@@ -511,6 +529,71 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     saveToStorage(
       STORAGE_KEY,
       pickPersisted({ ...state, inventory: newInventory, coins: newCoins }),
+    );
+    return { ok: true, newItem };
+  },
+
+  rebindPhotoTalisman(photoId) {
+    // Phase 11b — 이미 bound 된 photo 를 대상으로 "재의식" → enhanceLevel +1.
+    //   코인 80 소모, rarity 유지, stat 미미 상승, +5/+10 에 skill 부여.
+    //   장착 중인 부적도 rebind 가능 (equipped 슬롯 안에서 in-place 교체).
+    const state = get();
+    if (state.coins < PHOTO_TALISMAN_RITUAL_COST) {
+      return {
+        ok: false,
+        reason: "coin",
+        error: `코인 부족 (${PHOTO_TALISMAN_RITUAL_COST} 필요)`,
+      };
+    }
+
+    const found = findBoundTalisman(photoId, state.inventory, state.hero.equipped);
+    if (!found) {
+      return {
+        ok: false,
+        reason: "not-bound",
+        error: "먼저 최초 바인딩이 필요해요",
+      };
+    }
+    const current = found.item;
+    const curLevel = current.enhanceLevel ?? 0;
+    if (curLevel >= MAX_ENHANCE_LEVEL) {
+      return { ok: false, reason: "maxed", error: "이미 +10 최대 강화" };
+    }
+
+    const newLevel = curLevel + 1;
+    const newItem = rebuildTalismanWithLevel(current, newLevel);
+    const newCoins = state.coins - PHOTO_TALISMAN_RITUAL_COST;
+
+    // inventory 또는 equipped 슬롯에서 in-place 교체.
+    let newInventory = state.inventory;
+    let newHero = state.hero;
+    if (found.location === "inventory") {
+      newInventory = state.inventory.map((i) =>
+        i.id === current.id ? newItem : i,
+      );
+    } else {
+      // equipped 슬롯 중 해당 id 를 찾아 교체.
+      const slotEntry = (Object.entries(state.hero.equipped) as Array<
+        [EquipSlot, Equipment | undefined]
+      >).find(([, eq]) => eq && eq.id === current.id);
+      if (slotEntry) {
+        const [slot] = slotEntry;
+        newHero = {
+          ...state.hero,
+          equipped: { ...state.hero.equipped, [slot]: newItem },
+        };
+      }
+    }
+
+    set({ inventory: newInventory, hero: newHero, coins: newCoins });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({
+        ...state,
+        inventory: newInventory,
+        hero: newHero,
+        coins: newCoins,
+      }),
     );
     return { ok: true, newItem };
   },
