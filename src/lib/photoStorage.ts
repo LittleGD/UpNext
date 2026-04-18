@@ -115,32 +115,94 @@ export async function clearAllPhotoStorage(): Promise<void> {
 
 // === 이미지 압축 유틸 ===
 
-/** dataURL → 리사이즈 + JPEG 압축 → Blob */
-export function compressImage(
+/**
+ * dataURL → 리사이즈 + JPEG 압축 → Blob.
+ *
+ * Phase 13 review — 성능 개선. 이전엔 `Image.src = dataUrl` 로 디코드 →
+ *   큰 원본 (10MB+) 에서 OOM + 메인 스레드 블로킹. 이제 `createImageBitmap`
+ *   우선 사용 (off-thread decode + resize option 제공).
+ *   미지원 브라우저는 `Image` fallback 유지.
+ *
+ *   추가 안전장치: `resizeQuality: "high"` + JPEG output 에 흰 배경 fill
+ *   (alpha 채널이 있는 PNG 가 JPEG 로 변환되면 검은색 filler 되는 문제 방지).
+ */
+export async function compressImage(
   dataUrl: string,
   maxWidth: number,
   quality: number,
 ): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxWidth / img.width);
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
+  // dataURL → Blob 1회 변환 → createImageBitmap 에 전달.
+  const srcBlob = await fetch(dataUrl).then((r) => r.blob());
+
+  let bitmap: ImageBitmap | null = null;
+  try {
+    if (typeof createImageBitmap === "function") {
+      // createImageBitmap 은 off-thread decode 지원. resizeWidth 옵션으로
+      //   브라우저 native downscale (고품질 lanczos-like).
+      try {
+        bitmap = await createImageBitmap(srcBlob, {
+          resizeWidth: maxWidth,
+          resizeQuality: "high",
+        });
+      } catch {
+        // 옵션 미지원 구형 브라우저 fallback.
+        bitmap = await createImageBitmap(srcBlob);
+      }
+    }
+
+    if (bitmap) {
+      const scale = Math.min(1, maxWidth / bitmap.width);
+      const w = Math.round(bitmap.width * scale);
+      const h = Math.round(bitmap.height * scale);
       const canvas = document.createElement("canvas");
       canvas.width = w;
       canvas.height = h;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, w, h);
-      canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
-        "image/jpeg",
-        quality,
-      );
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context not available");
+      // alpha → JPEG 변환 시 검은색 방지 (흰 배경 먼저).
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      return await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
+          "image/jpeg",
+          quality,
+        );
+      });
+    }
+
+    // Fallback — createImageBitmap 미지원. 기존 Image 방식.
+    return await new Promise<Blob>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas context not available"));
+          return;
+        }
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
+          "image/jpeg",
+          quality,
+        );
+      };
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+  } finally {
+    // ImageBitmap 메모리 해제 (브라우저 GC 전에 명시적 close).
+    bitmap?.close();
+  }
 }
 
 /** dataURL(PNG) → Blob */

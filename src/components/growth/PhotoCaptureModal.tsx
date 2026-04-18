@@ -220,7 +220,28 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     const ctx = canvas.getContext("2d")!;
     const sx = (video.videoWidth - size) / 2;
     const sy = (video.videoHeight - size) / 2;
+
+    // Phase 13 review Critical — flash/exposure UI 가 실제 capture 에 반영됨.
+    //   이전: drawImage 전후 filter 미적용 → UI 에서 -2EV 로 맞춰도 결과 동일.
+    //   수정:
+    //   (1) exposureEV (-2..+2) 를 Math.pow(2, ev) brightness multiplier 로 변환.
+    //       0 EV = 1.0, +1 EV = 2.0, -1 EV = 0.5 (카메라 노출 EV 수학).
+    //   (2) flashOn 시 추가 brightness +15% + 흰색 오버레이 15% alpha 로 실제 발광.
+    const exposureMult = Math.pow(2, exposureEV);
+    const flashBoost = flashOn ? 1.15 : 1.0;
+    const totalBrightness = exposureMult * flashBoost;
+    if (Math.abs(totalBrightness - 1) > 0.01) {
+      ctx.filter = `brightness(${totalBrightness.toFixed(3)})`;
+    }
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+    ctx.filter = "none";
+    if (flashOn) {
+      // 플래시는 반사광 흰 오버레이 추가 (15% alpha) — 필터만으로는 "반짝"
+      //   느낌 약함.
+      ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+      ctx.fillRect(0, 0, size, size);
+    }
+
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
     setShowFlash(true);
@@ -235,7 +256,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
 
     setTimeout(() => play("polaroidSlide"), 400);
     setTimeout(() => setCapturePhase("polaroid"), 2500);
-  }, [stopCamera, play, setCapturePhase]);
+  }, [stopCamera, play, setCapturePhase, exposureEV, flashOn]);
 
   // 파일 선택 폴백
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -321,6 +342,28 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     stopCamera();
     cancelCapture();
   }, [stopCamera, cancelCapture]);
+
+  // Phase 13 review Critical — ESC + back button (popstate) 로 camera/ejecting
+  //   phase 이탈 시 getUserMedia stream leak 방지. 이전엔 유저가 ESC 눌러도
+  //   stream 이 살아있어 camera indicator 가 남음.
+  //   savedMeta 가 있으면 detail 뷰라 handle 안 함 (detail 자체가 별도 close UX).
+  useEffect(() => {
+    if (savedMeta) return;
+    if (capturePhase !== "camera" && capturePhase !== "ejecting") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleClose();
+      }
+    };
+    const onPopState = () => handleClose();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [capturePhase, handleClose, savedMeta]);
 
   // Portal mount 가드 (SSR safe)
   const [mounted, setMounted] = useState(false);

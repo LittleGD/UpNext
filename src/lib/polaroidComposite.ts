@@ -10,12 +10,27 @@
 const POLAROID_WIDTH = 600; // 2x of display 300px (retina)
 const POLAROID_HEIGHT = 727; // 600 * 223/184
 
+/** Phase 13 review Critical — 공유 PNG 에 스티커 포함용 타입. */
+export interface CompositeSticker {
+  id: string;
+  type: "emoji" | "image";
+  content: string; // emoji char 또는 image URL / asset key ("upnext-logo")
+  /** polaroid 영역 기준 % 좌표 (0-100) */
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+  zIndex?: number;
+}
+
 interface CompositeInput {
   photoBlob: Blob;
   signatureBlob?: Blob | null;
   timestamp: number;
   /** 베이지 (#f2f1ee) 또는 white-cream (#f9f8f5) — PolaroidFrame variant 와 매칭 */
   frameBg?: string;
+  /** Phase 13 review — 공유 PNG 에 포함할 스티커 배열 */
+  stickers?: CompositeSticker[];
 }
 
 export async function compositePolaroid({
@@ -23,6 +38,7 @@ export async function compositePolaroid({
   signatureBlob,
   timestamp,
   frameBg = "#f9f8f5",
+  stickers,
 }: CompositeInput): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = POLAROID_WIDTH;
@@ -59,6 +75,18 @@ export async function compositePolaroid({
     ctx.textAlign = "right";
     ctx.fillText(`${dateStr} ${timeStr}`, PHOTO_X + PHOTO_W - 16, PHOTO_Y + PHOTO_H - 16);
 
+    // Phase 13 review Critical — 스티커 레이어 (사인 전에 배치 → 사인이 스티커
+    //   위에 덮임; UI 에서 signature 가 topmost 이므로 동일).
+    //   zIndex 오름차순 정렬 → 낮은 것부터 그리면 높은 것이 위에.
+    if (stickers && stickers.length > 0) {
+      const sorted = [...stickers].sort(
+        (a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0),
+      );
+      for (const s of sorted) {
+        await drawSticker(ctx, s, POLAROID_WIDTH, POLAROID_HEIGHT);
+      }
+    }
+
     // 4. 사인 오버레이 — 폴라로이드 전체 위 (사진 + 캡션 영역 모두)
     if (signatureBlob) {
       const sigUrl = URL.createObjectURL(signatureBlob);
@@ -80,6 +108,54 @@ export async function compositePolaroid({
       "image/png",
     );
   });
+}
+
+/**
+ * Phase 13 review Critical — 스티커 1개를 canvas 에 렌더.
+ *
+ *   emoji 는 fillText 로, "upnext-logo" 이미지 스티커는 assets/upnext-logo.png
+ *   로 로드. 실패 시 silently skip (1 스티커 실패가 공유 전체 망가뜨리지 않게).
+ *
+ *   StickerLayer.tsx 렌더 로직과 수치 맞춤:
+ *     - position % 좌표 (x, y) → canvas absolute px 변환
+ *     - base size 48px × scale (UpNext 로고 64px)
+ *     - rotation deg → radian
+ *     - translate 로 중심 정렬 (StickerLayer 가 translate(-50%, -50%) 사용)
+ */
+async function drawSticker(
+  ctx: CanvasRenderingContext2D,
+  s: CompositeSticker,
+  containerW: number,
+  containerH: number,
+): Promise<void> {
+  const cx = (s.x / 100) * containerW;
+  const cy = (s.y / 100) * containerH;
+  // UI 의 base size (StickerLayer 와 일치): emoji 48px, logo 64px.
+  //   canvas 는 polaroid 가 2x (600/300) 이므로 base 를 2 배로.
+  const baseSize = s.content === "upnext-logo" ? 64 : 48;
+  const size = baseSize * s.scale * 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate((s.rotation * Math.PI) / 180);
+  try {
+    if (s.type === "emoji") {
+      // emoji 는 textBaseline=middle + textAlign=center 로 중앙 정렬.
+      ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(s.content, 0, 0);
+    } else if (s.type === "image") {
+      // "upnext-logo" 또는 URL. 로고는 `/assets/upnext-logo.png` 정적 경로.
+      const src =
+        s.content === "upnext-logo" ? "/assets/upnext-logo.png" : s.content;
+      const img = await loadImage(src).catch(() => null);
+      if (img) {
+        ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      }
+    }
+  } finally {
+    ctx.restore();
+  }
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
