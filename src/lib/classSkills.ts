@@ -48,10 +48,12 @@ function pushSkillLog(
   classType: ClassType,
   skillName: string,
   narrative: string,
+  skillId?: string,
 ): void {
   s.log.push({
     type: "skill",
     classType,
+    skillId,
     skillName,
     narrative,
     timestamp: Date.now(),
@@ -793,6 +795,18 @@ export function fireSkill(
   s.classResource = Math.max(0, (s.classResource ?? 0) - skill.resourceCost);
   // apply
   skill.apply(s, monster);
+  // Phase 12 i18n — skill apply 내부의 pushSkillLog 가 skillId 없이 로그를
+  //   기록하므로, 여기서 마지막 "skill" entry 에 skillId 를 주입. CombatLog /
+  //   DungeonView announce 가 translate 된 이름을 조회할 수 있게.
+  for (let i = s.log.length - 1; i >= 0; i--) {
+    const entry = s.log[i];
+    if (entry.type !== "skill") break;
+    if (!entry.skillId) {
+      entry.skillId = skillId;
+      break;
+    }
+    break;
+  }
   // 쿨다운 세팅
   const cds = { ...(s.skillCooldowns ?? {}) };
   cds[skillId] = skill.cooldown;

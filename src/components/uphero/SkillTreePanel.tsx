@@ -20,9 +20,12 @@ import {
 } from "@/types/uphero";
 import { CLASS_SKILL_TREES, type ClassSkill } from "@/lib/classSkills";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
+import { useTranslation } from "@/hooks/useTranslation";
+import { skillName, skillDesc } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function SkillTreePanel({ classType }: { classType: ClassType }) {
+  const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
   const learnSkill = useUpHeroStore((s) => s.learnSkill);
   const gameLevel = useGameStore((s) => s.progress.level);
@@ -96,7 +99,7 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
                             className="typo-caption"
                             style={{ color: GB.lightest }}
                           >
-                            {skill.name}
+                            {skillName(skill.id, skill.name, language)}
                           </span>
                           {isLearned && (
                             <span
@@ -111,7 +114,7 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
                           )}
                         </div>
                         <div className={`typo-micro mb-1 ${gbClass.textDim}`}>
-                          {skill.description}
+                          {skillDesc(skill.id, skill.description, language)}
                         </div>
                         <div className="flex items-center gap-2 typo-micro tabular-nums">
                           <span style={{ color: resourceSpec.color }}>
@@ -143,17 +146,25 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
                           }}
                           aria-label={
                             status === "level"
-                              ? `${skill.name} — Lv ${skill.requiredLevel} 필요`
+                              ? t("uphero.skill.needLevel", {
+                                  name: skillName(skill.id, skill.name, language),
+                                  level: skill.requiredLevel,
+                                })
                               : status === "points"
-                                ? `${skill.name} — SP ${skill.pointCost} 필요`
-                                : `${skill.name} 해금`
+                                ? t("uphero.skill.needSP", {
+                                    name: skillName(skill.id, skill.name, language),
+                                    cost: skill.pointCost,
+                                  })
+                                : t("uphero.skill.unlockCost", {
+                                    name: skillName(skill.id, skill.name, language),
+                                  })
                           }
                         >
                           {status === "level"
                             ? `Lv ${skill.requiredLevel}`
                             : status === "points"
                               ? `SP ${skill.pointCost}`
-                              : "해금"}
+                              : t("uphero.skillTree.unlock")}
                         </button>
                       )}
                     </div>

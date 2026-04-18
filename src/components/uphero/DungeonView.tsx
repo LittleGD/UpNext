@@ -30,7 +30,7 @@ import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHer
 import { useSound } from "@/hooks/useSound";
 import { useAnnounce } from "@/hooks/useAnnounce";
 import { useTranslation } from "@/hooks/useTranslation";
-import { monsterName } from "@/lib/upHeroI18n";
+import { monsterName, skillName } from "@/lib/upHeroI18n";
 import CombatLog from "./CombatLog";
 import ChoicePanel from "./ChoicePanel";
 import BossBanner from "./BossBanner";
@@ -394,8 +394,11 @@ export default function DungeonView() {
           "polite",
         );
       } else if (entry.type === "skill") {
+        const localName = entry.skillId
+          ? skillName(entry.skillId, entry.skillName, language)
+          : entry.skillName;
         announce(
-          t("uphero.announce.skillFired", { name: entry.skillName }),
+          t("uphero.announce.skillFired", { name: localName }),
           "polite",
         );
       } else if (entry.type === "drop") {

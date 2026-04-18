@@ -17,7 +17,7 @@ import type { LogEntry } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
-import { monsterName } from "@/lib/upHeroI18n";
+import { monsterName, skillName } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 
@@ -381,7 +381,11 @@ const LogLine = memo(function LogLine({
           <PixelIcon name="Zap" size={14} color={GB.lightest} />
           <div className="flex-1">
             <div style={{ color: GB.lightest }}>
-              <span style={{ fontWeight: 700 }}>{entry.skillName}</span>
+              <span style={{ fontWeight: 700 }}>
+                {entry.skillId
+                  ? skillName(entry.skillId, entry.skillName, language)
+                  : entry.skillName}
+              </span>
             </div>
             <div className={gbClass.textDim}>{entry.narrative}</div>
           </div>

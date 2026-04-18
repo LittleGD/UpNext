@@ -494,6 +494,7 @@ export function tickSession(session: CombatSession): CombatSession {
           s.log.push({
             type: "skill",
             classType: "priest",
+            skillId: "priest_revive_t4",
             skillName: "부활",
             narrative: `영웅이 부활한다 — HP +${revivedHp}`,
             timestamp: Date.now(),
