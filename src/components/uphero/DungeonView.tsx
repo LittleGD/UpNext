@@ -36,6 +36,7 @@ import MonsterSprite from "./MonsterSprite";
 import GbConfirm from "./GbConfirm";
 import NumberRoll from "./NumberRoll";
 import DungeonAtmosphere from "./DungeonAtmosphere";
+import ChoiceResultModal from "./ChoiceResultModal";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
@@ -60,6 +61,9 @@ export default function DungeonView() {
   const [critShake, setCritShake] = useState(false);
   /** Phase 9a — 포기 confirm 다이얼로그 state (native confirm 대체) */
   const [abandonOpen, setAbandonOpen] = useState(false);
+  /** Phase 10 — 방금 resolve 된 event choice 의 결과 narrative.
+   *   null 이 아니면 결과 모달 표시 + tick pause. 유저 "계속" 또는 2.6s 후 null. */
+  const [choiceResultText, setChoiceResultText] = useState<string | null>(null);
   const { play } = useSound();
 
   const tickRef = useRef(tickSession);
@@ -95,6 +99,36 @@ export default function DungeonView() {
     }
   }, [session?.startedAt, session]);
 
+  // Phase 10 — 이벤트 choice 결과 narrative 감지.
+  //   resolveChoice 가 push 하는 "> {label} → {result}" narrative 를 잡아 모달 표시.
+  //   encounter choice (싸운다/도망) 의 narrative 는 "> " 로 시작하지 않으므로 자동 제외.
+  const seenChoiceResultRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!session) return;
+    // 모달 이미 떠있으면 새로 trigger 안 함 (겹침 방지)
+    if (choiceResultText !== null) return;
+    for (let idx = session.log.length - 1; idx >= 0; idx -= 1) {
+      const entry = session.log[idx];
+      // 최근 encounter/combat/보스 등장 이후만 — 그보다 오래된 건 이미 지나간 것
+      if (entry.type === "combat" || entry.type === "encounter" || entry.type === "boss")
+        break;
+      if (entry.type !== "narrative") continue;
+      if (!entry.text.startsWith("> ")) continue;
+      if (seenChoiceResultRef.current.has(idx)) continue;
+      seenChoiceResultRef.current.add(idx);
+      setChoiceResultText(entry.text);
+      break;
+    }
+  }, [session, choiceResultText]);
+
+  // 세션 바뀌면 choice result seen 초기화
+  useEffect(() => {
+    if (!session) {
+      seenChoiceResultRef.current.clear();
+      setChoiceResultText(null);
+    }
+  }, [session?.startedAt, session]);
+
   // 보스 등장 감지 — session.status === "paused" 이고 last log 가 "boss" 엔트리
   // combat.ts 에서 보스 등장 시 자동으로 status = "paused" 로 세팅
   const bossReveal = useMemo(() => {
@@ -116,16 +150,18 @@ export default function DungeonView() {
     play("impactShake");
   }, [bossReveal, session, play]);
 
-  // auto-tick loop — session.status === "active" 일 때만
+  // auto-tick loop — session.status === "active" 일 때만.
+  // Phase 10 — choice result 모달 열려있으면 tick 도 pause → 유저가 결과 읽을 시간.
   useEffect(() => {
     if (!session) return;
     if (session.status !== "active") return;
     if (paused) return;
+    if (choiceResultText !== null) return;
     const id = window.setInterval(() => {
       tickRef.current();
     }, TICK_INTERVAL[speed]);
     return () => window.clearInterval(id);
-  }, [session, speed, paused]);
+  }, [session, speed, paused, choiceResultText]);
 
   // Phase 4c-polish: HeroSprite state (idle/attack/hurt).
   // 새 combat 엔트리 감지 → attacker 별로 sprite 상태 세팅.
@@ -791,6 +827,16 @@ export default function DungeonView() {
           </DangerButton>
         </div>
       </footer>
+
+      {/* Phase 10 — 이벤트 선택 결과 모달.
+            "> {label} → {result}" narrative 가 새로 push 되는 순간 감지돼 2.6s 표시.
+            열려있는 동안 tick 은 pause (useEffect dep). 유저는 "계속" 로 즉시 진행 가능. */}
+      {choiceResultText && (
+        <ChoiceResultModal
+          text={choiceResultText}
+          onDismiss={() => setChoiceResultText(null)}
+        />
+      )}
 
       {/* === Boss 등장 연출 (2.4s, session.status === "paused" 동안) === */}
       {bossReveal && (
