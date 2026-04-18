@@ -34,14 +34,12 @@ const warrior: ClassSkill = {
   class: "warrior",
   name: "강타",
   cooldown: 5,
-  shouldFire: (_s, monster) => {
-    if (!monster) return false;
-    // 적 HP > 50% 면 초반에 큰 타격 — 중후반 이후는 무의미
-    return monster.hp > 0 && monster.hp / (monster.hp || 1) > 0.5;
-    // Note: monster.hp 는 monster 의 "남은" HP 가 아니고 "최대" HP 임.
-    // 실제 남은 HP 는 combatState 계산 후에만 알 수 있어 아래 로직은
-    // monster.hp 기준으로 단순 근사. 정확도 높이려면 caller 가 remainingHp 전달.
-  },
+  // Phase 9a — 원래 `monster.hp / (monster.hp || 1) > 0.5` 조건은 항상 1>0.5=true
+  //   로 평가되는 dead 분기였음. monster 객체가 "최대 HP" 만 담고 있어 남은 HP
+  //   판정 자체가 불가능. 원래 의도 (HP 50%+ 에서만 발동) 를 구현하려면 caller 가
+  //   remainingHp 를 전달해야 하는데 그 비용보다 "쿨마다 항상 발동" 이 명확한
+  //   설계. 강력한 2x 공격이지만 쿨다운 5 로 밸런스.
+  shouldFire: (_s, monster) => !!monster && monster.hp > 0,
   apply(s) {
     s.nextHeroDamageMult = 2;
     pushSkillLog(s, "warrior", "강타", "영웅이 강타를 준비한다 — 다음 공격 2배");

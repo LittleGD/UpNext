@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { LogEntry } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 
@@ -33,11 +34,14 @@ function useTypewriter(text: string, enabled: boolean): {
   visible: string;
   done: boolean;
 } {
-  const [chars, setChars] = useState(enabled ? 0 : text.length);
+  // Phase 9a — reduced-motion 사용자에겐 타이핑 건너뛰고 즉시 전체 표시.
+  //   CSS 레벨 가드로는 JS setTimeout 체인을 막을 수 없으므로 hook 에서 처리.
+  const reducedMotion = useReducedMotion();
+  const [chars, setChars] = useState(enabled && !reducedMotion ? 0 : text.length);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || reducedMotion) {
       setChars(text.length);
       return;
     }
@@ -57,7 +61,7 @@ function useTypewriter(text: string, enabled: boolean): {
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
-  }, [text, enabled]);
+  }, [text, enabled, reducedMotion]);
 
   return { visible: text.slice(0, chars), done: chars >= text.length };
 }
@@ -77,8 +81,17 @@ export default function CombatLog({ log }: CombatLogProps) {
   }, [log.length]);
 
   return (
+    // Phase 9a — a11y:
+    //   role="log" + aria-live="polite" → 스크린리더 에 새 로그 entry announce.
+    //   aria-atomic="false" → 매번 전체 로그가 아닌 신규 부분만 읊음.
+    //   typewriter 진행 중엔 글자 하나씩 DOM 추가돼 VoiceOver 가 과하게 말할 수 있으므로
+    //   컨테이너 레벨에서 aria-live 에 맡기고 child 에 aria-hidden 붙이는 대신,
+    //   typewriter 적용된 LogLine 은 `aria-busy="true"` 로 typing 중엔 silence → 완료 시 해제.
     <div
       ref={scrollRef}
+      role="log"
+      aria-live="polite"
+      aria-atomic="false"
       className="h-full overflow-y-auto px-3 py-3 font-mono typo-caption leading-relaxed"
       style={{
         background: GB.darkest,

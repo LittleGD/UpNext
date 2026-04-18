@@ -11,10 +11,11 @@
  *  - footer: 닫기 버튼
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import {
   computeEffectiveStats,
   computeHeroForLevel,
@@ -64,10 +65,18 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
     return () => cancelAnimationFrame(id);
   }, []);
 
+  // Phase 9a — Esc 닫기 + focus trap + body scroll lock.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalA11y(containerRef, onClose);
+
   if (typeof window === "undefined") return null;
 
   return createPortal(
     <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="영웅 상세"
       className="fixed inset-0 z-50 flex flex-col"
       style={{
         background: GB.darkest,
@@ -76,6 +85,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
         transition: `opacity 200ms ${EASE_OUT}`,
         paddingTop: "calc(env(safe-area-inset-top) + 10px)",
         paddingBottom: "calc(max(env(safe-area-inset-bottom), 24px) + 10px)",
+        outline: "none",
       }}
     >
       {/* === Header === */}
@@ -379,20 +389,33 @@ function ClassSection({ hero }: { hero: Hero }) {
             </div>
           )}
         </div>
+        {/* Phase 9a — tap target 28 → 44 (Apple HIG). 상태 전환 액션이라
+             실수 탭 방지가 특히 중요. 시각적 size 는 그대로 유지되도록
+             padding 으로 여유 확보. */}
         <button
           type="button"
           onClick={toggleAutoSkill}
-          className="typo-micro tabular-nums rounded px-2 py-1"
+          className="uphero-auto-toggle typo-micro tabular-nums rounded px-3 py-2"
           style={{
-            minHeight: 28,
+            minHeight: 44,
             background: autoEnabled ? GB.lightest : `${GB.dark}cc`,
             color: autoEnabled ? GB.darkest : GB.light,
             border: `1px solid ${autoEnabled ? GB.lightest : GB.light}`,
             letterSpacing: "0.05em",
           }}
           aria-label={`자동 스킬 ${autoEnabled ? "켜짐" : "꺼짐"}`}
+          aria-pressed={autoEnabled}
         >
           {autoEnabled ? "자동 ON" : "자동 OFF"}
+          <style jsx>{`
+            .uphero-auto-toggle {
+              transition: transform 120ms ${EASE_OUT},
+                background 180ms ${EASE_OUT};
+            }
+            .uphero-auto-toggle:active {
+              transform: scale(0.96);
+            }
+          `}</style>
         </button>
       </div>
     </section>

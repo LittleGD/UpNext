@@ -12,13 +12,14 @@
  *  3. 사용자가 "캠프로" 탭 시 acknowledge + 언마운트
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { CLASS_META, DUNGEON_BY_CLASS } from "@/types/uphero";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, EASE_DRAWER } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function ClassAwakenModal() {
@@ -48,6 +49,18 @@ export default function ClassAwakenModal() {
     };
   }, [pending, play]);
 
+  const onDismiss = () => {
+    play("confirm");
+    acknowledge();
+  };
+
+  // Phase 9a — Esc 로 acknowledge. stage 3 (완전 reveal) 에서만 닫기 허용,
+  //   아직 애니메이션 진행 중인 동안엔 Esc 무시 (극적 pacing 보호).
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalA11y(containerRef, onDismiss, {
+    disabled: !pending || stage < 3,
+  });
+
   if (!pending) return null;
   if (typeof window === "undefined") return null;
 
@@ -55,18 +68,18 @@ export default function ClassAwakenModal() {
   const dungeonId = DUNGEON_BY_CLASS[pending];
   const dungeon = DUNGEONS[dungeonId];
 
-  const onDismiss = () => {
-    play("confirm");
-    acknowledge();
-  };
-
   return createPortal(
     <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="클래스 분화"
       className="fixed inset-0 z-50 flex flex-col items-center justify-center"
       style={{
         background: `radial-gradient(ellipse at center, ${dungeon.themeColor}22 0%, ${GB.darkest}ee 65%, ${GB.darkest} 100%)`,
         paddingTop: "calc(env(safe-area-inset-top) + 10px)",
         paddingBottom: "calc(max(env(safe-area-inset-bottom), 24px) + 10px)",
+        outline: "none",
       }}
     >
       <div className="flex flex-col items-center px-6">

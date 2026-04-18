@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { GB, EASE_OUT, EASE_DRAWER, gbClass } from "@/lib/upHeroPalette";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 /**
@@ -22,9 +23,15 @@ function useChoiceTypewriter(text: string, promptKey: string): {
   visible: string;
   done: boolean;
 } {
+  // Phase 9a — reduced-motion 사용자에겐 즉시 전체 표시.
+  const reducedMotion = useReducedMotion();
   const [chars, setChars] = useState(0);
   const timerRef = useRef<number | null>(null);
   useEffect(() => {
+    if (reducedMotion) {
+      setChars(text.length);
+      return;
+    }
     setChars(0);
     const perChar = text.length <= 20 ? 12 : 14;
     let i = 0;
@@ -42,20 +49,16 @@ function useChoiceTypewriter(text: string, promptKey: string): {
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [promptKey]);
+  }, [promptKey, reducedMotion]);
   return { visible: text.slice(0, chars), done: chars >= text.length };
 }
 
 export default function ChoicePanel() {
   const session = useUpHeroStore((s) => s.currentSession);
   const resolveChoice = useUpHeroStore((s) => s.resolveChoice);
-  const abandonSession = useUpHeroStore((s) => s.abandonSession);
-
-  const onAbandon = () => {
-    const floor = session?.currentFloor ?? 0;
-    const msg = `탐험을 포기하고 캠프로 돌아갈까요?\n\n지금까지 획득한 보상 (XP, 코인, 장비) 은 모두 유지됩니다.\n단, F${floor} 의 보스는 놓칩니다.`;
-    if (confirm(msg)) abandonSession();
-  };
+  // Phase 9a — onAbandon 은 DungeonView footer 로 단일화. 여기 중복 정의는 제거.
+  //   이전엔 ChoicePanel 에도 붙어있었으나 실제 어떤 JSX 에도 wire 되지 않은 dead code.
+  //   abandonSession selector 자체가 쓸모 없어 구독도 제거 → 불필요 re-render 감소.
 
   // subtle entrance — use data-mounted pattern
   const [mounted, setMounted] = useState(false);
