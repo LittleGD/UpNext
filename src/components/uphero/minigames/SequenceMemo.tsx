@@ -174,7 +174,8 @@ export default function SequenceMemo({
       )}
       <style jsx>{`
         .seq-btn:not(:disabled):active {
-          transform: scale(0.94);
+          /* Emil — press 0.97 통일 */
+          transform: scale(0.97);
           transition: transform 100ms ${EASE_OUT};
         }
       `}</style>

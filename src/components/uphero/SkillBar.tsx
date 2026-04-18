@@ -159,7 +159,8 @@ export default function SkillBar({ session }: { session: CombatSession }) {
           transition: transform 120ms ${EASE_OUT}, background 160ms ${EASE_OUT};
         }
         .uphero-skill-btn:not(:disabled):active {
-          transform: scale(0.94);
+          /* Emil 원칙 — press feedback scale 0.97 통일. 0.94 는 "짓누름" 감 */
+          transform: scale(0.97);
         }
       `}</style>
     </div>

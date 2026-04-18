@@ -330,7 +330,8 @@ export default function PipeConnect({
           transition: transform 120ms ${EASE_OUT};
         }
         .pipe-tile:not(:disabled):active {
-          transform: scale(0.94);
+          /* Emil — press feedback 0.97 통일 (0.94 는 너무 강함) */
+          transform: scale(0.97);
         }
       `}</style>
     </div>

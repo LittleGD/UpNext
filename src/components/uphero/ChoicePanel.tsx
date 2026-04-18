@@ -288,12 +288,21 @@ function ChoiceButton({
       <style jsx>{`
         .choice-btn {
           transition: transform 120ms ${EASE_OUT}, background 160ms ${EASE_OUT};
+          /* 기본 outline 제거 — :focus-visible 에서 명시적 ring 으로 대체 */
+          outline: none;
         }
         .choice-btn:hover {
           background: ${GB.dark};
         }
         .choice-btn:active {
           transform: scale(0.97);
+          background: ${GB.dark};
+        }
+        /* Emil a11y — 키보드 탭 유저가 어느 선택지에 focus 됐는지 즉시 식별.
+             pointer 사용자는 :focus-visible 불발동이라 hover 그대로 유지. */
+        .choice-btn:focus-visible {
+          outline: 2px solid ${GB.lightest};
+          outline-offset: 2px;
           background: ${GB.dark};
         }
       `}</style>
