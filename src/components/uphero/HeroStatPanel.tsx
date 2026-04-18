@@ -20,6 +20,7 @@ import {
   computeEffectiveStats,
   computeHeroForLevel,
   getHeroAppearanceVariant,
+  getEffectiveHeroLevel,
   CLASS_META,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
@@ -50,7 +51,10 @@ const SLOT_LABEL: Record<EquipSlot, string> = {
 
 export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   const hero = useUpHeroStore((s) => s.hero);
-  const level = useGameStore((s) => s.progress.level);
+  // Phase 9d — 영웅 전용 레벨.
+  const gameLevel = useGameStore((s) => s.progress.level);
+  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
+  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
 
   // Phase 5a.1 — level 기반 base stat 자동 성장을 display 에 반영.
