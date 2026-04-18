@@ -35,6 +35,7 @@ import HeroSprite, { type HeroSpriteState } from "./HeroSprite";
 import MonsterSprite from "./MonsterSprite";
 import GbConfirm from "./GbConfirm";
 import NumberRoll from "./NumberRoll";
+import DungeonAtmosphere from "./DungeonAtmosphere";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
@@ -401,11 +402,19 @@ export default function DungeonView() {
         color: GB.light,
         // Portal 로 body 에 렌더 → main(z-[1]) stacking context 밖으로 탈출.
         // 진짜 풀스크린 — 앱 헤더/탭/네비 모두 덮음 (몰입감).
+        // Phase 10 — isolation: isolate 로 자체 stacking context 형성 → 내부 atmosphere
+        //   z-index 가 Portal 밖 요소와 섞이지 않게 격리.
+        isolation: "isolate",
       }}
     >
+      {/* Phase 10 — 던전 ambient 레이어.
+           absolute inset-0 + pointer-events-none + z-0. header/log/footer 는
+           모두 position: relative + z-index ≥ 1 을 부여해 ambient 위에 페인트. */}
+      <DungeonAtmosphere dungeonId={session.dungeonId} />
+
       {/* === Header === */}
       <header
-        className="px-3 py-2.5 shrink-0"
+        className="px-3 py-2.5 shrink-0 relative z-[1]"
         style={{
           borderBottom: `1px solid ${GB.dark}`,
           background: `linear-gradient(180deg, ${dungeon.themeColor}18 0%, transparent 100%)`,
@@ -721,7 +730,7 @@ export default function DungeonView() {
       </header>
 
       {/* === Log === */}
-      <div className="flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-0 relative z-[1]">
         <CombatLog log={session.log} />
         {/* === Choice overlay — footer 위쪽에 sheet 로 올라옴, footer 는 항상 보임 === */}
         {awaitingChoice && !bossReveal && <ChoicePanel />}

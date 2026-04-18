@@ -94,7 +94,9 @@ export default function CombatLog({ log }: CombatLogProps) {
       aria-atomic="false"
       className="h-full overflow-y-auto px-3 py-3 font-mono typo-caption leading-relaxed"
       style={{
-        background: GB.darkest,
+        // Phase 10 — 반투명 배경으로 뒤의 던전 ambient 가 비침. 텍스트 가독성은
+        //   여전히 충분 (GB.darkest + alpha 0.7).
+        background: `${GB.darkest}b3`,
         color: GB.light,
         scrollbarWidth: "thin",
         scrollbarColor: `${GB.dark} transparent`,
