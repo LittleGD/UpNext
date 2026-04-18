@@ -20,6 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type Color = 0 | 1 | 2 | 3;
 const COLOR_PALETTE: Record<Color, string> = {
@@ -28,11 +29,12 @@ const COLOR_PALETTE: Record<Color, string> = {
   2: "#cdb887", // gold
   3: "#87c87a", // green
 };
-const COLOR_NAMES: Record<Color, string> = {
-  0: "빨강",
-  1: "파랑",
-  2: "노랑",
-  3: "초록",
+// Phase 12 i18n — 색 이름을 key 로 보관, 렌더 시점 t() 로 변환.
+const COLOR_NAME_KEYS: Record<Color, "uphero.mini.seq.color.red" | "uphero.mini.seq.color.blue" | "uphero.mini.seq.color.yellow" | "uphero.mini.seq.color.green"> = {
+  0: "uphero.mini.seq.color.red",
+  1: "uphero.mini.seq.color.blue",
+  2: "uphero.mini.seq.color.yellow",
+  3: "uphero.mini.seq.color.green",
 };
 
 export default function SequenceMemo({
@@ -40,6 +42,7 @@ export default function SequenceMemo({
   onComplete,
   onCancel,
 }: MinigameProps) {
+  const { t } = useTranslation();
   const length = difficulty + 2; // 3 / 4 / 5
   const sequence = useMemo<Color[]>(() => {
     const arr: Color[] = [];
@@ -115,7 +118,14 @@ export default function SequenceMemo({
         className="typo-caption tabular-nums"
         style={{ color: GB.lightest }}
       >
-        시퀀스 기억 · {phase === "watch" ? "관찰" : phase === "input" ? `${inputIdx}/${sequence.length}` : ""}
+        {phase === "watch"
+          ? t("uphero.mini.seq.header.watch")
+          : phase === "input"
+            ? t("uphero.mini.seq.header.input", {
+                index: inputIdx,
+                total: sequence.length,
+              })
+            : ""}
       </div>
       <div
         className="grid gap-3"
@@ -129,7 +139,7 @@ export default function SequenceMemo({
               type="button"
               onClick={() => onPress(c)}
               disabled={phase !== "input" || !!result}
-              aria-label={`${COLOR_NAMES[c]} 버튼`}
+              aria-label={t(COLOR_NAME_KEYS[c])}
               className="seq-btn rounded"
               style={{
                 width: 80,
@@ -154,7 +164,7 @@ export default function SequenceMemo({
             fontWeight: 600,
           }}
         >
-          {result === "success" ? "성공!" : "순서가 틀렸다"}
+          {result === "success" ? t("uphero.mini.seq.success") : t("uphero.mini.seq.fail")}
         </div>
       )}
       {!result && phase === "input" && (
@@ -167,7 +177,7 @@ export default function SequenceMemo({
             color: GB.light,
             border: `1px solid ${GB.dark}`,
           }}
-          aria-label="미니게임 포기"
+          aria-label={t("uphero.mini.giveUpAria")}
         >
           포기
         </button>

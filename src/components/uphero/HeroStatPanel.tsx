@@ -278,6 +278,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
  * ──────────────────────────────────────────── */
 
 function HeroNameEditor({ name }: { name: string }) {
+  const { t } = useTranslation();
   const renameHero = useUpHeroStore((s) => s.renameHero);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
@@ -316,7 +317,7 @@ function HeroNameEditor({ name }: { name: string }) {
           if (e.key === "Enter") commit();
           if (e.key === "Escape") cancel();
         }}
-        aria-label="영웅 이름 편집 (최대 16자)"
+        aria-label={t("uphero.stat.nameEditAria")}
         maxLength={16}
         className="typo-caption mb-3 px-2.5 py-1 rounded-sm text-center"
         style={{
@@ -440,8 +441,8 @@ function ClassSection({ hero }: { hero: Hero }) {
           </div>
           <div className={`typo-caption ${gbClass.textDim} leading-tight`}>
             {sessionActive
-              ? "조건 만족 시 자동 발동"
-              : `쿨다운 ${skill.cooldown} round · 조건 만족 시 자동 발동`}
+              ? t("uphero.stat.autoFireHint")
+              : `CD ${skill.cooldown} · ${t("uphero.stat.autoFireHint")}`}
           </div>
           {/* 실시간 cooldown bar — 세션 active 일 때만 */}
           {sessionActive && (
@@ -475,10 +476,16 @@ function ClassSection({ hero }: { hero: Hero }) {
             border: `1px solid ${autoEnabled ? GB.lightest : GB.light}`,
             letterSpacing: "0.05em",
           }}
-          aria-label={`자동 스킬 ${autoEnabled ? "켜짐" : "꺼짐"}`}
+          aria-label={t("uphero.stat.autoToggleAria", {
+            state: autoEnabled
+              ? t("uphero.stat.autoToggleOn")
+              : t("uphero.stat.autoToggleOff"),
+          })}
           aria-pressed={autoEnabled}
         >
-          {autoEnabled ? "자동 ON" : "자동 OFF"}
+          {autoEnabled
+            ? t("uphero.stat.autoSkillOn")
+            : t("uphero.stat.autoSkillOff")}
           <style jsx>{`
             .uphero-auto-toggle {
               transition: transform 120ms ${EASE_OUT},

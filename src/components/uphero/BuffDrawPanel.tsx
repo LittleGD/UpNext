@@ -108,13 +108,16 @@ export default function BuffDrawPanel() {
         }}
       >
         <div className="typo-caption" style={{ color: GB.light }}>
-          {dungeon.name} 진입 준비
+          {t("uphero.buff.entering", { dungeon: dungeon.name })}
         </div>
         <div
           className="typo-body mt-1 tabular-nums"
           style={{ color: GB.lightest }}
         >
-          버프 카드 선택 · {selectedIds.length}/{maxSlots}
+          {t("uphero.buff.selectHeading", {
+            selected: selectedIds.length,
+            max: maxSlots,
+          })}
         </div>
       </header>
 
@@ -122,7 +125,7 @@ export default function BuffDrawPanel() {
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
         {drawnCards.length === 0 ? (
           <div className={`typo-caption ${gbClass.textDim} text-center py-8`}>
-            카드 drawing 실패 — 보유 카드가 없어요
+            {t("uphero.buff.empty")}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -158,7 +161,7 @@ export default function BuffDrawPanel() {
             border: `1px solid ${GB_ENEMY}`,
           }}
         >
-          취소
+          {t("uphero.buff.cancel")}
         </button>
         <button
           type="button"
@@ -172,7 +175,7 @@ export default function BuffDrawPanel() {
             border: `1px solid ${GB.dark}`,
           }}
         >
-          버프 없이 진입
+          {t("uphero.buff.skip")}
         </button>
         <div className="flex-1" />
         <button

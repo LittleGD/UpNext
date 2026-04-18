@@ -22,6 +22,7 @@
 
 import { useMemo } from "react";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
+import { useTranslation } from "@/hooks/useTranslation";
 import type {
   ClassType,
   HeroBaseStats,
@@ -56,6 +57,7 @@ export default function HexStatChart({
   classType,
   size = 240,
 }: HexStatChartProps) {
+  const { t } = useTranslation();
   const maxByKey = useMemo(
     () => computeStatMax(level, classType),
     [level, classType],
@@ -109,7 +111,7 @@ export default function HexStatChart({
 
   // a11y label
   const ariaLabel =
-    "스탯 차트: " +
+    t("uphero.stat.chartAria") + ": " +
     ratios
       .map((a) => {
         const bonus = a.effVal - a.baseVal;

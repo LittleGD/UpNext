@@ -83,13 +83,13 @@ export default function HeroCodex({ onBack }: HeroCodexProps) {
           aria-label={t("uphero.codex.back.aria")}
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
-          뒤로
+          {t("uphero.codex.back")}
         </button>
         <div
           className="typo-body ml-1"
           style={{ color: GB.lightest, fontWeight: 500 }}
         >
-          도감
+          {t("uphero.codex.title")}
         </div>
         <style jsx>{`
           .uphero-codex-back {
@@ -117,7 +117,7 @@ export default function HeroCodex({ onBack }: HeroCodexProps) {
             play("select");
             setTab("monsters");
           }}
-          label="몬스터"
+          label={t("uphero.codex.tab.monsters")}
         />
         <TabButton
           active={tab === "equipment"}
@@ -125,7 +125,7 @@ export default function HeroCodex({ onBack }: HeroCodexProps) {
             play("select");
             setTab("equipment");
           }}
-          label="장비"
+          label={t("uphero.codex.tab.equipment")}
         />
         <div
           aria-hidden="true"
@@ -357,6 +357,7 @@ function MonsterCodex({
 /* ────────────────────────────────────────────── */
 
 function EquipmentCodex({ codex }: { codex: { equipment: string[] } }) {
+  const { t: tr } = useTranslation();
   // 발견 여부 — baseName 기반 (Phase 5b.2 migration 이후).
   // Legacy instance ID (eq_ 로 시작) 가 남아있다면 startsWith 로 매칭 fallback.
   const discoveredSet = new Set<string>(codex.equipment);
@@ -430,7 +431,7 @@ function EquipmentCodex({ codex }: { codex: { equipment: string[] } }) {
                       }`,
                       minHeight: 84,
                     }}
-                    aria-label={found ? t.baseName : "미발견 장비"}
+                    aria-label={found ? t.baseName : tr("uphero.codex.equipmentUnknownAria")}
                   >
                     <PixelIcon
                       name={t.iconName}
@@ -454,12 +455,12 @@ function EquipmentCodex({ codex }: { codex: { equipment: string[] } }) {
                         style={{ color: `${GB.light}88` }}
                       >
                         {t.type === "weapon"
-                          ? "무기"
+                          ? tr("uphero.codex.slotWeapon")
                           : t.type === "armor"
-                            ? "갑옷"
+                            ? tr("uphero.codex.slotArmor")
                             : t.type === "accessory"
-                              ? "액세서리"
-                              : "부적"}
+                              ? tr("uphero.codex.slotAccessory")
+                              : tr("uphero.codex.slotTalisman")}
                       </div>
                     )}
                   </div>
