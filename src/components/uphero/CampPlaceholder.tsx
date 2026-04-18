@@ -20,7 +20,7 @@
 import { Suspense, lazy, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore, getTodayString } from "@/store/useGameStore";
-import { DAILY_CARDMATCH_TICKET_CAP } from "@/types/game";
+import { DAILY_CARDMATCH_TICKET_CAP, getXPProgress } from "@/types/game";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import {
@@ -66,11 +66,16 @@ export default function CampPlaceholder() {
   // Phase 12a — header 에 hero.name 노출. 하드코딩 "갓생 영웅" 대체.
   const heroName = hero.name?.trim() || "갓생 영웅";
   const pendingDungeon = useUpHeroStore((s) => s.pendingDungeon);
+  // Phase 12 — XP 진행도 (상단바 표시용). progress.xp 는 챌린지/영웅 공유 pool.
+  const totalXp = useGameStore((s) => s.progress.xp ?? 0);
   // Phase 9d — 영웅 전용 레벨 사용 (챌린지 Lv 와 분리).
   //   신규 영웅 유저는 heroStartLevel=gameLevel 로 seed → 영웅 Lv 1.
   const gameLevel = useGameStore((s) => s.progress.level);
   const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
   const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  // Phase 12 — 현재 레벨 내 XP 진행도. gameLevel 의 current-within-level 값이
+  //   heroLv 진행도와 동일 (heroLv 는 gameLv 의 1:1 오프셋이라 레벨 내 %는 같음).
+  const xpInfo = getXPProgress(totalXp, gameLevel);
   const tickets = useGameStore((s) => s.progress.tickets ?? 0);
 
   const [view, setView] = useState<View>("home");
@@ -105,7 +110,7 @@ export default function CampPlaceholder() {
         className="px-4 py-3 flex items-center justify-between shrink-0 typo-caption"
         style={{ borderBottom: `1px solid ${GB.dark}` }}
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           <span
             style={{ color: GB.lightest }}
             className="truncate"
@@ -114,6 +119,18 @@ export default function CampPlaceholder() {
             {heroName}
           </span>
           <span className={gbClass.textDim}>Lv.{level}</span>
+          {/* Phase 12 — XP 진행도 수치 표시. 유저 피드백: "레벨 시스템은 따로 가되
+               경험치는 공유, 상단바 레벨 옆에 수치 표시".
+               XP pool 은 챌린지/영웅 세션 공유 (progress.xp), Lv 진행도는
+               영웅 Lv 와 챌린지 Lv 가 같은 진행률 (heroLv = gameLv - heroStartLv + 1).
+               따라서 getXPProgress(progress.xp, gameLevel) 값을 그대로 사용 가능. */}
+          <span
+            className={`tabular-nums ${gbClass.textDim}`}
+            style={{ fontSize: 11 }}
+            aria-label={`경험치 ${xpInfo.current} / ${xpInfo.needed}`}
+          >
+            {xpInfo.current}/{xpInfo.needed} XP
+          </span>
         </div>
         <div className="flex items-center gap-3 tabular-nums">
           <span className="inline-flex items-center gap-1">

@@ -593,8 +593,12 @@ export default function DailyBoard() {
         document.body,
       )}
 
-      {/* Completion celebration overlay */}
-      <AnimatePresence>
+      {/* Completion celebration overlay — Phase 12 bugfix:
+            PhotoCaptureModal z-[100] 가 celebration z-50 을 exit 애니메이션 중 덮어
+            써서 "완료 화면이 안 뜬다" 제보. Portal + z-[200] 로 올려 항상 최상위 보장.
+            (AnimatePresence 는 유지 — enter/exit 애니 정상 동작.) */}
+      {typeof window !== "undefined" && createPortal(
+        <AnimatePresence>
         {completingCard && (() => {
           const rarity = RARITY_CONFIG[completingCard.rarity];
           return (
@@ -603,7 +607,7 @@ export default function DailyBoard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md px-4"
+              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-md px-4"
             >
               {/* Burst ring */}
               <motion.div
@@ -751,7 +755,9 @@ export default function DailyBoard() {
             </motion.div>
           );
         })()}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
+      )}
 
       {/* Photo capture modal.
            Phase 11a-fix — `capturePhase !== "idle"` 가드 제거.
