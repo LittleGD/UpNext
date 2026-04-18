@@ -16,6 +16,7 @@ import SignatureCanvas from "./SignatureCanvas";
 import StickerLayer from "./StickerLayer";
 import DecorationToolbar, { INK_COLORS } from "./DecorationToolbar";
 import PixelIcon from "@/components/icons/PixelIcon";
+import GbConfirm from "@/components/uphero/GbConfirm";
 import type { PhotoMeta, Sticker } from "@/types/growth";
 
 interface Props {
@@ -63,8 +64,17 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
   // 메모 — 뒷면에서 편집 가능 (debounced auto-save)
   const [memoDraft, setMemoDraft] = useState(meta.memo);
   const memoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Phase 13 review Critical — unmount cleanup 시 pending draft 가 있으면
+  //   즉시 flush. 이전엔 clearTimeout 만 해서 600ms 내 close 하면 최신 입력
+  //   유실. ref 로 최신 draft / photoId 추적.
+  const memoDraftRef = useRef(memoDraft);
+  memoDraftRef.current = memoDraft;
+  const memoPhotoIdRef = useRef(meta.id);
+  memoPhotoIdRef.current = meta.id;
+  const memoOriginalRef = useRef(meta.memo);
   useEffect(() => {
     setMemoDraft(meta.memo);
+    memoOriginalRef.current = meta.memo;
   }, [meta.memo]);
   const handleMemoChange = useCallback(
     (value: string) => {
@@ -76,15 +86,19 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
     },
     [meta.id, updatePhotoMemo],
   );
-  // Unmount 시 pending save flush
+  // Unmount 시 pending save flush — 최신 draft 를 즉시 저장.
   useEffect(() => {
     return () => {
       if (memoSaveTimer.current) {
         clearTimeout(memoSaveTimer.current);
-        // 마지막 입력 즉시 저장 (cleanup)
+        const latest = memoDraftRef.current;
+        if (latest !== memoOriginalRef.current) {
+          // debounce 대기 중이던 값이 원본과 다르면 즉시 저장.
+          updatePhotoMemo(memoPhotoIdRef.current, latest);
+        }
       }
     };
-  }, []);
+  }, [updatePhotoMemo]);
 
   // Stickers — 뷰잉 모드에서도 직접 drag 가능
   const [stickers, setStickers] = useState<Sticker[]>(meta.stickers ?? []);
@@ -314,120 +328,91 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                 <button
                   onClick={() => { play("select"); setIsFlipped((v) => !v); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
-                  aria-label={isFlipped ? "Show photo" : "Show memo"}
+                  aria-label={t(
+                    isFlipped
+                      ? "photo.detail.flip.aria.toPhoto"
+                      : "photo.detail.flip.aria.toMemo",
+                  )}
                 >
                   <PixelIcon name="Redo" size={12} color="currentColor" />
-                  <span>{isFlipped ? "Photo" : "Memo"}</span>
+                  <span>
+                    {t(
+                      isFlipped
+                        ? "photo.detail.flip.toPhoto"
+                        : "photo.detail.flip.toMemo",
+                    )}
+                  </span>
                 </button>
               </div>
 
-              {/* 액션 영역 — Edit / Share / Close (모두 동일 너비로 시각 대칭 확보) */}
-              <div className="flex items-center justify-center gap-2 mt-1">
+              {/* 액션 영역 — Edit / Share / Delete / Close. Phase 13 review:
+                   모바일 narrow viewport (360px) 에서도 4 버튼이 오버플로우
+                   하지 않도록 gap-1.5 + min-w-[72px] 로 압축. */}
+              <div className="flex items-center justify-center gap-1.5 mt-1">
                 <button
                   onClick={handleEdit}
-                  className="flex items-center justify-center gap-1.5 min-w-[86px] px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
-                  aria-label="Edit"
+                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
+                  aria-label={t("photo.detail.action.edit")}
                 >
                   <PixelIcon name="PenSquare" size={12} color="currentColor" />
-                  <span>Edit</span>
+                  <span>{t("photo.detail.action.edit")}</span>
                 </button>
                 <button
                   onClick={handleShare}
                   disabled={isSharing}
-                  className="flex items-center justify-center gap-1.5 min-w-[86px] px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform disabled:opacity-50"
-                  aria-label="Share"
+                  aria-busy={isSharing}
+                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform disabled:opacity-50"
+                  aria-label={t("photo.detail.action.share")}
                 >
                   <PixelIcon name="Send" size={12} color="currentColor" />
-                  <span>{isSharing ? "..." : "Share"}</span>
+                  <span>
+                    {isSharing
+                      ? t("photo.detail.action.sharing")
+                      : t("photo.detail.action.share")}
+                  </span>
                 </button>
                 <button
                   onClick={() => {
                     play("select");
                     setShowDeleteConfirm(true);
                   }}
-                  className="flex items-center justify-center gap-1.5 min-w-[86px] px-4 py-2.5 rounded-full bg-bg-elevated typo-caption active:scale-95 transition-transform"
+                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated typo-caption active:scale-95 transition-transform"
                   style={{ color: "#e88b7a" }}
-                  aria-label="Delete photo"
+                  aria-label={t("photo.detail.action.delete")}
                 >
                   <PixelIcon name="Trash" size={12} color="#e88b7a" />
-                  <span>Delete</span>
+                  <span>{t("photo.detail.action.delete")}</span>
                 </button>
                 <button
                   onClick={onClose}
-                  className="flex items-center justify-center gap-1.5 min-w-[86px] px-4 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
-                  aria-label="Close"
+                  className="flex items-center justify-center gap-1 min-w-[72px] px-3 py-2.5 rounded-full bg-bg-elevated text-text-secondary typo-caption active:scale-95 transition-transform"
+                  aria-label={t("photo.detail.action.close")}
                 >
                   <PixelIcon name="Cancel" size={12} color="currentColor" />
-                  <span>Close</span>
+                  <span>{t("photo.detail.action.close")}</span>
                 </button>
               </div>
             </>
           )}
 
-          {/* Phase 13 review Critical #1 — 사진 삭제 확인 다이얼로그.
-                 확인 시 deletePhoto → IndexedDB blob + metadata 정리 후 모달 close.
-                 `isPhotoBound` 체크는 UI 레이어 밖 (부적 바인딩된 사진은
-                 useGrowthStore.deletePhoto 내부에서 처리).
-                 modal-in-modal 간단 렌더 — GbConfirm 포팅 대신 inline. */}
-          {showDeleteConfirm && (
-            <div
-              className="fixed inset-0 flex items-center justify-center z-[70]"
-              style={{ background: "rgba(0, 0, 0, 0.7)" }}
-              onClick={(e) => {
-                if (e.target === e.currentTarget) setShowDeleteConfirm(false);
-              }}
-            >
-              <div
-                className="mx-4 p-5 rounded-xl max-w-sm"
-                style={{ background: "#1a1f1f", border: "1px solid #e88b7a" }}
-              >
-                <div
-                  className="typo-body mb-2"
-                  style={{ color: "#e88b7a", fontWeight: 600 }}
-                >
-                  사진을 삭제할까요?
-                </div>
-                <div
-                  className="typo-caption mb-4"
-                  style={{ color: "rgba(255,255,255,0.7)" }}
-                >
-                  복구할 수 없어요. 바인딩된 부적도 함께 정리됩니다.
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="typo-caption px-4 py-2 rounded active:scale-95 transition-transform"
-                    style={{
-                      background: "transparent",
-                      color: "rgba(255,255,255,0.7)",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                    }}
-                  >
-                    취소
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      play("cancel");
-                      deletePhoto(meta.id);
-                      setShowDeleteConfirm(false);
-                      onClose();
-                    }}
-                    className="typo-caption px-4 py-2 rounded active:scale-95 transition-transform"
-                    style={{
-                      background: "#e88b7a",
-                      color: "#000",
-                      border: "1px solid #e88b7a",
-                      fontWeight: 600,
-                    }}
-                  >
-                    삭제
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Phase 13 review Critical — 삭제 확인은 GbConfirm (디자인 시스템 일관성
+              + focus trap + ESC + a11y alertdialog 모두 내장). 기존 인라인 modal
+              은 z-index race / focus 누락 / i18n 하드코딩 문제 다수. */}
+          <GbConfirm
+            open={showDeleteConfirm}
+            danger
+            title={t("photo.detail.deleteConfirm.title")}
+            body={t("photo.detail.deleteConfirm.body")}
+            confirmLabel={t("photo.detail.deleteConfirm.confirm")}
+            cancelLabel={t("photo.detail.deleteConfirm.cancel")}
+            onCancel={() => setShowDeleteConfirm(false)}
+            onConfirm={() => {
+              play("cancel");
+              deletePhoto(meta.id);
+              setShowDeleteConfirm(false);
+              onClose();
+            }}
+          />
         </motion.div>
       </motion.div>
     </AnimatePresence>,
