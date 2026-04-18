@@ -136,16 +136,8 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
       <div className="flex-1 min-h-0 overflow-y-auto">
         {/* 영웅 sprite + 이름 */}
         <section className="py-6 flex flex-col items-center">
-          <div
-            className="typo-caption mb-3 px-2.5 py-1 rounded-sm"
-            style={{
-              background: GB.lightest,
-              color: GB.darkest,
-              letterSpacing: "0.05em",
-            }}
-          >
-            {hero.name}
-          </div>
+          {/* Phase 12a — 이름 편집 가능 chip. 탭 시 inline input 전환. */}
+          <HeroNameEditor name={hero.name} />
           <HeroSprite
             variant={variant}
             classType={hero.classType}
@@ -324,6 +316,82 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
       </div>
     </div>,
     document.body,
+  );
+}
+
+/* ────────────────────────────────────────────
+ * Phase 12a — HeroNameEditor (영웅 이름 inline 편집)
+ * ──────────────────────────────────────────── */
+
+function HeroNameEditor({ name }: { name: string }) {
+  const renameHero = useUpHeroStore((s) => s.renameHero);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      setDraft(name);
+      // next tick 에 focus + select
+      setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 20);
+    }
+  }, [editing, name]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== name) renameHero(trimmed);
+    setEditing(false);
+  };
+  const cancel = () => {
+    setDraft(name);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value.slice(0, 16))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") cancel();
+        }}
+        aria-label="영웅 이름 편집 (최대 16자)"
+        maxLength={16}
+        className="typo-caption mb-3 px-2.5 py-1 rounded-sm text-center"
+        style={{
+          background: GB.lightest,
+          color: GB.darkest,
+          letterSpacing: "0.05em",
+          border: `2px solid ${GB.light}`,
+          outline: "none",
+          minWidth: 120,
+        }}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      aria-label={`영웅 이름: ${name}. 편집하려면 누르세요`}
+      className="typo-caption mb-3 px-2.5 py-1 rounded-sm"
+      style={{
+        background: GB.lightest,
+        color: GB.darkest,
+        letterSpacing: "0.05em",
+        border: "none",
+        cursor: "pointer",
+      }}
+    >
+      {name}
+    </button>
   );
 }
 
