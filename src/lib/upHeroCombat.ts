@@ -402,9 +402,9 @@ export function tickSession(session: CombatSession): CombatSession {
     if (encounterIdx >= 0) {
       const monster = (s.log[encounterIdx] as { type: "encounter"; monster: Monster }).monster;
       // Phase 12 bugfix — s.hero.hp 가 이제 매 round 업데이트되는 authoritative 값.
-      //   computeCombatState 는 monsterHp 계산에만 사용 (monster.hp 는 고정이라
-      //   log 누적으로 derive 필요). hero HP 는 s.hero.hp 직접 참조.
-      const combatState = computeCombatState(s.log, encounterIdx, monster, s.hero.hp);
+      //   computeMonsterHp 는 monsterHp 만 계산 (monster.hp 는 고정이라 log 누적 derive).
+      //   hero HP 는 s.hero.hp 직접 참조 (authoritative).
+      const monsterHpNow = computeMonsterHp(s.log, encounterIdx, monster);
 
       if (s.hero.hp <= 0) {
         // Phase 12d — priest 부활 (revivePending) 체크. 사용 시 1회 소모.
@@ -426,7 +426,7 @@ export function tickSession(session: CombatSession): CombatSession {
           return s;
         }
       }
-      if (combatState.monsterHp <= 0) {
+      if (monsterHpNow <= 0) {
         // 몬스터 처치 — victory. Phase 4b.3: xpBoost/coinBoost 반영
         // Phase 5c.2: mage class → XP +20%, bard class → coin +25%
         // Phase 6b: bard 노래 (nextCoinMult) 있으면 이번 victory 한정 추가 곱, 후 소모
@@ -600,17 +600,16 @@ export function tickSession(session: CombatSession): CombatSession {
   }
 
   // 일반 층 안에서 이벤트/몬스터 고르기
-  // 긴장감을 위해 choice 비중을 25% 로 상향 (이전 10%)
-  // Phase 4b.3: monsterFrequency buff 는 encounter 확률 조정. 음수값 = 조우 감소.
-  //   기본 encounter = 50% (roll >= 0.5). buff 반영 시 threshold 이동.
+  // Phase 12 R1 — 확률 재배치: choice 25% / narrative 15% / treasure 15% / encounter 45%.
+  //   기존 "roll < encounterThreshold 안에 treasure" 구조는 monsterFrequency buff
+  //   적용 시 treasure 가 완전히 사라질 수 있었음. 이제 treasure 는 [0.40, 0.55) 고정.
+  //   monsterFrequency buff 는 encounter/non-encounter 마지막 분기에서만 적용.
   const monsterFreqDelta = getBuffBoost(s.activeBuffs, "monsterFrequency") / 100;
-  // encounter threshold = 0.5 - delta. delta -10 (음수) → threshold 0.6 (encounter 40%)
-  const encounterThreshold = Math.max(0.3, Math.min(0.7, 0.5 - monsterFreqDelta));
 
   const roll = Math.random();
   if (roll < 0.25) {
     // choice 이벤트 — 사용자 선택 필요 (시간 소모는 resolveChoice 에서)
-    const ev = pickEvent(s.dungeonId);
+    const ev = pickEvent(s);
     const logIdx = s.log.length;
     s.log.push({
       type: "choice",
@@ -618,6 +617,12 @@ export function tickSession(session: CombatSession): CombatSession {
       options: ev.options,
       timestamp: Date.now(),
     });
+    // Phase 12 R1 — 최근 본 event prompt LRU buffer (반복 피로 완화).
+    const recent = [...(s.recentEventPrompts ?? [])];
+    recent.push(ev.prompt);
+    // cap 3
+    while (recent.length > 3) recent.shift();
+    s.recentEventPrompts = recent;
     s.status = "awaitingChoice";
     s.pendingChoiceIndex = logIdx;
     return s;
@@ -632,11 +637,19 @@ export function tickSession(session: CombatSession): CombatSession {
     consumeTime(s, -TIME_COST.narrative);
     return s;
   }
-  if (roll < encounterThreshold) {
+  // Phase 12 R1 — treasure 를 encounter threshold 와 분리해 절대 확률 15% 로.
+  //   기존: roll < encounterThreshold 안에 35% rest + 65% coin → monsterFrequency
+  //   buff (encounterThreshold 가 0.3-0.7 변동) 때 treasure 자체가 사라지거나 불안정.
+  //   이제 roll 0.4-0.55 구간에 treasure 고정 (15%), 나머지 roll ≥ 0.55 는 encounter.
+  // monsterFrequency buff 를 treasure/encounter 경계에 적용 (0.55 shift).
+  //   delta > 0 (조우 ↑) → treasureEnd 축소 → encounter 확률 ↑.
+  //   delta < 0 (조우 ↓) → treasureEnd 확대 → encounter 확률 ↓.
+  //   단, narrative 끝 (0.40) 이하로 내려가지 않게 cap.
+  const treasureEnd = Math.max(0.4, Math.min(0.70, 0.55 - monsterFreqDelta));
+  if (roll < treasureEnd) {
     // treasure — Phase 4b.3: coinBoost 반영. Phase 5c.2: bard +25%.
     // Phase 11a rebalance — 35% 확률로 "휴식처" 변주: 코인 대신 시간 회복 (+10~15).
-    //   시간 밸런스가 빡빡한 중후반 F20+ 구간에서 핵심 자원. 평균 3-4 탐험 1회 등장.
-    //   Phase 11c R1 — long_march affix 시 +30% → 65%.
+    // Phase 11c R1 — long_march affix 시 +20% → 55%.
     const restChance = 0.35 + (s.restChanceBonus ?? 0);
     const isRest = Math.random() < restChance;
     if (isRest) {
@@ -880,9 +893,14 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
     }
     case "startMinigame": {
       // Phase 12e — 세션을 pause → 미니게임 modal 대기. resolveMinigame 에서 재개.
+      // Phase 12 R1 — floor 기반 난이도 boost. 기존 flavor event 의 difficulty 고정값
+      //   위에 floor 12 이상이면 +1, floor 24 이상이면 +2 가산. cap 3.
+      const floor = session.currentFloor;
+      const floorBoost = floor >= 24 ? 2 : floor >= 12 ? 1 : 0;
+      const adjustedDifficulty = Math.min(3, effect.difficulty + floorBoost) as 1 | 2 | 3;
       session.pendingMinigame = {
         minigame: effect.minigame,
-        difficulty: effect.difficulty,
+        difficulty: adjustedDifficulty,
         successEffects: effect.successEffects,
         failEffects: effect.failEffects,
       };
@@ -1106,6 +1124,12 @@ function executeCombatRound(
   let enemyOutcome: CombatOutcome;
   if (s.enemyStunnedRounds && s.enemyStunnedRounds > 0) {
     enemyOutcome = "miss"; // 봉인 효과는 miss 로 표현
+    // Phase 12 R1 — 보스는 stun 저항 (이번 round 한 번만 무력화 후 즉시 해제).
+    //   mage 빙결 1r 은 OK, 2r+ (mage 미사용) druid 뿌리/chrono 정지/illus 환혹 모두
+    //   1 round 만 효과 → stun lock 방지. advanceSkillCounters 가 -1 하므로 1 로 cap.
+    if (monster.isBoss && s.enemyStunnedRounds > 1) {
+      s.enemyStunnedRounds = 1;
+    }
   } else if (s.forcedEnemyMisses && s.forcedEnemyMisses > 0) {
     enemyOutcome = "miss";
     s.forcedEnemyMisses -= 1;
@@ -1126,9 +1150,14 @@ function executeCombatRound(
       ? 0
       : computeEnemyDamage(monster, effStats, enemyOutcome === "crit");
   // Phase 12d — 무적 (heroInvulnerableRounds). 피해 0 으로 강제.
+  //   Phase 12 R1 — 보스전에서 3 round 무적은 과도 (monk 연화 / illus 환몽).
+  //   보스는 무적 시간 반 (최대 1 round) 로 저항.
   if (s.heroInvulnerableRounds && s.heroInvulnerableRounds > 0 && enemyDmg > 0) {
     enemyDmg = 0;
     enemyOutcome = "miss";
+    if (monster.isBoss && s.heroInvulnerableRounds > 1) {
+      s.heroInvulnerableRounds = 1;
+    }
   }
   // Phase 12d — 피해 감소 (priest 정화, druid 숲의 포옹, bard 영웅가).
   if (enemyDmg > 0 && s.heroDmgReductionRounds && s.heroDmgReductionRounds.rounds > 0) {
@@ -1160,13 +1189,19 @@ function executeCombatRound(
     gainClassResource(s, "hit");
   }
   // counter attack — 짧은 narrative 와 함께 hero attack entry 추가 push
+  //   Phase 12 R1 — 기존 1 고정 피해는 후반 무의미 (F30 보스 HP 대비 0.01%).
+  //   이제 hero str 기반 + heroAtkBonusRounds mult 적용 (광폭화/분신 등 영향).
   if (counterLogged) {
+    let counterDmg = Math.max(1, Math.floor(effStats.str * 0.25));
+    if (s.heroAtkBonusRounds && s.heroAtkBonusRounds.rounds > 0) {
+      counterDmg = Math.round(counterDmg * s.heroAtkBonusRounds.mult);
+    }
     s.log.push({
       type: "combat",
       attacker: "hero",
-      damage: 1,
+      damage: counterDmg,
       outcome: "hit",
-      narrative: "영웅이 반사적으로 반격한다 — 1 피해",
+      narrative: `영웅이 반사적으로 반격한다 — ${counterDmg} 피해`,
       timestamp: Date.now(),
     });
   }
@@ -1277,24 +1312,27 @@ export function findLastEncounterIndex(log: LogEntry[]): number {
   return -1;
 }
 
-/** encounter 이후 combat log 들을 합쳐 현재 hero/monster HP 계산 */
-function computeCombatState(
+/**
+ * encounter 이후 combat log 를 누적해 monster HP 를 derive.
+ *
+ * Phase 12 bugfix — hero HP 는 s.hero.hp 가 authoritative (매 round 업데이트 됨).
+ *   이 함수는 monster HP 만 계산. 이름도 `computeMonsterHp` 로 변경해 의도 명시.
+ *   이전 `computeCombatState` 는 heroHp 도 반환했으나 double subtraction 위험
+ *   (R1 review 지적) 으로 제거.
+ */
+function computeMonsterHp(
   log: LogEntry[],
   encounterIdx: number,
   monster: Monster,
-  currentHeroHp: number,
-): { heroHp: number; monsterHp: number } {
-  let heroHp = currentHeroHp;
+): number {
   let monsterHp = monster.hp;
   for (let i = encounterIdx + 1; i < log.length; i++) {
     const e = log[i];
     if (e.type !== "combat") continue;
-    // damage 0 이면 miss/dodge — HP 에 영향 없음
     if (e.damage === 0) continue;
     if (e.attacker === "hero") monsterHp -= e.damage;
-    else heroHp -= e.damage;
   }
-  return { heroHp: Math.max(0, heroHp), monsterHp: Math.max(0, monsterHp) };
+  return Math.max(0, monsterHp);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1397,7 +1435,11 @@ function computeEnemyDamage(
   // Phase 11c R4 R3 — 몬스터 crit 배율 1.7 → 1.4. Lv30 기준 maxHp 448 에서 NG+1
   //   crit 이 542 (1.7×) 로 1-hit 나던 문제 해결. 신규: 319 × 1.4 = 446 → 1.0 hit
   //   마진. 영웅 crit 은 1.8× 유지 — "치명타는 영웅의 특권" 디자인 내러티브.
-  return crit ? Math.floor(finalDmg * 1.4) : finalDmg;
+  // Phase 12 R1 — 보스는 crit 배율 ×1.25 로 추가 완화 (이미 atk ×2 로 위협적).
+  //   일반 몬스터 ×1.4 유지.
+  if (!crit) return finalDmg;
+  const critMult = monster.isBoss ? 1.25 : 1.4;
+  return Math.floor(finalDmg * critMult);
 }
 
 /**

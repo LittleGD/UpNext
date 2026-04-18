@@ -60,6 +60,39 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
       ],
     },
     {
+      prompt: "절벽 위 흔들다리. 리듬에 맞춰 건너야 떨어지지 않는다.",
+      options: [
+        {
+          label: "건너기",
+          effect: {
+            kind: "startMinigame",
+            minigame: "sequence_memo",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 60, coins: 15 },
+              { kind: "skipFloors", count: 1 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 15 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "걸음 소리를 맞춰 본다...",
+        },
+        {
+          label: "돌아서 내려가기",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "안전하지만 느린 길.",
+              effects: [{ kind: "time", delta: -10 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
       prompt: "산악인의 시신 옆에 금괴가 있다.",
       options: [
         {
