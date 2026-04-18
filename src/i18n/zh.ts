@@ -729,6 +729,27 @@ const zh: Record<DictKey, string> = {
   "uphero.help.item.abandon.title": "放弃",
   "uphero.help.item.abandon.desc": "主动返回营地。至今获得的掉落物全部保留。",
 
+  // === Equipment inventory ===
+  "uphero.equip.tabBag": "背包",
+  "uphero.equip.tabTalisman": "照片护身符",
+  "uphero.equip.tabEnhance": "强化",
+  "uphero.equip.back.aria": "返回",
+  "uphero.equip.empty.bag": "没有装备。从地下城获得,或制作照片护身符。",
+  "uphero.equip.empty.enhance": "没有可强化的装备 — 请先通过掉落或照片护身符获得物品。",
+  "uphero.equip.ritualOpen": "打开绑定仪式",
+  "uphero.equip.ritualNoPhotos": "没有可绑定的照片",
+  "uphero.equip.talismanBound": "已绑定照片",
+  "uphero.equip.talismanUnbound": "未绑定照片",
+  "uphero.equip.equippedAria": "装备中,失败时属性下降",
+  "uphero.equip.noRefund": "无退款 · 无法撤销",
+  "uphero.equip.action.sell": "出售",
+  "uphero.equip.action.discard": "丢弃",
+  "uphero.equip.action.enhance": "尝试强化",
+  "uphero.equip.action.confirm": "确认",
+  "uphero.equip.toast.discarded": "已丢弃",
+  "uphero.equip.toast.maxEnhance": "已达 +10 最大强化",
+  "uphero.equip.toast.notFound": "未找到物品",
+
   // === Minigame modal ===
   "uphero.minigame.title.pair_match": "记忆卡牌",
   "uphero.minigame.title.sequence_memo": "古代咒语",

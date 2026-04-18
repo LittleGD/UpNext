@@ -729,6 +729,27 @@ const en: Record<DictKey, string> = {
   "uphero.help.item.abandon.title": "Abandon",
   "uphero.help.item.abandon.desc": "Return to camp voluntarily. All drops so far are kept.",
 
+  // === Equipment inventory ===
+  "uphero.equip.tabBag": "Bag",
+  "uphero.equip.tabTalisman": "Photo Talismans",
+  "uphero.equip.tabEnhance": "Enhance",
+  "uphero.equip.back.aria": "Back",
+  "uphero.equip.empty.bag": "No gear yet. Earn from dungeons or craft photo talismans.",
+  "uphero.equip.empty.enhance": "No gear to enhance — get drops or craft photo talismans first.",
+  "uphero.equip.ritualOpen": "Open binding ritual",
+  "uphero.equip.ritualNoPhotos": "No photos available to bind",
+  "uphero.equip.talismanBound": "Bound photos",
+  "uphero.equip.talismanUnbound": "Unbound photos",
+  "uphero.equip.equippedAria": "Equipped gear — stat loss on failure",
+  "uphero.equip.noRefund": "No refund · cannot undo",
+  "uphero.equip.action.sell": "Sell",
+  "uphero.equip.action.discard": "Discard",
+  "uphero.equip.action.enhance": "Try Enhance",
+  "uphero.equip.action.confirm": "Confirm",
+  "uphero.equip.toast.discarded": "Discarded",
+  "uphero.equip.toast.maxEnhance": "Already at max +10",
+  "uphero.equip.toast.notFound": "Item not found",
+
   // === Minigame modal ===
   "uphero.minigame.title.pair_match": "Memory Cards",
   "uphero.minigame.title.sequence_memo": "Ancient Chant",

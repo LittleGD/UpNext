@@ -729,6 +729,27 @@ const ja: Record<DictKey, string> = {
   "uphero.help.item.abandon.title": "撤退",
   "uphero.help.item.abandon.desc": "自発的にキャンプ復帰。これまで得た drop はすべて保持。",
 
+  // === Equipment inventory ===
+  "uphero.equip.tabBag": "鞄",
+  "uphero.equip.tabTalisman": "写真お守り",
+  "uphero.equip.tabEnhance": "強化",
+  "uphero.equip.back.aria": "戻る",
+  "uphero.equip.empty.bag": "装備がありません。ダンジョンで入手するか写真お守りを作ってください。",
+  "uphero.equip.empty.enhance": "強化可能な装備がありません — ドロップや写真お守りでアイテムを先に入手してください。",
+  "uphero.equip.ritualOpen": "バインディング儀式を開く",
+  "uphero.equip.ritualNoPhotos": "バインド可能な写真がありません",
+  "uphero.equip.talismanBound": "お守り化された写真",
+  "uphero.equip.talismanUnbound": "未バインディング写真",
+  "uphero.equip.equippedAria": "装着中の装備、失敗時にステータス減少",
+  "uphero.equip.noRefund": "返金なし · 復元不可",
+  "uphero.equip.action.sell": "売却",
+  "uphero.equip.action.discard": "捨てる",
+  "uphero.equip.action.enhance": "強化試行",
+  "uphero.equip.action.confirm": "確認",
+  "uphero.equip.toast.discarded": "捨てた",
+  "uphero.equip.toast.maxEnhance": "既に +10 最大強化",
+  "uphero.equip.toast.notFound": "アイテムが見つかりません",
+
   // === Minigame modal ===
   "uphero.minigame.title.pair_match": "記憶のカード",
   "uphero.minigame.title.sequence_memo": "古代の呪文",
