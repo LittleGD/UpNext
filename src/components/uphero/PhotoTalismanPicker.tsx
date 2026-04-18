@@ -17,6 +17,7 @@ import {
   findBoundTalisman,
   isPhotoBound,
   PHOTO_TALISMAN_RITUAL_COST,
+  rebindPhotoTalismanCost,
 } from "@/lib/photoTalisman";
 import { MAX_ENHANCE_LEVEL } from "@/types/uphero";
 import { TALISMAN_SKILLS, computeTalismanSkillIds } from "@/lib/talismanSkills";
@@ -327,6 +328,9 @@ export default function PhotoTalismanPicker({
               {boundPhotos.map(({ photo: p, item }) => {
                 const level = item.enhanceLevel ?? 0;
                 const isMaxed = level >= MAX_ENHANCE_LEVEL;
+                // Phase 11c R4 — rebind 비용 level 스케일. 각 행마다 재계산.
+                const rebindCost = rebindPhotoTalismanCost(level);
+                const rowCanAfford = coins >= rebindCost;
                 const skillIds = computeTalismanSkillIds(
                   item.category,
                   level,
@@ -366,23 +370,21 @@ export default function PhotoTalismanPicker({
                     </div>
                     <button
                       type="button"
-                      disabled={!canAfford || isMaxed}
+                      disabled={!rowCanAfford || isMaxed}
                       onClick={() => onRebind(p, item)}
                       className="uphero-rebind-btn typo-caption tabular-nums rounded"
                       style={{
                         padding: "10px 14px",
                         minHeight: 44,
-                        background: canAfford && !isMaxed ? GB.lightest : `${GB.dark}aa`,
-                        color: canAfford && !isMaxed ? GB.darkest : GB.light,
+                        background: rowCanAfford && !isMaxed ? GB.lightest : `${GB.dark}aa`,
+                        color: rowCanAfford && !isMaxed ? GB.darkest : GB.light,
                         border: `1px solid ${
-                          canAfford && !isMaxed ? GB.lightest : GB.dark
+                          rowCanAfford && !isMaxed ? GB.lightest : GB.dark
                         }`,
-                        opacity: canAfford && !isMaxed ? 1 : 0.55,
+                        opacity: rowCanAfford && !isMaxed ? 1 : 0.55,
                       }}
                     >
-                      {isMaxed
-                        ? "MAX"
-                        : `재의식 −${PHOTO_TALISMAN_RITUAL_COST}C`}
+                      {isMaxed ? "MAX" : `재의식 −${rebindCost}C`}
                     </button>
                   </div>
                 );
@@ -444,9 +446,11 @@ export default function PhotoTalismanPicker({
                 cur,
               );
               const newlyGained = newSkills.filter((id) => !prevSkills.includes(id));
+              // Phase 11c R4 — rebind 비용은 현재 level 기반 스케일.
+              const rebindCost = rebindPhotoTalismanCost(cur);
               return (
                 <>
-                  비용 {PHOTO_TALISMAN_RITUAL_COST} 코인 · Rarity 유지
+                  비용 {rebindCost} 코인 · Rarity 유지
                   <br />
                   강화 <span style={{ color: GB.lightest }}>+{cur} → +{next}</span>
                   {newlyGained.length > 0 && (

@@ -37,13 +37,21 @@ export const GB_RARITY_GLOW: Record<string, string> = {
   legend: "#e8b887", // 붉은 골드
 };
 
+/**
+ * Phase 11c R4 — WCAG-safe hint 토큰.
+ * 기존 `textDim: #4a7a4a` 는 `#0a1f0a` 배경 대비 ~3.3:1 → typo-caption (14px) 에서 AA 미달.
+ * `#6a9a66` 은 약 4.6:1 로 AA normal-text 통과. hint/disabled 텍스트 전용.
+ */
+export const GB_HINT = "#6a9a66";
+
 /** Tailwind className helper — GB 톤 스타일 합성 */
 export const gbClass = {
   bg: "bg-[#0a1f0a]",
   bgAlt: "bg-[#2c4a2c]",
   text: "text-[#87b87a]",
   textHi: "text-[#cdf564]",
-  textDim: "text-[#4a7a4a]",
+  // Phase 11c R4 — hint 색 대비 상향 (4a7a4a → 6a9a66, AA 통과).
+  textDim: "text-[#6a9a66]",
   border: "border-[#2c4a2c]",
   borderHi: "border-[#87b87a]",
 };

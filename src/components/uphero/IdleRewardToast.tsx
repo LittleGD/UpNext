@@ -21,6 +21,7 @@ import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { formatElapsed } from "@/lib/idleAccrual";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useCountUp } from "@/hooks/useCountUp";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function IdleRewardToast() {
@@ -39,6 +40,8 @@ export default function IdleRewardToast() {
     sessionStatus === "completed" || pendingClassAwaken !== null;
 
   const [mounted, setMounted] = useState(false);
+  // Phase 11c R4 — reduced-motion 대응. slide 제거, fade 만 유지.
+  const reducedMotion = useReducedMotion();
   /** Phase 9d — 자세한 설명 펼침 토글 (info 버튼 탭). */
   const [expanded, setExpanded] = useState(false);
 
@@ -75,6 +78,8 @@ export default function IdleRewardToast() {
     ? "calc(env(safe-area-inset-top) + 56px)"
     : "calc(env(safe-area-inset-top) + 44px)";
 
+  // Phase 11c R4 — reduced-motion 에서 translateY slide 제거. opacity fade 만.
+  const slideTransform = reducedMotion ? "translateX(-50%)" : `translateX(-50%) translateY(${mounted ? 0 : "-8px"})`;
   return (
     <div
       role="alertdialog"
@@ -83,7 +88,7 @@ export default function IdleRewardToast() {
       className="fixed left-1/2 z-[60] rounded typo-caption"
       style={{
         top: toastTop,
-        transform: `translateX(-50%) translateY(${mounted ? 0 : "-8px"})`,
+        transform: slideTransform,
         opacity: mounted ? 1 : 0,
         background: GB.darkest,
         color: GB.light,
@@ -91,7 +96,9 @@ export default function IdleRewardToast() {
         padding: "10px 12px",
         minWidth: 260,
         maxWidth: "calc(100dvw - 32px)",
-        transition: `opacity 240ms ${EASE_OUT}, transform 240ms ${EASE_OUT}`,
+        transition: reducedMotion
+          ? `opacity 240ms ${EASE_OUT}`
+          : `opacity 240ms ${EASE_OUT}, transform 240ms ${EASE_OUT}`,
       }}
     >
       {/* Title row: icon + 라벨 + info toggle */}

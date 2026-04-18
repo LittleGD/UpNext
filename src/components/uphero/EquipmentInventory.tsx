@@ -263,8 +263,14 @@ export default function EquipmentInventory({
 
   // Phase 11a — 강화 가능한 아이템 리스트.
   //   inventory 전체에서 +10 미만인 아이템만. rarity 별 그룹은 유지 (UI 가독성).
+  // Phase 11c R4 — 장착된 장비도 포함. inventory + equipped 합쳐서 정렬.
   const enhanceableItems = useMemo(() => {
-    const items = inventory.filter(
+    const equippedList: Equipment[] = [];
+    for (const slot of ["weapon", "armor", "accessory", "talisman"] as const) {
+      const eq = hero.equipped[slot];
+      if (eq) equippedList.push(eq);
+    }
+    const items = [...inventory, ...equippedList].filter(
       (i) => (i.enhanceLevel ?? 0) < MAX_ENHANCE_LEVEL,
     );
     // rarity 순 (legend 먼저) 그 다음 enhanceLevel 내림차순.
@@ -279,13 +285,14 @@ export default function EquipmentInventory({
       if (r !== 0) return r;
       return (b.enhanceLevel ?? 0) - (a.enhanceLevel ?? 0);
     });
-  }, [inventory]);
+  }, [inventory, hero.equipped]);
 
   /** 강화 시도 — 확인 다이얼로그 표시 */
   const onEnhance = (item: Equipment) => {
     const level = item.enhanceLevel ?? 0;
     const cost = enhanceCost(item.rarity, level);
-    const rate = enhanceSuccessRate(item.rarity, level);
+    // Phase 11c R4 — pity streak 반영된 성공률 표시.
+    const rate = enhanceSuccessRate(item.rarity, level, item.enhanceFailStreak ?? 0);
     setPending({ kind: "enhance", item, cost, successRate: rate });
   };
 
@@ -597,7 +604,9 @@ export default function EquipmentInventory({
                 {enhanceableItems.map((item) => {
                   const level = item.enhanceLevel ?? 0;
                   const cost = enhanceCost(item.rarity, level);
-                  const rate = enhanceSuccessRate(item.rarity, level);
+                  const streak = item.enhanceFailStreak ?? 0;
+                  // Phase 11c R4 — pity streak 가산 성공률.
+                  const rate = enhanceSuccessRate(item.rarity, level, streak);
                   const canAfford = coins >= cost;
                   const rColor = RARITY_COLOR[item.rarity];
                   return (
@@ -618,12 +627,21 @@ export default function EquipmentInventory({
                           {item.name}
                         </div>
                         <div
-                          className={`typo-micro tabular-nums ${gbClass.textDim} flex items-center gap-2`}
+                          className={`typo-micro tabular-nums ${gbClass.textDim} flex items-center gap-2 flex-wrap`}
                         >
                           <span>+{level} → +{level + 1}</span>
                           <span style={{ color: rColor }}>
                             {Math.round(rate * 100)}%
                           </span>
+                          {/* Phase 11c R4 — pity streak 노출 (legend/unique 에서 의미). */}
+                          {streak > 0 && (
+                            <span
+                              style={{ color: "#e8b887" }}
+                              aria-label={`연속 실패 ${streak}회, 성공률 보너스 누적`}
+                            >
+                              pity ×{streak}
+                            </span>
+                          )}
                           <span>보존 {Math.round(ENHANCE_PRESERVE_BY_RARITY[item.rarity] * 100)}%</span>
                         </div>
                       </div>

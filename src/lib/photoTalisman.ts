@@ -19,7 +19,23 @@ import type { PhotoMeta } from "@/types/growth";
 import type { Rarity } from "@/types/card";
 import { computeTalismanSkillIds } from "@/lib/talismanSkills";
 
+/** 첫 의식 (bind) 고정 비용. */
 export const PHOTO_TALISMAN_RITUAL_COST = 80;
+
+/**
+ * Phase 11c R4 — 재의식 (rebind) 비용은 현재 enhance level 기반 스케일.
+ *   공식: 80 × (1 + curLevel × 0.3).
+ *   +0→+1: 80, +1→+2: 104, +2→+3: 128, ..., +9→+10: 296.
+ *   총합 +0→+10: 80+104+...+296 ≈ 1,880 coin.
+ *
+ * 이전 고정 80 × 10 = 800 coin 은 legend 장비 +10 경로 (≈8,000 coin) 대비
+ * 10× 저렴. photo talisman 이 유니크 스킬 보상이라 가치가 높지만, 그래도
+ * 차이를 2-3× 수준으로 줄여 장비/부적 사이 선택이 의미 있게 만듦.
+ */
+export function rebindPhotoTalismanCost(currentLevel: number): number {
+  const lv = Math.max(0, currentLevel);
+  return Math.round(PHOTO_TALISMAN_RITUAL_COST * (1 + lv * 0.3));
+}
 
 /** category → primary stat 매핑 (드롭 장비와 동일) */
 const CATEGORY_STAT: Record<DungeonId, keyof HeroBaseStats> = {
