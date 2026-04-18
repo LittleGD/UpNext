@@ -14,7 +14,7 @@
  *  3. 또는 슬롯 탭 → 해제 (다시 인벤토리로)
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import {
   getHeroAppearanceVariant,
@@ -29,7 +29,9 @@ import { useGameStore } from "@/store/useGameStore";
 import { useSound } from "@/hooks/useSound";
 import EquipmentCard from "./EquipmentCard";
 import HeroSprite from "./HeroSprite";
+import PhotoTalismanPicker from "./PhotoTalismanPicker";
 import PixelIcon from "@/components/icons/PixelIcon";
+import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 
 interface EquipmentInventoryProps {
   onBack: () => void;
@@ -87,6 +89,8 @@ export default function EquipmentInventory({
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** Phase 7 — 사진 부적 Picker 오버레이 표시 여부. */
+  const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const selectedItem = selectedId
     ? inventory.find((i) => i.id === selectedId)
     : null;
@@ -272,11 +276,15 @@ export default function EquipmentInventory({
                 }}
               >
                 {equipped ? (
-                  <PixelIcon
-                    name={equipped.iconName}
-                    size={28}
-                    color={GB.lightest}
-                  />
+                  equipped.photoId ? (
+                    <SlotPhotoThumb photoId={equipped.photoId} size={40} />
+                  ) : (
+                    <PixelIcon
+                      name={equipped.iconName}
+                      size={28}
+                      color={GB.lightest}
+                    />
+                  )
                 ) : (
                   <div
                     className="typo-micro"
@@ -347,6 +355,37 @@ export default function EquipmentInventory({
           </div>
         )}
 
+        {/* Phase 7 — 사진 부적 바인딩 의식 CTA */}
+        <section className="mt-5 pt-4" style={{ borderTop: `1px dashed ${GB.dark}` }}>
+          <div
+            className="typo-caption mb-2 inline-flex items-center gap-1.5"
+            style={{ color: GB.lightest }}
+          >
+            <PixelIcon name="Camera" size={14} color={GB.lightest} />
+            사진 부적 — 챌린지 사진을 운명의 부적으로
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              play("select");
+              setPhotoPickerOpen(true);
+            }}
+            className="w-full rounded px-3 py-2.5 typo-caption flex items-center gap-2"
+            style={{
+              background: `${GB.dark}66`,
+              border: `1px dashed ${GB.light}80`,
+              color: GB.light,
+              textAlign: "left",
+            }}
+          >
+            <PixelIcon name="Image" size={14} color={GB.light} />
+            <span className="flex-1" style={{ color: GB.lightest }}>
+              바인딩 의식 열기
+            </span>
+            <span className={gbClass.textDim}>80 C · 랜덤 rarity</span>
+          </button>
+        </section>
+
         {/* Phase 4c-feature: 강화 가능한 쌍. 같은 타입 + 등급 2개 이상이면 등장. */}
         {enhanceableGroups.length > 0 && (
           <section className="mt-5 pt-4" style={{ borderTop: `1px dashed ${GB.dark}` }}>
@@ -408,6 +447,14 @@ export default function EquipmentInventory({
           </section>
         )}
       </div>
+
+      {/* Phase 7 — 사진 부적 Picker (overlay portal) */}
+      {photoPickerOpen && (
+        <PhotoTalismanPicker
+          onClose={() => setPhotoPickerOpen(false)}
+          onNotify={onNotify}
+        />
+      )}
     </div>
   );
 }
@@ -455,5 +502,51 @@ function ActionButton({
         }
       `}</style>
     </button>
+  );
+}
+
+/** Phase 7 — 4슬롯 중앙 photo 부적 썸네일 (small inline version) */
+function SlotPhotoThumb({ photoId, size }: { photoId: string; size: number }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+    getThumbnailBlob(photoId)
+      .then((blob) => {
+        if (!active || !blob) return;
+        objectUrl = blobToUrl(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [photoId]);
+
+  if (!url) {
+    return (
+      <div
+        className="rounded-sm"
+        style={{
+          width: size,
+          height: size,
+          background: `${GB.dark}`,
+        }}
+      />
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt="photo talisman"
+      className="rounded-sm"
+      style={{
+        width: size,
+        height: size,
+        objectFit: "cover",
+      }}
+    />
   );
 }

@@ -238,11 +238,15 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                   </div>
                   {eq ? (
                     <>
-                      <PixelIcon
-                        name={eq.iconName}
-                        size={16}
-                        color={GB.lightest}
-                      />
+                      {eq.photoId ? (
+                        <StatPanelPhotoThumb photoId={eq.photoId} size={18} />
+                      ) : (
+                        <PixelIcon
+                          name={eq.iconName}
+                          size={16}
+                          color={GB.lightest}
+                        />
+                      )}
                       <div
                         className="typo-caption flex-1 truncate"
                         style={{ color: GB.lightest }}
@@ -272,6 +276,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
 
 import { CLASS_SKILLS } from "@/lib/classSkills";
 import type { Hero } from "@/types/uphero";
+import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 
 function ClassSection({ hero }: { hero: Hero }) {
   const toggleAutoSkill = useUpHeroStore((s) => s.toggleAutoSkill);
@@ -391,5 +396,49 @@ function ClassSection({ hero }: { hero: Hero }) {
         </button>
       </div>
     </section>
+  );
+}
+
+/** Phase 7 — stat panel 장비 섹션의 photo 부적 썸네일 (18px) */
+function StatPanelPhotoThumb({
+  photoId,
+  size,
+}: {
+  photoId: string;
+  size: number;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+    getThumbnailBlob(photoId)
+      .then((blob) => {
+        if (!active || !blob) return;
+        objectUrl = blobToUrl(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [photoId]);
+
+  if (!url) {
+    return (
+      <div
+        className="rounded-sm"
+        style={{ width: size, height: size, background: `${GB.dark}` }}
+      />
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt="photo talisman"
+      className="rounded-sm"
+      style={{ width: size, height: size, objectFit: "cover" }}
+    />
   );
 }

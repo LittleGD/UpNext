@@ -137,6 +137,12 @@ export interface Equipment {
   effects?: string[];
   /** 플레버 텍스트 */
   flavor?: string;
+  /**
+   * Phase 7 — 이 Equipment 가 사진 부적 (photo-bound talisman) 인 경우
+   * 원본 photo 의 id. 있으면 UI 가 iconName 대신 IndexedDB 썸네일을 렌더.
+   * type 은 항상 "talisman". 바인딩 의식 후 고정.
+   */
+  photoId?: string;
 }
 
 /** 탐험권 보유량 — 카테고리별 */

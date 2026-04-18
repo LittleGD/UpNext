@@ -41,6 +41,13 @@ import {
 } from "@/lib/sessionReward";
 import { calculateIdleReward } from "@/lib/idleAccrual";
 import { classXpMult, classCoinMult } from "@/lib/upHeroCombat";
+import {
+  PHOTO_TALISMAN_RITUAL_COST,
+  buildPhotoTalisman,
+  isPhotoBound,
+  rollPhotoRarity,
+} from "@/lib/photoTalisman";
+import { useGrowthStore } from "./useGrowthStore";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
 import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
@@ -155,6 +162,17 @@ interface UpHeroActions {
 
   /** Phase 6b — 자동 스킬 발동 on/off 토글. 기본 true. */
   toggleAutoSkill(): void;
+
+  /**
+   * Phase 7 — 사진 부적 바인딩 의식.
+   * 코인 차감 + 랜덤 rarity roll + inventory 에 Equipment 추가.
+   * 반환값으로 결과 혹은 실패 사유 전달.
+   */
+  bindPhotoAsTalisman(photoId: string): {
+    ok: boolean;
+    newItem?: Equipment;
+    error?: string;
+  };
 
   // 장비
   equipItem(itemId: string, slot: EquipSlot): void;
@@ -378,6 +396,33 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const newHero = { ...state.hero, autoSkillEnabled: !current };
     set({ hero: newHero });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+  },
+
+  bindPhotoAsTalisman(photoId) {
+    const state = get();
+    const photo = useGrowthStore
+      .getState()
+      .photoMetas.find((p) => p.id === photoId);
+    if (!photo) return { ok: false, error: "사진을 찾을 수 없어요" };
+    if (isPhotoBound(photoId, state.inventory, state.hero.equipped)) {
+      return { ok: false, error: "이미 부적으로 만들어진 사진" };
+    }
+    if (state.coins < PHOTO_TALISMAN_RITUAL_COST) {
+      return {
+        ok: false,
+        error: `코인 부족 (${PHOTO_TALISMAN_RITUAL_COST} 필요)`,
+      };
+    }
+    const rarity = rollPhotoRarity();
+    const newItem = buildPhotoTalisman(photo, rarity);
+    const newInventory = [...state.inventory, newItem];
+    const newCoins = state.coins - PHOTO_TALISMAN_RITUAL_COST;
+    set({ inventory: newInventory, coins: newCoins });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, inventory: newInventory, coins: newCoins }),
+    );
+    return { ok: true, newItem };
   },
 
   grantExpeditionPass(dungeonId, rarity) {
