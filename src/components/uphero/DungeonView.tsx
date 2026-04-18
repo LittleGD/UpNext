@@ -205,15 +205,18 @@ export default function DungeonView() {
   const seenCombatIdxRef = useRef<Set<number>>(new Set());
   const heroStateTimerRef = useRef<number | null>(null);
   const enemyHurtTimerRef = useRef<number | null>(null);
+  // Phase 12 R-perf — deps 를 [session] → [logLen] 로 축소. session 은 매 tick
+  //   새 ref 지만 log.length 는 새 entry push 될 때만 변경. seenCombatIdxRef
+  //   가 idempotent 보장하므로 미처리 entry 만 깔끔히 pop. closure 는 항상
+  //   최신 session 을 캡처 (component re-render 마다 effect 함수 재생성).
   useEffect(() => {
     if (!session) return;
     session.log.forEach((entry, idx) => {
       if (entry.type !== "combat") return;
       if (seenCombatIdxRef.current.has(idx)) return;
       seenCombatIdxRef.current.add(idx);
-      if (entry.damage === 0) return; // miss/dodge 는 정적
+      if (entry.damage === 0) return;
       if (entry.attacker === "hero") {
-        // 영웅 공격 → hero sprite attack + enemy sprite hurt (0.4× brightness)
         if (heroStateTimerRef.current) window.clearTimeout(heroStateTimerRef.current);
         setHeroState("attack");
         heroStateTimerRef.current = window.setTimeout(() => {
@@ -226,7 +229,6 @@ export default function DungeonView() {
           setEnemyHurt(false);
           enemyHurtTimerRef.current = null;
         }, 260);
-        // Phase 12 — 왼쪽 flash (영웅 클래스 색 / class 없으면 GB.lightest)
         setAttackFlash({
           side: "left",
           color: session.hero.classType
@@ -235,14 +237,12 @@ export default function DungeonView() {
           key: idx,
         });
       } else {
-        // 적 공격 → hero sprite hurt
         if (heroStateTimerRef.current) window.clearTimeout(heroStateTimerRef.current);
         setHeroState("hurt");
         heroStateTimerRef.current = window.setTimeout(() => {
           setHeroState("idle");
           heroStateTimerRef.current = null;
         }, 260);
-        // Phase 12 — 오른쪽 flash (GB_ENEMY 붉은색)
         setAttackFlash({
           side: "right",
           color: GB_ENEMY,
@@ -250,7 +250,8 @@ export default function DungeonView() {
         });
       }
     });
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.log.length]);
 
   // 세션 바뀌면 combat seen 초기화
   useEffect(() => {
@@ -272,14 +273,13 @@ export default function DungeonView() {
       if (entry.type !== "combat" || entry.attacker !== "enemy") return;
       if (seenRegenIdxRef.current.has(idx)) return;
       seenRegenIdxRef.current.add(idx);
-      // 새 float push — id 는 idx (unique per entry)
       setHpRegenFloats((prev) => [...prev, idx]);
-      // 820ms 후 cleanup (Phase 11c R3 — unmount-safe)
       scheduleFloatCleanup(() => {
         setHpRegenFloats((prev) => prev.filter((i) => i !== idx));
       }, 820);
     });
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.log.length]);
   useEffect(() => {
     if (!session) {
       seenRegenIdxRef.current.clear();
@@ -445,7 +445,8 @@ export default function DungeonView() {
         setGenericFloats((prev) => prev.filter((f) => f.id !== id));
       }, 1100);
     });
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.log.length]);
 
   // Monk dodge + Illusionist crit — combat entry 감지 → pulseOverlay 설정
   useEffect(() => {
@@ -455,8 +456,6 @@ export default function DungeonView() {
     session.log.forEach((entry, idx) => {
       if (entry.type !== "combat") return;
       if (seenPulseIdxRef.current.has(idx)) return;
-      // monk: 적 공격에서 dodge outcome 만
-      // illusionist: 영웅 공격에서 crit outcome 만
       const match =
         (cls === "monk" && entry.attacker === "enemy" && entry.outcome === "dodge") ||
         (cls === "illusionist" && entry.attacker === "hero" && entry.outcome === "crit");
@@ -469,7 +468,8 @@ export default function DungeonView() {
         pulseTimerRef.current = null;
       }, cls === "monk" ? 460 : 510);
     });
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.log.length]);
 
   // Phase 12 R5 — 피격 데미지 float.
   //   combat entry 감지 → damage > 0 이면 heroDamage (적 공격) 또는 enemyDamage
@@ -497,7 +497,8 @@ export default function DungeonView() {
         setGenericFloats((prev) => prev.filter((f) => f.id !== id));
       }, 850);
     });
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.log.length]);
 
   // Priest start HP float — 세션 첫 tick 에 한 번. Phase 11c R4 R2: flat +50 →
   //   20% percentage 로 변경되어 실제 delta 를 maxHp 로부터 역산 (현재 maxHp 의 1/6).
@@ -543,7 +544,8 @@ export default function DungeonView() {
     scheduleFloatCleanup(() => {
       setGenericFloats((f) => f.filter((x) => x.id !== id));
     }, 1000);
-  }, [session?.hero.hp, session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.hero.hp]);
 
   // Chronomancer time save tag — consumeTime 에서 mult 적용 시 combat log 에는
   // 흔적이 없다. 차선책: TIME bar 옆에 "절약" micro tag 를 매 floor 진입
@@ -562,7 +564,8 @@ export default function DungeonView() {
         setGenericFloats((prev) => prev.filter((f) => f.id !== id));
       }, 720);
     });
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.log.length]);
 
   // Time bar pulse — 시간이 ≥5 한 번에 빠지면 bar 가 한 번 번쩍.
   // 이벤트 outcome (대피 -15, 보스 -8, 악몽 -10 등) 처럼 "큰 비용" 순간을
