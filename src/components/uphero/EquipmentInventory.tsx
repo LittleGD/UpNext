@@ -16,6 +16,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { useGrowthStore } from "@/store/useGrowthStore";
+import { isPhotoBound } from "@/lib/photoTalisman";
 import {
   getHeroAppearanceVariant,
   SELL_PRICE,
@@ -91,6 +93,18 @@ export default function EquipmentInventory({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** Phase 7 — 사진 부적 Picker 오버레이 표시 여부. */
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
+  /** Phase 8a — 장비 페이지 내부 탭 (가방 기본 / 사진 부적 / 강화) */
+  const [tab, setTab] = useState<"bag" | "photo" | "enhance">("bag");
+
+  /** Phase 8a — 사진 부적 탭 카운트용 */
+  const photoMetas = useGrowthStore((s) => s.photoMetas);
+  const photoCounts = useMemo(() => {
+    const boundCount = inventory.filter((i) => i.photoId).length;
+    const unboundCount = photoMetas.filter(
+      (p) => !isPhotoBound(p.id, inventory, hero.equipped),
+    ).length;
+    return { boundCount, unboundCount, totalPhotos: photoMetas.length };
+  }, [inventory, photoMetas, hero.equipped]);
   const selectedItem = selectedId
     ? inventory.find((i) => i.id === selectedId)
     : null;
@@ -331,119 +345,191 @@ export default function EquipmentInventory({
         </section>
       )}
 
-      {/* === 하단: 인벤토리 grid === */}
+      {/* === Phase 8a: 탭 switcher (가방 / 사진 부적 / 강화) === */}
+      <nav
+        className="flex items-center gap-0 px-3 shrink-0"
+        style={{ borderBottom: `1px solid ${GB.dark}` }}
+      >
+        <EqTabButton
+          active={tab === "bag"}
+          onClick={() => setTab("bag")}
+          label="가방"
+        />
+        <EqTabButton
+          active={tab === "photo"}
+          onClick={() => setTab("photo")}
+          label="사진 부적"
+        />
+        <EqTabButton
+          active={tab === "enhance"}
+          onClick={() => setTab("enhance")}
+          label="강화"
+        />
+      </nav>
+
+      {/* === 탭 컨텐츠 === */}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
-        {inventory.length === 0 ? (
-          <div
-            className={`typo-caption ${gbClass.textDim} text-center py-8`}
-          >
-            장비가 없어요. 던전에서 획득하세요.
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {inventory.map((eq) => (
-              <EquipmentCard
-                key={eq.id}
-                equipment={eq}
-                size="sm"
-                selected={eq.id === selectedId}
-                onClick={() =>
-                  setSelectedId(eq.id === selectedId ? null : eq.id)
-                }
+        {/* 가방 — 현재 인벤토리 grid */}
+        {tab === "bag" &&
+          (inventory.length === 0 ? (
+            <div
+              className={`typo-caption ${gbClass.textDim} text-center py-8`}
+            >
+              장비가 없어요. 던전에서 획득하거나 사진 부적을 만들어 보세요.
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {inventory.map((eq) => (
+                <EquipmentCard
+                  key={eq.id}
+                  equipment={eq}
+                  size="sm"
+                  selected={eq.id === selectedId}
+                  onClick={() =>
+                    setSelectedId(eq.id === selectedId ? null : eq.id)
+                  }
+                />
+              ))}
+            </div>
+          ))}
+
+        {/* 사진 부적 — CTA + 카운트 라벨 */}
+        {tab === "photo" && (
+          <section>
+            <div
+              className="typo-caption mb-3 inline-flex items-center gap-1.5"
+              style={{ color: GB.lightest }}
+            >
+              <PixelIcon name="Camera" size={14} color={GB.lightest} />
+              사진 부적 — 챌린지 사진을 운명의 부적으로
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                play("select");
+                setPhotoPickerOpen(true);
+              }}
+              disabled={photoCounts.unboundCount === 0}
+              className="w-full rounded px-3 py-3 typo-caption flex items-center gap-2"
+              style={{
+                background:
+                  photoCounts.unboundCount > 0
+                    ? `${GB.dark}66`
+                    : `${GB.dark}33`,
+                border: `1px dashed ${photoCounts.unboundCount > 0 ? GB.light : GB.dark}80`,
+                color: GB.light,
+                textAlign: "left",
+                opacity: photoCounts.unboundCount === 0 ? 0.55 : 1,
+              }}
+            >
+              <PixelIcon name="Image" size={14} color={GB.light} />
+              <span className="flex-1" style={{ color: GB.lightest }}>
+                {photoCounts.unboundCount > 0
+                  ? "바인딩 의식 열기"
+                  : "바인딩할 수 있는 사진 없음"}
+              </span>
+              <span className={gbClass.textDim}>80 C · 랜덤</span>
+            </button>
+
+            {/* 카운트 라벨 */}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <CountTile
+                iconName="Heart"
+                label="부적이 된 사진"
+                count={photoCounts.boundCount}
+                accent={GB.lightest}
               />
-            ))}
-          </div>
+              <CountTile
+                iconName="Image"
+                label="미바인딩 사진"
+                count={photoCounts.unboundCount}
+                accent={GB.light}
+              />
+            </div>
+
+            {/* 전체 총합 / 도움 문구 */}
+            <div
+              className={`typo-caption ${gbClass.textDim} mt-3 text-center leading-relaxed`}
+            >
+              아카이브 총 {photoCounts.totalPhotos} 장 · 챌린지를 완료할수록
+              의식 후보가 늘어나요
+            </div>
+          </section>
         )}
 
-        {/* Phase 7 — 사진 부적 바인딩 의식 CTA */}
-        <section className="mt-5 pt-4" style={{ borderTop: `1px dashed ${GB.dark}` }}>
-          <div
-            className="typo-caption mb-2 inline-flex items-center gap-1.5"
-            style={{ color: GB.lightest }}
-          >
-            <PixelIcon name="Camera" size={14} color={GB.lightest} />
-            사진 부적 — 챌린지 사진을 운명의 부적으로
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              play("select");
-              setPhotoPickerOpen(true);
-            }}
-            className="w-full rounded px-3 py-2.5 typo-caption flex items-center gap-2"
-            style={{
-              background: `${GB.dark}66`,
-              border: `1px dashed ${GB.light}80`,
-              color: GB.light,
-              textAlign: "left",
-            }}
-          >
-            <PixelIcon name="Image" size={14} color={GB.light} />
-            <span className="flex-1" style={{ color: GB.lightest }}>
-              바인딩 의식 열기
-            </span>
-            <span className={gbClass.textDim}>80 C · 랜덤 rarity</span>
-          </button>
-        </section>
-
-        {/* Phase 4c-feature: 강화 가능한 쌍. 같은 타입 + 등급 2개 이상이면 등장. */}
-        {enhanceableGroups.length > 0 && (
-          <section className="mt-5 pt-4" style={{ borderTop: `1px dashed ${GB.dark}` }}>
-            <div className="typo-caption mb-2 inline-flex items-center gap-1.5" style={{ color: GB.lightest }}>
+        {/* 강화 — enhanceableGroups 리스트, 없으면 placeholder */}
+        {tab === "enhance" && (
+          <section>
+            <div
+              className="typo-caption mb-3 inline-flex items-center gap-1.5"
+              style={{ color: GB.lightest }}
+            >
               <PixelIcon name="Fire" size={14} color={GB.lightest} />
-              강화 가능 — 같은 슬롯 · 등급 2장 합성
+              강화 — 같은 슬롯 · 같은 등급 2장 합성
             </div>
-            <div className="flex flex-col gap-1.5">
-              {enhanceableGroups.map(({ type, rarity, items }) => {
-                const cost = RARITY_COST[rarity];
-                const canAfford = coins >= cost;
-                return (
-                  <div
-                    key={`${type}_${rarity}`}
-                    className="flex items-center gap-2 rounded px-2.5 py-2"
-                    style={{
-                      background: `${GB.dark}66`,
-                      border: `1px solid ${RARITY_COLOR[rarity]}55`,
-                    }}
-                  >
+            {enhanceableGroups.length === 0 ? (
+              <div
+                className={`typo-caption ${gbClass.textDim} text-center py-8 leading-relaxed`}
+              >
+                합성 가능한 쌍 없음 — 같은 슬롯 · 등급 장비 2개 이상 필요해요
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {enhanceableGroups.map(({ type, rarity, items }) => {
+                  const cost = RARITY_COST[rarity];
+                  const canAfford = coins >= cost;
+                  return (
                     <div
-                      className="typo-caption"
-                      style={{ color: RARITY_COLOR[rarity], minWidth: 78 }}
-                    >
-                      {RARITY_LABEL[rarity]} {SLOT_LABEL[type]}
-                    </div>
-                    <div className={`typo-caption tabular-nums ${gbClass.textDim}`}>
-                      ×{items.length}
-                    </div>
-                    <div className="flex-1" />
-                    <button
-                      type="button"
-                      disabled={!canAfford}
-                      onClick={() => onEnhance(items.slice(0, 2), rarity)}
-                      className="uphero-enhance-btn typo-caption rounded"
+                      key={`${type}_${rarity}`}
+                      className="flex items-center gap-2 rounded px-2.5 py-2"
                       style={{
-                        padding: "5px 10px",
-                        minHeight: 30,
-                        background: canAfford ? RARITY_COLOR[rarity] : `${GB.dark}aa`,
-                        color: canAfford ? GB.darkest : GB.light,
-                        border: `1px solid ${canAfford ? RARITY_COLOR[rarity] : GB.dark}`,
-                        opacity: canAfford ? 1 : 0.55,
+                        background: `${GB.dark}66`,
+                        border: `1px solid ${RARITY_COLOR[rarity]}55`,
                       }}
                     >
-                      합성 −{cost}C
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            <style jsx>{`
-              .uphero-enhance-btn {
-                transition: transform 120ms ${EASE_OUT};
-              }
-              .uphero-enhance-btn:not(:disabled):active {
-                transform: scale(0.96);
-              }
-            `}</style>
+                      <div
+                        className="typo-caption"
+                        style={{ color: RARITY_COLOR[rarity], minWidth: 78 }}
+                      >
+                        {RARITY_LABEL[rarity]} {SLOT_LABEL[type]}
+                      </div>
+                      <div
+                        className={`typo-caption tabular-nums ${gbClass.textDim}`}
+                      >
+                        ×{items.length}
+                      </div>
+                      <div className="flex-1" />
+                      <button
+                        type="button"
+                        disabled={!canAfford}
+                        onClick={() => onEnhance(items.slice(0, 2), rarity)}
+                        className="uphero-enhance-btn typo-caption rounded"
+                        style={{
+                          padding: "5px 10px",
+                          minHeight: 30,
+                          background: canAfford
+                            ? RARITY_COLOR[rarity]
+                            : `${GB.dark}aa`,
+                          color: canAfford ? GB.darkest : GB.light,
+                          border: `1px solid ${canAfford ? RARITY_COLOR[rarity] : GB.dark}`,
+                          opacity: canAfford ? 1 : 0.55,
+                        }}
+                      >
+                        합성 −{cost}C
+                      </button>
+                    </div>
+                  );
+                })}
+                <style jsx>{`
+                  .uphero-enhance-btn {
+                    transition: transform 120ms ${EASE_OUT};
+                  }
+                  .uphero-enhance-btn:not(:disabled):active {
+                    transform: scale(0.96);
+                  }
+                `}</style>
+              </div>
+            )}
           </section>
         )}
       </div>
@@ -502,6 +588,70 @@ function ActionButton({
         }
       `}</style>
     </button>
+  );
+}
+
+/** Phase 8a — 탭 버튼 (HeroCodex 의 TabButton 패턴과 동일 룩) */
+function EqTabButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="typo-caption"
+      style={{
+        padding: "10px 16px",
+        color: active ? GB.lightest : GB.light,
+        background: "transparent",
+        borderBottom: `2px solid ${active ? GB.lightest : "transparent"}`,
+        marginBottom: -1,
+        transition: `color 180ms ${EASE_OUT}, border-color 180ms ${EASE_OUT}`,
+      }}
+      aria-current={active ? "page" : undefined}
+    >
+      {label}
+    </button>
+  );
+}
+
+/** Phase 8a — 사진 부적 탭의 카운트 tile (아이콘 + 숫자 + 라벨) */
+function CountTile({
+  iconName,
+  label,
+  count,
+  accent,
+}: {
+  iconName: string;
+  label: string;
+  count: number;
+  accent: string;
+}) {
+  return (
+    <div
+      className="rounded px-3 py-2.5 flex items-center gap-2.5"
+      style={{
+        background: `${GB.dark}44`,
+        border: `1px solid ${GB.dark}`,
+      }}
+    >
+      <PixelIcon name={iconName} size={16} color={accent} />
+      <div className="flex flex-col leading-tight">
+        <div
+          className="typo-body tabular-nums"
+          style={{ color: accent, fontWeight: 600 }}
+        >
+          {count}
+        </div>
+        <div className={`typo-micro ${gbClass.textDim}`}>{label}</div>
+      </div>
+    </div>
   );
 }
 
