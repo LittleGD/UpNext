@@ -502,6 +502,27 @@ export default function DungeonView() {
   // Phase 4c-polish: 현재 진행 중인 encounter 의 몬스터 — sprite 표시용.
   // 마지막 encounter 이후 victory/drop 이 나왔으면 전투 종료라 null.
   const currentEnemy = findActiveEnemy(session.log);
+  // Phase 12 bugfix — 적 HP 를 log 누적으로 계산해 bar 표시 (수치는 숨김).
+  //   몬스터는 static hp 에서 hero-attacker combat entry 의 damage 만 누적 감산.
+  const enemyHpPct = (() => {
+    if (!currentEnemy) return 100;
+    let hp = currentEnemy.hp;
+    // last encounter 이후만 카운트
+    let startIdx = -1;
+    for (let i = session.log.length - 1; i >= 0; i--) {
+      if (session.log[i].type === "encounter") {
+        startIdx = i;
+        break;
+      }
+    }
+    if (startIdx < 0) return 100;
+    for (let i = startIdx + 1; i < session.log.length; i++) {
+      const e = session.log[i];
+      if (e.type !== "combat" || e.attacker !== "hero") continue;
+      if (e.damage > 0) hp -= e.damage;
+    }
+    return Math.max(0, Math.min(100, (hp / currentEnemy.hp) * 100));
+  })();
   const heroVariant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
 
   const awaitingChoice = session.status === "awaitingChoice";
@@ -589,7 +610,7 @@ export default function DungeonView() {
           <div className="flex items-center gap-2">
             {currentEnemy && (
               <div
-                className="flex flex-col items-end leading-tight"
+                className="flex flex-col items-end leading-tight gap-0.5"
                 style={{ opacity: enemyHurt ? 0.55 : 1, transition: `opacity 140ms ${EASE_OUT}` }}
               >
                 <span
@@ -601,6 +622,34 @@ export default function DungeonView() {
                 <span className={`typo-caption ${gbClass.textDim} tabular-nums`}>
                   Lv {currentEnemy.level}
                 </span>
+                {/* Phase 12 — 적 HP bar (수치 없이). 유저 피드백: "적 수치는 안 보여주더라도
+                     체력 bar 는 보여주는 게 더 재밌을 것". progressbar role 지원. */}
+                <div
+                  className="w-16 h-1 rounded-sm overflow-hidden"
+                  role="progressbar"
+                  aria-label={`${currentEnemy.name} 체력`}
+                  aria-valuenow={Math.round(enemyHpPct)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuetext={`${Math.round(enemyHpPct)}%`}
+                  style={{ background: `${GB.dark}cc` }}
+                >
+                  <div
+                    className="h-full rounded-sm"
+                    style={{
+                      width: `${enemyHpPct}%`,
+                      background:
+                        enemyHpPct > 50
+                          ? currentEnemy.isBoss
+                            ? GB_ENEMY
+                            : GB.lightest
+                          : enemyHpPct > 20
+                            ? "#e8d88b"
+                            : GB_ENEMY,
+                      transition: `width 240ms ${EASE_OUT}, background 240ms ${EASE_OUT}`,
+                    }}
+                  />
+                </div>
               </div>
             )}
             {currentEnemy ? (
@@ -698,7 +747,7 @@ export default function DungeonView() {
             HP
           </span>
           <div
-            className="flex-1 h-2.5 rounded-sm relative overflow-hidden"
+            className="flex-1 h-1.5 rounded-sm relative overflow-hidden"
             role="progressbar"
             aria-label="영웅 체력"
             aria-valuenow={hp}

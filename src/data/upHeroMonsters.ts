@@ -185,7 +185,12 @@ function scaleMonster(
   opts: ScaleOptions = {},
 ): Monster {
   const { ngPlusLevel = 0, hpMult = 1, atkMult = 1 } = opts;
-  const bossMult = t.isBoss ? 4 : 1;
+  // Phase 12 bugfix — 보스 HP 와 ATK 배율을 분리. 기존 bossMult=4 가 HP/ATK 동시
+  //   적용되어 Floor 10 보스 atk=240 → Lv9 영웅 crit 1-hit kill.
+  //   이제 HP×4 (탱키함 유지) / ATK×2.5 (생존 가능한 위협) 로 재밸런스.
+  //   Lv9 영웅 vit 9 DR 0.26 기준 Floor 10 보스 crit = 150 → 2 hit 생존.
+  const bossHpMult = t.isBoss ? 4 : 1;
+  const bossAtkMult = t.isBoss ? 2.5 : 1;
   // Phase 11c R4 — 기존 하드코딩 `1 + 0.5 * ngPlusLevel` 을 `ngPlusScaleMult` 로 교체.
   //   R4 R1 에서 `ngPlusScaleMult` 를 0.5n → 0.4n 로 변경했으나 여기서 import 되지
   //   않아 orphan 함수였음. 이제 실제로 적용됨.
@@ -196,10 +201,11 @@ function scaleMonster(
     name: t.name,
     kind: t.kind,
     level: floor,
-    hp: Math.round(base * t.power * bossMult * ngMult * hpMult),
-    atk: Math.round((5 + floor * 1.5) * t.power * bossMult * ngMult * atkMult),
+    hp: Math.round(base * t.power * bossHpMult * ngMult * hpMult),
+    atk: Math.round((5 + floor * 1.5) * t.power * bossAtkMult * ngMult * atkMult),
     def: Math.round((2 + floor) * t.power * ngMult),
-    xpReward: Math.round((10 + floor * 3) * t.power * bossMult * ngMult),
+    // XP / Coin 보상은 HP 기반 (탱키한 적 더 많은 보상) — bossHpMult 유지.
+    xpReward: Math.round((10 + floor * 3) * t.power * bossHpMult * ngMult),
     coinReward: Math.round(
       (3 + floor * 2) * t.power * (t.isBoss ? 10 : 1) * ngMult,
     ),

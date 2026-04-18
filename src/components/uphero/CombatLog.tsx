@@ -252,16 +252,16 @@ const LogLine = memo(function LogLine({
         );
       }
 
-      // Fallback: narrative 없는 일반 hit (67%) 또는 legacy 엔트리
-      // "공격자 → 방어자 −N" 형식 — 누가 때리고 누가 맞았는지 명확하게
-      const attackerLabel = isHero ? "영웅" : "적";
-      const defenderLabel = isHero ? "적" : "영웅";
+      // Fallback: narrative 없는 일반 hit (67%) 또는 legacy 엔트리.
+      //   Phase 12 bugfix — 기존 "영웅 → 적 −70" 포맷이 긴 말줄임 + 느린 prefix
+      //   로 유저에게 "−70" 숫자만 보이는 혼란 제보. 짧은 완성문 (주어+동사) 으로 대체.
+      //   damage 0 은 miss/dodge → narrative 가 항상 존재해 이 경로 도달 안 함.
+      if (entry.damage <= 0) return null; // 방어: 0 fallback 렌더 금지
+      const heroHitText = isHero ? "영웅이 공격 — " : "영웅이 피격 — ";
       const dmgColor = isHero ? GB.lightest : GB_ENEMY;
       return (
         <div style={{ ...style, color: GB.light }} className="pl-3">
-          <span style={{ color: GB.lightest }}>{attackerLabel}</span>
-          <span className={gbClass.textDim}> → </span>
-          <span>{defenderLabel}</span>{" "}
+          <span style={{ color: GB.light }}>{heroHitText}</span>
           <span style={{ color: dmgColor }}>−{entry.damage}</span>
         </div>
       );

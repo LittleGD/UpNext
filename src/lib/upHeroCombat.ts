@@ -401,25 +401,16 @@ export function tickSession(session: CombatSession): CombatSession {
     const encounterIdx = findLastEncounterIndex(s.log);
     if (encounterIdx >= 0) {
       const monster = (s.log[encounterIdx] as { type: "encounter"; monster: Monster }).monster;
+      // Phase 12 bugfix — s.hero.hp 가 이제 매 round 업데이트되는 authoritative 값.
+      //   computeCombatState 는 monsterHp 계산에만 사용 (monster.hp 는 고정이라
+      //   log 누적으로 derive 필요). hero HP 는 s.hero.hp 직접 참조.
       const combatState = computeCombatState(s.log, encounterIdx, monster, s.hero.hp);
 
-      if (combatState.heroHp <= 0) {
+      if (s.hero.hp <= 0) {
         // Phase 12d — priest 부활 (revivePending) 체크. 사용 시 1회 소모.
         if (s.revivePending) {
           s.revivePending = false;
           const revivedHp = Math.round(s.hero.maxHp * 0.5);
-          // computeCombatState 는 log 기반 cumulative → 기존 누적 피해 offset
-          //   하기 위해 synthetic 음수 damage entry (enemy attacker) 로 HP 복원.
-          //   필요량 = revivedHp - combatState.heroHp (음수였을 수치).
-          const offset = revivedHp - combatState.heroHp;
-          s.log.push({
-            type: "combat",
-            attacker: "enemy",
-            damage: -offset, // 음수 damage = heal (computeCombatState 에서 heroHp += offset)
-            outcome: "miss",
-            narrative: "성스러운 빛이 영웅을 부활시킨다",
-            timestamp: Date.now(),
-          });
           s.hero.hp = revivedHp;
           s.log.push({
             type: "skill",
@@ -465,7 +456,8 @@ export function tickSession(session: CombatSession): CombatSession {
         });
         s.rewards.xp += gainedXp;
         s.rewards.coins += gainedCoin;
-        s.hero.hp = combatState.heroHp;
+        // Phase 12 bugfix — s.hero.hp 는 이미 executeCombatRound 에서 매 round 갱신됨.
+        //   기존 `s.hero.hp = combatState.heroHp` 는 이제 double subtraction 위험.
         // Phase 12d — 처치 시 자원 획득 (bard 영감, priest 신앙 등).
         gainClassResource(s, "victory");
 
@@ -987,21 +979,10 @@ function pushEncounterChoice(
     },
   ];
 
-  // 30% 확률로 랜덤 이벤트 옵션 추가 (던전 flavor 에서 1개)
-  if (Math.random() < 0.3) {
-    const ev = pickEvent(s.dungeonId);
-    // 이벤트에서 첫 옵션 하나만 picks — 단일 추가 선택지.
-    // Phase 4c.3: outcomes 있는 옵션이면 outcomes 그대로 넘긴다 (확률 분기 유지).
-    const evOption = ev.options[0];
-    if (evOption) {
-      options.push({
-        label: evOption.label,
-        effect: evOption.effect,
-        outcomes: evOption.outcomes,
-        resultText: evOption.resultText,
-      });
-    }
-  }
+  // Phase 12 bugfix — 몬스터 encounter 에서 flavor event 의 첫 option 을 3번째로
+  //   섞는 로직 제거. 유저가 "거대 옥수수를 만났다" prompt 에서 "열어보기 (함정?)"
+  //   같은 context-mismatch 선택지를 보게 됨 (상자/책 이벤트의 label 이 그대로 침투).
+  //   encounter 는 순수 전투 선택 (싸운다 / 도망간다) 만 유지.
 
   const logIdx = s.log.length;
   s.log.push({
@@ -1217,6 +1198,18 @@ function executeCombatRound(
       tMods.agiRoundCap,
       agiStack + tMods.agiRoundAccum,
     );
+  }
+
+  // Phase 12 bugfix — 이번 round 의 enemy 피해를 즉시 s.hero.hp 에 반영.
+  //   기존: executeCombatRound 는 log 에 combat entry 만 push, s.hero.hp 는 encounter
+  //   끝 (victory/death) 에만 업데이트. 결과: UI 가 584/592 고정된 상태로 보이다가
+  //   다음 tick 의 computeCombatState 누적 판정 만나면 갑자기 "영웅이 쓰러졌다".
+  //   이제 매 round 정산으로 UI 와 내부 상태 완전 일치.
+  //
+  //   counter attack (talisman 강단) 은 hero attacker entry 를 추가 push 해 monster
+  //   HP 만 영향 — hero.hp 와 무관. enemyDmg 는 이 round 의 enemy 공격 피해.
+  if (enemyDmg > 0) {
+    s.hero.hp = Math.max(0, s.hero.hp - enemyDmg);
   }
 
   // Phase 6b — round 종료 시 쿨다운 감소 + 지속 스킬 카운터 감소
