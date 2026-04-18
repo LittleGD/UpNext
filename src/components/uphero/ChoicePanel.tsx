@@ -7,10 +7,44 @@
  * 하단 오버레이로 슬라이드 업. 선택 시 resolveChoice() 호출.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { GB, EASE_OUT, EASE_DRAWER, gbClass } from "@/lib/upHeroPalette";
 import PixelIcon from "@/components/icons/PixelIcon";
+
+/**
+ * Phase 8b — ChoicePanel prompt 용 typewriter.
+ * 선택지 prompt 가 한 글자씩 타이핑되면 "세계가 말을 걸어오는" 감각.
+ * 선택지 버튼은 prompt 가 끝난 뒤 잠깐 지난 뒤 tappable (조급한 탭 방지).
+ * 짧은 prompt (≤ 20자) 는 12ms/글자, 긴 prompt 는 14ms/글자.
+ */
+function useChoiceTypewriter(text: string, promptKey: string): {
+  visible: string;
+  done: boolean;
+} {
+  const [chars, setChars] = useState(0);
+  const timerRef = useRef<number | null>(null);
+  useEffect(() => {
+    setChars(0);
+    const perChar = text.length <= 20 ? 12 : 14;
+    let i = 0;
+    const tick = () => {
+      i += 1;
+      setChars(i);
+      if (i >= text.length) {
+        timerRef.current = null;
+        return;
+      }
+      timerRef.current = window.setTimeout(tick, perChar);
+    };
+    timerRef.current = window.setTimeout(tick, perChar);
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promptKey]);
+  return { visible: text.slice(0, chars), done: chars >= text.length };
+}
 
 export default function ChoicePanel() {
   const session = useUpHeroStore((s) => s.currentSession);
@@ -73,6 +107,14 @@ export default function ChoicePanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry && isChoice ? entry.timestamp : null]);
 
+  // Phase 8b — prompt typewriter. entry.timestamp 가 바뀌면 재시작.
+  const promptKey = String(entry?.type === "choice" ? entry.timestamp : 0);
+  const promptText = entry?.type === "choice" ? entry.prompt : "";
+  const { visible: promptVisible, done: promptDone } = useChoiceTypewriter(
+    promptText,
+    promptKey,
+  );
+
   if (!session || !isChoice) return null;
 
   return (
@@ -107,9 +149,25 @@ export default function ChoicePanel() {
           }}
         >
           <PixelIcon name="Zap" size={14} color={GB.lightest} />
-          <span className="flex-1">{entry.prompt}</span>
+          <span className="flex-1">
+            {promptVisible}
+            {!promptDone && (
+              <span className="uphero-typewriter-caret" aria-hidden="true">
+                ▍
+              </span>
+            )}
+          </span>
         </div>
-        <div className="flex flex-col gap-1.5">
+        {/* 선택지 — prompt 가 타이핑 중이면 살짝 dim + pointer-events none.
+            타이핑 완료 직후에만 tappable. 조급한 오탭 방지 + 극적 pacing. */}
+        <div
+          className="flex flex-col gap-1.5"
+          style={{
+            opacity: promptDone ? 1 : 0.45,
+            pointerEvents: promptDone ? "auto" : "none",
+            transition: `opacity 180ms ${EASE_OUT}`,
+          }}
+        >
           {entry.options.map((opt, i) => (
             <ChoiceButton key={i} onClick={() => resolveChoice(i)}>
               <span className="typo-caption" style={{ color: GB.light }}>

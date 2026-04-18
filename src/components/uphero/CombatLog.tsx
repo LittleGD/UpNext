@@ -12,11 +12,55 @@
  *  - 이모지 사용 없음 — MonsterSprite / PixelIcon 사용
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LogEntry } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
+
+/**
+ * Phase 8b — Typewriter 효과.
+ * 텍스트 로그라이크에서 긴 narrative 가 한 글자씩 타이핑되는 느낌.
+ * isLatest (== 새로 들어온 로그) 일 때만 재생 — 과거 로그는 이미 pre-rendered.
+ *
+ * 설계:
+ *  - 글자 기준 18ms (≈55 char/s) — 빠른 편이지만 2×/4× 속도에서도 답답하지 않음
+ *  - 40 글자 이상이면 12ms 로 빨라짐 (scan 가능하게)
+ *  - 완료 전에 다음 entry 가 들어와서 스크롤 되어도 CSS 애니메이션 유지
+ *  - caret 은 진행 중에만 표시
+ */
+function useTypewriter(text: string, enabled: boolean): {
+  visible: string;
+  done: boolean;
+} {
+  const [chars, setChars] = useState(enabled ? 0 : text.length);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      setChars(text.length);
+      return;
+    }
+    setChars(0);
+    const perChar = text.length > 40 ? 12 : 18;
+    let i = 0;
+    const tick = () => {
+      i += 1;
+      setChars(i);
+      if (i >= text.length) {
+        timerRef.current = null;
+        return;
+      }
+      timerRef.current = window.setTimeout(tick, perChar);
+    };
+    timerRef.current = window.setTimeout(tick, perChar);
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, [text, enabled]);
+
+  return { visible: text.slice(0, chars), done: chars >= text.length };
+}
 
 interface CombatLogProps {
   log: LogEntry[];
@@ -74,21 +118,33 @@ function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
     case "narrative":
       return (
         <div style={{ ...style, color: GB.light }} className="opacity-80">
-          {entry.text}
+          <TypewriterText text={entry.text} enabled={isLatest} />
         </div>
       );
 
     case "floor":
+      // Phase 8b — 새 floor 진입 시 divider 에 한 번 sweep.
+      // isLatest 일 때만 sweep 재생 (과거 floor 라인까지 반복 재생되면 어지러움).
       return (
         <div
           style={{ ...style, color: GB.lightest }}
-          className="my-2 flex items-center gap-2"
+          className="my-2 flex items-center gap-2 relative overflow-hidden"
         >
           <span style={{ color: GB.dark }}>━━━</span>
           <span>Floor {entry.to}</span>
           <span style={{ color: GB.dark }} className="flex-1">
             ━━━━━━━━━━━━━━━━━━
           </span>
+          {isLatest && (
+            <span
+              aria-hidden="true"
+              className="uphero-floor-sweep absolute inset-0 pointer-events-none"
+              style={{
+                background: `linear-gradient(90deg, transparent 0%, ${GB.lightest}66 50%, transparent 100%)`,
+                mixBlendMode: "screen",
+              }}
+            />
+          )}
         </div>
       );
 
@@ -144,7 +200,7 @@ function LogLine({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) {
             style={{ ...style, color: narrativeColor }}
             className={`pl-3 ${dim ? "opacity-75" : ""}`}
           >
-            {entry.narrative}
+            <TypewriterText text={entry.narrative} enabled={isLatest} />
           </div>
         );
       }
@@ -305,4 +361,28 @@ function rarityColor(rarity: string): string {
     default:
       return GB.light;
   }
+}
+
+/**
+ * Phase 8b — 로그 narrative 를 한 글자씩 타이핑 + 진행 중 blinking caret.
+ * isLatest 일 때만 타이핑, 과거 entry 는 전체 텍스트 즉시 표시.
+ */
+function TypewriterText({
+  text,
+  enabled,
+}: {
+  text: string;
+  enabled: boolean;
+}) {
+  const { visible, done } = useTypewriter(text, enabled);
+  return (
+    <>
+      {visible}
+      {enabled && !done && (
+        <span className="uphero-typewriter-caret" aria-hidden="true">
+          ▍
+        </span>
+      )}
+    </>
+  );
 }

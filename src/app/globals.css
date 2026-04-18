@@ -396,6 +396,110 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-time-flash 320ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* === Phase 8b — 탭 컨텐츠 enter ===
+   장비 페이지 탭 (가방/사진/강화) 전환 시 컨텐츠 wrapper 에 key={tab} 을 주고
+   remount 되면 이 animation 이 재생된다. 200ms 짧은 fade + 4px 상향 drift.
+   탭은 고빈도 인터랙션이므로 짧게 — ease-out 이라 초반이 바로 보인다. */
+@keyframes uphero-tab-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.eq-tab-content {
+  animation: uphero-tab-enter 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* === Phase 8b — 모닥불 text flicker ===
+   캠프 홈 "모닥불이 조용히 타오른다" 문구가 실제로 타오르듯 숨쉰다.
+   opacity + text-shadow 로 warm glow 가 미묘하게 강/약 반복. 4s 주기 —
+   주목하지 않을 정도로 느리지만 "정적이지 않음" 은 느껴짐. */
+@keyframes uphero-fire-flicker {
+  0%, 100% {
+    opacity: 0.82;
+    text-shadow: 0 0 4px rgba(232, 184, 135, 0.15);
+  }
+  45% {
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(232, 184, 135, 0.45),
+                 0 0 16px rgba(232, 139, 122, 0.12);
+  }
+  62% {
+    opacity: 0.88;
+    text-shadow: 0 0 5px rgba(232, 184, 135, 0.2);
+  }
+}
+.uphero-fire-flicker {
+  animation: uphero-fire-flicker 4.2s ease-in-out infinite;
+}
+
+/* === Phase 8b — Floor divider sweep ===
+   "━━━ Floor N ━━━━━━" 라벨에 빛이 한 번 지나간다 (1회, 900ms).
+   로그 entry 의 새 floor 진입이 "의미 있는 이벤트" 로 느껴지게.
+   clip-path 로 좁은 세로 띠를 이동시키며 밝은 색으로 덮어쓴다. */
+@keyframes uphero-floor-sweep {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(0 0 0 100%);
+    opacity: 0;
+  }
+}
+.uphero-floor-sweep {
+  animation: uphero-floor-sweep 900ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* === Phase 8b — NumberRoll (숫자 올라가는 slot machine) ===
+   coin/XP/tickets 숫자가 변할 때 이전 숫자가 위로 slide-out + 새 숫자가
+   아래서 slide-in. delta 크기와 무관하게 260ms 로 통일. tabular-nums 와 조합. */
+@keyframes uphero-num-roll-out {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+@keyframes uphero-num-roll-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* === Phase 8b — 로그 narrative typewriter ===
+   긴 narrative 텍스트가 한 글자씩 나타난다. step(N) 으로 픽셀 정확한 typing.
+   너무 느리면 speed 2×/4× 에서 답답하므로 18ms/글자 기준. */
+@keyframes uphero-typewriter-caret {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.uphero-typewriter-caret {
+  display: inline-block;
+  width: 0.55em;
+  margin-left: 1px;
+  animation: uphero-typewriter-caret 820ms steps(2, end) infinite;
+}
+
 /* === 모바일 safe area (개별 고정 요소에서 처리) === */
 
 /* === 스크롤바 전역 숨김 — 네이티브 앱 느낌 ===
