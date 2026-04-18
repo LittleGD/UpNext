@@ -48,6 +48,13 @@ export interface ClassSkill {
  * 로그 헬퍼
  * ──────────────────────────────────────────── */
 
+/**
+ * Phase 13c — skill 로그 push.
+ *
+ * Phase 13 review P1 — TODO(maintenance): narrativeKey 인자가 거의 모두
+ *   `uphero.skill.<skillId>.narrative` 형식이라 skillId 만 주면 자동 조립 가능.
+ *   다음 refactor 에서 시그니처 단순화 예정 (32 호출 update 필요).
+ */
 function pushSkillLog(
   s: CombatSession,
   classType: ClassType,
