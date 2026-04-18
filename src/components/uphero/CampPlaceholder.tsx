@@ -78,6 +78,10 @@ export default function CampPlaceholder() {
   //   heroLv 진행도와 동일 (heroLv 는 gameLv 의 1:1 오프셋이라 레벨 내 %는 같음).
   const xpInfo = getXPProgress(totalXp, gameLevel);
   const tickets = useGameStore((s) => s.progress.tickets ?? 0);
+  // Phase 12 — header 에 NG+ badge 노출. 홈 view 의 nameplate 를 제거하면서
+  //   NG+ 정보를 header 로 승격 (정보가 사라지지 않도록). ngPlusLevel > 0 일
+  //   때만 렌더.
+  const ngPlusLevel = useUpHeroStore((s) => s.ngPlusLevel ?? 0);
 
   const [view, setView] = useState<View>("home");
   const [toast, setToast] = useState<string | null>(null);
@@ -132,6 +136,25 @@ export default function CampPlaceholder() {
           >
             {xpInfo.current}/{xpInfo.needed} XP
           </span>
+          {/* Phase 12 — NG+ badge (F30 최초 클리어 이후). 기존엔 HomeView 의
+               nameplate 옆에 있었으나 nameplate 제거 (유저: "왼쪽 위 이름과
+               중복") 되면서 header 로 승격. ngPlusLevel > 0 일 때만 렌더. */}
+          {ngPlusLevel > 0 && (
+            <span
+              className="typo-micro px-1.5 py-0.5 rounded-sm tabular-nums"
+              style={{
+                color: "#e8b887",
+                background: `${"#e8b887"}22`,
+                border: `1px solid #e8b887`,
+                letterSpacing: "0.05em",
+                fontSize: 10,
+              }}
+              aria-label={`NG+ ${ngPlusLevel}`}
+              title="F30 보스 클리어 반복 횟수"
+            >
+              NG+{ngPlusLevel}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3 tabular-nums">
           <span className="inline-flex items-center gap-1">
@@ -308,36 +331,11 @@ function HomeView({
           }}
         />
 
-        {/* 이름 태그 — typo-micro 예외: nameplate 라벨, 본문 아님 */}
-        <div className="flex items-center gap-1.5 mb-3 relative">
-          <div
-            className="typo-micro px-2.5 py-1 rounded-sm"
-            style={{
-              color: GB.darkest,
-              background: GB.lightest,
-              letterSpacing: "0.05em",
-            }}
-          >
-            {hero.name}
-          </div>
-          {/* Phase 11c — NG+ badge. F30 최초 클리어 이후 노출. */}
-          {ngPlusLevel > 0 && (
-            <div
-              className="typo-micro px-1.5 py-0.5 rounded-sm tabular-nums"
-              style={{
-                color: "#e8b887",
-                background: `${"#e8b887"}22`,
-                border: `1px solid #e8b887`,
-                letterSpacing: "0.05em",
-                fontSize: 10,
-              }}
-              aria-label={`NG+ ${ngPlusLevel}`}
-              title="F30 보스 클리어 반복 횟수"
-            >
-              NG+{ngPlusLevel}
-            </div>
-          )}
-        </div>
+        {/* Phase 12 — 이름 태그 + NG+ badge 제거.
+             유저 피드백: "캐릭터 위 이름은 왼쪽 위 header 와 중복이라
+             이제 없어도 될 거 같아." nameplate 제거로 수직 공간 ~40px
+             확보 → 짧은 뷰포트에서 상/하 crop 해소. NG+ 정보는 header
+             Lv 옆으로 승격 (CampPlaceholder 에서 렌더). */}
 
         {/* 픽셀 영웅 sprite — 탭하면 HeroStatPanel 오버레이. */}
         <button
