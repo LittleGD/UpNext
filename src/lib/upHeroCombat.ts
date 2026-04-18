@@ -886,6 +886,22 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
       executeCombatRound(session, monster, stats);
       break;
     }
+    case "startMinigame": {
+      // Phase 12e — 세션을 pause → 미니게임 modal 대기. resolveMinigame 에서 재개.
+      session.pendingMinigame = {
+        minigame: effect.minigame,
+        difficulty: effect.difficulty,
+        successEffects: effect.successEffects,
+        failEffects: effect.failEffects,
+      };
+      session.status = "awaitingMinigame";
+      session.log.push({
+        type: "narrative",
+        text: "도전이 시작된다...",
+        timestamp: Date.now(),
+      });
+      break;
+    }
     case "flee": {
       // "도망간다" — 확률 성공 체크
       const encounterIdx = findLastEncounterIndex(session.log);
@@ -1205,6 +1221,39 @@ function executeCombatRound(
 
   // Phase 6b — round 종료 시 쿨다운 감소 + 지속 스킬 카운터 감소
   advanceSkillCounters(s);
+}
+
+/**
+ * Phase 12e — 미니게임 결과 해소. 성공/실패에 따라 pendingMinigame 의
+ *   successEffects / failEffects 를 applyChoiceEffect 로 적용. status=active 로 복귀.
+ */
+export function resolveMinigame(
+  session: CombatSession,
+  success: boolean,
+): CombatSession {
+  if (session.status !== "awaitingMinigame") return session;
+  const pending = session.pendingMinigame;
+  if (!pending) return session;
+  const s: CombatSession = {
+    ...session,
+    log: [...session.log],
+    hero: { ...session.hero },
+    rewards: { ...session.rewards, drops: [...session.rewards.drops] },
+  };
+  const effects = success ? pending.successEffects : pending.failEffects;
+  s.log.push({
+    type: "choiceResult",
+    text: success ? "> 도전 성공" : "> 도전 실패",
+    effectSummary: undefined,
+    timestamp: Date.now(),
+  });
+  for (const e of effects) {
+    applyChoiceEffect(s, e as ChoiceEffect);
+    if (s.status === "completed") break;
+  }
+  delete s.pendingMinigame;
+  if (s.status !== "completed") s.status = "active";
+  return s;
 }
 
 /** 세션 포기 — 사용자가 자발적으로 캠프 복귀 선택 */

@@ -52,7 +52,12 @@ import {
   calculateDungeonProgress,
 } from "@/lib/sessionReward";
 import { calculateIdleReward } from "@/lib/idleAccrual";
-import { classXpMult, classCoinMult, findLastEncounterIndex } from "@/lib/upHeroCombat";
+import {
+  classXpMult,
+  classCoinMult,
+  findLastEncounterIndex,
+  resolveMinigame as applyResolveMinigame,
+} from "@/lib/upHeroCombat";
 import { findSkillById, canFireSkill, fireSkill, CLASS_SKILL_TREES } from "@/lib/classSkills";
 import {
   PHOTO_TALISMAN_RITUAL_COST,
@@ -197,6 +202,8 @@ interface UpHeroActions {
   learnSkill(skillId: string): "ok" | "no-points" | "already" | "not-found" | "level" | "class";
   /** Phase 12d — 전투 중 수동 스킬 발동. 자원 + 쿨다운 체크 후 apply. */
   fireSkillManual(skillId: string): "ok" | "no-session" | "cooldown" | "resource" | "locked" | "no-monster";
+  /** Phase 12e — 미니게임 결과 해소. success 에 따라 effects 적용 + status=active. */
+  resolveMinigame(success: boolean): void;
 
   /**
    * Phase 7 — 사진 부적 바인딩 의식.
@@ -637,6 +644,14 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   /**
    * Phase 12d — 전투 중 수동 스킬 발동. 자원/쿨다운 체크 후 apply.
    */
+  resolveMinigame(success) {
+    const state = get();
+    const session = state.currentSession;
+    if (!session || session.status !== "awaitingMinigame") return;
+    const next = applyResolveMinigame(session, success);
+    set({ currentSession: next });
+  },
+
   fireSkillManual(skillId) {
     const state = get();
     const session = state.currentSession;
