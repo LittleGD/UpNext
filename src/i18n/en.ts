@@ -596,6 +596,81 @@ const en: Record<DictKey, string> = {
   "uphero.skill.needLevel": "{name} — requires Lv {level}",
   "uphero.skill.needSP": "{name} — needs SP {cost}",
   "uphero.skill.srLabel": "{name} · cost {resource} · CD {cd}",
+
+  // === Camp HomeView ===
+  "uphero.home.heroDefault": "Up Hero",
+  "uphero.home.statButton.default": "View Stats",
+  "uphero.home.statButton.withClass": "Stats · Skill Tree",
+  "uphero.home.statButton.ariaSprite": "Open hero stats",
+  "uphero.home.statButton.ariaChip": "Open hero stats and skill tree",
+  "uphero.home.cta.startExpedition": "Start Expedition",
+  "uphero.home.cta.buyPass": "Buy Pass",
+  "uphero.home.cta.pickDungeon": "Pick a dungeon",
+  "uphero.home.cta.completeOrBuy": "Complete a challenge or buy at shop",
+  "uphero.home.shop.label": "Shop",
+  "uphero.home.shop.hint": "Tickets / Card packs",
+  "uphero.home.equipment.label": "Gear",
+  "uphero.home.equipment.hint": "Equip · Sell · Enhance",
+  "uphero.home.codex.label": "Codex",
+  "uphero.home.codex.hint": "Monsters you've met",
+
+  // === Camp subheaders / common ===
+  "uphero.subheader.dungeons": "Pick a Dungeon",
+  "uphero.subheader.shop": "Shop",
+  "uphero.subheader.weekly": "Weekly Nightmare",
+  "uphero.subheader.back.aria": "Back",
+
+  // === Dungeons grid ===
+  "uphero.dungeons.floorReached": "Reached F{floor}",
+  "uphero.dungeons.unexplored": "Unexplored",
+
+  // === Shop (item rows + meta) ===
+  "uphero.shop.cardmatchTicket.name": "Card-match Ticket",
+  "uphero.shop.cardmatchTicket.desc": "Owned {current}/{max} · Today {today}/{cap}",
+  "uphero.shop.bonusCard.name": "Bonus Card (1)",
+  "uphero.shop.bonusCard.desc": "+1 on next draw",
+  "uphero.shop.fullPack.name": "Full Card Pack (5)",
+  "uphero.shop.fullPack.desc": "Draw 5 · higher rare chance",
+  "uphero.shop.expeditionHeading": "Buy Expedition Passes",
+  "uphero.shop.todayBought": "Today {bought}/{cap}",
+  "uphero.shop.priceHint": "{price} coins each · {cap} per day",
+  "uphero.shop.coinsNote": "Earn coins in dungeons",
+  "uphero.shop.passAria": "Buy {name} pass ({price} coins)",
+
+  // === Weekly view ===
+  "uphero.weekly.clearedCount": "{count}/8 dungeons cleared",
+  "uphero.weekly.bestScore": "Best {score} pts",
+  "uphero.weekly.noExpeditionCost": "No pass needed · resets Mon 09:00 KST",
+  "uphero.weekly.nextReset": "Next nightmare in {duration}",
+  "uphero.weekly.duration.dayHour": "{d}d {h}h",
+  "uphero.weekly.duration.hourMin": "{h}h {m}m",
+  "uphero.weekly.duration.min": "{m}m",
+  "uphero.weekly.duration.resetting": "Resetting",
+  "uphero.weekly.leaderboardAria": "View leaderboard",
+  "uphero.weekly.leaderboardBtn": "Ranks",
+  "uphero.weekly.f30Badge": "F30 variant",
+  "uphero.weekly.f30Locked": "F30 not cleared",
+  "uphero.weekly.defaultName": "Weekly nightmare",
+
+  // === Camp ambience (15 rotating lines) ===
+  "uphero.camp.ambience.1": "The campfire burns quietly",
+  "uphero.camp.ambience.2": "A log cracks with a sharp snap",
+  "uphero.camp.ambience.3": "A red breath flickers in the embers",
+  "uphero.camp.ambience.4": "Smoke drifts slowly into the sky",
+  "uphero.camp.ambience.5": "A spark rides the wind upward",
+  "uphero.camp.ambience.6": "A kettle hums to a low boil",
+  "uphero.camp.ambience.7": "The map is unfolded once more",
+  "uphero.camp.ambience.8": "Stars smear beyond the tent",
+  "uphero.camp.ambience.9": "A wind comes from far away",
+  "uphero.camp.ambience.10": "Night deepens another layer",
+  "uphero.camp.ambience.11": "Footsteps fade into the distance",
+  "uphero.camp.ambience.12": "A blade gets one careful sharpening",
+  "uphero.camp.ambience.13": "Today's weariness slowly eases",
+  "uphero.camp.ambience.14": "The fire's shadow stretches long",
+  "uphero.camp.ambience.15": "A line is added to the traveler's journal",
+
+  // Weekly ribbon
+  "uphero.ribbon.weeklyTitle": "Weekly nightmare",
 };
 
 export default en;

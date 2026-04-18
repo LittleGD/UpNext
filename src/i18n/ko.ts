@@ -594,6 +594,81 @@ const ko = {
   "uphero.skill.needLevel": "{name} — Lv {level} 필요",
   "uphero.skill.needSP": "{name} — SP {cost} 필요",
   "uphero.skill.srLabel": "{name} · 자원 {resource} · CD {cd}",
+
+  // === Camp HomeView ===
+  "uphero.home.heroDefault": "갓생 영웅",
+  "uphero.home.statButton.default": "스탯 보기",
+  "uphero.home.statButton.withClass": "스탯 · 스킬트리",
+  "uphero.home.statButton.ariaSprite": "영웅 스탯 보기",
+  "uphero.home.statButton.ariaChip": "영웅 스탯 · 스킬트리 열기",
+  "uphero.home.cta.startExpedition": "탐험 시작",
+  "uphero.home.cta.buyPass": "탐험권 구매",
+  "uphero.home.cta.pickDungeon": "던전 선택",
+  "uphero.home.cta.completeOrBuy": "챌린지 완료 또는 상점에서 구매",
+  "uphero.home.shop.label": "갓생 상점",
+  "uphero.home.shop.hint": "티켓 / 카드팩",
+  "uphero.home.equipment.label": "장비",
+  "uphero.home.equipment.hint": "장착 · 판매 · 강화",
+  "uphero.home.codex.label": "도감",
+  "uphero.home.codex.hint": "만난 몬스터 기록",
+
+  // === Camp subheaders / common ===
+  "uphero.subheader.dungeons": "던전 선택",
+  "uphero.subheader.shop": "갓생 상점",
+  "uphero.subheader.weekly": "이번 주 악몽",
+  "uphero.subheader.back.aria": "뒤로",
+
+  // === Dungeons grid ===
+  "uphero.dungeons.floorReached": "F{floor} 도달",
+  "uphero.dungeons.unexplored": "미탐험",
+
+  // === Shop (item rows + meta) ===
+  "uphero.shop.cardmatchTicket.name": "카드매치 티켓",
+  "uphero.shop.cardmatchTicket.desc": "현재 {current}/{max} · 오늘 {today}/{cap}",
+  "uphero.shop.bonusCard.name": "보너스 카드 (1장)",
+  "uphero.shop.bonusCard.desc": "다음 뽑기에 +1",
+  "uphero.shop.fullPack.name": "풀 카드팩 (5장)",
+  "uphero.shop.fullPack.desc": "5장 뽑기 · 희귀 카드 확률 ↑",
+  "uphero.shop.expeditionHeading": "탐험권 구매",
+  "uphero.shop.todayBought": "오늘 {bought}/{cap}",
+  "uphero.shop.priceHint": "{price} 코인 / 장 · 하루 {cap}장 한정",
+  "uphero.shop.coinsNote": "갓생 코인은 던전에서 획득합니다",
+  "uphero.shop.passAria": "{name} 탐험권 구매 ({price} 코인)",
+
+  // === Weekly view ===
+  "uphero.weekly.clearedCount": "던전 {count}/8 클리어",
+  "uphero.weekly.bestScore": "최고 {score}점",
+  "uphero.weekly.noExpeditionCost": "탐험권 소모 없음 · KST 월요일 오전 9시 리셋",
+  "uphero.weekly.nextReset": "다음 악몽까지 {duration}",
+  "uphero.weekly.duration.dayHour": "{d}일 {h}시간",
+  "uphero.weekly.duration.hourMin": "{h}시간 {m}분",
+  "uphero.weekly.duration.min": "{m}분",
+  "uphero.weekly.duration.resetting": "리셋 중",
+  "uphero.weekly.leaderboardAria": "리더보드 보기",
+  "uphero.weekly.leaderboardBtn": "순위",
+  "uphero.weekly.f30Badge": "F30 변이",
+  "uphero.weekly.f30Locked": "F30 미도달",
+  "uphero.weekly.defaultName": "이번 주 악몽",
+
+  // === Camp ambience (15 rotating lines) ===
+  "uphero.camp.ambience.1": "모닥불이 조용히 타오른다",
+  "uphero.camp.ambience.2": "장작이 탁, 하고 튀었다",
+  "uphero.camp.ambience.3": "재 속에서 붉은 숨이 깜빡인다",
+  "uphero.camp.ambience.4": "연기가 느리게 하늘로 번진다",
+  "uphero.camp.ambience.5": "불씨 하나가 바람을 따라 올라갔다",
+  "uphero.camp.ambience.6": "주전자가 나지막이 끓고 있다",
+  "uphero.camp.ambience.7": "지도를 다시 펼쳐본다",
+  "uphero.camp.ambience.8": "천막 너머로 별이 번진다",
+  "uphero.camp.ambience.9": "바람이 먼 곳에서 불어온다",
+  "uphero.camp.ambience.10": "밤이 한 겹 더 깊어졌다",
+  "uphero.camp.ambience.11": "발자국 소리가 멀어진다",
+  "uphero.camp.ambience.12": "무기의 날을 한 번 갈아둔다",
+  "uphero.camp.ambience.13": "오늘의 피로가 천천히 가신다",
+  "uphero.camp.ambience.14": "모닥불 그림자가 길게 늘어진다",
+  "uphero.camp.ambience.15": "여행자의 일기에 한 줄을 적는다",
+
+  // Weekly ribbon
+  "uphero.ribbon.weeklyTitle": "이번 주 악몽",
 } as const;
 
 export type DictKey = keyof typeof ko;
