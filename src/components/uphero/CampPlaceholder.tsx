@@ -269,8 +269,6 @@ function HomeView({
 }) {
   const { play } = useSound();
   const variant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
-  // Phase 4c-polish: 카테고리별 탐험권 시각화 — totalPasses 와 별도로 raw 객체 필요
-  const passes = useUpHeroStore((s) => s.passes);
   // Phase 11c — NG+ / 주간 악몽 정보
   const ngPlusLevel = useUpHeroStore((s) => s.ngPlusLevel ?? 0);
   const weeklyVariant = useUpHeroStore((s) => s.weeklyVariant);
@@ -422,50 +420,12 @@ function HomeView({
           </div>
         </div>
 
-        {/* Phase 4c-polish → 5a.4 redesign: 탐험권 카테고리별 시각화.
-             rounded+border+fill pill 이 dot-matrix 감성과 어긋나 underline
-             스타일로 치환. 숫자 위에 2px underline, 색은 던전 themeColor.
-             전체 0 이면 여전히 섹션 숨김 (CTA 힌트로 위임). */}
-        {totalPasses > 0 && (
-          /* Phase 12 bugfix — 유저 제보: "티켓 보유 인디케이터와 버튼이 겹침".
-               카테고리별 숫자+underline 이 바로 아래 "탐험 시작 · ×N" 버튼과
-               시각적으로 붙어 보이던 문제. mb-2 + CTA section 의 pt-4 로 분리. */
-          <div className="mt-4 mb-2 flex items-center justify-center gap-3 flex-wrap">
-            {DUNGEON_LIST.map((d) => {
-              const count = passes[d.id] ?? 0;
-              const empty = count === 0;
-              return (
-                <div
-                  key={d.id}
-                  className="flex flex-col items-center tabular-nums"
-                  title={`${d.name} ×${count}`}
-                  aria-label={`${d.name} 탐험권 ${count}장`}
-                >
-                  <span
-                    className="typo-micro"
-                    style={{
-                      color: empty ? `${GB.light}60` : GB.lightest,
-                      letterSpacing: "0.05em",
-                      lineHeight: 1,
-                    }}
-                  >
-                    {count}
-                  </span>
-                  <div
-                    style={{
-                      width: 20,
-                      height: 2,
-                      background: empty ? GB.dark : d.themeColor,
-                      marginTop: 3,
-                      opacity: empty ? 0.5 : 1,
-                      transition: `background 180ms ${EASE_OUT}, opacity 180ms ${EASE_OUT}`,
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* Phase 12 — 카테고리별 탐험권 indicator 제거.
+             유저 피드백: "티켓 인디케이터는 없어도 될 거 같아."
+             PrimaryCTA 의 `×N` 총합 badge 가 이미 "얼마나 있는지" 전달하고,
+             카테고리별 breakdown 은 Dungeons view 에 들어가면 각 던전 카드
+             에서 볼 수 있어 홈 화면에는 중복. 빈 화면이 한층 차분해져 영웅
+             sprite + 분위기 텍스트의 주목도가 올라감. */}
       </section>
 
       {/* 하단 CTA 3개 (stacked).
