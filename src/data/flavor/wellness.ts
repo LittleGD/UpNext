@@ -203,4 +203,96 @@ export const WELLNESS_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    // Phase 12 R3 — pool 다양성 확장 (4 → 6).
+    //   기존이 온천/수액/고양이/잠 4 개라 healing-centric 치우침.
+    //   "같이 쉬는 타인" (동반자) / "소리 치유" (청각 이미지) 2 개 추가로 질감 보강.
+    {
+      prompt: "돌 위에 앉은 산책자가 인사를 건넨다.",
+      options: [
+        {
+          label: "잠시 함께 쉰다",
+          outcomes: [
+            {
+              weight: 55,
+              resultText: "숨을 나누며 마음이 가벼워진다.",
+              effects: [
+                { kind: "heal", amount: 28 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "산책자가 길을 지름길로 알려준다.",
+              effects: [
+                { kind: "skipFloors", count: 1 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 15,
+              resultText: "사실은 늙은 현자였다. 조언이 폐부를 스친다.",
+              effects: [
+                { kind: "heal", amount: 20 },
+                { kind: "reward", xp: 35 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "눈인사만 건넨다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "각자의 발걸음을 이어간다.",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "멀리서 풍경 소리가 들린다. 바람 따라 멜로디가 실려온다.",
+      options: [
+        {
+          label: "소리를 쫓아간다",
+          outcomes: [
+            {
+              weight: 55,
+              resultText: "작은 풍경 아래 한참을 멈춘다. 호흡이 잔잔해진다.",
+              effects: [
+                { kind: "heal", amount: 22 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "소리를 낸 자는 악기 장인. 작은 호루라기를 건넨다.",
+              effects: [
+                { kind: "reward", coins: 35, xp: 15 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+            {
+              weight: 15,
+              resultText: "미궁의 환청이었다. 길을 잃을 뻔했다.",
+              effects: [
+                { kind: "damage", amount: 8 },
+                { kind: "time", delta: -6 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "무시하고 간다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "소리가 점점 멀어진다.",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
 ];

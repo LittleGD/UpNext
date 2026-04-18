@@ -203,4 +203,96 @@ export const SOCIAL_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    // Phase 12 R3 — pool 다양성 확장 (4 → 6).
+    //   기존 풀이 상인/술집/관악단/음유시인 — 유흥 타인 편향. "길가의 아이"
+    //   (도움) 와 "낯선 편지" (익명 상호작용) 2 개로 사회적 상호작용 축 확장.
+    {
+      prompt: "길가의 아이가 울먹이며 인형을 잃었다 한다.",
+      options: [
+        {
+          label: "같이 찾아준다",
+          outcomes: [
+            {
+              weight: 55,
+              resultText: "수풀 속에서 인형을 찾아주었다. 아이의 웃음이 번진다.",
+              effects: [
+                { kind: "heal", amount: 12 },
+                { kind: "reward", xp: 25, coins: 20 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "아이의 부모가 감사해하며 말린 꽃을 쥐여준다.",
+              effects: [
+                { kind: "reward", coins: 40, xp: 30 },
+                { kind: "time", delta: -6 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "수풀 너머로 뛰쳐나온 들개에게 물렸다.",
+              effects: [
+                { kind: "damage", amount: 14 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "모른 척 지나간다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "울음 소리가 멀어진다.",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "돌 틈에 봉인도 없는 낡은 편지가 꽂혀 있다.",
+      options: [
+        {
+          label: "펼쳐 읽는다",
+          outcomes: [
+            {
+              weight: 50,
+              resultText: "오래된 여행자의 조언이 담겨 있다.",
+              effects: [
+                { kind: "reward", xp: 30 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "지도 단편. 다음 길이 또렷해진다.",
+              effects: [
+                { kind: "skipFloors", count: 1 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "저주받은 서신. 마음이 무거워진다.",
+              effects: [
+                { kind: "damage", amount: 10 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "손대지 않는다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "남의 사연은 남의 것으로 남긴다.",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
 ];
