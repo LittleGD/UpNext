@@ -341,6 +341,48 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-crit-pulse 500ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* === Phase 7 polish — 사진 부적 의식 연출 ===
+   3 초 타임라인:
+   0-1000ms:    photo 가 fade-in 하며 0.7→1 scale, 살짝 상승
+   1000-2400ms: photo 가 천천히 회전 (-5deg ↔ 5deg wobble), particle 등장
+   2400-3000ms: 중앙에서 bright flash → fade out */
+
+/* photo 본체 — fade-in + scale + subtle rotate */
+@keyframes uphero-ritual-photo {
+  0%   { opacity: 0; transform: scale(0.72) rotate(-3deg) translateY(12px); }
+  18%  { opacity: 1; transform: scale(1) rotate(0deg) translateY(0); }
+  50%  { transform: scale(1.04) rotate(4deg) translateY(-2px); }
+  80%  { transform: scale(1.04) rotate(-4deg) translateY(-2px); }
+  90%  { opacity: 1; transform: scale(1.15) rotate(0deg) translateY(0); filter: brightness(1.4); }
+  100% { opacity: 0; transform: scale(0.9) rotate(0deg) translateY(0); filter: brightness(1); }
+}
+.uphero-ritual-photo {
+  animation: uphero-ritual-photo 3000ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* 배경 어두움 + 중앙에서 스며나오는 빛 */
+@keyframes uphero-ritual-glow {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.3; }
+  70%  { opacity: 0.5; }
+  90%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.uphero-ritual-glow {
+  animation: uphero-ritual-glow 3000ms linear forwards;
+}
+
+/* 파편 — 기울어진 직선 궤도로 중앙에서 바깥쪽 */
+@keyframes uphero-ritual-spark {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  25%  { opacity: 1; transform: translate(var(--sx, 0), var(--sy, 0)) scale(1); }
+  100% { opacity: 0; transform: translate(var(--fx, 0), var(--fy, 0)) scale(0.8); }
+}
+.uphero-ritual-spark {
+  animation: uphero-ritual-spark 2400ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  animation-delay: 600ms;
+}
+
 /* === Up Hero — 탐험 시간 bar 급감 pulse ===
    이벤트 outcome 이 시간 5+ 소모했을 때 한 번 번쩍.
    box-shadow 기반이라 bar 의 width 애니메이션과 간섭 없음.
