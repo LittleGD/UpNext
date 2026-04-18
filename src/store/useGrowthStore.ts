@@ -9,6 +9,15 @@ import {
   updateSignatureBlob,
 } from "@/lib/photoStorage";
 
+/**
+ * Phase 13 review Critical #3 — photoMetas localStorage cap.
+ *   사진 자체는 IndexedDB 에 blob 으로 저장되고 metadata 만 localStorage 에
+ *   들어가지만, 1 년 이상 사용자의 metadata 배열이 수백 entry 넘어가면
+ *   `saveToStorage` 호출마다 대형 JSON serialization → 성능 ↓.
+ *   가장 오래된 사진의 blob 도 함께 정리.
+ */
+export const PHOTO_METAS_CAP = 500;
+
 interface GrowthState {
   photoMetas: PhotoMeta[];
   isLoaded: boolean;
@@ -56,10 +65,18 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
 
   initialize() {
     const saved = loadFromStorage<{ photoMetas: PhotoMeta[] }>(STORAGE_KEY);
-    set({
-      photoMetas: saved?.photoMetas ?? [],
-      isLoaded: true,
-    });
+    // Phase 13 review C#3 — legacy 사용자 초과분 절삭 + blob 정리.
+    //   idempotent. cap 이하면 변화 없음.
+    let photoMetas = saved?.photoMetas ?? [];
+    if (photoMetas.length > PHOTO_METAS_CAP) {
+      const dropped = photoMetas.slice(PHOTO_METAS_CAP);
+      photoMetas = photoMetas.slice(0, PHOTO_METAS_CAP);
+      for (const d of dropped) {
+        deletePhotoBlobs(d.id).catch(() => {});
+      }
+      saveToStorage(STORAGE_KEY, { photoMetas });
+    }
+    set({ photoMetas, isLoaded: true });
   },
 
   startCapture(cardId) {
@@ -103,7 +120,17 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
       stickers: stickers && stickers.length > 0 ? stickers : undefined,
     };
 
-    const updatedMetas = [meta, ...photoMetas];
+    // Phase 13 review C#3 — ring-buffer cap. 최신 500 장만 유지.
+    //   오버된 오래된 entry 의 IndexedDB blob 도 같이 정리 (fire-and-forget;
+    //   실패해도 meta 삭제 우선).
+    let updatedMetas = [meta, ...photoMetas];
+    if (updatedMetas.length > PHOTO_METAS_CAP) {
+      const dropped = updatedMetas.slice(PHOTO_METAS_CAP);
+      updatedMetas = updatedMetas.slice(0, PHOTO_METAS_CAP);
+      for (const d of dropped) {
+        deletePhotoBlobs(d.id).catch(() => {});
+      }
+    }
     set({
       photoMetas: updatedMetas,
       pendingCaptureCardId: null,

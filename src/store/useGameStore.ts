@@ -10,6 +10,13 @@ import { scheduleChallengeReminder, cancelChallengeReminder, showChallengeStatus
 import { t } from "@/i18n";
 import { useUpHeroStore } from "./useUpHeroStore";
 
+/**
+ * Phase 13 review Critical #1 — `completionHistory` 는 매일 push 되므로 2-3 년
+ *   사용자의 localStorage 를 잠식. 하루 1 entry 기준 365 일 × ~200 bytes =
+ *   ~73 KB 상한. 365 이전 기록은 stats 계산에 쓰지 않으므로 안전.
+ */
+export const COMPLETION_HISTORY_CAP = 365;
+
 // 오늘 날짜를 "2026-04-01" 형식으로 반환
 // 하루 기준: 새벽 1시 ~ 다음날 00:59 (1시간 빼서 날짜 계산)
 // Phase 11a — useUpHeroStore 의 shopDaily reset 에서도 공용으로 쓰이므로 export.
@@ -216,6 +223,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (missingTrendingStarters.length > 0) {
       progress.unlockedCardIds = [...progress.unlockedCardIds, ...missingTrendingStarters];
     }
+    // Phase 13 review C#1 — 기존 유저 completionHistory migration. 365 이전
+    //   오래된 entry 절삭. 신규 cap 과 동일하게 유지. (migration idempotent)
+    if (
+      Array.isArray(progress.completionHistory) &&
+      progress.completionHistory.length > COMPLETION_HISTORY_CAP
+    ) {
+      progress.completionHistory = progress.completionHistory.slice(
+        -COMPLETION_HISTORY_CAP,
+      );
+    }
     let daily = { ...getInitialDailyState(), ...savedDaily } as DailyState;
     // 기존 저장 데이터에 새 필드가 없을 수 있으므로 배열 필드 보정
     daily.extraDrawnCards = daily.extraDrawnCards || [];
@@ -244,7 +261,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           superCompleted: superDone || undefined,
           wasFailed: dailyFailed || undefined,
         };
-        progress.completionHistory.push(record);
+        // Phase 13 review C#1 — history 누적 cap. 최근 365 entry 만 유지.
+        progress.completionHistory = [
+          ...progress.completionHistory,
+          record,
+        ].slice(-COMPLETION_HISTORY_CAP);
 
         if (extraDone) {
           progress.extraChallengesCompleted = (progress.extraChallengesCompleted || 0) + 1;

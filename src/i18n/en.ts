@@ -1039,6 +1039,7 @@ const en: Record<DictKey, string> = {
   "uphero.session.detail.bossDefeated": "Defeated {monster}.",
   "uphero.session.detail.victory": "Expedition complete.",
   "uphero.session.detail.abandoned": "Returned to camp.",
+  "uphero.session.detail.abandonedAtFloor": "Returned to camp from F{floor}.",
   "uphero.session.detail.choiceCost": "Undone by your own choice.",
 
   // === Phase 13b — Weekly Nightmare affixes ===
@@ -1530,6 +1531,11 @@ const en: Record<DictKey, string> = {
   "uphero.combat.narrative.choiceReward": "A reward for the choice.",
   "uphero.combat.minigame.success": "Challenge passed.",
   "uphero.combat.minigame.fail": "Challenge failed.",
+
+  // Phase 13 review — combat audit: encounter choice prompt / labels.
+  "uphero.combat.encounter.prompt": "The hero met {monster}.",
+  "uphero.combat.choice.fight": "Fight",
+  "uphero.combat.choice.fleeWithPct": "Flee ({pct}%)",
 
   "uphero.combat.narrative.skillHitMonster.warrior_crush_t3": "Crush smashed {monster} — {damage} damage.",
   "uphero.combat.narrative.skillHitMonster.warrior_rage_burst_t4": "The hero unleashed rage — {damage} fixed damage to {monster}.",

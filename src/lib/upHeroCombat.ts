@@ -1206,13 +1206,18 @@ function pushEncounterChoice(
   // Phase 4c-polish — 이모지 prefix 제거 (다른 UI 가 PixelIcon 으로 통일돼
   // 이모지와 시각 언어 불일치). ChoicePanel 은 "{번호}. {label}" 로 렌더하므로
   // prefix 없어도 구분 분명.
+  // Phase 13 review — combat audit: encounter 전용 ChoiceOption 의 label 을
+  //   i18n key 로 보강. label (한국어) 은 legacy fallback 으로 유지.
   const options: ChoiceOption[] = [
     {
       label: "싸운다",
+      labelKey: "uphero.combat.choice.fight",
       effect: { kind: "fight" },
     },
     {
       label: `도망간다 (${fleePct}%)`,
+      labelKey: "uphero.combat.choice.fleeWithPct",
+      labelParams: { pct: fleePct },
       effect: { kind: "flee", successChance: fleeChance },
     },
   ];
@@ -1227,6 +1232,14 @@ function pushEncounterChoice(
     type: "choice",
     variant: "encounter",
     prompt: `${monster.name} 을(를) 만났다.`,
+    // Phase 13 review — combat audit: encounter prompt i18n key + monster name 주입.
+    //   ChoicePanel 의 flavorText() 가 promptKey 있으면 우선 사용. legacy prompt 는 fallback.
+    //   monsterTemplateId 는 ChoicePanel 이 현재 언어 monster name 으로 resolve 후 `{monster}` 주입.
+    promptKey: "uphero.combat.encounter.prompt",
+    promptParams: {
+      monster: monster.name,
+      monsterTemplateId: monster.templateId ?? "",
+    },
     options,
     defaultOptionIndex: 0, // 5초 timeout 시 "싸운다"
     timeoutMs: 5000,
@@ -1534,7 +1547,11 @@ export function abandonSession(session: CombatSession): CombatSession {
         type: "sessionEnd",
         reason: "heroAbandoned",
         // Phase 13c — 한국어 fallback 유지. floor 정보는 detailFloor 로 별도 전달.
+        // Phase 13 review — combat audit: floor 정보 주입된 i18n key 추가.
+        //   SessionResultModal 의 t(detailKey, { floor }) 로 다국어 표시.
         detail: `F${session.currentFloor} 에서 캠프로 복귀`,
+        detailKey: "uphero.session.detail.abandonedAtFloor",
+        detailFloor: session.currentFloor,
         timestamp: Date.now(),
       },
     ],

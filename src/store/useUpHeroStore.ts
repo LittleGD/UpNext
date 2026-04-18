@@ -288,6 +288,15 @@ export type EnhanceResult =
 type UpHeroStore = UpHeroState & UpHeroActions;
 
 /**
+ * Phase 13 review Critical #2 — session.log persist cap.
+ *   F30 NG+ 세션 log 가 500+ entry 로 growing. JSON.stringify / parse 비용 ↑.
+ *   저장 시점에 최근 N entry 만 유지. tail 쪽에 victory/sessionEnd/choiceResult
+ *   가 몰려 있으므로 tail-preserving slice 가 의미 보존성 높음.
+ *   화면 표시 동안에는 in-memory log 가 full 로 유지됨 (persist 시에만 절삭).
+ */
+export const SESSION_LOG_PERSIST_CAP = 400;
+
+/**
  * 저장할 state 추출 — 함수는 제외. pendingDungeon 은 transient (persist 안 함).
  *
  * Phase 11c R1 — export 하여 DevLeaderboardPanel 같은 dev tool 에서 store persist
@@ -310,13 +319,21 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     weeklyVariant,
     schemaVersion,
   } = s;
+  // Phase 13 review C#2 — session.log tail-slice 로 persist payload 감축.
+  const trimmedSession =
+    currentSession && currentSession.log.length > SESSION_LOG_PERSIST_CAP
+      ? {
+          ...currentSession,
+          log: currentSession.log.slice(-SESSION_LOG_PERSIST_CAP),
+        }
+      : currentSession;
   return {
     hero,
     inventory,
     coins,
     passes,
     dungeons,
-    currentSession,
+    currentSession: trimmedSession,
     codex,
     cosmetics,
     lastIdleAccrualAt,

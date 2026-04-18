@@ -307,6 +307,11 @@ export interface ChoiceOption {
    */
   labelKey?: string;
   /**
+   * Phase 13 review — combat audit: label 에 `{pct}` 같은 token 이 있는
+   *   경우 주입할 runtime params. 없으면 labelKey 조회 결과 그대로 표시.
+   */
+  labelParams?: Record<string, string | number>;
+  /**
    * 단일 효과 (legacy) — outcomes 가 없을 때 fallback 으로 적용.
    * 기존 데이터 호환 및 단순 옵션 (fight/flee/nothing) 에서 사용.
    */
@@ -415,6 +420,12 @@ export type LogEntry =
       prompt: string;
       /** Phase 12 i18n — prompt 의 i18n key (선택). */
       promptKey?: string;
+      /**
+       * Phase 13 review — combat audit: encounter prompt 처럼 `{monster}` 토큰이
+       *   있는 key 에 주입할 params. monsterTemplateId 가 있으면 ChoicePanel 에서
+       *   현재 언어 monster name 으로 resolve 후 `{monster}` 에 주입.
+       */
+      promptParams?: NarrativeParams;
       options: ChoiceOption[];
       /** 사용자가 선택 완료 시 resolvedIndex set */
       resolvedIndex?: number;
@@ -445,6 +456,11 @@ export type LogEntry =
       detailKey?: string;
       detailMonsterTemplateId?: string;
       detailMonsterFallback?: string;
+      /**
+       * Phase 13 review — combat audit: abandoned 사유의 `F{floor}` 주입.
+       * SessionResultModal 이 t(detailKey, { floor }) 로 다국어 풀이.
+       */
+      detailFloor?: number;
       timestamp: number;
     }
   | {

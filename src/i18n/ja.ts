@@ -1039,6 +1039,7 @@ const ja: Record<DictKey, string> = {
   "uphero.session.detail.bossDefeated": "{monster} を撃破した",
   "uphero.session.detail.victory": "探索完了",
   "uphero.session.detail.abandoned": "キャンプに戻った",
+  "uphero.session.detail.abandonedAtFloor": "F{floor} からキャンプに戻った。",
   "uphero.session.detail.choiceCost": "選択の代償で倒れた",
 
   // === Phase 13b — 週間悪夢 affix (11) ===
@@ -1530,6 +1531,11 @@ const ja: Record<DictKey, string> = {
   "uphero.combat.narrative.choiceReward": "選択の報酬",
   "uphero.combat.minigame.success": "挑戦成功",
   "uphero.combat.minigame.fail": "挑戦失敗",
+
+  // Phase 13 review — combat audit: encounter choice prompt / labels.
+  "uphero.combat.encounter.prompt": "{monster} に遭遇した。",
+  "uphero.combat.choice.fight": "戦う",
+  "uphero.combat.choice.fleeWithPct": "逃げる ({pct}%)",
 
   "uphero.combat.narrative.skillHitMonster.warrior_crush_t3": "粉砕が {monster} を打ちのめす — {damage} ダメージ",
   "uphero.combat.narrative.skillHitMonster.warrior_rage_burst_t4": "勇者が怒りを爆発させる — {monster} に {damage} 固定ダメージ",

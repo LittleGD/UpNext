@@ -1039,6 +1039,7 @@ const zh: Record<DictKey, string> = {
   "uphero.session.detail.bossDefeated": "击败了 {monster}",
   "uphero.session.detail.victory": "探险完成",
   "uphero.session.detail.abandoned": "返回营地",
+  "uphero.session.detail.abandonedAtFloor": "从 F{floor} 返回营地。",
   "uphero.session.detail.choiceCost": "因选择的代价而倒下",
 
   // === Phase 13b — 周噩梦 affix (11) ===
@@ -1530,6 +1531,11 @@ const zh: Record<DictKey, string> = {
   "uphero.combat.narrative.choiceReward": "选择的奖励",
   "uphero.combat.minigame.success": "挑战成功",
   "uphero.combat.minigame.fail": "挑战失败",
+
+  // Phase 13 review — combat audit: encounter choice prompt / labels.
+  "uphero.combat.encounter.prompt": "遭遇了 {monster}。",
+  "uphero.combat.choice.fight": "战斗",
+  "uphero.combat.choice.fleeWithPct": "逃跑 ({pct}%)",
 
   "uphero.combat.narrative.skillHitMonster.warrior_crush_t3": "粉碎重击 {monster} — {damage} 伤害",
   "uphero.combat.narrative.skillHitMonster.warrior_rage_burst_t4": "勇者释放怒火 — 对 {monster} 造成 {damage} 固定伤害",
