@@ -16,7 +16,12 @@
 
 import { useMemo, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { getHeroAppearanceVariant, SELL_PRICE, SHOP_PRICES } from "@/types/uphero";
+import {
+  getHeroAppearanceVariant,
+  SELL_PRICE,
+  SHOP_PRICES,
+  CLASS_THEME_COLOR,
+} from "@/types/uphero";
 import type { Equipment, EquipSlot } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
 import { GB, EASE_OUT, gbClass, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
@@ -235,7 +240,11 @@ export default function EquipmentInventory({
               variant={variant}
               classType={hero.classType}
               size={80}
-              color={GB.lightest}
+              color={
+                hero.classType
+                  ? CLASS_THEME_COLOR[hero.classType]
+                  : GB.lightest
+              }
             />
           </div>
 

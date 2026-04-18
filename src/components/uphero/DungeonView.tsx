@@ -19,7 +19,11 @@ import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
 import { DUNGEONS } from "@/data/upHeroDungeons";
-import { computeEffectiveStats, getHeroAppearanceVariant } from "@/types/uphero";
+import {
+  computeEffectiveStats,
+  getHeroAppearanceVariant,
+  CLASS_THEME_COLOR,
+} from "@/types/uphero";
 import type { Monster } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
@@ -292,25 +296,29 @@ export default function DungeonView() {
     }, 1200);
   }, [session]);
 
-  // Druid heal float — narrative 에 "heal" 단어 포함 탐지 (choice 결과 or skill)
-  // 정확한 수치 추출은 어려워 "+{amount}" 는 고정 텍스트 "+heal" 로 대체.
+  // Druid heal float — hero.hp 가 증가한 구간을 감지해 실제 delta 수치 표시.
+  // narrative text 에는 수치가 들어있지 않아 log 파싱으론 불가. hp 변화
+  // 관찰이 가장 정확. warrior regen (+2) 은 druid 가 아닐 때만 발동하므로
+  // 충돌 없음. 5 미만 증가는 무시 (미세 변동 방지).
+  const prevHpRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!session) return;
+    if (!session) {
+      prevHpRef.current = null;
+      return;
+    }
     if (session.hero.classType !== "druid") return;
-    session.log.forEach((entry, idx) => {
-      if (entry.type !== "narrative") return;
-      const text = entry.text;
-      if (!text.includes("HP") && !text.includes("회복") && !text.includes("치유")) return;
-      const key = `druid-narrative-${idx}`;
-      if (seenGenericRef.current.has(key)) return;
-      seenGenericRef.current.add(key);
-      const id = Date.now() + idx;
-      setGenericFloats((prev) => [...prev, { id, kind: "heal", amount: 0 }]);
-      window.setTimeout(() => {
-        setGenericFloats((prev) => prev.filter((f) => f.id !== id));
-      }, 1000);
-    });
-  }, [session]);
+    const curHp = session.hero.hp;
+    const prev = prevHpRef.current;
+    prevHpRef.current = curHp;
+    if (prev === null) return; // 첫 샘플
+    const delta = curHp - prev;
+    if (delta < 5) return; // 노이즈 컷
+    const id = Date.now();
+    setGenericFloats((f) => [...f, { id, kind: "heal", amount: delta }]);
+    window.setTimeout(() => {
+      setGenericFloats((f) => f.filter((x) => x.id !== id));
+    }, 1000);
+  }, [session?.hero.hp, session]);
 
   // Chronomancer time save tag — consumeTime 에서 mult 적용 시 combat log 에는
   // 흔적이 없다. 차선책: TIME bar 옆에 "절약" micro tag 를 매 floor 진입
@@ -415,7 +423,11 @@ export default function DungeonView() {
               variant={heroVariant}
               classType={session.hero.classType}
               size={32}
-              color={GB.lightest}
+              color={
+                session.hero.classType
+                  ? CLASS_THEME_COLOR[session.hero.classType]
+                  : GB.lightest
+              }
               state={heroState}
               pulseOverlay={pulseOverlay}
               animationMs={1400}
@@ -583,7 +595,8 @@ export default function DungeonView() {
               +2
             </span>
           ))}
-          {/* Phase 6c — class 별 float (mage XP, bard coin, druid heal, priest start) */}
+          {/* Phase 6c — class 별 float (mage XP, bard coin, druid heal, priest start).
+               druid heal 는 실제 delta 수치 표시 (polish iteration). */}
           {genericFloats
             .filter((f) => f.kind === "heal" || f.kind === "priestStart")
             .map((f) => (
@@ -603,7 +616,7 @@ export default function DungeonView() {
                 }}
                 aria-hidden="true"
               >
-                {f.kind === "priestStart" ? "+50" : "+heal"}
+                +{f.amount}
               </span>
             ))}
         </div>

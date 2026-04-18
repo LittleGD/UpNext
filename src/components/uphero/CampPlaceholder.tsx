@@ -22,7 +22,11 @@ import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
-import { SHOP_PRICES, PASS_CAP_PER_CATEGORY } from "@/types/uphero";
+import {
+  SHOP_PRICES,
+  PASS_CAP_PER_CATEGORY,
+  CLASS_THEME_COLOR,
+} from "@/types/uphero";
 import type { DungeonId } from "@/types/uphero";
 import { useSound } from "@/hooks/useSound";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -247,7 +251,11 @@ function HomeView({
             variant={variant}
             classType={hero.classType}
             size={80}
-            color={GB.lightest}
+            color={
+              hero.classType
+                ? CLASS_THEME_COLOR[hero.classType]
+                : GB.lightest
+            }
           />
           {/* 그림자 — 발 밑에 작은 타원 */}
           <div

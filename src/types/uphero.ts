@@ -90,6 +90,22 @@ export const CLASS_META: Record<
   },
 };
 
+/**
+ * Phase 6 polish — class 별 sprite/UI 테마 색.
+ * DUNGEONS[DUNGEON_BY_CLASS[classType]].themeColor 와 동일한 값을 미리
+ * 정리해 두어 쉽게 참조 (circular import 방지).
+ */
+export const CLASS_THEME_COLOR: Record<ClassType, string> = {
+  warrior: "#87b87a", // fitness — 연녹
+  mage: "#a5c8db", // learning — 연파랑
+  monk: "#c9b8e8", // mindfulness — 연보라
+  druid: "#e8d88b", // nutrition — 연노랑
+  bard: "#e8a8a8", // social — 연분홍
+  chronomancer: "#bca88b", // productivity — 베이지/갈색
+  priest: "#8bc9c9", // wellness — 민트
+  illusionist: "#cdf564", // trending — 네온
+};
+
 /** 영웅 */
 export interface Hero {
   /** 영웅 이름 — 랜덤 풀에서 배정, 추후 사용자 변경 가능 */
