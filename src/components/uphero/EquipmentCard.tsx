@@ -21,6 +21,7 @@ import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
+import { equipmentNameById } from "@/lib/upHeroI18n";
 
 /** Phase 11b — skill id → 표시 이름 (없으면 id 그대로). */
 function talismanSkillName(id: string): string {
@@ -103,10 +104,15 @@ export default function EquipmentCard({
   style,
   className,
 }: EquipmentCardProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const dim = DIMENSIONS[size];
   const rarityColor = RARITY_COLOR[equipment.rarity];
   const clickable = !!onClick;
+  const localizedEqName = equipmentNameById(
+    equipment.baseId ?? "",
+    equipment.name,
+    language,
+  );
 
   // 스탯 entries — stats 객체에서 값 있는 키만
   const statEntries = Object.entries(equipment.stats).filter(
@@ -167,7 +173,7 @@ export default function EquipmentCard({
           WebkitBoxOrient: "vertical",
         }}
       >
-        {equipment.name}
+        {localizedEqName}
       </div>
 
       {/* 스탯 (sm 에선 1개만, md/lg 에선 전체) — mt-auto 로 바닥 정렬 */}
@@ -264,7 +270,7 @@ export default function EquipmentCard({
       .join(", ");
     const srLabel = [
       rarityLabel,
-      equipment.name,
+      localizedEqName,
       enhance > 0 ? `강화 +${enhance}` : null,
       statsBrief,
     ]

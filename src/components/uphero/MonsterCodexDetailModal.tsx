@@ -16,7 +16,7 @@ import { createPortal } from "react-dom";
 import { GB, EASE_OUT, GB_ENEMY, gbClass } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
-import { monsterNameById } from "@/lib/upHeroI18n";
+import { monsterNameById, dungeonName } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { DUNGEONS } from "@/data/upHeroDungeons";
@@ -137,7 +137,7 @@ export default function MonsterCodexDetailModal({
                 className="typo-caption"
                 style={{ color: GB.lightest }}
               >
-                {dungeon.name}
+                {dungeonName(dungeon.id, dungeon.name, language)}
               </span>
             </div>
           )}

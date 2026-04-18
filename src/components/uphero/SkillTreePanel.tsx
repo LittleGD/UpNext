@@ -21,7 +21,7 @@ import {
 import { CLASS_SKILL_TREES, type ClassSkill } from "@/lib/classSkills";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
-import { skillName, skillDesc } from "@/lib/upHeroI18n";
+import { skillName, skillDesc, resourceName } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function SkillTreePanel({ classType }: { classType: ClassType }) {
@@ -60,7 +60,9 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
       </div>
       <div className={`typo-micro mb-3 ${gbClass.textDim}`}>
         {t("uphero.skillTree.resourceLabel")}:{" "}
-        <span style={{ color: resourceSpec.color }}>{resourceSpec.name}</span> ·{" "}
+        <span style={{ color: resourceSpec.color }}>
+          {resourceName(classType, language) || resourceSpec.name}
+        </span> ·{" "}
         {t("uphero.skillTree.spGainHint")}
       </div>
       <div className="flex flex-col gap-3">

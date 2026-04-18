@@ -25,6 +25,7 @@ import { GB, EASE_OUT, EASE_DRAWER, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_
 import type { ChallengeCard, Rarity } from "@/types/card";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
+import { dungeonName, describeCardBuff } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const RARITY_COLOR: Record<Rarity, string> = {
@@ -35,7 +36,7 @@ const RARITY_COLOR: Record<Rarity, string> = {
 };
 
 export default function BuffDrawPanel() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
   const pending = useUpHeroStore((s) => s.pendingDungeon);
   const confirmDungeon = useUpHeroStore((s) => s.confirmDungeon);
@@ -108,7 +109,9 @@ export default function BuffDrawPanel() {
         }}
       >
         <div className="typo-caption" style={{ color: GB.light }}>
-          {t("uphero.buff.entering", { dungeon: dungeon.name })}
+          {t("uphero.buff.entering", {
+            dungeon: dungeonName(dungeon.id, dungeon.name, language),
+          })}
         </div>
         <div
           className="typo-body mt-1 tabular-nums"
@@ -220,6 +223,7 @@ function BuffCardPreview({
   selected: boolean;
   onToggle: () => void;
 }) {
+  const { language } = useTranslation();
   const buff = getCardBuff(card);
   const rarityColor = RARITY_COLOR[card.rarity];
 
@@ -306,7 +310,7 @@ function BuffCardPreview({
         className="typo-caption leading-tight mt-1"
         style={{ color: GB.light }}
       >
-        {buff.description}
+        {describeCardBuff(buff, language)}
       </div>
 
       <style jsx>{`

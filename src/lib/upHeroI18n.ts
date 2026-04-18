@@ -20,7 +20,14 @@
 import { t as dictT } from "@/i18n";
 import type { Language } from "@/types/game";
 import type { DictKey } from "@/i18n";
-import type { Monster } from "@/types/uphero";
+import type {
+  CardBuff,
+  ClassType,
+  DungeonId,
+  Monster,
+  SpecialEffect,
+} from "@/types/uphero";
+import type { Category, Rarity } from "@/types/card";
 
 /**
  * Monster 의 다국어 이름 반환.
@@ -96,4 +103,171 @@ export function flavorText(
   if (!key) return fallback;
   const translated = dictT(key as DictKey, language);
   return translated === key ? fallback : translated;
+}
+
+/* ────────────────────────────────────────────
+ * Phase 13a — 데이터 레이어 확장 헬퍼
+ *
+ * 던전 / 클래스 / 카테고리 / 장비 / 특수효과 / 카드 버프 description 까지
+ * 일괄 i18n 통과시키는 함수들. 컴포넌트는 *.name 직접 사용 대신 이 헬퍼들을
+ * 호출하면 자동으로 현재 언어로 번역됨 (legacy save 한국어 fallback).
+ * ──────────────────────────────────────────── */
+
+/** 던전 이름 — `dungeon.name` 대신 호출 */
+export function dungeonName(
+  dungeonId: DungeonId,
+  koreanFallback: string,
+  language: Language,
+): string {
+  const key = `uphero.dungeon.${dungeonId}.name` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? koreanFallback : translated;
+}
+
+/** 클래스 이름 (전사 / 마법사 ...) */
+export function className(classType: ClassType, language: Language): string {
+  const key = `uphero.class.${classType}.name` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? classType : translated;
+}
+
+/** 클래스 패시브 한 줄 설명 */
+export function classPassive(
+  classType: ClassType,
+  koreanFallback: string,
+  language: Language,
+): string {
+  const key = `uphero.class.${classType}.passive` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? koreanFallback : translated;
+}
+
+/** 카테고리 라벨 (운동 / 학습 / ...) — 친화 표기 등에 사용 */
+export function categoryLabel(
+  category: Category,
+  language: Language,
+): string {
+  const key = `uphero.category.${category}` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? category : translated;
+}
+
+/** Rarity prefix — "빛나는 ", "전설적 " 등 (말미 공백 포함) */
+export function rarityPrefix(rarity: Rarity, language: Language): string {
+  const key = `uphero.rarityPrefix.${rarity}` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? "" : translated;
+}
+
+/** Affix stat label — "민첩", "체력", ... 그리고 " of {stat}" 풀네임 */
+export function affixStatLabel(
+  stat: string,
+  language: Language,
+): string {
+  const key = `uphero.affixStat.${stat}` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? stat : translated;
+}
+
+export function affixSuffix(stat: string, language: Language): string {
+  const statName = affixStatLabel(stat, language);
+  // affixSuffix 키는 " of {stat}" 형식
+  const tmpl = dictT("uphero.affixSuffix" as DictKey, language);
+  return tmpl.replace("{stat}", statName);
+}
+
+/**
+ * 장비 baseName i18n. 컴포넌트는 `equipment.name` 대신 이 헬퍼로 표시.
+ *  - 저장된 name 에서 rarity prefix 를 떼고 base id 를 추출하기 어려우므로,
+ *    호출자는 별도로 baseId 를 알고 있어야 함 (장비 템플릿 기반).
+ */
+export function equipmentNameById(
+  baseId: string,
+  koreanFallback: string,
+  language: Language,
+): string {
+  const key = `uphero.equip.${baseId}.name` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? koreanFallback : translated;
+}
+
+/** 장비 flavor 1줄 */
+export function equipmentFlavorById(
+  baseId: string,
+  koreanFallback: string | undefined,
+  language: Language,
+): string {
+  if (!baseId) return koreanFallback ?? "";
+  const key = `uphero.equip.${baseId}.flavor` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? (koreanFallback ?? "") : translated;
+}
+
+/** 특수효과 한 줄 — "드롭 +10%" 같은 말 */
+export function describeSpecialEffect(
+  type: SpecialEffect,
+  value: number,
+  language: Language,
+): string {
+  const sign = value >= 0 ? "+" : "";
+  const tmpl = dictT(`uphero.special.${type}` as DictKey, language);
+  // value 는 음수면 - 가 붙어있으니 sign 은 + 만 붙임
+  return tmpl
+    .replace("{sign}", sign)
+    .replace("{value}", String(value));
+}
+
+/**
+ * 카드 버프 description 다국어 빌드.
+ *
+ * 카드 버프는 effects 배열 (stat / special / affinity) 로 구성되며,
+ * 한국어에선 "STR +6 · VIT +3 · 운동 던전 1.3배" 식으로 합성됨.
+ * 다국어로 풀려면 각 effect 를 언어별로 빌드 후 ` · ` 로 join.
+ */
+export function describeCardBuff(
+  buff: CardBuff,
+  language: Language,
+): string {
+  const parts: string[] = [];
+
+  for (const eff of buff.effects) {
+    if (eff.kind === "stat") {
+      // stat: { str: 6, vit: 3 } → "STR +6 · VIT +3"
+      // 단 모든 스탯이 동일 값이면 "모든 스탯 +N" 패턴
+      const entries = Object.entries(eff.stats).filter(([, v]) => v != null);
+      if (entries.length === 0) continue;
+
+      const allSame =
+        entries.length >= 5 &&
+        entries.every(([, v]) => v === entries[0][1]);
+
+      if (allSame && entries[0][1] != null) {
+        const tmpl = dictT(
+          "uphero.cardBuff.allStats" as DictKey,
+          language,
+        );
+        parts.push(tmpl.replace("{value}", String(entries[0][1])));
+      } else {
+        for (const [k, v] of entries) {
+          if (v == null || v === 0) continue;
+          const sign = v > 0 ? "+" : "";
+          const isCrit = k === "crit";
+          parts.push(`${k.toUpperCase()} ${sign}${v}${isCrit ? "%" : ""}`);
+        }
+      }
+    } else if (eff.kind === "special") {
+      parts.push(describeSpecialEffect(eff.type, eff.value, language));
+    } else if (eff.kind === "affinity") {
+      const cat = categoryLabel(eff.category as Category, language);
+      const tmpl = dictT(
+        "uphero.cardBuff.affinity" as DictKey,
+        language,
+      );
+      parts.push(
+        tmpl.replace("{category}", cat).replace("{mult}", String(eff.multiplier)),
+      );
+    }
+  }
+
+  return parts.join(" · ");
 }

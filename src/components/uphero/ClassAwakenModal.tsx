@@ -21,10 +21,11 @@ import { GB, EASE_OUT, EASE_DRAWER } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
+import { className as classNameI18n, classPassive } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function ClassAwakenModal() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const pending = useUpHeroStore((s) => s.pendingClassAwaken);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeClassAwaken);
   const { play } = useSound();
@@ -132,7 +133,7 @@ export default function ClassAwakenModal() {
             transition: `opacity 320ms ${EASE_OUT}, transform 320ms ${EASE_OUT}`,
           }}
         >
-          {meta.name}
+          {classNameI18n(pending, language)}
         </div>
 
         <div
@@ -146,7 +147,7 @@ export default function ClassAwakenModal() {
             lineHeight: 1.6,
           }}
         >
-          {meta.passive}
+          {classPassive(pending, meta.passive, language)}
         </div>
 
         <button

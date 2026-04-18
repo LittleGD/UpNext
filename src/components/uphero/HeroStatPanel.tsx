@@ -29,7 +29,7 @@ import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
-import { skillName } from "@/lib/upHeroI18n";
+import { skillName, className as classNameI18n, classPassive } from "@/lib/upHeroI18n";
 import HeroSprite from "./HeroSprite";
 import HexStatChart from "./HexStatChart";
 import SkillTreePanel from "./SkillTreePanel";
@@ -401,10 +401,10 @@ function ClassSection({ hero }: { hero: Hero }) {
         <PixelIcon name={meta.icon} size={20} color={GB.lightest} />
         <div className="flex flex-col gap-0.5 flex-1 min-w-0">
           <div className="typo-caption" style={{ color: GB.lightest }}>
-            {meta.name}
+            {classNameI18n(hero.classType, language)}
           </div>
           <div className={`typo-caption ${gbClass.textDim} leading-tight`}>
-            {meta.passive}
+            {classPassive(hero.classType, meta.passive, language)}
           </div>
         </div>
       </div>
