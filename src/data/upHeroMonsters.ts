@@ -152,31 +152,39 @@ export const ALL_MONSTER_TEMPLATES: MonsterTemplate[] = (() => {
  *
  * Phase 11c — `ngPlusLevel` 인자 추가. 0 (기본) 이면 legacy. 1+ 이면 hp/atk/def 에
  * `(1 + 0.5 × n)` 곱해서 NG+ 반복 플레이 난이도 상승. xp/coin 보상도 같은 비율로 ↑.
+ * Phase 11c-balance — `hpMult` / `atkMult` 추가 (weekly affix 페널티). 기본 1.
  */
+export interface ScaleOptions {
+  ngPlusLevel?: number;
+  hpMult?: number;
+  atkMult?: number;
+}
+
 export function createMonsterForFloor(
   dungeonId: DungeonId,
   floor: number,
   isBoss = false,
-  ngPlusLevel = 0,
+  opts: ScaleOptions = {},
 ): Monster {
   const pool = TEMPLATES[dungeonId];
   if (isBoss) {
     // 10F / 20F / 30F 에 각각 다른 보스
     const bossIdx = Math.min(Math.floor((floor - 1) / 10), 2);
     const template = pool.bosses[bossIdx];
-    return scaleMonster(template, dungeonId, floor, ngPlusLevel);
+    return scaleMonster(template, dungeonId, floor, opts);
   }
   const template = pool.normal[Math.floor(Math.random() * pool.normal.length)];
-  return scaleMonster(template, dungeonId, floor, ngPlusLevel);
+  return scaleMonster(template, dungeonId, floor, opts);
 }
 
-/** floor + power 기반 stats 스케일링 (+ NG+ 보정) */
+/** floor + power 기반 stats 스케일링 (+ NG+ / weekly affix 보정) */
 function scaleMonster(
   t: MonsterTemplate,
   dungeonId: DungeonId,
   floor: number,
-  ngPlusLevel = 0,
+  opts: ScaleOptions = {},
 ): Monster {
+  const { ngPlusLevel = 0, hpMult = 1, atkMult = 1 } = opts;
   const bossMult = t.isBoss ? 4 : 1;
   const ngMult = 1 + 0.5 * Math.max(0, ngPlusLevel);
   const base = 20 + floor * 5;
@@ -185,8 +193,8 @@ function scaleMonster(
     name: t.name,
     kind: t.kind,
     level: floor,
-    hp: Math.round(base * t.power * bossMult * ngMult),
-    atk: Math.round((5 + floor * 1.5) * t.power * bossMult * ngMult),
+    hp: Math.round(base * t.power * bossMult * ngMult * hpMult),
+    atk: Math.round((5 + floor * 1.5) * t.power * bossMult * ngMult * atkMult),
     def: Math.round((2 + floor) * t.power * ngMult),
     xpReward: Math.round((10 + floor * 3) * t.power * bossMult * ngMult),
     coinReward: Math.round(

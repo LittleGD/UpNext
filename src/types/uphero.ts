@@ -429,6 +429,21 @@ export interface CombatSession {
    *   combat.ts 의 affix 별 분기 (rollHeroOutcome, createMonsterForFloor 등) 에서 참조.
    */
   weeklyAffixId?: string;
+  /**
+   * Phase 11c — 주간 affix 로 설정된 monster 공격력 배율 (기본 1).
+   *   createMonsterForFloor 의 atk scale 에 곱. 예: "적 광란" 1.25, "강철 의지" 1.35.
+   */
+  monsterAtkMult?: number;
+  /**
+   * Phase 11c — 주간 affix 로 설정된 monster HP 배율 (기본 1).
+   *   createMonsterForFloor 의 hp scale 에 곱. 예: "관대한 휴식" 1.2.
+   */
+  monsterHpMult?: number;
+  /**
+   * Phase 11c — 주간 affix 로 설정된 XP 보상 배율 (기본 1).
+   *   victory 지급 시 기존 xpMult 체인에 곱. 예: "풍요의 수확" 0.75 (XP -25%).
+   */
+  xpMult?: number;
   startedAt: number;
 }
 

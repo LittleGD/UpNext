@@ -1052,7 +1052,7 @@ function WeeklyNightmareCard({
             className="typo-caption truncate"
             style={{ color: GB.light }}
           >
-            {affix?.name ?? "랜덤 변이"}
+            {affix?.name ?? "이번 주 악몽"}
             {clearedCount > 0 && (
               <span className="tabular-nums" style={{ opacity: 0.7 }}>
                 {" · "}클리어 {clearedCount}/8
@@ -1216,7 +1216,7 @@ function WeeklyView({
           className="typo-micro mt-3 text-center"
           style={{ color: GB.light, opacity: 0.6, letterSpacing: "0.05em" }}
         >
-          탐험권 소모 없음 · 매주 월요일 affix 변경
+          탐험권 소모 없음 · 매주 월요일 새 악몽
         </div>
       </div>
 
@@ -1224,7 +1224,7 @@ function WeeklyView({
         <Suspense fallback={null}>
           <WeeklyLeaderboardLazy
             weekId={weeklyVariant.week}
-            affixName={affix?.name ?? "변이"}
+            affixName={affix?.name ?? "이번 주 악몽"}
             onClose={() => setLeaderboardOpen(false)}
           />
         </Suspense>

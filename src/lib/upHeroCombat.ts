@@ -377,9 +377,11 @@ export function tickSession(session: CombatSession): CombatSession {
         // Phase 6b: bard 노래 (nextCoinMult) 있으면 이번 victory 한정 추가 곱, 후 소모
         // Phase 11b: talisman 카리스마 (coinMult) × class × buff 모두 곱.
         const tMods = sessionMods(s);
+        // Phase 11c-balance — weekly affix xpMult (풍요의 수확 XP -25%) 반영.
         const xpMult =
           (1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100) *
-          classXpMult(s.hero.classType);
+          classXpMult(s.hero.classType) *
+          (s.xpMult ?? 1);
         let coinMult =
           (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
           classCoinMult(s.hero.classType) *
@@ -514,12 +516,11 @@ export function tickSession(session: CombatSession): CombatSession {
     // 보스 floor 면 boss 엔트리만 push 하고 세션 일시 정지 (BossBanner 연출 동안)
     // encounter 는 사용자가 연출을 본 후 resumeSession() 호출 시 다음 tick 에서 push
     if (isBossFloor) {
-      const boss = createMonsterForFloor(
-        s.dungeonId,
-        nextFloor,
-        true,
-        s.ngPlusLevel ?? 0,
-      );
+      const boss = createMonsterForFloor(s.dungeonId, nextFloor, true, {
+        ngPlusLevel: s.ngPlusLevel ?? 0,
+        hpMult: s.monsterHpMult ?? 1,
+        atkMult: s.monsterAtkMult ?? 1,
+      });
       s.log.push({ type: "boss", monster: boss, floor: nextFloor, timestamp: Date.now() });
       s.status = "paused";
       return s;
@@ -595,12 +596,11 @@ export function tickSession(session: CombatSession): CombatSession {
   }
 
   // 나머지: encounter (monsterFreqDelta 만큼 확률 증감)
-  const monster = createMonsterForFloor(
-    s.dungeonId,
-    s.currentFloor,
-    false,
-    s.ngPlusLevel ?? 0,
-  );
+  const monster = createMonsterForFloor(s.dungeonId, s.currentFloor, false, {
+    ngPlusLevel: s.ngPlusLevel ?? 0,
+    hpMult: s.monsterHpMult ?? 1,
+    atkMult: s.monsterAtkMult ?? 1,
+  });
   s.log.push({ type: "encounter", monster, timestamp: Date.now() });
   consumeTime(s, -TIME_COST.encounter);
   return s;
