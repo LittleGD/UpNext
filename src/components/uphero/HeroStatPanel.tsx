@@ -29,6 +29,7 @@ import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
+import { skillName } from "@/lib/upHeroI18n";
 import HeroSprite from "./HeroSprite";
 import HexStatChart from "./HexStatChart";
 import SkillTreePanel from "./SkillTreePanel";
@@ -357,6 +358,7 @@ import type { Hero } from "@/types/uphero";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 
 function ClassSection({ hero }: { hero: Hero }) {
+  const { t, language } = useTranslation();
   const toggleAutoSkill = useUpHeroStore((s) => s.toggleAutoSkill);
   // Phase 6 polish — 전투 중이면 실시간 cooldown 표시.
   const currentSession = useUpHeroStore((s) => s.currentSession);
@@ -418,7 +420,9 @@ function ClassSection({ hero }: { hero: Hero }) {
         <div className="flex flex-col gap-0.5 flex-1 min-w-0">
           <div className="flex items-center gap-2 typo-caption">
             <span style={{ color: GB.lightest }}>
-              액티브 — {skill.name}
+              {t("uphero.skill.activeLabel", {
+                name: skillName(skill.id, skill.name, language),
+              })}
             </span>
             {sessionActive && (
               <span

@@ -390,7 +390,12 @@ export type LogEntry =
       type: "skill";
       /** 발동한 class (icon / color 결정용) */
       classType: ClassType;
-      /** 스킬 이름 (예: "강타", "성스러운 빛") */
+      /**
+       * Phase 12 i18n — 스킬 id (다국어 표시 키 조회용).
+       *   legacy entry 는 id 없음 → skillName 그대로 표시 (한국어 fallback).
+       */
+      skillId?: string;
+      /** 스킬 이름 (예: "강타", "성스러운 빛") — legacy 용 한국어 fallback */
       skillName: string;
       /** 발동 narrative (예: "영웅이 강타를 준비한다 — 다음 공격 2배") */
       narrative: string;

@@ -24,10 +24,13 @@ import {
 } from "@/lib/classSkills";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
+import { useTranslation } from "@/hooks/useTranslation";
+import { skillName, resourceName } from "@/lib/upHeroI18n";
 
 export default function SkillBar({ session }: { session: CombatSession }) {
   const fireSkillManual = useUpHeroStore((s) => s.fireSkillManual);
   const { play } = useSound();
+  const { t, language } = useTranslation();
   const cls = session.hero.classType;
   if (!cls) return null;
 
@@ -63,11 +66,16 @@ export default function SkillBar({ session }: { session: CombatSession }) {
         const hasResource = resourceCur >= skill.resourceCost;
         const ready = check.ok;
 
-        let srLabel = `${skill.name} · 자원 ${skill.resourceCost} · CD ${skill.cooldown}`;
+        const localName = skillName(skill.id, skill.name, language);
+        let srLabel = t("uphero.skill.srLabel", {
+          name: localName,
+          resource: skill.resourceCost,
+          cd: skill.cooldown,
+        });
         if (!ready) {
-          if (check.reason === "cooldown") srLabel += ` · 쿨다운 ${cd} round`;
+          if (check.reason === "cooldown") srLabel += ` · CD ${cd}`;
           else if (check.reason === "resource")
-            srLabel += ` · ${resource.name} 부족`;
+            srLabel += ` · ${resourceName(cls, language) || resource.name}`;
         }
 
         return (
@@ -101,7 +109,7 @@ export default function SkillBar({ session }: { session: CombatSession }) {
                 lineHeight: 1.2,
               }}
             >
-              {skill.name}
+              {localName}
             </span>
             {/* 자원 비용 */}
             <span
