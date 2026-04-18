@@ -56,7 +56,7 @@ const CATEGORY_ICON: Record<DungeonId, string> = {
   trending: "Sparkle",
 };
 
-type View = "home" | "dungeons" | "shop" | "equipment" | "codex";
+type View = "home" | "dungeons" | "shop" | "equipment" | "codex" | "weekly";
 
 export default function CampPlaceholder() {
   const coins = useUpHeroStore((s) => s.coins);
@@ -147,7 +147,11 @@ export default function CampPlaceholder() {
             onOpenEquipment={() => setView("equipment")}
             onOpenCodex={() => setView("codex")}
             onOpenStats={() => setStatsOpen(true)}
+            onOpenWeekly={() => setView("weekly")}
           />
+        )}
+        {!pendingDungeon && view === "weekly" && (
+          <WeeklyView onBack={() => setView("home")} onNotify={notify} />
         )}
         {!pendingDungeon && view === "dungeons" && (
           <DungeonsView
@@ -228,6 +232,7 @@ function HomeView({
   onOpenEquipment,
   onOpenCodex,
   onOpenStats,
+  onOpenWeekly,
 }: {
   hero: { name: string; classType: import("@/types/uphero").ClassType | null };
   heroLevel: number;
@@ -237,11 +242,19 @@ function HomeView({
   onOpenEquipment: () => void;
   onOpenCodex: () => void;
   onOpenStats: () => void;
+  onOpenWeekly: () => void;
 }) {
   const { play } = useSound();
   const variant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
   // Phase 4c-polish: 카테고리별 탐험권 시각화 — totalPasses 와 별도로 raw 객체 필요
   const passes = useUpHeroStore((s) => s.passes);
+  // Phase 11c — NG+ / 주간 악몽 정보
+  const ngPlusLevel = useUpHeroStore((s) => s.ngPlusLevel ?? 0);
+  const weeklyVariant = useUpHeroStore((s) => s.weeklyVariant);
+  const dungeons = useUpHeroStore((s) => s.dungeons);
+  const f30Unlocked =
+    ngPlusLevel > 0 ||
+    Object.values(dungeons).some((d) => d?.bossesDefeated?.includes(30));
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -256,15 +269,34 @@ function HomeView({
         />
 
         {/* 이름 태그 — typo-micro 예외: nameplate 라벨, 본문 아님 */}
-        <div
-          className="typo-micro mb-3 px-2.5 py-1 rounded-sm relative"
-          style={{
-            color: GB.darkest,
-            background: GB.lightest,
-            letterSpacing: "0.05em",
-          }}
-        >
-          {hero.name}
+        <div className="flex items-center gap-1.5 mb-3 relative">
+          <div
+            className="typo-micro px-2.5 py-1 rounded-sm"
+            style={{
+              color: GB.darkest,
+              background: GB.lightest,
+              letterSpacing: "0.05em",
+            }}
+          >
+            {hero.name}
+          </div>
+          {/* Phase 11c — NG+ badge. F30 최초 클리어 이후 노출. */}
+          {ngPlusLevel > 0 && (
+            <div
+              className="typo-micro px-1.5 py-0.5 rounded-sm tabular-nums"
+              style={{
+                color: "#e8b887",
+                background: `${"#e8b887"}22`,
+                border: `1px solid #e8b887`,
+                letterSpacing: "0.05em",
+                fontSize: 10,
+              }}
+              aria-label={`NG+ ${ngPlusLevel}`}
+              title="F30 보스 클리어 반복 횟수"
+            >
+              NG+{ngPlusLevel}
+            </div>
+          )}
         </div>
 
         {/* 픽셀 영웅 sprite — 탭하면 HeroStatPanel 오버레이. */}
@@ -365,6 +397,16 @@ function HomeView({
         className="px-4 pt-3 pb-4 flex flex-col gap-2 shrink-0"
         style={{ borderTop: `1px solid ${GB.dark}` }}
       >
+        {/* Phase 11c — 주간 악몽 던전 카드. F30 최초 클리어 후만 노출. */}
+        {f30Unlocked && weeklyVariant && (
+          <WeeklyNightmareCard
+            weekId={weeklyVariant.week}
+            affixId={weeklyVariant.affixId}
+            clearedCount={weeklyVariant.clearedDungeons.length}
+            bestScore={weeklyVariant.bestScore}
+            onOpen={onOpenWeekly}
+          />
+        )}
         <PrimaryCTA
           onClick={() => {
             play("select");
@@ -960,3 +1002,239 @@ function PressButton({
     </button>
   );
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Phase 11c — 주간 악몽 던전
+ * ══════════════════════════════════════════════════════════════════════ */
+
+import { getWeeklyAffixById } from "@/data/weeklyAffixes";
+
+/** 홈 상단에 표시되는 "이번 주 악몽" 카드. */
+function WeeklyNightmareCard({
+  weekId,
+  affixId,
+  clearedCount,
+  bestScore,
+  onOpen,
+}: {
+  weekId: string;
+  affixId: string;
+  clearedCount: number;
+  bestScore: number;
+  onOpen: () => void;
+}) {
+  const affix = getWeeklyAffixById(affixId);
+  return (
+    <PressButton
+      onClick={onOpen}
+      style={{
+        background: `linear-gradient(135deg, ${"#e8b887"}22 0%, ${GB.dark}cc 100%)`,
+        color: GB.lightest,
+        border: `1px solid ${"#e8b887"}`,
+        padding: "10px 12px",
+      }}
+    >
+      <div className="flex items-center gap-2.5">
+        <PixelIcon name="WarningDiamond" size={18} color="#e8b887" />
+        <div className="flex-1 min-w-0 text-left">
+          <div className="flex items-center gap-1.5">
+            <span className="typo-body" style={{ color: GB.lightest, fontWeight: 500 }}>
+              이번 주 악몽
+            </span>
+            <span
+              className="typo-micro tabular-nums"
+              style={{ color: "#e8b887", opacity: 0.85, fontSize: 10 }}
+            >
+              {weekId}
+            </span>
+          </div>
+          <div
+            className="typo-caption truncate"
+            style={{ color: GB.light }}
+          >
+            {affix?.name ?? "랜덤 변이"}
+            {clearedCount > 0 && (
+              <span className="tabular-nums" style={{ opacity: 0.7 }}>
+                {" · "}클리어 {clearedCount}/8
+                {bestScore > 0 && ` · 최고 ${bestScore.toLocaleString()}점`}
+              </span>
+            )}
+          </div>
+        </div>
+        <PixelIcon name="ChevronRight" size={14} color={GB.lightest} />
+      </div>
+    </PressButton>
+  );
+}
+
+/** 주간 악몽 진입 view — 8 던전 선택 + 리더보드 모달. */
+function WeeklyView({
+  onBack,
+  onNotify,
+}: {
+  onBack: () => void;
+  onNotify: (msg: string) => void;
+}) {
+  const weeklyVariant = useUpHeroStore((s) => s.weeklyVariant);
+  const enterWeeklyVariant = useUpHeroStore((s) => s.enterWeeklyVariant);
+  const dungeons = useUpHeroStore((s) => s.dungeons);
+  const { play } = useSound();
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+
+  const affix = weeklyVariant ? getWeeklyAffixById(weeklyVariant.affixId) : null;
+  // 주간 악몽 진입 가능한 던전 — F30 을 **적어도 한 번** 클리어한 것만 (NG+ 가 ≥1이면 모두).
+  const isDungeonEligible = (d: DungeonId) => {
+    const progress = dungeons[d];
+    return !!progress?.bossesDefeated?.includes(30);
+  };
+
+  const onEnter = (d: DungeonId) => {
+    const result = enterWeeklyVariant(d);
+    if (result === "ok") {
+      play("select");
+    } else if (result === "not-unlocked") {
+      onNotify("먼저 이 던전의 F30 을 돌파하세요");
+    } else {
+      onNotify("주간 데이터 로딩 중");
+    }
+  };
+
+  return (
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <SubHeader title="이번 주 악몽" onBack={onBack} />
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+        {/* Affix 설명 카드 */}
+        {weeklyVariant && affix && (
+          <div
+            className="mb-3 rounded-md p-3"
+            style={{
+              background: `linear-gradient(135deg, ${"#e8b887"}22 0%, ${GB.dark}cc 100%)`,
+              border: `1px solid ${"#e8b887"}66`,
+            }}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="inline-flex items-center gap-1.5">
+                <PixelIcon name="WarningDiamond" size={14} color="#e8b887" />
+                <span
+                  className="typo-caption tabular-nums"
+                  style={{ color: "#e8b887", letterSpacing: "0.05em" }}
+                >
+                  {weeklyVariant.week}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLeaderboardOpen(true)}
+                className="weekly-leader-btn typo-caption rounded inline-flex items-center gap-1"
+                style={{
+                  minHeight: 32,
+                  padding: "4px 10px",
+                  background: `${GB.darkest}88`,
+                  border: `1px solid ${GB.lightest}66`,
+                  color: GB.lightest,
+                }}
+                aria-label="리더보드 보기"
+              >
+                <PixelIcon name="Trophy" size={12} color={GB.lightest} />
+                순위
+              </button>
+            </div>
+            <div className="typo-body mb-1" style={{ color: GB.lightest, fontWeight: 500 }}>
+              {affix.name}
+            </div>
+            <div className="typo-caption leading-relaxed" style={{ color: GB.light }}>
+              {affix.description}
+            </div>
+            {weeklyVariant.bestScore > 0 && (
+              <div
+                className="typo-micro tabular-nums mt-2"
+                style={{ color: GB.lightest, opacity: 0.8 }}
+              >
+                내 최고 점수: {weeklyVariant.bestScore.toLocaleString()}
+              </div>
+            )}
+            <style jsx>{`
+              .weekly-leader-btn {
+                transition: transform 120ms ${EASE_OUT};
+              }
+              .weekly-leader-btn:active {
+                transform: scale(0.96);
+              }
+            `}</style>
+          </div>
+        )}
+
+        {/* 던전 그리드 — F30 클리어한 것만 enable */}
+        <div className="grid grid-cols-2 gap-2">
+          {DUNGEON_LIST.map((d) => {
+            const eligible = isDungeonEligible(d.id);
+            const alreadyCleared = weeklyVariant?.clearedDungeons.includes(d.id);
+            return (
+              <PressButton
+                key={d.id}
+                onClick={() => eligible && onEnter(d.id)}
+                disabled={!eligible}
+                style={{
+                  background: eligible ? `${GB.dark}99` : "transparent",
+                  border: `1px solid ${
+                    alreadyCleared ? GB_LEGEND_COLOR : eligible ? d.themeColor : GB.dark
+                  }`,
+                  opacity: eligible ? 1 : 0.45,
+                  minHeight: 76,
+                  padding: "12px 10px",
+                }}
+              >
+                <div className="flex items-start justify-between gap-1 mb-1.5">
+                  <PixelIcon
+                    name={CATEGORY_ICON[d.id]}
+                    size={18}
+                    color={eligible ? d.themeColor : GB.light}
+                  />
+                  {alreadyCleared && (
+                    <PixelIcon name="Check" size={12} color={GB_LEGEND_COLOR} />
+                  )}
+                </div>
+                <div
+                  className="typo-caption truncate"
+                  style={{ color: eligible ? GB.lightest : GB.light }}
+                >
+                  {d.name}
+                </div>
+                <div
+                  className="typo-micro tabular-nums mt-0.5"
+                  style={{ color: eligible ? "#e8b887" : GB.light, opacity: 0.8 }}
+                >
+                  {eligible ? "F30 변이" : "F30 미도달"}
+                </div>
+              </PressButton>
+            );
+          })}
+        </div>
+
+        <div
+          className="typo-micro mt-3 text-center"
+          style={{ color: GB.light, opacity: 0.6, letterSpacing: "0.05em" }}
+        >
+          탐험권 소모 없음 · 매주 월요일 affix 변경
+        </div>
+      </div>
+
+      {leaderboardOpen && weeklyVariant && (
+        <Suspense fallback={null}>
+          <WeeklyLeaderboardLazy
+            weekId={weeklyVariant.week}
+            affixName={affix?.name ?? "변이"}
+            onClose={() => setLeaderboardOpen(false)}
+          />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+
+/** GB_LEGEND color — "클리어 완료" 뱃지 톤. upHeroPalette 의 GB_LEGEND 재사용. */
+const GB_LEGEND_COLOR = "#e8b887";
+
+/** WeeklyLeaderboard 를 lazy 로 — 초기 탭 번들 영향 최소화. */
+const WeeklyLeaderboardLazy = lazy(() => import("./WeeklyLeaderboard"));

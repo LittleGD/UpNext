@@ -21,6 +21,8 @@ import {
   DAILY_PASS_PURCHASE_CAP,
   enhanceSuccessRate,
   enhanceCost,
+  getISOWeekId,
+  computeWeeklyScore,
   type UpHeroState,
   type DungeonId,
   type ClassType,
@@ -30,6 +32,7 @@ import {
   type CardBuff,
   type HeroBaseStats,
 } from "@/types/uphero";
+import { pickWeeklyAffix } from "@/data/weeklyAffixes";
 import type { Category } from "@/types/card";
 import type { Rarity } from "@/types/card";
 import { getLevelFromXP } from "@/types/game";
@@ -68,16 +71,16 @@ import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { useGameStore, getTodayString } from "./useGameStore";
 
 /**
- * Phase 5a.3 / 5b.2 / 9d / 11a — 저장 스키마 현재 버전.
+ * Phase 5a.3 / 5b.2 / 9d / 11a / 11c — 저장 스키마 현재 버전.
  *
  * v1: codex.monsters/bosses 를 monster.name 기반으로 전환 (legacy 는 instance ID)
  * v2: codex.equipment 를 template baseName 기반으로 전환 (legacy 는 instance ID)
  * v3: heroStartLevel seed — 영웅 레벨을 챌린지 레벨과 분리.
- * v4: shopDaily seed — 상점 하루 탐험권 구매 cap 을 위해 shopDaily 초기값
- *     { date: today, passesBought: 0 } 을 부여. 기존 인벤토리는 enhanceLevel
- *     없이도 legacy=0 으로 동작하므로 migration 필요 없음.
+ * v4: shopDaily seed — 상점 하루 탐험권 구매 cap.
+ * v5: ngPlusLevel seed (0) + weeklyVariant 는 initialize 에서 이번 주 id 로 갱신.
+ *     기존 유저도 F30 처음 처치 시점부터 NG+ 자연 해금.
  */
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 
 /**
  * Phase 4c-fix: Codex legacy ID → name migration.
@@ -203,6 +206,16 @@ interface UpHeroActions {
     reason?: "not-found" | "not-bound" | "maxed" | "coin";
   };
 
+  /**
+   * Phase 11c — 주간 악몽 던전 진입. F30 을 최소 한 번 클리어한 유저만 가능.
+   * - 선택한 dungeonId 의 F30 변이 (이번 주 affix 적용) 로 바로 진입.
+   * - 탐험권 소모 없음 (주간 특전). 이미 이번 주 해당 던전 클리어했으면 재도전 가능 (점수 경신).
+   * - startFloor 는 항상 F30 (단일 보스 battle 로 짧게).
+   *   TODO 향후: F21-30 루트 선택지 추가 가능.
+   * @returns "ok" / "not-unlocked" (F30 미클리어) / "no-weekly" (주간 데이터 없음)
+   */
+  enterWeeklyVariant(dungeonId: DungeonId): "ok" | "not-unlocked" | "no-weekly";
+
   // 장비
   equipItem(itemId: string, slot: EquipSlot): void;
   unequipItem(slot: EquipSlot): void;
@@ -262,6 +275,8 @@ function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     lastIdleAccrualAt,
     heroStartLevel,
     shopDaily,
+    ngPlusLevel,
+    weeklyVariant,
     schemaVersion,
   } = s;
   return {
@@ -276,6 +291,8 @@ function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     lastIdleAccrualAt,
     heroStartLevel,
     shopDaily,
+    ngPlusLevel,
+    weeklyVariant,
     schemaVersion,
   };
 }
@@ -295,6 +312,10 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   heroStartLevel: undefined,
   // Phase 11a — 초기값 undefined. initialize 에서 오늘 날짜로 seed.
   shopDaily: undefined,
+  // Phase 11c — 초기 0 (미해금). F30 보스 처치 시 +1.
+  ngPlusLevel: 0,
+  // Phase 11c — 초기 undefined. initialize 에서 이번 주 id 로 seed/갱신.
+  weeklyVariant: undefined,
   idleReward: null,
   pendingClassAwaken: null,
   isLoaded: false,
@@ -419,6 +440,20 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         ? prevShopDaily
         : { date: today, passesBought: 0 };
 
+    // Phase 11c — weeklyVariant seed. 이번 주 id 와 saved.week 비교해 자동 리셋.
+    //   매주 월요일 첫 진입 시 새 affix pick + clearedDungeons 비움.
+    const currentWeek = getISOWeekId();
+    const prevWeekly = saved?.weeklyVariant;
+    const weeklyVariant =
+      prevWeekly && prevWeekly.week === currentWeek
+        ? prevWeekly
+        : {
+            week: currentWeek,
+            affixId: pickWeeklyAffix(currentWeek).id,
+            clearedDungeons: [] as DungeonId[],
+            bestScore: 0,
+          };
+
     set({
       hero: mergedHero,
       inventory: saved?.inventory ?? [],
@@ -432,6 +467,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       lastIdleAccrualAt: newLastIdleAt,
       heroStartLevel,
       shopDaily,
+      ngPlusLevel: saved?.ngPlusLevel ?? 0,
+      weeklyVariant,
       idleReward,
       pendingClassAwaken: null, // transient
       schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -664,6 +701,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       leveledHero,
       startFloor,
       buffs,
+      // Phase 11c — NG+ 스냅샷 전달. weekly variant 는 별도 action 으로만 진입.
+      { ngPlusLevel: state.ngPlusLevel ?? 0 },
     );
     const newState = {
       passes: updatedPasses,
@@ -690,7 +729,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const gameLevel = useGameStore.getState().progress.level ?? 1;
     const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
     const leveledHero = computeHeroForLevel(state.hero, heroLvl);
-    const session = buildSession(dungeonId, leveledHero, startFloor);
+    const session = buildSession(dungeonId, leveledHero, startFloor, undefined, {
+      ngPlusLevel: state.ngPlusLevel ?? 0,
+    });
     const newState = {
       passes: updatedPasses,
       currentSession: session,
@@ -698,6 +739,40 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     set(newState);
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...newState }));
     return true;
+  },
+
+  enterWeeklyVariant(dungeonId) {
+    // Phase 11c — 주간 악몽 던전 세션 시작.
+    //   F30 을 일반 모드에서 한 번 이상 클리어해야 해금 (ngPlusLevel 1+ 이면 자동).
+    //   탐험권 소모 없음. startFloor 고정 F30 (단판 보스전).
+    //   affix 는 state.weeklyVariant.affixId 에서 가져와 buildSession 에 전달.
+    const state = get();
+    if (!state.weeklyVariant) return "no-weekly";
+    // F30 미클리어 + ngPlusLevel 0 이면 아직 미해금
+    const f30EverCleared =
+      (state.ngPlusLevel ?? 0) > 0 ||
+      Object.values(state.dungeons).some((d) =>
+        d?.bossesDefeated?.includes(30),
+      );
+    if (!f30EverCleared) return "not-unlocked";
+
+    const gameLevel = useGameStore.getState().progress.level ?? 1;
+    const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
+    const leveledHero = computeHeroForLevel(state.hero, heroLvl);
+
+    // 주간 던전은 F30 고정 시작 (짧은 도전 run). ngPlusLevel 은 영향 X —
+    // weekly affix 자체가 별도 난이도 소스.
+    const session = buildSession(dungeonId, leveledHero, 30, undefined, {
+      ngPlusLevel: 0,
+      isWeeklyVariant: true,
+      weeklyAffixId: state.weeklyVariant.affixId,
+    });
+    set({ currentSession: session });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, currentSession: session }),
+    );
+    return "ok";
   },
 
   tickSession() {
@@ -748,10 +823,21 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
     // 2. 보스 처치 기록 — log 기반 실제 승리 entry 스캔
     const curProgress = state.dungeons[session.dungeonId];
+    const prevBossesDefeated = curProgress?.bossesDefeated ?? [];
     const newBossesDefeated = calculateBossesDefeated(
       session.log,
-      curProgress?.bossesDefeated ?? [],
+      prevBossesDefeated,
     );
+
+    // Phase 11c — NG+ trigger: F30 보스를 이번 세션에 **처음으로** 처치했으면 +1.
+    //   이미 과거에 F30 처치한 유저는 변동 없음 (최초 1회만 ngPlusLevel += 1).
+    //   weekly variant 세션에선 NG+ 증가 안 시킴 (별도 모드).
+    let newNgPlusLevel = state.ngPlusLevel;
+    const clearedF30NewlyThisSession =
+      newBossesDefeated.includes(30) && !prevBossesDefeated.includes(30);
+    if (clearedF30NewlyThisSession && !session.isWeeklyVariant) {
+      newNgPlusLevel = (state.ngPlusLevel ?? 0) + 1;
+    }
 
     // 3. 던전 진행 상황 갱신
     const dungeons = {
@@ -781,6 +867,43 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     useGameStore.setState({ progress: newProgress });
     saveToStorage("progress", newProgress);
 
+    // Phase 11c — weekly variant 세션이었으면 clearedDungeons / bestScore 업데이트.
+    //   F30 까지 도달 안 했어도 점수는 산출 (floorsCleared 기반).
+    //   최고 점수 경신 시 Firestore 업로드 (로그인 유저만, 비동기).
+    let newWeeklyVariant = state.weeklyVariant;
+    if (session.isWeeklyVariant && state.weeklyVariant) {
+      const floorsCleared = Math.max(0, session.currentFloor - session.startFloor + 1);
+      const gameLv = useGameStore.getState().progress.level ?? 1;
+      const heroLv = Math.max(1, gameLv - (state.heroStartLevel ?? 1) + 1);
+      const score = computeWeeklyScore(floorsCleared, session.time, heroLv);
+      const clearedF30 = newBossesDefeated.includes(30) && !prevBossesDefeated.includes(30);
+      const isNewBest = score > state.weeklyVariant.bestScore;
+      newWeeklyVariant = {
+        ...state.weeklyVariant,
+        clearedDungeons: clearedF30
+          ? [...new Set([...state.weeklyVariant.clearedDungeons, session.dungeonId])]
+          : state.weeklyVariant.clearedDungeons,
+        bestScore: Math.max(state.weeklyVariant.bestScore, score),
+        ...(isNewBest ? { lastUploadedAt: Date.now() } : {}),
+      };
+
+      // 최고 점수 경신 시 Firestore 업로드 (비동기 fire-and-forget).
+      //   익명 유저 / Firebase 미구성 시 자동 skip.
+      if (isNewBest) {
+        import("@/lib/weeklyLeaderboard").then(async (mod) => {
+          const displayName = await mod.getDisplayName();
+          await mod.uploadWeeklyScore(state.weeklyVariant!.week, {
+            displayName,
+            score,
+            floorsCleared,
+            heroLevel: heroLv,
+            classType: session.hero.classType,
+            clearedAt: Date.now(),
+          });
+        });
+      }
+    }
+
     // state commit + persist
     const newCoins = state.coins + session.rewards.coins;
     const newInventory = [...state.inventory, ...keptDrops];
@@ -789,6 +912,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       inventory: newInventory,
       dungeons,
       codex,
+      ngPlusLevel: newNgPlusLevel,
+      weeklyVariant: newWeeklyVariant,
       currentSession: null,
     };
     set(newState);
