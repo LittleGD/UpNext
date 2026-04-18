@@ -1,8 +1,66 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // 유저 프로필 / progress — 본인 것만 read/write.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Phase 11c — 주간 악몽 던전 리더보드.
+    //   읽기: 전체 공개 (익명 포함) — 순위 탐색은 게스트도 가능.
+    //   쓰기: 자기 entry 만 (uid 일치 필수 + 로그인 필수).
+    //
+    // Phase 11c R4 보안 강화:
+    //   - weekId 는 ISO 주간 format (예: "2026-W16") 만 허용 → path injection 차단.
+    //   - 허용 필드 allowlist (hasOnly) → 임의 필드 삽입으로 doc 오염 방지.
+    //   - displayName 길이 40 제한 → 거대 string 으로 리더보드 조회 DoS 차단.
+    //   - classType 은 알려진 enum 만 허용.
+    //   - score 공식 기반 상한 검증 — floorsCleared*100 + completion(2000) +
+    //     timeBonus(≤440, BASE_EXPEDITION_TIME 220 × 2) + heroLv²×2 보다 작거나 같아야.
+    //     악성 유저가 score 를 임의로 올려도 수학적으로 가능한 최대값 이내로 제한.
+    //     완전한 cheat 방지는 Cloud Function 재계산 단계 (추후) 에서.
+    match /weekly-leaderboard/{weekId}/entries/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && weekId.matches('^[0-9]{4}-W[0-9]{2}$')
+        // 필드 allowlist — 허용된 키만 존재.
+        && request.resource.data.keys().hasOnly(['uid', 'displayName', 'score', 'floorsCleared', 'heroLevel', 'classType', 'clearedAt'])
+        && request.resource.data.keys().hasAll(['uid', 'displayName', 'score', 'floorsCleared', 'heroLevel', 'clearedAt'])
+        && request.resource.data.uid == uid
+        // displayName 검증
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 40
+        // score 검증 — 수학적 최대값 이내.
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.floorsCleared is number
+        && request.resource.data.floorsCleared >= 0
+        && request.resource.data.floorsCleared <= 30
+        && request.resource.data.heroLevel is number
+        && request.resource.data.heroLevel >= 1
+        && request.resource.data.heroLevel <= 500
+        // 공식 상한: floors*100 + 2000 (완주 보너스) + 440 (time max) + heroLv²×2.
+        // Lv500 기준: 30*100 + 2000 + 440 + 500000 = 505,440. 실제 cap.
+        && request.resource.data.score <=
+          (request.resource.data.floorsCleared * 100)
+          + 2000
+          + 440
+          + (request.resource.data.heroLevel * request.resource.data.heroLevel * 2)
+        // classType — null 또는 알려진 enum.
+        && (
+          !('classType' in request.resource.data.keys())
+          || request.resource.data.classType == null
+          || request.resource.data.classType in [
+            'warrior', 'mage', 'monk', 'druid',
+            'bard', 'chronomancer', 'priest', 'illusionist'
+          ]
+        )
+        // clearedAt — 2024-01-01 이후 (음수/0 차단).
+        && request.resource.data.clearedAt is int
+        && request.resource.data.clearedAt >= 1704067200000;
     }
   }
 }
