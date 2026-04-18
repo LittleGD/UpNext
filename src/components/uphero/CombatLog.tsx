@@ -19,7 +19,13 @@ import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
-import { monsterName, monsterNameById, skillName, flavorText } from "@/lib/upHeroI18n";
+import {
+  monsterName,
+  monsterNameById,
+  skillName,
+  flavorText,
+  resolveMonsterInParams,
+} from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 
@@ -37,13 +43,8 @@ function resolveNarrative(
   narrativeParams: NarrativeParams | undefined,
 ): string {
   if (!narrativeKey) return narrative ?? "";
-  const params: Record<string, string | number> = { ...(narrativeParams ?? {}) };
-  // monsterTemplateId 가 있으면 해당 template 의 다국어 이름으로 {monster} 를 덮어씀.
-  const templateId = params.monsterTemplateId;
-  if (typeof templateId === "string" && templateId.length > 0) {
-    const koName = typeof params.monster === "string" ? params.monster : "";
-    params.monster = monsterNameById(templateId, koName, language);
-  }
+  // Phase 13 review — monsterTemplateId resolve 를 upHeroI18n 공통 헬퍼로.
+  const params = resolveMonsterInParams(narrativeParams, language) ?? {};
   const translated = t(narrativeKey as DictKey, params);
   // key 가 없는 경우 t() 는 key 그대로 돌려줌 → fallback 사용.
   if (translated === narrativeKey) return narrative ?? translated;
@@ -387,17 +388,12 @@ const LogLine = memo(function LogLine({
       // Phase 12 — mystery event 는 GB_WARN (amber) 강조. 일반 choice 는 GB.lightest.
       const accent = entry.isMystery ? GB_WARN : GB.lightest;
       // Phase 13 review — combat audit: prompt / resolved label 도 i18n key
-      //   우선 사용. promptParams 의 monsterTemplateId 는 현재 언어로 resolve.
-      const resolvedPromptParams = (() => {
-        if (!entry.promptParams) return undefined;
-        const out: Record<string, string | number> = { ...entry.promptParams };
-        const templateId = out.monsterTemplateId;
-        if (typeof templateId === "string" && templateId.length > 0) {
-          const koName = typeof out.monster === "string" ? out.monster : "";
-          out.monster = monsterNameById(templateId, koName, language);
-        }
-        return out;
-      })();
+      //   우선 사용. promptParams 의 monsterTemplateId 는 현재 언어로 resolve
+      //   (공용 헬퍼 `resolveMonsterInParams` 사용).
+      const resolvedPromptParams = resolveMonsterInParams(
+        entry.promptParams,
+        language,
+      );
       const promptLocalized = flavorText(
         entry.prompt,
         entry.promptKey,

@@ -18,7 +18,7 @@ import {
 } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
-import { flavorText, monsterNameById } from "@/lib/upHeroI18n";
+import { flavorText, resolveMonsterInParams } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 /**
@@ -132,16 +132,9 @@ export default function ChoicePanel() {
   const rawPrompt = entry?.type === "choice" ? entry.prompt : "";
   const promptI18nKey = entry?.type === "choice" ? entry.promptKey : undefined;
   const promptParamsRaw = entry?.type === "choice" ? entry.promptParams : undefined;
-  const promptParams = (() => {
-    if (!promptParamsRaw) return undefined;
-    const out: Record<string, string | number> = { ...promptParamsRaw };
-    const templateId = out.monsterTemplateId;
-    if (typeof templateId === "string" && templateId.length > 0) {
-      const koName = typeof out.monster === "string" ? out.monster : "";
-      out.monster = monsterNameById(templateId, koName, language);
-    }
-    return out;
-  })();
+  // Phase 13 review — monsterTemplateId resolve 를 `resolveMonsterInParams` 헬퍼로.
+  //   이전엔 ChoicePanel + CombatLog 2곳에 같은 IIFE 가 중복. 이제 단일 지점.
+  const promptParams = resolveMonsterInParams(promptParamsRaw, language);
   const promptText = flavorText(rawPrompt, promptI18nKey, language, promptParams);
   const { visible: promptVisible, done: promptDone } = useChoiceTypewriter(
     promptText,
