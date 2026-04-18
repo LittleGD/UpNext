@@ -37,7 +37,12 @@ export default function MinigameModal({
   onComplete,
 }: MinigameModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  useModalA11y(containerRef, () => onComplete(false), { noScrollLock: true });
+  // Phase 12 R3 — Esc 로 실수 탈출 → 즉시 실패 + damage 페널티 방지.
+  //   각 미니게임 컴포넌트 내부의 "포기" 버튼만 onCancel 호출.
+  useModalA11y(containerRef, () => {}, {
+    noScrollLock: true,
+    noEscape: true,
+  });
   if (typeof window === "undefined") return null;
 
   const Game = (() => {
