@@ -189,6 +189,16 @@ export default function DungeonView() {
   //   miss/dodge (damage 0)          → sprite 반응 없음
   const [heroState, setHeroState] = useState<HeroSpriteState>("idle");
   const [enemyHurt, setEnemyHurt] = useState(false);
+  // Phase 12 — 전투 방향 flash. 공격 이벤트 발생 시 화면 edge 에서 한 번 번쩍.
+  //   side = "left"  : 영웅 공격 (영웅 클래스 색)
+  //   side = "right" : 적 공격 (GB_ENEMY 붉은색)
+  //   key 는 log entry idx — 같은 entry 를 두 번 처리하지 않도록 seenCombatIdxRef
+  //   로 dedupe 된 후 한 번만 set. React remount 기반 replay 는 key 변경으로 발동.
+  const [attackFlash, setAttackFlash] = useState<{
+    side: "left" | "right";
+    color: string;
+    key: number;
+  } | null>(null);
   const seenCombatIdxRef = useRef<Set<number>>(new Set());
   const heroStateTimerRef = useRef<number | null>(null);
   const enemyHurtTimerRef = useRef<number | null>(null);
@@ -213,6 +223,14 @@ export default function DungeonView() {
           setEnemyHurt(false);
           enemyHurtTimerRef.current = null;
         }, 260);
+        // Phase 12 — 왼쪽 flash (영웅 클래스 색 / class 없으면 GB.lightest)
+        setAttackFlash({
+          side: "left",
+          color: session.hero.classType
+            ? CLASS_THEME_COLOR[session.hero.classType]
+            : GB.lightest,
+          key: idx,
+        });
       } else {
         // 적 공격 → hero sprite hurt
         if (heroStateTimerRef.current) window.clearTimeout(heroStateTimerRef.current);
@@ -221,6 +239,12 @@ export default function DungeonView() {
           setHeroState("idle");
           heroStateTimerRef.current = null;
         }, 260);
+        // Phase 12 — 오른쪽 flash (GB_ENEMY 붉은색)
+        setAttackFlash({
+          side: "right",
+          color: GB_ENEMY,
+          key: idx,
+        });
       }
     });
   }, [session]);
@@ -552,6 +576,28 @@ export default function DungeonView() {
            absolute inset-0 + pointer-events-none + z-0. header/log/footer 는
            모두 position: relative + z-index ≥ 1 을 부여해 ambient 위에 페인트. */}
       <DungeonAtmosphere dungeonId={session.dungeonId} />
+
+      {/* Phase 12 — 전투 방향 flash overlay.
+           key 변경 시 `uphero-attack-flash-enter` 애니가 재생. 양쪽 edge 에서
+           35% 폭 gradient 로 안쪽으로 falloff. pointer-events:none + z-[2]
+           (ambient 위 / 게임 콘텐츠 위에 overlay 돼야 "타격감" 성립).
+           left 공격 = 영웅 클래스 색, right 공격 = GB_ENEMY 붉은색. */}
+      {attackFlash && (
+        <div
+          key={attackFlash.key}
+          className="uphero-attack-flash-enter absolute inset-y-0 pointer-events-none z-[2]"
+          style={{
+            [attackFlash.side]: 0,
+            width: "35%",
+            background:
+              attackFlash.side === "left"
+                ? `linear-gradient(to right, ${attackFlash.color}b3 0%, ${attackFlash.color}33 55%, transparent 100%)`
+                : `linear-gradient(to left, ${attackFlash.color}b3 0%, ${attackFlash.color}33 55%, transparent 100%)`,
+            mixBlendMode: "screen",
+          }}
+          aria-hidden="true"
+        />
+      )}
 
       {/* === Header === */}
       <header

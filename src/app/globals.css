@@ -401,6 +401,28 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-time-flash 320ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* === Phase 12 — 전투 화면 양쪽 flash ===
+   공격 방향 피드백. 영웅 공격 = 왼쪽에서 영웅 클래스 색 번쩍, 적 공격 =
+   오른쪽에서 붉은색 번쩍. 화면 edge 부근 ~35% 폭 gradient 스트립이
+   한 번 깜빡. 게임 콘텐츠 위에 overlay 되지만 pointer-events:none
+   + gradient falloff 로 시인성/가독성 희생 없음.
+
+   Emil 원칙:
+   - ease-out — 피격 순간 즉시 peak 도달, 천천히 사그라져야 "타격감".
+   - 300ms 이내 — 공격 이벤트는 수초에 1회 빈도, 의미 있는 이벤트이므로
+     눈에 띄되 다음 행동을 방해하지 않게 짧게.
+   - opacity 0 → 0.7 → 0 — 시작/종료에서 완전 투명. 연속 공격 시 겹쳐도
+     fill-mode: both 가 최종 0 을 유지해 잔상 없음.
+   - key 기반 remount 로 재생 (연속 공격도 매번 처음부터 재생). */
+@keyframes uphero-attack-flash {
+  0%   { opacity: 0; }
+  18%  { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+.uphero-attack-flash-enter {
+  animation: uphero-attack-flash 320ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
 /* === Phase 8b — 탭 컨텐츠 enter ===
    장비 페이지 탭 (가방/사진/강화) 전환 시 컨텐츠 wrapper 에 key={tab} 을 주고
    remount 되면 이 animation 이 재생된다. 200ms 짧은 fade + 4px 상향 drift.
@@ -546,6 +568,7 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   .uphero-dodge-pulse,
   .uphero-fire-flicker,
   .uphero-ambience-in,
+  .uphero-attack-flash-enter,
   .uphero-typewriter-caret,
   .uphero-card-select,
   /* Phase 11c R4 R2 — NumberRoll slot-machine 롤 (260ms scaleY shift) 제거. */

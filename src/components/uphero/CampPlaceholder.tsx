@@ -147,8 +147,12 @@ export default function CampPlaceholder() {
         </div>
       </header>
 
-      {/* === Body — view 전환. pendingDungeon 이 최우선 (confirm/cancel 대기) === */}
-      <div className="flex-1 min-h-0 flex flex-col">
+      {/* === Body — view 전환. pendingDungeon 이 최우선 (confirm/cancel 대기) ===
+             Phase 12 bugfix — 유저 제보: "캐릭터가 상단바를 침범". 짧은 뷰포트
+             (iPhone SE 등) 에서 HomeView 의 `justify-center` 콘텐츠가 수직
+             overflow → header 영역까지 bleed. body wrapper 에 overflow-hidden
+             을 걸어 header/CTA 경계에서 콘텐츠 clip. 다른 view 에도 안전 적용. */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {pendingDungeon && <BuffDrawPanel />}
         {!pendingDungeon && view === "home" && (
           <HomeView
@@ -293,8 +297,11 @@ function HomeView({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      {/* 영웅 캠프 공간 — 큰 hero sprite + 분위기 */}
-      <section className="flex-1 min-h-0 flex flex-col items-center justify-center px-6 relative">
+      {/* 영웅 캠프 공간 — 큰 hero sprite + 분위기.
+           Phase 12 bugfix — 짧은 뷰포트 대응 `py-4` 로 section 내부 상하
+           breathing room 확보. justify-center 유지 (콘텐츠 센터 정렬),
+           content 가 section 보다 크면 overflow-hidden (parent 상속) 으로 clip. */}
+      <section className="flex-1 min-h-0 flex flex-col items-center justify-center py-4 px-6 relative">
         {/* 배경 별/이펙트 — subtle */}
         <div
           className="absolute inset-0 pointer-events-none opacity-30"
@@ -420,7 +427,10 @@ function HomeView({
              스타일로 치환. 숫자 위에 2px underline, 색은 던전 themeColor.
              전체 0 이면 여전히 섹션 숨김 (CTA 힌트로 위임). */}
         {totalPasses > 0 && (
-          <div className="mt-4 flex items-center justify-center gap-3 flex-wrap">
+          /* Phase 12 bugfix — 유저 제보: "티켓 보유 인디케이터와 버튼이 겹침".
+               카테고리별 숫자+underline 이 바로 아래 "탐험 시작 · ×N" 버튼과
+               시각적으로 붙어 보이던 문제. mb-2 + CTA section 의 pt-4 로 분리. */
+          <div className="mt-4 mb-2 flex items-center justify-center gap-3 flex-wrap">
             {DUNGEON_LIST.map((d) => {
               const count = passes[d.id] ?? 0;
               const empty = count === 0;
@@ -458,9 +468,10 @@ function HomeView({
         )}
       </section>
 
-      {/* 하단 CTA 3개 (stacked) */}
+      {/* 하단 CTA 3개 (stacked).
+           Phase 12 bugfix — pt-3 → pt-4. 위 indicator 행과의 시각적 분리 강화. */}
       <section
-        className="px-4 pt-3 pb-4 flex flex-col gap-2 shrink-0"
+        className="px-4 pt-4 pb-4 flex flex-col gap-2 shrink-0"
         style={{ borderTop: `1px solid ${GB.dark}` }}
       >
         {/* Primary CTA — "탐험 시작" 이 홈의 명확한 주 행동. 최상단 고정.
