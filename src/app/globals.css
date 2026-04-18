@@ -505,6 +505,56 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-typewriter-caret 820ms steps(2, end) infinite;
 }
 
+/* === Phase 9a — prefers-reduced-motion 전역 가드 ===
+   전정계 질환 사용자에게 shake/flash/rotate 가 트리거될 수 있으므로
+   OS 레벨 reduce-motion 설정을 감지해 Up Hero 의 모든 장식적 keyframe 을 비활성.
+   기능적 애니메이션 (탭 전환 enter, xp bar fill 등) 은 유지.
+   typewriter 는 caret 만 끄고 텍스트는 즉시 전체 표시 (useTypewriter hook 이
+   enabled=false 처럼 동작하도록 caret animation 만 멈추고 CSS 로는 막을 수 없음 —
+   사용자 reduced-motion 감지해 hook 측에서 즉시 완성하는 보강이 필요하나 최소
+   CSS 가드로 시각적 vibration 은 차단). */
+@media (prefers-reduced-motion: reduce) {
+  /* 강한 장식 — shake, flash, spark, rotate, typewriter caret */
+  .uphero-crit-shake,
+  .uphero-time-flash,
+  .uphero-floor-sweep,
+  .uphero-ritual-photo,
+  .uphero-ritual-glow,
+  .uphero-ritual-spark,
+  .uphero-crit-pulse,
+  .uphero-dodge-pulse,
+  .uphero-fire-flicker,
+  .uphero-typewriter-caret,
+  .uphero-card-select {
+    animation: none !important;
+  }
+  /* 미세 호흡 — 완전히 끄지 않고 정적인 최종 상태로 snap */
+  .uphero-fire-flicker {
+    opacity: 1;
+    text-shadow: none;
+  }
+  /* float 들 — 즉시 사라짐 (정보 자체는 log 로 전달됨) */
+  .uphero-hp-regen-float,
+  .uphero-xp-float,
+  .uphero-heal-float,
+  .uphero-coin-float,
+  .uphero-time-tag,
+  .uphero-start-bonus {
+    animation: none !important;
+    opacity: 0;
+  }
+  /* rarity backdrop — 회전/호흡/sparkle 일괄 끔 */
+  [class*="rb-"] {
+    animation: none !important;
+  }
+  /* 탭 전환 / 카드 모션 — 애니메이션 duration 만 1ms 로 (즉시 snap) */
+  .eq-tab-content {
+    animation-duration: 1ms !important;
+  }
+  /* framer-motion 은 JS 레벨에서 useReducedMotion 로 처리해야 완전 — 여기선
+     CSS 가 가능한 범위만. 개별 컴포넌트에서 훅 대응 추가 필요. */
+}
+
 /* === 모바일 safe area (개별 고정 요소에서 처리) === */
 
 /* === 스크롤바 전역 숨김 — 네이티브 앱 느낌 ===

@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, gbClass, GB_ENEMY } from "@/lib/upHeroPalette";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import PixelIcon from "@/components/icons/PixelIcon";
 import DropRevealCard from "./DropRevealCard";
 
@@ -65,6 +66,12 @@ export default function SessionResultModal() {
   const xpDisplay = useCountUp(rewardsXp, 700, detailMounted);
   const coinDisplay = useCountUp(rewardsCoins, 700, detailMounted);
 
+  // Phase 9a — Esc + focus trap + body scroll lock.
+  //   세션 결산 직후 자동 close 가 아니라 사용자 "캠프로 돌아가기" 탭을 기다리므로
+  //   Esc 로 빠른 acknowledge 허용 (Esc === acknowledge 로 매핑).
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalA11y(containerRef, acknowledge);
+
   if (!session || session.status !== "completed") return null;
   if (typeof window === "undefined") return null;
 
@@ -98,6 +105,10 @@ export default function SessionResultModal() {
       }}
     >
       <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="session-result-title"
         className="w-full max-w-sm rounded-md overflow-hidden"
         style={{
           background: GB.darkest,
@@ -105,6 +116,7 @@ export default function SessionResultModal() {
           transform: mounted ? "scale(1)" : "scale(0.96)",
           opacity: mounted ? 1 : 0,
           transition: `transform 220ms ${EASE_OUT}, opacity 180ms ${EASE_OUT}`,
+          outline: "none",
         }}
       >
         {/* Header */}
@@ -117,6 +129,7 @@ export default function SessionResultModal() {
           </div>
           <PixelIcon name={iconName} size={22} color={titleColor} />
           <div
+            id="session-result-title"
             className="typo-heading"
             style={{ color: titleColor }}
           >

@@ -32,6 +32,7 @@ import ChoicePanel from "./ChoicePanel";
 import BossBanner from "./BossBanner";
 import HeroSprite, { type HeroSpriteState } from "./HeroSprite";
 import MonsterSprite from "./MonsterSprite";
+import GbConfirm from "./GbConfirm";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
@@ -51,6 +52,8 @@ export default function DungeonView() {
   const [paused, setPaused] = useState(false);
   /** 치명타 발생 시 root shake 트리거 — 260ms 후 자동 해제 */
   const [critShake, setCritShake] = useState(false);
+  /** Phase 9a — 포기 confirm 다이얼로그 state (native confirm 대체) */
+  const [abandonOpen, setAbandonOpen] = useState(false);
   const { play } = useSound();
 
   const tickRef = useRef(tickSession);
@@ -381,19 +384,9 @@ export default function DungeonView() {
   // SSR 안전 장치 — Portal target 은 클라이언트만
   if (typeof window === "undefined") return null;
 
-  const onExit = () => {
-    // Phase 4c-fix: 이전에는 "F{N} 의 보스는 놓칩니다" 라 F5 에서도 같은
-    // 문구가 떠서 거짓말이었음 (보스는 10/20/30F 에만). 남은 다음 보스 floor 를
-    // 계산해서 실제로 놓치는 지점만 안내.
-    const nextBoss = [10, 20, 30].find((f) => f > session.currentFloor);
-    const bossWarning = nextBoss
-      ? `\n단, 다음 보스 (F${nextBoss}) 에 도전할 기회를 놓칩니다.`
-      : "";
-    const msg = `탐험을 포기하고 캠프로 돌아갈까요?\n\n지금까지 획득한 보상 (XP, 코인, 장비) 은 모두 유지됩니다.${bossWarning}`;
-    if (confirm(msg)) {
-      abandonSession();
-    }
-  };
+  // Phase 9a — GbConfirm 으로 교체. body 텍스트는 render 시 계산.
+  const onExit = () => setAbandonOpen(true);
+  const nextBossFloor = [10, 20, 30].find((f) => f > session.currentFloor);
 
   return createPortal(
     <div
@@ -778,6 +771,31 @@ export default function DungeonView() {
           onDone={resumeSession}
         />
       )}
+
+      {/* Phase 9a — 포기 confirm (native confirm 대체) */}
+      <GbConfirm
+        open={abandonOpen}
+        title="탐험을 포기하고 캠프로 돌아갈까요?"
+        body={
+          <>
+            지금까지 획득한 보상 (XP · 코인 · 장비) 은 모두 유지됩니다.
+            {nextBossFloor && (
+              <>
+                <br />
+                단, 다음 보스 (F{nextBossFloor}) 에 도전할 기회를 놓칩니다.
+              </>
+            )}
+          </>
+        }
+        confirmLabel="포기"
+        cancelLabel="계속"
+        danger
+        onConfirm={() => {
+          setAbandonOpen(false);
+          abandonSession();
+        }}
+        onCancel={() => setAbandonOpen(false)}
+      />
 
       {/* 치명타 shake keyframe 은 globals.css 에 정의됨 (uphero-crit-shake) */}
     </div>,

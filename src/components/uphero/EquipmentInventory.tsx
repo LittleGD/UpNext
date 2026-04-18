@@ -32,8 +32,15 @@ import { useSound } from "@/hooks/useSound";
 import EquipmentCard from "./EquipmentCard";
 import HeroSprite from "./HeroSprite";
 import PhotoTalismanPicker from "./PhotoTalismanPicker";
+import GbConfirm from "./GbConfirm";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
+
+/** Phase 9a — confirm 다이얼로그 state. 판매/버리기/합성 3액션 공유. */
+type PendingAction =
+  | { kind: "sell"; item: Equipment }
+  | { kind: "discard"; item: Equipment }
+  | { kind: "enhance"; items: Equipment[]; rarity: Rarity; cost: number };
 
 interface EquipmentInventoryProps {
   onBack: () => void;
@@ -95,6 +102,8 @@ export default function EquipmentInventory({
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   /** Phase 8a — 장비 페이지 내부 탭 (가방 기본 / 사진 부적 / 강화) */
   const [tab, setTab] = useState<"bag" | "photo" | "enhance">("bag");
+  /** Phase 9a — GbConfirm 으로 교체된 판매/버리기/합성 pending state. */
+  const [pending, setPending] = useState<PendingAction | null>(null);
 
   /** Phase 8a — 사진 부적 탭 카운트용 */
   const photoMetas = useGrowthStore((s) => s.photoMetas);
@@ -124,20 +133,39 @@ export default function EquipmentInventory({
     onNotify(`${item.name} 해제`);
   };
 
+  // Phase 9a — 직접 confirm() 대신 GbConfirm 상태 설정.
   const onSell = (item: Equipment) => {
-    if (!confirm(`${item.name} 을(를) 판매할까요?\n+${SELL_PRICE[item.rarity]} 코인`)) return;
-    const refund = sellItem(item.id);
-    play("collect");
-    onNotify(`판매 +${refund} C`);
-    setSelectedId(null);
+    setPending({ kind: "sell", item });
   };
 
   const onDiscard = (item: Equipment) => {
-    if (!confirm(`${item.name} 을(를) 버릴까요?\n환급 없음, 복구 불가`)) return;
-    discardItem(item.id);
-    play("cancel");
-    onNotify("버렸다");
-    setSelectedId(null);
+    setPending({ kind: "discard", item });
+  };
+
+  /** pending 액션 실행 — GbConfirm 확인 시 호출 */
+  const executePending = () => {
+    if (!pending) return;
+    if (pending.kind === "sell") {
+      const refund = sellItem(pending.item.id);
+      play("collect");
+      onNotify(`판매 +${refund} C`);
+      setSelectedId(null);
+    } else if (pending.kind === "discard") {
+      discardItem(pending.item.id);
+      play("cancel");
+      onNotify("버렸다");
+      setSelectedId(null);
+    } else if (pending.kind === "enhance") {
+      const result = enhanceItem(pending.items[0].id, pending.items[1].id);
+      if (result.ok && result.newItem) {
+        play("collect");
+        onNotify(`합성 성공 — ${result.newItem.name}`);
+      } else {
+        play("cancel");
+        onNotify(result.error ?? "합성 실패");
+      }
+    }
+    setPending(null);
   };
 
   // Phase 4c-feature: 강화 가능한 쌍 탐색.
@@ -186,22 +214,10 @@ export default function EquipmentInventory({
     legend: "legend",
   };
 
+  // Phase 9a — 합성도 GbConfirm 로 통합.
   const onEnhance = (items: Equipment[], rarity: Rarity) => {
     const cost = RARITY_COST[rarity];
-    if (
-      !confirm(
-        `${RARITY_LABEL[rarity]} 2개 → ${RARITY_LABEL[NEXT_RARITY[rarity]]} 1개로 합성할까요?\n\n비용: ${cost} 코인 (보유 ${coins})`,
-      )
-    )
-      return;
-    const result = enhanceItem(items[0].id, items[1].id);
-    if (result.ok && result.newItem) {
-      play("collect");
-      onNotify(`합성 성공 — ${result.newItem.name}`);
-    } else {
-      play("cancel");
-      onNotify(result.error ?? "합성 실패");
-    }
+    setPending({ kind: "enhance", items, rarity, cost });
   };
 
   return (
@@ -526,14 +542,15 @@ export default function EquipmentInventory({
                         ×{items.length}
                       </div>
                       <div className="flex-1" />
+                      {/* Phase 9a — tap target 30px → 44px (Apple HIG 준수) */}
                       <button
                         type="button"
                         disabled={!canAfford}
                         onClick={() => onEnhance(items.slice(0, 2), rarity)}
                         className="uphero-enhance-btn typo-caption rounded"
                         style={{
-                          padding: "5px 10px",
-                          minHeight: 30,
+                          padding: "10px 14px",
+                          minHeight: 44,
                           background: canAfford
                             ? RARITY_COLOR[rarity]
                             : `${GB.dark}aa`,
@@ -568,6 +585,42 @@ export default function EquipmentInventory({
           onNotify={onNotify}
         />
       )}
+
+      {/* Phase 9a — 판매/버리기/합성 confirm 다이얼로그 (기존 native confirm 대체).
+           pending state 하나로 세 액션 공유, UI 에서 title/body 만 분기. */}
+      <GbConfirm
+        open={pending != null}
+        title={
+          pending?.kind === "sell"
+            ? `${pending.item.name} 을(를) 판매할까요?`
+            : pending?.kind === "discard"
+              ? `${pending.item.name} 을(를) 버릴까요?`
+              : pending?.kind === "enhance"
+                ? `${RARITY_LABEL[pending.rarity]} 2개 → ${RARITY_LABEL[NEXT_RARITY[pending.rarity]]} 1개 합성할까요?`
+                : ""
+        }
+        body={
+          pending?.kind === "sell"
+            ? `+${SELL_PRICE[pending.item.rarity]} 코인`
+            : pending?.kind === "discard"
+              ? "환급 없음 · 복구 불가"
+              : pending?.kind === "enhance"
+                ? `비용 ${pending.cost} 코인 (보유 ${coins})`
+                : undefined
+        }
+        confirmLabel={
+          pending?.kind === "sell"
+            ? "판매"
+            : pending?.kind === "discard"
+              ? "버리기"
+              : pending?.kind === "enhance"
+                ? "합성"
+                : "확인"
+        }
+        danger={pending?.kind === "discard"}
+        onConfirm={executePending}
+        onCancel={() => setPending(null)}
+      />
     </div>
   );
 }
@@ -592,14 +645,16 @@ function ActionButton({
     : danger
       ? "#e88b7a"
       : GB.light;
+  // Phase 9a — tap target 34 → 44 (Apple HIG). 판매/버리기는 high-stakes 이므로
+  //   오탭 방지가 특히 중요. padding 확대로 실수 탭 확률 ↓.
   return (
     <button
       type="button"
       onClick={onClick}
       className="uphero-action-btn typo-caption rounded"
       style={{
-        padding: "6px 10px",
-        minHeight: 34,
+        padding: "10px 14px",
+        minHeight: 44,
         background: bg,
         color,
         border: `1px solid ${border}`,

@@ -26,7 +26,9 @@ import {
   GB_RARE,
 } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import PixelIcon from "@/components/icons/PixelIcon";
+import GbConfirm from "./GbConfirm";
 
 interface PhotoTalismanPickerProps {
   onClose: () => void;
@@ -81,19 +83,22 @@ export default function PhotoTalismanPicker({
 
   const canAfford = coins >= PHOTO_TALISMAN_RITUAL_COST;
 
+  /** Phase 9a — GbConfirm 으로 교체. 의식 시작 전 사용자 확인 step. */
+  const [pendingPhoto, setPendingPhoto] = useState<PhotoMeta | null>(null);
+
   const onBind = (photo: PhotoMeta) => {
     if (!canAfford) {
       play("cancel");
       onNotify(`코인 부족 (${PHOTO_TALISMAN_RITUAL_COST} 필요)`);
       return;
     }
-    if (
-      !confirm(
-        `이 사진을 부적으로 만들까요?\n\n비용: ${PHOTO_TALISMAN_RITUAL_COST} 코인\nRarity: 랜덤 (일반/희귀/고유/전설)\n\n* 한 번 바인딩되면 재롤 불가`,
-      )
-    ) {
-      return;
-    }
+    setPendingPhoto(photo);
+  };
+
+  const executeBind = () => {
+    const photo = pendingPhoto;
+    setPendingPhoto(null);
+    if (!photo) return;
     const result = bindPhotoAsTalisman(photo.id);
     if (result.ok && result.newItem) {
       play("collect");
@@ -116,10 +121,21 @@ export default function PhotoTalismanPicker({
     }
   };
 
+  // Phase 9a — Esc 닫기 + focus trap + scroll lock.
+  //   의식 진행 중 (ritualPhoto != null) 에는 실수로 닫히지 않도록 비활성.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalA11y(containerRef, onClose, {
+    disabled: ritualPhoto != null || revealedItem != null,
+  });
+
   if (typeof window === "undefined") return null;
 
   return createPortal(
     <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="사진 부적 바인딩"
       className="fixed inset-0 z-50 flex flex-col"
       style={{
         background: GB.darkest,
@@ -128,6 +144,7 @@ export default function PhotoTalismanPicker({
         transition: `opacity 200ms ${EASE_OUT}`,
         paddingTop: "calc(env(safe-area-inset-top) + 10px)",
         paddingBottom: "calc(max(env(safe-area-inset-bottom), 24px) + 10px)",
+        outline: "none",
       }}
     >
       {/* === Header === */}
@@ -221,6 +238,23 @@ export default function PhotoTalismanPicker({
           }}
         />
       )}
+
+      {/* Phase 9a — 바인딩 확인 (기존 native confirm 대체).
+           중첩 Portal 이라도 z-[70] GbConfirm 이 z-[50] picker 위에 떠서 무방. */}
+      <GbConfirm
+        open={pendingPhoto != null}
+        title="이 사진을 부적으로 만들까요?"
+        body={
+          <>
+            비용 {PHOTO_TALISMAN_RITUAL_COST} 코인 · Rarity 는 랜덤 (일반/희귀/고유/전설)
+            <br />
+            한 번 바인딩되면 재롤 불가합니다.
+          </>
+        }
+        confirmLabel="의식 시작"
+        onConfirm={executeBind}
+        onCancel={() => setPendingPhoto(null)}
+      />
     </div>,
     document.body,
   );
