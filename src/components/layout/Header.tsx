@@ -166,6 +166,10 @@ export default function Header() {
       initial={{ y: -8, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      // Phase 9d-fix — 하단 요소 (IdleRewardToast 등) 가 Header 아래에 배치될 때
+      //   참조할 수 있도록 `data-header-mode` 속성 부여. 실제 높이 계산은 DOM 측정이
+      //   정확하지만 "full vs compact" 두 케이스만 있으므로 속성으로 충분.
+      data-header-mode={isFullHeader ? "full" : "compact"}
       className={`sticky top-0 z-10 bg-bg-primary/80 backdrop-blur-md border-b border-white/5 px-4 ${
         isFullHeader ? "py-3" : "py-2"
       } pt-[max(env(safe-area-inset-top),12px)]`}

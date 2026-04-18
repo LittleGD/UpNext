@@ -6,6 +6,9 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useSound } from "@/hooks/useSound";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { useCountUp } from "@/hooks/useCountUp";
+// Phase 9d-fix — Minigame RoundResult 는 한 번 mount 되고 유저가 "Continue"
+//   탭할 때까지 값이 변하지 않는 정적 화면이라 useCountUp 이 적절 (한 번만 0→target).
+//   만약 내부 값이 바뀐다면 NumberRoll 이 맞음.
 
 export default function MinigameRoundResult() {
   const { t } = useTranslation();
