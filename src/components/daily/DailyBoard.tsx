@@ -669,8 +669,15 @@ export default function DailyBoard() {
         })()}
       </AnimatePresence>
 
-      {/* Photo capture modal */}
-      {captureCard && capturePhase !== "idle" && (
+      {/* Photo capture modal.
+           Phase 11a-fix — `capturePhase !== "idle"` 가드 제거.
+             savePhoto 완료 직후 capturePhase 가 idle 로 돌아가면서 이 조건이 false
+             가 되어 PhotoCaptureModal 전체가 unmount → 그 안의 PhotoDetailModal 까지
+             사라져 사용자가 확인 버튼을 누르기 전에 닫힘. 결과적으로 onComplete 가
+             never fire → 챌린지가 completed 목록에 안 들어가고 XP 도 안 오름.
+             이제는 captureCard 기준으로만 render, PhotoCaptureModal 안에서 savedMeta
+             또는 capturePhase 에 따라 알아서 null 처리. */}
+      {captureCard && (
         <PhotoCaptureModal
           card={captureCard}
           onComplete={handleCaptureComplete}

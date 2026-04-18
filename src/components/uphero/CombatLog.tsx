@@ -105,10 +105,13 @@ export default function CombatLog({ log }: CombatLogProps) {
       {/* Phase 9b — key 를 idx 가 아닌 timestamp 로.
             이전 key={i} 는 로그 추가될 때마다 마지막 라인의 key 가 달라지며
             React 가 기존 LogLine 까지 reconcile. timestamp 는 entry 단위 고유값이라
-            rearrange 불가능 + memo 효과 극대화. */}
+            rearrange 불가능 + memo 효과 극대화.
+            Phase 11a-fix — 같은 tick 에 여러 entry 가 push 되면 Date.now() 가 ms
+            해상도 한계로 동일 → key 중복으로 React warning. idx 를 합쳐 고유성 보장.
+            log 는 append-only 라 idx 도 entry 에 stable → memo 효과 그대로 유지. */}
       {log.map((entry, i) => (
         <LogLine
-          key={entry.timestamp ?? i}
+          key={`${entry.timestamp ?? 0}_${i}`}
           entry={entry}
           isLatest={i === log.length - 1}
         />
