@@ -247,7 +247,37 @@ export type ChoiceEffect =
    * 일반 몬스터 encounter 에서 "도망간다" — agi/level 기반 확률 성공.
    * 성공 시 전투 없이 다음 floor. 실패 시 전투 시작 + 한 턴 반격 허용.
    */
-  | { kind: "flee"; successChance: number };
+  | { kind: "flee"; successChance: number }
+  /**
+   * Phase 12e — 인터랙티브 미니게임 시작. 결과 (성공/실패) 에 따라 successEffects
+   *   / failEffects 가 적용됨. 모달 동안 session 은 `awaitingMinigame` status.
+   *   effects 는 startMinigame 자체를 제외한 기본 ChoiceEffect 만 허용 (재귀 방지).
+   */
+  | {
+      kind: "startMinigame";
+      minigame: MinigameId;
+      difficulty: 1 | 2 | 3;
+      /** 성공 시 적용될 보상 (reward/heal/time 등) */
+      successEffects: SimpleChoiceEffect[];
+      /** 실패 시 적용될 페널티 (damage/time 등) */
+      failEffects: SimpleChoiceEffect[];
+    };
+
+/** Phase 12e — 인터랙티브 미니게임 id. 각 컴포넌트는 components/uphero/minigames/ 하위. */
+export type MinigameId = "pipe_connect" | "pair_match" | "sequence_memo";
+
+/**
+ * Phase 12e — 미니게임 결과에 적용 가능한 단순 effects. startMinigame / fight /
+ *   flee 같은 구조 효과는 제외해 재귀 방지.
+ */
+export type SimpleChoiceEffect =
+  | { kind: "reward"; coins?: number; xp?: number; dropEquipmentId?: string }
+  | { kind: "damage"; amount: number }
+  | { kind: "heal"; amount: number }
+  | { kind: "time"; delta: number }
+  | { kind: "skipFloors"; count: number }
+  | { kind: "revealBoss" }
+  | { kind: "nothing" };
 
 /**
  * Choice entry 구분자.
@@ -371,7 +401,12 @@ export type LogEntry =
       timestamp: number;
     };
 
-export type CombatSessionStatus = "active" | "paused" | "awaitingChoice" | "completed";
+export type CombatSessionStatus =
+  | "active"
+  | "paused"
+  | "awaitingChoice"
+  | "awaitingMinigame"
+  | "completed";
 
 /** 전투 세션 — 현재 진행 중인 던전 탐험 */
 export interface CombatSession {
@@ -441,6 +476,16 @@ export interface CombatSession {
    * Phase 12d — 1 회 죽음 무효 (priest 부활 T4). death 시 HP 50% 복원.
    */
   revivePending?: boolean;
+  /**
+   * Phase 12e — 진행 중인 미니게임 상태. session.status === "awaitingMinigame" 시 set.
+   *   결과 resolveMinigame(success) 호출 시 effects 적용 + status=active.
+   */
+  pendingMinigame?: {
+    minigame: MinigameId;
+    difficulty: 1 | 2 | 3;
+    successEffects: SimpleChoiceEffect[];
+    failEffects: SimpleChoiceEffect[];
+  };
   /**
    * Phase 6b — 다음 영웅 공격 damage 배율 (warrior 강타 등).
    * 1 이상 — 공격 발생 후 reset (1 로 돌아감).

@@ -95,135 +95,101 @@ export const LEARNING_EVENTS: DungeonEvent[] = [
         },
       ],
     },
-    // 수수께끼 퀴즈 — 유저가 실제 3지선다로 답을 골라 "미니게임" 형식.
-    // 정답: XP 보상, 오답: 체력 손실. 무작위로 정답 위치 섞기보다 일관성 위해 고정.
+    // Phase 12e — 수수께끼 퀴즈 3지선다 → 실제 인터랙티브 미니게임.
+    //   각 event 는 "도전" 선택 시 startMinigame effect 로 모달 launch.
+    //   성공 → XP/coin 보상 + 시간 -2, 실패 → HP 손상 + 시간 -3.
+    //   "도망" 선택 시 기존 time -10 페널티 유지.
     {
-      prompt: "수수께끼: \"아침엔 네 발, 낮엔 두 발, 저녁엔 세 발.\" 정답은?",
+      prompt: "수수께끼의 문: 기억의 그림이 흩뿌려져 있다. 같은 쌍을 찾아 문을 열어라.",
       options: [
         {
-          label: "짐승",
-          outcomes: [
-            {
-              weight: 100,
-              resultText: "틀렸다. 문이 웃는 듯 흔들린다.",
-              effects: [
-                { kind: "damage", amount: 8 },
-                { kind: "time", delta: -3 },
-              ],
-            },
-          ],
+          label: "도전",
+          effect: {
+            kind: "startMinigame",
+            minigame: "pair_match",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 60, coins: 20 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 10 },
+              { kind: "time", delta: -4 },
+            ],
+          },
+          resultText: "그림을 쳐다본다...",
         },
         {
-          label: "인간",
+          label: "뒤로 돌아가기",
           outcomes: [
             {
               weight: 100,
-              resultText: "정답. 문이 환하게 열린다.",
-              effects: [
-                { kind: "reward", xp: 60 },
-                { kind: "time", delta: -2 },
-              ],
-            },
-          ],
-        },
-        {
-          label: "시간",
-          outcomes: [
-            {
-              weight: 100,
-              resultText: "틀렸다. 그림자가 길어진다.",
-              effects: [
-                { kind: "damage", amount: 8 },
-                { kind: "time", delta: -3 },
-              ],
+              resultText: "다른 길을 찾는다.",
+              effects: [{ kind: "time", delta: -10 }],
             },
           ],
         },
       ],
     },
     {
-      prompt: "노인이 묻는다: \"많이 쥘수록 줄어드는 것은?\"",
+      prompt: "석판의 수수께끼: 고대 주문이 깜빡인다. 순서를 기억하라.",
       options: [
         {
-          label: "금화",
-          outcomes: [
-            {
-              weight: 100,
-              resultText: "노인이 고개를 저었다.",
-              effects: [
-                { kind: "damage", amount: 6 },
-                { kind: "time", delta: -3 },
-              ],
-            },
-          ],
+          label: "도전",
+          effect: {
+            kind: "startMinigame",
+            minigame: "sequence_memo",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 70, coins: 20 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 10 },
+              { kind: "time", delta: -3 },
+            ],
+          },
+          resultText: "주문을 외운다...",
         },
         {
-          label: "모래",
+          label: "지나치기",
           outcomes: [
             {
               weight: 100,
-              resultText: "정답. 노인이 잔잔히 웃었다.",
-              effects: [
-                { kind: "reward", xp: 50, coins: 15 },
-                { kind: "time", delta: -2 },
-              ],
-            },
-          ],
-        },
-        {
-          label: "시간",
-          outcomes: [
-            {
-              weight: 100,
-              resultText: "아쉽다. 노인이 한숨을 쉰다.",
-              effects: [
-                { kind: "reward", xp: 15 },
-                { kind: "time", delta: -3 },
-              ],
+              resultText: "다음으로.",
+              effects: [{ kind: "time", delta: -2 }],
             },
           ],
         },
       ],
     },
     {
-      prompt: "석판의 수수께끼: \"부르면 오지만, 잡으면 사라지는 것?\"",
+      prompt: "학자의 도면: 오래된 파이프가 막혔다. 연결을 복원해야 한다.",
       options: [
         {
-          label: "바람",
-          outcomes: [
-            {
-              weight: 100,
-              resultText: "절반만 맞았다. 석판이 흐려진다.",
-              effects: [
-                { kind: "reward", xp: 20 },
-                { kind: "time", delta: -3 },
-              ],
-            },
-          ],
+          label: "도전",
+          effect: {
+            kind: "startMinigame",
+            minigame: "pipe_connect",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 80, coins: 25 },
+              { kind: "time", delta: -3 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 12 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "파이프에 손을 댄다...",
         },
         {
-          label: "빛",
+          label: "너무 어려워 보인다",
           outcomes: [
             {
               weight: 100,
-              resultText: "틀렸다. 석판이 어두워진다.",
-              effects: [
-                { kind: "damage", amount: 10 },
-                { kind: "time", delta: -3 },
-              ],
-            },
-          ],
-        },
-        {
-          label: "소리",
-          outcomes: [
-            {
-              weight: 100,
-              resultText: "정답! 석판이 환히 빛났다.",
-              effects: [
-                { kind: "reward", xp: 70, coins: 20 },
-                { kind: "time", delta: -2 },
-              ],
+              resultText: "다른 길을 찾는다.",
+              effects: [{ kind: "time", delta: -3 }],
             },
           ],
         },

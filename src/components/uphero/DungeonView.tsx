@@ -40,6 +40,7 @@ import DungeonAtmosphere from "./DungeonAtmosphere";
 import ChoiceResultModal from "./ChoiceResultModal";
 import ClassResourceBar from "./ClassResourceBar";
 import SkillBar from "./SkillBar";
+import MinigameModal from "./MinigameModal";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
@@ -52,6 +53,8 @@ export default function DungeonView() {
   const session = useUpHeroStore((s) => s.currentSession);
   const tickSession = useUpHeroStore((s) => s.tickSession);
   const resumeSession = useUpHeroStore((s) => s.resumeSession);
+  // Phase 12e — 미니게임 결과 해소 action.
+  const resolveMinigame = useUpHeroStore((s) => s.resolveMinigame);
   const abandonSession = useUpHeroStore((s) => s.abandonSession);
   // Phase 9d — 영웅 전용 레벨 사용. variant 결정 등.
   const gameLevel = useGameStore((s) => s.progress.level);
@@ -947,6 +950,15 @@ export default function DungeonView() {
           text={choiceResultData.text}
           summary={choiceResultData.summary}
           onDismiss={() => setChoiceResultData(null)}
+        />
+      )}
+
+      {/* Phase 12e — 인터랙티브 미니게임 모달. pendingMinigame 감지 시 표시. */}
+      {session.pendingMinigame && session.status === "awaitingMinigame" && (
+        <MinigameModal
+          minigame={session.pendingMinigame.minigame}
+          difficulty={session.pendingMinigame.difficulty}
+          onComplete={(success) => resolveMinigame(success)}
         />
       )}
 
