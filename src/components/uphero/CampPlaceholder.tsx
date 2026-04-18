@@ -861,21 +861,24 @@ function ShopView({
       {/* Phase 12 R6 — 풀 카드팩 (800 코인) 실수 구매 safeguard. */}
       <GbConfirm
         open={confirmFullPack}
-        title="풀 카드팩을 구매할까요?"
+        title={t("uphero.shop.confirmFullPackTitle")}
         body={
           <>
             <div className="typo-caption" style={{ color: GB.light }}>
-              카드 5 장을 한 번에 뽑습니다.
+              {t("uphero.shop.confirmFullPackBody")}
             </div>
             <div
               className="typo-caption mt-1 tabular-nums"
               style={{ color: GB.light }}
             >
-              비용 {SHOP_PRICES.cardPackFull} 코인 · 잔액 {coins} 코인
+              {t("uphero.shop.confirmFullPackPrice", {
+                price: SHOP_PRICES.cardPackFull,
+                coins,
+              })}
             </div>
           </>
         }
-        confirmLabel="구매"
+        confirmLabel={t("uphero.shop.buy")}
         onConfirm={confirmFullPackPurchase}
         onCancel={() => setConfirmFullPack(false)}
       />

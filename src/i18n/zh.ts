@@ -729,6 +729,27 @@ const zh: Record<DictKey, string> = {
   "uphero.help.item.abandon.title": "放弃",
   "uphero.help.item.abandon.desc": "主动返回营地。至今获得的掉落物全部保留。",
 
+  // === Misc hero UI (residuals) ===
+  "uphero.boss.appearAria": "首领登场 — 点击跳过",
+  "uphero.buff.enter": "进入",
+  "uphero.buff.enterN": "带 {count} 张进入",
+  "uphero.choice.choicesAria": "选项",
+  "uphero.choice.hint.encounter": "{sec}秒内选择 — 无响应则自动「战斗」",
+  "uphero.choice.hint.event": "选择之前探险暂停",
+  "uphero.class.awakenAria": "职业觉醒",
+  "uphero.log.sessionEnd.victory": "击败首领 — 冒险完成",
+  "uphero.log.sessionEnd.died": "英雄倒下",
+  "uphero.log.sessionEnd.timeout": "探险时间耗尽",
+  "uphero.log.sessionEnd.abandoned": "返回营地",
+  "uphero.codex.back.aria": "返回",
+  "uphero.enhance.success.fullTitle": "强化成功",
+  "uphero.enhance.fail.keepTitle": "强化失败 — 物品保留",
+  "uphero.enhance.destroyed.title": "物品消失",
+  "uphero.enhance.continue": "继续",
+  "uphero.enhance.comfort": "安慰",
+  "common.confirmDefault": "确认",
+  "common.cancelDefault": "取消",
+
   // === Equipment inventory ===
   "uphero.equip.tabBag": "背包",
   "uphero.equip.tabTalisman": "照片护身符",

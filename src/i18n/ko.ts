@@ -727,6 +727,27 @@ const ko = {
   "uphero.help.item.abandon.title": "포기",
   "uphero.help.item.abandon.desc": "자발적으로 캠프 복귀. 지금까지 얻은 drop 은 모두 유지.",
 
+  // === Misc hero UI (residuals) ===
+  "uphero.boss.appearAria": "보스 등장 — 탭해서 건너뛰기",
+  "uphero.buff.enter": "진입",
+  "uphero.buff.enterN": "{count}장 진입",
+  "uphero.choice.choicesAria": "선택지",
+  "uphero.choice.hint.encounter": "{sec}초 안에 선택 — 무응답 시 자동으로 \"싸운다\"",
+  "uphero.choice.hint.event": "선택하기 전까지 탐험은 멈춰 있다",
+  "uphero.class.awakenAria": "클래스 분화",
+  "uphero.log.sessionEnd.victory": "보스 처치 — 모험 종료",
+  "uphero.log.sessionEnd.died": "영웅 쓰러짐",
+  "uphero.log.sessionEnd.timeout": "탐험 시간 소진",
+  "uphero.log.sessionEnd.abandoned": "캠프로 복귀",
+  "uphero.codex.back.aria": "뒤로",
+  "uphero.enhance.success.fullTitle": "강화 성공",
+  "uphero.enhance.fail.keepTitle": "강화 실패 — 아이템은 남았다",
+  "uphero.enhance.destroyed.title": "아이템 소실",
+  "uphero.enhance.continue": "계속",
+  "uphero.enhance.comfort": "위로",
+  "common.confirmDefault": "확인",
+  "common.cancelDefault": "취소",
+
   // === Equipment inventory ===
   "uphero.equip.tabBag": "가방",
   "uphero.equip.tabTalisman": "사진 부적",

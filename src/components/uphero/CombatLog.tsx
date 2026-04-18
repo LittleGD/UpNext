@@ -348,7 +348,7 @@ const LogLine = memo(function LogLine({
 
     case "sessionEnd": {
       // Phase 4c.1 — 사유별 구체 레이블/색/아이콘. legacy reason 도 매핑.
-      const { label, color, iconName } = resolveSessionEndDisplay(entry.reason);
+      const { labelKey, color, iconName } = resolveSessionEndDisplay(entry.reason);
       return (
         <div
           style={{ ...style, color, borderTop: `1px dashed ${GB.dark}` }}
@@ -356,7 +356,7 @@ const LogLine = memo(function LogLine({
         >
           <PixelIcon name={iconName} size={14} color={color} />
           <div className="flex-1">
-            <div>{label}</div>
+            <div>{t(labelKey)}</div>
             {entry.detail && (
               <div className={gbClass.textDim}>— {entry.detail}</div>
             )}
@@ -399,23 +399,23 @@ const LogLine = memo(function LogLine({
  * legacy reason 도 신규 reason 으로 매핑.
  */
 function resolveSessionEndDisplay(reason: string): {
-  label: string;
+  labelKey: "uphero.log.sessionEnd.victory" | "uphero.log.sessionEnd.died" | "uphero.log.sessionEnd.timeout" | "uphero.log.sessionEnd.abandoned";
   color: string;
   iconName: string;
 } {
   switch (reason) {
     case "bossDefeated":
     case "victory":
-      return { label: "보스 처치 — 모험 종료", color: GB.lightest, iconName: "Trophy" };
+      return { labelKey: "uphero.log.sessionEnd.victory", color: GB.lightest, iconName: "Trophy" };
     case "heroDied":
     case "defeat":
-      return { label: "영웅 쓰러짐", color: GB_ENEMY, iconName: "Skull" };
+      return { labelKey: "uphero.log.sessionEnd.died", color: GB_ENEMY, iconName: "Skull" };
     case "timeExpired":
-      return { label: "탐험 시간 소진", color: GB.light, iconName: "Clock" };
+      return { labelKey: "uphero.log.sessionEnd.timeout", color: GB.light, iconName: "Clock" };
     case "heroAbandoned":
     case "abandoned":
     default:
-      return { label: "캠프로 복귀", color: GB.light, iconName: "Flag" };
+      return { labelKey: "uphero.log.sessionEnd.abandoned", color: GB.light, iconName: "Flag" };
   }
 }
 

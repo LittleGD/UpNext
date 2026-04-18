@@ -729,6 +729,27 @@ const ja: Record<DictKey, string> = {
   "uphero.help.item.abandon.title": "撤退",
   "uphero.help.item.abandon.desc": "自発的にキャンプ復帰。これまで得た drop はすべて保持。",
 
+  // === Misc hero UI (residuals) ===
+  "uphero.boss.appearAria": "ボス出現 — タップでスキップ",
+  "uphero.buff.enter": "入る",
+  "uphero.buff.enterN": "{count}枚で入る",
+  "uphero.choice.choicesAria": "選択肢",
+  "uphero.choice.hint.encounter": "{sec}秒以内に選択 — 無応答なら自動で「戦う」",
+  "uphero.choice.hint.event": "選ぶまで探索は止まっている",
+  "uphero.class.awakenAria": "クラス分化",
+  "uphero.log.sessionEnd.victory": "ボス撃破 — 冒険完了",
+  "uphero.log.sessionEnd.died": "勇者が倒れた",
+  "uphero.log.sessionEnd.timeout": "探索時間切れ",
+  "uphero.log.sessionEnd.abandoned": "キャンプに戻る",
+  "uphero.codex.back.aria": "戻る",
+  "uphero.enhance.success.fullTitle": "強化成功",
+  "uphero.enhance.fail.keepTitle": "強化失敗 — アイテムは残った",
+  "uphero.enhance.destroyed.title": "アイテム消失",
+  "uphero.enhance.continue": "続ける",
+  "uphero.enhance.comfort": "慰め",
+  "common.confirmDefault": "確認",
+  "common.cancelDefault": "キャンセル",
+
   // === Equipment inventory ===
   "uphero.equip.tabBag": "鞄",
   "uphero.equip.tabTalisman": "写真お守り",

@@ -208,7 +208,7 @@ export default function ChoicePanel() {
         <div
           className="flex flex-col gap-1.5"
           role="radiogroup"
-          aria-label="선택지"
+          aria-label={t("uphero.choice.choicesAria")}
           style={{
             opacity: promptDone ? 1 : 0.45,
             transition: `opacity 180ms ${EASE_OUT}`,
@@ -256,8 +256,10 @@ export default function ChoicePanel() {
           style={{ marginTop: isEncounter && remainingMs != null ? 6 : 12 }}
         >
           {isEncounter && remainingMs != null
-            ? `${Math.ceil(remainingMs / 1000)}초 안에 선택 — 무응답 시 자동으로 "싸운다"`
-            : "선택하기 전까지 탐험은 멈춰 있다"}
+            ? t("uphero.choice.hint.encounter", {
+                sec: Math.ceil(remainingMs / 1000),
+              })
+            : t("uphero.choice.hint.event")}
         </div>
       </div>
     </div>
