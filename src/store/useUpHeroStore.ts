@@ -17,7 +17,7 @@ import {
   SHOP_PRICES,
   SELL_PRICE,
   MAX_ENHANCE_LEVEL,
-  ENHANCE_PRESERVE_ON_FAIL,
+  ENHANCE_PRESERVE_BY_RARITY,
   DAILY_PASS_PURCHASE_CAP,
   enhanceSuccessRate,
   enhanceCost,
@@ -242,7 +242,7 @@ interface UpHeroActions {
   /**
    * Phase 11a — 장비 +N 강화 (기존 2→1 합성 대체).
    * 단일 아이템 + 코인 → 확률적으로 enhanceLevel +1. 최대 +10.
-   * 실패 시 ENHANCE_PRESERVE_ON_FAIL (30%) 확률로 아이템 보존, 그 외엔 소실.
+   * 실패 시 ENHANCE_PRESERVE_BY_RARITY[rarity] 확률로 아이템 보존, 그 외엔 소실.
    * 성공률 / 코인 비용 공식은 types/uphero.ts 의 enhanceSuccessRate / enhanceCost 참고.
    *
    * UI 는 이 반환값 기반으로 Ritual overlay + Result modal 분기.
@@ -261,8 +261,13 @@ export type EnhanceResult =
 
 type UpHeroStore = UpHeroState & UpHeroActions;
 
-/** 저장할 state 추출 — 함수는 제외. pendingDungeon 은 transient (persist 안 함) */
-function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
+/**
+ * 저장할 state 추출 — 함수는 제외. pendingDungeon 은 transient (persist 안 함).
+ *
+ * Phase 11c R1 — export 하여 DevLeaderboardPanel 같은 dev tool 에서 store persist
+ *   포맷을 그대로 재사용 가능. 하드코딩된 schemaVersion / 누락 필드 drift 방지.
+ */
+export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
   const {
     hero,
     inventory,
@@ -887,24 +892,27 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         ...(isNewBest ? { lastUploadedAt: Date.now() } : {}),
       };
 
-      // 최고 점수 경신 시 Firestore 업로드 (비동기 fire-and-forget).
-      //   익명 유저 / Firebase 미구성 시 자동 skip.
+      // Phase 11c R1 — 업로드는 state commit 뒤로 이동 (atomic). 그리고 capture 된
+      //   local `newWeeklyVariant` 를 참조 (기존 `state.weeklyVariant!` 는 stale 가능).
+      //   fire-and-forget but state 가 먼저 반영되도록 순서 고정.
       if (isNewBest) {
-        import("@/lib/weeklyLeaderboard").then(async (mod) => {
-          const displayName = await mod.getDisplayName();
-          await mod.uploadWeeklyScore(state.weeklyVariant!.week, {
-            displayName,
-            score,
-            floorsCleared,
-            heroLevel: heroLv,
-            classType: session.hero.classType,
-            clearedAt: Date.now(),
+        queueMicrotask(() => {
+          import("@/lib/weeklyLeaderboard").then(async (mod) => {
+            const displayName = await mod.getDisplayName();
+            await mod.uploadWeeklyScore(newWeeklyVariant!.week, {
+              displayName,
+              score,
+              floorsCleared,
+              heroLevel: heroLv,
+              classType: session.hero.classType,
+              clearedAt: Date.now(),
+            });
           });
         });
       }
     }
 
-    // state commit + persist
+    // state commit + persist — 업로드 microtask 보다 먼저 실행 보장.
     const newCoins = state.coins + session.rewards.coins;
     const newInventory = [...state.inventory, ...keptDrops];
     const newState = {
@@ -1109,8 +1117,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       return { ok: true, reason: "success", newItem, prevLevel: curLevel };
     }
 
-    // 실패 — 코인은 어쨌든 차감.
-    const preserved = Math.random() < ENHANCE_PRESERVE_ON_FAIL;
+    // 실패 — 코인은 어쨌든 차감. 보존 확률은 rarity 별 다름.
+    const preserved = Math.random() < ENHANCE_PRESERVE_BY_RARITY[item.rarity];
     const newCoins = state.coins - cost;
     if (preserved) {
       // 아이템 그대로. 실패 이벤트만 UI 에 알림.

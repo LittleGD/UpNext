@@ -94,8 +94,13 @@ export async function fetchWeeklyTop(
 }
 
 /**
- * 내 순위 조회 — top 100 밖일 때 사용. 전체 entries 스캔 (> 100 만 명 까진 감당 가능).
- * 더 많아지면 Cloud Function + aggregation 필요.
+ * 내 순위 조회 — top 100 밖일 때 사용.
+ *
+ * Phase 11c R1 — 이전 구현은 전체 entries 를 getDocs 로 읽어 비용 O(N).
+ *   지금은 `count()` aggregation 으로 변경: `score > myScore` 인 doc 수만 서버에서
+ *   집계해 내려옴 (1 회 billed read, 1000 docs 당 1 회). 수만 ~ 수십만 유저까지
+ *   감당 가능. 단, tie-break (동점자) 는 clearedAt 이 빠른 쪽 우선 (Firestore
+ *   count 는 compound where 2 개까지 지원하므로 `score == myScore && clearedAt <` 추가).
  */
 export async function fetchMyRank(
   weekId: string,
@@ -105,21 +110,36 @@ export async function fetchMyRank(
     const { auth, db } = await getFirebase();
     const user = auth.currentUser;
     if (!user) return null;
-    const { collection, query, orderBy, getDocs, doc, getDoc } = await import(
-      "firebase/firestore"
-    );
+    const {
+      collection,
+      query,
+      where,
+      doc,
+      getDoc,
+      getCountFromServer,
+    } = await import("firebase/firestore");
     // 내 entry 먼저 확인
     const myDocRef = doc(db, "weekly-leaderboard", weekId, "entries", user.uid);
     const myDoc = await getDoc(myDocRef);
     if (!myDoc.exists()) return null;
     const myEntry = myDoc.data() as unknown as WeeklyLeaderboardEntry;
 
-    // score > myScore 인 entry 수 + 1 = 내 랭크
-    // 단순 구현: 전체 entries 가져와서 sort 후 index 찾음. 대규모에선 비효율.
+    // score > myScore 인 doc 수 집계 (count aggregation).
     const col = collection(db, "weekly-leaderboard", weekId, "entries");
-    const q = query(col, orderBy("score", "desc"));
-    const snap = await getDocs(q);
-    const rank = snap.docs.findIndex((d) => d.id === user.uid) + 1;
+    const higherQ = query(col, where("score", ">", myEntry.score));
+    const higherSnap = await getCountFromServer(higherQ);
+    const higherCount = higherSnap.data().count;
+
+    // 동점 tie-break: 같은 점수 중 clearedAt 이 내 것보다 먼저인 (더 빨리 클리어한) 유저 수.
+    const tieQ = query(
+      col,
+      where("score", "==", myEntry.score),
+      where("clearedAt", "<", myEntry.clearedAt),
+    );
+    const tieSnap = await getCountFromServer(tieQ);
+    const tieCount = tieSnap.data().count;
+
+    const rank = higherCount + tieCount + 1;
     return { rank, entry: myEntry };
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {

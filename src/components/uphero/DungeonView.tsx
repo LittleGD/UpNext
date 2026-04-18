@@ -112,8 +112,8 @@ export default function DungeonView() {
       // 최근 encounter/combat/보스 등장 이후만 — 그보다 오래된 건 이미 지나간 것
       if (entry.type === "combat" || entry.type === "encounter" || entry.type === "boss")
         break;
-      if (entry.type !== "narrative") continue;
-      if (!entry.text.startsWith("> ")) continue;
+      // Phase 11c R1 — explicit choiceResult variant (기존: narrative prefix 매칭).
+      if (entry.type !== "choiceResult") continue;
       if (seenChoiceResultRef.current.has(idx)) continue;
       seenChoiceResultRef.current.add(idx);
       setChoiceResultText(entry.text);

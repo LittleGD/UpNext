@@ -414,9 +414,22 @@ export function rollEquipmentDrop(
 /**
  * 랜덤 rarity 결정 — floor 에 따라 확률 변동.
  * Phase 11b — `legendDropBonus` (0-1) 로 legend 확률 추가 가산 가능 ("유행" skill).
+ * Phase 11c R1 — `flatten` true 면 "혼돈의 보물" affix: 4 등급 균등 25% 분배.
  */
-export function rollDropRarity(floor: number, legendDropBonus = 0): Rarity {
+export function rollDropRarity(
+  floor: number,
+  legendDropBonus = 0,
+  flatten = false,
+): Rarity {
   const r = Math.random();
+  if (flatten) {
+    // "혼돈의 보물" — legend 25% + legendDropBonus, unique 25%, rare 25%, normal 25%.
+    const legendCut = 0.25 + legendDropBonus;
+    if (r < legendCut) return "legend";
+    if (r < 0.5) return "unique";
+    if (r < 0.75) return "rare";
+    return "normal";
+  }
   const tier = Math.min(Math.floor(floor / 10), 3); // 0-3 tier
   // 고층일수록 유니크/레전드 확률 ↑. legendDropBonus 는 기존 threshold 에 +.
   const legendHi = 0.02 + legendDropBonus;

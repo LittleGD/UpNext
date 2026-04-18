@@ -646,9 +646,10 @@ function RitualReveal({
     legend: "전설",
   }[item.rarity];
 
+  // Phase 11c R1 — picker z-50 / RitualAnimation z-55 와 겹쳐 stacking 보장 위해 z-[58].
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[58] flex items-center justify-center p-4"
       style={{
         background: `${GB.darkest}ee`,
         opacity: mounted ? 1 : 0,
