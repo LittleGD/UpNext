@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { formatElapsed } from "@/lib/idleAccrual";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
@@ -23,6 +24,10 @@ import { useCountUp } from "@/hooks/useCountUp";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function IdleRewardToast() {
+  const pathname = usePathname();
+  // Phase 9d-fix — Header 가 full/compact 여부에 따라 toast top 위치 결정.
+  //   Header 의 isFullHeader 조건과 동일 (pathname === "/").
+  const headerIsFull = pathname === "/";
   const reward = useUpHeroStore((s) => s.idleReward);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeIdleReward);
   // Phase 5c-fix #1: 다른 blocking modal (SessionResultModal / ClassAwakenModal)
@@ -62,6 +67,14 @@ export default function IdleRewardToast() {
   const elapsed = formatElapsed(reward.rawElapsedMin);
   const capped = reward.rawElapsedMin > reward.elapsedMin;
 
+  // Phase 9d-fix — IdleRewardToast 는 주로 영웅 탭 (playground) 에서 뜸.
+  //   해당 페이지 Header 는 compact (py-2 + typo-body) 라 실제 bottom y 가 약 44px.
+  //   이전 52px 하드코딩은 full 헤더 기준 → compact 에선 토스트 위에 여백이 떠 보임.
+  //   이제 Header 모드 판별해 대응값 사용 (44 vs 56).
+  const toastTop = headerIsFull
+    ? "calc(env(safe-area-inset-top) + 56px)"
+    : "calc(env(safe-area-inset-top) + 44px)";
+
   return (
     <div
       role="alertdialog"
@@ -69,7 +82,7 @@ export default function IdleRewardToast() {
       aria-describedby="idle-reward-body"
       className="fixed left-1/2 z-[60] rounded typo-caption"
       style={{
-        top: "calc(env(safe-area-inset-top) + 52px)",
+        top: toastTop,
         transform: `translateX(-50%) translateY(${mounted ? 0 : "-8px"})`,
         opacity: mounted ? 1 : 0,
         background: GB.darkest,

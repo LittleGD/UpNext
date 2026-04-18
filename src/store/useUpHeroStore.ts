@@ -26,6 +26,7 @@ import {
 } from "@/types/uphero";
 import type { Category } from "@/types/card";
 import type { Rarity } from "@/types/card";
+import { getLevelFromXP } from "@/types/game";
 import {
   createSession as buildSession,
   tickSession as stepSession,
@@ -305,13 +306,24 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     //       신규 영웅 게임 유저는 챌린지 Lv 가 높아도 영웅 Lv 1 부터 키움.
     let heroStartLevel = saved?.heroStartLevel;
     if (heroStartLevel === undefined) {
+      // Phase 9d-fix — 판별에 coins / passes / cosmetics 도 포함.
+      //   기존 유저가 던전 진입 없이 상점에서 티켓/코인만 만지거나 passes 를 받아
+      //   둔 상태면 inventory/codex 는 비어있지만 "영웅 맥락은 있음". 이 경우까지
+      //   heroStartLevel=1 로 처리해야 갑자기 영웅 Lv 41 → Lv 1 로 떨어지는 regression
+      //   을 방지.
+      const hasPassesRecord = Object.values(saved?.passes ?? {}).some(
+        (v) => (v ?? 0) > 0,
+      );
       const hasPlayedUpHero =
         (saved?.inventory?.length ?? 0) > 0 ||
         (saved?.codex?.monsters?.length ?? 0) > 0 ||
         (saved?.codex?.bosses?.length ?? 0) > 0 ||
         (saved?.codex?.equipment?.length ?? 0) > 0 ||
         saved?.currentSession != null ||
-        Object.keys(saved?.dungeons ?? {}).length > 0;
+        Object.keys(saved?.dungeons ?? {}).length > 0 ||
+        hasPassesRecord ||
+        (saved?.coins ?? 0) > 0 ||
+        Object.keys(saved?.cosmetics ?? {}).length > 0;
       heroStartLevel = hasPlayedUpHero ? 1 : curLevel;
     }
     // 영웅 레벨 — 이후 로직 (idle 스케일 등) 에서 사용
@@ -330,11 +342,17 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       : null;
 
     // 지급 — useGameStore.xp 증가 + coins 증가 (Up Hero store).
+    // Phase 9d-fix — xp 만 더하고 level 을 재계산 안 하면 Header / BottomNav 가
+    //   stale level 을 표시한다. getLevelFromXP 로 즉시 재계산 + Header 의 레벨업
+    //   애니메이션 trigger 도 작동.
     let coins = saved?.coins ?? 0;
     if (idleReward) {
+      const newXp = (gameStore.progress.xp ?? 0) + idleReward.xp;
+      const newLevel = getLevelFromXP(newXp);
       const newProgress = {
         ...gameStore.progress,
-        xp: (gameStore.progress.xp ?? 0) + idleReward.xp,
+        xp: newXp,
+        level: newLevel,
       };
       useGameStore.setState({ progress: newProgress });
       saveToStorage("progress", newProgress);
@@ -628,10 +646,16 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const codex = calculateCodexDelta(session.log, state.codex);
 
     // 5. 외부 store (useGameStore) 로 XP 반영 — cross-store 는 여기 남김.
+    //    Phase 9d-fix — xp 누적 후 getLevelFromXP 로 level 도 재계산.
+    //    누락되면 Header 가 stale level 을 유지하고 영웅 레벨 (= gameLevel -
+    //    heroStartLevel + 1) 이 밀림.
     const gameStore = useGameStore.getState();
+    const newXp = gameStore.progress.xp + session.rewards.xp;
+    const newLevel = getLevelFromXP(newXp);
     const newProgress = {
       ...gameStore.progress,
-      xp: gameStore.progress.xp + session.rewards.xp,
+      xp: newXp,
+      level: newLevel,
     };
     useGameStore.setState({ progress: newProgress });
     saveToStorage("progress", newProgress);
