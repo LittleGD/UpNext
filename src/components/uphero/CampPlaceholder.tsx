@@ -34,6 +34,7 @@ import {
 import type { DungeonId } from "@/types/uphero";
 import { useSound } from "@/hooks/useSound";
 import PixelIcon from "@/components/icons/PixelIcon";
+import GbConfirm from "./GbConfirm";
 import HeroSprite from "./HeroSprite";
 import { getHeroAppearanceVariant } from "@/types/uphero";
 import BuffDrawPanel from "./BuffDrawPanel";
@@ -624,6 +625,10 @@ function ShopView({
   const passesBoughtToday = shopDaily?.passesBought ?? 0;
   const dailyCapReached = passesBoughtToday >= DAILY_PASS_PURCHASE_CAP;
 
+  // Phase 12 R6 — 800 coin 풀 카드팩 safeguard. 실수 탭으로 800 코인 날림
+  //   방지. small (200 coin) 은 부담 낮아 스킵.
+  const [confirmFullPack, setConfirmFullPack] = useState(false);
+
   const onBuyTicket = () => {
     const ok = purchaseTicket();
     if (ok) {
@@ -639,10 +644,26 @@ function ShopView({
   };
 
   const onBuyPack = (size: "small" | "full") => {
+    // 풀 팩은 확인 모달 경유. small 은 바로 구매.
+    if (size === "full") {
+      setConfirmFullPack(true);
+      return;
+    }
     const ok = purchaseCardPack(size);
     if (ok) {
       play("collect");
-      onNotify(size === "full" ? "카드팩 획득" : "보너스 카드 +1");
+      onNotify("보너스 카드 +1");
+    } else {
+      onNotify("코인이 부족해요");
+    }
+  };
+
+  const confirmFullPackPurchase = () => {
+    setConfirmFullPack(false);
+    const ok = purchaseCardPack("full");
+    if (ok) {
+      play("collect");
+      onNotify("카드팩 획득");
     } else {
       onNotify("코인이 부족해요");
     }
@@ -784,7 +805,7 @@ function ShopView({
         <ShopRow
           iconName="Package"
           name="풀 카드팩 (5장)"
-          desc="팩 열기로 이동"
+          desc="5장 뽑기 · 희귀 카드 확률 ↑"
           price={SHOP_PRICES.cardPackFull}
           onBuy={() => onBuyPack("full")}
           canAfford={coins >= SHOP_PRICES.cardPackFull}
@@ -801,6 +822,27 @@ function ShopView({
           갓생 코인은 던전에서 획득합니다
         </div>
       </div>
+      {/* Phase 12 R6 — 풀 카드팩 (800 코인) 실수 구매 safeguard. */}
+      <GbConfirm
+        open={confirmFullPack}
+        title="풀 카드팩을 구매할까요?"
+        body={
+          <>
+            <div className="typo-caption" style={{ color: GB.light }}>
+              카드 5 장을 한 번에 뽑습니다.
+            </div>
+            <div
+              className="typo-caption mt-1 tabular-nums"
+              style={{ color: GB.light }}
+            >
+              비용 {SHOP_PRICES.cardPackFull} 코인 · 잔액 {coins} 코인
+            </div>
+          </>
+        }
+        confirmLabel="구매"
+        onConfirm={confirmFullPackPurchase}
+        onCancel={() => setConfirmFullPack(false)}
+      />
     </div>
   );
 }
