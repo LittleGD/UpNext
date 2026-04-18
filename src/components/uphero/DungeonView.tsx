@@ -302,7 +302,21 @@ export default function DungeonView() {
   //  illusionist  — crit 발동 시 sprite ◇ pulse (기존 shake 와 보완)
 
   // Mage XP / Bard coin / Druid heal / Priest start float — 공통 float array 로 통합
-  type GenericFloat = { id: number; kind: "xp" | "coin" | "heal" | "priestStart" | "timeSave"; amount: number };
+  // Phase 12 R5 — 데미지 float 추가. 공격 순간의 수치 임팩트를 narrative 에서 끌어올려
+  //   HP bar 위로 띄움. "heroDamage" = 적 → 영웅 HP 바 (붉은 -N), "enemyDamage" = 영웅
+  //   → 적 HP 바 (영웅 클래스 색 -N). 800ms rise + fade.
+  type GenericFloat = {
+    id: number;
+    kind:
+      | "xp"
+      | "coin"
+      | "heal"
+      | "priestStart"
+      | "timeSave"
+      | "heroDamage"
+      | "enemyDamage";
+    amount: number;
+  };
   const [genericFloats, setGenericFloats] = useState<GenericFloat[]>([]);
   const seenGenericRef = useRef<Set<string>>(new Set());
   // Phase 11c R3 — float cleanup timer 들 추적. unmount 시 일괄 clear 해 React
@@ -423,6 +437,34 @@ export default function DungeonView() {
         setPulseOverlay(null);
         pulseTimerRef.current = null;
       }, cls === "monk" ? 460 : 510);
+    });
+  }, [session]);
+
+  // Phase 12 R5 — 피격 데미지 float.
+  //   combat entry 감지 → damage > 0 이면 heroDamage (적 공격) 또는 enemyDamage
+  //   (영웅 공격) float 추가. HP bar / 적 HP bar 영역 위에서 "-N" 이 위로 떠올라
+  //   800ms 페이드. miss/dodge (damage === 0) 는 float 없음 (기존 narrative 만).
+  const seenDamageIdxRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!session) {
+      seenDamageIdxRef.current.clear();
+      return;
+    }
+    session.log.forEach((entry, idx) => {
+      if (entry.type !== "combat") return;
+      if (seenDamageIdxRef.current.has(idx)) return;
+      if (entry.damage <= 0) return;
+      seenDamageIdxRef.current.add(idx);
+      const kind: GenericFloat["kind"] =
+        entry.attacker === "enemy" ? "heroDamage" : "enemyDamage";
+      const id = Date.now() + idx;
+      setGenericFloats((prev) => [
+        ...prev,
+        { id, kind, amount: entry.damage },
+      ]);
+      scheduleFloatCleanup(() => {
+        setGenericFloats((prev) => prev.filter((f) => f.id !== id));
+      }, 850);
     });
   }, [session]);
 
@@ -654,7 +696,34 @@ export default function DungeonView() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative">
+            {/* Phase 12 R5 — 적에게 가한 피해 float. 적 HP bar 위쪽에서 영웅
+                 클래스 색 "-N" 이 800ms 올라가며 사라짐. 적 sprite/HP 가 hurt
+                 상태로 dim 되는 동안에도 float 는 dim 에 영향받지 않도록
+                 outer (enemyHurt opacity 가 없는) 에 배치. */}
+            {genericFloats
+              .filter((f) => f.kind === "enemyDamage")
+              .map((f) => {
+                const floatColor = session.hero.classType
+                  ? CLASS_THEME_COLOR[session.hero.classType]
+                  : GB.lightest;
+                return (
+                  <span
+                    key={f.id}
+                    className="uphero-heal-float typo-micro tabular-nums pointer-events-none absolute"
+                    style={{
+                      right: 0,
+                      top: -16,
+                      color: floatColor,
+                      textShadow: `0 0 4px ${floatColor}aa`,
+                      fontWeight: 700,
+                    }}
+                    aria-hidden="true"
+                  >
+                    −{f.amount}
+                  </span>
+                );
+              })}
             {currentEnemy && (
               <div
                 className="flex flex-col items-end leading-tight gap-0.5"
@@ -961,6 +1030,28 @@ export default function DungeonView() {
                 aria-hidden="true"
               >
                 +{f.amount}
+              </span>
+            ))}
+          {/* Phase 12 R5 — 피격 데미지 float (-N).
+               heal/regen/priestStart 와 동일한 "uphero-heal-float" 애니를
+               재사용하지만 색은 GB_ENEMY (위험 톤). 오른쪽 위에서 살짝 내려와
+               HP 숫자와 겹치지 않도록 top 오프셋만 다르게. */}
+          {genericFloats
+            .filter((f) => f.kind === "heroDamage")
+            .map((f) => (
+              <span
+                key={f.id}
+                className="uphero-heal-float typo-micro tabular-nums pointer-events-none absolute"
+                style={{
+                  right: 0,
+                  top: -18,
+                  color: GB_ENEMY,
+                  textShadow: `0 0 4px ${GB_ENEMY}aa`,
+                  fontWeight: 700,
+                }}
+                aria-hidden="true"
+              >
+                −{f.amount}
               </span>
             ))}
         </div>
