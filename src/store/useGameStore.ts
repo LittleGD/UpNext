@@ -1008,6 +1008,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("progress", updatedProgress);
     completingCardIds.delete(cardId);
 
+    // Phase 12 bugfix — extra/super phase 에도 탐험권 지급.
+    //   유저 제보: "사진 기록 후 탐험 티켓이 안 들어온다". 원인은 photo flow 가
+    //   아니라 `completePhaseChallenge` 에 grantExpeditionPass 호출이 누락돼
+    //   extra/super 챌린지 완료 시 pass 미지급. daily path 와 동작 일치.
+    try {
+      useUpHeroStore.getState().grantExpeditionPass(card.category, card.rarity);
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[completePhaseChallenge] grantExpeditionPass failed:", e);
+      }
+    }
+
     // 알림: extra 풀클리어 → 축하 알림 + 넛지 취소
     if (phase === "extra" && phaseFullClear && updatedProgress.notificationsEnabled) {
       cancelExtraNudge();
