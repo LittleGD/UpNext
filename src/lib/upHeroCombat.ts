@@ -887,10 +887,18 @@ export function resolveChoice(
   if (option.outcomes && option.outcomes.length > 0) {
     const outcome = pickWeighted(option.outcomes);
     const summary = summarizeEffects(outcome.effects);
+    const summaryData = summarizeEffectsData(outcome.effects);
     s.log.push({
       type: "choiceResult",
       text: `> ${option.label} → ${outcome.resultText}`,
       effectSummary: summary || undefined,
+      effectSummaryData:
+        Object.keys(summaryData).length > 0 ? summaryData : undefined,
+      // Phase 13b — i18n keys (있을 때만). 컴포넌트가 우선 사용.
+      actionLabelKey: option.labelKey,
+      actionLabelFallback: option.label,
+      resultTextKey: outcome.resultTextKey,
+      resultTextFallback: outcome.resultText,
       timestamp: Date.now(),
     });
     for (const effect of outcome.effects) {
@@ -902,11 +910,18 @@ export function resolveChoice(
     // Legacy: 결과 narrative + 단일 effect
     const legacyEffects = option.effect ? [option.effect] : [];
     const summary = summarizeEffects(legacyEffects);
+    const summaryData = summarizeEffectsData(legacyEffects);
     if (option.resultText) {
       s.log.push({
         type: "choiceResult",
         text: `> ${option.label} → ${option.resultText}`,
         effectSummary: summary || undefined,
+        effectSummaryData:
+          Object.keys(summaryData).length > 0 ? summaryData : undefined,
+        actionLabelKey: option.labelKey,
+        actionLabelFallback: option.label,
+        resultTextKey: option.resultTextKey,
+        resultTextFallback: option.resultText,
         timestamp: Date.now(),
       });
     }
@@ -949,7 +964,30 @@ function pickWeighted<T extends { weight: number }>(outcomes: T[]): T {
  * fight/flee/revealBoss/skipFloors 같은 구조 이벤트는 summary 에서 제외.
  */
 function summarizeEffects(effects: readonly ChoiceEffect[]): string {
+  const data = summarizeEffectsData(effects);
   const parts: string[] = [];
+  if (data.xp) parts.push(`경험치 +${data.xp}`);
+  if (data.coins) parts.push(`코인 +${data.coins}`);
+  if (data.heal) parts.push(`체력 +${data.heal}`);
+  if (data.damage) parts.push(`체력 −${data.damage}`);
+  if (data.timeDelta && data.timeDelta > 0) parts.push(`시간 +${data.timeDelta}`);
+  else if (data.timeDelta && data.timeDelta < 0) parts.push(`시간 ${data.timeDelta}`);
+  return parts.join(" · ");
+}
+
+/**
+ * Phase 13b — structured effect summary. ChoiceResultModal 이 다국어 라벨로
+ *   조립할 수 있도록 raw 수치 반환.
+ */
+export function summarizeEffectsData(
+  effects: readonly ChoiceEffect[],
+): {
+  xp?: number;
+  coins?: number;
+  heal?: number;
+  damage?: number;
+  timeDelta?: number;
+} {
   let totalCoins = 0;
   let totalXp = 0;
   let totalDamage = 0;
@@ -967,13 +1005,13 @@ function summarizeEffects(effects: readonly ChoiceEffect[]): string {
       totalTimeDelta += e.delta;
     }
   }
-  if (totalXp > 0) parts.push(`경험치 +${totalXp}`);
-  if (totalCoins > 0) parts.push(`코인 +${totalCoins}`);
-  if (totalHeal > 0) parts.push(`체력 +${totalHeal}`);
-  if (totalDamage > 0) parts.push(`체력 −${totalDamage}`);
-  if (totalTimeDelta > 0) parts.push(`시간 +${totalTimeDelta}`);
-  else if (totalTimeDelta < 0) parts.push(`시간 ${totalTimeDelta}`);
-  return parts.join(" · ");
+  const out: ReturnType<typeof summarizeEffectsData> = {};
+  if (totalXp > 0) out.xp = totalXp;
+  if (totalCoins > 0) out.coins = totalCoins;
+  if (totalHeal > 0) out.heal = totalHeal;
+  if (totalDamage > 0) out.damage = totalDamage;
+  if (totalTimeDelta !== 0) out.timeDelta = totalTimeDelta;
+  return out;
 }
 
 function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
@@ -1428,10 +1466,13 @@ export function resolveMinigame(
   // Phase 12 R2 — effectSummary 로 수치 요약 (일반 choice 와 일관된 UX).
   //   이전엔 undefined 로 두어 ChoiceResultModal 의 요약 chip 이 렌더 안 됐음.
   const summary = summarizeEffects(effects as ChoiceEffect[]);
+  const summaryData = summarizeEffectsData(effects as ChoiceEffect[]);
   s.log.push({
     type: "choiceResult",
     text: success ? "> 도전 성공" : "> 도전 실패",
     effectSummary: summary || undefined,
+    effectSummaryData:
+      Object.keys(summaryData).length > 0 ? summaryData : undefined,
     timestamp: Date.now(),
   });
   for (const e of effects) {

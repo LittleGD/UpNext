@@ -17,6 +17,7 @@ import type { LogEntry } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
+import type { DictKey } from "@/i18n";
 import { monsterName, skillName } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -160,17 +161,33 @@ const LogLine = memo(function LogLine({
         </div>
       );
 
-    case "choiceResult":
+    case "choiceResult": {
       // Phase 11c R1 — event choice 결과. narrative 와 유사 스타일, 약간 밝게 강조.
       // Phase 11c R4 — effectSummary 있으면 " · " 로 inline 추가 (로그 기록용).
+      // Phase 13b — i18n keys 우선. 없으면 entry.text 한국어 fallback.
+      const action = entry.actionLabelFallback
+        ? entry.actionLabelKey
+          ? t(entry.actionLabelKey as DictKey)
+          : entry.actionLabelFallback
+        : null;
+      const result = entry.resultTextFallback
+        ? entry.resultTextKey
+          ? t(entry.resultTextKey as DictKey)
+          : entry.resultTextFallback
+        : null;
+      const composed =
+        action || result
+          ? `> ${action ?? ""}${action && result ? " → " : ""}${result ?? ""}`
+          : entry.text;
       return (
         <div style={{ ...style, color: GB.lightest }} className="opacity-90">
           <TypewriterText
-            text={entry.effectSummary ? `${entry.text} · ${entry.effectSummary}` : entry.text}
+            text={entry.effectSummary ? `${composed} · ${entry.effectSummary}` : composed}
             enabled={isLatest}
           />
         </div>
       );
+    }
 
     case "floor":
       // Phase 8b — 새 floor 진입 시 divider 에 한 번 sweep.

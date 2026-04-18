@@ -78,6 +78,17 @@ export default function DungeonView() {
   const [choiceResultData, setChoiceResultData] = useState<{
     text: string;
     summary: string | null;
+    summaryData?: {
+      xp?: number;
+      coins?: number;
+      heal?: number;
+      damage?: number;
+      timeDelta?: number;
+    } | null;
+    actionLabelKey?: string;
+    actionLabelFallback?: string;
+    resultTextKey?: string;
+    resultTextFallback?: string;
   } | null>(null);
   const choiceResultText = choiceResultData?.text ?? null;
   const { play } = useSound();
@@ -138,6 +149,11 @@ export default function DungeonView() {
       setChoiceResultData({
         text: entry.text,
         summary: entry.effectSummary ?? null,
+        summaryData: entry.effectSummaryData ?? null,
+        actionLabelKey: entry.actionLabelKey,
+        actionLabelFallback: entry.actionLabelFallback,
+        resultTextKey: entry.resultTextKey,
+        resultTextFallback: entry.resultTextFallback,
       });
       break;
     }
@@ -1300,6 +1316,11 @@ export default function DungeonView() {
         <ChoiceResultModal
           text={choiceResultData.text}
           summary={choiceResultData.summary}
+          summaryData={choiceResultData.summaryData}
+          actionLabelKey={choiceResultData.actionLabelKey}
+          actionLabelFallback={choiceResultData.actionLabelFallback}
+          resultTextKey={choiceResultData.resultTextKey}
+          resultTextFallback={choiceResultData.resultTextFallback}
           onDismiss={() => setChoiceResultData(null)}
         />
       )}

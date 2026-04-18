@@ -34,6 +34,7 @@ import {
 import type { DungeonId } from "@/types/uphero";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
+import { dungeonName, weeklyAffixName } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 import GbConfirm from "./GbConfirm";
 import HeroSprite from "./HeroSprite";
@@ -516,7 +517,7 @@ function DungeonsView({
   const prepareBuffDraw = useUpHeroStore((s) => s.prepareBuffDraw);
   const enterDungeon = useUpHeroStore((s) => s.enterDungeon);
   const { play } = useSound();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const onEnter = (dungeonId: DungeonId) => {
     const result = prepareBuffDraw(dungeonId);
@@ -584,7 +585,7 @@ function DungeonsView({
                   className="typo-caption leading-tight truncate"
                   style={{ color: disabled ? GB.light : GB.lightest }}
                 >
-                  {d.name}
+                  {dungeonName(d.id, d.name, language)}
                 </div>
                 <div
                   className="typo-caption mt-1 tabular-nums"
@@ -921,7 +922,7 @@ function SubHeader({
         aria-label={backAriaLabel}
       >
         <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
-        뒤로
+        {t("uphero.subheader.back")}
       </button>
       <div
         className="typo-body ml-1"
@@ -1175,13 +1176,16 @@ function WeeklyNightmareRibbon({
   bestScore: number;
   onOpen: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const affix = getWeeklyAffixById(affixId);
+  const affixDisplayName = affix
+    ? weeklyAffixName(affix.id, affix.name, language)
+    : "";
   const SAND = "#e8b887";
   // Phase 11c R4 — SR 전용 label. 기존 innerText 는 맥락 없이 조각으로 읽힘.
   const srLabel = [
     t("uphero.ribbon.weeklyTitle"),
-    affix?.name ?? "",
+    affixDisplayName,
     weekId,
     clearedCount > 0
       ? t("uphero.weekly.clearedCount", { count: clearedCount })
@@ -1212,7 +1216,7 @@ function WeeklyNightmareRibbon({
             className="typo-caption truncate"
             style={{ color: GB.lightest }}
           >
-            {t("uphero.ribbon.weeklyTitle")} · {affix?.name ?? "—"}
+            {t("uphero.ribbon.weeklyTitle")} · {affixDisplayName || "—"}
           </div>
           <div
             className="typo-micro truncate tabular-nums"
