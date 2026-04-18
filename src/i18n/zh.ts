@@ -286,7 +286,7 @@ const zh: Record<DictKey, string> = {
 
   // === minigame ===
   "minigame.title": "卡牌配对",
-  "minigame.subtitle": "找到成对的挑战卡",
+  "minigame.subtitle": "翻开卡牌，配对挑战",
   "minigame.tickets.label": "门票",
   "minigame.tickets.count": "{count}",
   "minigame.tickets.empty": "暂无门票",
@@ -296,7 +296,7 @@ const zh: Record<DictKey, string> = {
   "minigame.stats.runs": "游玩次数",
   "minigame.stats.best": "最高配对",
   "minigame.howToPlay.heading": "玩法",
-  "minigame.howToPlay.line1": "在3个回合中找到成对的反面卡牌",
+  "minigame.howToPlay.line1": "在3个回合中翻牌配对",
   "minigame.howToPlay.line2": "4次失败结束回合 — 技能卡可以获得更多机会",
   "minigame.howToPlay.line3": "避开诅咒卡。每次游玩结束获得1张卡！",
 
