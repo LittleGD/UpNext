@@ -78,6 +78,15 @@ body {
   font-family: var(--font-april16), sans-serif;
   font-size: 1rem;
   -webkit-font-smoothing: antialiased;
+  /* === 디자인 시스템 — 줄바꿈은 단어 단위 ===
+     한국어 기본 CSS 는 `word-break: normal` 로 한글 문자마다 줄바꿈 가능 →
+     "모닥불이" 가 "모닥" / "불이" 로 쪼개지는 어색한 줄바꿈 발생.
+     `keep-all` 로 공백 단위 word 경계만 존중 (영어와 동일 동작). 폭이 부족해
+     단일 단어가 넘치는 edge case 는 `overflow-wrap: break-word` 로 fallback
+     (URL / 긴 합성어 등). CSS inherited 속성이라 body 에만 선언해도 전 트리
+     자동 적용. 개별 컴포넌트의 `whitespace-nowrap` / `break-all` 은 override. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* === 텍스트 선택 / 드래그 / 복사 방지 (앱처럼 느껴지도록) ===
