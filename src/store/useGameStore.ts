@@ -12,7 +12,8 @@ import { useUpHeroStore } from "./useUpHeroStore";
 
 // 오늘 날짜를 "2026-04-01" 형식으로 반환
 // 하루 기준: 새벽 1시 ~ 다음날 00:59 (1시간 빼서 날짜 계산)
-function getTodayString(): string {
+// Phase 11a — useUpHeroStore 의 shopDaily reset 에서도 공용으로 쓰이므로 export.
+export function getTodayString(): string {
   const d = new Date();
   d.setHours(d.getHours() - 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

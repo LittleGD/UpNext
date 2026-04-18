@@ -15,12 +15,16 @@
  */
 
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { useUpHeroStore, type EnhanceResult } from "@/store/useUpHeroStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { isPhotoBound } from "@/lib/photoTalisman";
 import {
   getHeroAppearanceVariant,
   getEffectiveHeroLevel,
+  enhanceSuccessRate,
+  enhanceCost,
+  ENHANCE_PRESERVE_ON_FAIL,
+  MAX_ENHANCE_LEVEL,
   SELL_PRICE,
   SHOP_PRICES,
   CLASS_THEME_COLOR,
@@ -33,6 +37,12 @@ import { useSound } from "@/hooks/useSound";
 import EquipmentCard from "./EquipmentCard";
 import HeroSprite from "./HeroSprite";
 import GbConfirm from "./GbConfirm";
+import EnhanceRitualOverlay, {
+  type EnhanceRitualOutcome,
+} from "./EnhanceRitualOverlay";
+import EnhanceResultModal, {
+  type EnhanceModalVariant,
+} from "./EnhanceResultModal";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 // Phase 9b — PhotoTalismanPicker 는 picker 버튼 탭 시에만 필요.
@@ -40,11 +50,17 @@ import PixelIcon from "@/components/icons/PixelIcon";
 const PhotoTalismanPicker = lazy(() => import("./PhotoTalismanPicker"));
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 
-/** Phase 9a — confirm 다이얼로그 state. 판매/버리기/합성 3액션 공유. */
+/** Phase 9a / 11a — 판매/버리기/강화 확인 dialog pending state.
+ *   enhance 는 이제 단일 아이템 + 비용 + 성공률 snapshot. */
 type PendingAction =
   | { kind: "sell"; item: Equipment }
   | { kind: "discard"; item: Equipment }
-  | { kind: "enhance"; items: Equipment[]; rarity: Rarity; cost: number };
+  | {
+      kind: "enhance";
+      item: Equipment;
+      cost: number;
+      successRate: number;
+    };
 
 interface EquipmentInventoryProps {
   onBack: () => void;
@@ -149,6 +165,15 @@ export default function EquipmentInventory({
     setPending({ kind: "discard", item });
   };
 
+  /** Phase 11a — 강화 연출 state. confirm → ritual (2s) → result modal 순서. */
+  const [ritual, setRitual] = useState<{
+    item: Equipment;
+    outcome: EnhanceRitualOutcome;
+  } | null>(null);
+  const [resultModal, setResultModal] = useState<EnhanceModalVariant | null>(
+    null,
+  );
+
   /** pending 액션 실행 — GbConfirm 확인 시 호출 */
   const executePending = () => {
     if (!pending) return;
@@ -163,68 +188,89 @@ export default function EquipmentInventory({
       onNotify("버렸다");
       setSelectedId(null);
     } else if (pending.kind === "enhance") {
-      const result = enhanceItem(pending.items[0].id, pending.items[1].id);
-      if (result.ok && result.newItem) {
-        play("collect");
-        onNotify(`합성 성공 — ${result.newItem.name}`);
-      } else {
+      // Phase 11a — 단일 아이템 + 확률 강화. result 를 먼저 받은 뒤 2초 ritual
+      //   연출 → 연출 끝나면 결과 모달. 순서 주의: enhanceItem 이 이미 store 를
+      //   mutate 했으므로 UI 에서 보이는 아이템 reference 는 staleness 주의.
+      //   ritual 은 "입력 아이템" 기준으로 보여주므로 stale 문제 없음.
+      const result: EnhanceResult = enhanceItem(pending.item.id);
+      const outcome: EnhanceRitualOutcome =
+        result.ok
+          ? "success"
+          : result.reason === "keep"
+            ? "keep"
+            : result.reason === "destroyed"
+              ? "destroyed"
+              : "keep"; // coin/maxed/not-found 는 ritual 없이 즉시 모달 (handled below)
+
+      // coin/maxed/not-found 는 ritual 없이 즉시 toast
+      if (!result.ok && (result.reason === "coin" || result.reason === "maxed" || result.reason === "not-found")) {
         play("cancel");
-        onNotify(result.error ?? "합성 실패");
+        const msg =
+          result.reason === "coin"
+            ? `코인 부족 (${result.cost} 필요)`
+            : result.reason === "maxed"
+              ? "이미 +10 최대 강화"
+              : "아이템을 찾을 수 없음";
+        onNotify(msg);
+        setPending(null);
+        return;
       }
+
+      play(result.ok ? "collect" : "cancel");
+      // ritual 먼저, 끝나면 result modal
+      setRitual({ item: pending.item, outcome });
+      // result 를 state 로 저장해놨다가 ritual onDone 에서 열기
+      setPendingResult(
+        result.ok
+          ? { kind: "success", newItem: result.newItem, prevLevel: result.prevLevel }
+          : result.reason === "keep"
+            ? { kind: "keep", item: result.item }
+            : { kind: "destroyed", lostItemName: result.lostItemName },
+      );
+
+      setSelectedId(null);
     }
     setPending(null);
   };
 
-  // Phase 4c-feature: 강화 가능한 쌍 탐색.
-  //   같은 type + rarity 가 2개 이상이고, rarity 가 legend 가 아닌 그룹만.
-  //   각 그룹에서 첫 2개를 합성 대상으로 선정.
-  const enhanceableGroups = useMemo(() => {
-    const buckets = new Map<string, Equipment[]>();
-    for (const item of inventory) {
-      if (item.rarity === "legend") continue;
-      // 장착 중인 아이템은 제외 (hero.equipped 에 있으면 inventory 에 없으니 OK)
-      const key = `${item.type}_${item.rarity}`;
-      const arr = buckets.get(key) ?? [];
-      arr.push(item);
-      buckets.set(key, arr);
-    }
-    return [...buckets.entries()]
-      .filter(([, items]) => items.length >= 2)
-      .map(([key, items]) => {
-        const [type, rarity] = key.split("_") as [EquipSlot, Rarity];
-        return { type, rarity, items };
-      });
-  }, [inventory]);
+  /** ritual 연출 끝나면 여기 저장된 variant 로 결과 모달 open. */
+  const [pendingResult, setPendingResult] = useState<EnhanceModalVariant | null>(
+    null,
+  );
 
-  const RARITY_LABEL: Record<Rarity, string> = {
-    normal: "일반",
-    rare: "희귀",
-    unique: "고유",
-    legend: "전설",
-  };
   const RARITY_COLOR: Record<Rarity, string> = {
     normal: GB.light,
     rare: GB_RARE,
     unique: GB_UNIQUE,
     legend: GB_LEGEND,
   };
-  const RARITY_COST: Record<Rarity, number> = {
-    normal: SHOP_PRICES.enhance,
-    rare: SHOP_PRICES.enhance * 2,
-    unique: SHOP_PRICES.enhance * 4,
-    legend: Number.POSITIVE_INFINITY,
-  };
-  const NEXT_RARITY: Record<Rarity, Rarity> = {
-    normal: "rare",
-    rare: "unique",
-    unique: "legend",
-    legend: "legend",
-  };
 
-  // Phase 9a — 합성도 GbConfirm 로 통합.
-  const onEnhance = (items: Equipment[], rarity: Rarity) => {
-    const cost = RARITY_COST[rarity];
-    setPending({ kind: "enhance", items, rarity, cost });
+  // Phase 11a — 강화 가능한 아이템 리스트.
+  //   inventory 전체에서 +10 미만인 아이템만. rarity 별 그룹은 유지 (UI 가독성).
+  const enhanceableItems = useMemo(() => {
+    const items = inventory.filter(
+      (i) => (i.enhanceLevel ?? 0) < MAX_ENHANCE_LEVEL,
+    );
+    // rarity 순 (legend 먼저) 그 다음 enhanceLevel 내림차순.
+    const rarityOrder: Record<Rarity, number> = {
+      legend: 0,
+      unique: 1,
+      rare: 2,
+      normal: 3,
+    };
+    return [...items].sort((a, b) => {
+      const r = rarityOrder[a.rarity] - rarityOrder[b.rarity];
+      if (r !== 0) return r;
+      return (b.enhanceLevel ?? 0) - (a.enhanceLevel ?? 0);
+    });
+  }, [inventory]);
+
+  /** 강화 시도 — 확인 다이얼로그 표시 */
+  const onEnhance = (item: Equipment) => {
+    const level = item.enhanceLevel ?? 0;
+    const cost = enhanceCost(item.rarity, level);
+    const rate = enhanceSuccessRate(item.rarity, level);
+    setPending({ kind: "enhance", item, cost, successRate: rate });
   };
 
   return (
@@ -511,7 +557,8 @@ export default function EquipmentInventory({
           </section>
         )}
 
-        {/* 강화 — enhanceableGroups 리스트, 없으면 placeholder */}
+        {/* Phase 11a — 강화: 단일 아이템 선택 + 확률 기반 +N.
+             이전 "같은 등급 2장 합성" 은 제거됨. 이제 각 아이템에 enhanceLevel (+0~+10) 부여. */}
         {tab === "enhance" && (
           <section>
             <div
@@ -519,54 +566,60 @@ export default function EquipmentInventory({
               style={{ color: GB.lightest }}
             >
               <PixelIcon name="Fire" size={14} color={GB.lightest} />
-              강화 — 같은 슬롯 · 같은 등급 2장 합성
+              강화 — 장비 한 장 + 코인, 확률로 +1 (최대 +10)
             </div>
-            {enhanceableGroups.length === 0 ? (
-              <EmptyState text="합성 가능한 쌍 없음 — 같은 슬롯 · 등급 장비 2개 이상 필요해요" />
+            {enhanceableItems.length === 0 ? (
+              <EmptyState text="강화 가능한 장비가 없어요 — 드롭이나 사진 부적으로 아이템을 먼저 얻어보세요" />
             ) : (
               <div className="flex flex-col gap-1.5">
-                {enhanceableGroups.map(({ type, rarity, items }) => {
-                  const cost = RARITY_COST[rarity];
+                {enhanceableItems.map((item) => {
+                  const level = item.enhanceLevel ?? 0;
+                  const cost = enhanceCost(item.rarity, level);
+                  const rate = enhanceSuccessRate(item.rarity, level);
                   const canAfford = coins >= cost;
+                  const rColor = RARITY_COLOR[item.rarity];
                   return (
                     <div
-                      key={`${type}_${rarity}`}
+                      key={item.id}
                       className="flex items-center gap-2 rounded px-2.5 py-2"
                       style={{
                         background: `${GB.dark}66`,
-                        border: `1px solid ${RARITY_COLOR[rarity]}55`,
+                        border: `1px solid ${rColor}55`,
                       }}
                     >
-                      <div
-                        className="typo-caption"
-                        style={{ color: RARITY_COLOR[rarity], minWidth: 78 }}
-                      >
-                        {RARITY_LABEL[rarity]} {SLOT_LABEL[type]}
+                      <PixelIcon name={item.iconName} size={18} color={rColor} />
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="typo-caption truncate"
+                          style={{ color: GB.lightest }}
+                        >
+                          {item.name}
+                        </div>
+                        <div
+                          className={`typo-micro tabular-nums ${gbClass.textDim} flex items-center gap-2`}
+                        >
+                          <span>+{level} → +{level + 1}</span>
+                          <span style={{ color: rColor }}>
+                            {Math.round(rate * 100)}%
+                          </span>
+                          <span>보존 {Math.round(ENHANCE_PRESERVE_ON_FAIL * 100)}%</span>
+                        </div>
                       </div>
-                      <div
-                        className={`typo-caption tabular-nums ${gbClass.textDim}`}
-                      >
-                        ×{items.length}
-                      </div>
-                      <div className="flex-1" />
-                      {/* Phase 9a — tap target 30px → 44px (Apple HIG 준수) */}
                       <button
                         type="button"
                         disabled={!canAfford}
-                        onClick={() => onEnhance(items.slice(0, 2), rarity)}
-                        className="uphero-enhance-btn typo-caption rounded"
+                        onClick={() => onEnhance(item)}
+                        className="uphero-enhance-btn typo-caption rounded tabular-nums"
                         style={{
                           padding: "10px 14px",
                           minHeight: 44,
-                          background: canAfford
-                            ? RARITY_COLOR[rarity]
-                            : `${GB.dark}aa`,
+                          background: canAfford ? rColor : `${GB.dark}aa`,
                           color: canAfford ? GB.darkest : GB.light,
-                          border: `1px solid ${canAfford ? RARITY_COLOR[rarity] : GB.dark}`,
+                          border: `1px solid ${canAfford ? rColor : GB.dark}`,
                           opacity: canAfford ? 1 : 0.55,
                         }}
                       >
-                        합성 −{cost}C
+                        강화 −{cost}C
                       </button>
                     </div>
                   );
@@ -607,17 +660,23 @@ export default function EquipmentInventory({
             : pending?.kind === "discard"
               ? `${pending.item.name} 을(를) 버릴까요?`
               : pending?.kind === "enhance"
-                ? `${RARITY_LABEL[pending.rarity]} 2개 → ${RARITY_LABEL[NEXT_RARITY[pending.rarity]]} 1개 합성할까요?`
+                ? `${pending.item.name} 강화 (+${pending.item.enhanceLevel ?? 0} → +${(pending.item.enhanceLevel ?? 0) + 1})?`
                 : ""
         }
         body={
-          pending?.kind === "sell"
-            ? `+${SELL_PRICE[pending.item.rarity]} 코인`
-            : pending?.kind === "discard"
-              ? "환급 없음 · 복구 불가"
-              : pending?.kind === "enhance"
-                ? `비용 ${pending.cost} 코인 (보유 ${coins})`
-                : undefined
+          pending?.kind === "sell" ? (
+            `+${SELL_PRICE[pending.item.rarity]} 코인`
+          ) : pending?.kind === "discard" ? (
+            "환급 없음 · 복구 불가"
+          ) : pending?.kind === "enhance" ? (
+            <>
+              성공률 <span style={{ color: GB.lightest }}>{Math.round(pending.successRate * 100)}%</span>
+              <br />
+              실패 시 <span style={{ color: GB.lightest }}>{Math.round(ENHANCE_PRESERVE_ON_FAIL * 100)}%</span> 확률로 아이템 보존 · 나머지는 소실
+              <br />
+              비용 <span style={{ color: GB.lightest }}>{pending.cost}</span> 코인 (보유 {coins})
+            </>
+          ) : undefined
         }
         confirmLabel={
           pending?.kind === "sell"
@@ -625,13 +684,34 @@ export default function EquipmentInventory({
             : pending?.kind === "discard"
               ? "버리기"
               : pending?.kind === "enhance"
-                ? "합성"
+                ? "강화 시도"
                 : "확인"
         }
-        danger={pending?.kind === "discard"}
+        danger={pending?.kind === "discard" || pending?.kind === "enhance"}
         onConfirm={executePending}
         onCancel={() => setPending(null)}
       />
+
+      {/* Phase 11a — 강화 연출 (2s) → 결과 모달 순서 */}
+      {ritual && (
+        <EnhanceRitualOverlay
+          item={ritual.item}
+          outcome={ritual.outcome}
+          onDone={() => {
+            setRitual(null);
+            if (pendingResult) {
+              setResultModal(pendingResult);
+              setPendingResult(null);
+            }
+          }}
+        />
+      )}
+      {resultModal && (
+        <EnhanceResultModal
+          variant={resultModal}
+          onClose={() => setResultModal(null)}
+        />
+      )}
     </div>
   );
 }
