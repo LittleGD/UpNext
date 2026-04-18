@@ -423,8 +423,11 @@ export function rollDropRarity(
 ): Rarity {
   const r = Math.random();
   if (flatten) {
-    // "혼돈의 보물" — legend 25% + legendDropBonus, unique 25%, rare 25%, normal 25%.
-    const legendCut = 0.25 + legendDropBonus;
+    // "혼돈의 보물" — legend 25%, unique 25%, rare 25%, normal 25%.
+    //   Phase 11c R2 — legendDropBonus + NG+ 가산 시 legendCut 이 0.33+ 까지 치솟아
+    //   한 세션에 legend 6-7개 드롭 가능. cap 0.30 으로 상한, NG+ 가산 미적용 (flat 은
+    //   이미 25% 라 ng+ 가산 없어도 충분히 관대함).
+    const legendCut = Math.min(0.3, 0.25 + legendDropBonus);
     if (r < legendCut) return "legend";
     if (r < 0.5) return "unique";
     if (r < 0.75) return "rare";

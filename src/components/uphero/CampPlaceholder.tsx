@@ -397,17 +397,23 @@ function HomeView({
         className="px-4 pt-3 pb-4 flex flex-col gap-2 shrink-0"
         style={{ borderTop: `1px solid ${GB.dark}` }}
       >
-        {/* Primary CTA — "탐험 시작" 이 홈의 명확한 주 행동. 최상단 고정. */}
+        {/* Primary CTA — "탐험 시작" 이 홈의 명확한 주 행동. 최상단 고정.
+             Phase 11c R2 — passes=0 시 "챌린지 완료" hint 만 남기면 dead-end.
+             동일 배치에 "상점에서 구매" 로 route. */}
         <PrimaryCTA
           onClick={() => {
             play("select");
-            onOpenDungeons();
+            if (totalPasses <= 0) onOpenShop();
+            else onOpenDungeons();
           }}
-          disabled={totalPasses <= 0}
           iconName="Target"
-          label="탐험 시작"
-          badge={`×${totalPasses}`}
-          hint={totalPasses > 0 ? "던전 선택" : "챌린지 완료로 탐험권 획득"}
+          label={totalPasses > 0 ? "탐험 시작" : "탐험권 구매"}
+          badge={totalPasses > 0 ? `×${totalPasses}` : undefined}
+          hint={
+            totalPasses > 0
+              ? "던전 선택"
+              : "챌린지 완료 또는 상점에서 구매"
+          }
         />
         {/* Phase 11c R1 — 주간 악몽 compact ribbon. PrimaryCTA 아래로 이동, 시각 가중치 ↓. */}
         {f30Unlocked && weeklyVariant && (
@@ -1174,14 +1180,15 @@ function WeeklyView({
             return (
               <PressButton
                 key={d.id}
-                onClick={() => eligible && onEnter(d.id)}
-                disabled={!eligible}
+                // Phase 11c R2 — ineligible 던전도 tap 가능하게 하여 dead-end 방지.
+                //   onEnter 가 `"not-unlocked"` 반환 → onNotify 로 진행 방법 안내.
+                onClick={() => onEnter(d.id)}
                 style={{
                   background: eligible ? `${GB.dark}99` : "transparent",
                   border: `1px solid ${
                     alreadyCleared ? GB_LEGEND_COLOR : eligible ? d.themeColor : GB.dark
                   }`,
-                  opacity: eligible ? 1 : 0.45,
+                  opacity: eligible ? 1 : 0.55,
                   minHeight: 76,
                   padding: "12px 10px",
                 }}

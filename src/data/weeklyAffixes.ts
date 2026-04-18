@@ -28,9 +28,11 @@ export const WEEKLY_AFFIX_POOL: WeeklyAffix[] = [
   {
     id: "glass_cannon",
     name: "유리 대포",
-    description: "영웅 공격 +40%, 최대 HP -30%",
+    description: "영웅 공격 +40%, 최대 HP -25%",
     apply(s) {
-      s.hero.maxHp = Math.round(s.hero.maxHp * 0.7);
+      // Phase 11c R2 — HP -30% 는 F30 weekly 에서 보스 1 타에 즉사 확정. -25% 로 완화
+      //   (vit DR 감안 시 생존 가능). str +40% 유지 (이번 affix 의 정체성).
+      s.hero.maxHp = Math.round(s.hero.maxHp * 0.75);
       s.hero.hp = Math.min(s.hero.hp, s.hero.maxHp);
       s.hero.baseStats.str = Math.round(s.hero.baseStats.str * 1.4);
     },
@@ -117,18 +119,14 @@ export const WEEKLY_AFFIX_POOL: WeeklyAffix[] = [
   {
     id: "iron_will",
     name: "강철 의지",
-    description: "체력 +50%, 모든 stat +5, 단 적 공격 +35%",
+    description: "체력 +30%, 단 적 공격 +50%",
     apply(s) {
-      // 이익: HP +50%, 모든 stat +5
-      s.hero.maxHp = Math.round(s.hero.maxHp * 1.5);
+      // Phase 11c R2 — 이전 (HP +50 / 모든 stat +5 / 적 atk +35%) 는 Lv30 에서
+      //   vit+5 로 DR 이 급상승해 net 버프. stat+5 제거, HP 보너스 +30% 로 축소,
+      //   대신 적 공격 +50% 로 리스크 강화 → "HP 쌓아 버티되 반격 급소에 맞으면 죽음".
+      s.hero.maxHp = Math.round(s.hero.maxHp * 1.3);
       s.hero.hp = s.hero.maxHp;
-      s.hero.baseStats.str += 5;
-      s.hero.baseStats.int += 5;
-      s.hero.baseStats.vit += 5;
-      s.hero.baseStats.dex += 5;
-      s.hero.baseStats.agi += 5;
-      // 페널티: 적 공격 +35% → 늘어난 HP 가 생존 방패로 필요해짐.
-      s.monsterAtkMult = 1.35;
+      s.monsterAtkMult = 1.5;
     },
   },
   {
@@ -143,21 +141,25 @@ export const WEEKLY_AFFIX_POOL: WeeklyAffix[] = [
   {
     id: "weakened_start",
     name: "무너진 출발",
-    description: "시작 체력 50%, stage 이동 시 점진적 회복",
+    description: "시작 체력 70%, 몬스터 공격 +15%",
     apply(s) {
-      // 시작 HP 50%. stage 당 회복은 층 이동 시 affixId 체크로 (향후).
-      s.hero.hp = Math.round(s.hero.maxHp * 0.5);
+      // Phase 11c R2 — 기존 50% 는 F30 weekly (stage 이동 없음) 에서 보스 1타 즉사.
+      //   "점진적 회복" 도 runtime 미구현 → 순수 페널티. 70% 로 완화 + 대신 적 공격
+      //   +15% 로 페널티 방향 전환 — F1-F30 일반 탐험에서도 일관된 난이도.
+      s.hero.hp = Math.round(s.hero.maxHp * 0.7);
+      s.monsterAtkMult = (s.monsterAtkMult ?? 1) * 1.15;
     },
   },
   {
     id: "long_march",
     name: "긴 행군",
-    description: "휴식처 확률 +30%, 단 몬스터 HP +25%",
+    description: "휴식처 확률 +20%, 단 몬스터 HP +25%",
     apply(s) {
       // 페널티: monster HP +25% → 전투 길어짐
       s.monsterHpMult = 1.25;
-      // Phase 11c R1 — 휴식처 확률 +30% runtime. 기본 35% → 65%.
-      s.restChanceBonus = 0.3;
+      // Phase 11c R2 — 기존 +30% + chronomancer (time 0.75×) 조합 시 시간 자원 순증.
+      //   +20% 로 조정 (기본 35% + 20% = 55%) → 시간 tradeoff 유지.
+      s.restChanceBonus = 0.2;
     },
   },
 ];

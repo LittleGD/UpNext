@@ -648,19 +648,25 @@ export function getISOWeekId(date: Date = new Date()): string {
 
 /**
  * Phase 11c — 주간 악몽 점수 공식.
- *   score = (30 - floorsCleared) × 100 + remainingTime × 2 + heroLevel × 5
- * floorsCleared 가 30 일수록, 시간 남을수록, Lv 높을수록 점수 높음.
- * 단, floorsCleared 30 미만이면 음수 페널티 — "완주 보장" 설계.
+ *   base = floorsCleared × 100
+ *   완주 (F30 클리어) 보너스: +2000
+ *   time bonus: remainingTime × 2
+ *   level bonus: max(1, heroLevel) × 5
+ *
+ * Phase 11c R2 — 이전 공식은 `Math.max(0, 30 - (30 - floorsCleared)) * 100` 으로
+ *   항등식상 `floorsCleared * 100` 이었고 "완주 페널티" 주석이 거짓. 보너스를
+ *   실제로 부여하도록 재작성 — 클리어 (floorsCleared ≥ 30) 시 +2000 flat 가산.
  */
 export function computeWeeklyScore(
   floorsCleared: number,
   remainingTime: number,
   heroLevel: number,
 ): number {
-  const completionBonus = Math.max(0, 30 - (30 - floorsCleared)) * 100; // == floorsCleared * 100
+  const base = Math.max(0, floorsCleared) * 100;
+  const completionBonus = floorsCleared >= 30 ? 2000 : 0;
   const timeBonus = Math.max(0, remainingTime) * 2;
   const levelBonus = Math.max(1, heroLevel) * 5;
-  return completionBonus + timeBonus + levelBonus;
+  return base + completionBonus + timeBonus + levelBonus;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -673,11 +679,8 @@ export function computeWeeklyScore(
 /** 강화 가능 최대 레벨 (inclusive). */
 export const MAX_ENHANCE_LEVEL = 10;
 
-/**
- * @deprecated Phase 11c R1 — rarity 별 보존 확률 `ENHANCE_PRESERVE_BY_RARITY` 사용.
- * legend +10 접근성을 위해 rarity 별 차등 보존 도입됨 (normal/rare 30%, unique 40%, legend 50%).
- */
-export const ENHANCE_PRESERVE_ON_FAIL = 0.3;
+// Phase 11c R2 — 이전 `ENHANCE_PRESERVE_ON_FAIL` 상수 제거. 전면 `ENHANCE_PRESERVE_BY_RARITY`
+// 사용 (rarity 별 차등 보존: normal/rare 30%, unique 40%, legend 50%).
 
 /**
  * 등급별 base 성공률 (+0 → +1). 백분율 0-100.

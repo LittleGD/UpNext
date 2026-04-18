@@ -43,9 +43,25 @@ export default function BossBanner({ monster, floor, onDone }: BossBannerProps) 
     return () => window.clearTimeout(id);
   }, []); // mount 시 1회만
 
+  // Phase 11c R2 — tap-to-skip. 30-run/day 유저가 매번 2.4s 대기 안 하도록.
+  //   첫 etc 유저도 화면 대기 부담 없이 자연스럽게 탭하면 skip.
+  const handleSkip = () => {
+    onDoneRef.current();
+  };
+
   return (
     <div
-      className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none font-mono"
+      className="absolute inset-0 z-40 flex items-center justify-center font-mono cursor-pointer"
+      onClick={handleSkip}
+      role="button"
+      tabIndex={0}
+      aria-label="보스 등장 — 탭해서 건너뛰기"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleSkip();
+        }
+      }}
       style={{ animation: `boss-fade ${BANNER_DURATION}ms ${EASE_OUT} forwards` }}
     >
       {/* 빨간 flash 레이어 */}
