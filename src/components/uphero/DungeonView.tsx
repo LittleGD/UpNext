@@ -30,6 +30,7 @@ import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHer
 import { useSound } from "@/hooks/useSound";
 import { useAnnounce } from "@/hooks/useAnnounce";
 import { useTranslation } from "@/hooks/useTranslation";
+import { monsterName } from "@/lib/upHeroI18n";
 import CombatLog from "./CombatLog";
 import ChoicePanel from "./ChoicePanel";
 import BossBanner from "./BossBanner";
@@ -82,7 +83,7 @@ export default function DungeonView() {
   const { play } = useSound();
   // Phase 11c R4 — screen reader 공지. 시각 float 이 aria-hidden 이므로 여기서 backup.
   const { announce } = useAnnounce();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const tickRef = useRef(tickSession);
   tickRef.current = tickSession;
@@ -378,7 +379,7 @@ export default function DungeonView() {
       if (entry.type === "boss") {
         announce(
           t("uphero.announce.bossAppear", {
-            name: entry.monster.name,
+            name: monsterName(entry.monster, language),
             hp: entry.monster.hp,
           }),
           "assertive",
@@ -386,7 +387,7 @@ export default function DungeonView() {
       } else if (entry.type === "victory" && entry.monster.isBoss) {
         announce(
           t("uphero.announce.bossVictory", {
-            name: entry.monster.name,
+            name: monsterName(entry.monster, language),
             xp: entry.xp,
             coins: entry.coins,
           }),
@@ -760,7 +761,7 @@ export default function DungeonView() {
                   className="typo-caption tabular-nums"
                   style={{ color: currentEnemy.isBoss ? GB_ENEMY : GB.lightest }}
                 >
-                  {currentEnemy.name}
+                  {monsterName(currentEnemy, language)}
                 </span>
                 <span className={`typo-caption ${gbClass.textDim} tabular-nums`}>
                   Lv {currentEnemy.level}
@@ -772,7 +773,7 @@ export default function DungeonView() {
                 <div
                   className="w-16 h-1.5 rounded-sm overflow-hidden"
                   role="progressbar"
-                  aria-label={t("uphero.combat.enemyHp.aria", { name: currentEnemy.name })}
+                  aria-label={t("uphero.combat.enemyHp.aria", { name: monsterName(currentEnemy, language) })}
                   aria-valuenow={Math.round(enemyHpPct)}
                   aria-valuemin={0}
                   aria-valuemax={100}
