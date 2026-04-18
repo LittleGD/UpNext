@@ -206,33 +206,28 @@ export default function SessionResultModal() {
           className="px-4 py-3"
           style={{ borderTop: `1px solid ${GB.dark}` }}
         >
+          {/* Phase 9c — inline onMouseDown/Up/Leave/TouchStart/TouchEnd 5핸들러를
+                CSS :active 로 교체. 다른 uphero 버튼들과 패턴 통일. */}
           <button
             type="button"
             onClick={acknowledge}
-            className="w-full py-3 rounded typo-caption transition-transform"
+            className="session-result-cta w-full py-3 rounded typo-caption"
             style={{
+              minHeight: 44,
               background: GB.lightest,
               color: GB.darkest,
               border: `1px solid ${GB.lightest}`,
-              transition: `transform 120ms ${EASE_OUT}`,
             }}
-            onMouseDown={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.transform = "scale(0.97)")
-            }
-            onMouseUp={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1)")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1)")
-            }
-            onTouchStart={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.transform = "scale(0.97)")
-            }
-            onTouchEnd={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1)")
-            }
           >
             캠프로 돌아가기
+            <style jsx>{`
+              .session-result-cta {
+                transition: transform 120ms ${EASE_OUT};
+              }
+              .session-result-cta:active {
+                transform: scale(0.97);
+              }
+            `}</style>
           </button>
         </div>
       </div>

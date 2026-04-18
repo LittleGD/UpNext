@@ -93,9 +93,12 @@ export default function HeroCodex({ onBack }: HeroCodexProps) {
         `}</style>
       </header>
 
-      {/* === Tab switcher === */}
+      {/* === Tab switcher ===
+            Phase 9c — EquipmentInventory / Collection / Playground 와 동일
+            sliding underline 패턴으로 통일. 두 객체 (A↓/B↑) 가 아닌 하나의
+            밑줄이 옮겨가는 common-fate 지각. */}
       <nav
-        className="flex items-center gap-0 px-3 shrink-0"
+        className="relative flex items-stretch shrink-0"
         style={{ borderBottom: `1px solid ${GB.dark}` }}
       >
         <TabButton
@@ -114,6 +117,18 @@ export default function HeroCodex({ onBack }: HeroCodexProps) {
           }}
           label="장비"
         />
+        <div
+          aria-hidden="true"
+          className="absolute bottom-[-1px] h-[2px]"
+          style={{
+            width: "50%",
+            left: 0,
+            background: GB.lightest,
+            transform: `translateX(${tab === "monsters" ? "0%" : "100%"})`,
+            transition: `transform 240ms ${EASE_OUT}`,
+            boxShadow: `0 0 4px ${GB.lightest}66`,
+          }}
+        />
       </nav>
 
       {/* === Body === */}
@@ -130,6 +145,7 @@ export default function HeroCodex({ onBack }: HeroCodexProps) {
 
 /* ────────────────────────────────────────────── */
 
+// Phase 9c — underline 은 부모의 sliding indicator 로 옮겨감. flex-1 + press.
 function TabButton({
   active,
   onClick,
@@ -143,18 +159,23 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className="typo-caption"
+      className="hero-codex-tab-btn typo-caption flex-1"
       style={{
-        padding: "10px 16px",
+        padding: "10px 8px",
         color: active ? GB.lightest : GB.light,
         background: "transparent",
-        borderBottom: `2px solid ${active ? GB.lightest : "transparent"}`,
-        marginBottom: -1,
-        transition: `color 180ms ${EASE_OUT}, border-color 180ms ${EASE_OUT}`,
       }}
       aria-current={active ? "page" : undefined}
     >
       {label}
+      <style jsx>{`
+        .hero-codex-tab-btn {
+          transition: color 180ms ${EASE_OUT}, transform 120ms ${EASE_OUT};
+        }
+        .hero-codex-tab-btn:active {
+          transform: scale(0.97);
+        }
+      `}</style>
     </button>
   );
 }
