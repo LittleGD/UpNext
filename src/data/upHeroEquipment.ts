@@ -411,13 +411,18 @@ export function rollEquipmentDrop(
   return createEquipmentFromTemplate(template, rarity, floor);
 }
 
-/** 랜덤 rarity 결정 — floor 에 따라 확률 변동 */
-export function rollDropRarity(floor: number): Rarity {
+/**
+ * 랜덤 rarity 결정 — floor 에 따라 확률 변동.
+ * Phase 11b — `legendDropBonus` (0-1) 로 legend 확률 추가 가산 가능 ("유행" skill).
+ */
+export function rollDropRarity(floor: number, legendDropBonus = 0): Rarity {
   const r = Math.random();
   const tier = Math.min(Math.floor(floor / 10), 3); // 0-3 tier
-  // 고층일수록 유니크/레전드 확률 ↑
-  if (tier >= 3 && r < 0.02) return "legend";
-  if (tier >= 2 && r < 0.05) return "legend";
+  // 고층일수록 유니크/레전드 확률 ↑. legendDropBonus 는 기존 threshold 에 +.
+  const legendHi = 0.02 + legendDropBonus;
+  const legendMid = 0.05 + legendDropBonus;
+  if (tier >= 3 && r < legendHi) return "legend";
+  if (tier >= 2 && r < legendMid) return "legend";
   if (tier >= 1 && r < 0.12) return "unique";
   if (r < 0.05) return "unique";
   if (r < 0.3) return "rare";

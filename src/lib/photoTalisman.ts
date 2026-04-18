@@ -17,6 +17,7 @@
 import type { Equipment, HeroBaseStats, DungeonId } from "@/types/uphero";
 import type { PhotoMeta } from "@/types/growth";
 import type { Rarity } from "@/types/card";
+import { computeTalismanSkillIds } from "@/lib/talismanSkills";
 
 export const PHOTO_TALISMAN_RITUAL_COST = 80;
 
@@ -136,6 +137,80 @@ export function isPhotoBound(
     }
   }
   return false;
+}
+
+/**
+ * Phase 11b — 이미 바인딩된 부적을 찾아 반환. rebind flow 에서 사용.
+ * inventory + equipped 모두 탐색.
+ */
+export function findBoundTalisman(
+  photoId: string,
+  inventory: Equipment[],
+  equipped?: Partial<Record<string, Equipment>>,
+): { item: Equipment; location: "inventory" | "equipped" } | null {
+  const inv = inventory.find((eq) => eq.photoId === photoId);
+  if (inv) return { item: inv, location: "inventory" };
+  if (equipped) {
+    for (const eq of Object.values(equipped)) {
+      if (eq && eq.photoId === photoId) {
+        return { item: eq, location: "equipped" };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Phase 11b — 기존 부적의 enhanceLevel 을 +1 올린 새 Equipment 반환.
+ *   - stat 은 미미하게 상승: primary stat 에 `newLevel * 0.5` 가산 후 반올림 (총 +5 per +10)
+ *   - +5 / +10 도달 시 category 기반 skill 부여 (talismanSkills 에서 계산).
+ *   - 이름에 `+N` suffix 부착.
+ *   - 기타 필드 (rarity, category, flavor) 는 그대로.
+ */
+export function rebuildTalismanWithLevel(
+  current: Equipment,
+  newLevel: number,
+): Equipment {
+  // primary stat 추정 — stats 에서 최대값 key (photoTalisman 은 원래 primary 1개 + legend 의 경우 crit)
+  const entries = Object.entries(current.stats).filter(
+    ([k]) => k !== "crit" && k !== "slotBonus",
+  );
+  const primaryEntry = entries.sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0];
+  const primaryKey = primaryEntry
+    ? (primaryEntry[0] as keyof HeroBaseStats)
+    : null;
+
+  // stat 상승 — 현재 레벨 대비 차이만큼 가산. idempotent 하지 않으니 caller 가 중복
+  // 호출 안 하도록 주의 (rebindPhotoTalisman 은 1회만 호출).
+  const prevLevel = current.enhanceLevel ?? 0;
+  const levelDelta = Math.max(0, newLevel - prevLevel);
+  const newStats = { ...current.stats };
+  if (primaryKey && levelDelta > 0) {
+    // 짝수 level 에서만 +1 (enhanceItem 과 동일 규칙 — 미미한 상승 원칙).
+    // 기존 level+1 부터 newLevel 까지 순회해 짝수 level 에 +1 누적.
+    let bonus = 0;
+    for (let lv = prevLevel + 1; lv <= newLevel; lv += 1) {
+      if (lv % 2 === 0) bonus += 1;
+    }
+    if (bonus > 0) {
+      newStats[primaryKey] = (newStats[primaryKey] ?? 0) + bonus;
+    }
+  }
+
+  // 이름 — " +N" suffix 갱신. 기존 suffix 제거 후 재부착.
+  const baseName = current.name.replace(/\s+\+\d+$/, "");
+  const newName = newLevel >= 1 ? `${baseName} +${newLevel}` : baseName;
+
+  // Skill id 계산 — 부적 category 기반 (+5 → 1개, +10 → 2개).
+  const skillIds = computeTalismanSkillIds(current.category, newLevel);
+
+  return {
+    ...current,
+    name: newName,
+    enhanceLevel: newLevel,
+    stats: newStats,
+    talismanSkills: skillIds.length > 0 ? skillIds : undefined,
+  };
 }
 
 /** category / primary stat 표시 (UI helper) */

@@ -37,6 +37,12 @@ import {
   monsterAttackNarrative,
 } from "@/lib/upHeroNarrative";
 import { maybeFireSkill, advanceSkillCounters } from "@/lib/classSkills";
+import {
+  collectTalismanMods,
+  applyTalismanSkillStartEffects,
+  emptyTalismanMods,
+  type TalismanModifiers,
+} from "@/lib/talismanSkills";
 
 /**
  * Phase 4c.1 → 11a rebalance — 탐험 시간 리소스.
@@ -84,8 +90,12 @@ export function createSession(
   // Phase 5c.2 — class 패시브 중 session start 효과 적용 (priest maxHp,
   // illusionist crit). chronomancer 는 runtime consumeTime 에서.
   const classedHero = applyClassStartEffects(buffedHero);
+  // Phase 11b — talisman passive skill modifier 집계. 부적 skill 이 전혀 없으면
+  //   empty bucket (성능: 하위 분기 전부 no-op).
+  const talismanMods = collectTalismanMods(classedHero);
+
   const maxTime = BASE_EXPEDITION_TIME;
-  return {
+  const session: CombatSession = {
     dungeonId,
     startFloor,
     currentFloor: startFloor,
@@ -109,8 +119,19 @@ export function createSession(
     activeBuffs: activeBuffs && activeBuffs.length > 0 ? activeBuffs : undefined,
     time: maxTime,
     maxTime,
+    talismanMods,
+    extraDropAvailable: talismanMods.extraDropChance > 0,
+    talismanAgiStack: 0,
     startedAt: Date.now(),
   };
+  // Phase 11b — start-time effects (startHpMult/Flat, startXp) 를 session 에 반영.
+  applyTalismanSkillStartEffects(session, talismanMods);
+  return session;
+}
+
+/** 세션의 talismanMods 를 안전하게 꺼냄 (undefined 대응). */
+function sessionMods(s: CombatSession): TalismanModifiers {
+  return s.talismanMods ?? emptyTalismanMods();
 }
 
 /**
@@ -127,8 +148,13 @@ export function createSession(
 function consumeTime(s: CombatSession, delta: number): boolean {
   let effectiveDelta = delta;
   if (delta < 0) {
-    effectiveDelta = Math.round(delta * classTimeMult(s.hero.classType));
-    // 최소 -1 보장 — classTimeMult 로 -1 이 0 에 반올림되면 cost 가 사라져버림
+    // Phase 11b — chronomancer class mult × talisman timeCostMult.
+    //   예: chronomancer (0.75) + productivity +5 (절약 0.95) → 0.7125 소모.
+    const mods = sessionMods(s);
+    effectiveDelta = Math.round(
+      delta * classTimeMult(s.hero.classType) * mods.timeCostMult,
+    );
+    // 최소 -1 보장 — multi mult 로 -1 이 0 에 반올림되면 cost 가 사라져버림
     if (delta < 0 && effectiveDelta === 0) effectiveDelta = -1;
   }
   s.time = Math.max(0, Math.min(s.maxTime, s.time + effectiveDelta));
@@ -324,12 +350,15 @@ export function tickSession(session: CombatSession): CombatSession {
         // 몬스터 처치 — victory. Phase 4b.3: xpBoost/coinBoost 반영
         // Phase 5c.2: mage class → XP +20%, bard class → coin +25%
         // Phase 6b: bard 노래 (nextCoinMult) 있으면 이번 victory 한정 추가 곱, 후 소모
+        // Phase 11b: talisman 카리스마 (coinMult) × class × buff 모두 곱.
+        const tMods = sessionMods(s);
         const xpMult =
           (1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100) *
           classXpMult(s.hero.classType);
         let coinMult =
           (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
-          classCoinMult(s.hero.classType);
+          classCoinMult(s.hero.classType) *
+          tMods.coinMult;
         if (s.nextCoinMult && s.nextCoinMult > 1) {
           coinMult *= s.nextCoinMult;
           s.nextCoinMult = undefined;
@@ -349,10 +378,16 @@ export function tickSession(session: CombatSession): CombatSession {
 
         // 보스 처치면 드롭 확정 + 높은 등급
         if (monster.isBoss) {
-          const rarity = rollDropRarity(s.currentFloor + 10); // 보스는 rarity 상승
+          const rarity = rollDropRarity(s.currentFloor + 10, tMods.legendDropBonus); // 보스는 rarity 상승
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
           s.rewards.drops.push(eq);
+          // Phase 11b — "시간 도둑" (prd+10) 효과: 보스 처치 시 time +N.
+          //   세션 종료되는 F30 보스에도 적용되긴 하나 실제 이익 없음 (endSession 직후).
+          //   중간 보스 (F10/F20) 에서는 실제 시간 확보 가능.
+          if (tMods.bossTimeRecover > 0) {
+            consumeTime(s, tMods.bossTimeRecover);
+          }
           // 보스 처치 → 세션 종료. detail 로 보스 이름.
           endSession(s, "bossDefeated", `${monster.name} 을(를) 쓰러뜨렸다`);
           return s;
@@ -361,10 +396,31 @@ export function tickSession(session: CombatSession): CombatSession {
         // 일반 몬스터 drop 확률 — base 30% + dropRate buff %
         const dropChance = 0.3 + getBuffBoost(s.activeBuffs, "dropRate") / 100;
         if (Math.random() < dropChance) {
-          const rarity = rollDropRarity(s.currentFloor);
+          const rarity = rollDropRarity(s.currentFloor, tMods.legendDropBonus);
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
           s.rewards.drops.push(eq);
+        }
+        // Phase 11b — "군중의 총애" (soc+10) 보너스 drop: 세션당 1회, 승리 시 25% roll.
+        //   초기화는 createSession 의 extraDropAvailable=true. 한 번 발동되면 false.
+        if (
+          s.extraDropAvailable &&
+          tMods.extraDropChance > 0 &&
+          Math.random() < tMods.extraDropChance
+        ) {
+          s.extraDropAvailable = false;
+          const bonusRarity = rollDropRarity(
+            s.currentFloor + 5,
+            tMods.legendDropBonus,
+          );
+          const bonusEq = rollEquipmentDrop(
+            s.dungeonId,
+            s.currentFloor,
+            bonusRarity,
+            dungeon.affinity,
+          );
+          s.log.push({ type: "drop", equipment: bonusEq, timestamp: Date.now() });
+          s.rewards.drops.push(bonusEq);
         }
         return s;
       }
@@ -620,8 +676,12 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
       break;
     case "heal": {
       // Phase 5c.2: druid class → heal 효과 +30%
+      // Phase 11b: talisman "회복력" → heal 효과 +25% (곱 중첩).
+      const tMods = sessionMods(session);
       const healed = Math.round(
-        effect.amount * classHealMult(session.hero.classType),
+        effect.amount *
+          classHealMult(session.hero.classType) *
+          tMods.healEffectMult,
       );
       session.hero.hp = Math.min(
         session.hero.maxHp,
@@ -776,19 +836,58 @@ function executeCombatRound(
   stats: { str: number; vit: number; agi: number; dex: number; crit: number; int: number; slotBonus: number },
 ): void {
   // Phase 6b — combat round 시작 전 액티브 스킬 발동 시도
+  const skillCdBefore = s.skillCooldown ?? 0;
   maybeFireSkill(s, monster);
+  // Phase 11b — "평정" CD reduce: skill 이 이번 round 에 fire 했으면 (cooldown 증가),
+  //   classSkillCdReduce 만큼 더 차감해 다음 재발동 가속.
+  const tModsEarly = sessionMods(s);
+  if (
+    tModsEarly.classSkillCdReduce > 0 &&
+    (s.skillCooldown ?? 0) > skillCdBefore
+  ) {
+    s.skillCooldown = Math.max(
+      0,
+      (s.skillCooldown ?? 0) - tModsEarly.classSkillCdReduce,
+    );
+  }
+
+  // Phase 11b — talisman modifier 에서 이번 round 에 영향을 주는 값들.
+  const tMods = sessionMods(s);
+
+  // Phase 11b — "무념" round 당 agi stack 적용 (공격 / dodge 판정 전에 가산).
+  //   stack 은 이전 round 까지 누적된 값을 이번 round 에 사용, 그 다음 +1.
+  const agiStack = s.talismanAgiStack ?? 0;
+  const effStats = {
+    ...stats,
+    agi: stats.agi + agiStack,
+  };
 
   // 영웅 공격
-  const heroOutcome = rollHeroOutcome(stats, monster);
+  const heroOutcome = rollHeroOutcome(effStats, monster);
   let heroDmg =
     heroOutcome === "miss" || heroOutcome === "dodge"
       ? 0
-      : computeHeroDamage(stats, monster, heroOutcome === "crit");
+      : computeHeroDamage(effStats, monster, heroOutcome === "crit");
 
   // Phase 6b — warrior 강타: 다음 공격 damage 2배 후 소모
   if (heroDmg > 0 && s.nextHeroDamageMult && s.nextHeroDamageMult > 1) {
     heroDmg = Math.round(heroDmg * s.nextHeroDamageMult);
     s.nextHeroDamageMult = undefined;
+  }
+
+  // Phase 11b — "현자" crit damage +N%. hero crit 일 때만 추가 배율.
+  if (heroOutcome === "crit" && heroDmg > 0 && tMods.critDmgBonus > 0) {
+    heroDmg = Math.round(heroDmg * (1 + tMods.critDmgBonus));
+  }
+
+  // Phase 11b — "불굴" HP ≤ 20% 일 때 공격 +N%.
+  if (
+    heroDmg > 0 &&
+    tMods.lowHpDmgBonus > 0 &&
+    s.hero.hp > 0 &&
+    s.hero.hp / s.hero.maxHp <= 0.2
+  ) {
+    heroDmg = Math.round(heroDmg * (1 + tMods.lowHpDmgBonus));
   }
 
   const heroNarrative = Math.random() < shouldNarrate(heroOutcome)
@@ -805,6 +904,7 @@ function executeCombatRound(
 
   // 몬스터 공격 — Phase 5c.2: monk class 는 dodge 확률 추가 (stats.agi 보강)
   // Phase 6b: monk 선정 중이면 강제 dodge, illusionist 환영 중이면 강제 miss.
+  // Phase 11b: talisman dodgeBonus / enemyMissBonus 추가 (각각 monk 와 stacks).
   let enemyOutcome: CombatOutcome;
   if (s.forcedEnemyMisses && s.forcedEnemyMisses > 0) {
     enemyOutcome = "miss";
@@ -815,14 +915,24 @@ function executeCombatRound(
   } else {
     enemyOutcome = rollEnemyOutcome(
       monster,
-      stats,
-      classDodgeBonus(s.hero.classType),
+      effStats,
+      classDodgeBonus(s.hero.classType) + tMods.dodgeBonus,
+      tMods.enemyMissBonus,
     );
   }
   const enemyDmg =
     enemyOutcome === "miss" || enemyOutcome === "dodge"
       ? 0
-      : computeEnemyDamage(monster, stats, enemyOutcome === "crit");
+      : computeEnemyDamage(monster, effStats, enemyOutcome === "crit");
+
+  // Phase 11b — "강단" counter-attack: 피격 (enemyDmg > 0) 시 counterChance 에
+  //   monster HP 에 +1 고정 damage 를 combat log 에 추가 push. "hit" 으로 표시.
+  //   monster HP 는 다음 tick 의 computeCombatState 가 계산하므로 여기선 log 만.
+  let counterLogged = false;
+  if (enemyDmg > 0 && tMods.counterChance > 0 && Math.random() < tMods.counterChance) {
+    counterLogged = true;
+  }
+
   const enemyNarrative = Math.random() < shouldNarrate(enemyOutcome)
     ? monsterAttackNarrative(monster, enemyOutcome, enemyDmg)
     : undefined;
@@ -834,11 +944,42 @@ function executeCombatRound(
     narrative: enemyNarrative,
     timestamp: Date.now(),
   });
+  // counter attack — 짧은 narrative 와 함께 hero attack entry 추가 push
+  if (counterLogged) {
+    s.log.push({
+      type: "combat",
+      attacker: "hero",
+      damage: 1,
+      outcome: "hit",
+      narrative: "영웅이 반사적으로 반격한다 — 1 피해",
+      timestamp: Date.now(),
+    });
+  }
 
   // Phase 5c.2: warrior class → round 끝에 HP +2 회복 (최대치 cap)
   const regen = classHpRegen(s.hero.classType);
   if (regen > 0 && s.hero.hp > 0) {
     s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + regen);
+  }
+
+  // Phase 11b — "대지의 축복" 2 round 마다 HP +N regen (log 기반 근사).
+  //   log 의 combat entry 수 기준으로 경과 round 파악. Simplest: every other call.
+  //   실제로 round 개수 세는 세션 필드 없으니 talismanAgiStack 을 round 카운터 겸용
+  //   (무념 + 대지 의 조합이 stack 에 의존). 짝수 round 에 regen.
+  const regen2 = tMods.hpRegenEvery2Rounds;
+  if (regen2 > 0 && s.hero.hp > 0 && agiStack > 0 && agiStack % 2 === 0) {
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + regen2);
+  }
+
+  // Phase 11b — agi stack 증가 (다음 round 용). cap saturate.
+  if (tMods.agiRoundAccum > 0) {
+    s.talismanAgiStack = Math.min(
+      tMods.agiRoundCap,
+      agiStack + tMods.agiRoundAccum,
+    );
+  } else {
+    // accum 없어도 regen2 의 round 카운터로 쓰이니 항상 +1
+    s.talismanAgiStack = (agiStack + 1) % 1000; // overflow 방지
   }
 
   // Phase 6b — round 종료 시 쿨다운 감소 + 지속 스킬 카운터 감소
@@ -919,18 +1060,21 @@ function rollHeroOutcome(
 
 /**
  * 몬스터 공격의 outcome 판정.
- * @param dodgeBonus Phase 5c.2 — monk class 일 때 +0.1 dodge 추가. 기본 0.
+ * @param dodgeBonus Phase 5c.2 — monk class + Phase 11b talisman dodgeBonus 합산. 기본 0.
+ * @param enemyMissBonus Phase 11b — talisman "변덕" 등 적 miss 확률 가산.
  */
 function rollEnemyOutcome(
   monster: Monster,
   stats: HeroBaseStats,
   dodgeBonus = 0,
+  enemyMissBonus = 0,
 ): CombatOutcome {
   // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 8%, floor 60 에서 2% 바닥)
-  const missChance = Math.max(0.02, 0.08 - monster.level * 0.001);
+  //   Phase 11b talisman "변덕" → enemyMissBonus 추가.
+  const missChance = Math.max(0.02, 0.08 - monster.level * 0.001) + enemyMissBonus;
   if (Math.random() < missChance) return "miss";
-  // 방어자(영웅) 회피 — agi scaling + class bonus. cap 0.35 (monk 최대값).
-  const dodgeChance = Math.min(0.35, stats.agi * 0.006 + dodgeBonus);
+  // 방어자(영웅) 회피 — agi scaling + class bonus + talisman bonus. cap 0.45 (monk + 변덕 최대).
+  const dodgeChance = Math.min(0.45, stats.agi * 0.006 + dodgeBonus);
   if (Math.random() < dodgeChance) return "dodge";
   // 공격자(몬스터) 크리 — level scaling
   const critChance = Math.min(0.25, 0.03 + monster.level * 0.004);

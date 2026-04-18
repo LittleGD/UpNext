@@ -26,6 +26,7 @@ import {
 } from "@/types/uphero";
 import type { EquipSlot, HeroBaseStats } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
+import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import HeroSprite from "./HeroSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 
@@ -261,11 +262,35 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                           color={GB.lightest}
                         />
                       )}
-                      <div
-                        className="typo-caption flex-1 truncate"
-                        style={{ color: GB.lightest }}
-                      >
-                        {eq.name}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="typo-caption truncate"
+                          style={{ color: GB.lightest }}
+                        >
+                          {eq.name}
+                        </div>
+                        {/* Phase 11b — talisman skill chips. 부적 슬롯 외에도
+                             미래 확장 시 accessory 등에 skills 가 생기면 자동 표기. */}
+                        {eq.talismanSkills && eq.talismanSkills.length > 0 && (
+                          <div className="mt-0.5 flex flex-wrap gap-1">
+                            {eq.talismanSkills.map((id) => (
+                              <span
+                                key={id}
+                                className="typo-micro px-1 py-0.5 rounded-sm"
+                                style={{
+                                  fontSize: 9,
+                                  background: `${GB.lightest}22`,
+                                  color: GB.lightest,
+                                  border: `1px solid ${GB.lightest}66`,
+                                  letterSpacing: "0.02em",
+                                }}
+                                title={TALISMAN_SKILLS[id]?.description ?? ""}
+                              >
+                                ✦ {TALISMAN_SKILLS[id]?.name ?? id}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </>
                   ) : (

@@ -389,6 +389,23 @@ export interface CombatSession {
    * 1 이상 — 첫 victory 후 reset.
    */
   nextCoinMult?: number;
+  /**
+   * Phase 11b — 영웅이 착용한 부적들의 passive skill 을 세션 시작 시 합산한
+   * modifier 버킷. combat / time / drop 각 지점에서 참조.
+   * 구조: TalismanModifiers (`src/lib/talismanSkills.ts`).
+   * 부적 skill 이 하나도 없으면 undefined (기본값으로 간주).
+   */
+  talismanMods?: import("@/lib/talismanSkills").TalismanModifiers;
+  /**
+   * Phase 11b — "군중의 총애" (soc+10) 효과 — 세션 중 보너스 랜덤 drop 1회.
+   * true 면 아직 미사용, false/undefined 면 이미 발동됨 또는 skill 없음.
+   */
+  extraDropAvailable?: boolean;
+  /**
+   * Phase 11b — "무념" (mnd+10) round 누적 agi 보너스 현재값.
+   * round 종료마다 +agiRoundAccum 씩 증가, agiRoundCap 에서 saturate.
+   */
+  talismanAgiStack?: number;
   startedAt: number;
 }
 
