@@ -188,4 +188,97 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    // Phase 12 R3 — pool 다양성 확장 (4 → 6).
+    //   기존 풀이 열매 / 샘물 / 약초 / 농부 4 개뿐이라 중반 이후 LRU 3 제외해도
+    //   같은 이벤트 2 회차 반복. 의외성 + 외부 존재 (버섯/저장고) 2 개 추가.
+    {
+      prompt: "이끼 낀 바위 아래 야생 버섯이 보인다.",
+      options: [
+        {
+          label: "먹어본다",
+          outcomes: [
+            {
+              weight: 50,
+              resultText: "흙 맛이 돌지만 기운이 돈다.",
+              effects: [
+                { kind: "heal", amount: 25 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "환각 버섯이었다. 머리가 핑 돈다.",
+              effects: [
+                { kind: "damage", amount: 12 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "진귀한 약버섯. 몸 안쪽이 따뜻해진다.",
+              effects: [
+                { kind: "heal", amount: 45 },
+                { kind: "reward", xp: 20 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "손대지 않는다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "모르는 것은 두고 간다.",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "버려진 저장고의 자물쇠가 헐거워 보인다.",
+      options: [
+        {
+          label: "열어본다",
+          outcomes: [
+            {
+              weight: 55,
+              resultText: "말린 고기와 곡식 — 오래됐지만 먹을 만하다.",
+              effects: [
+                { kind: "heal", amount: 20 },
+                { kind: "reward", coins: 15 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "오래 상한 음식. 속이 뒤집힌다.",
+              effects: [
+                { kind: "damage", amount: 10 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "누군가 숨겨둔 보물함이 같이 있었다.",
+              effects: [
+                { kind: "reward", coins: 70, xp: 15 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "지나친다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "남의 물건엔 손대지 않는다.",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
 ];
