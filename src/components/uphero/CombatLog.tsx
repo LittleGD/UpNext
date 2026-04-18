@@ -19,7 +19,7 @@ import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
-import { monsterName, monsterNameById, skillName } from "@/lib/upHeroI18n";
+import { monsterName, monsterNameById, skillName, flavorText } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 
@@ -386,6 +386,29 @@ const LogLine = memo(function LogLine({
     case "choice": {
       // Phase 12 — mystery event 는 GB_WARN (amber) 강조. 일반 choice 는 GB.lightest.
       const accent = entry.isMystery ? GB_WARN : GB.lightest;
+      // Phase 13 review — combat audit: prompt / resolved label 도 i18n key
+      //   우선 사용. promptParams 의 monsterTemplateId 는 현재 언어로 resolve.
+      const resolvedPromptParams = (() => {
+        if (!entry.promptParams) return undefined;
+        const out: Record<string, string | number> = { ...entry.promptParams };
+        const templateId = out.monsterTemplateId;
+        if (typeof templateId === "string" && templateId.length > 0) {
+          const koName = typeof out.monster === "string" ? out.monster : "";
+          out.monster = monsterNameById(templateId, koName, language);
+        }
+        return out;
+      })();
+      const promptLocalized = flavorText(
+        entry.prompt,
+        entry.promptKey,
+        language,
+        resolvedPromptParams,
+      );
+      const resolvedOpt =
+        entry.resolvedIndex != null ? entry.options[entry.resolvedIndex] : undefined;
+      const resolvedLabel = resolvedOpt
+        ? flavorText(resolvedOpt.label, resolvedOpt.labelKey, language, resolvedOpt.labelParams)
+        : "";
       return (
         <div
           style={{
@@ -410,11 +433,11 @@ const LogLine = memo(function LogLine({
                 ?
               </span>
             )}
-            {entry.prompt}
-            {entry.resolvedIndex != null && (
+            {promptLocalized}
+            {resolvedOpt && (
               <span className={gbClass.textDim}>
                 {" "}
-                → [{entry.options[entry.resolvedIndex]?.label}]
+                → [{resolvedLabel}]
               </span>
             )}
           </div>
@@ -425,6 +448,25 @@ const LogLine = memo(function LogLine({
     case "sessionEnd": {
       // Phase 4c.1 — 사유별 구체 레이블/색/아이콘. legacy reason 도 매핑.
       const { labelKey, color, iconName } = resolveSessionEndDisplay(entry.reason);
+      // Phase 13 review — combat audit: detailKey 가 있으면 현재 언어로 풀고
+      //   monster / floor token 주입. legacy detail (한국어) 은 fallback.
+      const localizedDetail = (() => {
+        if (entry.detailKey) {
+          const monsterTranslated = entry.detailMonsterTemplateId
+            ? monsterNameById(
+                entry.detailMonsterTemplateId,
+                entry.detailMonsterFallback ?? "",
+                language,
+              )
+            : "";
+          const params: Record<string, string | number> = {
+            monster: monsterTranslated,
+          };
+          if (entry.detailFloor != null) params.floor = entry.detailFloor;
+          return t(entry.detailKey as DictKey, params);
+        }
+        return entry.detail;
+      })();
       return (
         <div
           style={{ ...style, color, borderTop: `1px dashed ${GB.dark}` }}
@@ -433,8 +475,8 @@ const LogLine = memo(function LogLine({
           <PixelIcon name={iconName} size={14} color={color} />
           <div className="flex-1">
             <div>{t(labelKey)}</div>
-            {entry.detail && (
-              <div className={gbClass.textDim}>— {entry.detail}</div>
+            {localizedDetail && (
+              <div className={gbClass.textDim}>— {localizedDetail}</div>
             )}
           </div>
         </div>

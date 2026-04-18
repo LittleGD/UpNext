@@ -109,14 +109,19 @@ export function resourceName(classType: string, language: Language): string {
  *
  * 이벤트 데이터 자체는 변경하지 않고 번역 인프라만 준비. 실제 번역은 차후
  * i18n 파일에 key-value 추가로 점진적 진행.
+ *
+ * Phase 13 review — combat audit: encounter prompt/label 처럼 `{monster}` /
+ *   `{pct}` 같은 placeholder 가 있는 키도 있으므로 optional `params` 를 받아
+ *   `t()` 에 pass-through.
  */
 export function flavorText(
   fallback: string,
   key: string | undefined,
   language: Language,
+  params?: Record<string, string | number>,
 ): string {
   if (!key) return fallback;
-  const translated = dictT(key as DictKey, language);
+  const translated = dictT(key as DictKey, language, params);
   return translated === key ? fallback : translated;
 }
 

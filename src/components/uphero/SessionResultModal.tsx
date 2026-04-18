@@ -105,6 +105,9 @@ export default function SessionResultModal() {
   // Phase 13a — detail 다국어. detailKey 가 있으면 t() 로 풀고, monster
   //   templateId 가 함께 저장돼 있으면 monsterName 헬퍼로 다국어 monster name 주입.
   //   legacy 세이브 (detailKey 없음) 는 한국어 detail 그대로 fallback.
+  //
+  // Phase 13 review — combat audit: abandoned 사유는 detailFloor 로 `{floor}`
+  //   주입도 지원.
   const detail = (() => {
     if (lastEntry?.type !== "sessionEnd") return undefined;
     if (lastEntry.detailKey) {
@@ -115,9 +118,11 @@ export default function SessionResultModal() {
             language,
           )
         : "";
-      return t(lastEntry.detailKey as DictKey, {
+      const params: Record<string, string | number> = {
         monster: monsterTranslated,
-      });
+      };
+      if (lastEntry.detailFloor != null) params.floor = lastEntry.detailFloor;
+      return t(lastEntry.detailKey as DictKey, params);
     }
     return lastEntry.detail;
   })();

@@ -18,7 +18,7 @@ import {
 } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
-import { flavorText } from "@/lib/upHeroI18n";
+import { flavorText, monsterNameById } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 /**
@@ -125,9 +125,24 @@ export default function ChoicePanel() {
   //   언어에서 조회. key 없거나 미등록이면 prompt literal 그대로.
   //   Note: typewriter 용 `promptKey` (timestamp 기반) 와 충돌 방지 위해
   //   prompt 의 i18n key 는 `promptI18nKey` 로 네이밍.
+  //
+  // Phase 13 review — combat audit: encounter prompt 처럼 `{monster}` token 이
+  //   있는 key 는 promptParams 에서 monsterTemplateId 를 현재 언어 이름으로
+  //   resolve 후 `{monster}` 주입.
   const rawPrompt = entry?.type === "choice" ? entry.prompt : "";
   const promptI18nKey = entry?.type === "choice" ? entry.promptKey : undefined;
-  const promptText = flavorText(rawPrompt, promptI18nKey, language);
+  const promptParamsRaw = entry?.type === "choice" ? entry.promptParams : undefined;
+  const promptParams = (() => {
+    if (!promptParamsRaw) return undefined;
+    const out: Record<string, string | number> = { ...promptParamsRaw };
+    const templateId = out.monsterTemplateId;
+    if (typeof templateId === "string" && templateId.length > 0) {
+      const koName = typeof out.monster === "string" ? out.monster : "";
+      out.monster = monsterNameById(templateId, koName, language);
+    }
+    return out;
+  })();
+  const promptText = flavorText(rawPrompt, promptI18nKey, language, promptParams);
   const { visible: promptVisible, done: promptDone } = useChoiceTypewriter(
     promptText,
     promptKey,
@@ -225,7 +240,7 @@ export default function ChoicePanel() {
                 {i + 1}.
               </span>{" "}
               <span className="typo-caption" style={{ color: GB.lightest }}>
-                {flavorText(opt.label, opt.labelKey, language)}
+                {flavorText(opt.label, opt.labelKey, language, opt.labelParams)}
               </span>
             </ChoiceButton>
           ))}

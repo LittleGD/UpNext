@@ -1037,6 +1037,7 @@ const ko = {
   "uphero.session.detail.bossDefeated": "{monster} 격파",
   "uphero.session.detail.victory": "탐험을 완료했다",
   "uphero.session.detail.abandoned": "캠프로 돌아왔다",
+  "uphero.session.detail.abandonedAtFloor": "F{floor} 에서 캠프로 복귀",
   "uphero.session.detail.choiceCost": "선택의 대가로 쓰러졌다",
 
   // === Phase 13b — 주간 악몽 affix (11) ===
@@ -1531,6 +1532,11 @@ const ko = {
   "uphero.combat.narrative.choiceReward": "선택의 대가",
   "uphero.combat.minigame.success": "도전 성공",
   "uphero.combat.minigame.fail": "도전 실패",
+
+  // Phase 13 review — combat audit: encounter choice prompt / labels.
+  "uphero.combat.encounter.prompt": "{monster} 을(를) 만났다.",
+  "uphero.combat.choice.fight": "싸운다",
+  "uphero.combat.choice.fleeWithPct": "도망간다 ({pct}%)",
 
   // Skill-triggered combat hit narrative — 스킬이 damage 를 주며 combat entry 를 push 할 때.
   "uphero.combat.narrative.skillHitMonster.warrior_crush_t3": "분쇄가 {monster} 을 강타한다 — {damage} 피해",
