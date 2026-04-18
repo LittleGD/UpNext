@@ -140,9 +140,12 @@ function ArchiveSlot({
         )}
       </div>
 
-      {/* 라벨 — 날짜만, 챌린지 제목은 디테일 모달에서 표시 */}
+      {/* 라벨 — 날짜만, 챌린지 제목은 디테일 모달에서 표시.
+           Phase 9a — text-text-tertiary/60 → text-text-secondary 로 변경.
+           이전 색 (#484848 × 0.6 opacity) 이 #0A0A0A 배경 대비 1.8:1 수준이라
+           실질적으로 안 보임. 디자인 토큰 #9a9a9a 로 올려 5:1+ 확보. */}
       <div className="mt-1 flex items-center justify-end w-full">
-        <span className="typo-micro text-text-tertiary/60 tabular-nums">{dateStr}</span>
+        <span className="typo-micro text-text-secondary tabular-nums">{dateStr}</span>
       </div>
     </motion.button>
   );
@@ -190,7 +193,9 @@ export default function ArchiveSheet() {
         animate="animate"
         className="space-y-6"
       >
-        <div className="grid grid-cols-3 gap-3">
+        {/* Phase 9a — 앨범 탭과 사진 사이 공간 확보.
+             기존엔 탭 바로 아래에 폴라로이드가 붙어서 답답했음. py-4 로 숨통. */}
+        <div className="grid grid-cols-3 gap-3 pt-1">
           {photoMetas.map((meta) => (
             <ArchiveSlot
               key={meta.id}
@@ -200,15 +205,7 @@ export default function ArchiveSheet() {
             />
           ))}
         </div>
-        <p className="typo-micro text-text-tertiary text-center">
-          {t(
-            // 영어만 단/복수 분기, 다른 언어는 단일 키 (수량사 차이 없음)
-            language === "en" && photoMetas.length !== 1
-              ? "playground.archive.photoCountPlural"
-              : "playground.archive.photoCount",
-            { count: photoMetas.length },
-          )}
-        </p>
+        {/* Phase 9a — "사진 N장" 문구 삭제 (정보 가치 낮음, 그리드 자체로 전달됨). */}
       </motion.div>
 
       {/* 사진 상세 모달 */}
