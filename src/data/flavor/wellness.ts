@@ -52,6 +52,101 @@ export const WELLNESS_EVENTS: DungeonEvent[] = [
       ],
     },
     {
+      prompt: "치유의 전나무 숲. 수액이 반짝인다.",
+      options: [
+        {
+          label: "수액 채집",
+          outcomes: [
+            {
+              weight: 60,
+              resultText: "향긋한 수액이 상처를 아물게 한다.",
+              effects: [
+                { kind: "heal", amount: 35 },
+                { kind: "reward", coins: 15 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "나무가 분노해 가지로 때렸다.",
+              effects: [
+                { kind: "damage", amount: 12 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+            {
+              weight: 15,
+              resultText: "요정의 축복이 깃든 수액을 얻었다.",
+              effects: [
+                { kind: "heal", amount: 70 },
+                { kind: "reward", xp: 20 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "경의만 표한다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "숲이 잔잔히 숨쉰다.",
+              effects: [
+                { kind: "heal", amount: 10 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "어둠 속에 고양이 한 마리. 눈빛이 따뜻하다.",
+      options: [
+        {
+          label: "쓰다듬기",
+          outcomes: [
+            {
+              weight: 70,
+              resultText: "고양이가 울며 마음을 달래주었다.",
+              effects: [
+                { kind: "heal", amount: 25 },
+                { kind: "reward", xp: 10 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "고양이가 앞길을 인도했다.",
+              effects: [
+                { kind: "skipFloors", count: 1 },
+                { kind: "time", delta: -1 },
+              ],
+            },
+            {
+              weight: 10,
+              resultText: "고양이가 변신! 수호 정령이었다.",
+              effects: [
+                { kind: "heal", amount: 60 },
+                { kind: "reward", xp: 40 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "모른 척 지나간다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "고양이가 따라오지 않는다.",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
       prompt: "잠들고 싶은 유혹.",
       options: [
         {

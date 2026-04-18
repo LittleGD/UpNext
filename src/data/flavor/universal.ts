@@ -190,6 +190,95 @@ export const UNIVERSAL_EVENTS: DungeonEvent[] = [
     ],
   },
   {
+    prompt: "떠돌이 상인이 이상한 물약을 내놓는다.",
+    options: [
+      {
+        label: "물약 마시기 (20 코인)",
+        outcomes: [
+          {
+            weight: 50,
+            resultText: "달콤한 약이었다. 활력이 차오른다.",
+            effects: [
+              { kind: "reward", coins: -20 },
+              { kind: "heal", amount: 40 },
+              { kind: "time", delta: -2 },
+            ],
+          },
+          {
+            weight: 30,
+            resultText: "쓴맛에 몸이 움찔. 효과는 희미했다.",
+            effects: [
+              { kind: "reward", coins: -20 },
+              { kind: "heal", amount: 10 },
+              { kind: "time", delta: -3 },
+            ],
+          },
+          {
+            weight: 20,
+            resultText: "영약이었다! 몸 전체가 가벼워진다.",
+            effects: [
+              { kind: "reward", coins: -20, xp: 30 },
+              { kind: "heal", amount: 60 },
+              { kind: "time", delta: -2 },
+            ],
+          },
+        ],
+      },
+      {
+        label: "사양한다",
+        outcomes: [
+          {
+            weight: 100,
+            resultText: "상인이 아쉬워하며 떠났다.",
+            effects: [{ kind: "time", delta: -1 }],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    prompt: "길에 작은 동물이 다쳐 쓰러져 있다.",
+    options: [
+      {
+        label: "치료해주기",
+        outcomes: [
+          {
+            weight: 55,
+            resultText: "동물이 고마워하며 숨겨진 보물을 안내했다.",
+            effects: [
+              { kind: "reward", coins: 30, xp: 15 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          {
+            weight: 30,
+            resultText: "시간을 써 돌봤지만 그저 사라졌다.",
+            effects: [{ kind: "time", delta: -6 }],
+          },
+          {
+            weight: 15,
+            resultText: "동물이 요정으로 변했다! 축복을 내려주었다.",
+            effects: [
+              { kind: "reward", xp: 50 },
+              { kind: "heal", amount: 30 },
+              { kind: "time", delta: -4 },
+            ],
+          },
+        ],
+      },
+      {
+        label: "지나치기",
+        outcomes: [
+          {
+            weight: 100,
+            resultText: "마음이 편치 않다.",
+            effects: [{ kind: "time", delta: -1 }],
+          },
+        ],
+      },
+    ],
+  },
+  {
     prompt: "오래된 제단이 빛난다.",
     options: [
       {

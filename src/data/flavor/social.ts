@@ -53,6 +53,102 @@ export const SOCIAL_EVENTS: DungeonEvent[] = [
       ],
     },
     {
+      prompt: "떠들썩한 술집에서 영웅을 초대한다.",
+      options: [
+        {
+          label: "이야기 나누기",
+          outcomes: [
+            {
+              weight: 55,
+              resultText: "흥미로운 모험담이 오갔다.",
+              effects: [
+                { kind: "reward", xp: 30 },
+                { kind: "heal", amount: 10 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "취객이 시비를 걸었다.",
+              effects: [
+                { kind: "damage", amount: 10 },
+                { kind: "reward", xp: 15 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "친구가 될 노병을 만났다.",
+              effects: [
+                { kind: "reward", xp: 40, coins: 25 },
+                { kind: "heal", amount: 20 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "조용히 나가기",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "조용한 밤을 택했다.",
+              effects: [{ kind: "time", delta: -2 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "광장에서 관악단이 큰 소리로 연주한다.",
+      options: [
+        {
+          label: "팁 던지기 (10 코인)",
+          outcomes: [
+            {
+              weight: 65,
+              resultText: "분위기에 녹아들어 기력이 돋는다.",
+              effects: [
+                { kind: "reward", coins: -10, xp: 25 },
+                { kind: "heal", amount: 15 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "관악단 리더의 호응이 특별했다.",
+              effects: [
+                { kind: "reward", coins: -10, xp: 45 },
+                { kind: "heal", amount: 25 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 15,
+              resultText: "동전이 실수로 멀리 굴러갔다.",
+              effects: [
+                { kind: "reward", coins: -10 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "귀 막고 지나간다",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "시끄러움이 신경을 긁는다.",
+              effects: [
+                { kind: "damage", amount: 3 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
       prompt: "음유시인이 노래한다.",
       options: [
         {

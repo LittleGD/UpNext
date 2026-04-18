@@ -64,6 +64,104 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
       ],
     },
     {
+      prompt: "공중에 떠 있는 화면에 알 수 없는 슬로건이 번쩍거린다.",
+      options: [
+        {
+          label: "슬로건 따라하기",
+          outcomes: [
+            {
+              weight: 50,
+              resultText: "화면이 웃는 듯 흔들린다 — 보상 분출!",
+              effects: [
+                { kind: "reward", coins: 30, xp: 20 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "슬로건이 기계음으로 비웃는다.",
+              effects: [
+                { kind: "damage", amount: 8 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "화면이 열리며 숨겨진 데이터를 내놓았다.",
+              effects: [
+                { kind: "reward", coins: 70, xp: 40 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "화면을 끈다",
+          outcomes: [
+            {
+              weight: 80,
+              resultText: "고요가 돌아왔다.",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+            {
+              weight: 20,
+              resultText: "화면이 꺼지며 작은 칩 하나를 남겼다.",
+              effects: [
+                { kind: "reward", coins: 15 },
+                { kind: "time", delta: -1 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "바이럴 밈이 공간을 지배한다. 따라 웃어야 할까?",
+      options: [
+        {
+          label: "함께 웃기",
+          outcomes: [
+            {
+              weight: 60,
+              resultText: "기분 전환. 에너지가 돈다.",
+              effects: [
+                { kind: "heal", amount: 20 },
+                { kind: "reward", xp: 25 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "억지 웃음으로 혼란스러워진다.",
+              effects: [
+                { kind: "damage", amount: 6 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 15,
+              resultText: "진심 어린 웃음이 공간을 물들였다.",
+              effects: [
+                { kind: "heal", amount: 40 },
+                { kind: "reward", coins: 20, xp: 35 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "무시",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "유행이 지나간다.",
+              effects: [{ kind: "time", delta: -2 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
       prompt: "이상한 상자가 발광한다.",
       options: [
         {
