@@ -296,6 +296,11 @@ export type ChoiceVariant = "event" | "encounter";
 export interface ChoiceOption {
   label: string;
   /**
+   * Phase 12 i18n framework — label 의 i18n key (선택). 설정되면 현재 언어
+   *   에서 조회해 label 대신 사용. 미설정 시 `label` 그대로.
+   */
+  labelKey?: string;
+  /**
    * 단일 효과 (legacy) — outcomes 가 없을 때 fallback 으로 적용.
    * 기존 데이터 호환 및 단순 옵션 (fight/flee/nothing) 에서 사용.
    */
@@ -307,6 +312,8 @@ export interface ChoiceOption {
   outcomes?: ChoiceOutcome[];
   /** 선택 후 결과 narrative (legacy fallback — outcomes 에는 각 outcome 별 resultText) */
   resultText?: string;
+  /** Phase 12 i18n — resultText 의 i18n key (선택). */
+  resultTextKey?: string;
 }
 
 /**
@@ -318,6 +325,8 @@ export interface ChoiceOutcome {
   weight: number;
   /** 이 outcome 이 골라졌을 때 로그에 남길 narrative */
   resultText: string;
+  /** Phase 12 i18n — resultText 의 i18n key (선택). */
+  resultTextKey?: string;
   /** 순차 적용할 효과 (여러 개 가능 — 예: 시간 -5 + damage 10 + coin 30) */
   effects: ChoiceEffect[];
 }
@@ -361,6 +370,8 @@ export type LogEntry =
   | {
       type: "choice";
       prompt: string;
+      /** Phase 12 i18n — prompt 의 i18n key (선택). */
+      promptKey?: string;
       options: ChoiceOption[];
       /** 사용자가 선택 완료 시 resolvedIndex set */
       resolvedIndex?: number;

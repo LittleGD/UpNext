@@ -18,6 +18,7 @@ import {
 } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
+import { flavorText } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 /**
@@ -63,7 +64,7 @@ function useChoiceTypewriter(text: string, promptKey: string): {
 export default function ChoicePanel() {
   const session = useUpHeroStore((s) => s.currentSession);
   const resolveChoice = useUpHeroStore((s) => s.resolveChoice);
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   // Phase 9a — onAbandon 은 DungeonView footer 로 단일화. 여기 중복 정의는 제거.
   //   이전엔 ChoicePanel 에도 붙어있었으나 실제 어떤 JSX 에도 wire 되지 않은 dead code.
   //   abandonSession selector 자체가 쓸모 없어 구독도 제거 → 불필요 re-render 감소.
@@ -120,7 +121,13 @@ export default function ChoicePanel() {
 
   // Phase 8b — prompt typewriter. entry.timestamp 가 바뀌면 재시작.
   const promptKey = String(entry?.type === "choice" ? entry.timestamp : 0);
-  const promptText = entry?.type === "choice" ? entry.prompt : "";
+  // Phase 12 i18n framework — prompt 가 promptI18nKey 로 지정됐으면 현재
+  //   언어에서 조회. key 없거나 미등록이면 prompt literal 그대로.
+  //   Note: typewriter 용 `promptKey` (timestamp 기반) 와 충돌 방지 위해
+  //   prompt 의 i18n key 는 `promptI18nKey` 로 네이밍.
+  const rawPrompt = entry?.type === "choice" ? entry.prompt : "";
+  const promptI18nKey = entry?.type === "choice" ? entry.promptKey : undefined;
+  const promptText = flavorText(rawPrompt, promptI18nKey, language);
   const { visible: promptVisible, done: promptDone } = useChoiceTypewriter(
     promptText,
     promptKey,
@@ -218,7 +225,7 @@ export default function ChoicePanel() {
                 {i + 1}.
               </span>{" "}
               <span className="typo-caption" style={{ color: GB.lightest }}>
-                {opt.label}
+                {flavorText(opt.label, opt.labelKey, language)}
               </span>
             </ChoiceButton>
           ))}

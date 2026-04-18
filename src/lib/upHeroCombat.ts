@@ -706,6 +706,8 @@ export function tickSession(session: CombatSession): CombatSession {
     s.log.push({
       type: "choice",
       prompt: ev.prompt,
+      // Phase 12 i18n framework — DungeonEvent.promptKey 가 있으면 log 에도 보존.
+      promptKey: ev.promptKey,
       options: ev.options,
       isMystery: true,
       timestamp: Date.now(),
@@ -740,6 +742,8 @@ export function tickSession(session: CombatSession): CombatSession {
     s.log.push({
       type: "choice",
       prompt: ev.prompt,
+      // Phase 12 i18n framework — promptKey 가 있으면 log 에도 보존.
+      promptKey: ev.promptKey,
       options: ev.options,
       timestamp: Date.now(),
     });

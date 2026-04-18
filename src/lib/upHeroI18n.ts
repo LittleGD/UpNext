@@ -78,3 +78,22 @@ export function resourceName(classType: string, language: Language): string {
   const translated = dictT(key, language);
   return translated === key ? "" : translated;
 }
+
+/**
+ * Phase 12 i18n framework — 이벤트 텍스트 번역 헬퍼.
+ *
+ * ChoiceOption.labelKey / ChoiceOutcome.resultTextKey / DungeonEvent.promptKey
+ * 중 설정된 것은 i18n 에서 조회, 없으면 한국어 literal 그대로 반환.
+ *
+ * 이벤트 데이터 자체는 변경하지 않고 번역 인프라만 준비. 실제 번역은 차후
+ * i18n 파일에 key-value 추가로 점진적 진행.
+ */
+export function flavorText(
+  fallback: string,
+  key: string | undefined,
+  language: Language,
+): string {
+  if (!key) return fallback;
+  const translated = dictT(key as DictKey, language);
+  return translated === key ? fallback : translated;
+}
