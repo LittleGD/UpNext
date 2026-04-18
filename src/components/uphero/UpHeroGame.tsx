@@ -20,7 +20,10 @@ import { GB } from "@/lib/upHeroPalette";
 export default function UpHeroGame() {
   const initialize = useUpHeroStore((s) => s.initialize);
   const isLoaded = useUpHeroStore((s) => s.isLoaded);
-  const currentSession = useUpHeroStore((s) => s.currentSession);
+  // Phase 9b — tick 마다 re-render 하는 session 전체 구독 대신 status 만.
+  //   DungeonView / SessionResultModal 은 각자 session 을 구독하므로 여기서는
+  //   routing 결정에 필요한 status 만 있으면 충분. tick-rate rerender 방지.
+  const sessionStatus = useUpHeroStore((s) => s.currentSession?.status);
   const gameLoaded = useGameStore((s) => s.isLoaded);
   const heroClassType = useUpHeroStore((s) => s.hero.classType);
   const assignClass = useUpHeroStore((s) => s.assignClass);
@@ -53,16 +56,15 @@ export default function UpHeroGame() {
   }
 
   const inDungeon =
-    currentSession != null &&
-    (currentSession.status === "active" ||
-      currentSession.status === "awaitingChoice" ||
-      currentSession.status === "paused");
+    sessionStatus === "active" ||
+    sessionStatus === "awaitingChoice" ||
+    sessionStatus === "paused";
 
   return (
     <>
       {inDungeon ? <DungeonView /> : <CampPlaceholder />}
       {/* 완료된 세션 결산 modal — camp 상태일 때 노출 */}
-      {currentSession?.status === "completed" && <SessionResultModal />}
+      {sessionStatus === "completed" && <SessionResultModal />}
       {/* Phase 5b.1 — 앱 재진입 시 idle accrual 토스트. 상단 배너로 표시. */}
       <IdleRewardToast />
       {/* Phase 5c.3 — Lv 30 도달 시 class 분화 풀스크린 연출. */}
