@@ -6,6 +6,15 @@ import { useEffect, useRef } from "react";
  * 1px twinkling pixel stars background
  * Stars are always present — they fade in/out very slowly like real stars.
  * No sudden appearance or fast blinking.
+ *
+ * Phase 12 R-perf note:
+ *   Web Worker (OffscreenCanvas) 검토 결과 ROI 낮음 → 적용 안 함.
+ *   - 20-50 stars × 60fps × (sin + fillRect 1×1) = 프레임당 < 1ms 주로
+ *   - 브라우저가 hidden tab RAF 를 1fps 로 자동 throttle
+ *   - OffscreenCanvas 지원: Safari 16.4+ — 폴리필 부담 큼
+ *   - 메시지 패싱 오버헤드 + transferControlToOffscreen 의 단방향 제약
+ *   결론: 현재 규모에서는 main thread RAF 가 적정. 복잡한 이펙트 추가 시
+ *   재검토.
  */
 
 interface Star {
