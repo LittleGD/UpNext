@@ -29,6 +29,7 @@ import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import HeroSprite from "./HeroSprite";
 import HexStatChart from "./HexStatChart";
+import SkillTreePanel from "./SkillTreePanel";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 interface HeroStatPanelProps {
@@ -160,6 +161,8 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
         {/* Phase 5c.3 → 5d → 6b: class 분화된 영웅이면 별도 섹션.
              block 카드 (icon + name + passive) + Phase 6b 토글 (자동 스킬). */}
         {hero.classType && <ClassSection hero={hero} />}
+        {/* Phase 12d — 클래스별 스킬트리 (전직 후에만 노출). */}
+        {hero.classType && <SkillTreePanel classType={hero.classType} />}
 
         {/* Phase 12b — 스탯 radar chart. 기존 선형 bar (max 40 cap) → 육각형.
              각 축의 max 는 레벨/클래스 기반 동적 계산. 장비 bonus 가 max 초과 시

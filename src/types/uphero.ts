@@ -122,6 +122,17 @@ export interface Hero {
    * false 면 cooldown 차도 스킬 안 터짐 (상세 플레이 관찰 용도).
    */
   autoSkillEnabled?: boolean;
+  /**
+   * Phase 12d — 해금된 클래스 스킬 id 목록 (스킬트리).
+   *   T1 은 class 분화 시 자동 해금. T2/T3/T4 는 skillPoints 로 수동 해금.
+   *   예: ["warrior_smash_t1", "warrior_berserk_t2"]
+   */
+  learnedSkills?: string[];
+  /**
+   * Phase 12d — 남은 스킬 포인트. 레벨업 (Lv31+) 마다 +1.
+   *   T2 해금에 1, T3 에 1, T4 에 2 포인트 필요.
+   */
+  skillPoints?: number;
 }
 
 /** 장비 카드 (기존 ChallengeCard 프레임/RarityTexture 재활용) */
@@ -398,6 +409,38 @@ export interface CombatSession {
    *   스킬 발동 시 소모 (ClassSkill.resourceCost).
    */
   classResource?: number;
+  /**
+   * Phase 12d — 스킬별 개별 쿨다운. skillId → 남은 round.
+   *   기존 `skillCooldown` 은 T1 용이었지만 이제 여러 스킬 동시 보유 → Map.
+   */
+  skillCooldowns?: Record<string, number>;
+  /**
+   * Phase 12d — 영웅 공격 배율 지속 효과 (warrior 광폭화, bard 용기가 등).
+   *   rounds 양수면 다음 N round 동안 bonusMult 적용, 매 round -1.
+   */
+  heroAtkBonusRounds?: { rounds: number; mult: number };
+  /**
+   * Phase 12d — 적 행동 금지 (mage 빙결, chrono 정지, illusionist 환혹).
+   *   양수면 N round 동안 enemy outcome 강제 miss.
+   */
+  enemyStunnedRounds?: number;
+  /**
+   * Phase 12d — 영웅 피해 감소 (priest 정화).
+   *   rounds 동안 피격 시 damage × (1 - reduction).
+   */
+  heroDmgReductionRounds?: { rounds: number; reduction: number };
+  /**
+   * Phase 12d — 반드시 crit 되는 남은 공격 횟수 (bard 대서사시).
+   */
+  guaranteedCritAttacks?: number;
+  /**
+   * Phase 12d — 무적 (illusionist 환몽 T4). 적 공격 모두 무효.
+   */
+  heroInvulnerableRounds?: number;
+  /**
+   * Phase 12d — 1 회 죽음 무효 (priest 부활 T4). death 시 HP 50% 복원.
+   */
+  revivePending?: boolean;
   /**
    * Phase 6b — 다음 영웅 공격 damage 배율 (warrior 강타 등).
    * 1 이상 — 공격 발생 후 reset (1 로 돌아감).
