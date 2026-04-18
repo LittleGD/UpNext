@@ -395,8 +395,20 @@ export default function DailyBoard() {
                   setConfirmCard(card);
                 }
               }}
+              /* Phase 12 R5 — 키보드 탭 유저가 카드 focus 를 즉시 인지할 수
+                   있도록 `:focus-visible` ring 추가. mouse/touch 는 기본 focus
+                   링 없이 자연스럽게 눌림. outline-offset -2 로 rounded-2xl
+                   경계 안쪽에 떠서 디자인 해치지 않음. aria-label 은 title
+                   prop 으로 접근성 보조. */
+              title={cardTitle(card, language)}
+              aria-pressed={isCompleted}
+              aria-label={
+                isCompleted
+                  ? `${cardTitle(card, language)} · 완료됨`
+                  : `${cardTitle(card, language)} · 완료하기`
+              }
               className={`
-                relative w-full text-left rounded-2xl overflow-hidden transition-colors
+                daily-card-btn relative w-full text-left rounded-2xl overflow-hidden transition-colors
                 ${isCompleted
                   ? "bg-bg-surface/40"
                   : "bg-bg-elevated hover:bg-bg-hover cursor-pointer"
