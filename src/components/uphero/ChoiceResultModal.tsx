@@ -30,13 +30,29 @@ import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 interface ChoiceResultModalProps {
-  /** "> 선택 → 결과" narrative. 비어있지 않음. */
+  /** "> 선택 → 결과" narrative. 비어있지 않음. legacy fallback. */
   text: string;
   /**
    * Phase 11c R4 — effects 요약 (예: "경험치 +50 · 시간 -3"). null/undefined 면 표시 안 함.
-   * narrative 가 분위기 문구라 구체 수치가 묻힘 → 별도 행으로 표시.
+   * Phase 13b — summaryData (structured) 가 있으면 다국어 라벨로 빌드. 없으면
+   *   summary string fallback (legacy save).
    */
   summary?: string | null;
+  summaryData?: {
+    xp?: number;
+    coins?: number;
+    heal?: number;
+    damage?: number;
+    timeDelta?: number;
+  } | null;
+  /**
+   * Phase 13b — 다국어 narrative. 키 + fallback 쌍이 있으면 t() 로 풀어서
+   *   action / result 두 줄을 빌드. text 보다 우선.
+   */
+  actionLabelKey?: string;
+  actionLabelFallback?: string;
+  resultTextKey?: string;
+  resultTextFallback?: string;
   /** 닫기 콜백 — auto-dismiss 또는 유저 "계속" 탭 모두 호출. */
   onDismiss: () => void;
   /** 자동 dismiss 시간 (기본 2600ms). reduced-motion 이면 무시 → CTA 만. */
@@ -46,6 +62,11 @@ interface ChoiceResultModalProps {
 export default function ChoiceResultModal({
   text,
   summary,
+  summaryData,
+  actionLabelKey,
+  actionLabelFallback,
+  resultTextKey,
+  resultTextFallback,
   onDismiss,
   autoMs = 2600,
 }: ChoiceResultModalProps) {
@@ -85,7 +106,23 @@ export default function ChoiceResultModal({
 
   // "> 선택 → 결과" prefix 를 잘라 선택 / 결과 두 줄로 분리.
   //   "> 싸운다 → 영웅이 적을 쓰러뜨렸다" → action="싸운다" / result="영웅이 적을..."
-  const parsed = parseChoiceNarrative(text);
+  // Phase 13b — i18n 키가 있으면 t() 로 풀어서 사용. 없으면 text parsing.
+  const parsedFromKeys =
+    actionLabelFallback || resultTextFallback
+      ? {
+          action: actionLabelFallback
+            ? actionLabelKey
+              ? t(actionLabelKey as import("@/i18n").DictKey)
+              : actionLabelFallback
+            : null,
+          result: resultTextFallback
+            ? resultTextKey
+              ? t(resultTextKey as import("@/i18n").DictKey)
+              : resultTextFallback
+            : "",
+        }
+      : null;
+  const parsed = parsedFromKeys ?? parseChoiceNarrative(text);
 
   return (
     <div
@@ -140,8 +177,9 @@ export default function ChoiceResultModal({
             >
               {parsed.result}
             </div>
-            {/* Phase 11c R4 — 효과 수치 요약. "경험치 +50 · 시간 -3" 등. */}
-            {summary && (
+            {/* Phase 11c R4 — 효과 수치 요약. "경험치 +50 · 시간 -3" 등.
+                 Phase 13b — summaryData 가 있으면 다국어 라벨로 조립. */}
+            {(summaryData || summary) && (
               <div
                 className="typo-caption tabular-nums mt-2"
                 style={{
@@ -153,7 +191,9 @@ export default function ChoiceResultModal({
                   display: "inline-block",
                 }}
               >
-                {summary}
+                {summaryData
+                  ? buildSummaryFromData(summaryData, t)
+                  : summary}
               </div>
             )}
           </div>
@@ -192,7 +232,7 @@ export default function ChoiceResultModal({
             }}
             autoFocus
           >
-            계속
+            {t("uphero.choice.continue")}
           </button>
         </div>
 
@@ -250,4 +290,49 @@ function parseChoiceNarrative(text: string): {
   const action = stripped.slice(0, arrowIdx).trim();
   const result = stripped.slice(arrowIdx + 1).trim();
   return { action: action || null, result };
+}
+
+/**
+ * Phase 13b — structured summary → 다국어 한 줄 빌드.
+ *   각 비-zero 필드를 i18n 라벨로 풀어 ` · ` 으로 join.
+ */
+function buildSummaryFromData(
+  data: NonNullable<ChoiceResultModalProps["summaryData"]>,
+  t: (
+    key: import("@/i18n").DictKey,
+    params?: Record<string, string | number>,
+  ) => string,
+): string {
+  const parts: string[] = [];
+  if (data.xp) {
+    parts.push(t("uphero.choice.effectSummary.xp", { sign: "+", value: data.xp }));
+  }
+  if (data.coins) {
+    parts.push(
+      t("uphero.choice.effectSummary.coins", { sign: "+", value: data.coins }),
+    );
+  }
+  if (data.heal) {
+    parts.push(
+      t("uphero.choice.effectSummary.hp", { sign: "+", value: data.heal }),
+    );
+  }
+  if (data.damage) {
+    parts.push(
+      t("uphero.choice.effectSummary.hp", {
+        sign: "−",
+        value: data.damage,
+      }),
+    );
+  }
+  if (data.timeDelta) {
+    const sign = data.timeDelta > 0 ? "+" : "";
+    parts.push(
+      t("uphero.choice.effectSummary.time", {
+        sign,
+        value: data.timeDelta,
+      }),
+    );
+  }
+  return parts.join(" · ");
 }

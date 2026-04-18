@@ -271,3 +271,24 @@ export function describeCardBuff(
 
   return parts.join(" · ");
 }
+
+/** Phase 13b — 주간 affix 이름 + 설명 다국어 */
+export function weeklyAffixName(
+  affixId: string,
+  koreanFallback: string,
+  language: Language,
+): string {
+  const key = `uphero.affix.${affixId}.name` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? koreanFallback : translated;
+}
+
+export function weeklyAffixDescription(
+  affixId: string,
+  koreanFallback: string,
+  language: Language,
+): string {
+  const key = `uphero.affix.${affixId}.description` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? koreanFallback : translated;
+}

@@ -8,13 +8,16 @@ import type { DungeonEvent } from "./_types";
 export const TRENDING_EVENTS: DungeonEvent[] = [
     {
       prompt: "반짝이는 포털이 열렸다.",
+      promptKey: "uphero.flavor.trd.0.prompt",
       options: [
         {
           label: "뛰어들기",
+          labelKey: "uphero.flavor.trd.0.opt0.label",
           outcomes: [
             {
               weight: 50,
               resultText: "예상치 못한 곳으로 왔다! 두 층 건너뛴다.",
+              resultTextKey: "uphero.flavor.trd.0.opt0.out0.result",
               effects: [
                 { kind: "skipFloors", count: 2 },
                 { kind: "time", delta: -3 },
@@ -23,6 +26,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             {
               weight: 30,
               resultText: "차원의 균열에 휩쓸렸다.",
+              resultTextKey: "uphero.flavor.trd.0.opt0.out1.result",
               effects: [
                 { kind: "skipFloors", count: 1 },
                 { kind: "damage", amount: 20 },
@@ -32,6 +36,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             {
               weight: 20,
               resultText: "포털 깊숙이 들어가 막대한 보물을 가져왔다.",
+              resultTextKey: "uphero.flavor.trd.0.opt0.out2.result",
               effects: [
                 { kind: "skipFloors", count: 3 },
                 { kind: "reward", coins: 40 },
@@ -42,10 +47,12 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
         },
         {
           label: "조심스레 피하기",
+          labelKey: "uphero.flavor.trd.0.opt1.label",
           outcomes: [
             {
               weight: 80,
               resultText: "포털 가장자리의 반짝이를 수확했다.",
+              resultTextKey: "uphero.flavor.trd.0.opt1.out0.result",
               effects: [
                 { kind: "reward", coins: 20 },
                 { kind: "time", delta: -3 },
@@ -54,6 +61,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             {
               weight: 20,
               resultText: "포털 주변에서 차원 조각을 주웠다.",
+              resultTextKey: "uphero.flavor.trd.0.opt1.out1.result",
               effects: [
                 { kind: "reward", coins: 40, xp: 10 },
                 { kind: "time", delta: -4 },
@@ -65,13 +73,16 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
     },
     {
       prompt: "공중에 떠 있는 화면에 알 수 없는 슬로건이 번쩍거린다.",
+      promptKey: "uphero.flavor.trd.1.prompt",
       options: [
         {
           label: "슬로건 따라하기",
+          labelKey: "uphero.flavor.trd.1.opt0.label",
           outcomes: [
             {
               weight: 50,
               resultText: "화면이 웃는 듯 흔들린다 — 보상 분출!",
+              resultTextKey: "uphero.flavor.trd.1.opt0.out0.result",
               effects: [
                 { kind: "reward", coins: 30, xp: 20 },
                 { kind: "time", delta: -2 },
@@ -80,6 +91,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             {
               weight: 30,
               resultText: "슬로건이 기계음으로 비웃는다.",
+              resultTextKey: "uphero.flavor.trd.1.opt0.out1.result",
               effects: [
                 { kind: "damage", amount: 8 },
                 { kind: "time", delta: -3 },
@@ -88,6 +100,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             {
               weight: 20,
               resultText: "화면이 열리며 숨겨진 데이터를 내놓았다.",
+              resultTextKey: "uphero.flavor.trd.1.opt0.out2.result",
               effects: [
                 { kind: "reward", coins: 70, xp: 40 },
                 { kind: "time", delta: -3 },
@@ -97,15 +110,18 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
         },
         {
           label: "화면을 끈다",
+          labelKey: "uphero.flavor.trd.1.opt1.label",
           outcomes: [
             {
               weight: 80,
               resultText: "고요가 돌아왔다.",
+              resultTextKey: "uphero.flavor.trd.1.opt1.out0.result",
               effects: [{ kind: "time", delta: -1 }],
             },
             {
               weight: 20,
               resultText: "화면이 꺼지며 작은 칩 하나를 남겼다.",
+              resultTextKey: "uphero.flavor.trd.1.opt1.out1.result",
               effects: [
                 { kind: "reward", coins: 15 },
                 { kind: "time", delta: -1 },
@@ -117,13 +133,16 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
     },
     {
       prompt: "바이럴 밈이 공간을 지배한다. 따라 웃어야 할까?",
+      promptKey: "uphero.flavor.trd.2.prompt",
       options: [
         {
           label: "함께 웃기",
+          labelKey: "uphero.flavor.trd.2.opt0.label",
           outcomes: [
             {
               weight: 60,
               resultText: "기분 전환. 에너지가 돈다.",
+              resultTextKey: "uphero.flavor.trd.2.opt0.out0.result",
               effects: [
                 { kind: "heal", amount: 20 },
                 { kind: "reward", xp: 25 },
@@ -133,6 +152,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             {
               weight: 25,
               resultText: "억지 웃음으로 혼란스러워진다.",
+              resultTextKey: "uphero.flavor.trd.2.opt0.out1.result",
               effects: [
                 { kind: "damage", amount: 6 },
                 { kind: "time", delta: -3 },
@@ -141,6 +161,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             {
               weight: 15,
               resultText: "진심 어린 웃음이 공간을 물들였다.",
+              resultTextKey: "uphero.flavor.trd.2.opt0.out2.result",
               effects: [
                 { kind: "heal", amount: 40 },
                 { kind: "reward", coins: 20, xp: 35 },
@@ -151,10 +172,12 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
         },
         {
           label: "무시",
+          labelKey: "uphero.flavor.trd.2.opt1.label",
           outcomes: [
             {
               weight: 100,
               resultText: "유행이 지나간다.",
+              resultTextKey: "uphero.flavor.trd.2.opt1.out0.result",
               effects: [{ kind: "time", delta: -2 }],
             },
           ],
@@ -163,13 +186,16 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
     },
     {
       prompt: "이상한 상자가 발광한다.",
+      promptKey: "uphero.flavor.trd.3.prompt",
       options: [
         {
           label: "열어보기",
+          labelKey: "uphero.flavor.trd.3.opt0.label",
           outcomes: [
             {
               weight: 50,
               resultText: "이상한 보물이 쏟아져 나왔다.",
+              resultTextKey: "uphero.flavor.trd.3.opt0.out0.result",
               effects: [
                 { kind: "reward", coins: 50, xp: 30 },
                 { kind: "time", delta: -2 },
@@ -178,6 +204,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             {
               weight: 30,
               resultText: "상자가 폭발했다!",
+              resultTextKey: "uphero.flavor.trd.3.opt0.out1.result",
               effects: [
                 { kind: "damage", amount: 20 },
                 { kind: "time", delta: -3 },
@@ -186,6 +213,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             {
               weight: 20,
               resultText: "초차원의 보물고였다.",
+              resultTextKey: "uphero.flavor.trd.3.opt0.out2.result",
               effects: [
                 { kind: "reward", coins: 100, xp: 50 },
                 { kind: "time", delta: -3 },
@@ -195,10 +223,12 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
         },
         {
           label: "폭발 위험 감수하고 피하기",
+          labelKey: "uphero.flavor.trd.3.opt1.label",
           outcomes: [
             {
               weight: 100,
               resultText: "조심스레 지나쳤다.",
+              resultTextKey: "uphero.flavor.trd.3.opt1.out0.result",
               effects: [{ kind: "time", delta: -2 }],
             },
           ],

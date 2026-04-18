@@ -297,12 +297,18 @@ function BuffCardPreview({
         )}
       </div>
 
-      {/* 이름 */}
+      {/* 이름 — Phase 13b: 카드 데이터의 title* 다국어 필드 활용 */}
       <div
         className="typo-caption leading-tight truncate"
         style={{ color: selected ? GB.lightest : rarityColor }}
       >
-        {card.title}
+        {language === "en" && card.titleEn
+          ? card.titleEn
+          : language === "ja" && card.titleJa
+            ? card.titleJa
+            : language === "zh" && card.titleZh
+              ? card.titleZh
+              : card.title}
       </div>
 
       {/* 버프 설명 */}

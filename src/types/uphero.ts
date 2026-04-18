@@ -441,6 +441,25 @@ export type LogEntry =
        *   (effects 가 비거나 summary 없는 legacy outcome).
        */
       effectSummary?: string;
+      /**
+       * Phase 13b — 다국어 effectSummary. 컴포넌트가 있으면 우선 사용, 없으면
+       * effectSummary string fallback. legacy save 호환.
+       */
+      effectSummaryData?: {
+        xp?: number;
+        coins?: number;
+        heal?: number;
+        damage?: number;
+        timeDelta?: number;
+      };
+      /**
+       * Phase 13b — 다국어 narrative 빌딩 보조. text 는 한국어 fallback.
+       * 컴포넌트는 actionKey/resultKey 가 있으면 t() 로 풀어서 빌드.
+       */
+      actionLabelKey?: string;
+      actionLabelFallback?: string;
+      resultTextKey?: string;
+      resultTextFallback?: string;
       timestamp: number;
     };
 
