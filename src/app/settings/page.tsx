@@ -15,6 +15,7 @@ import AccordionSection from "@/components/ui/AccordionSection";
 import LanguageToggle from "@/components/ui/LanguageToggle";
 import { useAuthStore } from "@/store/useAuthStore";
 import { deleteCloudData } from "@/lib/sync";
+import DevLeaderboardPanel from "@/components/uphero/DevLeaderboardPanel";
 import { motion, AnimatePresence } from "framer-motion";
 import { springSnappy } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
@@ -446,6 +447,10 @@ export default function SettingsPage() {
           {t("settings.reset.button")}
         </button>
       </section>
+
+      {/* Phase 11c — Dev 도구 (production 제외).
+           리더보드/NG+/주간 변이 테스트 단축. */}
+      {process.env.NODE_ENV === "development" && <DevLeaderboardPanel />}
 
       {/* ── 모드 변경 확인 모달 ── */}
       <AnimatePresence>

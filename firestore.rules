@@ -1,8 +1,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // 유저 프로필 / progress — 본인 것만 read/write.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Phase 11c — 주간 악몽 던전 리더보드.
+    //   읽기: 전체 공개 (익명 포함) — 순위 탐색은 게스트도 가능.
+    //   쓰기: 자기 entry 만 (uid 일치 필수 + 로그인 필수).
+    //   점수 필드는 클라이언트 validation — 악성 유저가 score 를 임의로 올리는 위험은
+    //   Cloud Function 검증 단계 (Phase 12+) 로 추후 보강. 당장은 best-effort.
+    match /weekly-leaderboard/{weekId}/entries/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        // 최소 필드 검증 — 너무 높은 숫자 / 누락 필드 차단.
+        && request.resource.data.keys().hasAll(['uid', 'displayName', 'score', 'floorsCleared', 'heroLevel', 'clearedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 100000
+        && request.resource.data.floorsCleared is number
+        && request.resource.data.floorsCleared >= 0
+        && request.resource.data.floorsCleared <= 30
+        && request.resource.data.heroLevel is number
+        && request.resource.data.heroLevel >= 1
+        && request.resource.data.heroLevel <= 500;
     }
   }
 }
