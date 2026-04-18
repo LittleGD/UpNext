@@ -22,7 +22,12 @@ import type {
   SessionEndReason,
   SpecialEffect,
 } from "@/types/uphero";
-import { computeEffectiveStats } from "@/types/uphero";
+import {
+  computeEffectiveStats,
+  CLASS_RESOURCE,
+  CLASS_RESOURCE_MAX,
+  type ResourceEvent,
+} from "@/types/uphero";
 import { createMonsterForFloor } from "@/data/upHeroMonsters";
 import {
   pickNarrative,
@@ -163,6 +168,26 @@ export function createSession(
 /** 세션의 talismanMods 를 안전하게 꺼냄 (undefined 대응). */
 function sessionMods(s: CombatSession): TalismanModifiers {
   return s.talismanMods ?? emptyTalismanMods();
+}
+
+/**
+ * Phase 12d — 클래스 자원 획득. 각 이벤트 (attack/hit/dodge/heal 등) 시 호출.
+ *   classType null 이면 no-op. 없는 클래스는 해당 이벤트 gain 0 → no-op.
+ *   cap = CLASS_RESOURCE_MAX (100).
+ *
+ *   usage: `gainClassResource(s, "attack")` — combat.ts 각 hook 에서 호출.
+ */
+export function gainClassResource(
+  s: CombatSession,
+  event: ResourceEvent,
+): void {
+  const cls = s.hero.classType;
+  if (!cls) return;
+  const spec = CLASS_RESOURCE[cls];
+  const amount = spec.gain[event];
+  if (!amount) return;
+  const cur = s.classResource ?? 0;
+  s.classResource = Math.min(CLASS_RESOURCE_MAX, cur + amount);
 }
 
 /**
@@ -415,6 +440,8 @@ export function tickSession(session: CombatSession): CombatSession {
         s.rewards.xp += gainedXp;
         s.rewards.coins += gainedCoin;
         s.hero.hp = combatState.heroHp;
+        // Phase 12d — 처치 시 자원 획득 (bard 영감, priest 신앙 등).
+        gainClassResource(s, "victory");
 
         // 보스 처치면 드롭 확정 + 높은 등급
         if (monster.isBoss) {
@@ -526,6 +553,8 @@ export function tickSession(session: CombatSession): CombatSession {
       timestamp: Date.now(),
     });
     s.currentFloor = nextFloor;
+    // Phase 12d — 층 이동 시 자원 (chronomancer 시간 파편, druid 자연력).
+    gainClassResource(s, "floor");
     // Phase 4c.1 — 층 이동마다 시간 소모
     if (consumeTime(s, -TIME_COST.floor)) return s;
 
@@ -708,6 +737,9 @@ export function resolveChoice(
   // choice 해소 자체의 시간 소모
   if (consumeTime(s, -TIME_COST.choice)) return s;
 
+  // Phase 12d — choice 해소 시 자원 (chronomancer 시간 파편).
+  gainClassResource(s, "choice");
+
   s.status = "active";
   s.pendingChoiceIndex = undefined;
   return s;
@@ -799,6 +831,8 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
         session.hero.maxHp,
         session.hero.hp + healed,
       );
+      // Phase 12d — heal 시 자원 (druid 자연력, priest 신앙).
+      gainClassResource(session, "heal");
       break;
     }
     case "skipFloors":
@@ -950,6 +984,8 @@ function executeCombatRound(
   monster: Monster,
   stats: { str: number; vit: number; agi: number; dex: number; crit: number; int: number; slotBonus: number },
 ): void {
+  // Phase 12d — round 시작 자원 획득 (mage 마나, druid 자연력 등).
+  gainClassResource(s, "roundStart");
   // Phase 6b — combat round 시작 전 액티브 스킬 발동 시도
   const skillCdBefore = s.skillCooldown ?? 0;
   maybeFireSkill(s, monster);
@@ -1016,6 +1052,11 @@ function executeCombatRound(
     narrative: heroNarrative,
     timestamp: Date.now(),
   });
+  // Phase 12d — 영웅 공격 결과에 따른 자원 획득.
+  if (heroOutcome === "hit" || heroOutcome === "crit") {
+    gainClassResource(s, "attack");
+    if (heroOutcome === "crit") gainClassResource(s, "crit");
+  }
 
   // 몬스터 공격 — Phase 5c.2: monk class 는 dodge 확률 추가 (stats.agi 보강)
   // Phase 6b: monk 선정 중이면 강제 dodge, illusionist 환영 중이면 강제 miss.
@@ -1060,6 +1101,11 @@ function executeCombatRound(
     narrative: enemyNarrative,
     timestamp: Date.now(),
   });
+  // Phase 12d — 적 공격 결과에 따른 자원 획득.
+  if (enemyOutcome === "dodge") gainClassResource(s, "dodge");
+  else if (enemyOutcome === "hit" || enemyOutcome === "crit") {
+    gainClassResource(s, "hit");
+  }
   // counter attack — 짧은 narrative 와 함께 hero attack entry 추가 push
   if (counterLogged) {
     s.log.push({
