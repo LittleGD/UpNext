@@ -891,18 +891,46 @@ export function computeEffectiveStats(hero: Hero): HeroBaseStats {
  * hp 는 기존 hp/maxHp 비율을 보존 — 풀피면 새 maxHp 풀피, 반피면 반피.
  *
  * 이 함수는 pure — 원본 hero 를 mutate 하지 않음.
+ *
+ * Phase 12c — 클래스 전직 후 CLASS_STAT_GROWTH bias 반영.
  */
+
+/**
+ * Phase 12c — 클래스별 레벨당 성장 편향 테이블.
+ *   각 value 는 기본 성장률 1.0 에 더해지는 offset. 합이 +0.5 ~ +1.0 수준
+ *   (모든 클래스 총 stat 은 대략 비슷하나 분포가 다름).
+ *
+ *   예: warrior Lv42 str = 10 + 41 × (1.0 + 0.4) = 67.4. Lv42 mage str = 10 + 41 × (1.0 - 0.3) = 38.7.
+ *
+ *   일반 (null class) 은 1.0 + 0 bias.
+ */
+export const CLASS_STAT_GROWTH: Record<ClassType, Partial<Record<StatKey, number>>> = {
+  warrior: { str: 0.4, vit: 0.3, int: -0.2, agi: -0.1 },
+  mage: { int: 0.5, crit: 0.2, str: -0.3, vit: -0.1 },
+  monk: { dex: 0.2, agi: 0.2, vit: 0.2, crit: 0.2, str: 0.1 },
+  druid: { vit: 0.3, int: 0.2, agi: 0.1 },
+  bard: { dex: 0.3, agi: 0.3, int: 0.2, crit: 0.1 },
+  chronomancer: { dex: 0.4, int: 0.3, agi: 0.1 },
+  priest: { int: 0.4, vit: 0.3, crit: 0.1 },
+  illusionist: { crit: 0.3, int: 0.2, dex: 0.2, agi: 0.1, str: 0.1 },
+};
+
 export function computeHeroForLevel(hero: Hero, level: number): Hero {
   const lvl = Math.max(1, level);
   const delta = lvl - 1;
   const base = hero.baseStats;
+  // Phase 12c — 클래스별 성장 편향. 전직 후 (classType 있을 때) 만 적용.
+  //   기본 성장 1.0 + bias (CLASS_STAT_GROWTH). bias 가 있는 stat 은 가산/감산.
+  const bias = hero.classType ? CLASS_STAT_GROWTH[hero.classType] : {};
+  const growth = (key: StatKey) => 1.0 + (bias[key] ?? 0);
   const baseStats: HeroBaseStats = {
-    str: base.str + delta,
-    int: base.int + delta,
-    vit: base.vit + delta,
-    dex: base.dex + delta,
-    agi: base.agi + delta,
-    crit: base.crit,
+    str: Math.round(base.str + delta * growth("str")),
+    int: Math.round(base.int + delta * growth("int")),
+    vit: Math.round(base.vit + delta * growth("vit")),
+    dex: Math.round(base.dex + delta * growth("dex")),
+    agi: Math.round(base.agi + delta * growth("agi")),
+    // crit 은 base 유지 + 클래스 편향이 있으면 flat 가산 (mage/monk/bard/illusionist/priest).
+    crit: Math.round(base.crit + delta * (bias.crit ?? 0)),
     slotBonus: base.slotBonus,
   };
   // maxHp 는 Lv1 기본 (100) + level delta × 12 로 항상 constant 재계산.
@@ -939,31 +967,18 @@ export function computeStatMax(
 ): Record<StatKey, number> {
   const lvl = Math.max(1, level);
   const delta = lvl - 1;
-  // 기본 성장률 1.0, 각 스탯별 기본 max = 10 + delta × 1.0.
-  const defaultMax = 10 + delta * 1.0;
-  // 클래스별 primary/secondary 스탯은 growth 1.2 반영 (다른 곳의 CLASS_STAT_GROWTH
-  //   테이블과 동일 형태). 아직 12c 미구현이라 여기선 기본값 + class 별 offset 가산.
-  //   12c 도입 시 CLASS_STAT_GROWTH 참조로 변경.
-  const classBoosts: Partial<Record<StatKey, number>> = (() => {
-    switch (classType) {
-      case "warrior": return { str: delta * 0.2, vit: delta * 0.1 };
-      case "mage": return { int: delta * 0.3, crit: 8 };
-      case "monk": return { dex: delta * 0.1, agi: delta * 0.1, vit: delta * 0.1 };
-      case "druid": return { vit: delta * 0.2, int: delta * 0.1 };
-      case "bard": return { dex: delta * 0.15, agi: delta * 0.15 };
-      case "chronomancer": return { dex: delta * 0.2, int: delta * 0.15 };
-      case "priest": return { int: delta * 0.2, vit: delta * 0.15 };
-      case "illusionist": return { agi: delta * 0.1, crit: 10 };
-      default: return {};
-    }
-  })();
+  // Phase 12c — CLASS_STAT_GROWTH 를 단일 source of truth 로 사용 (HexStatChart
+  //   max 와 실제 stat 성장이 일치). bias 없는 클래스는 기본 1.0 성장.
+  const bias = classType ? CLASS_STAT_GROWTH[classType] : {};
+  const growth = (key: StatKey) => 1.0 + (bias[key] ?? 0);
   return {
-    str: Math.round(defaultMax + (classBoosts.str ?? 0)),
-    int: Math.round(defaultMax + (classBoosts.int ?? 0)),
-    vit: Math.round(defaultMax + (classBoosts.vit ?? 0)),
-    dex: Math.round(defaultMax + (classBoosts.dex ?? 0)),
-    agi: Math.round(defaultMax + (classBoosts.agi ?? 0)),
-    crit: Math.round(50 + (classBoosts.crit ?? 0)),
+    str: Math.round(10 + delta * growth("str")),
+    int: Math.round(10 + delta * growth("int")),
+    vit: Math.round(10 + delta * growth("vit")),
+    dex: Math.round(10 + delta * growth("dex")),
+    agi: Math.round(10 + delta * growth("agi")),
+    // crit 은 base 50 (장비 전용 상한 느낌) + delta × bias.crit.
+    crit: Math.round(50 + delta * (bias.crit ?? 0)),
   };
 }
 
