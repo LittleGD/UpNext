@@ -306,7 +306,12 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (capturePhase === "idle" || capturePhase === "saving") return null;
+  // Phase 11a-fix — savePhoto 가 성공하면 savePhoto 가 capturePhase 를 "idle" 로
+  //   set 하는데, 그 순간 이 early return 이 발동해서 PhotoDetailModal 까지 함께
+  //   unmount 됨 → 유저가 detail 에서 onClose 를 누를 기회가 사라지고,
+  //   결과적으로 onComplete 가 never fire → 챌린지 완료/XP 누락 버그.
+  //   savedMeta 가 존재하면 이 early-return 을 건너뛰어 detail 뷰는 유지.
+  if (!savedMeta && (capturePhase === "idle" || capturePhase === "saving")) return null;
   if (!mounted) return null;
 
   // ⚠ Portal 로 document.body 에 마운트 — 페이지 헤더 (sticky z-10) 의 stacking context

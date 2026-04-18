@@ -24,7 +24,12 @@ import type {
 } from "@/types/uphero";
 import { computeEffectiveStats } from "@/types/uphero";
 import { createMonsterForFloor } from "@/data/upHeroMonsters";
-import { pickNarrative, pickTreasureDescription, pickEvent } from "@/data/upHeroFlavor";
+import {
+  pickNarrative,
+  pickTreasureDescription,
+  pickEvent,
+  pickRestDescription,
+} from "@/data/upHeroFlavor";
 import { rollEquipmentDrop, rollDropRarity } from "@/data/upHeroEquipment";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import {
@@ -34,19 +39,31 @@ import {
 import { maybeFireSkill, advanceSkillCounters } from "@/lib/classSkills";
 
 /**
- * Phase 4c.1 — 탐험 시간 리소스 밸런스.
- * baseTime=100 에 1 탐험당 평균 ~6 정도 소모 → 15~18 층 진행 가능.
- * 10F 미니보스까진 대체로 여유, 30F 최종 보스는 빡빡 (이벤트 결과에 따라 변동).
+ * Phase 4c.1 → 11a rebalance — 탐험 시간 리소스.
+ *
+ * 이전 밸런스 (baseTime=100, floor=5, combat=2, boss=8) 는 F30 까지 도달 자체가
+ * 거의 불가능 ("던전 끝까지 제시간안에 절대 못감"). 또한 보스전 rounds 가 8/round
+ * 로 소모되어 보스 싸우다 중도 time-out 이 빈번.
+ *
+ * 새 밸런스 (시뮬레이션 기준 F30 도달 margin 30+ 남음):
+ *   - baseTime 220 (기존 100 에서 +120).
+ *   - combatRound 1 (기존 2)
+ *   - boss 0 (기존 8) — 보스전은 시간 일시정지. "정면 승부" 로 격상.
+ *   - floor 3 (기존 5) — 29 floor 이동 = 87 time (기존 145 → 40% 절감).
+ *   - narrative 1 / encounter 2 / treasure 1 / choice 1 (세부 완화).
+ *
+ * 추가로 treasure 이벤트 35% 확률 "휴식처" 변주 (+10~15 time 회복). F30 끝까지
+ * 정석 플레이로 도달하려면 이 회복 이벤트에 의존하게 돼서 리소스 관리 긴장감 유지.
  */
-const BASE_EXPEDITION_TIME = 100;
+const BASE_EXPEDITION_TIME = 220;
 const TIME_COST = {
-  narrative: 2,
-  encounter: 3,
-  treasure: 2,
-  floor: 5,
-  combatRound: 2, // 영웅+몬스터 1 round 세트
-  boss: 8, // 보스 전투 round 당 추가 소모
-  choice: 1, // choice 해소 자체
+  narrative: 1,
+  encounter: 2,
+  treasure: 1,
+  floor: 3,
+  combatRound: 1,
+  boss: 0, // 보스전은 시간 소모 없음 — 정면 승부
+  choice: 1,
 } as const;
 
 /**
@@ -452,6 +469,23 @@ export function tickSession(session: CombatSession): CombatSession {
   }
   if (roll < encounterThreshold) {
     // treasure — Phase 4b.3: coinBoost 반영. Phase 5c.2: bard +25%.
+    // Phase 11a rebalance — 35% 확률로 "휴식처" 변주: 코인 대신 시간 회복 (+10~15).
+    //   시간 밸런스가 빡빡한 중후반 F20+ 구간에서 핵심 자원. 평균 3-4 탐험 1회 등장.
+    const isRest = Math.random() < 0.35;
+    if (isRest) {
+      const recoverAmount = 10 + Math.floor(Math.random() * 6); // 10~15 회복
+      const restDesc = pickRestDescription();
+      s.log.push({
+        type: "treasure",
+        coins: 0,
+        description: `${restDesc} — 시간 +${recoverAmount}`,
+        timestamp: Date.now(),
+      });
+      // 시간 회복 — consumeTime 에 양수 전달 (음수 = 소모, 양수 = 회복).
+      consumeTime(s, recoverAmount);
+      return s;
+    }
+
     const coinMult =
       (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
       classCoinMult(s.hero.classType);

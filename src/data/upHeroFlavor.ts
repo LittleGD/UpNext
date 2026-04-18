@@ -49,6 +49,28 @@ export function pickTreasureDescription(): string {
 }
 
 /**
+ * Phase 11a — 시간 회복 이벤트 flavor.
+ * treasure 이벤트의 35% 확률 variant 에서 사용. 세계관 보존을 위해 던전 무관
+ * 공용 문구 8개. 끝에 "— 시간 +N" 이 자동 append 되므로 본문은 "휴식처" 맥락만.
+ */
+const REST_DESCRIPTIONS = [
+  "모닥불을 발견했다",
+  "조용한 샘터에서 숨을 고른다",
+  "이끼가 낀 바위에 앉아 잠시 쉰다",
+  "바람이 잦은 은신처에 들었다",
+  "별빛이 스며드는 동굴에서 한숨 돌린다",
+  "낮은 돌담 아래 등을 기댔다",
+  "오래된 여행자 표식 옆에서 쉰다",
+  "마른 장작을 태워 온기를 챙겼다",
+] as const;
+
+export function pickRestDescription(): string {
+  return REST_DESCRIPTIONS[
+    Math.floor(Math.random() * REST_DESCRIPTIONS.length)
+  ];
+}
+
+/**
  * 랜덤 이벤트 — 던전 고유 이벤트 + 범용 이벤트 를 섞어서 풍부하게.
  * 60% 던전 고유, 40% 범용.
  */
