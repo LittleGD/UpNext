@@ -896,9 +896,11 @@ export function computeHeroForLevel(hero: Hero, level: number): Hero {
     crit: base.crit,
     slotBonus: base.slotBonus,
   };
-  // maxHp 는 Lv1 기본 (100) + level delta × 10 으로 항상 constant 재계산.
+  // maxHp 는 Lv1 기본 (100) + level delta × 12 로 항상 constant 재계산.
   // 호출이 누적되지 않도록 hero.maxHp 를 base 로 쓰지 않음 (idempotent).
-  const newMaxHp = 100 + delta * 10;
+  // Phase 11c R4 R2 — `×10 → ×12`. NG+ 스케일링에서 Lv30 maxHp 390 이 보스 crit
+  //   한 방에 1-hit 나던 문제 완화. Lv30: 100+29×12 = 448. Lv50: 688.
+  const newMaxHp = 100 + delta * 12;
   // 기존 hp 비율 유지 (부상 상태면 새 maxHp 에서도 같은 비율)
   const hpRatio = hero.maxHp > 0 ? hero.hp / hero.maxHp : 1;
   const newHp = Math.round(newMaxHp * hpRatio);

@@ -301,16 +301,20 @@ export default function DungeonView() {
   // Phase 11c R4 — 주요 이벤트 SR 공지. 시각 float/banner 는 aria-hidden 이라
   //   키보드/SR 유저에게 전투 진행이 "조용". 여기서 보스 등장 · 처치 · 스킬 발동 ·
   //   세션 종료를 announce() 호출로 상황 중계.
-  const seenAnnounceRef = useRef<Set<string>>(new Set());
+  //
+  // Phase 11c R4 R2 — effect deps 를 `session` 전체 → `logLen` 으로 축소. tick 마다
+  //   새 session 객체가 와도 log length 변화 없으면 effect skip. 내부에서도 처리한
+  //   최대 idx (seenLogIdxRef) 이후만 순회해 O(N) → O(delta).
+  const seenLogIdxRef = useRef(-1);
+  const logLen = session?.log.length ?? 0;
   useEffect(() => {
     if (!session) {
-      seenAnnounceRef.current.clear();
+      seenLogIdxRef.current = -1;
       return;
     }
-    session.log.forEach((entry, idx) => {
-      const key = `announce-${idx}-${entry.type}`;
-      if (seenAnnounceRef.current.has(key)) return;
-      seenAnnounceRef.current.add(key);
+    const startIdx = seenLogIdxRef.current + 1;
+    for (let idx = startIdx; idx < session.log.length; idx++) {
+      const entry = session.log[idx];
       if (entry.type === "boss") {
         announce(`${entry.monster.name} 등장. HP ${entry.monster.hp}`, "assertive");
       } else if (entry.type === "victory" && entry.monster.isBoss) {
@@ -328,8 +332,11 @@ export default function DungeonView() {
           "탐험 종료";
         announce(reasonMsg, "assertive");
       }
-    });
-  }, [session, announce]);
+    }
+    seenLogIdxRef.current = session.log.length - 1;
+    // session 자체가 아니라 logLen 에만 의존 — tick 마다 동일 참조여도 효과 skip.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logLen, announce]);
 
   // Mage XP float + Bard coin float — victory entry 감지
   useEffect(() => {
@@ -375,7 +382,8 @@ export default function DungeonView() {
     });
   }, [session]);
 
-  // Priest start HP +50 float — 세션 첫 tick 에 한 번
+  // Priest start HP float — 세션 첫 tick 에 한 번. Phase 11c R4 R2: flat +50 →
+  //   20% percentage 로 변경되어 실제 delta 를 maxHp 로부터 역산 (현재 maxHp 의 1/6).
   const priestStartShownRef = useRef(false);
   useEffect(() => {
     if (!session) {
@@ -388,7 +396,9 @@ export default function DungeonView() {
     if (session.log.length > 5) return;
     priestStartShownRef.current = true;
     const id = Date.now();
-    setGenericFloats((prev) => [...prev, { id, kind: "priestStart", amount: 50 }]);
+    // +20% 의 실제 HP delta 계산: maxHp_after - maxHp_before = maxHp × (1 - 1/1.2).
+    const priestDelta = Math.round(session.hero.maxHp * (1 - 1 / 1.2));
+    setGenericFloats((prev) => [...prev, { id, kind: "priestStart", amount: priestDelta }]);
     scheduleFloatCleanup(() => {
       setGenericFloats((prev) => prev.filter((f) => f.id !== id));
     }, 1200);
@@ -687,6 +697,7 @@ export default function DungeonView() {
               format={(v) => `${v}/${maxHp}`}
               style={{ color: GB.lightest }}
               lossColor={GB_ENEMY}
+              silent
             />
           </span>
           {/* Phase 5d — Warrior HP regen float.
@@ -784,6 +795,7 @@ export default function DungeonView() {
               format={(v) => `${v}/${maxTime}`}
               style={{ color: timePct > 20 ? GB.light : GB_ENEMY }}
               lossColor={GB_ENEMY}
+              silent
             />
           </span>
           {/* Phase 6c — Chronomancer time save micro tag (-25%) 매 floor 진입 시 */}

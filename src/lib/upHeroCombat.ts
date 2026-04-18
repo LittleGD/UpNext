@@ -277,7 +277,13 @@ const MONK_DODGE_BONUS = 0.1;
 const DRUID_HEAL_MULT = 1.3;
 const BARD_COIN_MULT = 1.25;
 const CHRONOMANCER_TIME_MULT = 0.75; // 25% 감소
-const PRIEST_START_HP_BONUS = 50;
+/**
+ * Phase 11c R4 R2 — priest 의 start HP bonus 를 flat 50 → 20% percentage 로 변경.
+ *   이유: glass_cannon (maxHp ×0.75) 같은 percentage affix 와 결합 시 flat +50 이
+ *   페널티를 사실상 상쇄해 priest 만 affix 무력화. % 면 glass_cannon priest 도
+ *   동일하게 -25% 체감 (페널티 + 보너스 모두 비율 적용).
+ */
+const PRIEST_START_HP_MULT = 1.2;
 const ILLUSIONIST_CRIT_BONUS = 8; // percentage points (on stats.crit)
 
 /**
@@ -293,7 +299,8 @@ function applyClassStartEffects(hero: Hero): Hero {
   if (!cls) return hero;
   const newHero = { ...hero, baseStats: { ...hero.baseStats } };
   if (cls === "priest") {
-    newHero.maxHp += PRIEST_START_HP_BONUS;
+    // Phase 11c R4 R2 — percentage 로 변경. affix 와 공평하게 스케일.
+    newHero.maxHp = Math.round(newHero.maxHp * PRIEST_START_HP_MULT);
     newHero.hp = newHero.maxHp;
   }
   if (cls === "illusionist") {
@@ -1180,15 +1187,12 @@ function computeEnemyDamage(
   crit: boolean,
 ): number {
   const vit = Math.max(0, stats.vit);
-  // Phase 11c R4 — DR 공식 재조정: `vit/(vit+40)` cap 0.6 → `vit/(vit+30)` cap 0.7.
-  //   NG+2+ 에서 여전히 1-hit kill 나던 문제 해결. 후기 vit 효율 ↑ 로 빌드 유도.
-  //   Lv30 vit 39 기준:
-  //     기존: 39/79 = 49% → cap 없이 49%
-  //     신규: 39/69 = 56% → cap 없이 56% (+7%p)
-  //   Lv50 vit 59 기준:
-  //     기존: 59/99 = 60% (cap 도달)
-  //     신규: 59/89 = 66% (aa cap 70% 여유)
-  const dr = Math.min(0.7, vit / (vit + 30));
+  // Phase 11c R4 R2 — DR 공식 한번 더 하향. `vit/(vit+30)` 0.7 → `vit/(vit+25)` 0.75.
+  //   NG+2 보스 crit 이 여전히 maxHp 대부분을 깎던 문제 해결.
+  //   Lv30 vit 39: 39/64 = 61% (vs 이전 56%). cap 0.75 여유.
+  //   Lv50 vit 59: 59/84 = 70%.
+  //   maxHp 성장 (×10 → ×12, Lv30 448 로) 과 결합해 NG+2 crit 도 2-hit 생존 보장.
+  const dr = Math.min(0.75, vit / (vit + 25));
   const rawDmg = monster.atk + Math.floor(Math.random() * 5) - 2;
   const base = Math.max(
     1,

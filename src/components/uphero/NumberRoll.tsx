@@ -38,6 +38,11 @@ interface NumberRollProps {
   lossColor?: string;
   /** 첫 render 시 애니메이션 skip (true 권장 — 초기값은 정적) */
   skipFirst?: boolean;
+  /**
+   * Phase 11c R4 R2 — 공지 비활성 (progressbar 등 부모에 aria-valuetext 가 있어
+   * 숫자 변화가 중복 announce 되는 걸 방지). 기본값 false (기존 동작 유지).
+   */
+  silent?: boolean;
 }
 
 export default function NumberRoll({
@@ -48,6 +53,7 @@ export default function NumberRoll({
   gainColor = GB.lightest,
   lossColor,
   skipFirst = true,
+  silent = false,
 }: NumberRollProps) {
   const [prev, setPrev] = useState<number | null>(null);
   const [animating, setAnimating] = useState(false);
@@ -104,7 +110,8 @@ export default function NumberRoll({
         verticalAlign: "baseline",
         ...style,
       }}
-      aria-live="polite"
+      aria-live={silent ? undefined : "polite"}
+      aria-hidden={silent ? true : undefined}
     >
       {/* 새로운 값 (최종 표시) */}
       <span

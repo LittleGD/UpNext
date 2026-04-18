@@ -15,6 +15,7 @@ import { GB, EASE_OUT, gbClass, GB_ENEMY } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useAnnounce } from "@/hooks/useAnnounce";
 import PixelIcon from "@/components/icons/PixelIcon";
 import DropRevealCard from "./DropRevealCard";
 
@@ -47,6 +48,7 @@ export default function SessionResultModal() {
   const [mounted, setMounted] = useState(false);
   // Phase 11c R4 — reduced-motion 대응. scale 제거, opacity 만 유지.
   const reducedMotion = useReducedMotion();
+  const { announce } = useAnnounce();
   // Phase 4c-polish — detail 은 타이틀 등장 후 280ms 뒤 fade-in.
   // "결과 (모험 완료) → 사유 (거인을 쓰러뜨렸다)" 두 박자 reveal.
   const [detailMounted, setDetailMounted] = useState(false);
@@ -58,6 +60,18 @@ export default function SessionResultModal() {
       window.clearTimeout(detailTimer);
     };
   }, []);
+
+  // Phase 11c R4 R2 — F30 최초 돌파 공지를 시각 등장과 sync.
+  //   기존엔 role="alert" 로 DOM insertion 즉시 (opacity 0 상태) 공지 → 시각+청각 race.
+  //   이제 detailMounted 후 effect 에서 `announce(assertive)` 로 한 번만 공지.
+  const didAnnounceF30Ref = useRef(false);
+  useEffect(() => {
+    if (!detailMounted) return;
+    if (!f30FirstClear) return;
+    if (didAnnounceF30Ref.current) return;
+    didAnnounceF30Ref.current = true;
+    announce("F30 최초 돌파. NG+ 와 주간 악몽이 해금되었습니다.", "assertive");
+  }, [detailMounted, f30FirstClear, announce]);
 
   // Phase 8b — count-up: detail 등장 이후 시작해서 visual hierarchy 지킴.
   //   결산 타이틀 → detail fade-in (280ms) → reward 숫자 count-up (700ms)
@@ -163,19 +177,16 @@ export default function SessionResultModal() {
             </div>
           )}
           {/* Phase 11c R2 — F30 최초 돌파 시 NG+ / 주간 악몽 해금 안내.
-               R4: role="alert" + aria-live assertive 로 SR 공지. */}
-          {f30FirstClear && (
+               R4 R2: role=alert 제거 + detailMounted 후에만 DOM insertion.
+               SR 공지는 `announce` 훅으로 시각 등장과 sync (아래 useEffect). */}
+          {f30FirstClear && detailMounted && (
             <div
-              role="alert"
-              aria-live="assertive"
               className="typo-caption px-3 py-1.5 mt-1 rounded"
               style={{
                 color: "#e8b887",
                 background: `${"#e8b887"}15`,
                 border: `1px solid ${"#e8b887"}44`,
-                opacity: detailMounted ? 1 : 0,
-                transform: detailMounted ? "translateY(0)" : "translateY(-4px)",
-                transition: `opacity 300ms ${EASE_OUT} 120ms, transform 300ms ${EASE_OUT} 120ms`,
+                transition: `opacity 300ms ${EASE_OUT}, transform 300ms ${EASE_OUT}`,
               }}
             >
               NG+ · 주간 악몽 해금
