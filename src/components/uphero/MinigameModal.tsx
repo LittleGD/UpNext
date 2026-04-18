@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import type { MinigameId } from "@/types/uphero";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { useTranslation } from "@/hooks/useTranslation";
 import PairMatch from "./minigames/PairMatch";
 import SequenceMemo from "./minigames/SequenceMemo";
 import PipeConnect from "./minigames/PipeConnect";
@@ -25,10 +26,14 @@ interface MinigameModalProps {
   onComplete: (success: boolean) => void;
 }
 
-const MINIGAME_TITLE: Record<MinigameId, string> = {
-  pair_match: "기억의 카드",
-  sequence_memo: "고대 주문",
-  pipe_connect: "막힌 파이프",
+// Phase 12 i18n — title 은 key 로 저장, 렌더 시점에 t() 조회.
+const MINIGAME_TITLE_KEY: Record<
+  MinigameId,
+  "uphero.minigame.title.pair_match" | "uphero.minigame.title.sequence_memo" | "uphero.minigame.title.pipe_connect"
+> = {
+  pair_match: "uphero.minigame.title.pair_match",
+  sequence_memo: "uphero.minigame.title.sequence_memo",
+  pipe_connect: "uphero.minigame.title.pipe_connect",
 };
 
 export default function MinigameModal({
@@ -37,6 +42,7 @@ export default function MinigameModal({
   onComplete,
 }: MinigameModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
   // Phase 12 R3 — Esc 로 실수 탈출 → 즉시 실패 + damage 페널티 방지.
   //   각 미니게임 컴포넌트 내부의 "포기" 버튼만 onCancel 호출.
   useModalA11y(containerRef, () => {}, {
@@ -85,7 +91,10 @@ export default function MinigameModal({
             letterSpacing: "0.08em",
           }}
         >
-          {MINIGAME_TITLE[minigame]} · 난이도 {difficulty}
+          {t("uphero.minigame.header", {
+            title: t(MINIGAME_TITLE_KEY[minigame]),
+            difficulty,
+          })}
         </div>
         <Game
           difficulty={difficulty}

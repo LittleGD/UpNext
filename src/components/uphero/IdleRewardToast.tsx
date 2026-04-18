@@ -22,9 +22,11 @@ import { formatElapsed } from "@/lib/idleAccrual";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function IdleRewardToast() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   // Phase 9d-fix — Header 가 full/compact 여부에 따라 toast top 위치 결정.
   //   Header 의 isFullHeader 조건과 동일 (pathname === "/").
@@ -105,7 +107,7 @@ export default function IdleRewardToast() {
       <div className="flex items-center gap-2">
         <PixelIcon name="Moon" size={14} color={GB.lightest} />
         <span id="idle-reward-title" style={{ color: GB.lightest, fontWeight: 600 }}>
-          영웅의 수련 성과
+          {t("uphero.idle.title")}
         </span>
         <button
           type="button"
@@ -122,17 +124,29 @@ export default function IdleRewardToast() {
             letterSpacing: "0.05em",
           }}
           aria-expanded={expanded}
-          aria-label={expanded ? "설명 닫기" : "수련 보상이란?"}
+          aria-label={expanded ? t("uphero.idle.close") : t("uphero.idle.expandAria")}
         >
-          {expanded ? "닫기" : "?"}
+          {expanded ? t("uphero.idle.close") : "?"}
         </button>
       </div>
 
       {/* Body: 수치 + 한 줄 설명 */}
       <div id="idle-reward-body" className="mt-1.5" style={{ lineHeight: 1.5 }}>
-        영웅이 <span style={{ color: GB.lightest }}>{elapsed}</span> 동안 수련했어요
+        {/* Phase 12 i18n — elapsed 를 span 으로 강조하기 위해 dangerouslyInnerHTML
+             대신 문자열 분할. t() 가 {elapsed} 자리를 placeholder 로 보존 */}
+        {(() => {
+          const body = t("uphero.idle.body", { elapsed: "__ELAPSED__" });
+          const [before, after] = body.split("__ELAPSED__");
+          return (
+            <>
+              {before}
+              <span style={{ color: GB.lightest }}>{elapsed}</span>
+              {after}
+            </>
+          );
+        })()}
         {capped && (
-          <span style={{ color: GB.light, opacity: 0.7 }}> · 최대 8시간</span>
+          <span style={{ color: GB.light, opacity: 0.7 }}>{t("uphero.idle.capped")}</span>
         )}
         <br />
         <span className="tabular-nums">
@@ -162,14 +176,11 @@ export default function IdleRewardToast() {
             fontSize: 12,
           }}
         >
-          영웅은 앱이 꺼진 동안에도 캠프에서 조용히 단련합니다.
+          {t("uphero.idle.explain.1")}
           <br />
-          돌아오면 그동안의 <span style={{ color: GB.lightest }}>경험치 · 코인</span>
-          을 받아요.
+          {t("uphero.idle.explain.2")}
           <br />
-          <span style={{ opacity: 0.75 }}>
-            최대 8시간까지 누적 · 영웅 Lv 이 높을수록 더 많이
-          </span>
+          <span style={{ opacity: 0.75 }}>{t("uphero.idle.explain.3")}</span>
         </div>
       </div>
 
@@ -188,7 +199,7 @@ export default function IdleRewardToast() {
           fontWeight: 600,
         }}
       >
-        확인
+        {t("uphero.idle.ok")}
       </button>
 
       <style jsx>{`

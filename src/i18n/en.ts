@@ -671,6 +671,73 @@ const en: Record<DictKey, string> = {
 
   // Weekly ribbon
   "uphero.ribbon.weeklyTitle": "Weekly nightmare",
+
+  // === Session result modal ===
+  "uphero.session.result.xp": "XP",
+  "uphero.session.result.coins": "Coins",
+  "uphero.session.result.dropsLabel": "Drops ({kept})",
+  "uphero.session.result.dropsLabelWithLost": "Drops ({kept} / {lost} lost on defeat)",
+  "uphero.session.result.noDrops": "None",
+  "uphero.session.result.dropLostAria": "{name} lost",
+  "uphero.session.result.cta": "Return to camp",
+  "uphero.session.result.title.bossDefeated": "Boss defeated",
+  "uphero.session.result.title.heroDied": "Hero has fallen",
+  "uphero.session.result.title.timeExpired": "Time expired",
+  "uphero.session.result.title.abandoned": "Returned to camp",
+
+  // === Choice result modal ===
+  "uphero.choice.result.ariaLabel": "Choice result",
+  "uphero.choice.result.resultHeader": "Result",
+  "uphero.choice.result.effectSummary": "{summary}",
+  "uphero.choice.result.cta": "Continue",
+
+  // === Idle reward toast ===
+  "uphero.idle.title": "Your hero's training",
+  "uphero.idle.body": "Your hero trained for {elapsed}",
+  "uphero.idle.capped": " · capped at 8h",
+  "uphero.idle.explain.1": "Your hero keeps training in camp while the app is closed.",
+  "uphero.idle.explain.2": "When you return, you get the XP and coins earned.",
+  "uphero.idle.explain.3": "Up to 8h accumulates · more per level",
+  "uphero.idle.close": "Close",
+  "uphero.idle.expandAria": "What is training reward?",
+  "uphero.idle.ok": "OK",
+  "uphero.idle.xpGained": "+{xp} XP",
+  "uphero.idle.coinsGained": "+{coins} coins",
+  "uphero.idle.duration": "{hours}h",
+  "uphero.idle.claim": "Claim",
+  "uphero.idle.dismiss": "Dismiss",
+  "uphero.idle.more": "Details",
+
+  // === Enhance result modal ===
+  "uphero.enhance.success.title": "Enhance success!",
+  "uphero.enhance.fail.title": "Enhance failed",
+  "uphero.enhance.preserve.title": "Tier preserved",
+  "uphero.enhance.level": "+{level}",
+  "uphero.enhance.resultCta": "Continue",
+
+  // === Dungeon help modal ===
+  "uphero.help.title": "Combat help",
+  "uphero.help.close": "Close",
+  "uphero.help.item.hpTime.title": "HP · TIME",
+  "uphero.help.item.hpTime.desc": "Expedition ends when HP or TIME hits 0. TIME drops on floor moves, combat, events.",
+  "uphero.help.item.resource.title": "Resource bar",
+  "uphero.help.item.resource.desc": "Each class has its own resource (Rage/Mana/Chi...). Earned in combat, spent to fire skills.",
+  "uphero.help.item.skill.title": "Skill button",
+  "uphero.help.item.skill.desc": "Fire immediately when resource + cooldown ready. Unlock via the stat panel's skill tree.",
+  "uphero.help.item.speed.title": "Speed / Pause",
+  "uphero.help.item.speed.desc": "1× / 2× / 4× tick speed. Center button pauses.",
+  "uphero.help.item.abandon.title": "Abandon",
+  "uphero.help.item.abandon.desc": "Return to camp voluntarily. All drops so far are kept.",
+
+  // === Minigame modal ===
+  "uphero.minigame.title.pair_match": "Memory Cards",
+  "uphero.minigame.title.sequence_memo": "Ancient Chant",
+  "uphero.minigame.title.pipe_connect": "Broken Pipes",
+  "uphero.minigame.header": "{title} · difficulty {difficulty}",
+  "uphero.minigame.giveUp": "Give up",
+  "uphero.minigame.difficulty.1": "Easy",
+  "uphero.minigame.difficulty.2": "Normal",
+  "uphero.minigame.difficulty.3": "Hard",
 };
 
 export default en;
