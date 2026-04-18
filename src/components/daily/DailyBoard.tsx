@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useGameStore } from "@/store/useGameStore";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { PASS_GRANT_BY_RARITY, PASS_CAP_PER_CATEGORY } from "@/types/uphero";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import PhotoCaptureModal from "@/components/growth/PhotoCaptureModal";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
@@ -19,6 +21,22 @@ import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 import ExtraChallengeBanner from "./ExtraChallengeBanner";
 import SuperChallengeBanner from "./SuperChallengeBanner";
 import ChallengeConfirmModal from "./ChallengeConfirmModal";
+
+// Phase 12 — 챌린지 완료 셀레브레이션의 탐험권 지급 chip 표기용 한국어 라벨.
+//   categoryLabel 은 cardBuffs.ts 에 있으나 local helper 중복 방지 위해 간단 재정의.
+function categoryLabelKo(category: string): string {
+  const map: Record<string, string> = {
+    fitness: "운동",
+    learning: "학습",
+    mindfulness: "명상",
+    nutrition: "식단",
+    social: "소통",
+    productivity: "생산성",
+    wellness: "건강",
+    trending: "트렌딩",
+  };
+  return map[category] ?? category;
+}
 
 // === Completion celebration ===
 function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
@@ -150,6 +168,18 @@ export default function DailyBoard() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [completingCard, setCompletingCard] = useState<ChallengeCard | null>(null);
   const [completingXp, setCompletingXp] = useState(0);
+  /**
+   * Phase 12 bugfix — 챌린지 완료 시 탐험권 지급 피드백 추가.
+   *   유저 제보: "챌린지를 마쳤는데 던전 티켓을 주지 않아".
+   *   실제 지급은 정상 (useGameStore.completeChallenge → grantExpeditionPass) 이나
+   *   UI 피드백 없어 유저가 지급 여부 인지 못함. 여기서 실제 grant 량 + cap 여부
+   *   계산 후 celebration overlay 에 표시.
+   */
+  const [completingPass, setCompletingPass] = useState<{
+    amount: number;
+    category: string;
+    capped: boolean;
+  } | null>(null);
   const [showChallengeModal, setShowChallengeModal] = useState<"extra" | "super" | null>(null);
   const [shakeCount, setShakeCount] = useState(0);
   const [captureCard, setCaptureCard] = useState<ChallengeCard | null>(null);
@@ -194,6 +224,21 @@ export default function DailyBoard() {
     const xp = XP_PER_RARITY[card.rarity] || 10;
     setCompletingCard(card);
     setCompletingXp(xp);
+    // Phase 12 bugfix — 탐험권 지급 피드백. 지급 전 현재 passes 읽어 cap 체크.
+    //   grant = PASS_GRANT_BY_RARITY[rarity] (normal:1, rare:2, unique:3, legend:3).
+    //   current + grant > 20 면 일부만 지급 (cap), 그 경우 capped=true.
+    const heroState = useUpHeroStore.getState();
+    const currentPasses = heroState.passes[card.category] ?? 0;
+    const expectedGrant = PASS_GRANT_BY_RARITY[card.rarity] ?? 1;
+    const actualGrant = Math.min(
+      expectedGrant,
+      PASS_CAP_PER_CATEGORY - currentPasses,
+    );
+    setCompletingPass({
+      amount: actualGrant,
+      category: card.category,
+      capped: currentPasses + expectedGrant > PASS_CAP_PER_CATEGORY,
+    });
     play("complete");
     setTimeout(() => play("xpGain"), 280);
     handleCompleteAction(card.id);
@@ -202,6 +247,7 @@ export default function DailyBoard() {
 
     setTimeout(() => {
       setCompletingCard(null);
+      setCompletingPass(null);
       if (willBeAllDone) {
         setTimeout(() => play("fullClear"), 100);
         setShowConfetti(true);
@@ -649,6 +695,44 @@ export default function DailyBoard() {
                     +{completingXp} XP
                   </motion.span>
                 </motion.div>
+                {/* Phase 12 bugfix — 탐험권 지급 chip. 유저가 "던전 티켓 안 주네" 오인
+                     하지 않도록 명시. 실제 지급량 기준 (cap 도달 시 0). */}
+                {completingPass && (
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.45, duration: 0.4, ease: "easeOut" }}
+                    className="mt-2 flex items-center gap-2 px-4 py-1.5 rounded-full"
+                    style={{
+                      backgroundColor: completingPass.amount > 0
+                        ? `${rarity.color}15`
+                        : "rgba(200,100,60,0.15)",
+                    }}
+                  >
+                    <PixelIcon
+                      name="Target"
+                      size={14}
+                      color={
+                        completingPass.amount > 0
+                          ? "var(--accent-primary)"
+                          : "#e88b7a"
+                      }
+                    />
+                    <span
+                      className="typo-caption"
+                      style={{
+                        color:
+                          completingPass.amount > 0
+                            ? "var(--accent-primary)"
+                            : "#e88b7a",
+                      }}
+                    >
+                      {completingPass.amount > 0
+                        ? `탐험권 +${completingPass.amount} (${categoryLabelKo(completingPass.category)})`
+                        : `탐험권 한도 (${categoryLabelKo(completingPass.category)} 20장)`}
+                    </span>
+                  </motion.div>
+                )}
 
                 {/* Floating +XP particles going up */}
                 {[...Array(4)].map((_, i) => (
