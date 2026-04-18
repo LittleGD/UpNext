@@ -14,7 +14,7 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { GB, EASE_OUT, GB_ENEMY, GB_LEGEND } from "@/lib/upHeroPalette";
+import { GB, EASE_OUT, GB_ENEMY, GB_LEGEND, GB_WARN } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
@@ -186,7 +186,7 @@ function resolveVariant(
   if (variant.kind === "keep") {
     return {
       title: t("uphero.enhance.fail.keepTitle"),
-      tone: "#e8d88b", // GB_WARN
+      tone: GB_WARN,
       icon: "WarningDiamond",
       body: (
         <>

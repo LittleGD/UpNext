@@ -1,10 +1,12 @@
 "use client";
 
+import { useRef } from "react";
 import { motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useScrollLock } from "@/hooks/useScrollLock";
+import { useModalA11y } from "@/hooks/useModalA11y";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 interface ChallengeConfirmModalProps {
   phase: "extra" | "super";
@@ -39,9 +41,11 @@ export default function ChallengeConfirmModal({
   const { play } = useSound();
   const { t } = useTranslation();
   const config = PHASE_CONFIG[phase];
-
-  // 모달이 열려있는 동안 배경 스크롤 락 (html + body 모두)
-  useScrollLock();
+  // Phase 13 design review — destructive confirm → alertdialog + focus trap + ESC.
+  //   이전엔 useScrollLock 만 있어 키보드 유저가 ESC 로 닫을 수 없고 focus 밖으로 빠짐.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalA11y(containerRef, onCancel);
+  const reducedMotion = useReducedMotion();
 
   return (
       <motion.div
@@ -59,15 +63,25 @@ export default function ChallengeConfirmModal({
         onClick={onCancel}
       >
         <motion.div
-          initial={{ y: 60, opacity: 0, scale: 0.95 }}
+          ref={containerRef}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="challenge-confirm-title"
+          aria-describedby="challenge-confirm-desc"
+          initial={reducedMotion ? false : { y: 60, opacity: 0, scale: 0.95 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: 60, opacity: 0, scale: 0.95 }}
-          transition={{ type: "spring", duration: 0.5, bounce: 0.18 }}
+          exit={reducedMotion ? { opacity: 0 } : { y: 60, opacity: 0, scale: 0.95 }}
+          transition={
+            reducedMotion
+              ? { duration: 0.12 }
+              : { type: "spring", duration: 0.5, bounce: 0.18 }
+          }
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-sm rounded-2xl overflow-hidden relative"
           style={{
             backgroundColor: "var(--bg-elevated)",
             boxShadow: `0 24px 80px rgba(0,0,0,0.5), 0 0 60px ${config.glowColor}`,
+            outline: "none",
           }}
         >
           {/* Subtle top gradient wash */}
@@ -76,30 +90,34 @@ export default function ChallengeConfirmModal({
             style={{ background: config.gradient }}
           />
 
-          {/* Floating particles */}
-          {config.particleColors.map((color, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full pointer-events-none"
-              style={{
-                width: 2,
-                height: 2,
-                background: color,
-                top: `${20 + i * 15}%`,
-                left: `${15 + i * 20}%`,
-              }}
-              animate={{
-                y: [0, -12, 0],
-                opacity: [0.2, 0.5, 0.2],
-              }}
-              transition={{
-                duration: 2 + i * 0.5,
-                repeat: Infinity,
-                delay: i * 0.3,
-                ease: "easeInOut",
-              }}
-            />
-          ))}
+          {/* Floating particles — decorative only. Phase 13 design review:
+                RM 유저는 스킵 (무한 framer loop 은 rAF 계속 돌림). 정적 렌더링
+                유지해 시각 분위기는 보존. */}
+          {!reducedMotion &&
+            config.particleColors.map((color, i) => (
+              <motion.div
+                key={i}
+                aria-hidden="true"
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: 2,
+                  height: 2,
+                  background: color,
+                  top: `${20 + i * 15}%`,
+                  left: `${15 + i * 20}%`,
+                }}
+                animate={{
+                  y: [0, -12, 0],
+                  opacity: [0.2, 0.5, 0.2],
+                }}
+                transition={{
+                  duration: 2 + i * 0.5,
+                  repeat: Infinity,
+                  delay: i * 0.3,
+                  ease: "easeInOut",
+                }}
+              />
+            ))}
 
           <div className="relative z-10 px-7 pt-8 pb-7 flex flex-col items-center text-center">
             {/* Icon — clean, no box.
@@ -125,9 +143,10 @@ export default function ChallengeConfirmModal({
 
             {/* Title */}
             <motion.h3
-              initial={{ opacity: 0, y: 8 }}
+              id="challenge-confirm-title"
+              initial={reducedMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
+              transition={{ delay: reducedMotion ? 0 : 0.15 }}
               className="typo-heading text-text-primary leading-snug"
             >
               {t(`${phase}.confirm.title`)}
@@ -135,9 +154,10 @@ export default function ChallengeConfirmModal({
 
             {/* Warning — softer styling */}
             <motion.p
-              initial={{ opacity: 0, y: 6 }}
+              id="challenge-confirm-desc"
+              initial={reducedMotion ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: reducedMotion ? 0 : 0.2 }}
               className="typo-caption text-text-tertiary mt-2.5 leading-relaxed"
             >
               {t(`${phase}.confirm.warning`)}
@@ -172,7 +192,7 @@ export default function ChallengeConfirmModal({
                   play("select");
                   onConfirm();
                 }}
-                className="w-full py-3.5 rounded-xl text-white typo-body transition-all active:scale-[0.97] active:brightness-90"
+                className="w-full py-3.5 rounded-xl text-white typo-body transition-[transform,filter] duration-160 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] active:brightness-90"
                 style={{
                   background: config.buttonGradient,
                 }}
@@ -180,13 +200,13 @@ export default function ChallengeConfirmModal({
                 {t(`${phase}.confirm.go`)}
               </button>
 
-              {/* Secondary — text button style */}
+              {/* Secondary — text button style with press feedback */}
               <button
                 onClick={() => {
                   play("select");
                   onCancel();
                 }}
-                className="w-full py-3 rounded-xl text-text-tertiary typo-body transition-colors active:text-text-secondary"
+                className="w-full py-3 rounded-xl text-text-tertiary typo-body transition-[color,transform] duration-160 ease-out active:text-text-secondary active:scale-[0.97]"
               >
                 {t(`${phase}.confirm.rest`)}
               </button>

@@ -93,15 +93,18 @@ export default function MonsterCodexDetailModal({
                   fontSize: 10,
                 }}
               >
-                BOSS
+                {t("uphero.codex.bossBadge")}
               </span>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="typo-caption rounded px-2 py-1 shrink-0"
+            className="typo-caption rounded shrink-0 inline-flex items-center justify-center"
             style={{
+              minHeight: 44,
+              minWidth: 44,
+              padding: "8px 12px",
               background: "transparent",
               color: GB.light,
               border: `1px solid ${GB.dark}`,
@@ -147,8 +150,8 @@ export default function MonsterCodexDetailModal({
           )}
           <div
             className={`typo-caption inline-flex items-center gap-1 ${gbClass.textDim}`}
-            aria-label={`강도 ${template.power} / 3`}
-            title={`상대 강도 ${template.power}`}
+            aria-label={t("uphero.codex.powerAria", { power: template.power })}
+            title={t("uphero.codex.powerTitle", { power: template.power })}
           >
             <PixelIcon name="Flame" size={12} color={GB.light} />
             <span className="tabular-nums">

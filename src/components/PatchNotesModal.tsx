@@ -5,6 +5,7 @@ import PixelIcon from "@/components/icons/PixelIcon";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import type { PatchNote } from "@/data/patchNotes";
 
 interface PatchNotesModalProps {
@@ -15,6 +16,8 @@ interface PatchNotesModalProps {
 export default function PatchNotesModal({ patch, onClose }: PatchNotesModalProps) {
   const { play } = useSound();
   const { t, language } = useTranslation();
+  // Phase 13 design review — RM 유저는 stagger cascade 스킵.
+  const reducedMotion = useReducedMotion();
 
   // 모달이 열려있는 동안 배경 스크롤 락 (html + body 모두)
   useScrollLock();
@@ -39,10 +42,17 @@ export default function PatchNotesModal({ patch, onClose }: PatchNotesModalProps
       onClick={onClose}
     >
       <motion.div
-        initial={{ y: 60, opacity: 0, scale: 0.95 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="patch-notes-title"
+        initial={reducedMotion ? false : { y: 60, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ y: 60, opacity: 0, scale: 0.95 }}
-        transition={{ type: "spring", duration: 0.5, bounce: 0.18 }}
+        exit={reducedMotion ? { opacity: 0 } : { y: 60, opacity: 0, scale: 0.95 }}
+        transition={
+          reducedMotion
+            ? { duration: 0.12 }
+            : { type: "spring", duration: 0.5, bounce: 0.18 }
+        }
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-sm rounded-2xl overflow-hidden relative"
         style={{
@@ -85,9 +95,10 @@ export default function PatchNotesModal({ patch, onClose }: PatchNotesModalProps
 
           {/* Title */}
           <motion.h3
-            initial={{ opacity: 0, y: 8 }}
+            id="patch-notes-title"
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18 }}
+            transition={{ delay: reducedMotion ? 0 : 0.18 }}
             className="typo-heading text-text-primary leading-snug mb-1"
           >
             {t("patchnotes.title")}
@@ -147,7 +158,7 @@ export default function PatchNotesModal({ patch, onClose }: PatchNotesModalProps
               play("select");
               onClose();
             }}
-            className="w-full py-3.5 mt-6 rounded-xl text-black typo-body transition-all active:scale-[0.97] active:brightness-90"
+            className="w-full py-3.5 mt-6 rounded-xl text-black typo-body transition-[transform,filter] duration-160 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] active:brightness-90"
             style={{ backgroundColor: "var(--accent-primary)" }}
           >
             {t("patchnotes.close")}
