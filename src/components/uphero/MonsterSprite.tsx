@@ -21,7 +21,7 @@
  *  - large (보스) — pulsate
  */
 
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 
 export type MonsterKind =
   | "beast"
@@ -288,7 +288,10 @@ function renderGrid(grid: string[], color: string): React.ReactNode {
   );
 }
 
-export default function MonsterSprite({
+// Phase 12 R14 — 부모 (DungeonView, HeroCodex 등) 가 상위 상태 변동으로
+//   리렌더될 때 props 가 동일하면 skip. kind/size/color/glow 가 안정적이라
+//   ref equality 로 충분.
+function MonsterSpriteInner({
   kind,
   size = 32,
   color = "currentColor",
@@ -376,3 +379,6 @@ export default function MonsterSprite({
     </div>
   );
 }
+
+const MonsterSprite = memo(MonsterSpriteInner);
+export default MonsterSprite;

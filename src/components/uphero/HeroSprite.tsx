@@ -17,7 +17,7 @@
  *  - 2: 실천가 (갑옷)
  */
 
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 import type { ClassType } from "@/types/uphero";
 
 /** Phase 4c-polish — 전투 중 영웅 상태. parent 가 전환 타이밍 제어. */
@@ -413,7 +413,11 @@ function renderGrid(grid: string[], color: string): React.ReactNode {
   );
 }
 
-export default function HeroSprite({
+// Phase 12 R14 — DungeonView 가 매 tick 마다 리렌더되면서 HeroSprite 의 SVG
+//   matrix (24×24 pixel × 2 frame) 도 그때마다 full reconcile. props (variant/
+//   classType/color/size/state/pulseOverlay/animationMs) 가 동일하면 skip 하도록
+//   React.memo 로 감쌈. style prop 은 대부분 안정 (ClassType 별 고정).
+function HeroSpriteInner({
   variant = 0,
   classType = null,
   size = 64,
@@ -557,3 +561,6 @@ export default function HeroSprite({
     </div>
   );
 }
+
+const HeroSprite = memo(HeroSpriteInner);
+export default HeroSprite;
