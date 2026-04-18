@@ -57,12 +57,17 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   const exposureDragStartRef = useRef({ x: 0, ev: 0 });
   // 연속 pointermove 가 React 렌더 사이에 들어오므로 ref 로 즉시 갱신
   const isExposureDraggingRef = useRef(false);
+  // Phase 12 R7 — 카메라 접근 실패 상태. 권한 거부 / 기기 미지원 / 하드웨어
+  //   오류 등 모든 케이스. 기존엔 silent catch 였으나 유저는 "뷰파인더 검정"
+  //   만 보고 무슨 일인지 모름. 이 플래그로 명시적 안내 + 파일 선택 CTA 노출.
+  const [cameraError, setCameraError] = useState(false);
 
   // 카메라 시작
   useEffect(() => {
     if (capturePhase !== "camera") return;
 
     let mounted = true;
+    setCameraError(false);
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -74,7 +79,8 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
           videoRef.current.srcObject = stream;
         }
       } catch {
-        // 카메라 접근 실패 → 파일 입력 폴백
+        // 카메라 접근 실패 → UI 상태 세팅, shutter 탭 시 파일 input 으로 fallback.
+        if (mounted) setCameraError(true);
       }
     };
     startCamera();
@@ -520,6 +526,43 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                       muted
                       className="w-full h-full object-cover"
                     />
+
+                    {/* Phase 12 R7 — 카메라 접근 실패 시 검정 뷰파인더 위에
+                         명시적 안내 overlay. 탭 시 파일 선택으로 이동.
+                         aria-live="polite" 로 SR 사용자에게도 상태 전달. */}
+                    {cameraError && (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        aria-live="polite"
+                        className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-5 text-center active:scale-[0.98] transition-transform"
+                        style={{
+                          background: "rgba(26, 29, 30, 0.85)",
+                          color: "#ECE9DE",
+                          borderRadius: 18,
+                          zIndex: 2,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          카메라에 접근할 수 없어요
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            opacity: 0.75,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          탭하면 갤러리에서 사진을 선택할 수 있어요
+                        </span>
+                      </button>
+                    )}
 
                     {/* 초점 스크린 그레인 — 매트 스크린의 미세 노이즈 */}
                     <svg
