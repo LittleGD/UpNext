@@ -17,7 +17,7 @@
  * 크기: `calc(100dvh - 208px)` — tab/BottomNav/헤더 제외한 window 형태
  */
 
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
@@ -32,11 +32,15 @@ import { useSound } from "@/hooks/useSound";
 import PixelIcon from "@/components/icons/PixelIcon";
 import HeroSprite from "./HeroSprite";
 import { getHeroAppearanceVariant } from "@/types/uphero";
-import EquipmentInventory from "./EquipmentInventory";
-import HeroCodex from "./HeroCodex";
-import HeroStatPanel from "./HeroStatPanel";
 import BuffDrawPanel from "./BuffDrawPanel";
 import NumberRoll from "./NumberRoll";
+
+// Phase 9b — view === "home" 일 땐 필요 없는 대형 컴포넌트 (합계 ~2250줄) 를
+//   lazy 로 내려 초기 번들에서 제외. Suspense fallback 으로 skeleton 제공.
+//   EquipmentInventory 는 EquipmentCard + 템플릿 데이터까지 끌고 오므로 특히 무거움.
+const EquipmentInventory = lazy(() => import("./EquipmentInventory"));
+const HeroCodex = lazy(() => import("./HeroCodex"));
+const HeroStatPanel = lazy(() => import("./HeroStatPanel"));
 
 /** 카테고리 → pixelarticons 이름 (라이브러리에서 고른 무드 매칭) */
 const CATEGORY_ICON: Record<DungeonId, string> = {
@@ -154,18 +158,27 @@ export default function CampPlaceholder() {
           />
         )}
         {!pendingDungeon && view === "equipment" && (
-          <EquipmentInventory
-            onBack={() => setView("home")}
-            onNotify={notify}
-          />
+          <Suspense fallback={<LazyViewFallback />}>
+            <EquipmentInventory
+              onBack={() => setView("home")}
+              onNotify={notify}
+            />
+          </Suspense>
         )}
         {!pendingDungeon && view === "codex" && (
-          <HeroCodex onBack={() => setView("home")} />
+          <Suspense fallback={<LazyViewFallback />}>
+            <HeroCodex onBack={() => setView("home")} />
+          </Suspense>
         )}
       </div>
 
-      {/* HeroStatPanel — 영웅 sprite 탭 시 overlay */}
-      {statsOpen && <HeroStatPanel onClose={() => setStatsOpen(false)} />}
+      {/* HeroStatPanel — 영웅 sprite 탭 시 overlay.
+           Portal 기반이라 null fallback 으로 두고 로딩 시엔 아무것도 안 뜸 (fast open). */}
+      {statsOpen && (
+        <Suspense fallback={null}>
+          <HeroStatPanel onClose={() => setStatsOpen(false)} />
+        </Suspense>
+      )}
 
       {/* === Toast === */}
       {toast && (
@@ -752,6 +765,23 @@ function ShopRow({
         </div>
       </div>
     </PressButton>
+  );
+}
+
+/**
+ * Phase 9b — lazy view 가 로드되는 동안 쓰는 공용 skeleton.
+ *   EquipmentInventory / HeroCodex 는 첫 진입에만 짧게 표시 (이후 캐시).
+ */
+function LazyViewFallback() {
+  return (
+    <div
+      className="flex-1 min-h-0 flex items-center justify-center"
+      style={{ color: GB.light }}
+    >
+      <div className="typo-caption font-mono" style={{ letterSpacing: "0.1em" }}>
+        LOADING...
+      </div>
+    </div>
   );
 }
 
