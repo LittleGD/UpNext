@@ -354,9 +354,26 @@ export type SessionEndReason =
   | "defeat"
   | "abandoned";
 
+/**
+ * Phase 13c — narrative i18n params.
+ *   combat / skill / narrative / treasure 등의 LogEntry 는 `narrative` (한국어
+ *   fallback) 과 함께 선택적으로 `narrativeKey` + `narrativeParams` 를 가질 수
+ *   있다. CombatLog 가 key 를 우선 사용해 현재 언어로 풀어낸다.
+ *   params 의 monsterTemplateId / skillId 같은 특수 키는 컴포넌트가 별도
+ *   resolver (monsterNameById / skillName) 로 변환 후 template 에 주입한다.
+ */
+export type NarrativeParams = Record<string, string | number>;
+
 /** 전투 로그 엔트리 — discriminated union */
 export type LogEntry =
-  | { type: "narrative"; text: string; timestamp: number }
+  | {
+      type: "narrative";
+      text: string;
+      /** Phase 13c — i18n key + params (선택). 있으면 우선 사용. */
+      narrativeKey?: string;
+      narrativeParams?: NarrativeParams;
+      timestamp: number;
+    }
   | { type: "encounter"; monster: Monster; timestamp: number }
   | {
       type: "combat";
@@ -366,11 +383,31 @@ export type LogEntry =
       outcome: CombatOutcome;
       /** 생성된 narrative 문장 (있으면 렌더에서 우선 표시) */
       narrative?: string;
+      /** Phase 13c — i18n key + params (선택). 있으면 우선 사용. */
+      narrativeKey?: string;
+      narrativeParams?: NarrativeParams;
       timestamp: number;
     }
-  | { type: "victory"; monster: Monster; xp: number; coins: number; timestamp: number }
+  | {
+      type: "victory";
+      monster: Monster;
+      xp: number;
+      coins: number;
+      /** Phase 13c — 로그 / announce 에서 쓸 i18n 보조. */
+      narrativeKey?: string;
+      narrativeParams?: NarrativeParams;
+      timestamp: number;
+    }
   | { type: "drop"; equipment: Equipment; timestamp: number }
-  | { type: "treasure"; coins: number; description: string; timestamp: number }
+  | {
+      type: "treasure";
+      coins: number;
+      description: string;
+      /** Phase 13c — i18n key + params (선택). 있으면 description 대신 사용. */
+      narrativeKey?: string;
+      narrativeParams?: NarrativeParams;
+      timestamp: number;
+    }
   | { type: "floor"; from: number; to: number; timestamp: number }
   | { type: "boss"; monster: Monster; floor: number; timestamp: number }
   | {
@@ -424,6 +461,9 @@ export type LogEntry =
       skillName: string;
       /** 발동 narrative (예: "영웅이 강타를 준비한다 — 다음 공격 2배") */
       narrative: string;
+      /** Phase 13c — narrative i18n key + params (선택). */
+      narrativeKey?: string;
+      narrativeParams?: NarrativeParams;
       timestamp: number;
     }
   | {

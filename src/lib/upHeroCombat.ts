@@ -39,8 +39,8 @@ import { pickMysteryEvent } from "@/data/flavor/mystery";
 import { rollEquipmentDrop, rollDropRarity } from "@/data/upHeroEquipment";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import {
-  heroAttackNarrative,
-  monsterAttackNarrative,
+  heroAttackNarrativeI18n,
+  monsterAttackNarrativeI18n,
 } from "@/lib/upHeroNarrative";
 import { maybeFireSkill, advanceSkillCounters } from "@/lib/classSkills";
 import {
@@ -121,6 +121,12 @@ export function createSession(
       {
         type: "narrative",
         text: `${DUNGEONS[dungeonId].name} — Floor ${startFloor} 에 도착했다.`,
+        narrativeKey: "uphero.combat.narrative.floorArrive",
+        narrativeParams: {
+          dungeon: DUNGEONS[dungeonId].name,
+          dungeonId,
+          floor: startFloor,
+        },
         timestamp: Date.now(),
       },
       {
@@ -510,6 +516,8 @@ export function tickSession(session: CombatSession): CombatSession {
             skillId: "priest_revive_t4",
             skillName: "부활",
             narrative: `영웅이 부활한다 — HP +${revivedHp}`,
+            narrativeKey: "uphero.combat.narrative.priestRevive",
+            narrativeParams: { heal: revivedHp },
             timestamp: Date.now(),
           });
         } else {
@@ -810,6 +818,8 @@ export function tickSession(session: CombatSession): CombatSession {
         type: "treasure",
         coins: 0,
         description: `${restDesc} — 시간 +${recoverAmount}`,
+        narrativeKey: "uphero.combat.narrative.restArea",
+        narrativeParams: { description: restDesc, time: recoverAmount },
         timestamp: Date.now(),
       });
       // 시간 회복 — consumeTime 에 양수 전달 (음수 = 소모, 양수 = 회복).
@@ -821,10 +831,13 @@ export function tickSession(session: CombatSession): CombatSession {
       (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
       classCoinMult(s.hero.classType);
     const coins = Math.round((5 + Math.floor(Math.random() * 16)) * coinMult);
+    const treasureDesc = pickTreasureDescription();
     s.log.push({
       type: "treasure",
       coins,
-      description: pickTreasureDescription(),
+      description: treasureDesc,
+      narrativeKey: "uphero.combat.narrative.treasureFound",
+      narrativeParams: { description: treasureDesc, coins },
       timestamp: Date.now(),
     });
     s.rewards.coins += coins;
@@ -1023,6 +1036,8 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
           type: "treasure",
           coins: effect.coins,
           description: "선택의 대가",
+          narrativeKey: "uphero.combat.narrative.choiceReward",
+          narrativeParams: { coins: effect.coins },
           timestamp: Date.now(),
         });
       }
@@ -1070,6 +1085,7 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
       session.log.push({
         type: "narrative",
         text: "보스의 기운이 느껴진다.",
+        narrativeKey: "uphero.combat.narrative.revealBoss",
         timestamp: Date.now(),
       });
       break;
@@ -1099,6 +1115,7 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
       session.log.push({
         type: "narrative",
         text: "도전이 시작된다...",
+        narrativeKey: "uphero.combat.narrative.challengeStart",
         timestamp: Date.now(),
       });
       break;
@@ -1115,6 +1132,11 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
         session.log.push({
           type: "narrative",
           text: `영웅이 ${monster.name} 에게서 재빠르게 도망쳤다.`,
+          narrativeKey: "uphero.combat.narrative.fleeSuccess",
+          narrativeParams: {
+            monster: monster.name,
+            monsterTemplateId: monster.templateId ?? "",
+          },
           timestamp: Date.now(),
         });
       } else {
@@ -1122,6 +1144,11 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
         session.log.push({
           type: "narrative",
           text: `도망치려 했지만 ${monster.name} 에게 막혔다!`,
+          narrativeKey: "uphero.combat.narrative.fleeFail",
+          narrativeParams: {
+            monster: monster.name,
+            monsterTemplateId: monster.templateId ?? "",
+          },
           timestamp: Date.now(),
         });
         const stats = computeEffectiveStats(session.hero);
@@ -1138,15 +1165,17 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
           outcome === "miss" || outcome === "dodge"
             ? 0
             : computeEnemyDamage(monster, stats, outcome === "crit");
-        const narrative = Math.random() < shouldNarrate(outcome)
-          ? monsterAttackNarrative(monster, outcome, dmg)
+        const narr = Math.random() < shouldNarrate(outcome)
+          ? monsterAttackNarrativeI18n(monster, outcome, dmg)
           : undefined;
         session.log.push({
           type: "combat",
           attacker: "enemy",
           damage: dmg,
           outcome,
-          narrative,
+          narrative: narr?.text,
+          narrativeKey: narr?.key,
+          narrativeParams: narr?.params,
           timestamp: Date.now(),
         });
       }
@@ -1290,15 +1319,17 @@ function executeCombatRound(
     heroDmg = Math.round(heroDmg * (1 + tMods.lowHpDmgBonus));
   }
 
-  const heroNarrative = Math.random() < shouldNarrate(heroOutcome)
-    ? heroAttackNarrative(monster, heroOutcome, heroDmg)
+  const heroNarr = Math.random() < shouldNarrate(heroOutcome)
+    ? heroAttackNarrativeI18n(monster, heroOutcome, heroDmg)
     : undefined;
   s.log.push({
     type: "combat",
     attacker: "hero",
     damage: heroDmg,
     outcome: heroOutcome,
-    narrative: heroNarrative,
+    narrative: heroNarr?.text,
+    narrativeKey: heroNarr?.key,
+    narrativeParams: heroNarr?.params,
     timestamp: Date.now(),
   });
   // Phase 12d — 영웅 공격 결과에 따른 자원 획득.
@@ -1363,15 +1394,17 @@ function executeCombatRound(
     counterLogged = true;
   }
 
-  const enemyNarrative = Math.random() < shouldNarrate(enemyOutcome)
-    ? monsterAttackNarrative(monster, enemyOutcome, enemyDmg)
+  const enemyNarr = Math.random() < shouldNarrate(enemyOutcome)
+    ? monsterAttackNarrativeI18n(monster, enemyOutcome, enemyDmg)
     : undefined;
   s.log.push({
     type: "combat",
     attacker: "enemy",
     damage: enemyDmg,
     outcome: enemyOutcome,
-    narrative: enemyNarrative,
+    narrative: enemyNarr?.text,
+    narrativeKey: enemyNarr?.key,
+    narrativeParams: enemyNarr?.params,
     timestamp: Date.now(),
   });
   // Phase 12d — 적 공격 결과에 따른 자원 획득.
@@ -1396,6 +1429,8 @@ function executeCombatRound(
       damage: counterDmg,
       outcome: "hit",
       narrative: `영웅이 반사적으로 반격한다 — ${counterDmg} 피해`,
+      narrativeKey: "uphero.combat.narrative.heroCounter",
+      narrativeParams: { damage: counterDmg },
       timestamp: Date.now(),
     });
   }
@@ -1473,6 +1508,11 @@ export function resolveMinigame(
     effectSummary: summary || undefined,
     effectSummaryData:
       Object.keys(summaryData).length > 0 ? summaryData : undefined,
+    // Phase 13c — minigame 결과를 i18n 으로 (actionLabelKey 만 사용, resultText 없음).
+    actionLabelKey: success
+      ? "uphero.combat.minigame.success"
+      : "uphero.combat.minigame.fail",
+    actionLabelFallback: success ? "도전 성공" : "도전 실패",
     timestamp: Date.now(),
   });
   for (const e of effects) {
@@ -1493,6 +1533,7 @@ export function abandonSession(session: CombatSession): CombatSession {
       {
         type: "sessionEnd",
         reason: "heroAbandoned",
+        // Phase 13c — 한국어 fallback 유지. floor 정보는 detailFloor 로 별도 전달.
         detail: `F${session.currentFloor} 에서 캠프로 복귀`,
         timestamp: Date.now(),
       },

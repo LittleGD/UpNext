@@ -54,6 +54,21 @@ export function monsterNameById(
 }
 
 /**
+ * Phase 13c — 몬스터 lore 다국어 반환.
+ *  `uphero.monster.<templateId>.lore` 조회, 없으면 한국어 fallback.
+ *  fallback 은 보통 `getMonsterLore(id, kind)` 결과 (MONSTER_LORE or kind fallback).
+ */
+export function monsterLore(
+  templateId: string,
+  koreanFallback: string,
+  language: Language,
+): string {
+  const key = `uphero.monster.${templateId}.lore` as DictKey;
+  const translated = dictT(key, language);
+  return translated === key ? koreanFallback : translated;
+}
+
+/**
  * 스킬 이름 / 설명 다국어 반환.
  *  `uphero.skill.<id>.name` / `.desc` 조회.
  */

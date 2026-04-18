@@ -16,7 +16,7 @@ import { createPortal } from "react-dom";
 import { GB, EASE_OUT, GB_ENEMY, gbClass } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
-import { monsterNameById, dungeonName } from "@/lib/upHeroI18n";
+import { monsterNameById, monsterLore, dungeonName } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { DUNGEONS } from "@/data/upHeroDungeons";
@@ -38,7 +38,11 @@ export default function MonsterCodexDetailModal({
   const closeAria = t("uphero.codex.detail.close.aria");
   if (typeof window === "undefined") return null;
 
-  const lore = getMonsterLore(template.id, template.kind);
+  const lore = monsterLore(
+    template.id,
+    getMonsterLore(template.id, template.kind),
+    language,
+  );
   const displayName = monsterNameById(template.id, template.name, language);
   const dungeon = template.dungeonId
     ? DUNGEONS[template.dungeonId]
@@ -104,7 +108,7 @@ export default function MonsterCodexDetailModal({
             }}
             aria-label={closeAria}
           >
-            닫기
+            {t("uphero.codex.detail.close")}
           </button>
         </div>
 

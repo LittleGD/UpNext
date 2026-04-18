@@ -737,6 +737,7 @@ const ko = {
   "uphero.codex.slotAccessory": "액세서리",
   "uphero.codex.slotTalisman": "부적",
   "uphero.codex.detail.close.aria": "도감 닫기",
+  "uphero.codex.detail.close": "닫기",
   "uphero.stat.nameEditAria": "영웅 이름 편집 (최대 16자)",
   "uphero.stat.autoSkillOn": "자동 ON",
   "uphero.stat.autoSkillOff": "자동 OFF",
@@ -1066,6 +1067,7 @@ const ko = {
   "uphero.choice.effectSummary.hp": "HP {sign}{value}",
   "uphero.choice.effectSummary.time": "시간 {sign}{value}",
   "uphero.choice.effectSummary.drop": "장비 +1",
+  "uphero.weekly.myBestScore": "내 최고 점수: {score}",
 
   // === Phase 13b — flavor 이벤트 (한국어 원본) ===
   // fitness (fit)
@@ -1501,6 +1503,157 @@ const ko = {
   "uphero.flavor.wel.5.opt0.out2.result": "미궁의 환청이었다. 길을 잃을 뻔했다.",
   "uphero.flavor.wel.5.opt1.label": "무시하고 간다",
   "uphero.flavor.wel.5.opt1.out0.result": "소리가 점점 멀어진다.",
+
+  // === Phase 13c — combat / skill narrative i18n ===
+  // 전투 로그 entry 의 narrative 문장. {monster} / {damage} / {heal} / {time}
+  // 등 param 이 치환됨. CombatLog 가 monsterTemplateId 를 별도로 읽어
+  // monsterNameById() 로 먼저 번역한 뒤 {monster} 에 주입.
+  "uphero.combat.narrative.heroHit": "영웅이 {monster} 를 공격한다. −{damage}",
+  "uphero.combat.narrative.heroCrit": "치명타! 영웅이 {monster} 의 약점을 꿰뚫는다. −{damage}",
+  "uphero.combat.narrative.heroMiss": "영웅의 공격이 빗나갔다",
+  "uphero.combat.narrative.heroDodge": "영웅이 회피했다",
+  "uphero.combat.narrative.monsterDodge": "{monster} 가 재빠르게 회피했다",
+  "uphero.combat.narrative.enemyHit": "{monster} 이(가) 영웅을 공격한다. −{damage}",
+  "uphero.combat.narrative.enemyCrit": "치명타! {monster} 이(가) 영웅에게 큰 피해를 입혔다. −{damage}",
+  "uphero.combat.narrative.monsterMiss": "{monster} 의 공격이 빗나갔다",
+  "uphero.combat.narrative.heroCounter": "영웅이 반사적으로 반격한다 — {damage} 피해",
+  "uphero.combat.narrative.priestRevive": "영웅이 부활한다 — HP +{heal}",
+  "uphero.combat.narrative.floorArrive": "{dungeon} — Floor {floor} 에 도착했다.",
+  "uphero.combat.narrative.fleeSuccess": "영웅이 {monster} 에게서 재빠르게 도망쳤다.",
+  "uphero.combat.narrative.fleeFail": "도망치려 했지만 {monster} 에게 막혔다!",
+  "uphero.combat.narrative.revealBoss": "보스의 기운이 느껴진다.",
+  "uphero.combat.narrative.challengeStart": "도전이 시작된다...",
+  "uphero.combat.narrative.restArea": "{description} — 시간 +{time}",
+  "uphero.combat.narrative.treasureFound": "{description}",
+  "uphero.combat.narrative.choiceReward": "선택의 대가",
+  "uphero.combat.minigame.success": "도전 성공",
+  "uphero.combat.minigame.fail": "도전 실패",
+
+  // Skill-triggered combat hit narrative — 스킬이 damage 를 주며 combat entry 를 push 할 때.
+  "uphero.combat.narrative.skillHitMonster.warrior_crush_t3": "분쇄가 {monster} 을 강타한다 — {damage} 피해",
+  "uphero.combat.narrative.skillHitMonster.warrior_rage_burst_t4": "영웅이 분노를 폭발시킨다 — {monster} 에 {damage} 고정 피해",
+  "uphero.combat.narrative.skillHitMonster.mage_lightning_t1": "영웅의 번개가 {monster} 을 꿰뚫는다 — {damage} 피해",
+  "uphero.combat.narrative.skillHitMonster.mage_fireball_t3": "불꽃이 {monster} 을 휩싼다 — {damage} 피해",
+  "uphero.combat.narrative.skillHitMonster.mage_meteor_t4": "메테오가 {monster} 을 내리친다 — {damage} 피해",
+  "uphero.combat.narrative.skillHitMonster.monk_flash_t2": "일섬 — {monster} 을 베어낸다 — {damage} 피해",
+  "uphero.combat.narrative.skillHitMonster.druid_wild_call_t4": "야생의 짐승이 {monster} 을 공격한다 — {damage} 피해",
+  "uphero.combat.narrative.skillHitMonster.priest_judgment_t3": "심판 — {monster} 이 빛에 타들어간다 — {damage} 피해",
+
+  // Skill 로그 narrative — CombatLog 의 skill entry 두 번째 줄에 표시되는 설명.
+  // warrior
+  "uphero.skill.warrior_smash_t1.narrative": "영웅이 강타를 준비한다 — 다음 공격 2배",
+  "uphero.skill.warrior_berserk_t2.narrative": "영웅이 광폭화 — 3 round 공격 +30%",
+  "uphero.skill.warrior_crush_t3.narrative": "적 HP 20% 감소 ({damage})",
+  "uphero.skill.warrior_rage_burst_t4.narrative": "80 피해 + 다음 3 round 공격 +50%",
+  // mage
+  "uphero.skill.mage_lightning_t1.narrative": "적 HP 25% 감소 ({damage})",
+  "uphero.skill.mage_freeze_t2.narrative": "적이 얼어붙었다 — 1 round 공격 불가",
+  "uphero.skill.mage_fireball_t3.narrative": "50 고정 피해",
+  "uphero.skill.mage_meteor_t4.narrative": "적 HP 40% 감소 ({damage})",
+  // monk
+  "uphero.skill.monk_zen_t1.narrative": "영웅이 선정에 든다 — 2 round 회피 100%",
+  "uphero.skill.monk_flash_t2.narrative": "적 HP 30% 감소 ({damage})",
+  "uphero.skill.monk_taiji_t3.narrative": "HP +50 · 2 round 공격 +20%",
+  "uphero.skill.monk_lotus_t4.narrative": "연꽃이 영웅을 감싼다 — 3 round 무적",
+  // druid
+  "uphero.skill.druid_ward_t1.narrative": "HP +{heal}",
+  "uphero.skill.druid_root_t2.narrative": "뿌리가 적을 잡아챈다 — 2 round 봉인",
+  "uphero.skill.druid_grove_t3.narrative": "HP +80 · 3 round 피해 -30%",
+  "uphero.skill.druid_wild_call_t4.narrative": "적 HP 30% ({damage}) · HP +100",
+  // bard
+  "uphero.skill.bard_song_t1.narrative": "용기의 노래 — 다음 처치 보상 1.5배",
+  "uphero.skill.bard_ensemble_t2.narrative": "3 round 공격 +25%",
+  "uphero.skill.bard_anthem_t3.narrative": "HP +30 · 3 round 피해 -25%",
+  "uphero.skill.bard_epic_t4.narrative": "다음 5 공격 반드시 crit",
+  // chronomancer
+  "uphero.skill.chrono_rewind_t1.narrative": "시간 +{time}",
+  "uphero.skill.chrono_accel_t2.narrative": "모든 스킬 CD -2",
+  "uphero.skill.chrono_stop_t3.narrative": "시간이 멈춘다 — 2 round 봉인",
+  "uphero.skill.chrono_reflux_t4.narrative": "HP 완전 회복 · 시간 +30",
+  // priest
+  "uphero.skill.priest_light_t1.narrative": "HP 완전 회복 (+{heal})",
+  "uphero.skill.priest_purge_t2.narrative": "HP +40 · 3 round 피해 -30%",
+  "uphero.skill.priest_judgment_t3.narrative": "적 HP 25% ({damage})",
+  "uphero.skill.priest_revive_t4.narrative": "부활의 축복이 준비된다",
+  // illusionist
+  "uphero.skill.illus_mirage_t1.narrative": "환영 — 다음 3 공격 miss",
+  "uphero.skill.illus_double_t2.narrative": "2 round 공격 2배",
+  "uphero.skill.illus_charm_t3.narrative": "적이 홀려 움직이지 못한다 — 2 round",
+  "uphero.skill.illus_dreamscape_t4.narrative": "영웅이 꿈 속으로 — 3 round 무적",
+
+  // === Phase 13c — monster lore ===
+  // fitness — 산악 던전
+  "uphero.monster.fit_wolf.lore": "산악의 험준한 길을 순찰하는 회색 사냥꾼. 달이 뜨면 무리가 불어난다.",
+  "uphero.monster.fit_bear.lore": "겨울잠을 건너온 돌산의 왕. 한 걸음에 길이 갈라진다.",
+  "uphero.monster.fit_goblin.lore": "절벽 사이 좁은 길목에 돌을 쌓아 덫을 놓는 교활한 놈.",
+  "uphero.monster.fit_golem.lore": "오래된 봉우리의 파편이 모여 스스로 걷기 시작한 존재.",
+  "uphero.monster.fit_eagle.lore": "깃털이 녹슨 쇠처럼 단단한 맹금. 급강하 한 번에 말고삐가 끊긴다.",
+  "uphero.monster.boss_mountain_wolf.lore": "수십 마리 무리를 이끄는 은빛 대공. 눈동자엔 수백 겨울의 기억이 있다.",
+  "uphero.monster.boss_stone_golem.lore": "신전 입구를 천 년 동안 지켜온 고대 조각상. 말이 없지만 노여움은 뜨겁다.",
+  "uphero.monster.boss_mountain_giant.lore": "능선 그 자체가 걷는다고 전해지는 전설. 비가 올 때만 모습을 드러낸다.",
+  // learning — 도서관/현자 던전
+  "uphero.monster.lrn_book.lore": "읽어주지 않으면 분노하는 이름 모를 책. 표지가 이를 드러낸다.",
+  "uphero.monster.lrn_scroll.lore": "수백 년 잉크 속에 갇힌 영혼. 만지면 종이처럼 바스라진다.",
+  "uphero.monster.lrn_inkblot.lore": "누군가 쏟은 잉크가 뭉쳐 걸어다닌다. 닿으면 이름이 지워진다.",
+  "uphero.monster.lrn_scholar.lore": "끝내지 못한 논문에 집착해 도서관을 떠도는 망령.",
+  "uphero.monster.lrn_riddle.lore": "답하지 못하는 질문만 던지는 투명한 인형.",
+  "uphero.monster.boss_book_spirit.lore": "누구도 읽지 않는 책의 저자. 자신의 이름을 되찾기 위해 싸운다.",
+  "uphero.monster.boss_ancient_scholar.lore": "모든 것을 알고 싶었던 자. 이제는 아무것도 기억하지 못한다.",
+  "uphero.monster.boss_lich_of_ignorance.lore": "질문을 거부한 자에게 내려지는 저주의 화신.",
+  // mindfulness — 명상/그림자 던전
+  "uphero.monster.mnd_wisp.lore": "등잔 뒤에서 흔들리는 그림자. 돌아보면 이미 다른 곳에 있다.",
+  "uphero.monster.mnd_sprite.lore": "고요한 호숫가에 잠깐 머물다 사라지는 빛. 잡으려 하면 꺼진다.",
+  "uphero.monster.mnd_echo.lore": "과거의 후회가 소리로 응집된 것. 제 목소리를 들으면 상처가 된다.",
+  "uphero.monster.mnd_distraction.lore": "천 개의 꼬리를 가진 작은 악마. 시선을 빼앗아 길을 잃게 한다.",
+  "uphero.monster.mnd_doubt.lore": "결심을 갉아먹는 안개 같은 존재.",
+  "uphero.monster.boss_shadow_wisp.lore": "자신의 가장 깊은 곳에서 올라오는 반사. 이기려 할수록 커진다.",
+  "uphero.monster.boss_silent_monk.lore": "천 년 동안 한 마디도 않은 수행자. 그 침묵만으로 상처가 된다.",
+  "uphero.monster.boss_distraction_demon.lore": "수만 개의 유혹을 동시에 내거는 암흑 군주.",
+  // nutrition — 식단/정원 던전
+  "uphero.monster.ntr_sprout.lore": "뽑히지 않기 위해 이빨을 만든 어린 풀.",
+  "uphero.monster.ntr_corn.lore": "밭의 끝에서 걸어 나온 낟알의 거인. 껍질 아래 노란 분노가 숨어 있다.",
+  "uphero.monster.ntr_pumpkin.lore": "수확을 잊은 밭에서 자라난 괴물. 안쪽에서 벌레가 운다.",
+  "uphero.monster.ntr_pepper.lore": "잎맥이 붉게 타오르는 매운 복수자.",
+  "uphero.monster.ntr_broccoli.lore": "초록 투구를 쓴 야채 기사. 명예 외엔 아무것도 먹지 않는다.",
+  "uphero.monster.boss_grain_sprite.lore": "모든 수확의 어머니. 배고픈 자를 시험한다.",
+  "uphero.monster.boss_giant_vegetable.lore": "수십 년 묵은 뿌리가 하나로 합쳐진 존재.",
+  "uphero.monster.boss_gluttony_titan.lore": "절제를 잊은 자에게 나타나 끝없이 먹이는 저주.",
+  // social — 거리/군중 던전
+  "uphero.monster.soc_thief.lore": "그림자 사이로 사라지는 빠른 손. 지갑만큼 이야기도 훔친다.",
+  "uphero.monster.soc_clown.lore": "웃음을 파는 방랑자. 그 웃음 뒤에 무엇이 있는지 아무도 모른다.",
+  "uphero.monster.soc_gossip.lore": "말 한마디로 도시를 뒤흔드는 속삭임. 퍼지면 막을 수 없다.",
+  "uphero.monster.soc_swindler.lore": "진실처럼 들리는 거짓을 파는 장사치. 도망갈 뒷문을 항상 준비한다.",
+  "uphero.monster.soc_outcast.lore": "마을에서 쫓겨난 자의 잔영. 이제는 누구의 이름도 부르지 않는다.",
+  "uphero.monster.boss_street_thief.lore": "도시의 모든 그림자를 거느리는 왕. 그가 사라질 때 밤이 온다.",
+  "uphero.monster.boss_jester.lore": "거꾸로 뒤집힌 웃음. 그가 박수칠 때 누군가는 울고 있다.",
+  "uphero.monster.boss_loneliness_phantom.lore": "홀로 있는 자에게만 보이는 그림자. 말을 걸면 이미 늦었다.",
+  // productivity — 시계/기계 던전
+  "uphero.monster.prd_gear.lore": "거대한 기계에서 떨어져 나온 한 조각. 여전히 헛돌고 있다.",
+  "uphero.monster.prd_clockbot.lore": "정시를 지키기 위해 설계된 자동인형. 시간이 틀어지면 미쳐간다.",
+  "uphero.monster.prd_timesink.lore": "눈치채지 못하는 사이 하루를 삼키는 작은 악마.",
+  "uphero.monster.prd_drone.lore": "명령이 끝난 지 오래인데 아직도 순찰을 도는 녹슨 기사.",
+  "uphero.monster.prd_pendulum.lore": "멈추지 않는 진자. 이 소리를 들으면 시간이 느려진다.",
+  "uphero.monster.boss_clockwork_drone.lore": "대시계의 심장. 그의 박자를 놓치면 세상이 잠시 멈춘다.",
+  "uphero.monster.boss_time_thief.lore": "타인의 하루를 훔쳐 자신의 영생을 짜는 악당.",
+  "uphero.monster.boss_procrastination_lord.lore": "내일을 연기하는 주문을 가진 시간의 파괴자.",
+  // wellness — 온천/안개 던전
+  "uphero.monster.wel_mist.lore": "새벽 호수 위를 떠도는 흰 실. 지나간 자리엔 쓸쓸함만 남는다.",
+  "uphero.monster.wel_slime.lore": "온천 바닥에 고인 증기가 덩어리로 굳은 것.",
+  "uphero.monster.wel_naiad.lore": "따뜻한 물을 지키는 물의 요정. 함부로 들어오면 불같이 덥힌다.",
+  "uphero.monster.wel_lotus.lore": "흰 꽃잎 뒤에 독을 품은 아름다운 덫.",
+  "uphero.monster.wel_cold.lore": "온기가 사라진 자리에 몰려드는 투명한 손.",
+  "uphero.monster.boss_mist_spirit.lore": "대산의 안개가 한곳에 응집된 존재. 길 잃은 자를 영원히 붙든다.",
+  "uphero.monster.boss_river_naiad.lore": "온천 전체를 지배하는 물의 여왕. 그녀의 한숨이 수증기를 만든다.",
+  "uphero.monster.boss_lethargy_fog.lore": "움직일 의욕을 앗아가는 회색 구름. 빠지면 돌아오지 못한다.",
+  // trending — 디지털/유행 던전
+  "uphero.monster.trd_mini.lore": "누군가의 화면에서 튀어나온 단일 점. 이름이 계속 바뀐다.",
+  "uphero.monster.trd_meme.lore": "수천 번 복제되며 본래 모습을 잃은 이미지.",
+  "uphero.monster.trd_glitch.lore": "세계의 틈에서 깜빡이는 오류. 만지면 기억도 깜빡인다.",
+  "uphero.monster.trd_holo.lore": "더 이상 송출되지 않는 채널의 마지막 장면.",
+  "uphero.monster.trd_viral.lore": "접촉한 모든 것에 이름을 새기는 전염성 구슬.",
+  "uphero.monster.boss_mutant_minor.lore": "어떤 유행이든 몇 초 만에 따라 하는 모사꾼.",
+  "uphero.monster.boss_mutant_mid.lore": "잊혀진 트렌드들의 시체가 엉겨 붙은 덩어리.",
+  "uphero.monster.boss_trend_chameleon.lore": "세상의 모든 유행을 삼킨 최종 변종. 누구의 얼굴도 자신의 것이 아니다.",
 } as const;
 
 export type DictKey = keyof typeof ko;

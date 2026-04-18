@@ -34,7 +34,11 @@ import {
 import type { DungeonId } from "@/types/uphero";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
-import { dungeonName, weeklyAffixName } from "@/lib/upHeroI18n";
+import {
+  dungeonName,
+  weeklyAffixName,
+  weeklyAffixDescription,
+} from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 import GbConfirm from "./GbConfirm";
 import HeroSprite from "./HeroSprite";
@@ -1275,6 +1279,7 @@ function formatWeeklyCountdown(
   return t("uphero.weekly.duration.min", { m });
 }
 
+/* WeeklyView — 주간 악몽 진입 view */
 function WeeklyView({
   onBack,
   onNotify,
@@ -1286,7 +1291,7 @@ function WeeklyView({
   const enterWeeklyVariant = useUpHeroStore((s) => s.enterWeeklyVariant);
   const dungeons = useUpHeroStore((s) => s.dungeons);
   const { play } = useSound();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
 
   // Phase 12 R11 — 다음 리셋까지 카운트다운. 분 단위 갱신 (60s interval).
@@ -1360,17 +1365,19 @@ function WeeklyView({
               </button>
             </div>
             <div className="typo-body mb-1" style={{ color: GB.lightest, fontWeight: 500 }}>
-              {affix.name}
+              {weeklyAffixName(affix.id, affix.name, language)}
             </div>
             <div className="typo-caption leading-relaxed" style={{ color: GB.light }}>
-              {affix.description}
+              {weeklyAffixDescription(affix.id, affix.description, language)}
             </div>
             {weeklyVariant.bestScore > 0 && (
               <div
                 className="typo-micro tabular-nums mt-2"
                 style={{ color: GB.lightest, opacity: 0.8 }}
               >
-                내 최고 점수: {weeklyVariant.bestScore.toLocaleString()}
+                {t("uphero.weekly.myBestScore", {
+                  score: weeklyVariant.bestScore.toLocaleString(),
+                })}
               </div>
             )}
             <style jsx>{`
@@ -1419,7 +1426,7 @@ function WeeklyView({
                   className="typo-caption truncate"
                   style={{ color: eligible ? GB.lightest : GB.light }}
                 >
-                  {d.name}
+                  {dungeonName(d.id, d.name, language)}
                 </div>
                 <div
                   className="typo-micro tabular-nums mt-0.5"
@@ -1458,7 +1465,11 @@ function WeeklyView({
         <Suspense fallback={null}>
           <WeeklyLeaderboardLazy
             weekId={weeklyVariant.week}
-            affixName={affix?.name ?? t("uphero.weekly.defaultName")}
+            affixName={
+              affix
+                ? weeklyAffixName(affix.id, affix.name, language)
+                : t("uphero.weekly.defaultName")
+            }
             onClose={() => setLeaderboardOpen(false)}
           />
         </Suspense>
