@@ -10,6 +10,13 @@
  *     allow write: if request.auth != null && request.auth.uid == uid;
  *   }
  *
+ * Firestore composite indexes (필수, Phase 11c R2 추가):
+ *   Collection group: "entries"
+ *     1) score ASC, clearedAt ASC   — fetchMyRank 의 tie-break 쿼리
+ *        (where score == X && where clearedAt < Y)
+ *   firestore.indexes.json 에 등록 필요. 단일 필드 쿼리 (score desc only) 는
+ *   Firestore 가 자동 index 생성.
+ *
  * 사용:
  *   uploadWeeklyScore(...)  — 세션 clear 시 호출. 익명 유저 (uid 없음) 는 skip.
  *   fetchWeeklyTop(...)     — Leaderboard modal 에서 호출. top 100.
@@ -29,6 +36,24 @@ export interface WeeklyLeaderboardEntry {
   heroLevel: number;
   classType: ClassType | null;
   clearedAt: number; // timestamp ms
+}
+
+/**
+ * Phase 11c R2 — Firestore read 결과의 runtime type guard. corrupted / 구버전 /
+ *   악의적 doc 을 UI 진입 전에 거른다. CLASS_META[classType] 같은 후속 접근 크래시 방지.
+ */
+function isValidEntry(data: unknown): data is WeeklyLeaderboardEntry {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.uid === "string" &&
+    typeof d.displayName === "string" &&
+    typeof d.score === "number" &&
+    typeof d.floorsCleared === "number" &&
+    typeof d.heroLevel === "number" &&
+    typeof d.clearedAt === "number" &&
+    (d.classType === null || typeof d.classType === "string")
+  );
 }
 
 /**
@@ -81,9 +106,10 @@ export async function fetchWeeklyTop(
     const col = collection(db, "weekly-leaderboard", weekId, "entries");
     const q = query(col, orderBy("score", "desc"), fsLimit(limit));
     const snap = await getDocs(q);
-    return snap.docs.map(
-      (d) => d.data() as unknown as WeeklyLeaderboardEntry,
-    );
+    // Phase 11c R2 — runtime validation 으로 corrupted doc 필터링.
+    return snap.docs
+      .map((d) => d.data())
+      .filter(isValidEntry);
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
@@ -122,7 +148,9 @@ export async function fetchMyRank(
     const myDocRef = doc(db, "weekly-leaderboard", weekId, "entries", user.uid);
     const myDoc = await getDoc(myDocRef);
     if (!myDoc.exists()) return null;
-    const myEntry = myDoc.data() as unknown as WeeklyLeaderboardEntry;
+    const myData = myDoc.data();
+    if (!isValidEntry(myData)) return null;
+    const myEntry = myData;
 
     // score > myScore 인 doc 수 집계 (count aggregation).
     const col = collection(db, "weekly-leaderboard", weekId, "entries");

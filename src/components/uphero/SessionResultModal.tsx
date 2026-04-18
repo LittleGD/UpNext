@@ -23,6 +23,20 @@ import DropRevealCard from "./DropRevealCard";
 export default function SessionResultModal() {
   const session = useUpHeroStore((s) => s.currentSession);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeSessionEnd);
+  // Phase 11c R2 — F30 첫 클리어 감지: 현재 session 에 bossesDefeated 기록된 floor 30 이
+  //   있고, store dungeons 의 해당 dungeon 이 아직 F30 미기록이면 "최초 돌파" 로 간주.
+  //   acknowledge() 호출 시에만 state 가 반영되므로 modal 렌더 시점엔 still "없음" 상태.
+  const dungeonProgress = useUpHeroStore((s) =>
+    session ? s.dungeons[session.dungeonId] : null,
+  );
+  const isWeeklyVariant = !!session?.isWeeklyVariant;
+  const f30FirstClear =
+    !!session &&
+    !isWeeklyVariant &&
+    !dungeonProgress?.bossesDefeated?.includes(30) &&
+    session.log.some(
+      (e) => e.type === "victory" && e.monster.isBoss && session.currentFloor === 30,
+    );
 
   const [mounted, setMounted] = useState(false);
   // Phase 4c-polish — detail 은 타이틀 등장 후 280ms 뒤 fade-in.
@@ -106,13 +120,17 @@ export default function SessionResultModal() {
           <div className="typo-caption" style={{ color: GB.light }}>
             {dungeon.name} — F{session.currentFloor}
           </div>
-          <PixelIcon name={iconName} size={22} color={titleColor} />
+          <PixelIcon
+            name={iconName}
+            size={f30FirstClear ? 28 : 22}
+            color={f30FirstClear ? "#e8b887" : titleColor}
+          />
           <div
             id="session-result-title"
             className="typo-heading"
-            style={{ color: titleColor }}
+            style={{ color: f30FirstClear ? "#e8b887" : titleColor }}
           >
-            {title}
+            {f30FirstClear ? "F30 최초 돌파" : title}
           </div>
           {/* Phase 4c.1 — 사유 상세 (예: "시간이 다했다", "산악의 거인을 쓰러뜨렸다").
                Phase 4c-polish: 타이틀이 자리잡은 후 두 박자로 fade-in + y-shift. */}
@@ -127,6 +145,22 @@ export default function SessionResultModal() {
               }}
             >
               {detail}
+            </div>
+          )}
+          {/* Phase 11c R2 — F30 최초 돌파 시 NG+ / 주간 악몽 해금 안내. */}
+          {f30FirstClear && (
+            <div
+              className="typo-caption px-3 py-1.5 mt-1 rounded"
+              style={{
+                color: "#e8b887",
+                background: `${"#e8b887"}15`,
+                border: `1px solid ${"#e8b887"}44`,
+                opacity: detailMounted ? 1 : 0,
+                transform: detailMounted ? "translateY(0)" : "translateY(-4px)",
+                transition: `opacity 300ms ${EASE_OUT} 120ms, transform 300ms ${EASE_OUT} 120ms`,
+              }}
+            >
+              NG+ · 주간 악몽 해금
             </div>
           )}
         </div>

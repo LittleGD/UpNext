@@ -877,11 +877,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     //   최고 점수 경신 시 Firestore 업로드 (로그인 유저만, 비동기).
     let newWeeklyVariant = state.weeklyVariant;
     if (session.isWeeklyVariant && state.weeklyVariant) {
-      const floorsCleared = Math.max(0, session.currentFloor - session.startFloor + 1);
+      // Phase 11c R2 — weekly 는 F30 start 라 `currentFloor - startFloor + 1 = 1` 이 되며,
+      //   보스 미처치 실패에도 floorsCleared=1 점수가 들어감. 실제 "클리어" 로 간주하려면
+      //   F30 보스 처치가 있어야 함. 실패 시 floorsCleared = 0.
+      const reachedFloors = Math.max(0, session.currentFloor - session.startFloor);
+      const clearedF30 = newBossesDefeated.includes(30) && !prevBossesDefeated.includes(30);
+      const floorsCleared = clearedF30 ? reachedFloors + 1 : reachedFloors;
       const gameLv = useGameStore.getState().progress.level ?? 1;
       const heroLv = Math.max(1, gameLv - (state.heroStartLevel ?? 1) + 1);
       const score = computeWeeklyScore(floorsCleared, session.time, heroLv);
-      const clearedF30 = newBossesDefeated.includes(30) && !prevBossesDefeated.includes(30);
       const isNewBest = score > state.weeklyVariant.bestScore;
       newWeeklyVariant = {
         ...state.weeklyVariant,
