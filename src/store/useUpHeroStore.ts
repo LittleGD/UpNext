@@ -880,8 +880,17 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       // Phase 11c R2 — weekly 는 F30 start 라 `currentFloor - startFloor + 1 = 1` 이 되며,
       //   보스 미처치 실패에도 floorsCleared=1 점수가 들어감. 실제 "클리어" 로 간주하려면
       //   F30 보스 처치가 있어야 함. 실패 시 floorsCleared = 0.
+      //
+      // Phase 11c R3 — weekly clearedF30 는 `prevBossesDefeated` 와 비교 X.
+      //   유저가 normal 모드에서 이미 F30 클리어 후 weekly 에 도전하면 prev 에 30 있음
+      //   → `clearedF30 = false` 로 score 항상 0. weekly 는 session log 의 F30 보스
+      //   victory 존재 여부로 판정.
       const reachedFloors = Math.max(0, session.currentFloor - session.startFloor);
-      const clearedF30 = newBossesDefeated.includes(30) && !prevBossesDefeated.includes(30);
+      const clearedF30InSession = session.log.some(
+        (e) => e.type === "victory" && e.monster.isBoss && e.monster.level === 30,
+      );
+      // clearedF30 (이번 세션 자체에서 F30 보스 처치했는지) + 기존 변수명 유지.
+      const clearedF30 = clearedF30InSession;
       const floorsCleared = clearedF30 ? reachedFloors + 1 : reachedFloors;
       const gameLv = useGameStore.getState().progress.level ?? 1;
       const heroLv = Math.max(1, gameLv - (state.heroStartLevel ?? 1) + 1);
@@ -893,17 +902,21 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
           ? [...new Set([...state.weeklyVariant.clearedDungeons, session.dungeonId])]
           : state.weeklyVariant.clearedDungeons,
         bestScore: Math.max(state.weeklyVariant.bestScore, score),
-        ...(isNewBest ? { lastUploadedAt: Date.now() } : {}),
+        // lastUploadedAt 은 Firestore 업로드 확정 후 set (아래 microtask).
       };
 
       // Phase 11c R1 — 업로드는 state commit 뒤로 이동 (atomic). 그리고 capture 된
       //   local `newWeeklyVariant` 를 참조 (기존 `state.weeklyVariant!` 는 stale 가능).
       //   fire-and-forget but state 가 먼저 반영되도록 순서 고정.
+      // Phase 11c R3 — 이전엔 위에서 lastUploadedAt 을 `isNewBest` 로만 판단해 set.
+      //   익명 유저 / Firebase 미구성 경우 업로드 실패해도 timestamp 가 찍혀 misleading.
+      //   이제 upload result === "ok" 일 때만 lastUploadedAt 갱신 (post-commit).
       if (isNewBest) {
+        const capturedVariantWeek = newWeeklyVariant.week;
         queueMicrotask(() => {
           import("@/lib/weeklyLeaderboard").then(async (mod) => {
             const displayName = await mod.getDisplayName();
-            await mod.uploadWeeklyScore(newWeeklyVariant!.week, {
+            const result = await mod.uploadWeeklyScore(capturedVariantWeek, {
               displayName,
               score,
               floorsCleared,
@@ -911,6 +924,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
               classType: session.hero.classType,
               clearedAt: Date.now(),
             });
+            if (result === "ok") {
+              // state 가 이미 commit 됐으므로 get() 으로 최신 참조.
+              const cur = get();
+              if (cur.weeklyVariant?.week === capturedVariantWeek) {
+                const updated = { ...cur.weeklyVariant, lastUploadedAt: Date.now() };
+                set({ weeklyVariant: updated });
+                saveToStorage(STORAGE_KEY, pickPersisted({ ...cur, weeklyVariant: updated }));
+              }
+            }
           });
         });
       }

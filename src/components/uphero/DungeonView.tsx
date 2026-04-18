@@ -228,8 +228,8 @@ export default function DungeonView() {
       seenRegenIdxRef.current.add(idx);
       // 새 float push — id 는 idx (unique per entry)
       setHpRegenFloats((prev) => [...prev, idx]);
-      // 800ms 후 cleanup
-      window.setTimeout(() => {
+      // 820ms 후 cleanup (Phase 11c R3 — unmount-safe)
+      scheduleFloatCleanup(() => {
         setHpRegenFloats((prev) => prev.filter((i) => i !== idx));
       }, 820);
     });
@@ -262,6 +262,23 @@ export default function DungeonView() {
   type GenericFloat = { id: number; kind: "xp" | "coin" | "heal" | "priestStart" | "timeSave"; amount: number };
   const [genericFloats, setGenericFloats] = useState<GenericFloat[]>([]);
   const seenGenericRef = useRef<Set<string>>(new Set());
+  // Phase 11c R3 — float cleanup timer 들 추적. unmount 시 일괄 clear 해 React
+  //   "setState on unmounted component" 경고 방지 + 메모리 누수 제거.
+  const floatTimersRef = useRef<Set<number>>(new Set());
+  const scheduleFloatCleanup = (callback: () => void, delayMs: number) => {
+    const id = window.setTimeout(() => {
+      floatTimersRef.current.delete(id);
+      callback();
+    }, delayMs);
+    floatTimersRef.current.add(id);
+    return id;
+  };
+  useEffect(() => {
+    return () => {
+      floatTimersRef.current.forEach((id) => window.clearTimeout(id));
+      floatTimersRef.current.clear();
+    };
+  }, []);
 
   // Monk dodge + Illusionist crit — HeroSprite pulseOverlay 를 통해 표시
   const [pulseOverlay, setPulseOverlay] = useState<"dodge" | "crit" | null>(null);
@@ -292,7 +309,7 @@ export default function DungeonView() {
       const kind = cls === "mage" ? "xp" : "coin";
       const amount = cls === "mage" ? entry.xp : entry.coins;
       setGenericFloats((prev) => [...prev, { id, kind, amount }]);
-      window.setTimeout(() => {
+      scheduleFloatCleanup(() => {
         setGenericFloats((prev) => prev.filter((f) => f.id !== id));
       }, 1100);
     });
@@ -336,7 +353,7 @@ export default function DungeonView() {
     priestStartShownRef.current = true;
     const id = Date.now();
     setGenericFloats((prev) => [...prev, { id, kind: "priestStart", amount: 50 }]);
-    window.setTimeout(() => {
+    scheduleFloatCleanup(() => {
       setGenericFloats((prev) => prev.filter((f) => f.id !== id));
     }, 1200);
   }, [session]);
@@ -360,7 +377,7 @@ export default function DungeonView() {
     if (delta < 5) return; // 노이즈 컷
     const id = Date.now();
     setGenericFloats((f) => [...f, { id, kind: "heal", amount: delta }]);
-    window.setTimeout(() => {
+    scheduleFloatCleanup(() => {
       setGenericFloats((f) => f.filter((x) => x.id !== id));
     }, 1000);
   }, [session?.hero.hp, session]);
@@ -378,7 +395,7 @@ export default function DungeonView() {
       seenGenericRef.current.add(key);
       const id = Date.now() + idx;
       setGenericFloats((prev) => [...prev, { id, kind: "timeSave", amount: 25 }]);
-      window.setTimeout(() => {
+      scheduleFloatCleanup(() => {
         setGenericFloats((prev) => prev.filter((f) => f.id !== id));
       }, 720);
     });

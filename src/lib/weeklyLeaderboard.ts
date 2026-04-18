@@ -45,6 +45,10 @@ export interface WeeklyLeaderboardEntry {
 function isValidEntry(data: unknown): data is WeeklyLeaderboardEntry {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
+  // Phase 11c R3 — classType 은 undefined / null / string 모두 허용 (legacy doc
+  //   호환). Firestore 는 missing 필드를 undefined 로 반환하므로 == null 로 체크.
+  const classTypeOk =
+    d.classType == null || typeof d.classType === "string";
   return (
     typeof d.uid === "string" &&
     typeof d.displayName === "string" &&
@@ -52,7 +56,7 @@ function isValidEntry(data: unknown): data is WeeklyLeaderboardEntry {
     typeof d.floorsCleared === "number" &&
     typeof d.heroLevel === "number" &&
     typeof d.clearedAt === "number" &&
-    (d.classType === null || typeof d.classType === "string")
+    classTypeOk
   );
 }
 
@@ -75,6 +79,11 @@ export async function uploadWeeklyScore(
     const { doc, setDoc } = await import("firebase/firestore");
     const ref = doc(db, "weekly-leaderboard", weekId, "entries", user.uid);
     await setDoc(ref, { uid: user.uid, ...entry }, { merge: false });
+    // Phase 11c R3 — 업로드 성공 시 해당 weekId cache invalidate.
+    for (const key of topCache.keys()) {
+      if (key.startsWith(`${weekId}:`)) topCache.delete(key);
+    }
+    myRankCache.delete(weekId);
     return "ok";
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
@@ -86,14 +95,42 @@ export async function uploadWeeklyScore(
 }
 
 /**
+ * Phase 11c R3 — 리더보드 read 캐시.
+ *   모달을 여닫을 때마다 Firestore 재조회하던 걸 30s TTL 로 묶어 billed reads 절감.
+ *   weekId + limit 조합을 키로. 유저가 rank drift 확인을 위해 연속 탭해도 cache hit.
+ *   TTL 30s 면 새 업로드 직후 반영에 약간 delay — 허용 범위 (tradeoff).
+ */
+const CACHE_TTL_MS = 30_000;
+const topCache = new Map<
+  string,
+  { entries: WeeklyLeaderboardEntry[]; fetchedAt: number }
+>();
+const myRankCache = new Map<
+  string,
+  { data: { rank: number; entry: WeeklyLeaderboardEntry } | null; fetchedAt: number }
+>();
+
+/** Dev / test 환경에서 cache invalidate 가 필요할 때 호출 */
+export function clearLeaderboardCache(): void {
+  topCache.clear();
+  myRankCache.clear();
+}
+
+/**
  * 이번 주 상위 N 명 조회. orderBy(score desc), limit.
  * 익명 유저도 read 가능 (Firestore rules read: if true).
+ * Phase 11c R3 — 30s TTL cache.
  */
 export async function fetchWeeklyTop(
   weekId: string,
   limit = 100,
 ): Promise<WeeklyLeaderboardEntry[]> {
   if (!isFirebaseConfigured) return [];
+  const cacheKey = `${weekId}:${limit}`;
+  const cached = topCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    return cached.entries;
+  }
   try {
     const { db } = await getFirebase();
     const {
@@ -107,9 +144,13 @@ export async function fetchWeeklyTop(
     const q = query(col, orderBy("score", "desc"), fsLimit(limit));
     const snap = await getDocs(q);
     // Phase 11c R2 — runtime validation 으로 corrupted doc 필터링.
-    return snap.docs
+    // Phase 11c R3 — classType undefined (legacy doc) → null 로 정규화.
+    const entries = snap.docs
       .map((d) => d.data())
-      .filter(isValidEntry);
+      .filter(isValidEntry)
+      .map((e) => ({ ...e, classType: e.classType ?? null }));
+    topCache.set(cacheKey, { entries, fetchedAt: Date.now() });
+    return entries;
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
@@ -132,6 +173,10 @@ export async function fetchMyRank(
   weekId: string,
 ): Promise<{ rank: number; entry: WeeklyLeaderboardEntry } | null> {
   if (!isFirebaseConfigured) return null;
+  const cached = myRankCache.get(weekId);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    return cached.data;
+  }
   try {
     const { auth, db } = await getFirebase();
     const user = auth.currentUser;
@@ -150,7 +195,11 @@ export async function fetchMyRank(
     if (!myDoc.exists()) return null;
     const myData = myDoc.data();
     if (!isValidEntry(myData)) return null;
-    const myEntry = myData;
+    // Phase 11c R3 — classType undefined → null 정규화 (legacy doc 호환).
+    const myEntry: WeeklyLeaderboardEntry = {
+      ...myData,
+      classType: myData.classType ?? null,
+    };
 
     // score > myScore 인 doc 수 집계 (count aggregation).
     const col = collection(db, "weekly-leaderboard", weekId, "entries");
@@ -168,12 +217,16 @@ export async function fetchMyRank(
     const tieCount = tieSnap.data().count;
 
     const rank = higherCount + tieCount + 1;
-    return { rank, entry: myEntry };
+    const result = { rank, entry: myEntry };
+    myRankCache.set(weekId, { data: result, fetchedAt: Date.now() });
+    return result;
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
       console.warn("[weeklyLeaderboard] fetchMyRank failed:", e);
     }
+    // Phase 11c R3 — failed-precondition (composite index 미배포) 시에도 cache 에
+    //   null 저장하지 않음 (index 배포 후 즉시 재시도 가능).
     return null;
   }
 }

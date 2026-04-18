@@ -23,9 +23,14 @@ import DropRevealCard from "./DropRevealCard";
 export default function SessionResultModal() {
   const session = useUpHeroStore((s) => s.currentSession);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeSessionEnd);
-  // Phase 11c R2 — F30 첫 클리어 감지: 현재 session 에 bossesDefeated 기록된 floor 30 이
-  //   있고, store dungeons 의 해당 dungeon 이 아직 F30 미기록이면 "최초 돌파" 로 간주.
+  // Phase 11c R2 — F30 첫 클리어 감지: 현재 session 에 F30 보스 victory 가 있고,
+  //   store dungeons 의 해당 dungeon 이 아직 F30 미기록이면 "최초 돌파" 로 간주.
   //   acknowledge() 호출 시에만 state 가 반영되므로 modal 렌더 시점엔 still "없음" 상태.
+  //
+  // Phase 11c R3 fix — 이전에 `session.currentFloor === 30` 을 썼지만 skipFloors
+  //   ChoiceEffect 가 currentFloor 를 30 으로 밀어버리면 F10/F20 보스 처치만으로도
+  //   "F30 최초 돌파" 배너가 뜸 (실제 unlock 은 정상). monster.level 은
+  //   createMonsterForFloor 에서 floor 로 할당되므로 per-entry truth.
   const dungeonProgress = useUpHeroStore((s) =>
     session ? s.dungeons[session.dungeonId] : null,
   );
@@ -35,7 +40,7 @@ export default function SessionResultModal() {
     !isWeeklyVariant &&
     !dungeonProgress?.bossesDefeated?.includes(30) &&
     session.log.some(
-      (e) => e.type === "victory" && e.monster.isBoss && session.currentFloor === 30,
+      (e) => e.type === "victory" && e.monster.isBoss && e.monster.level === 30,
     );
 
   const [mounted, setMounted] = useState(false);

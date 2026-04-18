@@ -149,7 +149,7 @@ export default function WeeklyLeaderboard({
             </div>
           )}
           {!error && entries && entries.length > 0 && (
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-0.5" role="list">
               {entries.map((e, i) => (
                 <LeaderboardRow
                   key={e.uid}
@@ -174,11 +174,14 @@ export default function WeeklyLeaderboard({
             <div className="typo-micro mb-1" style={{ color: GB.light, opacity: 0.7 }}>
               내 순위
             </div>
-            <LeaderboardRow
-              rank={myData.rank}
-              entry={myData.entry}
-              isMe
-            />
+            {/* Phase 11c R3 — 독립 row 도 list semantics 부여 (role="listitem" parent 필수). */}
+            <div role="list">
+              <LeaderboardRow
+                rank={myData.rank}
+                entry={myData.entry}
+                isMe
+              />
+            </div>
           </div>
         )}
 
@@ -231,9 +234,21 @@ function LeaderboardRow({
   const className = entry.classType
     ? CLASS_META[entry.classType]?.name ?? ""
     : "";
+  // Phase 11c R3 — screen reader 용 합쳐진 label. 시각 렌더 변화 없음.
+  const srLabel = [
+    `${rank}위`,
+    isMe ? "내 기록" : entry.displayName,
+    `${entry.score.toLocaleString()}점`,
+    className && `${className} Lv.${entry.heroLevel}`,
+    `F${entry.floorsCleared}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
   return (
     <div
       className="flex items-center gap-2 px-2 py-1.5 rounded"
+      role="listitem"
+      aria-label={srLabel}
       style={{
         background: isMe ? `${GB.lightest}22` : "transparent",
         border: isMe ? `1px solid ${GB.lightest}66` : "1px solid transparent",
