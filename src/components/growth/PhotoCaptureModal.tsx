@@ -437,7 +437,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                   <UpNextLogoMark width={64.689} color="#212727" />
                 </div>
                 <button
-                  onClick={handleSkip}
+                  onClick={handleClose}
                   className="relative flex items-center justify-center active:scale-[0.97] active:brightness-90 transition-all"
                   style={{
                     width: 80,
@@ -1191,19 +1191,33 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                 onAddSticker={handleAddSticker}
               />
 
-              {/* Done 버튼 — 사인이나 스티커가 하나라도 있으면 활성 */}
+              {/* Done 버튼 — 서명이 있어야 활성 (스티커만으로는 저장 불가).
+                   Phase 13 review Critical #2 — 이전엔 (signature || stickers)
+                   로 sticker 만 있어도 버튼이 떴지만 handleDone 내부에서 signatureData
+                   없으면 silent return → 유저는 눌렀는데 반응 없는 dead state.
+                   이제 signature 없으면 명시적 disabled + hint 표기. */}
               <div className="w-full flex flex-col items-stretch gap-2.5 mt-1 min-h-[60px]">
-                {(signatureData || stickers.length > 0) ? (
-                  <motion.button
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-                    onClick={handleDone}
-                    className="w-full py-3.5 rounded-xl bg-accent text-bg-primary typo-body active:scale-[0.97] transition-transform"
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                  onClick={handleDone}
+                  disabled={!signatureData}
+                  className="w-full py-3.5 rounded-xl bg-accent text-bg-primary typo-body active:scale-[0.97] transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                >
+                  {t("common.done")}
+                </motion.button>
+                {!signatureData && (
+                  <div
+                    className="typo-micro text-center"
+                    style={{
+                      color: "rgba(0, 0, 0, 0.55)",
+                      letterSpacing: "0.02em",
+                    }}
                   >
-                    {t("common.done")}
-                  </motion.button>
-                ) : null}
+                    {t("playground.capture.signRequired")}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

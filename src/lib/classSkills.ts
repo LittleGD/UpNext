@@ -677,7 +677,11 @@ const bardT4: ClassSkill = {
   cooldown: 10,
   requiredLevel: 45,
   pointCost: 2,
-  shouldFire: (s, m) => !!m && m.hp > 0 && !s.guaranteedCritAttacks,
+  // Phase 13 review Critical #4 — boss 또는 고 HP 적 전용 발동. 이전엔 일반
+  //   몬스터 만나면 즉시 발동 → 5 crit 낭비 후 보스전에 자원 부족. 이제 보스
+  //   또는 HP 150+ (F8+ 몬스터 수준) 에서만 트리거.
+  shouldFire: (s, m) =>
+    !!m && m.hp > 0 && !s.guaranteedCritAttacks && (!!m.isBoss || m.hp >= 150),
   apply(s) {
     s.guaranteedCritAttacks = 5;
     pushSkillLog(
@@ -906,7 +910,11 @@ const priestT4: ClassSkill = {
   cooldown: 20,
   requiredLevel: 45,
   pointCost: 2,
-  shouldFire: (s) => !s.revivePending,
+  // Phase 13 review Critical #3 — 이전 `!s.revivePending` 만 있어 풀 HP 에서도
+  //   자원 차자마자 queue → T1 힐이 영원히 skip. 이제 HP 35% 이하 위험 상태에서만
+  //   revive 준비 → 비위험 상황엔 T1 `성스러운 빛` (HP 20% 이하 완치) 이 자연
+  //   발동 가능.
+  shouldFire: (s) => !s.revivePending && s.hero.hp / s.hero.maxHp < 0.35,
   apply(s) {
     s.revivePending = true;
     pushSkillLog(

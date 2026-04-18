@@ -627,16 +627,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // 온보딩 완료 → 레벨 0→1 + 카드팩 1개 + 미니게임 체험 티켓 1장
+  //
+  // Phase 13 review Critical #1 — onboarding 에서 선택한 난이도가 day 1 에
+  //   반영되지 않던 버그 수정. 이전엔 `setMode` 가 `pendingMode` 만 세팅하고
+  //   `checkDailyReset` (자정 cross) 에서만 pendingMode → mode 이전되어,
+  //   유저가 ultra (3장) 선택해도 첫 날은 normal (1장) 로 시작. 이제 온보딩
+  //   완료 시점에 즉시 반영.
   completeOnboarding: () => {
-    const progress = {
-      ...get().progress,
+    const cur = get().progress;
+    const progress: UserProgress = {
+      ...cur,
       level: 1,
       xp: totalXPForLevel(1), // 레벨 1에 맞는 XP 설정
-      pendingPacks: (get().progress.pendingPacks || 0) + 1,
-      tickets: Math.min(
-        MINIGAME_TICKET_CAP,
-        (get().progress.tickets || 0) + 1,
-      ),
+      pendingPacks: (cur.pendingPacks || 0) + 1,
+      tickets: Math.min(MINIGAME_TICKET_CAP, (cur.tickets || 0) + 1),
+      // pendingMode 가 있으면 즉시 mode 로 이전 (day 1 에 반영).
+      mode: cur.pendingMode ?? cur.mode,
+      pendingMode: null,
     };
     set({ hasCompletedOnboarding: true, progress, isOpeningPack: true });
     saveToStorage("onboarding_complete", true);
