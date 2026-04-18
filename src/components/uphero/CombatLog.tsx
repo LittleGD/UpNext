@@ -159,9 +159,13 @@ const LogLine = memo(function LogLine({
 
     case "choiceResult":
       // Phase 11c R1 — event choice 결과. narrative 와 유사 스타일, 약간 밝게 강조.
+      // Phase 11c R4 — effectSummary 있으면 " · " 로 inline 추가 (로그 기록용).
       return (
         <div style={{ ...style, color: GB.lightest }} className="opacity-90">
-          <TypewriterText text={entry.text} enabled={isLatest} />
+          <TypewriterText
+            text={entry.effectSummary ? `${entry.text} · ${entry.effectSummary}` : entry.text}
+            enabled={isLatest}
+          />
         </div>
       );
 

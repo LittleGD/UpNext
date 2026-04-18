@@ -351,6 +351,12 @@ export type LogEntry =
       type: "choiceResult";
       /** `> {label} → {resultText}` 형식의 full narrative */
       text: string;
+      /**
+       * Phase 11c R4 — 효과 요약 (예: "XP +50, 시간 -3"). 유저에게 narrative 와
+       *   별개로 구체 수치를 보여주기 위해 effects 를 스캔해 포맷팅. 없을 수도 있음
+       *   (effects 가 비거나 summary 없는 legacy outcome).
+       */
+      effectSummary?: string;
       timestamp: number;
     };
 

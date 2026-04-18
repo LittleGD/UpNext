@@ -806,6 +806,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   resolveChoice(optionIndex) {
     const state = get();
     if (!state.currentSession) return;
+    // Phase 11c R4 bugfix — status guard. 유저의 double-tap / encounter timeout
+    //   auto-resolve 와 수동 선택이 같은 ms 에 겹칠 때 resolveChoice 가 2번 호출되면
+    //   effect 가 중복 적용되던 버그. applyChoice 내부에도 check 있지만 store level
+    //   early-return 이 안전함.
+    if (state.currentSession.status !== "awaitingChoice") return;
     const next = applyChoice(state.currentSession, optionIndex);
     set({ currentSession: next });
   },
