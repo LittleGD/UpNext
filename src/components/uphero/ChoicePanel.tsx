@@ -9,7 +9,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { GB, EASE_OUT, EASE_DRAWER, gbClass } from "@/lib/upHeroPalette";
+import {
+  GB,
+  EASE_OUT,
+  EASE_DRAWER,
+  gbClass,
+  GB_WARN,
+} from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import PixelIcon from "@/components/icons/PixelIcon";
 
@@ -133,7 +139,9 @@ export default function ChoicePanel() {
         className="w-full pointer-events-auto"
         style={{
           background: GB.darkest,
-          borderTop: `1px solid ${GB.lightest}`,
+          // Phase 12 — mystery event 때는 border top 을 GB_WARN 으로 전환해
+          //   "수상한 이벤트" 도착 순간을 시각적으로 차별화.
+          borderTop: `1px solid ${entry.isMystery ? GB_WARN : GB.lightest}`,
           // footer safe-area 는 footer 자체가 처리하므로 ChoicePanel 은 기본 padding 만.
           padding: "12px 12px 14px 12px",
           transform: mounted ? "translateY(0)" : "translateY(100%)",
@@ -144,14 +152,37 @@ export default function ChoicePanel() {
           transition: `transform 320ms ${EASE_DRAWER}, opacity 200ms ${EASE_OUT}, filter 220ms ${EASE_OUT}`,
         }}
       >
+        {/* Phase 12 — mystery event 배지. 플레이어에게 "이 이벤트는 효과가
+             증폭된 수상한 이벤트" 를 즉시 알린다. 모달 헤더 최상단에 컴팩트한
+             "?" chip 으로 배치. */}
+        {entry.isMystery && (
+          <div
+            className="typo-micro inline-flex items-center gap-1 mb-2 px-1.5 py-0.5 rounded-sm tabular-nums"
+            style={{
+              color: GB_WARN,
+              background: `${GB_WARN}1a`,
+              border: `1px solid ${GB_WARN}`,
+              letterSpacing: "0.08em",
+              fontSize: 10,
+            }}
+            aria-label="수상한 이벤트 · 효과 증폭"
+          >
+            <span style={{ fontWeight: 700 }}>?</span>
+            <span>수상한 이벤트</span>
+          </div>
+        )}
         <div
           className="typo-caption mb-3 pl-2 flex items-start gap-1.5"
           style={{
             color: GB.lightest,
-            borderLeft: `2px solid ${GB.lightest}`,
+            borderLeft: `2px solid ${entry.isMystery ? GB_WARN : GB.lightest}`,
           }}
         >
-          <PixelIcon name="Zap" size={14} color={GB.lightest} />
+          <PixelIcon
+            name="Zap"
+            size={14}
+            color={entry.isMystery ? GB_WARN : GB.lightest}
+          />
           <span className="flex-1">
             {promptVisible}
             {!promptDone && (

@@ -14,7 +14,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import type { LogEntry } from "@/types/uphero";
-import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
+import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -304,18 +304,33 @@ const LogLine = memo(function LogLine({
         </div>
       );
 
-    case "choice":
+    case "choice": {
+      // Phase 12 — mystery event 는 GB_WARN (amber) 강조. 일반 choice 는 GB.lightest.
+      const accent = entry.isMystery ? GB_WARN : GB.lightest;
       return (
         <div
           style={{
             ...style,
             color: GB.lightest,
-            borderLeft: `2px solid ${GB.lightest}`,
+            borderLeft: `2px solid ${accent}`,
           }}
           className="pl-2 my-1 flex items-start gap-1.5"
         >
-          <PixelIcon name="Zap" size={14} color={GB.lightest} />
+          <PixelIcon name="Zap" size={14} color={accent} />
           <div className="flex-1">
+            {entry.isMystery && (
+              <span
+                className="typo-micro tabular-nums mr-1.5"
+                style={{
+                  color: GB_WARN,
+                  fontWeight: 700,
+                  letterSpacing: "0.05em",
+                }}
+                aria-label="수상한 이벤트"
+              >
+                ?
+              </span>
+            )}
             {entry.prompt}
             {entry.resolvedIndex != null && (
               <span className={gbClass.textDim}>
@@ -326,6 +341,7 @@ const LogLine = memo(function LogLine({
           </div>
         </div>
       );
+    }
 
     case "sessionEnd": {
       // Phase 4c.1 — 사유별 구체 레이블/색/아이콘. legacy reason 도 매핑.

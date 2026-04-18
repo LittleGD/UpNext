@@ -14,7 +14,10 @@
 
 import { useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
+import {
+  ALL_MONSTER_TEMPLATES,
+  type MonsterTemplate,
+} from "@/data/upHeroMonsters";
 import { ALL_EQUIPMENT_TEMPLATES } from "@/data/upHeroEquipment";
 import { DUNGEONS, DUNGEON_LIST } from "@/data/upHeroDungeons";
 import {
@@ -31,6 +34,7 @@ import type { Rarity } from "@/types/card";
 import { useSound } from "@/hooks/useSound";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
+import MonsterCodexDetailModal from "./MonsterCodexDetailModal";
 
 interface HeroCodexProps {
   onBack: () => void;
@@ -190,6 +194,12 @@ function MonsterCodex({
 }: {
   codex: { monsters: string[]; bosses: string[] };
 }) {
+  // Phase 12 — 발견된 몬스터 탭 시 디테일 모달. 미발견은 클릭 불가
+  //   (spoiler 방지). sound cue 는 기존 codex 의 "select" 재사용.
+  const { play } = useSound();
+  const [detailTemplate, setDetailTemplate] =
+    useState<MonsterTemplate | null>(null);
+
   // 발견 여부 — 신규 name 기반 + 기존 legacy id 기반 모두 (하위 호환).
   const discoveredSet = new Set<string>([
     ...codex.monsters,
@@ -261,19 +271,34 @@ function MonsterCodex({
             <div className="grid grid-cols-4 gap-2">
               {all.map((t) => {
                 const found = isDiscovered(t.id, t.name);
+                // Phase 12 — 발견됐으면 button, 미발견은 div (클릭 불가).
+                const Tag = found ? "button" : "div";
                 return (
-                  <div
+                  <Tag
                     key={t.id}
-                    className="flex flex-col items-center gap-1 rounded p-2"
+                    type={found ? "button" : undefined}
+                    onClick={
+                      found
+                        ? () => {
+                            play("select");
+                            setDetailTemplate(t);
+                          }
+                        : undefined
+                    }
+                    className="monster-codex-card flex flex-col items-center gap-1 rounded p-2"
                     style={{
                       background: found ? `${GB.dark}88` : `${GB.dark}40`,
                       border: `1px solid ${
                         found ? (t.isBoss ? GB_ENEMY : GB.light) : GB.dark
                       }`,
                       minHeight: 76,
+                      color: GB.light,
+                      cursor: found ? "pointer" : "default",
                     }}
                     aria-label={
-                      found ? `${t.name}${t.isBoss ? " (보스)" : ""}` : "미발견"
+                      found
+                        ? `${t.name}${t.isBoss ? " (보스)" : ""} — 상세 보기`
+                        : "미발견"
                     }
                   >
                     <MonsterSprite
@@ -296,13 +321,31 @@ function MonsterCodex({
                     >
                       {found ? t.name : "???"}
                     </div>
-                  </div>
+                  </Tag>
                 );
               })}
             </div>
           </section>
         );
       })}
+      {detailTemplate && (
+        <MonsterCodexDetailModal
+          template={detailTemplate}
+          onClose={() => setDetailTemplate(null)}
+        />
+      )}
+      <style jsx>{`
+        /* Emil 원칙: pressable 버튼은 120-160ms ease-out scale(0.97) 로 터치 피드백. */
+        .monster-codex-card {
+          transition: transform 140ms ${EASE_OUT}, background 160ms ${EASE_OUT};
+        }
+        button.monster-codex-card:active {
+          transform: scale(0.97);
+        }
+        button.monster-codex-card:hover {
+          background: ${GB.dark};
+        }
+      `}</style>
     </>
   );
 }

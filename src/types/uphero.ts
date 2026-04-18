@@ -363,6 +363,12 @@ export type LogEntry =
       timeoutMs?: number;
       /** timeout 시 자동 선택될 option index (encounter 는 "싸운다" = 0) */
       defaultOptionIndex?: number;
+      /**
+       * Phase 12 — "?" mystery event 여부. true 면 amplifyChoiceOptions 로 증폭된
+       *   effects 가 적용된 상태. UI (ChoicePanel / CombatLog) 는 이 플래그를 읽어
+       *   시각적 차별화 (배지/보더/글로우) 를 적용.
+       */
+      isMystery?: boolean;
       timestamp: number;
     }
   | {
@@ -581,6 +587,17 @@ export interface CombatSession {
    *   기본 0, affix 적용 시 0.30 → rest 기본 35% + 30% = 65%.
    */
   restChanceBonus?: number;
+  /**
+   * Phase 12 — "?" mystery event floor 목록. 첫 보스 (F10) 이후부터 생성.
+   *   각 30-층 cycle 의 보스 사이 구간 (F11-F19, F21-F29, 그리고 NG+ 의 F31-F39
+   *   등) 에서 랜덤 1 개 floor 선정. 유저가 해당 floor 도달 시 일반 이벤트보다
+   *   강한 amplified choice 이벤트 발생. 발동 후 리스트에서 제거.
+   *
+   *   생성 전략:
+   *   - 세션 시작 시: 현재 cycle 의 remaining mystery 를 seed
+   *   - tickSession 에서 cycle 전환 시: 새 cycle 의 mystery 를 generate
+   */
+  mysteryFloors?: number[];
   startedAt: number;
 }
 
