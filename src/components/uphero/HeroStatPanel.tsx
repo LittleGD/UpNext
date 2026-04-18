@@ -24,24 +24,19 @@ import {
   CLASS_META,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
-import type { EquipSlot, HeroBaseStats } from "@/types/uphero";
+import type { EquipSlot } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import HeroSprite from "./HeroSprite";
+import HexStatChart from "./HexStatChart";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 interface HeroStatPanelProps {
   onClose: () => void;
 }
 
-const STAT_ROWS: Array<{ key: keyof HeroBaseStats; label: string; isCrit?: boolean }> = [
-  { key: "str", label: "STR" },
-  { key: "int", label: "INT" },
-  { key: "vit", label: "VIT" },
-  { key: "dex", label: "DEX" },
-  { key: "agi", label: "AGI" },
-  { key: "crit", label: "CRIT", isCrit: true },
-];
+// Phase 12b — STAT_ROWS 는 HexStatChart 로 대체 (선형 bar 제거).
+//   HeroBaseStats 타입은 아래 effective 객체에서 그대로 사용.
 
 const SLOT_LABEL: Record<EquipSlot, string> = {
   weapon: "무기",
@@ -166,7 +161,9 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
              block 카드 (icon + name + passive) + Phase 6b 토글 (자동 스킬). */}
         {hero.classType && <ClassSection hero={hero} />}
 
-        {/* 스탯 bar */}
+        {/* Phase 12b — 스탯 radar chart. 기존 선형 bar (max 40 cap) → 육각형.
+             각 축의 max 는 레벨/클래스 기반 동적 계산. 장비 bonus 가 max 초과 시
+             꼭짓점이 바깥으로 튀어나와 "강해짐" 시각화. */}
         <section
           className="px-5 pb-5"
           style={{ borderTop: `1px solid ${GB.dark}` }}
@@ -174,65 +171,13 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
           <div className={`typo-caption pt-4 pb-3 ${gbClass.textDim}`}>
             스탯
           </div>
-          <div className="flex flex-col gap-3">
-            {STAT_ROWS.map(({ key, label, isCrit }) => {
-              const baseVal = base[key];
-              const effVal = effective[key];
-              const bonus = effVal - baseVal;
-              const suffix = isCrit ? "%" : "";
-              // bar width — crit 은 50 max, 나머지는 40 max 정도
-              const maxRef = isCrit ? 50 : 40;
-              const pct = Math.min(100, (effVal / maxRef) * 100);
-              // Phase 11c R4 — SR 친화적 통합 label. 기존: "STR 39 +5 INT 24..." 로 조각이 이어짐.
-              const srLabel = `${label} ${effVal}${suffix}${
-                bonus !== 0 ? `, 장비 보너스 ${bonus > 0 ? "+" : ""}${bonus}` : ""
-              }`;
-              return (
-                <div
-                  key={key}
-                  role="group"
-                  aria-label={srLabel}
-                >
-                  <div
-                    className="flex items-center justify-between typo-caption mb-1 tabular-nums"
-                    aria-hidden="true"
-                  >
-                    <span style={{ color: GB.light }}>{label}</span>
-                    <span>
-                      <span style={{ color: GB.lightest }}>
-                        {effVal}
-                        {suffix}
-                      </span>
-                      {bonus !== 0 && (
-                        <span
-                          className="ml-2"
-                          style={{ color: bonus > 0 ? GB.lightest : "#e88b7a" }}
-                        >
-                          ({bonus > 0 ? "+" : ""}
-                          {bonus})
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  {/* bar */}
-                  <div
-                    className="w-full h-2 rounded-sm overflow-hidden"
-                    style={{ background: GB.dark }}
-                    aria-hidden="true"
-                  >
-                    <div
-                      className="h-full rounded-sm"
-                      style={{
-                        width: `${pct}%`,
-                        background: GB.lightest,
-                        transition: `width 240ms ${EASE_OUT}`,
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <HexStatChart
+            base={base}
+            effective={effective}
+            level={level}
+            classType={hero.classType}
+            size={240}
+          />
         </section>
 
         {/* 장착 장비 4개 */}

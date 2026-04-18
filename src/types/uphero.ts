@@ -921,6 +921,52 @@ export function computeHeroForLevel(hero: Hero, level: number): Hero {
   };
 }
 
+/**
+ * Phase 12b — 육각형 HexStatChart 의 각 축 max 기준값 동적 계산.
+ *
+ * 각 스탯의 실제 max 는 (기본 base 10) + (레벨 × 성장률). 성장률은 클래스별
+ * 편향을 반영 (Phase 12c 와 연동) — primary 1.2 / secondary 1.0 / off-stat 0.8.
+ * crit 은 level 무관 고정 max (장비/버프로만 증가, 평균 상한 50).
+ *
+ * `ref` 는 radar chart 의 0-1 비율 기준. 실제 stat 값 / ref 가 1 초과하면
+ * 꼭짓점 바깥으로 튀어나옴 (overflow 시각화).
+ */
+export type StatKey = "str" | "int" | "vit" | "dex" | "agi" | "crit";
+
+export function computeStatMax(
+  level: number,
+  classType: ClassType | null,
+): Record<StatKey, number> {
+  const lvl = Math.max(1, level);
+  const delta = lvl - 1;
+  // 기본 성장률 1.0, 각 스탯별 기본 max = 10 + delta × 1.0.
+  const defaultMax = 10 + delta * 1.0;
+  // 클래스별 primary/secondary 스탯은 growth 1.2 반영 (다른 곳의 CLASS_STAT_GROWTH
+  //   테이블과 동일 형태). 아직 12c 미구현이라 여기선 기본값 + class 별 offset 가산.
+  //   12c 도입 시 CLASS_STAT_GROWTH 참조로 변경.
+  const classBoosts: Partial<Record<StatKey, number>> = (() => {
+    switch (classType) {
+      case "warrior": return { str: delta * 0.2, vit: delta * 0.1 };
+      case "mage": return { int: delta * 0.3, crit: 8 };
+      case "monk": return { dex: delta * 0.1, agi: delta * 0.1, vit: delta * 0.1 };
+      case "druid": return { vit: delta * 0.2, int: delta * 0.1 };
+      case "bard": return { dex: delta * 0.15, agi: delta * 0.15 };
+      case "chronomancer": return { dex: delta * 0.2, int: delta * 0.15 };
+      case "priest": return { int: delta * 0.2, vit: delta * 0.15 };
+      case "illusionist": return { agi: delta * 0.1, crit: 10 };
+      default: return {};
+    }
+  })();
+  return {
+    str: Math.round(defaultMax + (classBoosts.str ?? 0)),
+    int: Math.round(defaultMax + (classBoosts.int ?? 0)),
+    vit: Math.round(defaultMax + (classBoosts.vit ?? 0)),
+    dex: Math.round(defaultMax + (classBoosts.dex ?? 0)),
+    agi: Math.round(defaultMax + (classBoosts.agi ?? 0)),
+    crit: Math.round(50 + (classBoosts.crit ?? 0)),
+  };
+}
+
 // ─────────────────────────────────────────────────────────
 // Phase 4b — 챌린지 카드 버프 시스템
 // ─────────────────────────────────────────────────────────
