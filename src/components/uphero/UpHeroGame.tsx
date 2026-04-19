@@ -17,8 +17,10 @@ import SessionResultModal from "./SessionResultModal";
 import IdleRewardToast from "./IdleRewardToast";
 import ClassAwakenModal from "./ClassAwakenModal";
 import { GB } from "@/lib/upHeroPalette";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function UpHeroGame() {
+  const { t } = useTranslation();
   const initialize = useUpHeroStore((s) => s.initialize);
   const isLoaded = useUpHeroStore((s) => s.isLoaded);
   // Phase 9b — tick 마다 re-render 하는 session 전체 구독 대신 status 만.
@@ -54,7 +56,7 @@ export default function UpHeroGame() {
         className="flex items-center justify-center min-h-[60vh] rounded-md"
         style={{ background: GB.darkest, color: GB.light }}
       >
-        <div className="text-xs font-mono">LOADING...</div>
+        <div className="text-xs font-mono">{t("common.loading")}</div>
       </div>
     );
   }

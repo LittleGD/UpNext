@@ -43,23 +43,22 @@ function MinigameTileInner({
   echoGhostActive,
   disabled,
 }: MinigameTileProps) {
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
   const isFaceUp = tile.isFaceUp || tile.isMatched;
 
-  // Phase 12 R9 — a11y: 카드 상태를 SR 에 전달. 기존엔 <motion.button> 뿐
-  //   이라 "버튼 1, 버튼 2..." 로만 읽혀 카드 매칭 게임으로서 무의미.
-  //   상태별 label: 매치 완료 · 뒤집혀진 카드 (카드명) · 뒤집히지 않은 카드.
+  // Phase 12 R9 — a11y: 카드 상태를 SR 에 전달.
   const cardLabel = (() => {
-    if (tile.isMatched) return "매치 완료";
+    if (tile.isMatched) return t("a11y.minigame.matched");
     if (isFaceUp) {
+      const faceUp = t("a11y.minigame.faceUp");
       if (tile.kind === "challenge" && tile.card) {
-        return `앞면 · ${cardTitle(tile.card, language)}`;
+        return `${faceUp} · ${cardTitle(tile.card, language)}`;
       }
-      if (tile.kind === "skill") return "앞면 · 스킬 카드";
-      if (tile.kind === "curse") return "앞면 · 저주 카드";
-      return "앞면";
+      if (tile.kind === "skill") return `${faceUp} · ${t("a11y.minigame.skillCard")}`;
+      if (tile.kind === "curse") return `${faceUp} · ${t("a11y.minigame.curseCard")}`;
+      return faceUp;
     }
-    return "뒤집지 않은 카드";
+    return t("a11y.minigame.faceDown");
   })();
 
   return (
@@ -156,7 +155,7 @@ function TileFront({
   tile: MinigameTileType;
   sizePx: number;
 }) {
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
 
   if (tile.kind === "challenge" && tile.card) {
     const rarity = tile.card.rarity;
@@ -202,7 +201,7 @@ function TileFront({
           className="typo-micro text-center font-bold leading-tight"
           style={{ fontSize: Math.max(7, sizePx * 0.1), color: "#0A0A0A" }}
         >
-          SKILL
+          {t("minigame.tile.skill")}
         </div>
       </div>
     );
@@ -223,7 +222,7 @@ function TileFront({
         className="typo-micro text-center font-bold leading-tight text-white"
         style={{ fontSize: Math.max(7, sizePx * 0.1) }}
       >
-        CURSE
+        {t("minigame.tile.curse")}
       </div>
     </div>
   );

@@ -15,18 +15,6 @@ import AccordionSection from "@/components/ui/AccordionSection";
 import LanguageToggle from "@/components/ui/LanguageToggle";
 import { useAuthStore } from "@/store/useAuthStore";
 import { deleteCloudData } from "@/lib/sync";
-import dynamic from "next/dynamic";
-// Phase 14 code-review High #9 — DevLeaderboardPanel 은 dev 환경에서만 사용되지만
-//   기존 static import 라 production 번들에 module + 의존성 (WEEKLY_AFFIX_POOL,
-//   uploadWeeklyScore 등) 이 포함돼 수 KB shipping. NODE_ENV 가드 뒤에서 dynamic
-//   import 으로 감싸면 webpack 이 DefinePlugin 으로 `false` 로 치환 → import 구문
-//   자체가 dead-code eliminate → prod 빌드에서 완전 제외.
-const DevLeaderboardPanel =
-  process.env.NODE_ENV === "development"
-    ? dynamic(() => import("@/components/uphero/DevLeaderboardPanel"), {
-        ssr: false,
-      })
-    : null;
 import GbConfirm from "@/components/uphero/GbConfirm";
 import { motion, AnimatePresence } from "framer-motion";
 import { springSnappy } from "@/lib/motion";
@@ -490,11 +478,6 @@ export default function SettingsPage() {
           UpNext v0.1.0
         </p>
       </section>
-
-      {/* Phase 11c — Dev 도구 (production 제외).
-           리더보드/NG+/주간 변이 테스트 단축.
-           Phase 14 High #9: dynamic import + NODE_ENV 가드 → prod 번들 제외. */}
-      {DevLeaderboardPanel && <DevLeaderboardPanel />}
 
       {/* ── 모드 변경 확인 모달 ── */}
       <AnimatePresence>

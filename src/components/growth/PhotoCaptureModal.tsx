@@ -48,6 +48,9 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   const [flashOn, setFlashOn] = useState(false);
   const [exposureEV, setExposureEV] = useState(0); // -2..+2 (EV stops)
   const [isExposureDragging, setIsExposureDragging] = useState(false);
+  // 카메라 방향 — 기본은 "environment" (뒷면). 유저가 toggle 시 "user" 로.
+  //   deps 에 포함해서 toggle 하면 getUserMedia 가 재실행되어 화면 전환.
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   // 드래그로 한 번이라도 건드리면 자동 샘플 중단 → 사용자 의도 우선
   const [isExposureManual, setIsExposureManual] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -82,10 +85,15 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
 
     let mounted = true;
     setCameraError(false);
+    // facingMode 전환 시 이전 stream 을 먼저 끊어야 iOS Safari 등에서 새 스트림이
+    //   열림 (동시 2개 금지 정책). cleanup 이 run 되면서 stopTracks 하지만,
+    //   여기서도 한번 더 명시적 해제.
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment", width: { ideal: 800 }, height: { ideal: 800 } },
+          video: { facingMode, width: { ideal: 800 }, height: { ideal: 800 } },
         });
         if (!mounted) { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
@@ -104,7 +112,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, [capturePhase]);
+  }, [capturePhase, facingMode]);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -255,7 +263,16 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     if (Math.abs(totalBrightness - 1) > 0.01) {
       ctx.filter = `brightness(${totalBrightness.toFixed(3)})`;
     }
+    // 전면 카메라 (user) 는 프리뷰가 거울 반전이라 저장도 동일하게 flip —
+    //   유저가 본 이미지 = 저장된 이미지. iOS 기본 카메라 앱과 같은 UX.
+    if (facingMode === "user") {
+      ctx.translate(size, 0);
+      ctx.scale(-1, 1);
+    }
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+    if (facingMode === "user") {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
     ctx.filter = "none";
     if (flashOn) {
       // 플래시는 반사광 흰 오버레이 추가 (15% alpha) — 필터만으로는 "반짝"
@@ -278,7 +295,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
 
     setTimeout(() => play("polaroidSlide"), 400);
     setTimeout(() => setCapturePhase("polaroid"), 2500);
-  }, [stopCamera, play, setCapturePhase, exposureEV, flashOn]);
+  }, [stopCamera, play, setCapturePhase, exposureEV, flashOn, facingMode]);
 
   // 파일 선택 폴백
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -429,10 +446,10 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
             <button
               onClick={handleClose}
               className="flex items-center gap-1.5 px-2 py-1.5 rounded-md active:opacity-60 transition-opacity"
-              aria-label="Close"
+              aria-label={t("a11y.close")}
             >
               <PixelIcon name="Cancel" size={18} color="var(--text-secondary)" />
-              <span className="typo-caption text-text-secondary">Close</span>
+              <span className="typo-caption text-text-secondary">{t("a11y.close")}</span>
             </button>
             <h2 className="typo-body text-text-primary">{t("playground.capture.title")}</h2>
             <div className="w-[60px]" />
@@ -537,7 +554,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                     // 외곽 드롭섀도우 — 다른 컨트롤 프레임과 일관성
                     boxShadow: "0 2px 4px rgba(0,0,0,0.25)",
                   }}
-                  aria-label="Close camera"
+                  aria-label={t("a11y.closeCamera")}
                 >
                   {/* 이너 배경 — 수직 그라디언트로 몰드된 플라스틱 깊이감 */}
                   <span
@@ -615,6 +632,15 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                       playsInline
                       muted
                       className="w-full h-full object-cover"
+                      style={{
+                        // 실시간 노출/플래시 프리뷰 — capture 시 적용되던 brightness
+                        //   와 동일한 식 (EV → 2^EV, flashOn = +15%) 을 video 에
+                        //   그대로 걸어 유저가 "보이는 대로 찍힌다" 는 직관 성립.
+                        //   전면 카메라 (user) 는 거울처럼 좌우 반전이 자연스러워
+                        //   scaleX(-1) 도 함께 적용.
+                        filter: `brightness(${(Math.pow(2, exposureEV) * (flashOn ? 1.15 : 1)).toFixed(3)})`,
+                        transform: facingMode === "user" ? "scaleX(-1)" : undefined,
+                      }}
                     />
 
                     {/* Phase 12 R7 — 카메라 접근 실패 시 검정 뷰파인더 위에
@@ -830,7 +856,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                         padding: 4,
                       }}
                       aria-pressed={flashOn}
-                      aria-label={flashOn ? "Flash on" : "Flash off"}
+                      aria-label={flashOn ? t("a11y.flashOn") : t("a11y.flashOff")}
                     >
                       {/* 통짜 리브 그릴 트랙 — 버튼 내부 전체 */}
                       <span
@@ -938,7 +964,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                           "linear-gradient(180deg, rgba(236,233,222,0.1) 0%, rgba(70,68,62,0.1) 100%) border-box",
                         boxShadow: "0 0 4px 0 rgba(0,0,0,0.15)",
                       }}
-                      aria-label="Take photo"
+                      aria-label={t("a11y.takePhoto")}
                     >
                       {/* 내부 red1 — border #232829 (다크 아웃라인) */}
                       <div
@@ -984,11 +1010,66 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                   </div>
                 </div>
 
-                {/* ── ROW 2: EXPOSURE 라벨 + 리브드 바 ── */}
+                {/* ── ROW 2: [전/후면 전환 버튼] + EXPOSURE 라벨 + 리브드 바 ── */}
                 <div
                   className="flex items-center w-full overflow-clip"
                   style={{ gap: 8, padding: "0 0 2px" }}
                 >
+                  {/* 전/후면 카메라 전환 — CLOSE 버튼과 동일한 디자인 어휘 (4px 검정
+                       보더, 내부 다크 그라디언트, 양각 하이라이트). 아이콘 only 라
+                       정사각형 40×40. cameraError 상태에서는 의미 없으니 disabled. */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFacingMode((m) => (m === "environment" ? "user" : "environment"))
+                    }
+                    disabled={cameraError}
+                    className="relative flex items-center justify-center active:scale-[0.97] active:brightness-90 transition-[transform,filter] duration-160 ease-[cubic-bezier(0.23,1,0.32,1)] shrink-0 disabled:opacity-40"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      border: "4px solid #000",
+                      borderRadius: 8,
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.25)",
+                    }}
+                    aria-label={
+                      facingMode === "environment"
+                        ? t("a11y.switchToFront")
+                        : t("a11y.switchToBack")
+                    }
+                    aria-pressed={facingMode === "user"}
+                  >
+                    {/* 이너 배경 — CLOSE 와 동일 수직 그라디언트 */}
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        background:
+                          "linear-gradient(180deg, #2a2f2f 0%, #212727 55%, #161b1b 100%)",
+                        borderRadius: 4,
+                      }}
+                    />
+                    {/* 아이콘 — Reload (양방향 화살표) 로 flip 감각. */}
+                    <span
+                      className="relative z-[1]"
+                      style={{
+                        color: "#ffffff",
+                        textShadow: "0 1px 0 rgba(0,0,0,0.55)",
+                      }}
+                    >
+                      <PixelIcon name="Reload" size={16} color="currentColor" />
+                    </span>
+                    {/* 양각 하이라이트 + 하단 섀도우 (CLOSE 와 동일) */}
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        boxShadow:
+                          "inset 0 4px 4px rgba(255,255,255,0.25), inset 0 -3px 3px rgba(0,0,0,0.35)",
+                        borderRadius: 4,
+                      }}
+                    />
+                  </button>
                   <p
                     className="whitespace-nowrap text-center shrink-0"
                     style={{ color: "#212328", fontSize: 10, fontWeight: 700, lineHeight: "normal" }}

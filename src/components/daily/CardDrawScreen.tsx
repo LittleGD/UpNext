@@ -1124,7 +1124,7 @@ function SelectedMiniCard({
   locked?: boolean;
 }) {
   const rarity = RARITY_CONFIG[card.rarity];
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
   const y = useMotionValue(0);
   const opacity = useTransform(y, [0, 60], [1, locked ? 1 : 0.4]);
   const scale = useTransform(y, [0, 60], [1, locked ? 1 : 0.9]);
@@ -1181,7 +1181,7 @@ function SelectedMiniCard({
           onClick={() => onDeselect(card.id)}
           // 시각 크기는 28px 유지, 실제 히트 영역은 44×44 (Apple HIG 최소치)
           className="w-11 h-11 flex items-center justify-center"
-          aria-label="deselect card"
+          aria-label={t("a11y.deselectCard")}
         >
           <div className="w-7 h-7 rounded-sm bg-bg-surface flex items-center justify-center">
             <PixelIcon name="Cancel" size={14} color="var(--text-secondary)" />

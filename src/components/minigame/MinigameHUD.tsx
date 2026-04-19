@@ -92,7 +92,7 @@ export default function MinigameHUD() {
         <button
           onClick={requestExit}
           className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg hover:bg-bg-surface transition-colors"
-          aria-label="Exit run"
+          aria-label={t("a11y.minigame.exitRun")}
         >
           <PixelIcon name="Cancel" size={16} color="#808080" />
           <span className="typo-caption text-text-tertiary">

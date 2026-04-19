@@ -25,6 +25,7 @@ import {
 } from "@/lib/weeklyLeaderboard";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import { CLASS_META } from "@/types/uphero";
+import { className as classNameI18n } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 interface WeeklyLeaderboardProps {
@@ -126,7 +127,7 @@ export default function WeeklyLeaderboard({
         >
           {error && (
             <div className="typo-caption text-center py-8" style={{ color: GB.light }}>
-              {error === "Firebase 미구성"
+              {error === FIREBASE_UNCONFIGURED
                 ? t("uphero.leaderboard.loginRequired")
                 : `${t("uphero.leaderboard.fetchFail")}: ${error}`}
             </div>
@@ -235,17 +236,18 @@ function LeaderboardRow({
   entry: WeeklyLeaderboardEntry;
   isMe?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const top3Color = rank === 1 ? GB_LEGEND : rank === 2 ? "#cdb887" : rank === 3 ? "#bca88b" : GB.light;
   const className = entry.classType
-    ? CLASS_META[entry.classType]?.name ?? ""
+    ? classNameI18n(entry.classType, language)
     : "";
   // Phase 11c R3 — screen reader 용 합쳐진 label. 시각 렌더 변화 없음.
+  const levelLabel = t("common.levelShort", { level: entry.heroLevel });
   const srLabel = [
     `#${rank}`,
     isMe ? t("uphero.leaderboard.mineLabel") : entry.displayName,
     `${entry.score.toLocaleString()}`,
-    className && `${className} Lv.${entry.heroLevel}`,
+    className && `${className} ${levelLabel}`,
     `F${entry.floorsCleared}`,
   ]
     .filter(Boolean)
@@ -283,7 +285,7 @@ function LeaderboardRow({
             className="typo-micro"
             style={{ color: GB.light, opacity: 0.6, fontSize: 9 }}
           >
-            {className} · Lv.{entry.heroLevel} · F{entry.floorsCleared}
+            {className} · {levelLabel} · F{entry.floorsCleared}
           </div>
         )}
       </div>

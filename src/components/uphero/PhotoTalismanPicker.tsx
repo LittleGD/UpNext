@@ -172,7 +172,11 @@ export default function PhotoTalismanPicker({
         }, 2800);
       } else {
         play("cancel");
-        onNotify(result.error ?? t("uphero.photo.toast.genericFail"));
+        onNotify(
+          result.errorKey
+            ? t(result.errorKey as DictKey, result.errorParams)
+            : t("uphero.photo.toast.genericFail"),
+        );
       }
       return;
     }
@@ -193,7 +197,11 @@ export default function PhotoTalismanPicker({
       }, 2800);
     } else {
       play("cancel");
-      onNotify(result.error ?? t("uphero.photo.toast.genericFail"));
+      onNotify(
+        result.errorKey
+          ? t(result.errorKey as DictKey, result.errorParams)
+          : t("uphero.photo.toast.genericFail"),
+      );
     }
   };
 

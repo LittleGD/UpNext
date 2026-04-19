@@ -74,8 +74,12 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
                 className={`typo-micro mb-1.5 ${gbClass.textDim}`}
                 style={{ letterSpacing: "0.08em" }}
               >
-                TIER {tier}
-                {tier > 1 && ` · Lv ${skills[0]?.requiredLevel ?? "?"} · ${skills[0]?.pointCost ?? 1} SP`}
+                {t("uphero.skillTree.tierLabel", { tier })}
+                {tier > 1 &&
+                  t("uphero.skillTree.tierMeta", {
+                    level: skills[0]?.requiredLevel ?? "?",
+                    sp: skills[0]?.pointCost ?? 1,
+                  })}
               </div>
               <div className="flex flex-col gap-1.5">
                 {skills.map((skill) => {
@@ -125,7 +129,7 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
                           </span>
                           <span className={gbClass.textDim}>·</span>
                           <span className={gbClass.textDim}>
-                            CD {skill.cooldown}
+                            {t("uphero.stat.cdPrefix", { cd: skill.cooldown })}
                           </span>
                         </div>
                       </div>
@@ -164,9 +168,9 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
                           }
                         >
                           {status === "level"
-                            ? `Lv ${skill.requiredLevel}`
+                            ? t("uphero.skillTree.btnNeedLevel", { level: skill.requiredLevel })
                             : status === "points"
-                              ? `SP ${skill.pointCost}`
+                              ? t("uphero.skillTree.btnNeedSP", { sp: skill.pointCost })
                               : t("uphero.skillTree.unlock")}
                         </button>
                       )}

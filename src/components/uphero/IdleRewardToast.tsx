@@ -152,9 +152,23 @@ export default function IdleRewardToast() {
         )}
         <br />
         <span className="tabular-nums">
-          +<span style={{ color: GB.lightest, fontWeight: 600 }}>{xpDisplay}</span> XP
-          {" · "}+
-          <span style={{ color: GB.lightest, fontWeight: 600 }}>{coinDisplay}</span> C
+          {(() => {
+            const xpText = t("common.unit.xpGain", { n: "__N__" });
+            const [xpBefore, xpAfter] = xpText.split("__N__");
+            const coinText = t("common.unit.coinGain", { n: "__N__" });
+            const [coinBefore, coinAfter] = coinText.split("__N__");
+            return (
+              <>
+                {xpBefore}
+                <span style={{ color: GB.lightest, fontWeight: 600 }}>{xpDisplay}</span>
+                {xpAfter}
+                {" · "}
+                {coinBefore}
+                <span style={{ color: GB.lightest, fontWeight: 600 }}>{coinDisplay}</span>
+                {coinAfter}
+              </>
+            );
+          })()}
         </span>
       </div>
 

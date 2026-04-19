@@ -3,9 +3,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useMotionValue, type MotionValue } from "framer-motion";
 import { useReducedMotion } from "./useReducedMotion";
+import { isLowEndDeviceCached } from "@/lib/devicePerformance";
 
 const GYRO_SENSITIVITY = 0.6; // 원시 beta/gamma → degree 매핑 비율
 const MAX_GYRO = 10;          // ±10° (드래그보다 부드럽게)
+// deviceorientation 이벤트는 대부분 기기에서 60Hz. MotionValue set + spring 은
+// 저렴하지만 끝단 (transform/matrix) 까지 가면 저성능 기기에서 jank 의 원인.
+// 저성능 기기에서는 ~30Hz 로 sample-down. 사람 손목의 지연을 고려하면 시각
+// 차이는 거의 없음.
+const LOW_END_MIN_INTERVAL_MS = 33;
 
 export interface GyroscopeState {
   /** 앞-뒤 기울기 MotionValue (±10°, 리렌더 없음) */
@@ -63,8 +69,17 @@ export function useGyroscope(): GyroscopeState {
   useEffect(() => {
     if (!isActive || reducedMotion) return;
 
+    const lowEnd = isLowEndDeviceCached();
+    let lastUpdate = 0;
+
     const handler = (e: DeviceOrientationEvent) => {
       if (e.beta == null || e.gamma == null) return;
+
+      if (lowEnd) {
+        const now = performance.now();
+        if (now - lastUpdate < LOW_END_MIN_INTERVAL_MS) return;
+        lastUpdate = now;
+      }
 
       // 첫 이벤트를 "기준"으로 잡아서, 손에 들고 있는 기본 자세를 0°로 설정
       if (!initialRef.current) {

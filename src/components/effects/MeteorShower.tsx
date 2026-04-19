@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { isLowEndDeviceCached } from "@/lib/devicePerformance";
 
 interface Meteor {
   x: number;
@@ -51,6 +52,13 @@ export default function MeteorShower({ active }: { active: boolean }) {
     meteorsRef.current = [];
     lastSpawnRef.current = 0;
 
+    // 저성능 기기: 30fps throttle + 물리 step 2배로 같은 wall-clock 속도 유지.
+    // 라이프도 step 단위로 늘려 같은 초 동안 살다 사라지게.
+    const lowEnd = isLowEndDeviceCached();
+    const step = lowEnd ? 2 : 1;
+    const minFrameMs = lowEnd ? 33 : 0;
+    let lastDraw = 0;
+
     function spawnMeteor(time: number) {
       // Angle: 135-160 degrees in radians (top-right to bottom-left)
       const angleDeg = 135 + Math.random() * 25;
@@ -73,6 +81,13 @@ export default function MeteorShower({ active }: { active: boolean }) {
 
     function animate(time: number) {
       if (!ctx || !canvas) return;
+
+      if (minFrameMs > 0 && time - lastDraw < minFrameMs) {
+        rafRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      lastDraw = time;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Spawn new meteors (12-16 on screen, every 300-500ms)
@@ -87,11 +102,12 @@ export default function MeteorShower({ active }: { active: boolean }) {
       const meteors = meteorsRef.current;
       for (let i = meteors.length - 1; i >= 0; i--) {
         const m = meteors[i];
-        m.life++;
+        m.life += step;
 
-        // Move
-        m.x += Math.cos(m.angle) * m.speed;
-        m.y += Math.sin(m.angle) * m.speed;
+        // Move — step 배수만큼 전진 (30fps 시 2 step 으로 같은 속도 유지)
+        const advance = m.speed * step;
+        m.x += Math.cos(m.angle) * advance;
+        m.y += Math.sin(m.angle) * advance;
 
         // Fade based on life
         const lifeRatio = m.life / m.maxLife;
@@ -107,10 +123,10 @@ export default function MeteorShower({ active }: { active: boolean }) {
 
         const [r, g, b] = COLORS[m.color];
 
-        // Draw trail
+        // Draw trail — trail segment gap = advance 로 연속적인 꼬리 유지
         for (let t = TRAIL_LENGTH; t >= 1; t--) {
-          const trailX = m.x - Math.cos(m.angle) * m.speed * t;
-          const trailY = m.y - Math.sin(m.angle) * m.speed * t;
+          const trailX = m.x - Math.cos(m.angle) * advance * t;
+          const trailY = m.y - Math.sin(m.angle) * advance * t;
           const trailAlpha = alpha * (1 - t / (TRAIL_LENGTH + 1)) * 0.6;
           ctx.fillStyle = `rgba(${r},${g},${b},${trailAlpha})`;
           ctx.fillRect(Math.floor(trailX), Math.floor(trailY), 1, 1);

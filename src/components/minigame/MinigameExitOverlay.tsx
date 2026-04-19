@@ -34,7 +34,7 @@ export default function MinigameExitOverlay({
       {!hideTopRightButton && (
         <button
           onClick={requestExit}
-          aria-label="Exit run"
+          aria-label={t("a11y.minigame.exitRun")}
           className="fixed right-4 z-50 p-2 rounded-lg bg-bg-surface/80 backdrop-blur-sm border border-white/10 hover:bg-bg-surface transition-colors"
           style={{ top: "calc(env(safe-area-inset-top) + 16px)" }}
         >

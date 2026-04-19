@@ -527,7 +527,7 @@ export default function DailyBoard() {
                       className="typo-micro tabular-nums px-2 py-0.5 rounded-full"
                       style={{ backgroundColor: `${rarity.color}15`, color: rarity.color }}
                     >
-                      +{xp} XP
+                      {t("common.unit.xpGain", { n: xp })}
                     </span>
                   </div>
 
@@ -678,7 +678,7 @@ export default function DailyBoard() {
                     animate={{ scale: [0.5, 1.2, 1] }}
                     transition={{ delay: 0.35, duration: 0.4 }}
                   >
-                    +{completingXp} XP
+                    {t("common.unit.xpGain", { n: completingXp })}
                   </motion.span>
                 </motion.div>
                 {/* Phase 12 bugfix — 탐험권 지급 chip. 유저가 "던전 티켓 안 주네" 오인

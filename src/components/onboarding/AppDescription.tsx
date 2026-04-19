@@ -270,6 +270,7 @@ function CardFanGraphic() {
    Page 2: 에너지 펄스 그래픽
    ══════════════════════════════════════ */
 function EnergyPulseGraphic() {
+  const { t } = useTranslation();
   return (
     <div className="relative flex items-center justify-center w-full h-full">
       {/* 외곽 글로우 */}
@@ -359,7 +360,7 @@ function EnergyPulseGraphic() {
             transition={{ delay: 1 }}
             className="typo-micro text-text-tertiary"
           >
-            Lv.1
+            {t("common.levelShort", { level: 1 })}
           </motion.span>
           <motion.span
             initial={{ opacity: 0 }}
@@ -367,7 +368,7 @@ function EnergyPulseGraphic() {
             transition={{ delay: 1.2 }}
             className="typo-micro text-accent-cyan"
           >
-            Lv.2
+            {t("common.levelShort", { level: 2 })}
           </motion.span>
         </div>
       </motion.div>

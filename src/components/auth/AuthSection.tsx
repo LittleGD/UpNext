@@ -82,7 +82,15 @@ export default function AuthSection() {
             {isSigningIn ? t("auth.section.signingIn") : t("auth.section.signInGoogle")}
           </button>
           {signInError && (
-            <p className="typo-caption text-accent-secondary">{signInError}</p>
+            <p className="typo-caption text-accent-secondary">
+              {signInError.kind === "popup-blocked"
+                ? t("auth.error.popupBlocked")
+                : signInError.kind === "unauthorized-domain"
+                  ? t("auth.error.unauthorizedDomain")
+                  : signInError.kind === "not-allowed"
+                    ? t("auth.error.notAllowed")
+                    : t("auth.error.generic", { code: signInError.code ?? "unknown" })}
+            </p>
           )}
         </div>
       )}

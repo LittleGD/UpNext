@@ -1,5 +1,6 @@
 "use client";
 
+import { forwardRef } from "react";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
   PAPER_FIBER_URL,
@@ -12,6 +13,10 @@ interface Props {
   onChange?: (v: string) => void;
   /** 읽기 전용 — 디테일 뷰에서 사용. textarea 대신 p 로 렌더 */
   readOnly?: boolean;
+  /** textarea focus 진입 — 부모가 자이로 off / accessory bar 표시용으로 사용. */
+  onFocus?: () => void;
+  /** textarea blur — 부모가 자이로 복구 / accessory bar 감추기용. */
+  onBlur?: () => void;
 }
 
 const MAX_CHARS = 200;
@@ -28,7 +33,10 @@ const MAX_CHARS = 200;
  *  - 라인 노트 패턴 — 손글씨 가이드
  *  - 드롭/엣지 섀도우 — 프레임과 동일한 두께감
  */
-export default function MemoEditor({ value, onChange, readOnly = false }: Props) {
+const MemoEditor = forwardRef<HTMLTextAreaElement, Props>(function MemoEditor(
+  { value, onChange, readOnly = false, onFocus, onBlur },
+  ref,
+) {
   const { t } = useTranslation();
 
   return (
@@ -77,8 +85,11 @@ export default function MemoEditor({ value, onChange, readOnly = false }: Props)
           </p>
         ) : (
           <textarea
+            ref={ref}
             value={value}
             onChange={(e) => onChange?.(e.target.value.slice(0, MAX_CHARS))}
+            onFocus={onFocus}
+            onBlur={onBlur}
             placeholder={t("playground.capture.memo")}
             className="w-full h-full bg-transparent resize-none outline-none text-[#2a2a2a] leading-[24px] pt-[9px] typo-body placeholder:text-[#a09080]"
             style={{
@@ -104,4 +115,6 @@ export default function MemoEditor({ value, onChange, readOnly = false }: Props)
       </div>
     </div>
   );
-}
+});
+
+export default MemoEditor;

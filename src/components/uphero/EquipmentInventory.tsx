@@ -36,6 +36,7 @@ import { useGameStore } from "@/store/useGameStore";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
+import { equipmentNameById } from "@/lib/upHeroI18n";
 import EquipmentCard from "./EquipmentCard";
 import HeroSprite from "./HeroSprite";
 import GbConfirm from "./GbConfirm";
@@ -108,7 +109,7 @@ export default function EquipmentInventory({
   onBack,
   onNotify,
 }: EquipmentInventoryProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
   const inventory = useUpHeroStore((s) => s.inventory);
   const coins = useUpHeroStore((s) => s.coins);
@@ -148,7 +149,11 @@ export default function EquipmentInventory({
   const onEquip = (item: Equipment) => {
     equipItem(item.id, item.type);
     play("equip");
-    onNotify(t("uphero.equip.toast.equipped", { name: item.name }));
+    onNotify(
+      t("uphero.equip.toast.equipped", {
+        name: equipmentNameById(item.baseId ?? "", item.name, language),
+      }),
+    );
     setSelectedId(null);
   };
 
@@ -157,7 +162,11 @@ export default function EquipmentInventory({
     if (!item) return;
     unequipItem(slot);
     play("equip");
-    onNotify(t("uphero.equip.toast.unequipped", { name: item.name }));
+    onNotify(
+      t("uphero.equip.toast.unequipped", {
+        name: equipmentNameById(item.baseId ?? "", item.name, language),
+      }),
+    );
   };
 
   // Phase 9a — 직접 confirm() 대신 GbConfirm 상태 설정.
@@ -234,7 +243,11 @@ export default function EquipmentInventory({
         modal = { kind: "keep", item: result.item };
       } else if (result.reason === "destroyed") {
         outcome = "destroyed";
-        modal = { kind: "destroyed", lostItemName: result.lostItemName };
+        modal = {
+          kind: "destroyed",
+          lostItemName: result.lostItemName,
+          lostBaseId: result.lostBaseId,
+        };
       } else {
         // unreachable — coin/maxed/not-found 위에서 처리됨. TS exhaustiveness 보장.
         const _exhaustive: never = result;
@@ -434,7 +447,11 @@ export default function EquipmentInventory({
           }}
         >
           <div className="typo-caption flex-1 truncate" style={{ color: GB.lightest }}>
-            {selectedItem.name}
+            {equipmentNameById(
+              selectedItem.baseId ?? "",
+              selectedItem.name,
+              language,
+            )}
           </div>
           <ActionButton onClick={() => onEquip(selectedItem)} primary>
             {t("uphero.equip.action.equip")}
@@ -638,7 +655,11 @@ export default function EquipmentInventory({
                           className="typo-caption truncate"
                           style={{ color: GB.lightest }}
                         >
-                          {item.name}
+                          {equipmentNameById(
+                            item.baseId ?? "",
+                            item.name,
+                            language,
+                          )}
                         </div>
                         <div
                           className={`typo-micro tabular-nums ${gbClass.textDim} flex items-center gap-2 flex-wrap`}
@@ -721,14 +742,28 @@ export default function EquipmentInventory({
         open={pending != null}
         title={
           pending?.kind === "sell"
-            ? t("uphero.equip.confirm.sellTitle", { name: pending.item.name })
+            ? t("uphero.equip.confirm.sellTitle", {
+                name: equipmentNameById(
+                  pending.item.baseId ?? "",
+                  pending.item.name,
+                  language,
+                ),
+              })
             : pending?.kind === "discard"
               ? t("uphero.equip.confirm.discardTitle", {
-                  name: pending.item.name,
+                  name: equipmentNameById(
+                    pending.item.baseId ?? "",
+                    pending.item.name,
+                    language,
+                  ),
                 })
               : pending?.kind === "enhance"
                 ? t("uphero.equip.confirm.enhanceTitle", {
-                    name: pending.item.name,
+                    name: equipmentNameById(
+                      pending.item.baseId ?? "",
+                      pending.item.name,
+                      language,
+                    ),
                     from: pending.item.enhanceLevel ?? 0,
                     to: (pending.item.enhanceLevel ?? 0) + 1,
                   })

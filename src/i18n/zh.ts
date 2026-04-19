@@ -13,6 +13,43 @@ const zh: Record<DictKey, string> = {
   "common.equipped": "已装备",
   "common.unequip": "卸下",
   "common.cardsPerDay": "张/天",
+  "common.levelShort": "Lv.{level}",
+  "common.unit.xpGain": "+{n} XP",
+  "common.unit.coinGain": "+{n} C",
+  "common.loading": "加载中...",
+
+  // === a11y (aria-label) ===
+  "a11y.close": "关闭",
+  "a11y.closeCamera": "关闭相机",
+  "a11y.takePhoto": "拍照",
+  "a11y.clearSignature": "清除签名",
+  "a11y.penColor": "笔颜色 {color}",
+  "a11y.penWidth": "笔宽 {label}",
+  "a11y.addSticker": "添加 {id} 贴纸",
+  "a11y.flashOn": "闪光灯开启",
+  "a11y.flashOff": "闪光灯关闭",
+  "a11y.switchToFront": "切换到前置相机",
+  "a11y.switchToBack": "切换到后置相机",
+  "a11y.deselectCard": "取消选择卡片",
+  "a11y.minigame.matched": "已匹配",
+  "a11y.minigame.faceUp": "正面",
+  "a11y.minigame.faceDown": "背面卡片",
+  "a11y.minigame.skillCard": "技能卡",
+  "a11y.minigame.curseCard": "诅咒卡",
+  "a11y.minigame.exitRun": "退出游戏",
+
+  // === header ===
+  "header.level": "Lv.{level}",
+  "header.xp": "{current}/{needed} XP",
+
+  // === auth errors ===
+  "auth.error.popupBlocked": "弹窗被阻止。请在浏览器中允许弹窗。",
+  "auth.error.unauthorizedDomain": "该域名未在 Firebase 注册。请联系管理员。",
+  "auth.error.notAllowed": "Google 登录未启用。",
+  "auth.error.generic": "登录失败 ({code})。请重试。",
+
+  // === notifications ===
+  "notif.challenge.reminder": "今日还有挑战未完成！",
 
   // === onboarding ===
   "onboarding.desc1.title1": "每天组建新卡组",
@@ -372,6 +409,8 @@ const zh: Record<DictKey, string> = {
   "minigame.summary.duplicate": "重复卡",
   "minigame.summary.xpGained": "+{xp} XP",
   "minigame.summary.totalMatches": "总配对数",
+  "minigame.summary.skillMatches": "技能",
+  "minigame.summary.curseMatches": "诅咒",
   "minigame.summary.playAgain": "再玩一次",
   "minigame.summary.exit": "退出",
 
@@ -478,6 +517,23 @@ const zh: Record<DictKey, string> = {
 
   // === Monster names (40) ===
   // fitness
+  // newbie (仅 1-3 层，每个类别 2 种)
+  "uphero.monster.fit_newbie_rabbit": "胆小的兔子",
+  "uphero.monster.fit_newbie_pebble": "滚动的小石子",
+  "uphero.monster.lrn_newbie_page": "飘零的书页",
+  "uphero.monster.lrn_newbie_ink": "小小墨滴",
+  "uphero.monster.mnd_newbie_bubble": "小妄想泡泡",
+  "uphero.monster.mnd_newbie_breeze": "轻柔微风",
+  "uphero.monster.ntr_newbie_bean": "蹦跳豆子",
+  "uphero.monster.ntr_newbie_carrot": "小胡萝卜",
+  "uphero.monster.soc_newbie_whisper": "微弱的低语",
+  "uphero.monster.soc_newbie_pickpocket": "笨拙的扒手",
+  "uphero.monster.prd_newbie_paperclip": "叮当回形针",
+  "uphero.monster.prd_newbie_stickynote": "飘动便签",
+  "uphero.monster.wel_newbie_droplet": "小水滴",
+  "uphero.monster.wel_newbie_petal": "飘落的花瓣",
+  "uphero.monster.trd_newbie_pixel": "调皮像素",
+  "uphero.monster.trd_newbie_bubble": "聊天气泡",
   "uphero.monster.fit_wolf": "山岳之狼",
   "uphero.monster.fit_bear": "岩山熊",
   "uphero.monster.fit_goblin": "山岳哥布林",
@@ -617,6 +673,24 @@ const zh: Record<DictKey, string> = {
   "uphero.home.equipment.hint": "装备 · 出售 · 强化",
   "uphero.home.codex.label": "图鉴",
   "uphero.home.codex.hint": "遇到的怪物记录",
+
+  // === Camp 首次进入教学 ===
+  "uphero.tutorial.skip": "跳过",
+  "uphero.tutorial.next": "下一步",
+  "uphero.tutorial.prev": "上一步",
+  "uphero.tutorial.start": "开始",
+  "uphero.tutorial.step": "{current} / {total}",
+  "uphero.tutorial.step1.title": "欢迎来到营地",
+  "uphero.tutorial.step1.body": "这里是英雄的家，可以准备探索、整理装备、管理金币。",
+  "uphero.tutorial.step2.title": "点击英雄查看状态",
+  "uphero.tutorial.step2.body": "点击中央的英雄图像，一眼查看属性、技能和已装备的装备。",
+  "uphero.tutorial.step3.title": "开始探索",
+  "uphero.tutorial.step3.body": "使用探索券进入地下城，从 6 张卡中抽选 BUFF，完成挑战。",
+  "uphero.tutorial.step4.title": "商店与装备",
+  "uphero.tutorial.step4.body": "用地下城金币在商店购买探索券与卡包，穿戴装备让英雄更强。",
+  "uphero.tutorial.name.title": "给你的勇者起名",
+  "uphero.tutorial.name.body": "输入你喜欢的名字，留空则保留建议的名字。",
+  "uphero.tutorial.name.inputAria": "勇者名字输入",
 
   // === Camp subheaders ===
   "uphero.subheader.dungeons": "选择地下城",
@@ -762,6 +836,16 @@ const zh: Record<DictKey, string> = {
   "uphero.stat.autoToggleOn": "开",
   "uphero.stat.autoToggleOff": "关",
   "uphero.stat.chartAria": "属性图表",
+  "uphero.stat.info.buttonAria": "查看属性说明",
+  "uphero.stat.info.title": "属性如何影响战斗?",
+  "uphero.stat.info.close": "关闭",
+  "uphero.stat.info.tapHint": "点击各属性查看详细说明",
+  "uphero.stat.info.str": "STR · 力量 — 物理攻击力提升。武器伤害更高。",
+  "uphero.stat.info.int": "INT · 智力 — 技能/法术伤害与资源回复量提升。",
+  "uphero.stat.info.vit": "VIT · 体力 — 最大 HP 提升,更耐打。",
+  "uphero.stat.info.dex": "DEX · 敏捷 — 命中率与暴击辅助率提升。",
+  "uphero.stat.info.agi": "AGI · 灵敏 — 闪避率提升,更易躲避攻击。",
+  "uphero.stat.info.crit": "CRIT · 致命 — 直接增加暴击率。单次攻击最大伤害 ↑。",
   "uphero.skillBar.aria": "技能",
   "uphero.skillTree.resourceLabel": "资源",
   "uphero.photo.bindAria": "绑定照片护身符",
@@ -1852,6 +1936,39 @@ const zh: Record<DictKey, string> = {
   "uphero.rest.5": "靠在低矮的石墙下",
   "uphero.rest.6": "在古老的旅人标记旁歇息",
   "uphero.rest.7": "点燃干柴取暖",
+
+  // === Round-6 audit additions ===
+  "minigame.tile.skill": "技能",
+  "minigame.tile.curse": "诅咒",
+  "minigame.runResult.noMatches": "没有匹配的卡片",
+
+  "uphero.log.floorDivider": "Floor {floor}",
+  "uphero.combat.floorLabel": "Floor {floor}",
+  "uphero.log.encounterStats": "(HP {hp} · ATK {atk})",
+  "uphero.combat.enemy.level": "Lv {level}",
+  "uphero.combat.heroStats": "STR {str} · AGI {agi}",
+  "uphero.skill.cdSuffix": "CD {cd}",
+  "uphero.boss.appeared": "BOSS 登场",
+  "uphero.boss.statHp": "HP {value}",
+  "uphero.boss.statAtk": "ATK {value}",
+
+  "uphero.stat.skillReady": "READY",
+  "uphero.stat.skillCooldown": "cd {n}",
+  "uphero.stat.cdPrefix": "CD {cd}",
+  "uphero.equip.enhanceChipAria": "强化 +{n}",
+
+  "uphero.skillTree.tierLabel": "TIER {tier}",
+  "uphero.skillTree.tierMeta": "· Lv {level} · {sp} SP",
+  "uphero.skillTree.btnNeedLevel": "Lv {level}",
+  "uphero.skillTree.btnNeedSP": "SP {sp}",
+
+  "uphero.photo.error.photoNotFound": "找不到照片",
+  "uphero.photo.error.alreadyBound": "已经绑定为护符的照片",
+  "uphero.photo.error.coinInsufficient": "金币不足 (需要 {cost})",
+  "uphero.photo.error.notBound": "需要先进行初次绑定",
+  "uphero.photo.error.maxEnhance": "已达到 +10 最大强化",
+
+  "uphero.ribbon.weeklyProgress": "{cleared}/{total}",
 };
 
 export default zh;

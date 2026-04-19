@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPhotoBlob, getSignatureBlob, blobToUrl } from "@/lib/photoStorage";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useGrowthStore } from "@/store/useGrowthStore";
+import { ALL_CARDS } from "@/data/cards";
+import { cardTitle } from "@/i18n";
 import { useSound } from "@/hooks/useSound";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { compositePolaroid, sharePolaroid } from "@/lib/polaroidComposite";
@@ -13,6 +15,7 @@ import PolaroidFrame from "./PolaroidFrame";
 import PolaroidFlip from "./PolaroidFlip";
 import PolaroidTilt from "./PolaroidTilt";
 import MemoEditor from "./MemoEditor";
+import KeyboardAccessoryBar from "@/components/common/KeyboardAccessoryBar";
 import SignatureCanvas from "./SignatureCanvas";
 import StickerLayer from "./StickerLayer";
 import DecorationToolbar, { INK_COLORS } from "./DecorationToolbar";
@@ -41,7 +44,7 @@ interface Props {
  * z-index 60 — 페이지 상단 헤더(z-50)보다 위에 위치.
  */
 export default function PhotoDetailModal({ meta, onClose }: Props) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { play } = useSound();
   const updatePhotoSignature = useGrowthStore((s) => s.updatePhotoSignature);
   const updatePhotoMemo = useGrowthStore((s) => s.updatePhotoMemo);
@@ -70,6 +73,11 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
   // 메모 — 뒷면에서 편집 가능 (debounced auto-save)
   const [memoDraft, setMemoDraft] = useState(meta.memo);
   const memoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 메모 focus 상태 — 폴라로이드 tilt/gyro 비활성화 + accessory bar 노출 트리거.
+  const [memoFocused, setMemoFocused] = useState(false);
+  // focus 진입 시점의 값을 스냅샷 — "취소" 누르면 여기로 rollback.
+  const memoFocusSnapshotRef = useRef("");
+  const memoTextareaRef = useRef<HTMLTextAreaElement>(null);
   // Phase 13 review Critical — unmount cleanup 시 pending draft 가 있으면
   //   즉시 flush. 이전엔 clearTimeout 만 해서 600ms 내 close 하면 최신 입력
   //   유실. ref 로 최신 draft / photoId 추적.
@@ -105,6 +113,15 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
       }
     };
   }, [updatePhotoMemo]);
+
+  // meta.challengeTitle 은 촬영 시점의 한국어 스냅샷이라 언어 전환해도 안 바뀜.
+  //   challengeCardId 로 ALL_CARDS 다국어 title 조회. 카드가 없어진 경우 (legacy)
+  //   는 challengeTitle 스냅샷으로 fallback.
+  const displayTitle = useMemo(() => {
+    const card = ALL_CARDS.find((c) => c.id === meta.challengeCardId);
+    if (!card) return meta.challengeTitle;
+    return cardTitle(card, language);
+  }, [meta.challengeCardId, meta.challengeTitle, language]);
 
   // Stickers — 뷰잉 모드에서도 직접 drag 가능
   const [stickers, setStickers] = useState<Sticker[]>(meta.stickers ?? []);
@@ -256,7 +273,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
         >
           {/* 챌린지 제목 + 날짜 (상단) */}
           <div className="text-center">
-            <h2 className="typo-body text-text-primary">{meta.challengeTitle}</h2>
+            <h2 className="typo-body text-text-primary">{displayTitle}</h2>
             <p className="typo-micro text-text-tertiary tabular-nums mt-0.5">{meta.date}</p>
           </div>
 
@@ -316,7 +333,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
               {/* ── 뷰잉 모드 ──
                   PolaroidTilt 안에 PolaroidFlip 만 둠. 플립 버튼 / 액션 버튼은 밖에 배치 —
                   틸트 회전이 버튼에 영향 안 주도록. */}
-              <PolaroidTilt autoHint>
+              <PolaroidTilt autoHint enabled={!memoFocused}>
                 <PolaroidFlip
                   flipped={isFlipped}
                   onFlip={setIsFlipped}
@@ -344,7 +361,16 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                     // textarea 자체는 PolaroidTilt/Flip 의 selector ("textarea, ...")
                     // 로 자동 차단됨 → margin 영역 (textarea 밖 = 폴라로이드 frame edge)
                     // 에서는 tilt/flip 정상 동작 → 사진 둘러보며 sticker 같이 자연스러움.
-                    <MemoEditor value={memoDraft} onChange={handleMemoChange} />
+                    <MemoEditor
+                      ref={memoTextareaRef}
+                      value={memoDraft}
+                      onChange={handleMemoChange}
+                      onFocus={() => {
+                        memoFocusSnapshotRef.current = memoDraft;
+                        setMemoFocused(true);
+                      }}
+                      onBlur={() => setMemoFocused(false)}
+                    />
                   }
                 />
               </PolaroidTilt>
@@ -441,6 +467,18 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
           />
         </motion.div>
       </motion.div>
+      {/* 키보드 액세서리 바 — memo 편집 중에만 노출. 확인 = 현재 값 유지하며 blur
+           (debounce 가 최종 저장 처리); 취소 = snapshot 으로 rollback 후 blur. */}
+      <KeyboardAccessoryBar
+        visible={memoFocused}
+        onDone={() => {
+          memoTextareaRef.current?.blur();
+        }}
+        onCancel={() => {
+          handleMemoChange(memoFocusSnapshotRef.current);
+          memoTextareaRef.current?.blur();
+        }}
+      />
     </AnimatePresence>,
     document.body,
   );

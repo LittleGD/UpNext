@@ -16,6 +16,7 @@ import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import KeyboardAccessoryBar from "@/components/common/KeyboardAccessoryBar";
 import {
   computeEffectiveStats,
   computeHeroForLevel,
@@ -29,7 +30,7 @@ import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
-import { skillName, className as classNameI18n, classPassive } from "@/lib/upHeroI18n";
+import { skillName, skillDesc, className as classNameI18n, classPassive, equipmentNameById } from "@/lib/upHeroI18n";
 import HeroSprite from "./HeroSprite";
 import HexStatChart from "./HexStatChart";
 import SkillTreePanel from "./SkillTreePanel";
@@ -52,7 +53,7 @@ const SLOT_LABEL_KEY: Record<EquipSlot, DictKey> = {
 };
 
 export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
   // Phase 9d — 영웅 전용 레벨.
   const gameLevel = useGameStore((s) => s.progress.level);
@@ -231,28 +232,41 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                           className="typo-caption truncate"
                           style={{ color: GB.lightest }}
                         >
-                          {eq.name}
+                          {equipmentNameById(eq.baseId ?? "", eq.name, language)}
                         </div>
                         {/* Phase 11b — talisman skill chips. 부적 슬롯 외에도
                              미래 확장 시 accessory 등에 skills 가 생기면 자동 표기. */}
                         {eq.talismanSkills && eq.talismanSkills.length > 0 && (
                           <div className="mt-0.5 flex flex-wrap gap-1">
-                            {eq.talismanSkills.map((id) => (
-                              <span
-                                key={id}
-                                className="typo-micro px-1 py-0.5 rounded-sm"
-                                style={{
-                                  fontSize: 9,
-                                  background: `${GB.lightest}22`,
-                                  color: GB.lightest,
-                                  border: `1px solid ${GB.lightest}66`,
-                                  letterSpacing: "0.02em",
-                                }}
-                                title={TALISMAN_SKILLS[id]?.description ?? ""}
-                              >
-                                ✦ {TALISMAN_SKILLS[id]?.name ?? id}
-                              </span>
-                            ))}
+                            {eq.talismanSkills.map((id) => {
+                              const skillDef = TALISMAN_SKILLS[id];
+                              const localTitle = skillDesc(
+                                id,
+                                skillDef?.description ?? "",
+                                language,
+                              );
+                              const localName = skillName(
+                                id,
+                                skillDef?.name ?? id,
+                                language,
+                              );
+                              return (
+                                <span
+                                  key={id}
+                                  className="typo-micro px-1 py-0.5 rounded-sm"
+                                  style={{
+                                    fontSize: 9,
+                                    background: `${GB.lightest}22`,
+                                    color: GB.lightest,
+                                    border: `1px solid ${GB.lightest}66`,
+                                    letterSpacing: "0.02em",
+                                  }}
+                                  title={localTitle}
+                                >
+                                  ✦ {localName}
+                                </span>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -307,28 +321,36 @@ function HeroNameEditor({ name }: { name: string }) {
 
   if (editing) {
     return (
-      <input
-        ref={inputRef}
-        type="text"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value.slice(0, 16))}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          if (e.key === "Escape") cancel();
-        }}
-        aria-label={t("uphero.stat.nameEditAria")}
-        maxLength={16}
-        className="typo-caption mb-3 px-2.5 py-1 rounded-sm text-center"
-        style={{
-          background: GB.lightest,
-          color: GB.darkest,
-          letterSpacing: "0.05em",
-          border: `2px solid ${GB.light}`,
-          outline: "none",
-          minWidth: 120,
-        }}
-      />
+      <>
+        <input
+          ref={inputRef}
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value.slice(0, 16))}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") cancel();
+          }}
+          aria-label={t("uphero.stat.nameEditAria")}
+          maxLength={16}
+          className="typo-caption mb-3 px-2.5 py-1 rounded-sm text-center"
+          style={{
+            background: GB.lightest,
+            color: GB.darkest,
+            letterSpacing: "0.05em",
+            border: `2px solid ${GB.light}`,
+            outline: "none",
+            minWidth: 120,
+          }}
+        />
+        {/* 이름 편집 중 키보드 위에 완료/취소 액세서리 바 — blur 외의 명시적 경로. */}
+        <KeyboardAccessoryBar
+          visible={editing}
+          onDone={commit}
+          onCancel={cancel}
+        />
+      </>
     );
   }
   return (
@@ -336,7 +358,7 @@ function HeroNameEditor({ name }: { name: string }) {
       type="button"
       onClick={() => setEditing(true)}
       aria-label={t("uphero.stat.nameEditAriaTap", { name })}
-      className="typo-caption mb-3 px-2.5 py-1 rounded-sm"
+      className="typo-caption mb-3 px-2.5 py-1 rounded-sm inline-flex items-center gap-1.5"
       style={{
         background: GB.lightest,
         color: GB.darkest,
@@ -345,7 +367,17 @@ function HeroNameEditor({ name }: { name: string }) {
         cursor: "pointer",
       }}
     >
-      {name}
+      <span>{name}</span>
+      <span
+        aria-hidden="true"
+        style={{
+          display: "inline-flex",
+          opacity: 0.55,
+          flexShrink: 0,
+        }}
+      >
+        <PixelIcon name="PenSquare" size={12} color={GB.darkest} />
+      </span>
     </button>
   );
 }
@@ -435,14 +467,14 @@ function ClassSection({ hero }: { hero: Hero }) {
                   letterSpacing: "0.05em",
                 }}
               >
-                {ready ? "READY" : `cd ${currentCooldown}`}
+                {ready ? t("uphero.stat.skillReady") : t("uphero.stat.skillCooldown", { n: currentCooldown })}
               </span>
             )}
           </div>
           <div className={`typo-caption ${gbClass.textDim} leading-tight`}>
             {sessionActive
               ? t("uphero.stat.autoFireHint")
-              : `CD ${skill.cooldown} · ${t("uphero.stat.autoFireHint")}`}
+              : `${t("uphero.stat.cdPrefix", { cd: skill.cooldown })} · ${t("uphero.stat.autoFireHint")}`}
           </div>
           {/* 실시간 cooldown bar — 세션 active 일 때만 */}
           {sessionActive && (

@@ -13,6 +13,43 @@ const ja: Record<DictKey, string> = {
   "common.equipped": "装備中",
   "common.unequip": "外す",
   "common.cardsPerDay": "枚/日",
+  "common.levelShort": "Lv.{level}",
+  "common.unit.xpGain": "+{n} XP",
+  "common.unit.coinGain": "+{n} C",
+  "common.loading": "読み込み中...",
+
+  // === a11y (aria-label) ===
+  "a11y.close": "閉じる",
+  "a11y.closeCamera": "カメラを閉じる",
+  "a11y.takePhoto": "撮影",
+  "a11y.clearSignature": "署名をクリア",
+  "a11y.penColor": "ペン色 {color}",
+  "a11y.penWidth": "ペン幅 {label}",
+  "a11y.addSticker": "{id} ステッカー追加",
+  "a11y.flashOn": "フラッシュ オン",
+  "a11y.flashOff": "フラッシュ オフ",
+  "a11y.switchToFront": "フロントカメラに切替",
+  "a11y.switchToBack": "バックカメラに切替",
+  "a11y.deselectCard": "カードの選択解除",
+  "a11y.minigame.matched": "マッチ完了",
+  "a11y.minigame.faceUp": "表面",
+  "a11y.minigame.faceDown": "裏面カード",
+  "a11y.minigame.skillCard": "スキルカード",
+  "a11y.minigame.curseCard": "呪いカード",
+  "a11y.minigame.exitRun": "ゲームを終了",
+
+  // === header ===
+  "header.level": "Lv.{level}",
+  "header.xp": "{current}/{needed} XP",
+
+  // === auth errors ===
+  "auth.error.popupBlocked": "ポップアップがブロックされています。ブラウザで許可してください。",
+  "auth.error.unauthorizedDomain": "このドメインは Firebase に登録されていません。管理者にお問い合わせください。",
+  "auth.error.notAllowed": "Google ログインが有効になっていません。",
+  "auth.error.generic": "ログインに失敗しました ({code})。もう一度お試しください。",
+
+  // === notifications ===
+  "notif.challenge.reminder": "今日のチャレンジが残っています！",
 
   // === onboarding ===
   "onboarding.desc1.title1": "毎日新しいデッキを",
@@ -372,6 +409,8 @@ const ja: Record<DictKey, string> = {
   "minigame.summary.duplicate": "重複カード",
   "minigame.summary.xpGained": "+{xp} XP",
   "minigame.summary.totalMatches": "総マッチ数",
+  "minigame.summary.skillMatches": "スキル",
+  "minigame.summary.curseMatches": "呪い",
   "minigame.summary.playAgain": "もう一度",
   "minigame.summary.exit": "終了",
 
@@ -478,6 +517,23 @@ const ja: Record<DictKey, string> = {
 
   // === Monster names (40) ===
   // fitness
+  // newbie (floor 1-3 専用、カテゴリ別 2 種)
+  "uphero.monster.fit_newbie_rabbit": "おどおどウサギ",
+  "uphero.monster.fit_newbie_pebble": "ころころ小石",
+  "uphero.monster.lrn_newbie_page": "ひらひら紙片",
+  "uphero.monster.lrn_newbie_ink": "小さなインク玉",
+  "uphero.monster.mnd_newbie_bubble": "小さな妄想バブル",
+  "uphero.monster.mnd_newbie_breeze": "そよかぜ",
+  "uphero.monster.ntr_newbie_bean": "ぽよぽよ豆",
+  "uphero.monster.ntr_newbie_carrot": "ベビーキャロット",
+  "uphero.monster.soc_newbie_whisper": "かすかな囁き",
+  "uphero.monster.soc_newbie_pickpocket": "へたくそスリ",
+  "uphero.monster.prd_newbie_paperclip": "カチャカチャクリップ",
+  "uphero.monster.prd_newbie_stickynote": "ひらひら付箋",
+  "uphero.monster.wel_newbie_droplet": "ちいさな水滴",
+  "uphero.monster.wel_newbie_petal": "舞い落ちた花びら",
+  "uphero.monster.trd_newbie_pixel": "いたずらピクセル",
+  "uphero.monster.trd_newbie_bubble": "チャット吹き出し",
   "uphero.monster.fit_wolf": "山岳の狼",
   "uphero.monster.fit_bear": "岩山の熊",
   "uphero.monster.fit_goblin": "山岳ゴブリン",
@@ -617,6 +673,24 @@ const ja: Record<DictKey, string> = {
   "uphero.home.equipment.hint": "装着 · 売却 · 強化",
   "uphero.home.codex.label": "図鑑",
   "uphero.home.codex.hint": "出会ったモンスター記録",
+
+  // === Camp 初回チュートリアル ===
+  "uphero.tutorial.skip": "スキップ",
+  "uphero.tutorial.next": "次へ",
+  "uphero.tutorial.prev": "戻る",
+  "uphero.tutorial.start": "はじめる",
+  "uphero.tutorial.step": "{current} / {total}",
+  "uphero.tutorial.step1.title": "アジトへようこそ",
+  "uphero.tutorial.step1.body": "ここは勇者の拠点。探索の準備、装備の整理、コインの管理を行う場所です。",
+  "uphero.tutorial.step2.title": "勇者をタップしてステータス確認",
+  "uphero.tutorial.step2.body": "中央のスプライトをタップすると、ステータス・スキル・装備を一目で確認できます。",
+  "uphero.tutorial.step3.title": "探索を始める",
+  "uphero.tutorial.step3.body": "探索チケットでダンジョンへ。6枚のカードからバフを選び、チャレンジを進行します。",
+  "uphero.tutorial.step4.title": "商店と装備",
+  "uphero.tutorial.step4.body": "ダンジョンで得たコインで探索チケットやカードを購入し、装備を着けて強くなりましょう。",
+  "uphero.tutorial.name.title": "勇者の名前をつけよう",
+  "uphero.tutorial.name.body": "お好きな名前を入力してください。空欄のままなら、おすすめの名前がそのまま使われます。",
+  "uphero.tutorial.name.inputAria": "勇者の名前を入力",
 
   // === Camp subheaders / common ===
   "uphero.subheader.dungeons": "ダンジョン選択",
@@ -762,6 +836,16 @@ const ja: Record<DictKey, string> = {
   "uphero.stat.autoToggleOn": "オン",
   "uphero.stat.autoToggleOff": "オフ",
   "uphero.stat.chartAria": "ステータスチャート",
+  "uphero.stat.info.buttonAria": "ステータスの説明を見る",
+  "uphero.stat.info.title": "ステータスはどう影響するの?",
+  "uphero.stat.info.close": "閉じる",
+  "uphero.stat.info.tapHint": "各ステータスをタップして詳しい効果を確認できます。",
+  "uphero.stat.info.str": "STR · 力 — 基本物理攻撃力が上がり、武器ダメージが増加します。",
+  "uphero.stat.info.int": "INT · 知 — スキル/魔法ダメージと資源回復量が上がります。",
+  "uphero.stat.info.vit": "VIT · 体力 — 最大 HP が上がり、攻撃に耐えやすくなります。",
+  "uphero.stat.info.dex": "DEX · 敏捷 — 命中率とクリティカル率の補助が上がります。",
+  "uphero.stat.info.agi": "AGI · 俊敏 — 回避率が上がり、敵の攻撃を逸らしやすくなります。",
+  "uphero.stat.info.crit": "CRIT · 致命 — クリティカル率が直接上昇。最大ダメージ ↑。",
   "uphero.skillBar.aria": "スキル",
   "uphero.skillTree.resourceLabel": "リソース",
   "uphero.photo.bindAria": "写真お守りバインド",
@@ -1852,6 +1936,39 @@ const ja: Record<DictKey, string> = {
   "uphero.rest.5": "低き石垣の下に背を預ける",
   "uphero.rest.6": "古き旅人の印の傍らで休む",
   "uphero.rest.7": "乾いた薪を焚き温もりを取った",
+
+  // === Round-6 audit additions ===
+  "minigame.tile.skill": "スキル",
+  "minigame.tile.curse": "呪い",
+  "minigame.runResult.noMatches": "マッチしたカードがありません",
+
+  "uphero.log.floorDivider": "Floor {floor}",
+  "uphero.combat.floorLabel": "Floor {floor}",
+  "uphero.log.encounterStats": "(HP {hp} · ATK {atk})",
+  "uphero.combat.enemy.level": "Lv {level}",
+  "uphero.combat.heroStats": "STR {str} · AGI {agi}",
+  "uphero.skill.cdSuffix": "CD {cd}",
+  "uphero.boss.appeared": "ボス出現",
+  "uphero.boss.statHp": "HP {value}",
+  "uphero.boss.statAtk": "ATK {value}",
+
+  "uphero.stat.skillReady": "READY",
+  "uphero.stat.skillCooldown": "cd {n}",
+  "uphero.stat.cdPrefix": "CD {cd}",
+  "uphero.equip.enhanceChipAria": "強化 +{n}",
+
+  "uphero.skillTree.tierLabel": "TIER {tier}",
+  "uphero.skillTree.tierMeta": "· Lv {level} · {sp} SP",
+  "uphero.skillTree.btnNeedLevel": "Lv {level}",
+  "uphero.skillTree.btnNeedSP": "SP {sp}",
+
+  "uphero.photo.error.photoNotFound": "写真が見つかりません",
+  "uphero.photo.error.alreadyBound": "すでに御札になっている写真です",
+  "uphero.photo.error.coinInsufficient": "コイン不足 ({cost} 必要)",
+  "uphero.photo.error.notBound": "最初のバインディングが必要です",
+  "uphero.photo.error.maxEnhance": "すでに +10 最大強化",
+
+  "uphero.ribbon.weeklyProgress": "{cleared}/{total}",
 };
 
 export default ja;

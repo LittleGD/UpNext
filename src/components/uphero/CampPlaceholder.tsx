@@ -52,6 +52,8 @@ import NumberRoll from "./NumberRoll";
 const EquipmentInventory = lazy(() => import("./EquipmentInventory"));
 const HeroCodex = lazy(() => import("./HeroCodex"));
 const HeroStatPanel = lazy(() => import("./HeroStatPanel"));
+// 아지트 첫 진입 튜토리얼 — 1회용 리소스라 lazy 로 내려 초기 번들 제외.
+const CampTutorialOverlay = lazy(() => import("./CampTutorialOverlay"));
 
 /** 카테고리 → pixelarticons 이름 (라이브러리에서 고른 무드 매칭) */
 const CATEGORY_ICON: Record<DungeonId, string> = {
@@ -94,6 +96,9 @@ export default function CampPlaceholder() {
   const [view, setView] = useState<View>("home");
   const [toast, setToast] = useState<string | null>(null);
   const [statsOpen, setStatsOpen] = useState(false);
+  // 아지트 첫 진입 튜토리얼 — 유저가 완료/Skip 누르면 persist 되어 재등장 안 함.
+  const hasSeenCampTutorial = useUpHeroStore((s) => s.hasSeenCampTutorial ?? false);
+  const [tutorialOpen, setTutorialOpen] = useState(() => !hasSeenCampTutorial);
 
   const totalPasses = Object.values(passes).reduce(
     (a, b) => (a ?? 0) + (b ?? 0),
@@ -149,7 +154,7 @@ export default function CampPlaceholder() {
           >
             {heroName}
           </span>
-          <span className={gbClass.textDim}>Lv.{level}</span>
+          <span className={gbClass.textDim}>{t("common.levelShort", { level })}</span>
           {/* Phase 12 — XP 진행도 수치 표시. 유저 피드백: "레벨 시스템은 따로 가되
                경험치는 공유, 상단바 레벨 옆에 수치 표시".
                XP pool 은 챌린지/영웅 세션 공유 (progress.xp), Lv 진행도는
@@ -262,6 +267,13 @@ export default function CampPlaceholder() {
       {statsOpen && (
         <Suspense fallback={null}>
           <HeroStatPanel onClose={() => setStatsOpen(false)} />
+        </Suspense>
+      )}
+
+      {/* 아지트 첫 진입 튜토리얼 — home view 에서만, 1회 노출. */}
+      {tutorialOpen && view === "home" && !pendingDungeon && (
+        <Suspense fallback={null}>
+          <CampTutorialOverlay onClose={() => setTutorialOpen(false)} />
         </Suspense>
       )}
 
@@ -658,7 +670,7 @@ function ShopView({
       ? cardmatchShopDaily.bought
       : 0;
   const { play } = useSound();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const passesBoughtToday = shopDaily?.passesBought ?? 0;
   const dailyCapReached = passesBoughtToday >= DAILY_PASS_PURCHASE_CAP;
@@ -718,7 +730,8 @@ function ShopView({
     const result = purchasePass(dungeonId);
     if (result === "ok") {
       play("collect");
-      const dName = DUNGEON_LIST.find((d) => d.id === dungeonId)?.name ?? "";
+      const d = DUNGEON_LIST.find((d) => d.id === dungeonId);
+      const dName = d ? dungeonName(d.id, d.name, language) : "";
       onNotify(t("uphero.shop.passGranted", { dungeonName: dName }));
     } else if (result === "no-coin") {
       play("cancel");
@@ -799,7 +812,7 @@ function ShopView({
                     cursor: canBuy ? "pointer" : "not-allowed",
                   }}
                   aria-label={t("uphero.shop.passAria", {
-                    name: d.name,
+                    name: dungeonName(d.id, d.name, language),
                     price: SHOP_PRICES.expeditionPass,
                   })}
                 >
@@ -1119,13 +1132,14 @@ function ShopRow({
  *   EquipmentInventory / HeroCodex 는 첫 진입에만 짧게 표시 (이후 캐시).
  */
 function LazyViewFallback() {
+  const { t } = useTranslation();
   return (
     <div
       className="flex-1 min-h-0 flex items-center justify-center"
       style={{ color: GB.light }}
     >
       <div className="typo-caption font-mono" style={{ letterSpacing: "0.1em" }}>
-        LOADING...
+        {t("common.loading")}
       </div>
     </div>
   );
@@ -1248,7 +1262,7 @@ function WeeklyNightmareRibbon({
             style={{ color: GB.light, opacity: 0.7 }}
           >
             {weekId}
-            {clearedCount > 0 && ` · ${clearedCount}/8`}
+            {clearedCount > 0 && ` · ${t("uphero.ribbon.weeklyProgress", { cleared: clearedCount, total: 8 })}`}
             {bestScore > 0 &&
               ` · ${t("uphero.weekly.bestScore", { score: bestScore.toLocaleString() })}`}
           </div>

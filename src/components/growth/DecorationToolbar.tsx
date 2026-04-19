@@ -1,6 +1,7 @@
 "use client";
 
 import UpNextLogoMark from "./UpNextLogoMark";
+import { useTranslation } from "@/hooks/useTranslation";
 
 /**
  * 폴라로이드 데코레이션 툴바 — 잉크 색상 + 펜 굵기 + 스티커 팔레트.
@@ -58,6 +59,7 @@ export default function DecorationToolbar({
   onWidthChange,
   onAddSticker,
 }: Props) {
+  const { t } = useTranslation();
   /**
    * 스티커 드래그-앤-드롭:
    *  - pointerdown 부터 추적 시작
@@ -167,7 +169,7 @@ export default function DecorationToolbar({
               <button
                 key={color}
                 onClick={() => onColorChange(color)}
-                aria-label={`Pen color ${color}`}
+                aria-label={t("a11y.penColor", { color })}
                 // 시각: 24×24 / 히트: 44×44 (WCAG AAA — ::after 확장. 레이아웃 변화 X)
                 className="relative w-6 h-6 rounded-full active:scale-90 transition-transform after:absolute after:-inset-2.5 after:content-[''] after:rounded-full"
                 style={{
@@ -190,7 +192,7 @@ export default function DecorationToolbar({
               <button
                 key={w.id}
                 onClick={() => onWidthChange(w.multiplier)}
-                aria-label={`Pen width ${w.label}`}
+                aria-label={t("a11y.penWidth", { label: w.label })}
                 // 시각: 24×24 / 히트: 44×44 (::after 확장)
                 className="relative w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-transform after:absolute after:-inset-2.5 after:content-[''] after:rounded-full"
                 style={{
@@ -219,7 +221,7 @@ export default function DecorationToolbar({
           <button
             key={s.id}
             onPointerDown={(e) => handleStickerPointerDown(e, s)}
-            aria-label={`Add ${s.id} sticker (tap or drag onto polaroid)`}
+            aria-label={t("a11y.addSticker", { id: s.id })}
             // 시각: 32H / 히트: 44H (::after 확장 — 세로 +12, 가로 +12). 드래그 시작점 판별에도 동일 box 적용.
             className="relative h-8 rounded-md flex items-center justify-center text-lg active:scale-90 transition-transform hover:bg-text-tertiary/10 touch-none after:absolute after:-inset-1.5 after:content-[''] after:rounded-md"
             style={{

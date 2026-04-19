@@ -22,7 +22,7 @@ export const PATCH_NOTES: PatchNote[] = [
     headline: {
       ko: "폴라로이드 사진과 갓생 영웅 — 매일이 모험이 됩니다",
       en: "Polaroid photos & Up Hero — every day becomes an adventure",
-      ja: "ポラロイド写真と갓생勇者 — 毎日が冒険に",
+      ja: "ポラロイド写真と神生活の勇者 — 毎日が冒険に",
       zh: "宝丽来照片与崛起勇者 — 让每一天都成为冒险",
     },
     entries: {
@@ -138,7 +138,7 @@ export const PATCH_NOTES: PatchNote[] = [
         },
         {
           icon: "Sword",
-          title: "갓생勇者 — 8 ダンジョン ローグライク",
+          title: "神生活の勇者 — 8 ダンジョン ローグライク",
           description: "チャレンジを完了すると探検券を獲得し、8 つのテーマダンジョンに入場できます。F30 ボスまで自動戦闘 + イベント選択 + ミニゲームで進行。運動 / 学習 / 瞑想 / 食事 / 社交 / 生産性 / 健康 / トレンド — 各世界観が別々に用意されています。",
         },
         {

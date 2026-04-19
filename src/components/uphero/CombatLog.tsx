@@ -25,6 +25,7 @@ import {
   skillName,
   flavorText,
   resolveMonsterInParams,
+  equipmentNameById,
 } from "@/lib/upHeroI18n";
 import MonsterSprite from "./MonsterSprite";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -251,7 +252,7 @@ const LogLine = memo(function LogLine({
           className="my-2 flex items-center gap-2 relative overflow-hidden"
         >
           <span style={{ color: GB.dark }}>━━━</span>
-          <span>Floor {entry.to}</span>
+          <span>{t("uphero.log.floorDivider", { floor: entry.to })}</span>
           <span style={{ color: GB.dark }} className="flex-1">
             ━━━━━━━━━━━━━━━━━━
           </span>
@@ -277,7 +278,7 @@ const LogLine = memo(function LogLine({
           <MonsterSprite kind={entry.monster.kind} size={14} color={GB.lightest} />
           <span>{monsterName(entry.monster, language)}</span>
           <span className={gbClass.textDim}>
-            (HP {entry.monster.hp} · ATK {entry.monster.atk})
+            {t("uphero.log.encounterStats", { hp: entry.monster.hp, atk: entry.monster.atk })}
           </span>
         </div>
       );
@@ -358,7 +359,7 @@ const LogLine = memo(function LogLine({
           <PixelIcon name="Check" size={14} color={GB.lightest} />
           <span>{t("uphero.log.victory", { name: monsterName(entry.monster, language) })}</span>
           <span className={gbClass.textDim}>
-            +{entry.xp} XP / +{entry.coins} C
+            {t("common.unit.xpGain", { n: entry.xp })} / {t("common.unit.coinGain", { n: entry.coins })}
           </span>
         </div>
       );
@@ -370,7 +371,7 @@ const LogLine = memo(function LogLine({
           className="flex items-center gap-1.5"
         >
           <PixelIcon name="Gift" size={14} color={rarityColor(entry.equipment.rarity)} />
-          <span>{t("uphero.log.dropGained", { name: entry.equipment.name })}</span>
+          <span>{t("uphero.log.dropGained", { name: equipmentNameById(entry.equipment.baseId ?? "", entry.equipment.name, language) })}</span>
         </div>
       );
 
@@ -394,7 +395,7 @@ const LogLine = memo(function LogLine({
           <PixelIcon name="Coins" size={14} color={GB_LEGEND} />
           <span>
             {localizedDesc}
-            {entry.coins > 0 ? ` — +${entry.coins} C` : ""}
+            {entry.coins > 0 ? ` — ${t("common.unit.coinGain", { n: entry.coins })}` : ""}
           </span>
         </div>
       );

@@ -8,6 +8,8 @@
  *  - 영웅 레벨 = useGameStore.progress.level (별도 추적 X)
  */
 
+import type { Language } from "./game";
+
 import type { Category, Rarity } from "./card";
 
 /** 던전 ID = 챌린지 카테고리 (8개 1:1 매핑) */
@@ -659,6 +661,14 @@ export interface CombatSession {
    */
   ngPlusLevel?: number;
   /**
+   * 영웅 레벨 스냅샷 (세션 시작 시점).
+   *   rollHeroOutcome / rollEnemyOutcome 에서 초보자 버프 판정에 사용.
+   *   Lv < 5 + floor ≤ 10 조건 시 crit/회피/적 miss 가 살짝 올라가고
+   *   적 crit 이 낮아져 "너무 쉽게 죽는" 첫 경험을 완화. Lv 5+ 되는 순간부터는
+   *   자동 해제 (튜토리얼 쿠션).
+   */
+  heroLevel?: number;
+  /**
    * Phase 11c — 이 세션이 "주간 악몽 던전" 모드인지.
    *   true 면 weekly affix 적용 + 종료 시 점수 계산/Firestore 업로드.
    *   false/undefined 면 일반 탐험 (legacy flow 동일).
@@ -801,6 +811,13 @@ export interface UpHeroState {
    * 실행하고 새 버전으로 갱신한다. undefined 이면 legacy 로 간주 (Phase 4c 이전).
    */
   schemaVersion?: number;
+  /**
+   * 아지트 첫 진입 튜토리얼 노출 여부.
+   *   false/undefined → CampPlaceholder home view 에서 CampTutorialOverlay 표시.
+   *   true → 다시 보지 않음. 유저가 Skip/완료 하면 markCampTutorialSeen 으로 true 고정.
+   *   Persist 되어 재설치 전까지 유지.
+   */
+  hasSeenCampTutorial?: boolean;
   /**
    * Phase 5b.1 — 마지막 initialize 에서 계산된 idle reward.
    * UI 에서 토스트로 표시 후 acknowledgeIdleReward() 로 null 클리어.
@@ -1069,22 +1086,46 @@ export function getEffectiveHeroLevel(
   return Math.max(1, gameLevel - startLvl + 1);
 }
 
-/** 영웅 이름 풀 — 첫 생성 시 랜덤 배정 (추후 리네임 기능) */
-export const HERO_NAME_POOL = [
-  "레오", "미라", "타로", "카이", "루나", "노아", "제드", "리나",
-  "이든", "하루", "알토", "메이", "에코", "쿠로", "리온", "아사",
-  "세라", "노엘", "오루", "피오", "시온", "유리", "데이", "벨",
-] as const;
+/**
+ * 영웅 이름 풀 — 언어별로 다른 이름 집합. 첫 생성 시 현재 설정된 언어에 맞춰
+ *   자연스러운 이름으로 배정. 이후 유저가 직접 리네임 가능.
+ */
+export const HERO_NAME_POOLS: Record<Language, readonly string[]> = {
+  ko: [
+    "레오", "미라", "타로", "카이", "루나", "노아", "제드", "리나",
+    "이든", "하루", "알토", "메이", "에코", "쿠로", "리온", "아사",
+    "세라", "노엘", "오루", "피오", "시온", "유리", "데이", "벨",
+  ],
+  en: [
+    "Leo", "Nora", "Finn", "Luna", "Kai", "Mira", "Aden", "Ivy",
+    "Rune", "Rowan", "Lyra", "Zed", "Echo", "Sage", "Wren", "Talon",
+    "Remy", "Juno", "Ash", "Niko", "Rae", "Vale", "Theo", "Nia",
+  ],
+  ja: [
+    "ハル", "レン", "ユウ", "アキ", "リン", "ミオ", "ソラ", "カイ",
+    "ノア", "アオイ", "ユイ", "サナ", "リク", "コウ", "マイ", "シン",
+    "アサ", "リオ", "ナギ", "ルカ", "ハク", "ヒナ", "ツキ", "セイ",
+  ],
+  zh: [
+    "云舒", "墨白", "星河", "青山", "子轩", "若风", "雨晴", "知夏",
+    "清辞", "明远", "子墨", "云深", "梦蝶", "思齐", "清歌", "青衣",
+    "如意", "长安", "天一", "云清", "疏影", "暮云", "慕白", "若涵",
+  ],
+};
 
-/** 이름 풀에서 랜덤 영웅 이름 1개 반환 */
-export function rollHeroName(): string {
-  return HERO_NAME_POOL[Math.floor(Math.random() * HERO_NAME_POOL.length)];
+/** Legacy export — 하위 호환용. 신규 코드는 `HERO_NAME_POOLS` 사용. */
+export const HERO_NAME_POOL = HERO_NAME_POOLS.ko;
+
+/** 이름 풀에서 랜덤 영웅 이름 1개 반환. language 미지정 시 ko 폴백. */
+export function rollHeroName(language?: Language): string {
+  const pool = language ? HERO_NAME_POOLS[language] : HERO_NAME_POOLS.ko;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
-/** 기본 Hero 생성 */
-export function createDefaultHero(): Hero {
+/** 기본 Hero 생성. language 미지정 시 ko 폴백. */
+export function createDefaultHero(language?: Language): Hero {
   return {
-    name: rollHeroName(),
+    name: rollHeroName(language),
     hp: 100,
     maxHp: 100,
     baseStats: { str: 10, int: 10, vit: 10, dex: 10, agi: 10, crit: 0, slotBonus: 0 },

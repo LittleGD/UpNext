@@ -434,7 +434,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // 챌린지 알림 스케줄 + 상시 알림 표시
     if (progress.notificationsEnabled) {
-      scheduleChallengeReminder("오늘 챌린지가 남아있어요!");
+      scheduleChallengeReminder(t("notif.challenge.reminder", progress.language));
       showChallengeStatus(updated.selectedCards.map((c) => ({
         name: c.title, completed: updated.completedIds.includes(c.id),
       })));

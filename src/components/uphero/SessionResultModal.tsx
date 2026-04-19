@@ -227,13 +227,13 @@ export default function SessionResultModal() {
           <RewardRow
             iconName="Sparkle"
             label={t("uphero.session.result.xp")}
-            value={`+${xpDisplay} XP`}
+            value={t("common.unit.xpGain", { n: xpDisplay })}
             accent={rewardsXp > 0}
           />
           <RewardRow
             iconName="Coins"
             label={t("uphero.session.result.coins")}
-            value={`+${coinDisplay} C`}
+            value={t("common.unit.coinGain", { n: coinDisplay })}
             accent={rewardsCoins > 0}
           />
           <div>

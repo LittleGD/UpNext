@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { isLowEndDeviceCached } from "@/lib/devicePerformance";
 
 /**
  * 1px twinkling pixel stars background
@@ -73,8 +74,21 @@ export default function PixelStars() {
 
     const startTime = performance.now();
 
+    // 저성능 기기에서는 30fps 로 throttle — 트윙클은 초 단위 sin() 이라
+    // 60→30fps 로 떨어져도 시각적 차이가 거의 없음.
+    const lowEnd = isLowEndDeviceCached();
+    const minFrameMs = lowEnd ? 33 : 0;
+    let lastDraw = 0;
+
     function animate(time: number) {
       if (!ctx || !canvas) return;
+
+      if (minFrameMs > 0 && time - lastDraw < minFrameMs) {
+        rafRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      lastDraw = time;
+
       const elapsed = (time - startTime) * 0.001; // seconds since mount
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);

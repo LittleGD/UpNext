@@ -302,7 +302,7 @@ export default function DungeonView() {
                 {dungeonName(dungeon.id, dungeon.name, language)}
               </span>
               <span className={`typo-caption ${gbClass.textDim}`}>
-                Floor {session.currentFloor}
+                {t("uphero.combat.floorLabel", { floor: session.currentFloor })}
               </span>
             </div>
             {/* Phase 12f — 인터랙션 안내 버튼 (전투/자원/스킬/미니게임 간단 도움말). */}
@@ -365,7 +365,7 @@ export default function DungeonView() {
                   {monsterName(currentEnemy, language)}
                 </span>
                 <span className={`typo-caption ${gbClass.textDim} tabular-nums`}>
-                  Lv {currentEnemy.level}
+                  {t("uphero.combat.enemy.level", { level: currentEnemy.level })}
                 </span>
                 {/* Phase 12 — 적 HP bar (수치 없이). 유저 피드백: "적 수치는 안 보여주더라도
                      체력 bar 는 보여주는 게 더 재밌을 것". progressbar role 지원.
@@ -420,7 +420,7 @@ export default function DungeonView() {
               </div>
             ) : (
               <div className={`typo-caption ${gbClass.textDim} tabular-nums`}>
-                STR {stats.str} · AGI {stats.agi}
+                {t("uphero.combat.heroStats", { str: stats.str, agi: stats.agi })}
               </div>
             )}
           </div>
@@ -814,7 +814,9 @@ export default function DungeonView() {
               }}
               aria-hidden="true"
             >
-              +{f.amount} {f.kind === "xp" ? "XP" : "C"}
+              {f.kind === "xp"
+                ? t("common.unit.xpGain", { n: f.amount })
+                : t("common.unit.coinGain", { n: f.amount })}
             </span>
           ))}
       </header>

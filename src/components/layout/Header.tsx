@@ -32,7 +32,7 @@ export default function Header() {
   const capturePhase = useGrowthStore((s) => s.capturePhase);
   const pathname = usePathname();
 
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
 
   const level = progress.level;
   // null = 아직 "실제 레벨값" 을 seed 받지 않음. isLoaded=true 가 된 후의
@@ -183,7 +183,7 @@ export default function Header() {
                 isFullHeader ? "typo-heading" : "typo-body"
               } text-accent inline-block origin-center`}
             >
-              Lv.{displayLevel}
+              {t("header.level", { level: displayLevel })}
             </motion.span>
             <span
               className={isFullHeader ? "typo-body" : "typo-caption"}
@@ -198,7 +198,7 @@ export default function Header() {
               className="typo-caption text-text-tertiary"
               style={{ visibility: isLevelAnimating ? "hidden" : "visible" }}
             >
-              {current}/{needed} XP
+              {t("header.xp", { current, needed })}
             </span>
           )}
         </div>

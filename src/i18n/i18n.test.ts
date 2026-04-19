@@ -4,6 +4,10 @@ import ko from "./ko";
 import en from "./en";
 import ja from "./ja";
 import zh from "./zh";
+import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
+import { EQUIPMENT_TEMPLATES } from "@/data/upHeroEquipment";
+import { DUNGEONS } from "@/data/upHeroDungeons";
+import { WEEKLY_AFFIX_POOL } from "@/data/weeklyAffixes";
 
 // Phase 14 code-review High #12 — i18n 이 lazy-loaded 로 전환됐으므로
 //   t() 가 non-ko dict 를 참조하려면 ensureLanguage 로 preload 필요.
@@ -95,5 +99,53 @@ describe("t() translation function", () => {
     expect(t(key, "en").length).toBeGreaterThan(0);
     expect(t(key, "ja").length).toBeGreaterThan(0);
     expect(t(key, "zh").length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Round 4.1 — 데이터 레이어 ID 가 i18n dict 에 모두 존재하는지 검증.
+ *   monsterName() / equipmentNameById() 등 helper 는 키 누락 시 한국어 fallback 을
+ *   반환하므로, 비-ko 언어에서 "한국어로만 보임" 버그가 조용히 발생한다.
+ *   여기서 parity 를 강제해 누락이 CI 단계에서 드러나게 함.
+ */
+describe("i18n data coverage", () => {
+  const koKeys = new Set(Object.keys(ko));
+
+  it("모든 몬스터 템플릿 id 가 uphero.monster.<id> 키를 가짐", () => {
+    const missing: string[] = [];
+    for (const tpl of ALL_MONSTER_TEMPLATES) {
+      const key = `uphero.monster.${tpl.id}`;
+      if (!koKeys.has(key)) missing.push(key);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("모든 장비 템플릿 baseId 가 uphero.equip.<baseId>.name 키를 가짐", () => {
+    const missing: string[] = [];
+    for (const tpl of EQUIPMENT_TEMPLATES) {
+      const key = `uphero.equip.${tpl.baseId}.name`;
+      if (!koKeys.has(key)) missing.push(key);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("모든 던전 id 가 uphero.dungeon.<id>.name 키를 가짐", () => {
+    const missing: string[] = [];
+    for (const id of Object.keys(DUNGEONS)) {
+      const key = `uphero.dungeon.${id}.name`;
+      if (!koKeys.has(key)) missing.push(key);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("모든 주간 affix id 가 .name + .description 키를 가짐", () => {
+    const missing: string[] = [];
+    for (const a of WEEKLY_AFFIX_POOL) {
+      const nameKey = `uphero.affix.${a.id}.name`;
+      const descKey = `uphero.affix.${a.id}.description`;
+      if (!koKeys.has(nameKey)) missing.push(nameKey);
+      if (!koKeys.has(descKey)) missing.push(descKey);
+    }
+    expect(missing).toEqual([]);
   });
 });

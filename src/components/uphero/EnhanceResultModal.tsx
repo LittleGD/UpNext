@@ -18,13 +18,15 @@ import { GB, EASE_OUT, GB_ENEMY, GB_LEGEND, GB_WARN } from "@/lib/upHeroPalette"
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
+import type { Language } from "@/types/game";
+import { equipmentNameById } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 import type { Equipment } from "@/types/uphero";
 
 export type EnhanceModalVariant =
   | { kind: "success"; newItem: Equipment; prevLevel: number }
   | { kind: "keep"; item: Equipment }
-  | { kind: "destroyed"; lostItemName: string };
+  | { kind: "destroyed"; lostItemName: string; lostBaseId?: string };
 
 interface EnhanceResultModalProps {
   variant: EnhanceModalVariant;
@@ -40,7 +42,7 @@ export default function EnhanceResultModal({
 }: EnhanceResultModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   useModalA11y(containerRef, onClose, { noScrollLock: true });
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   // success 만 auto dismiss, keep/destroyed 는 유저 확인까지 대기.
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function EnhanceResultModal({
 
   if (typeof window === "undefined") return null;
 
-  const { title, tone, body, cta, icon } = resolveVariant(variant, t);
+  const { title, tone, body, cta, icon } = resolveVariant(variant, t, language);
 
   return createPortal(
     <div
@@ -156,6 +158,7 @@ export default function EnhanceResultModal({
 function resolveVariant(
   variant: EnhanceModalVariant,
   t: (key: DictKey, params?: Record<string, string | number>) => string,
+  language: Language,
 ): {
   title: string;
   tone: string;
@@ -166,6 +169,7 @@ function resolveVariant(
   if (variant.kind === "success") {
     const { newItem, prevLevel } = variant;
     const newLevel = newItem.enhanceLevel ?? prevLevel + 1;
+    const localName = equipmentNameById(newItem.baseId ?? "", newItem.name, language);
     return {
       title: t("uphero.enhance.success.fullTitle"),
       tone: newLevel >= 10 ? GB_LEGEND : GB.lightest,
@@ -173,7 +177,7 @@ function resolveVariant(
       body: (
         <>
           <div style={{ color: GB.lightest, fontWeight: 600 }}>
-            {newItem.name}
+            {localName}
           </div>
           <div className="mt-1.5 tabular-nums">
             +{prevLevel} → <span style={{ color: GB.lightest }}>+{newLevel}</span>
@@ -184,19 +188,29 @@ function resolveVariant(
     };
   }
   if (variant.kind === "keep") {
+    const localName = equipmentNameById(
+      variant.item.baseId ?? "",
+      variant.item.name,
+      language,
+    );
     return {
       title: t("uphero.enhance.fail.keepTitle"),
       tone: GB_WARN,
       icon: "WarningDiamond",
       body: (
         <>
-          <div style={{ color: GB.lightest }}>{variant.item.name}</div>
+          <div style={{ color: GB.lightest }}>{localName}</div>
         </>
       ),
       cta: t("uphero.enhance.continue"),
     };
   }
   // destroyed
+  const localName = equipmentNameById(
+    variant.lostBaseId ?? "",
+    variant.lostItemName,
+    language,
+  );
   return {
     title: t("uphero.enhance.destroyed.title"),
     tone: GB_ENEMY,
@@ -204,7 +218,7 @@ function resolveVariant(
     body: (
       <>
         <div style={{ color: GB_ENEMY, fontWeight: 600 }}>
-          {variant.lostItemName}
+          {localName}
         </div>
       </>
     ),

@@ -17,11 +17,22 @@ export interface MonsterTemplate {
   isBoss?: boolean;
   /** codex 표시용 — 원본 던전 (scaleMonster 실행 후 붙는 dungeonId 와 동일) */
   dungeonId?: DungeonId;
+  /**
+   * 초보자 몬스터 여부. true 인 템플릿은 floor ≤ 3 전용으로 스폰.
+   *   - floor 1-3: newbie 풀 에서만 선택 (normal 풀 배제).
+   *   - floor 4-10: newbie + normal 혼합 (newbie 확률 약 40%).
+   *   - floor 11+: normal 풀만.
+   *  Lv 2 정도 영웅이 무리 없이 잡도록 stats scale 에 `×0.7` 추가 감산 적용.
+   */
+  isNewbie?: boolean;
 }
 
 const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterTemplate[] }> = {
   fitness: {
     normal: [
+      // 초보자 전용 — 1-3층 스폰. Lv2 영웅도 손쉽게 클리어.
+      { id: "fit_newbie_rabbit", name: "겁쟁이 토끼", kind: "creature", power: 1, isNewbie: true },
+      { id: "fit_newbie_pebble", name: "뒹구는 돌멩이", kind: "construct", power: 1, isNewbie: true },
       { id: "fit_wolf", name: "산악 늑대", kind: "beast", power: 1 },
       { id: "fit_bear", name: "돌산 곰", kind: "beast", power: 2 },
       { id: "fit_goblin", name: "산악 고블린", kind: "goblin", power: 1 },
@@ -36,6 +47,8 @@ const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterT
   },
   learning: {
     normal: [
+      { id: "lrn_newbie_page", name: "흩날리는 낱장", kind: "book", power: 1, isNewbie: true },
+      { id: "lrn_newbie_ink", name: "작은 잉크 방울", kind: "creature", power: 1, isNewbie: true },
       { id: "lrn_book", name: "떠도는 책", kind: "book", power: 1 },
       { id: "lrn_scroll", name: "고문서 정령", kind: "spirit", power: 1 },
       { id: "lrn_inkblot", name: "잉크 괴물", kind: "creature", power: 2 },
@@ -50,6 +63,8 @@ const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterT
   },
   mindfulness: {
     normal: [
+      { id: "mnd_newbie_bubble", name: "작은 망상 거품", kind: "spirit", power: 1, isNewbie: true },
+      { id: "mnd_newbie_breeze", name: "살랑 바람", kind: "spirit", power: 1, isNewbie: true },
       { id: "mnd_wisp", name: "그림자 영", kind: "spirit", power: 1 },
       { id: "mnd_sprite", name: "빛 정령", kind: "spirit", power: 1 },
       { id: "mnd_echo", name: "마음의 메아리", kind: "spirit", power: 2 },
@@ -64,6 +79,8 @@ const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterT
   },
   nutrition: {
     normal: [
+      { id: "ntr_newbie_bean", name: "통통 튀는 콩", kind: "creature", power: 1, isNewbie: true },
+      { id: "ntr_newbie_carrot", name: "아기 당근", kind: "goblin", power: 1, isNewbie: true },
       { id: "ntr_sprout", name: "성난 새싹", kind: "creature", power: 1 },
       { id: "ntr_corn", name: "거대 옥수수", kind: "goblin", power: 2 },
       { id: "ntr_pumpkin", name: "썩은 호박", kind: "creature", power: 2 },
@@ -78,6 +95,8 @@ const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterT
   },
   social: {
     normal: [
+      { id: "soc_newbie_whisper", name: "작은 속삭임", kind: "spirit", power: 1, isNewbie: true },
+      { id: "soc_newbie_pickpocket", name: "서툰 소매치기", kind: "goblin", power: 1, isNewbie: true },
       { id: "soc_thief", name: "뒷골목 도둑", kind: "goblin", power: 1 },
       { id: "soc_clown", name: "떠도는 광대", kind: "goblin", power: 1 },
       { id: "soc_gossip", name: "소문꾼", kind: "goblin", power: 2 },
@@ -92,6 +111,8 @@ const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterT
   },
   productivity: {
     normal: [
+      { id: "prd_newbie_paperclip", name: "달그락 클립", kind: "construct", power: 1, isNewbie: true },
+      { id: "prd_newbie_stickynote", name: "나풀 포스트잇", kind: "creature", power: 1, isNewbie: true },
       { id: "prd_gear", name: "작은 톱니바퀴", kind: "construct", power: 1 },
       { id: "prd_clockbot", name: "시계 병사", kind: "construct", power: 2 },
       { id: "prd_timesink", name: "시간 도둑", kind: "spirit", power: 2 },
@@ -106,6 +127,8 @@ const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterT
   },
   wellness: {
     normal: [
+      { id: "wel_newbie_droplet", name: "작은 물방울", kind: "spirit", power: 1, isNewbie: true },
+      { id: "wel_newbie_petal", name: "떨어진 꽃잎", kind: "creature", power: 1, isNewbie: true },
       { id: "wel_mist", name: "안개 정령", kind: "spirit", power: 1 },
       { id: "wel_slime", name: "수증기 슬라임", kind: "creature", power: 1 },
       { id: "wel_naiad", name: "온천 님프", kind: "spirit", power: 2 },
@@ -120,6 +143,8 @@ const TEMPLATES: Record<DungeonId, { normal: MonsterTemplate[]; bosses: MonsterT
   },
   trending: {
     normal: [
+      { id: "trd_newbie_pixel", name: "말썽꾸러기 픽셀", kind: "creature", power: 1, isNewbie: true },
+      { id: "trd_newbie_bubble", name: "채팅 말풍선", kind: "spirit", power: 1, isNewbie: true },
       { id: "trd_mini", name: "랜덤 픽셀", kind: "creature", power: 1 },
       { id: "trd_meme", name: "밈 변종", kind: "goblin", power: 1 },
       { id: "trd_glitch", name: "글리치", kind: "spirit", power: 2 },
@@ -173,7 +198,21 @@ export function createMonsterForFloor(
     const template = pool.bosses[bossIdx];
     return scaleMonster(template, dungeonId, floor, opts);
   }
-  const template = pool.normal[Math.floor(Math.random() * pool.normal.length)];
+  // 초보자 풀 / 일반 풀 분리.
+  //   floor 1-3: newbie 풀만 (Lv2 영웅이 바로 돌파 가능한 수준).
+  //   floor 4-10: newbie 40% / normal 60% (전환 구간).
+  //   floor 11+: normal 풀만.
+  const newbies = pool.normal.filter((t) => t.isNewbie);
+  const normals = pool.normal.filter((t) => !t.isNewbie);
+  let chosenPool: MonsterTemplate[];
+  if (floor <= 3 && newbies.length > 0) {
+    chosenPool = newbies;
+  } else if (floor <= 10 && newbies.length > 0 && Math.random() < 0.4) {
+    chosenPool = newbies;
+  } else {
+    chosenPool = normals.length > 0 ? normals : pool.normal;
+  }
+  const template = chosenPool[Math.floor(Math.random() * chosenPool.length)];
   return scaleMonster(template, dungeonId, floor, opts);
 }
 

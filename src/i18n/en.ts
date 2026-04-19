@@ -13,6 +13,43 @@ const en: Record<DictKey, string> = {
   "common.equipped": "Equipped",
   "common.unequip": "Unequip",
   "common.cardsPerDay": "/day",
+  "common.levelShort": "Lv.{level}",
+  "common.unit.xpGain": "+{n} XP",
+  "common.unit.coinGain": "+{n} C",
+  "common.loading": "Loading...",
+
+  // === a11y (aria-label) ===
+  "a11y.close": "Close",
+  "a11y.closeCamera": "Close camera",
+  "a11y.takePhoto": "Take photo",
+  "a11y.clearSignature": "Clear signature",
+  "a11y.penColor": "Pen color {color}",
+  "a11y.penWidth": "Pen width {label}",
+  "a11y.addSticker": "Add {id} sticker",
+  "a11y.flashOn": "Flash on",
+  "a11y.flashOff": "Flash off",
+  "a11y.switchToFront": "Switch to front camera",
+  "a11y.switchToBack": "Switch to back camera",
+  "a11y.deselectCard": "Deselect card",
+  "a11y.minigame.matched": "Matched",
+  "a11y.minigame.faceUp": "Face up",
+  "a11y.minigame.faceDown": "Face down card",
+  "a11y.minigame.skillCard": "Skill card",
+  "a11y.minigame.curseCard": "Curse card",
+  "a11y.minigame.exitRun": "Exit run",
+
+  // === header ===
+  "header.level": "Lv.{level}",
+  "header.xp": "{current}/{needed} XP",
+
+  // === auth errors ===
+  "auth.error.popupBlocked": "Popup was blocked. Please allow popups in your browser.",
+  "auth.error.unauthorizedDomain": "This domain isn't registered with Firebase. Please contact the admin.",
+  "auth.error.notAllowed": "Google sign-in is not enabled.",
+  "auth.error.generic": "Sign-in failed ({code}). Please try again.",
+
+  // === notifications ===
+  "notif.challenge.reminder": "You still have challenges left today!",
 
   // === onboarding ===
   "onboarding.desc1.title1": "Build a new deck",
@@ -372,6 +409,8 @@ const en: Record<DictKey, string> = {
   "minigame.summary.duplicate": "Duplicate",
   "minigame.summary.xpGained": "+{xp} XP",
   "minigame.summary.totalMatches": "Total Matches",
+  "minigame.summary.skillMatches": "Skill",
+  "minigame.summary.curseMatches": "Curse",
   "minigame.summary.playAgain": "Play Again",
   "minigame.summary.exit": "Exit",
 
@@ -478,6 +517,23 @@ const en: Record<DictKey, string> = {
 
   // === Monster names (40) ===
   // fitness
+  // newbie (floor 1-3 only, 2 per category)
+  "uphero.monster.fit_newbie_rabbit": "Timid Rabbit",
+  "uphero.monster.fit_newbie_pebble": "Rolling Pebble",
+  "uphero.monster.lrn_newbie_page": "Fluttering Page",
+  "uphero.monster.lrn_newbie_ink": "Tiny Inkblot",
+  "uphero.monster.mnd_newbie_bubble": "Daydream Bubble",
+  "uphero.monster.mnd_newbie_breeze": "Gentle Breeze",
+  "uphero.monster.ntr_newbie_bean": "Bouncy Bean",
+  "uphero.monster.ntr_newbie_carrot": "Baby Carrot",
+  "uphero.monster.soc_newbie_whisper": "Faint Whisper",
+  "uphero.monster.soc_newbie_pickpocket": "Clumsy Pickpocket",
+  "uphero.monster.prd_newbie_paperclip": "Rattling Paperclip",
+  "uphero.monster.prd_newbie_stickynote": "Fluttery Sticky Note",
+  "uphero.monster.wel_newbie_droplet": "Tiny Droplet",
+  "uphero.monster.wel_newbie_petal": "Fallen Petal",
+  "uphero.monster.trd_newbie_pixel": "Mischievous Pixel",
+  "uphero.monster.trd_newbie_bubble": "Chat Bubble",
   "uphero.monster.fit_wolf": "Mountain Wolf",
   "uphero.monster.fit_bear": "Rockridge Bear",
   "uphero.monster.fit_goblin": "Mountain Goblin",
@@ -617,6 +673,24 @@ const en: Record<DictKey, string> = {
   "uphero.home.equipment.hint": "Equip · Sell · Enhance",
   "uphero.home.codex.label": "Codex",
   "uphero.home.codex.hint": "Monsters you've encountered",
+
+  // === Camp first-visit tutorial ===
+  "uphero.tutorial.skip": "Skip",
+  "uphero.tutorial.next": "Next",
+  "uphero.tutorial.prev": "Back",
+  "uphero.tutorial.start": "Let's go",
+  "uphero.tutorial.step": "{current} / {total}",
+  "uphero.tutorial.step1.title": "Welcome to the camp",
+  "uphero.tutorial.step1.body": "This is your hero's home base — prep expeditions, manage gear, and track coins here.",
+  "uphero.tutorial.step2.title": "Tap your hero for stats",
+  "uphero.tutorial.step2.body": "Tap the hero sprite in the middle to see stats, skills, and equipped gear at a glance.",
+  "uphero.tutorial.step3.title": "Start an expedition",
+  "uphero.tutorial.step3.body": "Use an expedition pass to enter a dungeon. Draw 6 cards, pick buffs, then run challenges.",
+  "uphero.tutorial.step4.title": "Shop & gear",
+  "uphero.tutorial.step4.body": "Spend dungeon coins at the shop for passes and card packs, then equip gear to grow stronger.",
+  "uphero.tutorial.name.title": "Name your hero",
+  "uphero.tutorial.name.body": "Type a name you like, or leave it blank to keep the suggested one.",
+  "uphero.tutorial.name.inputAria": "Hero name input",
 
   // === Camp subheaders / common ===
   "uphero.subheader.dungeons": "Pick a Dungeon",
@@ -762,6 +836,16 @@ const en: Record<DictKey, string> = {
   "uphero.stat.autoToggleOn": "on",
   "uphero.stat.autoToggleOff": "off",
   "uphero.stat.chartAria": "Stats chart",
+  "uphero.stat.info.buttonAria": "Show stat descriptions",
+  "uphero.stat.info.title": "How do stats affect combat?",
+  "uphero.stat.info.close": "Close",
+  "uphero.stat.info.tapHint": "Tap any stat to see its detailed effect.",
+  "uphero.stat.info.str": "STR — Increases base physical attack. Weapon damage scales up.",
+  "uphero.stat.info.int": "INT — Boosts skill/magic damage and resource regen.",
+  "uphero.stat.info.vit": "VIT — Raises max HP. You take hits better.",
+  "uphero.stat.info.dex": "DEX — Improves hit rate and gives a small crit bonus.",
+  "uphero.stat.info.agi": "AGI — Raises dodge chance, letting you avoid hits.",
+  "uphero.stat.info.crit": "CRIT — Directly increases critical hit chance. Max-damage hits ↑.",
   "uphero.skillBar.aria": "Skills",
   "uphero.skillTree.resourceLabel": "Resource",
   "uphero.photo.bindAria": "Bind photo talisman",
@@ -1852,6 +1936,39 @@ const en: Record<DictKey, string> = {
   "uphero.rest.5": "The hero leaned against a low stone wall",
   "uphero.rest.6": "The hero rested beside an old traveler's marker",
   "uphero.rest.7": "The hero lit dry firewood for warmth",
+
+  // === Round-6 audit additions ===
+  "minigame.tile.skill": "SKILL",
+  "minigame.tile.curse": "CURSE",
+  "minigame.runResult.noMatches": "No cards matched",
+
+  "uphero.log.floorDivider": "Floor {floor}",
+  "uphero.combat.floorLabel": "Floor {floor}",
+  "uphero.log.encounterStats": "(HP {hp} · ATK {atk})",
+  "uphero.combat.enemy.level": "Lv {level}",
+  "uphero.combat.heroStats": "STR {str} · AGI {agi}",
+  "uphero.skill.cdSuffix": "CD {cd}",
+  "uphero.boss.appeared": "BOSS APPEARED",
+  "uphero.boss.statHp": "HP {value}",
+  "uphero.boss.statAtk": "ATK {value}",
+
+  "uphero.stat.skillReady": "READY",
+  "uphero.stat.skillCooldown": "cd {n}",
+  "uphero.stat.cdPrefix": "CD {cd}",
+  "uphero.equip.enhanceChipAria": "+{n} enhance",
+
+  "uphero.skillTree.tierLabel": "TIER {tier}",
+  "uphero.skillTree.tierMeta": "· Lv {level} · {sp} SP",
+  "uphero.skillTree.btnNeedLevel": "Lv {level}",
+  "uphero.skillTree.btnNeedSP": "SP {sp}",
+
+  "uphero.photo.error.photoNotFound": "Photo not found",
+  "uphero.photo.error.alreadyBound": "Photo is already bound as a talisman",
+  "uphero.photo.error.coinInsufficient": "Not enough coins ({cost} required)",
+  "uphero.photo.error.notBound": "First binding required",
+  "uphero.photo.error.maxEnhance": "Already at +10 max enhancement",
+
+  "uphero.ribbon.weeklyProgress": "{cleared}/{total}",
 };
 
 export default en;

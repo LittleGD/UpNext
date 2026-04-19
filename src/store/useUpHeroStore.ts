@@ -80,6 +80,7 @@ import {
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { useGameStore, getTodayString } from "./useGameStore";
 import { t } from "@/i18n";
+import type { Language } from "@/types/game";
 
 /**
  * Phase 5a.3 / 5b.2 / 9d / 11a / 11c — 저장 스키마 현재 버전.
@@ -197,6 +198,9 @@ interface UpHeroActions {
   /** Phase 5c.1 — ClassAwakenModal 닫을 때 호출. pendingClassAwaken null 로. */
   acknowledgeClassAwaken(): void;
 
+  /** 아지트 첫 진입 튜토리얼을 읽음으로 기록 (persist). 재호출은 no-op. */
+  markCampTutorialSeen(): void;
+
   /** Phase 6b — 자동 스킬 발동 on/off 토글. 기본 true. */
   toggleAutoSkill(): void;
   /** Phase 12a — 영웅 이름 변경 (최대 16자, 공백만 입력은 무시). */
@@ -221,7 +225,9 @@ interface UpHeroActions {
   bindPhotoAsTalisman(photoId: string): {
     ok: boolean;
     newItem?: Equipment;
-    error?: string;
+    /** i18n key — renderer 가 t(errorKey, errorParams) 로 표시. */
+    errorKey?: string;
+    errorParams?: Record<string, string | number>;
   };
 
   /**
@@ -233,7 +239,8 @@ interface UpHeroActions {
   rebindPhotoTalisman(photoId: string): {
     ok: boolean;
     newItem?: Equipment;
-    error?: string;
+    errorKey?: string;
+    errorParams?: Record<string, string | number>;
     reason?: "not-found" | "not-bound" | "maxed" | "coin";
   };
 
@@ -285,7 +292,7 @@ interface UpHeroActions {
 export type EnhanceResult =
   | { ok: true; reason: "success"; newItem: Equipment; prevLevel: number }
   | { ok: false; reason: "keep"; item: Equipment }
-  | { ok: false; reason: "destroyed"; lostItemName: string }
+  | { ok: false; reason: "destroyed"; lostItemName: string; lostBaseId?: string }
   | { ok: false; reason: "coin"; cost: number }
   | { ok: false; reason: "maxed" }
   | { ok: false; reason: "not-found" };
@@ -303,9 +310,6 @@ export const SESSION_LOG_PERSIST_CAP = 400;
 
 /**
  * 저장할 state 추출 — 함수는 제외. pendingDungeon 은 transient (persist 안 함).
- *
- * Phase 11c R1 — export 하여 DevLeaderboardPanel 같은 dev tool 에서 store persist
- *   포맷을 그대로 재사용 가능. 하드코딩된 schemaVersion / 누락 필드 drift 방지.
  */
 export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
   const {
@@ -324,6 +328,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     ngPlusLevel,
     weeklyVariant,
     schemaVersion,
+    hasSeenCampTutorial,
   } = s;
   // Phase 13 review C#2 — session.log tail-slice 로 persist payload 감축.
   const trimmedSession =
@@ -349,6 +354,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     ngPlusLevel,
     weeklyVariant,
     schemaVersion,
+    hasSeenCampTutorial,
   };
 }
 
@@ -374,6 +380,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   weeklyVariant: undefined,
   idleReward: null,
   pendingClassAwaken: null,
+  // 아지트 첫 진입 튜토리얼 — 최초 false. 유저가 완료/Skip 누르면 true persist.
+  hasSeenCampTutorial: false,
   isLoaded: false,
 
   initialize() {
@@ -381,7 +389,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const saved = loadFromStorage<Partial<UpHeroState>>(STORAGE_KEY);
     // 이전 버전 Hero 에 name/baseStats.crit 등 신규 필드가 없을 수 있어 default 와 deep merge.
     // baseStats 는 nested 객체라 별도 spread 로 crit 필드 포함시킨다.
-    const defaults = createDefaultHero();
+    // 신규 유저(saved.hero 없음): 현재 언어 기준으로 이름 배정.
+    // Up Hero 는 app 진입 경로상 useGameStore 가 먼저 로드되지만, 혹시 모를
+    // race 를 대비해 localStorage 에서 progress.language 를 직접 읽어 폴백.
+    const savedProgress = loadFromStorage<{ language?: Language }>("progress");
+    const langForDefault =
+      savedProgress?.language ??
+      useGameStore.getState().progress.language ??
+      "en";
+    const defaults = createDefaultHero(langForDefault);
     const mergedHero = saved?.hero
       ? {
           ...defaults,
@@ -622,6 +638,18 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     set({ pendingClassAwaken: null });
   },
 
+  /**
+   * 아지트 첫 진입 튜토리얼 완료 체크.
+   *   CampTutorialOverlay 의 마지막 CTA / Skip 에서 호출.
+   *   한번 true 가 되면 store persist 되어 다시 뜨지 않음.
+   */
+  markCampTutorialSeen() {
+    const state = get();
+    if (state.hasSeenCampTutorial) return;
+    set({ hasSeenCampTutorial: true });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hasSeenCampTutorial: true }));
+  },
+
   toggleAutoSkill() {
     const state = get();
     // undefined (legacy) 도 true 로 간주 → 첫 토글 시 false
@@ -730,14 +758,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const photo = useGrowthStore
       .getState()
       .photoMetas.find((p) => p.id === photoId);
-    if (!photo) return { ok: false, error: "사진을 찾을 수 없어요" };
+    if (!photo) return { ok: false, errorKey: "uphero.photo.error.photoNotFound" };
     if (isPhotoBound(photoId, state.inventory, state.hero.equipped)) {
-      return { ok: false, error: "이미 부적으로 만들어진 사진" };
+      return { ok: false, errorKey: "uphero.photo.error.alreadyBound" };
     }
     if (state.coins < PHOTO_TALISMAN_RITUAL_COST) {
       return {
         ok: false,
-        error: `코인 부족 (${PHOTO_TALISMAN_RITUAL_COST} 필요)`,
+        errorKey: "uphero.photo.error.coinInsufficient",
+        errorParams: { cost: PHOTO_TALISMAN_RITUAL_COST },
       };
     }
     const rarity = rollPhotoRarity();
@@ -764,13 +793,13 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       return {
         ok: false,
         reason: "not-bound",
-        error: "먼저 최초 바인딩이 필요해요",
+        errorKey: "uphero.photo.error.notBound",
       };
     }
     const current = found.item;
     const curLevel = current.enhanceLevel ?? 0;
     if (curLevel >= MAX_ENHANCE_LEVEL) {
-      return { ok: false, reason: "maxed", error: "이미 +10 최대 강화" };
+      return { ok: false, reason: "maxed", errorKey: "uphero.photo.error.maxEnhance" };
     }
 
     const cost = rebindPhotoTalismanCost(curLevel);
@@ -778,7 +807,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       return {
         ok: false,
         reason: "coin",
-        error: `코인 부족 (${cost} 필요)`,
+        errorKey: "uphero.photo.error.coinInsufficient",
+        errorParams: { cost },
       };
     }
 
@@ -896,7 +926,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       startFloor,
       buffs,
       // Phase 11c — NG+ 스냅샷 전달. weekly variant 는 별도 action 으로만 진입.
-      { ngPlusLevel: state.ngPlusLevel ?? 0 },
+      // heroLevel 전달 — 초보자 버프 판정 용 (Lv<5 + 층≤10).
+      { ngPlusLevel: state.ngPlusLevel ?? 0, heroLevel: heroLvl },
     );
     const newState = {
       passes: updatedPasses,
@@ -925,6 +956,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const leveledHero = computeHeroForLevel(state.hero, heroLvl);
     const session = buildSession(dungeonId, leveledHero, startFloor, undefined, {
       ngPlusLevel: state.ngPlusLevel ?? 0,
+      heroLevel: heroLvl,
     });
     const newState = {
       passes: updatedPasses,
@@ -960,6 +992,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       ngPlusLevel: 0,
       isWeeklyVariant: true,
       weeklyAffixId: state.weeklyVariant.affixId,
+      heroLevel: heroLvl,
     });
     set({ currentSession: session });
     saveToStorage(
@@ -1423,12 +1456,13 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // 소실 — inventory 혹은 equipped slot 에서 제거.
     const { inventory: newInventory, hero: newHero } = removeItem();
     const lostName = item.name;
+    const lostBaseId = item.baseId;
     set({ inventory: newInventory, hero: newHero, coins: newCoins });
     saveToStorage(
       STORAGE_KEY,
       pickPersisted({ ...state, inventory: newInventory, hero: newHero, coins: newCoins }),
     );
-    return { ok: false, reason: "destroyed", lostItemName: lostName };
+    return { ok: false, reason: "destroyed", lostItemName: lostName, lostBaseId };
   },
 
   resetForSignOut: () => {

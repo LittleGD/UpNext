@@ -73,7 +73,7 @@ export default function SkillBar({ session }: { session: CombatSession }) {
           cd: skill.cooldown,
         });
         if (!ready) {
-          if (check.reason === "cooldown") srLabel += ` · CD ${cd}`;
+          if (check.reason === "cooldown") srLabel += ` · ${t("uphero.skill.cdSuffix", { cd })}`;
           else if (check.reason === "resource")
             srLabel += ` · ${resourceName(cls, language) || resource.name}`;
         }

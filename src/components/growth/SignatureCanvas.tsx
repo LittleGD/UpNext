@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useCallback, useState, memo } from "react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Props {
   width: number;
@@ -52,6 +53,7 @@ function SignatureCanvasImpl({
   inkColor = "rgba(22,18,14,0.92)",
   widthMultiplier = 1,
 }: Props) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
   const points = useRef<Pt[]>([]);
@@ -234,10 +236,10 @@ function SignatureCanvasImpl({
         <button
           onClick={clear}
           type="button"
-          aria-label="Clear signature"
+          aria-label={t("a11y.clearSignature")}
           className="absolute top-1.5 right-1.5 typo-micro text-text-tertiary/90 px-2 py-1 rounded bg-white/60 backdrop-blur-sm active:opacity-60 transition-opacity z-10"
         >
-          Clear
+          {t("playground.capture.clear")}
         </button>
       )}
     </div>

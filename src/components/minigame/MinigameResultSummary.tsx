@@ -63,11 +63,15 @@ export default function MinigameResultSummary() {
           <p className="typo-heading text-text-primary">{runStats.totalMatches}</p>
         </div>
         <div className="bg-bg-surface rounded-lg p-3 grid-border text-center">
-          <p className="typo-caption text-text-tertiary mb-1">Skill</p>
+          <p className="typo-caption text-text-tertiary mb-1">
+            {t("minigame.summary.skillMatches")}
+          </p>
           <p className="typo-heading text-accent-secondary">{runStats.skillMatches}</p>
         </div>
         <div className="bg-bg-surface rounded-lg p-3 grid-border text-center">
-          <p className="typo-caption text-text-tertiary mb-1">Curse</p>
+          <p className="typo-caption text-text-tertiary mb-1">
+            {t("minigame.summary.curseMatches")}
+          </p>
           <p className="typo-heading text-accent-fushia">{runStats.curseMatches}</p>
         </div>
       </motion.div>

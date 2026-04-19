@@ -10,6 +10,7 @@ import { springBouncy } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle } from "@/i18n";
+import { categoryLabel } from "@/lib/upHeroI18n";
 import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 
 type Phase = "shaking" | "opening" | "revealed" | "absorbing";
@@ -204,7 +205,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
 
                 {/* 카테고리 */}
                 <p className="typo-caption text-text-tertiary capitalize">
-                  {card.category}
+                  {categoryLabel(card.category, language)}
                 </p>
               </motion.div>
             );

@@ -96,7 +96,7 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="flex flex-col items-center"
           >
-            <p className="typo-title text-accent">Lv.{isBurst ? 1 : 0}</p>
+            <p className="typo-title text-accent">{t("common.levelShort", { level: isBurst ? 1 : 0 })}</p>
             <p className="typo-body text-text-secondary">{getTitleForLevel(isBurst ? 1 : 0, language)}</p>
           </motion.div>
         </AnimatePresence>
@@ -113,8 +113,8 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
           />
         </div>
         <div className="flex justify-between mt-1">
-          <span className="typo-caption">Lv.0</span>
-          <span className="typo-caption text-accent">Lv.1</span>
+          <span className="typo-caption">{t("common.levelShort", { level: 0 })}</span>
+          <span className="typo-caption text-accent">{t("common.levelShort", { level: 1 })}</span>
         </div>
 
         {/* 파티클 — 프로그레스 바 오른쪽 끝에서 발사 */}

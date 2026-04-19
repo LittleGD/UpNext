@@ -95,6 +95,11 @@ export interface CreateSessionOptions {
   isWeeklyVariant?: boolean;
   /** Phase 11c — 주간 affix id (isWeeklyVariant=true 일 때만 의미). */
   weeklyAffixId?: string;
+  /**
+   * 영웅 레벨 (챌린지 레벨 - heroStartLevel + 1). 초보자 버프 판정 용.
+   *   미전달 시 undefined → 레거시 동작 (버프 해제 상태) 유지.
+   */
+  heroLevel?: number;
 }
 
 export function createSession(
@@ -152,6 +157,7 @@ export function createSession(
     ngPlusLevel: options?.ngPlusLevel ?? 0,
     isWeeklyVariant: options?.isWeeklyVariant,
     weeklyAffixId: options?.weeklyAffixId,
+    heroLevel: options?.heroLevel,
     startedAt: Date.now(),
   };
 
@@ -1216,6 +1222,7 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
           classDodgeBonus(session.hero.classType),
           0,
           session.monsterCritBonus ?? 0,
+          session.heroLevel,
         );
         const dmg =
           outcome === "miss" || outcome === "dodge"
@@ -1344,7 +1351,7 @@ function executeCombatRound(
   };
 
   // 영웅 공격
-  let heroOutcome = rollHeroOutcome(effStats, monster);
+  let heroOutcome = rollHeroOutcome(effStats, monster, s.heroLevel);
   // Phase 12d — bard "대서사시": 다음 N 공격 반드시 crit.
   if (
     s.guaranteedCritAttacks &&
@@ -1434,6 +1441,7 @@ function executeCombatRound(
       classDodgeBonus(s.hero.classType) + tMods.dodgeBonus,
       tMods.enemyMissBonus,
       s.monsterCritBonus ?? 0,
+      s.heroLevel,
     );
   }
   let enemyDmg =
@@ -1654,21 +1662,39 @@ function computeMonsterHp(
 // 판정 순서: miss → dodge → crit → hit (각 독립 롤)
 // ─────────────────────────────────────────────────────────
 
+/**
+ * 초보자 버프 적용 대상 판정.
+ *   영웅 Lv < 5 AND 현재 floor ≤ 10 일 때만 작용.
+ *   눈에 띄지 않도록 crit +8% / hit +3% (miss 감산) / dodge +6% / enemy miss +5% / enemy crit −4%.
+ *   Lv 5+ 나 11F+ 는 자동 해제 — 튜토리얼 쿠션이지 영구 버프 아님.
+ */
+function isNewbieBuffActive(heroLevel: number, floorLevel: number): boolean {
+  return heroLevel < 5 && floorLevel <= 10;
+}
+
 /** 영웅 공격의 outcome 판정 */
 function rollHeroOutcome(
   stats: HeroBaseStats,
   monster: Monster,
+  heroLevel = 99,
 ): CombatOutcome {
+  const newbie = isNewbieBuffActive(heroLevel, monster.level);
   // 공격자(영웅) 실수 — 낮은 dex 일수록 빗나감 (base 5%, dex 60 에서 2% 바닥)
-  const missChance = Math.max(0.02, 0.05 - stats.dex * 0.0005);
+  //   newbie: base 5% → 2% (거의 안 빗나감). 저레벨 한 번의 실수도 치명적이라 완화.
+  const missChance = newbie
+    ? Math.max(0.01, 0.02 - stats.dex * 0.0005)
+    : Math.max(0.02, 0.05 - stats.dex * 0.0005);
   if (rng() < missChance) return "miss";
-  // 방어자(몬스터) 회피 — 고층 몬스터 더 잘 피함
-  const dodgeChance = Math.min(0.2, monster.level * 0.005);
+  // 방어자(몬스터) 회피 — 고층 몬스터 더 잘 피함. newbie 이면 회피 cap 절반.
+  const dodgeCap = newbie ? 0.1 : 0.2;
+  const dodgeChance = Math.min(dodgeCap, monster.level * 0.005);
   if (rng() < dodgeChance) return "dodge";
   // 공격자(영웅) 크리 — dex scaling + 장비 crit 보너스 (Phase 4a)
   //   stats.crit 은 장비에서만 합산 (영웅 base = 0)
   //   1 포인트 = +1% crit 확률
-  const critChance = Math.min(0.5, 0.05 + stats.dex * 0.003 + stats.crit * 0.01);
+  //   newbie: base 5% → 13% (+8%). 잦은 crit 으로 첫 10층 돌파 체감 개선.
+  const critBase = newbie ? 0.13 : 0.05;
+  const critChance = Math.min(0.5, critBase + stats.dex * 0.003 + stats.crit * 0.01);
   if (rng() < critChance) return "crit";
   return "hit";
 }
@@ -1685,16 +1711,28 @@ function rollEnemyOutcome(
   dodgeBonus = 0,
   enemyMissBonus = 0,
   monsterCritBonus = 0,
+  heroLevel = 99,
 ): CombatOutcome {
+  const newbie = isNewbieBuffActive(heroLevel, monster.level);
   // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 8%, floor 60 에서 2% 바닥)
   //   Phase 11b talisman "변덕" → enemyMissBonus 추가.
-  const missChance = Math.max(0.02, 0.08 - monster.level * 0.001) + enemyMissBonus;
+  //   newbie: +5% (13%) — 적이 자주 허당쳐서 "쉬운 스타트" 체감.
+  const newbieMissBonus = newbie ? 0.05 : 0;
+  const missChance =
+    Math.max(0.02, 0.08 - monster.level * 0.001) + enemyMissBonus + newbieMissBonus;
   if (rng() < missChance) return "miss";
   // 방어자(영웅) 회피 — agi scaling + class bonus + talisman bonus. cap 0.45 (monk + 변덕 최대).
-  const dodgeChance = Math.min(0.45, stats.agi * 0.006 + dodgeBonus);
+  //   newbie: +6% flat (agi 부족한 저레벨에서도 한 번씩 회피).
+  const newbieDodgeBonus = newbie ? 0.06 : 0;
+  const dodgeChance = Math.min(0.5, stats.agi * 0.006 + dodgeBonus + newbieDodgeBonus);
   if (rng() < dodgeChance) return "dodge";
   // 공격자(몬스터) 크리 — level scaling + affix bonus (cap 0.4 로 올림, fragile_world 대비).
-  const critChance = Math.min(0.4, 0.03 + monster.level * 0.004 + monsterCritBonus);
+  //   newbie: -4% (1-hit kill 확률 최소화).
+  const newbieCritPenalty = newbie ? -0.04 : 0;
+  const critChance = Math.min(
+    0.4,
+    Math.max(0, 0.03 + monster.level * 0.004 + monsterCritBonus + newbieCritPenalty),
+  );
   if (rng() < critChance) return "crit";
   return "hit";
 }

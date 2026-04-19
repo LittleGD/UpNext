@@ -106,7 +106,7 @@ export default function BossBanner({ monster, floor, onDone }: BossBannerProps) 
           className="typo-micro"
           style={{ color: "var(--accent-secondary)", letterSpacing: "0.3em" }}
         >
-          BOSS APPEARED
+          {t("uphero.boss.appeared")}
         </div>
 
         {/* 보스 픽셀 스프라이트 — 크게. tremor 로 살짝 떨림 */}
@@ -144,9 +144,9 @@ export default function BossBanner({ monster, floor, onDone }: BossBannerProps) 
         >
           <span style={{ color: "var(--accent-secondary)" }}>F{floor}</span>
           <span style={{ opacity: 0.5 }}>·</span>
-          <span>HP {monster.hp}</span>
+          <span>{t("uphero.boss.statHp", { value: monster.hp })}</span>
           <span style={{ opacity: 0.5 }}>·</span>
-          <span>ATK {monster.atk}</span>
+          <span>{t("uphero.boss.statAtk", { value: monster.atk })}</span>
         </div>
       </div>
 

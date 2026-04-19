@@ -11,6 +11,43 @@ const ko = {
   "common.equipped": "장착중",
   "common.unequip": "해제",
   "common.cardsPerDay": "장/일",
+  "common.levelShort": "Lv.{level}",
+  "common.unit.xpGain": "+{n} XP",
+  "common.unit.coinGain": "+{n} C",
+  "common.loading": "로딩 중...",
+
+  // === a11y (aria-label) ===
+  "a11y.close": "닫기",
+  "a11y.closeCamera": "카메라 닫기",
+  "a11y.takePhoto": "사진 찍기",
+  "a11y.clearSignature": "서명 지우기",
+  "a11y.penColor": "펜 색상 {color}",
+  "a11y.penWidth": "펜 굵기 {label}",
+  "a11y.addSticker": "{id} 스티커 추가",
+  "a11y.flashOn": "플래시 켜짐",
+  "a11y.flashOff": "플래시 꺼짐",
+  "a11y.switchToFront": "전면 카메라로 전환",
+  "a11y.switchToBack": "후면 카메라로 전환",
+  "a11y.deselectCard": "카드 선택 해제",
+  "a11y.minigame.matched": "매치 완료",
+  "a11y.minigame.faceUp": "앞면",
+  "a11y.minigame.faceDown": "뒤집지 않은 카드",
+  "a11y.minigame.skillCard": "스킬 카드",
+  "a11y.minigame.curseCard": "저주 카드",
+  "a11y.minigame.exitRun": "게임 나가기",
+
+  // === header ===
+  "header.level": "Lv.{level}",
+  "header.xp": "{current}/{needed} XP",
+
+  // === auth errors ===
+  "auth.error.popupBlocked": "팝업이 차단되었어요. 브라우저에서 팝업을 허용해 주세요.",
+  "auth.error.unauthorizedDomain": "이 도메인이 Firebase에 등록되어 있지 않아요. 관리자에게 문의해 주세요.",
+  "auth.error.notAllowed": "Google 로그인이 활성화되지 않았어요.",
+  "auth.error.generic": "로그인에 실패했어요 ({code}). 다시 시도해 주세요.",
+
+  // === notifications ===
+  "notif.challenge.reminder": "오늘 챌린지가 남아있어요!",
 
   // === onboarding ===
   "onboarding.desc1.title1": "매일 새로운 덱을",
@@ -370,6 +407,8 @@ const ko = {
   "minigame.summary.duplicate": "중복 카드",
   "minigame.summary.xpGained": "+{xp} XP",
   "minigame.summary.totalMatches": "총 매치 수",
+  "minigame.summary.skillMatches": "스킬",
+  "minigame.summary.curseMatches": "저주",
   "minigame.summary.playAgain": "다시 플레이",
   "minigame.summary.exit": "나가기",
 
@@ -474,7 +513,24 @@ const ko = {
   "uphero.weekly.beatF30First": "먼저 이 던전의 F30 을 돌파하세요",
   "uphero.weekly.loading": "주간 데이터 로딩 중",
 
-  // === Monster names (40) — keyed by MonsterTemplate.id ===
+  // === Monster names — keyed by MonsterTemplate.id ===
+  // newbie (floor 1-3 전용, 카테고리별 2종)
+  "uphero.monster.fit_newbie_rabbit": "겁쟁이 토끼",
+  "uphero.monster.fit_newbie_pebble": "뒹구는 돌멩이",
+  "uphero.monster.lrn_newbie_page": "흩날리는 낱장",
+  "uphero.monster.lrn_newbie_ink": "작은 잉크 방울",
+  "uphero.monster.mnd_newbie_bubble": "작은 망상 거품",
+  "uphero.monster.mnd_newbie_breeze": "살랑 바람",
+  "uphero.monster.ntr_newbie_bean": "통통 튀는 콩",
+  "uphero.monster.ntr_newbie_carrot": "아기 당근",
+  "uphero.monster.soc_newbie_whisper": "작은 속삭임",
+  "uphero.monster.soc_newbie_pickpocket": "서툰 소매치기",
+  "uphero.monster.prd_newbie_paperclip": "달그락 클립",
+  "uphero.monster.prd_newbie_stickynote": "나풀 포스트잇",
+  "uphero.monster.wel_newbie_droplet": "작은 물방울",
+  "uphero.monster.wel_newbie_petal": "떨어진 꽃잎",
+  "uphero.monster.trd_newbie_pixel": "말썽꾸러기 픽셀",
+  "uphero.monster.trd_newbie_bubble": "채팅 말풍선",
   // fitness (산악)
   "uphero.monster.fit_wolf": "산악 늑대",
   "uphero.monster.fit_bear": "돌산 곰",
@@ -615,6 +671,24 @@ const ko = {
   "uphero.home.equipment.hint": "장착 · 판매 · 강화",
   "uphero.home.codex.label": "도감",
   "uphero.home.codex.hint": "만난 몬스터 기록",
+
+  // === Camp 첫 진입 튜토리얼 ===
+  "uphero.tutorial.skip": "건너뛰기",
+  "uphero.tutorial.next": "다음",
+  "uphero.tutorial.prev": "이전",
+  "uphero.tutorial.start": "시작하기",
+  "uphero.tutorial.step": "{current} / {total}",
+  "uphero.tutorial.step1.title": "아지트에 오신 것을 환영합니다",
+  "uphero.tutorial.step1.body": "여기는 영웅의 집이에요. 탐험 준비를 하고, 장비를 정돈하고, 코인을 관리하는 공간입니다.",
+  "uphero.tutorial.step2.title": "영웅을 탭해 스탯 확인",
+  "uphero.tutorial.step2.body": "중앙의 영웅 스프라이트를 탭하면 스탯과 스킬, 장비를 한눈에 볼 수 있어요.",
+  "uphero.tutorial.step3.title": "탐험 시작",
+  "uphero.tutorial.step3.body": "탐험권으로 던전에 입장하세요. 6장 카드 중 몇 장을 뽑아 버프를 걸고 챌린지를 진행합니다.",
+  "uphero.tutorial.step4.title": "상점과 장비",
+  "uphero.tutorial.step4.body": "던전에서 번 코인으로 상점에서 탐험권과 카드를 사고, 장비를 착용해 영웅을 강하게 만드세요.",
+  "uphero.tutorial.name.title": "영웅의 이름을 지어주세요",
+  "uphero.tutorial.name.body": "원하는 이름을 입력하세요. 비워두면 추천 이름이 그대로 사용돼요.",
+  "uphero.tutorial.name.inputAria": "영웅 이름 입력",
 
   // === Camp subheaders / common ===
   "uphero.subheader.dungeons": "던전 선택",
@@ -760,6 +834,16 @@ const ko = {
   "uphero.stat.autoToggleOn": "켜짐",
   "uphero.stat.autoToggleOff": "꺼짐",
   "uphero.stat.chartAria": "스탯 차트",
+  "uphero.stat.info.buttonAria": "스탯 설명 보기",
+  "uphero.stat.info.title": "스탯이 어떻게 영향을 미치나요?",
+  "uphero.stat.info.close": "닫기",
+  "uphero.stat.info.tapHint": "각 스탯을 누르면 자세한 설명을 볼 수 있어요",
+  "uphero.stat.info.str": "STR · 힘 — 기본 물리 공격력이 오릅니다. 무기 피해가 커져요.",
+  "uphero.stat.info.int": "INT · 지능 — 스킬/마법 피해와 자원 회복량이 오릅니다.",
+  "uphero.stat.info.vit": "VIT · 체력 — 최대 HP 가 오르고 맞아도 잘 버텨요.",
+  "uphero.stat.info.dex": "DEX · 민첩 — 명중률과 크리티컬 확률 보조가 오릅니다.",
+  "uphero.stat.info.agi": "AGI · 기민 — 회피율이 오르고 적 공격을 흘려요.",
+  "uphero.stat.info.crit": "CRIT · 치명 — 치명타 확률이 직접 증가합니다. 공격 1회 최대 피해량 ↑.",
   "uphero.skillBar.aria": "스킬",
   "uphero.skillTree.resourceLabel": "자원",
   "uphero.photo.bindAria": "사진 부적 바인딩",
@@ -1851,6 +1935,39 @@ const ko = {
   "uphero.rest.5": "낮은 돌담 아래 등을 기댔다",
   "uphero.rest.6": "오래된 여행자 표식 옆에서 쉰다",
   "uphero.rest.7": "마른 장작을 태워 온기를 챙겼다",
+
+  // === Round-6 audit additions (minigame / uphero combat / stat / photo errors / skillTree) ===
+  "minigame.tile.skill": "스킬",
+  "minigame.tile.curse": "저주",
+  "minigame.runResult.noMatches": "매치한 카드가 없어요",
+
+  "uphero.log.floorDivider": "Floor {floor}",
+  "uphero.combat.floorLabel": "Floor {floor}",
+  "uphero.log.encounterStats": "(HP {hp} · ATK {atk})",
+  "uphero.combat.enemy.level": "Lv {level}",
+  "uphero.combat.heroStats": "STR {str} · AGI {agi}",
+  "uphero.skill.cdSuffix": "CD {cd}",
+  "uphero.boss.appeared": "보스 등장",
+  "uphero.boss.statHp": "HP {value}",
+  "uphero.boss.statAtk": "ATK {value}",
+
+  "uphero.stat.skillReady": "READY",
+  "uphero.stat.skillCooldown": "cd {n}",
+  "uphero.stat.cdPrefix": "CD {cd}",
+  "uphero.equip.enhanceChipAria": "강화 +{n}",
+
+  "uphero.skillTree.tierLabel": "TIER {tier}",
+  "uphero.skillTree.tierMeta": "· Lv {level} · {sp} SP",
+  "uphero.skillTree.btnNeedLevel": "Lv {level}",
+  "uphero.skillTree.btnNeedSP": "SP {sp}",
+
+  "uphero.photo.error.photoNotFound": "사진을 찾을 수 없어요",
+  "uphero.photo.error.alreadyBound": "이미 부적으로 만들어진 사진이에요",
+  "uphero.photo.error.coinInsufficient": "코인 부족 ({cost} 필요)",
+  "uphero.photo.error.notBound": "먼저 최초 바인딩이 필요해요",
+  "uphero.photo.error.maxEnhance": "이미 +10 최대 강화",
+
+  "uphero.ribbon.weeklyProgress": "{cleared}/{total}",
 } as const;
 
 export type DictKey = keyof typeof ko;

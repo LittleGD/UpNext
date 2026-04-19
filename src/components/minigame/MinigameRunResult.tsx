@@ -85,7 +85,7 @@ export default function MinigameRunResult() {
           {t("minigame.runResult.heading")}
         </motion.h2>
         <motion.p variants={fadeInUp} className="typo-body text-text-secondary text-center">
-          {t("minigame.tickets.empty")}
+          {t("minigame.runResult.noMatches")}
         </motion.p>
         <motion.button
           variants={fadeInUp}

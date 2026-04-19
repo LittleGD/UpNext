@@ -88,7 +88,15 @@ export default function LoginOverlay({ onDismiss }: { onDismiss: () => void }) {
             {isSigningIn ? t("auth.section.signingIn") : t("auth.section.signInGoogle")}
           </button>
           {signInError && (
-            <p className="typo-caption text-accent-secondary text-center">{signInError}</p>
+            <p className="typo-caption text-accent-secondary text-center">
+              {signInError.kind === "popup-blocked"
+                ? t("auth.error.popupBlocked")
+                : signInError.kind === "unauthorized-domain"
+                  ? t("auth.error.unauthorizedDomain")
+                  : signInError.kind === "not-allowed"
+                    ? t("auth.error.notAllowed")
+                    : t("auth.error.generic", { code: signInError.code ?? "unknown" })}
+            </p>
           )}
         </div>
 

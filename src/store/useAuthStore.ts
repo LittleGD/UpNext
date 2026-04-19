@@ -4,12 +4,25 @@ import { create } from "zustand";
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import type { AuthUser } from "@/types/auth";
 
+/** Sign-in 실패 분류 — UI 는 i18n key 로 renderer 가 t() 호출. */
+export type SignInErrorKind =
+  | "popup-blocked"
+  | "unauthorized-domain"
+  | "not-allowed"
+  | "generic";
+
+export interface SignInError {
+  kind: SignInErrorKind;
+  /** firebase error code (for "generic" fallback — Korean literal 제거). */
+  code?: string;
+}
+
 interface AuthState {
   user: AuthUser | null;
   isSignedIn: boolean;
   isLoading: boolean;
   isSigningIn: boolean;
-  signInError: string | null;
+  signInError: SignInError | null;
 
   setUser: (user: AuthUser | null) => void;
   signInWithGoogle: () => Promise<void>;
@@ -43,15 +56,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.error("Google sign-in failed:", code, message, error);
 
       if (code === "auth/popup-blocked") {
-        set({ signInError: "팝업이 차단되었어요. 브라우저 설정에서 팝업을 허용해 주세요." });
+        set({ signInError: { kind: "popup-blocked" } });
       } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
         // 사용자가 직접 닫은 경우 — 에러 표시 불필요
       } else if (code === "auth/unauthorized-domain") {
-        set({ signInError: `이 도메인이 Firebase에 등록되지 않았어요. Firebase Console → Authentication → Settings → Authorized domains에 현재 도메인을 추가해 주세요.` });
+        set({ signInError: { kind: "unauthorized-domain" } });
       } else if (code === "auth/operation-not-allowed") {
-        set({ signInError: "Google 로그인이 활성화되지 않았어요. Firebase Console → Authentication → Sign-in method에서 Google을 활성화해 주세요." });
+        set({ signInError: { kind: "not-allowed" } });
       } else {
-        set({ signInError: `로그인에 실패했어요 (${code || "unknown"}). 다시 시도해 주세요.` });
+        set({ signInError: { kind: "generic", code: code || "unknown" } });
       }
     } finally {
       set({ isSigningIn: false });

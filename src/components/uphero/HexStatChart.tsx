@@ -18,9 +18,13 @@
  * a11y:
  *   - role="img" + aria-label 로 "STR 62 (+11) · INT 51 · VIT 57 (+6)..." 요약 제공.
  *   - 하단에 텍스트 legend 표 — SR 는 숫자 직접 읽음.
+ *
+ * Info popover:
+ *   - 꼭짓점 label 탭 → 해당 스탯 설명만 표시
+ *   - ? 버튼 탭 → 전체 스탯 설명 표시
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
 import type {
@@ -58,6 +62,7 @@ export default function HexStatChart({
   size = 240,
 }: HexStatChartProps) {
   const { t } = useTranslation();
+  const [activeInfo, setActiveInfo] = useState<StatKey | "all" | null>(null);
   const maxByKey = useMemo(
     () => computeStatMax(level, classType),
     [level, classType],
@@ -121,9 +126,25 @@ export default function HexStatChart({
       })
       .join(", ");
 
+  const statInfoKeys: StatKey[] = ["str", "int", "vit", "dex", "agi", "crit"];
+  const infoLines: StatKey[] =
+    activeInfo === "all"
+      ? statInfoKeys
+      : activeInfo
+        ? [activeInfo]
+        : [];
+
+  const handleStatTap = (key: StatKey) => {
+    setActiveInfo((prev) => (prev === key ? null : key));
+  };
+
+  const toggleAllInfo = () => {
+    setActiveInfo((prev) => (prev === "all" ? null : "all"));
+  };
+
   return (
     <div
-      className="hex-stat-chart"
+      className="hex-stat-chart relative"
       role="img"
       aria-label={ariaLabel}
       style={{ width: size, margin: "0 auto" }}
@@ -202,25 +223,67 @@ export default function HexStatChart({
             />
           );
         })}
-        {/* 스탯 label (꼭짓점 밖) */}
-        {axes.map((a, i) => {
-          const { x, y } = toXY(a.angle, 1.18);
-          return (
-            <text
-              key={i}
-              x={x}
-              y={y}
-              fontSize={11}
-              fill={GB.light}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              style={{ letterSpacing: "0.08em" }}
-            >
-              {a.label}
-            </text>
-          );
-        })}
       </svg>
+      {/* 스탯 label — HTML button overlay (탭 가능) */}
+      {axes.map((a) => {
+        const { x, y } = toXY(a.angle, 1.18);
+        const isActive = activeInfo === a.key || activeInfo === "all";
+        return (
+          <button
+            key={a.key}
+            type="button"
+            onClick={() => handleStatTap(a.key)}
+            className="absolute typo-micro"
+            style={{
+              left: x,
+              top: y,
+              transform: "translate(-50%, -50%)",
+              padding: "3px 6px",
+              minWidth: 32,
+              minHeight: 20,
+              background: isActive ? GB.dark : "transparent",
+              color: isActive ? GB.lightest : GB.light,
+              border: "none",
+              borderRadius: 3,
+              letterSpacing: "0.08em",
+              fontWeight: isActive ? 700 : 500,
+              cursor: "pointer",
+              transition: `background 160ms ${EASE_OUT}, color 160ms ${EASE_OUT}`,
+            }}
+            aria-pressed={isActive}
+            aria-label={`${a.label} ${t("uphero.stat.info.buttonAria")}`}
+          >
+            {a.label}
+          </button>
+        );
+      })}
+      {/* ? 아이콘 버튼 — 전체 스탯 설명 토글 */}
+      <button
+        type="button"
+        onClick={toggleAllInfo}
+        className="absolute flex items-center justify-center"
+        style={{
+          right: 0,
+          top: 0,
+          width: 28,
+          height: 28,
+          background: activeInfo === "all" ? GB.light : "transparent",
+          color: activeInfo === "all" ? GB.darkest : GB.light,
+          border: `1px solid ${GB.dark}`,
+          borderRadius: 999,
+          cursor: "pointer",
+          transition: `background 160ms ${EASE_OUT}, color 160ms ${EASE_OUT}`,
+        }}
+        aria-pressed={activeInfo === "all"}
+        aria-label={t("uphero.stat.info.buttonAria")}
+      >
+        <span
+          aria-hidden="true"
+          style={{ fontSize: 14, fontWeight: 700, lineHeight: 1 }}
+        >
+          ?
+        </span>
+      </button>
       {/* 숫자 legend (SR/시각 fallback) */}
       <div
         className="grid grid-cols-3 gap-x-3 gap-y-1 tabular-nums typo-micro mt-1 px-2"
@@ -254,6 +317,50 @@ export default function HexStatChart({
           );
         })}
       </div>
+      {/* 스탯 설명 popover */}
+      {infoLines.length > 0 && (
+        <div
+          className="mt-2 px-3 py-2 typo-micro"
+          role="region"
+          aria-live="polite"
+          style={{
+            background: GB.darkest,
+            border: `1px solid ${GB.dark}`,
+            borderRadius: 4,
+            color: GB.lightest,
+            lineHeight: 1.5,
+          }}
+        >
+          {activeInfo === "all" && (
+            <div
+              className="typo-micro mb-1"
+              style={{ color: GB.light, fontWeight: 700 }}
+            >
+              {t("uphero.stat.info.title")}
+            </div>
+          )}
+          <ul className="space-y-1 m-0 p-0" style={{ listStyle: "none" }}>
+            {infoLines.map((k) => (
+              <li key={k}>{t(`uphero.stat.info.${k}` as const)}</li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setActiveInfo(null)}
+            className="typo-micro mt-2"
+            style={{
+              color: GB.light,
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              textDecoration: "underline",
+            }}
+          >
+            {t("uphero.stat.info.close")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

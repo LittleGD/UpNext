@@ -15,6 +15,8 @@
 import type { ClassType } from "@/types/uphero";
 import { CLASS_RESOURCE, CLASS_RESOURCE_MAX } from "@/types/uphero";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
+import { useTranslation } from "@/hooks/useTranslation";
+import { resourceName } from "@/lib/upHeroI18n";
 
 interface ClassResourceBarProps {
   classType: ClassType | null;
@@ -25,9 +27,11 @@ export default function ClassResourceBar({
   classType,
   value,
 }: ClassResourceBarProps) {
+  const { language } = useTranslation();
   if (!classType) return null;
   const spec = CLASS_RESOURCE[classType];
   const pct = Math.min(100, (value / CLASS_RESOURCE_MAX) * 100);
+  const localizedName = resourceName(classType, language) || spec.name;
 
   return (
     <div className="flex items-center gap-2">
@@ -40,11 +44,11 @@ export default function ClassResourceBar({
       <div
         className="flex-1 h-1.5 rounded-sm relative overflow-hidden"
         role="progressbar"
-        aria-label={`${spec.name} (${classType})`}
+        aria-label={`${localizedName} (${classType})`}
         aria-valuenow={value}
         aria-valuemin={0}
         aria-valuemax={CLASS_RESOURCE_MAX}
-        aria-valuetext={`${spec.name} ${value} / ${CLASS_RESOURCE_MAX}`}
+        aria-valuetext={`${localizedName} ${value} / ${CLASS_RESOURCE_MAX}`}
         style={{ background: GB.dark }}
       >
         <div

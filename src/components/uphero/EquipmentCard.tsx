@@ -21,11 +21,14 @@ import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
-import { equipmentNameById } from "@/lib/upHeroI18n";
+import { equipmentNameById, skillName } from "@/lib/upHeroI18n";
+import type { Language } from "@/types/game";
 
-/** Phase 11b — skill id → 표시 이름 (없으면 id 그대로). */
-function talismanSkillName(id: string): string {
-  return TALISMAN_SKILLS[id]?.name ?? id;
+/** Phase 11b — skill id → 표시 이름 (없으면 id 그대로).
+ *   i18n: `uphero.skill.<id>.name` 키가 dict 에 있으면 언어별, 없으면 Korean fallback. */
+function talismanSkillName(id: string, language: Language): string {
+  const fallback = TALISMAN_SKILLS[id]?.name ?? id;
+  return skillName(id, fallback, language);
 }
 
 export type EquipmentCardSize = "sm" | "md" | "lg";
@@ -209,7 +212,7 @@ export default function EquipmentCard({
                   letterSpacing: "0.02em",
                 }}
               >
-                ✦ {talismanSkillName(id)}
+                ✦ {talismanSkillName(id, language)}
               </span>
             ))}
           </div>
@@ -235,7 +238,7 @@ export default function EquipmentCard({
             letterSpacing: "0.03em",
             lineHeight: 1.3,
           }}
-          aria-label={`강화 +${equipment.enhanceLevel}`}
+          aria-label={t("uphero.equip.enhanceChipAria", { n: equipment.enhanceLevel ?? 0 })}
         >
           +{equipment.enhanceLevel}
         </div>
@@ -271,7 +274,7 @@ export default function EquipmentCard({
     const srLabel = [
       rarityLabel,
       localizedEqName,
-      enhance > 0 ? `강화 +${enhance}` : null,
+      enhance > 0 ? t("uphero.equip.enhanceChipAria", { n: enhance }) : null,
       statsBrief,
     ]
       .filter(Boolean)
