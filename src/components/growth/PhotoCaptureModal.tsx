@@ -1195,8 +1195,14 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
               className="w-full max-w-[320px] flex flex-col items-center gap-3"
             >
               {/* 폴라로이드 (사진 + 사인 + 스티커).
-                  data-sticker-target — DecorationToolbar 의 sticker 드래그-앤-드롭 대상. */}
-              <div className="w-full max-w-[300px] relative" data-sticker-target>
+                  data-sticker-target — DecorationToolbar 의 sticker 드래그-앤-드롭 대상.
+                  유저 피드백 #2 — overflow:hidden + radius 로 스티커가 폴라로이드
+                  프레임 밖으로 튀어나오지 않게 클립. */}
+              <div
+                className="w-full max-w-[300px] relative"
+                style={{ overflow: "hidden", borderRadius: 12 }}
+                data-sticker-target
+              >
                 <PolaroidFrame imageSrc={capturedImage} timestamp={captureTimestamp} />
                 {/* 사인 캔버스 — 폴라로이드 전체 위 absolute */}
                 <div
@@ -1254,6 +1260,21 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                 onWidthChange={setPenWidth}
                 onAddSticker={handleAddSticker}
               />
+
+              {/* 유저 피드백 #4 — 스티커가 있을 때만 인터랙션 hint 노출.
+                   "두 손가락으로 회전·확대 · 길게 눌러 제거". */}
+              {stickers.length > 0 && (
+                <div
+                  className="typo-micro text-center"
+                  style={{
+                    color: "rgba(0, 0, 0, 0.5)",
+                    letterSpacing: "0.01em",
+                    marginTop: -4,
+                  }}
+                >
+                  {t("playground.capture.stickerHint")}
+                </div>
+              )}
 
               {/* Done 버튼 — 서명이 있어야 활성 (스티커만으로는 저장 불가).
                    Phase 13 review Critical #2 — 이전엔 (signature || stickers)

@@ -253,9 +253,12 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
           {/* ── 편집 모드 ── */}
           {isEditing ? (
             <>
-              {/* data-sticker-target — DecorationToolbar drag-drop 대상 */}
+              {/* data-sticker-target — DecorationToolbar drag-drop 대상.
+                   유저 피드백 #2 — overflow:hidden 으로 스티커가 폴라로이드 밖
+                   으로 튀어나오지 않게 클립. */}
               <div
                 className="w-full max-w-[300px] mx-auto relative"
+                style={{ overflow: "hidden", borderRadius: 12 }}
                 data-sticker-target
               >
                 <PolaroidFrame imageSrc={photoUrl} timestamp={meta.timestamp} />
@@ -284,6 +287,18 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                 onWidthChange={setEditPenWidth}
                 onAddSticker={handleAddSticker}
               />
+              {/* 유저 피드백 #4 — 스티커 hint */}
+              {editedStickers.length > 0 && (
+                <div
+                  className="typo-micro text-center"
+                  style={{
+                    color: "rgba(255, 255, 255, 0.5)",
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {t("playground.capture.stickerHint")}
+                </div>
+              )}
               <div className="flex gap-2 mt-2">
                 <button
                   onClick={handleEditCancel}
