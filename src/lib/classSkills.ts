@@ -1057,7 +1057,7 @@ const noviceHeal: ClassSkill = {
   class: "novice",
   tier: 0,
   name: "초급 힐링",
-  description: "HP +7 회복.",
+  description: "HP +15 회복.",
   resourceCost: 0,
   cooldown: 7,
   requiredLevel: 1,
@@ -1065,9 +1065,8 @@ const noviceHeal: ClassSkill = {
   // auto 발동: HP 60% 이하일 때만. "거의 풀피인데 힐 써서 쿨 낭비" 방지.
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.6,
   apply(s) {
-    // 고정 7 — novice 는 INT scaling 없이 튜토리얼 난이도 유지.
-    //   너프: 15 → 7. 초저레벨 상시 힐로 난이도가 너무 낮아지는 이슈.
-    const heal = 7;
+    // 고정 15 — novice 는 INT scaling 없이 튜토리얼 난이도 유지.
+    const heal = 15;
     const healed = Math.min(s.hero.maxHp - s.hero.hp, heal);
     s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
     pushSkillLog(
