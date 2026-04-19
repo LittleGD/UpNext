@@ -150,11 +150,67 @@ export function getLevelFromXP(totalXP: number): number {
 }
 
 // === 현재 레벨에서의 XP 진행도 ===
+// 2026.04.18 hotfix — current 를 Math.max(0, …) 로 클램프.
+//   배경: XP 커브 변경 (f5c13fa: level*(50+10L) → level*(80+20L)) 후, 구-커브
+//   기준 cloud snapshot 이 normalize 없이 복원되면 totalXP < totalXPForLevel(level)
+//   이 되어 `current` 가 음수 (-484/340 처럼) UI 노출. 정상 경로에서는
+//   normalizeProgressXpLevel 이 이를 해결하지만, 새로운 write path 에서 누락 시
+//   유저 눈에 음수가 보이는 것만은 반드시 막는다 (방어선).
 export function getXPProgress(totalXP: number, level: number): { current: number; needed: number } {
   const xpAtCurrentLevel = totalXPForLevel(level);
   const needed = xpToNextLevel(level);
-  const current = totalXP - xpAtCurrentLevel;
+  const current = Math.max(0, totalXP - xpAtCurrentLevel);
   return { current, needed };
+}
+
+/**
+ * 2026.04.18 hotfix — 기존 유저 XP 음수 (-484/340) 버그 수정.
+ *
+ * 원인: 2026 초 XP 커브 변경 (level*(50+10L) → level*(80+20L)) 으로 Lv.N floor
+ *   이 상향됨 (예: Lv.6 660 → 1200). initialize() 는 migration 으로 floor 까지
+ *   끌어올리지만, _setFromCloud 는 migration 없이 raw cloud snapshot 을
+ *   그대로 덮어써 기존 유저의 Lv 를 유지한 채 xp 가 새-floor 보다 낮게 저장되어
+ *   `current = totalXP − floor < 0` 으로 UI 음수 노출.
+ *
+ * 정책:
+ *   1) **Grandfather level** — 유저가 이미 획득한 레벨은 강등하지 않음.
+ *      xp < totalXPForLevel(level) 이면 xp 를 floor 까지 끌어올림.
+ *   2) **Level 승급** — xp 가 다음 임계치를 넘으면 승급 + pendingPacks 적립.
+ *   3) **음수 클램프** — xp < 0 은 0 으로 (과거 버그 흔적 방어).
+ *
+ * idempotent — 여러 번 호출해도 같은 결과. cloud↔local 왕복에 안전.
+ */
+export function normalizeProgressXpLevel(progress: UserProgress): {
+  progress: UserProgress;
+  levelsGained: number;
+} {
+  let level = Math.max(0, progress.level || 0);
+  let xp = Math.max(0, progress.xp || 0);
+
+  // 1) grandfather: 현재 레벨 floor 보다 xp 가 낮으면 floor 로 보정
+  const floor = totalXPForLevel(level);
+  if (xp < floor) xp = floor;
+
+  // 2) xp 가 다음 임계치 이상이면 level 승급
+  const correct = getLevelFromXP(xp);
+  let levelsGained = 0;
+  if (correct > level) {
+    levelsGained = correct - level;
+    level = correct;
+  }
+
+  if (xp === progress.xp && level === progress.level && levelsGained === 0) {
+    return { progress, levelsGained: 0 };
+  }
+  return {
+    progress: {
+      ...progress,
+      xp,
+      level,
+      pendingPacks: (progress.pendingPacks || 0) + levelsGained,
+    },
+    levelsGained,
+  };
 }
 
 // === 칭호 시스템 ===

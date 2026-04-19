@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { ChallengeCard, Category } from "@/types/card";
 import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase } from "@/types/game";
-import { MODE_CARD_COUNT, XP_PER_RARITY, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, PHASE_MIN_CARDS, PHASE_MAX_CARDS, MINIGAME_TICKET_CAP } from "@/types/game";
+import { MODE_CARD_COUNT, XP_PER_RARITY, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, normalizeProgressXpLevel, PHASE_MIN_CARDS, PHASE_MAX_CARDS, MINIGAME_TICKET_CAP } from "@/types/game";
 import { ALL_CARDS, STARTER_CARD_IDS } from "@/data/cards";
 import { drawCards, drawFromPool } from "@/lib/deck";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
@@ -315,19 +315,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
-    // XP 기반 레벨 마이그레이션: 기존 레벨에 맞게 XP 보정
-    const expectedXP = totalXPForLevel(progress.level);
-    if ((progress.xp || 0) < expectedXP) {
-      progress.xp = expectedXP;
-    }
-
-    // XP가 현재 레벨을 초과했으면 레벨업 처리
-    const correctLevel = getLevelFromXP(progress.xp || 0);
-    if (correctLevel > progress.level) {
-      const levelsGained = correctLevel - progress.level;
-      progress.level = correctLevel;
-      progress.pendingPacks = (progress.pendingPacks || 0) + levelsGained;
-    }
+    // 2026.04.18 hotfix — XP/level normalize 공용 헬퍼로 위임.
+    //   기존 inline 두 블록 (floor migration + level catch-up) 을 동일 로직의
+    //   normalizeProgressXpLevel 로 통합. _setFromCloud 와 동일한 규칙 적용 →
+    //   cloud↔local 양방향에서 음수 XP 재발 방지.
+    Object.assign(progress, normalizeProgressXpLevel(progress).progress);
 
     const isOpeningPack = (progress.pendingPacks || 0) > 0 || (progress.pendingBonusCards || 0) > 0;
     const isLocalEmpty = !savedOnboarding && !savedProgress;
@@ -795,21 +787,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ? daily
       : { ...getInitialDailyState(), date: today };
 
+    // 2026.04.18 hotfix — 구-XP-커브 (level*(50+10L)) 기준 저장된 cloud snapshot
+    //   이 raw 로 복원되면 새-커브 floor (level*(80+20L)) 보다 xp 가 낮아
+    //   UI 에 `-N/XX XP` 음수 노출. initialize() 가 이미 쓰던 migration 과 동일
+    //   규칙을 여기서도 적용해 cloud→local 경로에서 음수 재발을 차단.
+    const normalized = normalizeProgressXpLevel(progress).progress;
+
     const localDaily = get().daily;
     // 로컬이 오늘이고, 클라우드 이상으로 진행됐으면 daily는 건드리지 않음
     // >= 비교: 동점 시에도 로컬을 유지하여 유저의 최근 액션(deselect 등)을 보존
     if (localDaily.date === today && dailyProgressScore(localDaily) >= dailyProgressScore(safeDailyState)) {
-      set({ progress });
+      set({ progress: normalized });
       if (typeof window !== "undefined") {
-        localStorage.setItem("upnext_progress", JSON.stringify(progress));
+        localStorage.setItem("upnext_progress", JSON.stringify(normalized));
       }
       return;
     }
 
-    set({ progress, daily: safeDailyState });
+    set({ progress: normalized, daily: safeDailyState });
     // localStorage에 직접 저장 (saveToStorage를 거치면 syncToCloud가 다시 호출됨)
     if (typeof window !== "undefined") {
-      localStorage.setItem("upnext_progress", JSON.stringify(progress));
+      localStorage.setItem("upnext_progress", JSON.stringify(normalized));
       localStorage.setItem("upnext_daily", JSON.stringify(safeDailyState));
     }
   },
