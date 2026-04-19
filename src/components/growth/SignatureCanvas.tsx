@@ -61,8 +61,18 @@ export default function SignatureCanvas({
   const getPos = useCallback((e: PointerEvent | React.PointerEvent): Pt => {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    // 유저 피드백 #1 수정 — DPR 이중 적용 버그.
+    //   기존: scaleX = canvas.width / rect.width = (visual×dpr) / visual ≈ dpr
+    //         → 이미 ctx.scale(dpr, dpr) 로 보정된 컨텍스트에 또 dpr 만큼 추가
+    //         곱해져 좌표가 canvas 영역 밖으로 → stroke 그려지지만 안 보임.
+    //   수정: canvas attribute width 는 visual×dpr 이지만, ctx.scale(dpr,dpr)
+    //         이 이미 transform 적용. getPos 는 CSS pixel 비율만 계산해야.
+    //         → cssWidth = canvas.width / dpr (visual size 복원)
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = canvas.width / dpr;
+    const cssHeight = canvas.height / dpr;
+    const scaleX = cssWidth / rect.width;
+    const scaleY = cssHeight / rect.height;
     return {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,

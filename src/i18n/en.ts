@@ -148,6 +148,7 @@ const en: Record<DictKey, string> = {
   "playground.capture.save": "Save",
   "playground.capture.flip": "Flip",
   "playground.capture.signRequired": "Sign before saving",
+  "playground.capture.stickerHint": "Pinch / rotate with two fingers · long-press to remove",
   "playground.capture.record": "Record this moment",
   "playground.capture.clear": "Clear",
 
