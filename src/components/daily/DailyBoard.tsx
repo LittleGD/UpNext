@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
-import { MODE_CARD_COUNT, getXPProgress, XP_PER_RARITY, getTitleForLevel } from "@/types/game";
+import { MODE_CARD_COUNT, XP_PER_RARITY } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
 import { motion, AnimatePresence } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -20,8 +20,7 @@ import ChallengeConfirmModal from "./ChallengeConfirmModal";
 // === Completion celebration ===
 function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
   const progress = useGameStore((s) => s.progress);
-  const { t, language } = useTranslation();
-  const xpInfo = getXPProgress(progress.xp || 0, progress.level);
+  const { t } = useTranslation();
 
   return (
     <motion.div
@@ -92,32 +91,12 @@ function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
           </span>
         </motion.div>
 
-        {/* XP bar */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="mt-3 w-full max-w-[200px]"
-        >
-          <div className="flex justify-between typo-micro text-bg-primary/60 mb-1">
-            <span>Lv.{progress.level} {getTitleForLevel(progress.level, language)}</span>
-            <span>{xpInfo.current}/{xpInfo.needed}</span>
-          </div>
-          <div className="h-1.5 bg-black/20 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-bg-primary/70 rounded-full"
-              initial={{ width: "0%" }}
-              animate={{ width: `${(xpInfo.current / xpInfo.needed) * 100}%` }}
-              transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
-            />
-          </div>
-        </motion.div>
-
-        {/* Phase-specific guide message */}
+        {/* Phase-specific guide message — 상단 헤더의 XP 바와 정보가 겹치므로
+            완료 카드 자체에는 레벨/XP 재표시하지 않고 streak 와 안내 문구만 노출 */}
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.35 }}
           className="typo-caption text-bg-primary/50 mt-4 text-center whitespace-pre-line leading-relaxed"
           style={{ textWrap: "balance" } as React.CSSProperties}
         >
