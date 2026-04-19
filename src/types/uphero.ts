@@ -204,6 +204,33 @@ export type MonsterKind =
   | "creature"
   | "large";
 
+/**
+ * Phase 14 — 몬스터 trait 시스템. 각 몬스터에 0~1 개의 특성 부여.
+ *
+ *   stat 변조형 (scaleMonster 내에서 적용):
+ *     - "tough"  : HP +50%, ATK -20% (탱커)
+ *     - "fragile": HP -30%, ATK +40% (유리 대포)
+ *
+ *   judgment 변조형 (rollEnemyOutcome 내):
+ *     - "swift"  : 공격 적중 후 30% 회피처럼 작동 — hero miss 확률 +8%
+ *     - "burst"  : crit 확률 +12%
+ *
+ *   지속 효과 (session state 로 관리):
+ *     - "poison" : 피격 시 영웅에게 3 round 독 DoT 부여 (round 당 monster.level×0.5)
+ *     - "regen"  : 매 round 시작 시 자신 최대 HP 5% 회복
+ *
+ *   shield:
+ *     - "shield" : 처음 2 회 피격 시 받는 피해 -50%
+ */
+export type MonsterTrait =
+  | "tough"
+  | "fragile"
+  | "swift"
+  | "burst"
+  | "poison"
+  | "regen"
+  | "shield";
+
 /** 몬스터 */
 export interface Monster {
   id: string;
@@ -219,12 +246,16 @@ export interface Monster {
   kind: MonsterKind;
   level: number;
   hp: number;
+  /** Phase 14 — scaleMonster 에서 확정된 최대 HP (regen cap 용) */
+  maxHp?: number;
   atk: number;
   def: number;
   xpReward: number;
   coinReward: number;
   isBoss?: boolean;
   dungeonId: DungeonId;
+  /** Phase 14 — 몬스터 고유 특성 (trait). 0~1 개. */
+  trait?: MonsterTrait;
 }
 
 /** 던전 정의 */
@@ -468,8 +499,12 @@ export type LogEntry =
   | {
       /** Phase 6b — 액티브 스킬 발동 로그 */
       type: "skill";
-      /** 발동한 class (icon / color 결정용) */
-      classType: ClassType;
+      /**
+       * 발동한 class (icon / color 결정용).
+       *   Phase 14 — 전직 전 영웅의 튜토리얼성 novice 스킬을 위해 `"novice"` 확장.
+       *   UI 는 현재 classType 을 직접 렌더하지 않고 skillId 로 i18n 조회.
+       */
+      classType: ClassType | "novice";
       /**
        * Phase 12 i18n — 스킬 id (다국어 표시 키 조회용).
        *   legacy entry 는 id 없음 → skillName 그대로 표시 (한국어 fallback).
@@ -480,6 +515,20 @@ export type LogEntry =
       /** 발동 narrative (예: "영웅이 강타를 준비한다 — 다음 공격 2배") */
       narrative: string;
       /** Phase 13c — narrative i18n key + params (선택). */
+      narrativeKey?: string;
+      narrativeParams?: NarrativeParams;
+      timestamp: number;
+    }
+  | {
+      /**
+       * Phase 14 — 몬스터 trait 에 의한 지속 효과 tick. CombatLog 는 텍스트로
+       *   표시. computeMonsterHp 는 effect === "regen" 시 amount 만큼 monster HP
+       *   증가시킴 (maxHp cap 은 scaleMonster 의 maxHp 로 별도 계산).
+       */
+      type: "monsterEffect";
+      effect: "regen" | "poisonTick" | "shieldBlock";
+      amount: number;
+      narrative?: string;
       narrativeKey?: string;
       narrativeParams?: NarrativeParams;
       timestamp: number;
@@ -699,6 +748,24 @@ export interface CombatSession {
    *   기본 0, affix 적용 시 0.15. rollEnemyOutcome 에서 참조.
    */
   monsterCritBonus?: number;
+  /**
+   * Phase 14 monster trait — 영웅이 받는 독 DoT.
+   *   rounds 양수면 매 round 시작 시 s.hero.hp -= dmgPerRound (min 1).
+   *   monster trait=poison 에서 피격 시 set. 이미 걸려있으면 rounds refresh.
+   */
+  heroPoisonRounds?: { rounds: number; dmgPerRound: number };
+  /**
+   * Phase 14 monster trait — 몬스터 round 당 회복량.
+   *   trait=regen 인 몬스터 encounter 시 set. 0 또는 undefined 면 비활성.
+   *   combat round 시작 전 monster HP 에 가산 (maxHp cap).
+   */
+  monsterRegenAmount?: number;
+  /**
+   * Phase 14 monster trait — 몬스터 shield 남은 횟수.
+   *   trait=shield 인 몬스터 encounter 시 2 로 set.
+   *   영웅 피격 시 damage -50% + counter -= 1.
+   */
+  monsterShieldHits?: number;
   /**
    * Phase 11c R1 — "혼돈의 보물" affix runtime. true 면 rollDropRarity 가
    *   4 등급 균등 확률 (25% 씩) 으로 뽑음. 고등급 확률 ↑ but 저등급도 자주.

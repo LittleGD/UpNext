@@ -47,8 +47,12 @@ function getIntMult(s: CombatSession): number {
 
 export interface ClassSkill {
   id: string;
-  class: ClassType;
-  tier: 1 | 2 | 3 | 4;
+  /**
+   * Phase 14 — 전직 전 tutorial 스킬을 위해 `"novice"` 확장.
+   *   NOVICE_SKILLS 는 class="novice" 이며 classType 조건 없이 learnedSkills 로만 판정.
+   */
+  class: ClassType | "novice";
+  tier: 0 | 1 | 2 | 3 | 4;
   name: string;
   description: string;
   /** 발동 시 소모되는 클래스 자원 (0 = 무료) */
@@ -80,7 +84,7 @@ export interface ClassSkill {
  */
 function pushSkillLog(
   s: CombatSession,
-  classType: ClassType,
+  classType: ClassType | "novice",
   skillName: string,
   narrative: string,
   skillId?: string,
@@ -1034,6 +1038,75 @@ const illusT4: ClassSkill = {
 };
 
 /* ────────────────────────────────────────────
+ * Phase 14 — NOVICE 스킬 (전직 전 tutorial)
+ *
+ * 전직 (Lv30) 전까지 영웅은 class 가 없어 스킬 트리 자체를 사용하지 못했다.
+ * 저레벨 전투가 '기본 공격만 반복' 이라 지루하고 skill 개념 학습 기회도 없다.
+ *
+ * 해결: 2 개의 가벼운 튜토리얼 스킬을 레벨별로 자동 지급.
+ *  - novice_focus (Lv5+): 다음 공격 피해 +50% — "스킬 = 공격 강화" 학습.
+ *  - novice_brace (Lv15+): 다음 1 round 피해 -50% — "스킬 = 방어" 학습.
+ *
+ * 자원 비용 0 (novice 는 클래스 자원 없음). 쿨다운 길게 (5/6 round) — 전직 후
+ * 본격 스킬 트리 대비 DPS 기여도 제한.
+ * ──────────────────────────────────────────── */
+
+const noviceFocus: ClassSkill = {
+  id: "novice_focus",
+  class: "novice",
+  tier: 0,
+  name: "집중 일격",
+  description: "다음 공격 피해 +50%.",
+  resourceCost: 0,
+  cooldown: 5,
+  requiredLevel: 5,
+  pointCost: 0,
+  shouldFire: (_s, m) => !!m && m.hp > 0,
+  apply(s) {
+    // 이미 nextHeroDamageMult 가 설정돼 있으면 (예: 다른 경로) 덮어쓰기 금지 — max.
+    const prev = s.nextHeroDamageMult ?? 1;
+    s.nextHeroDamageMult = Math.max(prev, 1.5);
+    pushSkillLog(
+      s,
+      "novice",
+      "집중 일격",
+      "영웅이 깊게 호흡한다 — 다음 공격 +50%.",
+      "novice_focus",
+    );
+  },
+};
+
+const noviceBrace: ClassSkill = {
+  id: "novice_brace",
+  class: "novice",
+  tier: 0,
+  name: "방어 자세",
+  description: "다음 1 round 받는 피해 -50%.",
+  resourceCost: 0,
+  cooldown: 6,
+  requiredLevel: 15,
+  pointCost: 0,
+  shouldFire: (s, m) =>
+    !!m && m.hp > 0 && s.hero.hp / s.hero.maxHp <= 0.5, // HP 50% 이하일 때만 auto
+  apply(s) {
+    // 1 round 동안 피해 -50%. 기존 heroDmgReductionRounds 가 강하면 유지.
+    const prev = s.heroDmgReductionRounds;
+    if (!prev || prev.reduction < 0.5 || prev.rounds < 1) {
+      s.heroDmgReductionRounds = { rounds: 1, reduction: 0.5 };
+    }
+    pushSkillLog(
+      s,
+      "novice",
+      "방어 자세",
+      "영웅이 자세를 낮춘다 — 다음 피해 -50%.",
+      "novice_brace",
+    );
+  },
+};
+
+export const NOVICE_SKILLS: ClassSkill[] = [noviceFocus, noviceBrace];
+
+/* ────────────────────────────────────────────
  * CLASS_SKILL_TREES — 각 클래스의 4 tier 스킬 배열
  * ──────────────────────────────────────────── */
 
@@ -1065,6 +1138,9 @@ export const CLASS_SKILLS: Record<ClassType, ClassSkill> = {
 
 /** skillId → ClassSkill lookup (어느 트리에 속한지와 무관). */
 export function findSkillById(id: string): ClassSkill | null {
+  // Phase 14 — novice skill 먼저 검사 (id 충돌 없음, lookup 비용 ~2개).
+  const nov = NOVICE_SKILLS.find((x) => x.id === id);
+  if (nov) return nov;
   for (const tree of Object.values(CLASS_SKILL_TREES)) {
     const s = tree.find((x) => x.id === id);
     if (s) return s;
@@ -1135,16 +1211,18 @@ export function maybeFireSkill(
   s: CombatSession,
   monster: Monster | null,
 ): void {
-  const cls = s.hero.classType;
-  if (!cls) return;
   if (s.hero.autoSkillEnabled === false) return;
 
   const learned = s.hero.learnedSkills ?? [];
-  const tree = CLASS_SKILL_TREES[cls];
-  // tier 내림차순 (T4 우선)
-  const candidates = tree
+  const cls = s.hero.classType;
+  // Phase 14 — novice + class tree 통합 후보. class 미획득 (Lv<30) 이어도 novice
+  //   스킬 만으로 fire 가능. 전직 후에는 class 트리 + novice 둘 다 후보이나,
+  //   tier 내림차순 정렬로 class T4 > T3 > ... > novice (tier 0) 순서가 됨.
+  const tree = cls ? CLASS_SKILL_TREES[cls] : [];
+  const candidates = [...NOVICE_SKILLS, ...tree]
     .filter((sk) => learned.includes(sk.id))
     .sort((a, b) => b.tier - a.tier);
+  if (candidates.length === 0) return;
   for (const sk of candidates) {
     const check = canFireSkill(s, sk.id);
     if (!check.ok) continue;

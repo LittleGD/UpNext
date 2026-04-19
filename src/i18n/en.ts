@@ -606,6 +606,24 @@ const en: Record<DictKey, string> = {
   "uphero.monster.boss_mutant_mid": "Twisted Trend",
   "uphero.monster.boss_trend_chameleon": "Trend Chameleon",
 
+  // Phase 14 — Additional monsters per dungeon (2 each)
+  "uphero.monster.fit_boar": "Raging Boar",
+  "uphero.monster.fit_serpent": "Rock Viper",
+  "uphero.monster.lrn_tome": "Forbidden Tome Spirit",
+  "uphero.monster.lrn_quill": "Cursed Quill",
+  "uphero.monster.mnd_mirror": "Inverted Reflection",
+  "uphero.monster.mnd_reverie": "Daydream Echo",
+  "uphero.monster.ntr_mushroom": "Toxic Spore",
+  "uphero.monster.ntr_cabbage": "Rolling Cabbage",
+  "uphero.monster.soc_mime": "Silent Mime",
+  "uphero.monster.soc_troll": "Meddling Troll",
+  "uphero.monster.prd_ledger": "Mountain of Ledgers",
+  "uphero.monster.prd_inbox": "Runaway Inbox",
+  "uphero.monster.wel_ember": "Ember Glow",
+  "uphero.monster.wel_moss": "Whispering Moss",
+  "uphero.monster.trd_swipe": "Endless Swipe",
+  "uphero.monster.trd_algorithm": "Algorithm Wraith",
+
   // Class resource names
   "uphero.resource.warrior": "Rage",
   "uphero.resource.mage": "Mana",
@@ -649,6 +667,10 @@ const en: Record<DictKey, string> = {
   "uphero.skill.illus_double_t2.name": "Double",
   "uphero.skill.illus_charm_t3.name": "Charm",
   "uphero.skill.illus_dreamscape_t4.name": "Dreamscape",
+
+  // Phase 14 — Novice tutorial skill names
+  "uphero.skill.novice_focus.name": "Focus Strike",
+  "uphero.skill.novice_brace.name": "Brace",
 
   // Skill UI labels
   "uphero.skill.activeLabel": "Active — {name}",
@@ -1119,6 +1141,10 @@ const en: Record<DictKey, string> = {
   "uphero.skill.illus_double_t2.desc": "Attack twice per turn for 2 rounds.",
   "uphero.skill.illus_charm_t3.desc": "Disable enemy for 2 rounds.",
   "uphero.skill.illus_dreamscape_t4.desc": "Invulnerable for 3 rounds.",
+
+  // Phase 14 — Novice tutorial skill desc
+  "uphero.skill.novice_focus.desc": "Next attack deals +50% damage.",
+  "uphero.skill.novice_brace.desc": "Next round: take 50% less damage.",
 
   // Equipment baseName (24)
   "uphero.equip.self_control_sword.name": "Sword of Self-Control",
@@ -1759,6 +1785,15 @@ const en: Record<DictKey, string> = {
   "uphero.skill.illus_double_t2.narrative": "Attack twice per turn for 2 rounds.",
   "uphero.skill.illus_charm_t3.narrative": "The enemy was charmed — still for 2 rounds.",
   "uphero.skill.illus_dreamscape_t4.narrative": "The hero dreamed away — invulnerable for 3 rounds.",
+
+  // Phase 14 — Novice tutorial skills
+  "uphero.skill.novice_focus.narrative": "The hero takes a deep breath — next attack +50%.",
+  "uphero.skill.novice_brace.narrative": "The hero braces low — next damage -50%.",
+
+  // Phase 14 — Monster trait tick narratives
+  "uphero.combat.trait.regen": "The {monster} heals itself — HP +{amount}",
+  "uphero.combat.trait.poisonTick": "Poison courses through — HP -{amount}",
+  "uphero.combat.trait.shieldBlock": "A shield absorbs the blow — {amount} damage blocked",
 
   // === Phase 13c — monster lore ===
   // fitness — mountain dungeon

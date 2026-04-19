@@ -207,6 +207,8 @@ export function createSession(
         timestamp: Date.now(),
       });
       session.status = "paused";
+      // Phase 14 — 보스 trait state pre-init (encounter 로 전환될 때 재호출 가능).
+      initMonsterTraitState(session, boss);
     }
   }
 
@@ -702,6 +704,7 @@ export function tickSession(session: CombatSession): CombatSession {
       monster: lastEntry.monster,
       timestamp: Date.now(),
     });
+    initMonsterTraitState(s, lastEntry.monster);
     return s;
   }
 
@@ -914,6 +917,7 @@ export function tickSession(session: CombatSession): CombatSession {
     atkMult: s.monsterAtkMult ?? 1,
   });
   s.log.push({ type: "encounter", monster, timestamp: Date.now() });
+  initMonsterTraitState(s, monster);
   consumeTime(s, -TIME_COST.encounter);
   return s;
 }
@@ -1321,6 +1325,45 @@ function executeCombatRound(
   monster: Monster,
   stats: { str: number; vit: number; agi: number; dex: number; crit: number; int: number; slotBonus: number },
 ): void {
+  // Phase 14 — monster trait regen: round 시작 시 monster HP 회복 (maxHp cap 은
+  //   computeMonsterHp 에서 적용). log 에 monsterEffect/regen push.
+  if (s.monsterRegenAmount && s.monsterRegenAmount > 0) {
+    s.log.push({
+      type: "monsterEffect",
+      effect: "regen",
+      amount: s.monsterRegenAmount,
+      narrativeKey: "uphero.combat.trait.regen",
+      narrativeParams: {
+        amount: s.monsterRegenAmount,
+        monster: monster.name,
+        monsterTemplateId: monster.templateId ?? "",
+      },
+      timestamp: Date.now(),
+    });
+  }
+
+  // Phase 14 — hero poison DoT: round 시작 시 s.hero.hp 감소 + log entry.
+  //   rounds 양수만 작동, 매 round -1.
+  if (s.heroPoisonRounds && s.heroPoisonRounds.rounds > 0) {
+    const tickDmg = Math.max(1, s.heroPoisonRounds.dmgPerRound);
+    s.hero.hp = Math.max(0, s.hero.hp - tickDmg);
+    s.log.push({
+      type: "monsterEffect",
+      effect: "poisonTick",
+      amount: tickDmg,
+      narrativeKey: "uphero.combat.trait.poisonTick",
+      narrativeParams: { amount: tickDmg },
+      timestamp: Date.now(),
+    });
+    const remaining = s.heroPoisonRounds.rounds - 1;
+    if (remaining <= 0) {
+      delete s.heroPoisonRounds;
+    } else {
+      s.heroPoisonRounds = { ...s.heroPoisonRounds, rounds: remaining };
+    }
+    // 독 tick 으로 사망하면 다음 tick 에서 heroDied 처리됨 (hp<=0 체크).
+  }
+
   // Phase 12d — round 시작 자원 획득 (mage 마나, druid 자연력 등).
   gainClassResource(s, "roundStart");
   // Phase 6b — combat round 시작 전 액티브 스킬 발동 시도
@@ -1393,6 +1436,25 @@ function executeCombatRound(
     s.hero.hp / s.hero.maxHp <= 0.2
   ) {
     heroDmg = Math.round(heroDmg * (1 + tMods.lowHpDmgBonus));
+  }
+
+  // Phase 14 — monster trait shield: 첫 N 회 피격 시 damage -50%.
+  //   s.monsterShieldHits 는 initMonsterTraitState 에서 2 로 set.
+  //   damage 0 (miss/dodge) 는 shield 소모 안 함.
+  if (heroDmg > 0 && s.monsterShieldHits && s.monsterShieldHits > 0) {
+    const reduced = Math.max(1, Math.floor(heroDmg * 0.5));
+    const blocked = heroDmg - reduced;
+    heroDmg = reduced;
+    s.monsterShieldHits -= 1;
+    s.log.push({
+      type: "monsterEffect",
+      effect: "shieldBlock",
+      amount: blocked,
+      narrativeKey: "uphero.combat.trait.shieldBlock",
+      narrativeParams: { amount: blocked },
+      timestamp: Date.now(),
+    });
+    if (s.monsterShieldHits <= 0) delete s.monsterShieldHits;
   }
 
   const heroNarr = rng() < shouldNarrate(heroOutcome)
@@ -1488,6 +1550,16 @@ function executeCombatRound(
   if (enemyOutcome === "dodge") gainClassResource(s, "dodge");
   else if (enemyOutcome === "hit" || enemyOutcome === "crit") {
     gainClassResource(s, "hit");
+  }
+
+  // Phase 14 — monster trait poison: hit 시 영웅에게 3 round 독 DoT 부여.
+  //   이미 걸려있으면 rounds refresh (damage 는 새로 계산된 값으로 덮어씀).
+  if (
+    (enemyOutcome === "hit" || enemyOutcome === "crit") &&
+    monster.trait === "poison"
+  ) {
+    const poisonDmg = Math.max(1, Math.floor(monster.level * 0.5));
+    s.heroPoisonRounds = { rounds: 3, dmgPerRound: poisonDmg };
   }
   // counter attack — 짧은 narrative 와 함께 hero attack entry 추가 push
   //   Phase 12 R1 — 기존 1 고정 피해는 후반 무의미 (F30 보스 HP 대비 0.01%).
@@ -1648,13 +1720,44 @@ function computeMonsterHp(
   monster: Monster,
 ): number {
   let monsterHp = monster.hp;
+  // Phase 14 — trait=regen 몬스터는 maxHp cap 필요. monster.maxHp (scaleMonster
+  //   확정값) 가 있으면 사용, 없으면 초기 hp 를 cap 으로 간주 (legacy 안전장치).
+  const cap = monster.maxHp ?? monster.hp;
   for (let i = encounterIdx + 1; i < log.length; i++) {
     const e = log[i];
-    if (e.type !== "combat") continue;
-    if (e.damage === 0) continue;
-    if (e.attacker === "hero") monsterHp -= e.damage;
+    if (e.type === "combat") {
+      if (e.damage === 0) continue;
+      if (e.attacker === "hero") monsterHp -= e.damage;
+      continue;
+    }
+    if (e.type === "monsterEffect" && e.effect === "regen") {
+      monsterHp = Math.min(cap, monsterHp + e.amount);
+    }
   }
   return Math.max(0, monsterHp);
+}
+
+/**
+ * Phase 14 — 몬스터 trait 에 의한 세션 state 초기화.
+ *   encounter log push 직후 1회 호출. 이전 encounter 의 trait 잔재를 치우고
+ *   새 몬스터의 trait 에 맞는 runtime state 를 세팅한다. hero 측 상태
+ *   (heroPoisonRounds) 는 지속 효과이므로 여기서 건드리지 않는다 (자연 만료).
+ */
+function initMonsterTraitState(s: CombatSession, monster: Monster): void {
+  // 이전 몬스터의 monster-side state 제거
+  delete s.monsterRegenAmount;
+  delete s.monsterShieldHits;
+  if (!monster.trait) return;
+  if (monster.trait === "regen") {
+    const cap = monster.maxHp ?? monster.hp;
+    // 매 round monster max HP 의 ~5% 회복 (min 2). cap 은 computeMonsterHp.
+    s.monsterRegenAmount = Math.max(2, Math.round(cap * 0.05));
+    return;
+  }
+  if (monster.trait === "shield") {
+    // 첫 2 회 피격만 방어. 소모되면 일반 damage 로 복귀.
+    s.monsterShieldHits = 2;
+  }
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1681,9 +1784,12 @@ function rollHeroOutcome(
   const newbie = isNewbieBuffActive(heroLevel, monster.level);
   // 공격자(영웅) 실수 — 낮은 dex 일수록 빗나감 (base 5%, dex 60 에서 2% 바닥)
   //   newbie: base 5% → 2% (거의 안 빗나감). 저레벨 한 번의 실수도 치명적이라 완화.
-  const missChance = newbie
-    ? Math.max(0.01, 0.02 - stats.dex * 0.0005)
-    : Math.max(0.02, 0.05 - stats.dex * 0.0005);
+  // Phase 14 trait: swift 몬스터 — hero miss +8% (재빠른 움직임).
+  const swiftMissBonus = monster.trait === "swift" ? 0.08 : 0;
+  const missChance =
+    (newbie
+      ? Math.max(0.01, 0.02 - stats.dex * 0.0005)
+      : Math.max(0.02, 0.05 - stats.dex * 0.0005)) + swiftMissBonus;
   if (rng() < missChance) return "miss";
   // 방어자(몬스터) 회피 — 고층 몬스터 더 잘 피함. newbie 이면 회피 cap 절반.
   const dodgeCap = newbie ? 0.1 : 0.2;
@@ -1728,10 +1834,15 @@ function rollEnemyOutcome(
   if (rng() < dodgeChance) return "dodge";
   // 공격자(몬스터) 크리 — level scaling + affix bonus (cap 0.4 로 올림, fragile_world 대비).
   //   newbie: -4% (1-hit kill 확률 최소화).
+  // Phase 14 trait: burst 몬스터 — crit +12% (폭발적 공격).
   const newbieCritPenalty = newbie ? -0.04 : 0;
+  const burstBonus = monster.trait === "burst" ? 0.12 : 0;
   const critChance = Math.min(
-    0.4,
-    Math.max(0, 0.03 + monster.level * 0.004 + monsterCritBonus + newbieCritPenalty),
+    0.5,
+    Math.max(
+      0,
+      0.03 + monster.level * 0.004 + monsterCritBonus + newbieCritPenalty + burstBonus,
+    ),
   );
   if (rng() < critChance) return "crit";
   return "hit";

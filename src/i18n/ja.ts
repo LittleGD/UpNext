@@ -606,6 +606,24 @@ const ja: Record<DictKey, string> = {
   "uphero.monster.boss_mutant_mid": "歪んだ流行",
   "uphero.monster.boss_trend_chameleon": "トレンドのカメレオン",
 
+  // Phase 14 — ダンジョンごとの追加モンスター (各2体)
+  "uphero.monster.fit_boar": "怒れる猪",
+  "uphero.monster.fit_serpent": "岩場のマムシ",
+  "uphero.monster.lrn_tome": "禁書の精霊",
+  "uphero.monster.lrn_quill": "呪われた羽ペン",
+  "uphero.monster.mnd_mirror": "反転した鏡像",
+  "uphero.monster.mnd_reverie": "白昼夢の残影",
+  "uphero.monster.ntr_mushroom": "毒キノコの胞子",
+  "uphero.monster.ntr_cabbage": "転がるキャベツ",
+  "uphero.monster.soc_mime": "沈黙のマイム",
+  "uphero.monster.soc_troll": "口出しトロル",
+  "uphero.monster.prd_ledger": "山積みの帳簿",
+  "uphero.monster.prd_inbox": "暴走する受信箱",
+  "uphero.monster.wel_ember": "炭火の残光",
+  "uphero.monster.wel_moss": "囁く苔",
+  "uphero.monster.trd_swipe": "無限スワイプ",
+  "uphero.monster.trd_algorithm": "アルゴリズム妖怪",
+
   // Class resource names
   "uphero.resource.warrior": "怒り",
   "uphero.resource.mage": "マナ",
@@ -649,6 +667,10 @@ const ja: Record<DictKey, string> = {
   "uphero.skill.illus_double_t2.name": "分身",
   "uphero.skill.illus_charm_t3.name": "幻惑",
   "uphero.skill.illus_dreamscape_t4.name": "幻夢",
+
+  // Phase 14 — Novice 튜토리얼 스킬
+  "uphero.skill.novice_focus.name": "集中の一撃",
+  "uphero.skill.novice_brace.name": "防御の構え",
 
   // Skill UI labels
   "uphero.skill.activeLabel": "アクティブ — {name}",
@@ -1119,6 +1141,10 @@ const ja: Record<DictKey, string> = {
   "uphero.skill.illus_double_t2.desc": "次の2ターン攻撃2倍。",
   "uphero.skill.illus_charm_t3.desc": "敵を2ターン魅了。",
   "uphero.skill.illus_dreamscape_t4.desc": "3ターン無敵。",
+
+  // Phase 14 — Novice 튜토리얼 스킬 desc
+  "uphero.skill.novice_focus.desc": "次の攻撃ダメージ +50%。",
+  "uphero.skill.novice_brace.desc": "次の1ターン受けるダメージ -50%。",
 
   // 装備 baseName (24)
   "uphero.equip.self_control_sword.name": "自制の剣",
@@ -1759,6 +1785,15 @@ const ja: Record<DictKey, string> = {
   "uphero.skill.illus_double_t2.narrative": "2 ターン攻撃 2倍",
   "uphero.skill.illus_charm_t3.narrative": "敵が魅了されて動けない — 2 ターン",
   "uphero.skill.illus_dreamscape_t4.narrative": "勇者が夢の中へ — 3 ターン無敵",
+
+  // Phase 14 — Novice 튜토리얼 스킬
+  "uphero.skill.novice_focus.narrative": "勇者が深く息を吸う — 次の攻撃 +50%",
+  "uphero.skill.novice_brace.narrative": "勇者が身を低くする — 次のダメージ -50%",
+
+  // Phase 14 — モンスター trait tick narrative
+  "uphero.combat.trait.regen": "{monster} が自らを癒す — HP +{amount}",
+  "uphero.combat.trait.poisonTick": "毒が体を蝕む — HP -{amount}",
+  "uphero.combat.trait.shieldBlock": "盾が攻撃を受け止めた — {amount} ダメージ軽減",
 
   // === Phase 13c — monster lore ===
   // fitness — 山岳ダンジョン

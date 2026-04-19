@@ -606,6 +606,24 @@ const zh: Record<DictKey, string> = {
   "uphero.monster.boss_mutant_mid": "扭曲潮流",
   "uphero.monster.boss_trend_chameleon": "潮流变色龙",
 
+  // Phase 14 — 各地下城新增怪物 (每城 2 只)
+  "uphero.monster.fit_boar": "狂怒野猪",
+  "uphero.monster.fit_serpent": "岩石蝮蛇",
+  "uphero.monster.lrn_tome": "禁书精灵",
+  "uphero.monster.lrn_quill": "诅咒羽笔",
+  "uphero.monster.mnd_mirror": "倒映镜像",
+  "uphero.monster.mnd_reverie": "白日梦残影",
+  "uphero.monster.ntr_mushroom": "毒蘑菇孢子",
+  "uphero.monster.ntr_cabbage": "滚动卷心菜",
+  "uphero.monster.soc_mime": "沉默哑剧",
+  "uphero.monster.soc_troll": "插嘴巨魔",
+  "uphero.monster.prd_ledger": "堆积账簿",
+  "uphero.monster.prd_inbox": "失控收件箱",
+  "uphero.monster.wel_ember": "余烬微光",
+  "uphero.monster.wel_moss": "低语苔藓",
+  "uphero.monster.trd_swipe": "无尽滑动",
+  "uphero.monster.trd_algorithm": "算法妖怪",
+
   // Class resource names
   "uphero.resource.warrior": "怒气",
   "uphero.resource.mage": "法力",
@@ -649,6 +667,10 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.illus_double_t2.name": "分身",
   "uphero.skill.illus_charm_t3.name": "迷惑",
   "uphero.skill.illus_dreamscape_t4.name": "幻梦",
+
+  // Phase 14 — 转职前 Novice 技能
+  "uphero.skill.novice_focus.name": "集中一击",
+  "uphero.skill.novice_brace.name": "防御架势",
 
   // Skill UI labels
   "uphero.skill.activeLabel": "主动 — {name}",
@@ -1119,6 +1141,10 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.illus_double_t2.desc": "接下来 2 回合攻击 ×2。",
   "uphero.skill.illus_charm_t3.desc": "敌人 2 回合无法行动。",
   "uphero.skill.illus_dreamscape_t4.desc": "3 回合无敌。",
+
+  // Phase 14 — Novice 技能描述
+  "uphero.skill.novice_focus.desc": "下次攻击伤害 +50%。",
+  "uphero.skill.novice_brace.desc": "下 1 回合受到伤害 -50%。",
 
   // 装备 baseName (24)
   "uphero.equip.self_control_sword.name": "自律之剑",
@@ -1759,6 +1785,15 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.illus_double_t2.narrative": "2 回合攻击 ×2",
   "uphero.skill.illus_charm_t3.narrative": "敌人被迷惑 — 2 回合无法行动",
   "uphero.skill.illus_dreamscape_t4.narrative": "勇者进入梦境 — 3 回合无敌",
+
+  // Phase 14 — Novice 技能旁白
+  "uphero.skill.novice_focus.narrative": "勇者深呼吸 — 下次攻击 +50%",
+  "uphero.skill.novice_brace.narrative": "勇者放低身姿 — 下次伤害 -50%",
+
+  // Phase 14 — 怪物 trait tick 旁白
+  "uphero.combat.trait.regen": "{monster} 自我治愈 — HP +{amount}",
+  "uphero.combat.trait.poisonTick": "毒素蔓延 — HP -{amount}",
+  "uphero.combat.trait.shieldBlock": "盾牌挡下攻击 — 减免 {amount} 伤害",
 
   // === Phase 13c — monster lore ===
   // fitness — 山岳地城

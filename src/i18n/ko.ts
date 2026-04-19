@@ -604,6 +604,24 @@ const ko = {
   "uphero.monster.boss_mutant_mid": "뒤틀린 유행",
   "uphero.monster.boss_trend_chameleon": "트렌드의 카멜레온",
 
+  // Phase 14 — 던전 별 추가 몬스터 (2 per dungeon)
+  "uphero.monster.fit_boar": "분노한 멧돼지",
+  "uphero.monster.fit_serpent": "바위 살무사",
+  "uphero.monster.lrn_tome": "금서의 정령",
+  "uphero.monster.lrn_quill": "저주받은 깃펜",
+  "uphero.monster.mnd_mirror": "뒤집힌 거울상",
+  "uphero.monster.mnd_reverie": "몽상의 잔영",
+  "uphero.monster.ntr_mushroom": "독버섯 포자",
+  "uphero.monster.ntr_cabbage": "구르는 양배추",
+  "uphero.monster.soc_mime": "침묵의 마임",
+  "uphero.monster.soc_troll": "말참견 트롤",
+  "uphero.monster.prd_ledger": "산더미 장부",
+  "uphero.monster.prd_inbox": "폭주 메일함",
+  "uphero.monster.wel_ember": "숯불 잔광",
+  "uphero.monster.wel_moss": "쉬쉬 이끼",
+  "uphero.monster.trd_swipe": "무한 스와이프",
+  "uphero.monster.trd_algorithm": "알고리즘 요괴",
+
   // Class resource names
   "uphero.resource.warrior": "분노",
   "uphero.resource.mage": "마나",
@@ -647,6 +665,10 @@ const ko = {
   "uphero.skill.illus_double_t2.name": "분신",
   "uphero.skill.illus_charm_t3.name": "환혹",
   "uphero.skill.illus_dreamscape_t4.name": "환몽",
+
+  // Phase 14 — Novice tutorial skill names
+  "uphero.skill.novice_focus.name": "집중 일격",
+  "uphero.skill.novice_brace.name": "방어 자세",
 
   // Skill UI labels (common)
   "uphero.skill.activeLabel": "액티브 — {name}",
@@ -1117,6 +1139,10 @@ const ko = {
   "uphero.skill.illus_double_t2.desc": "다음 2 round 공격 2배.",
   "uphero.skill.illus_charm_t3.desc": "적 2 round 무력화.",
   "uphero.skill.illus_dreamscape_t4.desc": "3 round 무적.",
+
+  // Phase 14 — Novice tutorial skill desc
+  "uphero.skill.novice_focus.desc": "다음 공격 피해 +50%.",
+  "uphero.skill.novice_brace.desc": "다음 1 round 받는 피해 -50%.",
 
   // 장비 baseName (25)
   "uphero.equip.self_control_sword.name": "자기절제의 검",
@@ -1762,6 +1788,15 @@ const ko = {
   "uphero.skill.illus_double_t2.narrative": "2 round 공격 2배",
   "uphero.skill.illus_charm_t3.narrative": "적이 홀려 움직이지 못한다 — 2 round",
   "uphero.skill.illus_dreamscape_t4.narrative": "영웅이 꿈 속으로 — 3 round 무적",
+
+  // Phase 14 — Novice tutorial skills (전직 전)
+  "uphero.skill.novice_focus.narrative": "영웅이 깊게 호흡한다 — 다음 공격 +50%",
+  "uphero.skill.novice_brace.narrative": "영웅이 자세를 낮춘다 — 다음 피해 -50%",
+
+  // Phase 14 — Monster trait tick narratives
+  "uphero.combat.trait.regen": "{monster} 이(가) 스스로를 치유한다 — HP +{amount}",
+  "uphero.combat.trait.poisonTick": "독이 퍼진다 — HP -{amount}",
+  "uphero.combat.trait.shieldBlock": "방패가 공격을 막아낸다 — 피해 {amount} 차단",
 
   // === Phase 13c — monster lore ===
   // fitness — 산악 던전

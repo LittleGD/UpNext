@@ -61,7 +61,13 @@ import {
   findLastEncounterIndex,
   resolveMinigame as applyResolveMinigame,
 } from "@/lib/upHeroCombat";
-import { findSkillById, canFireSkill, fireSkill, CLASS_SKILL_TREES } from "@/lib/classSkills";
+import {
+  findSkillById,
+  canFireSkill,
+  fireSkill,
+  CLASS_SKILL_TREES,
+  NOVICE_SKILLS,
+} from "@/lib/classSkills";
 import {
   PHOTO_TALISMAN_RITUAL_COST,
   buildPhotoTalisman,
@@ -209,6 +215,12 @@ interface UpHeroActions {
   renameHero(name: string): void;
   /** Phase 12d — 레벨업 시 스킬 포인트 부여. */
   grantSkillPoints(amount: number): void;
+  /**
+   * Phase 14 — 전직 전 튜토리얼 novice 스킬 레벨별 자동 지급.
+   *   currentLevel 기준으로 아직 learned 가 아닌 novice skill 중 requiredLevel
+   *   충족 된 것들을 모두 learnedSkills 에 추가. idempotent (이미 있으면 skip).
+   */
+  grantNoviceSkills(currentLevel: number): void;
   /** Phase 12d — 스킬 해금 (skill points 소모). */
   learnSkill(skillId: string): "ok" | "no-points" | "already" | "not-found" | "level" | "class";
   /** Phase 12d — 전투 중 수동 스킬 발동. 자원 + 쿨다운 체크 후 apply. */
@@ -643,6 +655,26 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const state = get();
     const cur = state.hero.skillPoints ?? 0;
     const newHero = { ...state.hero, skillPoints: cur + amount };
+    set({ hero: newHero });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+  },
+
+  /**
+   * Phase 14 — 전직 전 영웅용 novice 스킬 자동 지급.
+   *   레벨업 hook 에서 매번 호출. 이미 learned 인 skill 은 skip → idempotent.
+   */
+  grantNoviceSkills(currentLevel: number) {
+    if (currentLevel < 1) return;
+    const state = get();
+    const learned = state.hero.learnedSkills ?? [];
+    const toAdd = NOVICE_SKILLS.filter(
+      (sk) => currentLevel >= sk.requiredLevel && !learned.includes(sk.id),
+    ).map((sk) => sk.id);
+    if (toAdd.length === 0) return;
+    const newHero = {
+      ...state.hero,
+      learnedSkills: [...learned, ...toAdd],
+    };
     set({ hero: newHero });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
   },

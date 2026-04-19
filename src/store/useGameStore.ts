@@ -542,6 +542,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
           console.warn("[useGameStore] grantSkillPoints failed:", e);
         }
       }
+      // Phase 14 — 전직 전 튜토리얼 novice 스킬 자동 지급 (Lv5, Lv15).
+      //   grantNoviceSkills 는 idempotent — requiredLevel 충족 & 미보유 만 추가.
+      try {
+        useUpHeroStore.getState().grantNoviceSkills(newLevel);
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useGameStore] grantNoviceSkills failed:", e);
+        }
+      }
     }
 
     const shouldOpenPack = updatedProgress.pendingPacks > (progress.pendingPacks || 0);
