@@ -715,6 +715,11 @@ const en: Record<DictKey, string> = {
   "uphero.shop.priceHint": "{price} coins each · {cap} per day",
   "uphero.shop.coinsNote": "Earn coins in dungeons.",
   "uphero.shop.passAria": "Buy {name} pass ({price} coins)",
+  "uphero.shop.coinPouch.heading": "Daily Coin Pouch",
+  "uphero.shop.coinPouch.hint": "Free once a day · random coin reward",
+  "uphero.shop.coinPouch.claim": "Claim",
+  "uphero.shop.coinPouch.claimed": "Back tomorrow",
+  "uphero.shop.coinPouch.rolled": "Coin pouch +{coins}",
 
   // === Weekly view ===
   "uphero.weekly.clearedCount": "{count}/8 dungeons cleared",

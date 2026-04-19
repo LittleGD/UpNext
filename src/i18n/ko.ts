@@ -713,6 +713,11 @@ const ko = {
   "uphero.shop.priceHint": "{price} 코인 / 장 · 하루 {cap}장 한정",
   "uphero.shop.coinsNote": "갓생 코인은 던전에서 획득합니다",
   "uphero.shop.passAria": "{name} 탐험권 구매 ({price} 코인)",
+  "uphero.shop.coinPouch.heading": "데일리 코인 주머니",
+  "uphero.shop.coinPouch.hint": "하루 1회 · 무작위 코인 보상",
+  "uphero.shop.coinPouch.claim": "받기",
+  "uphero.shop.coinPouch.claimed": "내일 다시 받기",
+  "uphero.shop.coinPouch.rolled": "코인 주머니 +{coins}",
 
   // === Weekly view ===
   "uphero.weekly.clearedCount": "던전 {count}/8 클리어",

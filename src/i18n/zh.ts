@@ -715,6 +715,11 @@ const zh: Record<DictKey, string> = {
   "uphero.shop.priceHint": "{price} 金币/张 · 每日 {cap} 张限购",
   "uphero.shop.coinsNote": "金币在地下城中获取",
   "uphero.shop.passAria": "购买 {name} 门票 ({price} 金币)",
+  "uphero.shop.coinPouch.heading": "每日金币袋",
+  "uphero.shop.coinPouch.hint": "每日1次 · 随机金币奖励",
+  "uphero.shop.coinPouch.claim": "领取",
+  "uphero.shop.coinPouch.claimed": "明天再来",
+  "uphero.shop.coinPouch.rolled": "金币袋 +{coins}",
 
   // === Weekly view ===
   "uphero.weekly.clearedCount": "已通关 {count}/8",

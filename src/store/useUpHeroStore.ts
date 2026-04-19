@@ -20,6 +20,8 @@ import {
   MAX_ENHANCE_LEVEL,
   ENHANCE_PRESERVE_BY_RARITY,
   DAILY_PASS_PURCHASE_CAP,
+  COIN_POUCH_MIN,
+  COIN_POUCH_MAX,
   enhanceSuccessRate,
   enhanceCost,
   getISOWeekId,
@@ -276,6 +278,14 @@ interface UpHeroActions {
    *   - "pass-cap"  — 해당 던전 passes 가 PASS_CAP_PER_CATEGORY (20) 도달
    */
   purchasePass(dungeonId: DungeonId): "ok" | "no-coin" | "daily-cap" | "pass-cap";
+
+  /**
+   * 데일리 코인 주머니 수령 — 하루 1회 무료, [COIN_POUCH_MIN, COIN_POUCH_MAX] 균등 랜덤.
+   * @returns
+   *   - { ok: true, coins }  — 수령 성공. coins = 이번 roll 값
+   *   - { ok: false }        — 오늘 이미 수령함 (UI 는 disabled 상태로 먼저 막아야 함)
+   */
+  claimCoinPouch(): { ok: true; coins: number } | { ok: false };
 
   /**
    * Phase 11a — 장비 +N 강화 (기존 2→1 합성 대체).
@@ -1322,7 +1332,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
     const newPasses = { ...state.passes, [dungeonId]: currentPasses + 1 };
     const newCoins = state.coins - price;
-    const newShopDaily = { date: today, passesBought: daily.passesBought + 1 };
+    // 동일 날짜 내 coinPouchClaimed 등 인접 필드를 보존하려고 daily 를 spread.
+    const newShopDaily = { ...daily, passesBought: daily.passesBought + 1 };
 
     set({ coins: newCoins, passes: newPasses, shopDaily: newShopDaily });
     saveToStorage(
@@ -1335,6 +1346,34 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       }),
     );
     return "ok";
+  },
+
+  claimCoinPouch() {
+    const state = get();
+    const today = getTodayString();
+    const daily =
+      state.shopDaily && state.shopDaily.date === today
+        ? state.shopDaily
+        : { date: today, passesBought: 0 };
+    if (daily.coinPouchClaimed) return { ok: false };
+
+    // [MIN, MAX] 균등 정수 랜덤 — inclusive 양 끝.
+    const rolled =
+      Math.floor(Math.random() * (COIN_POUCH_MAX - COIN_POUCH_MIN + 1)) +
+      COIN_POUCH_MIN;
+    const newCoins = state.coins + rolled;
+    const newShopDaily = { ...daily, coinPouchClaimed: true };
+
+    set({ coins: newCoins, shopDaily: newShopDaily });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({
+        ...state,
+        coins: newCoins,
+        shopDaily: newShopDaily,
+      }),
+    );
+    return { ok: true, coins: rolled };
   },
 
   enhanceItem(id) {

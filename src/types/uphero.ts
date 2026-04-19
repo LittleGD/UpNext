@@ -779,11 +779,13 @@ export interface UpHeroState {
    * Phase 11a — 갓생 상점의 하루 단위 구매 카운터.
    * date 는 getTodayString() (새벽 1시 기준) 포맷.
    * passesBought: 오늘 산 탐험권 개수 (DAILY_PASS_PURCHASE_CAP=2 까지).
+   * coinPouchClaimed: 오늘 데일리 코인 주머니 수령 여부 (기본 false).
    * 다른 daily reset 이 추가되면 여기에 필드 누적.
    */
   shopDaily?: {
     date: string;
     passesBought: number;
+    coinPouchClaimed?: boolean;
   };
   /**
    * Phase 11c — F30 보스 처치 시 +1. 다음 세션부터 난이도 × (1 + 0.5 × n)
@@ -871,9 +873,15 @@ export const SHOP_PRICES = {
 } as const;
 
 /** Phase 11a — 상점에서 하루에 살 수 있는 탐험권 cap. */
-// Phase 12a — 하루 4장까지 (기존 2장 → 4장). 유저 피드백: 챌린지 클리어
-//   전에 상점에서 능동적 구매도 더 유연해야 한다.
-export const DAILY_PASS_PURCHASE_CAP = 4;
+// Phase 12a → 4 → 8. 챌린지로 얻기 어려운 날엔 상점 구매로 더 길게 플레이 가능하게.
+export const DAILY_PASS_PURCHASE_CAP = 8;
+
+/**
+ * 데일리 코인 주머니 — 상점에서 하루 1회 무료로 수령.
+ * 수령 시 [MIN, MAX] 균등 분포에서 랜덤 롤링.
+ */
+export const COIN_POUCH_MIN = 20;
+export const COIN_POUCH_MAX = 160;
 
 /**
  * Phase 11c — NG+ 난이도 스케일.

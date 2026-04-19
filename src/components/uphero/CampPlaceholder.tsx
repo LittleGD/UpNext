@@ -661,6 +661,7 @@ function ShopView({
   const purchaseCardPack = useUpHeroStore((s) => s.purchaseCardPack);
   // Phase 11a — 탐험권 상점 구매.
   const purchasePass = useUpHeroStore((s) => s.purchasePass);
+  const claimCoinPouch = useUpHeroStore((s) => s.claimCoinPouch);
   const shopDaily = useUpHeroStore((s) => s.shopDaily);
   const passes = useUpHeroStore((s) => s.passes);
   // Phase 12a — 카드매치 티켓 하루 구매 현황.
@@ -674,6 +675,9 @@ function ShopView({
 
   const passesBoughtToday = shopDaily?.passesBought ?? 0;
   const dailyCapReached = passesBoughtToday >= DAILY_PASS_PURCHASE_CAP;
+  // 오늘 기준 주머니 수령 여부 — shopDaily 의 date 가 바뀌면 자동으로 false 취급.
+  const pouchClaimedToday =
+    shopDaily?.date === getTodayString() && !!shopDaily?.coinPouchClaimed;
 
   // Phase 12 R6 — 800 coin 풀 카드팩 safeguard. 실수 탭으로 800 코인 날림
   //   방지. small (200 coin) 은 부담 낮아 스킵.
@@ -745,11 +749,79 @@ function ShopView({
     }
   };
 
+  const onClaimPouch = () => {
+    const result = claimCoinPouch();
+    if (result.ok) {
+      play("collect");
+      onNotify(t("uphero.shop.coinPouch.rolled", { coins: result.coins }));
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       <SubHeader title={t("uphero.subheader.shop")} onBack={onBack} />
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 flex flex-col gap-2">
+        {/* 데일리 코인 주머니 — 하루 1회 무료, 랜덤 코인 보상.
+             레이아웃: heading 단독 상단 → 버튼 → 하단 hint (탐험권 섹션과 동일 패턴).
+             번역 길이가 긴 일본어/중국어에서도 heading 과 hint 가 서로 침범하지 않음. */}
+        <section
+          className="rounded-md p-3"
+          style={{
+            background: `${GB.dark}40`,
+            border: `1px solid ${GB.dark}`,
+          }}
+        >
+          <div className="mb-2">
+            <div
+              className="typo-caption inline-flex items-center gap-1.5"
+              style={{ color: GB.lightest }}
+            >
+              <PixelIcon name="Gift" size={14} color={GB.lightest} />
+              {t("uphero.shop.coinPouch.heading")}
+            </div>
+          </div>
+          <PressButton
+            onClick={onClaimPouch}
+            disabled={pouchClaimedToday}
+            style={{
+              width: "100%",
+              minHeight: 42,
+              background: pouchClaimedToday ? `${GB.dark}55` : GB.lightest,
+              color: pouchClaimedToday ? GB.light : GB.darkest,
+              border: `1px solid ${pouchClaimedToday ? GB.dark : GB.lightest}`,
+              opacity: pouchClaimedToday ? 0.55 : 1,
+            }}
+            aria-label={
+              pouchClaimedToday
+                ? t("uphero.shop.coinPouch.claimed")
+                : t("uphero.shop.coinPouch.claim")
+            }
+          >
+            <div className="flex items-center justify-center gap-1.5">
+              <PixelIcon
+                name="Coins"
+                size={14}
+                color={pouchClaimedToday ? GB.light : GB.darkest}
+              />
+              <span
+                className="typo-caption"
+                style={{ fontWeight: pouchClaimedToday ? 400 : 600 }}
+              >
+                {pouchClaimedToday
+                  ? t("uphero.shop.coinPouch.claimed")
+                  : t("uphero.shop.coinPouch.claim")}
+              </span>
+            </div>
+          </PressButton>
+          <div
+            className={`typo-micro mt-2 ${gbClass.textDim} text-center`}
+            style={{ letterSpacing: "0.05em" }}
+          >
+            {t("uphero.shop.coinPouch.hint")}
+          </div>
+        </section>
+
         {/* Phase 11a — 탐험권 상점. 8 던전 선택 구매 + 일 2장 cap.
              Phase 12 — 유저 피드백: "탐험권 구매를 위로, 나머지는 아래로."
              상점의 primary action 은 탐험권 (영웅 진행의 연료) — 최상단

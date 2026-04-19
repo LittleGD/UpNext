@@ -715,6 +715,11 @@ const ja: Record<DictKey, string> = {
   "uphero.shop.priceHint": "{price} コイン/枚 · 1日 {cap}枚限定",
   "uphero.shop.coinsNote": "コインはダンジョンで獲得します",
   "uphero.shop.passAria": "{name} 探索券を購入 ({price} コイン)",
+  "uphero.shop.coinPouch.heading": "デイリーコインポーチ",
+  "uphero.shop.coinPouch.hint": "1日1回 · ランダムでコイン獲得",
+  "uphero.shop.coinPouch.claim": "受け取る",
+  "uphero.shop.coinPouch.claimed": "明日またどうぞ",
+  "uphero.shop.coinPouch.rolled": "コインポーチ +{coins}",
 
   // === Weekly view ===
   "uphero.weekly.clearedCount": "ダンジョン {count}/8 クリア",
