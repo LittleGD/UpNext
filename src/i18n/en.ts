@@ -846,7 +846,7 @@ const en: Record<DictKey, string> = {
   "uphero.stat.info.close": "Close",
   "uphero.stat.info.tapHint": "Tap any stat to see its detailed effect.",
   "uphero.stat.info.str": "STR — Increases base physical attack. Weapon damage scales up.",
-  "uphero.stat.info.int": "INT — Boosts skill/magic damage and resource regen.",
+  "uphero.stat.info.int": "INT — Skill damage and heal +1% per point.",
   "uphero.stat.info.vit": "VIT — Raises max HP. You take hits better.",
   "uphero.stat.info.dex": "DEX — Improves hit rate and gives a small crit bonus.",
   "uphero.stat.info.agi": "AGI — Raises dodge chance, letting you avoid hits.",

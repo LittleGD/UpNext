@@ -846,7 +846,7 @@ const ja: Record<DictKey, string> = {
   "uphero.stat.info.close": "閉じる",
   "uphero.stat.info.tapHint": "各ステータスをタップして詳しい効果を確認できます。",
   "uphero.stat.info.str": "STR · 力 — 基本物理攻撃力が上がり、武器ダメージが増加します。",
-  "uphero.stat.info.int": "INT · 知 — スキル/魔法ダメージと資源回復量が上がります。",
+  "uphero.stat.info.int": "INT · 知 — スキルダメージと回復量が 1 INT につき +1% 増加します。",
   "uphero.stat.info.vit": "VIT · 体力 — 最大 HP が上がり、攻撃に耐えやすくなります。",
   "uphero.stat.info.dex": "DEX · 敏捷 — 命中率とクリティカル率の補助が上がります。",
   "uphero.stat.info.agi": "AGI · 俊敏 — 回避率が上がり、敵の攻撃を逸らしやすくなります。",

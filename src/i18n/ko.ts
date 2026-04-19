@@ -844,7 +844,7 @@ const ko = {
   "uphero.stat.info.close": "닫기",
   "uphero.stat.info.tapHint": "각 스탯을 누르면 자세한 설명을 볼 수 있어요",
   "uphero.stat.info.str": "STR · 힘 — 기본 물리 공격력이 오릅니다. 무기 피해가 커져요.",
-  "uphero.stat.info.int": "INT · 지능 — 스킬/마법 피해와 자원 회복량이 오릅니다.",
+  "uphero.stat.info.int": "INT · 지능 — 스킬 피해와 회복량이 1 INT 당 +1% 오릅니다.",
   "uphero.stat.info.vit": "VIT · 체력 — 최대 HP 가 오르고 맞아도 잘 버텨요.",
   "uphero.stat.info.dex": "DEX · 민첩 — 명중률과 크리티컬 확률 보조가 오릅니다.",
   "uphero.stat.info.agi": "AGI · 기민 — 회피율이 오르고 적 공격을 흘려요.",

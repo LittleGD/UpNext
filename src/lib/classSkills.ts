@@ -23,6 +23,27 @@ import type {
   Monster,
   NarrativeParams,
 } from "@/types/uphero";
+import { computeEffectiveStats } from "@/types/uphero";
+
+/* ────────────────────────────────────────────
+ * INT 스케일링 — 스킬 데미지/회복량에 INT 반영
+ *
+ * Phase 13e — 이전에 INT 는 type 시그니처만 존재하고 전투 공식 어디에도
+ *   참조되지 않는 dead stat 이었다. 기본/장비 affix 로 INT 올려도 아무 효과 X.
+ *   이제 스킬 데미지·회복량에 1 INT 당 +1% 배율 적용 → 클래스 차별화 + INT
+ *   장비/affix 의미 부여.
+ *
+ * 공식:
+ *   - skill damage × (1 + int × 0.01)
+ *   - skill heal   × (1 + int × 0.01)
+ *
+ * 예) 50 INT (Lv41 순정 기준) → 스킬 피해/회복량 +50%.
+ *     기본 공격은 STR 이 담당 — INT 는 스킬/마법 전용.
+ * ──────────────────────────────────────────── */
+function getIntMult(s: CombatSession): number {
+  const int = computeEffectiveStats(s.hero).int;
+  return 1 + int * 0.01;
+}
 
 export interface ClassSkill {
   id: string;
@@ -140,7 +161,7 @@ const warriorT3: ClassSkill = {
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
-    const dmg = Math.round(m.hp * 0.2);
+    const dmg = Math.round(m.hp * 0.2 * getIntMult(s));
     s.log.push({
       type: "combat",
       attacker: "hero",
@@ -179,17 +200,18 @@ const warriorT4: ClassSkill = {
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
+    const dmg = Math.round(80 * getIntMult(s));
     s.log.push({
       type: "combat",
       attacker: "hero",
-      damage: 80,
+      damage: dmg,
       outcome: "crit",
-      narrative: `영웅이 분노를 폭발시킨다 — ${m.name} 에 80 고정 피해`,
+      narrative: `영웅이 분노를 폭발시킨다 — ${m.name} 에 ${dmg} 고정 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.warrior_rage_burst_t4",
       narrativeParams: {
         monster: m.name,
         monsterTemplateId: m.templateId ?? "",
-        damage: 80,
+        damage: dmg,
       },
       timestamp: Date.now(),
     });
@@ -198,8 +220,9 @@ const warriorT4: ClassSkill = {
       s,
       "warrior",
       "분노 폭발",
-      "80 피해 + 다음 3 round 공격 +50%",
+      `${dmg} 피해 + 다음 3 round 공격 +50%`,
       "warrior_rage_burst_t4",
+      { damage: dmg },
     );
   },
 };
@@ -221,7 +244,7 @@ const mageT1: ClassSkill = {
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
-    const dmg = Math.round(m.hp * 0.25);
+    const dmg = Math.round(m.hp * 0.25 * getIntMult(s));
     s.log.push({
       type: "combat",
       attacker: "hero",
@@ -283,17 +306,18 @@ const mageT3: ClassSkill = {
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
+    const dmg = Math.round(50 * getIntMult(s));
     s.log.push({
       type: "combat",
       attacker: "hero",
-      damage: 50,
+      damage: dmg,
       outcome: "crit",
-      narrative: `불꽃이 ${m.name} 을 휩싼다 — 50 피해`,
+      narrative: `불꽃이 ${m.name} 을 휩싼다 — ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.mage_fireball_t3",
       narrativeParams: {
         monster: m.name,
         monsterTemplateId: m.templateId ?? "",
-        damage: 50,
+        damage: dmg,
       },
       timestamp: Date.now(),
     });
@@ -301,8 +325,9 @@ const mageT3: ClassSkill = {
       s,
       "mage",
       "화염구",
-      "50 고정 피해",
+      `${dmg} 고정 피해`,
       "mage_fireball_t3",
+      { damage: dmg },
     );
   },
 };
@@ -320,7 +345,7 @@ const mageT4: ClassSkill = {
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
-    const dmg = Math.round(m.hp * 0.4);
+    const dmg = Math.round(m.hp * 0.4 * getIntMult(s));
     s.log.push({
       type: "combat",
       attacker: "hero",
@@ -386,7 +411,7 @@ const monkT2: ClassSkill = {
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
-    const dmg = Math.round(m.hp * 0.3);
+    const dmg = Math.round(m.hp * 0.3 * getIntMult(s));
     s.log.push({
       type: "combat",
       attacker: "hero",
@@ -424,14 +449,16 @@ const monkT3: ClassSkill = {
   pointCost: 1,
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.7,
   apply(s) {
-    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + 50);
+    const heal = Math.round(50 * getIntMult(s));
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
     s.heroAtkBonusRounds = { rounds: 2, mult: 1.2 };
     pushSkillLog(
       s,
       "monk",
       "태극",
-      "HP +50 · 2 round 공격 +20%",
+      `HP +${heal} · 2 round 공격 +20%`,
       "monk_taiji_t3",
+      { heal },
     );
   },
 };
@@ -475,8 +502,9 @@ const druidT1: ClassSkill = {
   pointCost: 0,
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.6,
   apply(s) {
-    const healed = Math.min(s.hero.maxHp - s.hero.hp, 40);
-    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + 40);
+    const heal = Math.round(40 * getIntMult(s));
+    const healed = Math.min(s.hero.maxHp - s.hero.hp, heal);
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
     pushSkillLog(
       s,
       "druid",
@@ -523,14 +551,16 @@ const druidT3: ClassSkill = {
   pointCost: 1,
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.5,
   apply(s) {
-    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + 80);
+    const heal = Math.round(80 * getIntMult(s));
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
     s.heroDmgReductionRounds = { rounds: 3, reduction: 0.3 };
     pushSkillLog(
       s,
       "druid",
       "숲의 포옹",
-      "HP +80 · 3 round 피해 -30%",
+      `HP +${heal} · 3 round 피해 -30%`,
       "druid_grove_t3",
+      { heal },
     );
   },
 };
@@ -548,7 +578,8 @@ const druidT4: ClassSkill = {
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
-    const dmg = Math.round(m.hp * 0.3);
+    const intMult = getIntMult(s);
+    const dmg = Math.round(m.hp * 0.3 * intMult);
     s.log.push({
       type: "combat",
       attacker: "hero",
@@ -563,14 +594,15 @@ const druidT4: ClassSkill = {
       },
       timestamp: Date.now(),
     });
-    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + 100);
+    const heal = Math.round(100 * intMult);
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
     pushSkillLog(
       s,
       "druid",
       "야생의 부름",
-      `적 HP 30% (${dmg}) · HP +100`,
+      `적 HP 30% (${dmg}) · HP +${heal}`,
       "druid_wild_call_t4",
-      { damage: dmg },
+      { damage: dmg, heal },
     );
   },
 };
@@ -637,14 +669,16 @@ const bardT3: ClassSkill = {
   pointCost: 1,
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.7,
   apply(s) {
-    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + 30);
+    const heal = Math.round(30 * getIntMult(s));
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
     s.heroDmgReductionRounds = { rounds: 3, reduction: 0.25 };
     pushSkillLog(
       s,
       "bard",
       "영웅가",
-      "HP +30 · 3 round 피해 -25%",
+      `HP +${heal} · 3 round 피해 -25%`,
       "bard_anthem_t3",
+      { heal },
     );
   },
 };
@@ -823,14 +857,16 @@ const priestT2: ClassSkill = {
   pointCost: 1,
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.6,
   apply(s) {
-    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + 40);
+    const heal = Math.round(40 * getIntMult(s));
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
     s.heroDmgReductionRounds = { rounds: 3, reduction: 0.3 };
     pushSkillLog(
       s,
       "priest",
       "정화",
-      "HP +40 · 3 round 피해 -30%",
+      `HP +${heal} · 3 round 피해 -30%`,
       "priest_purge_t2",
+      { heal },
     );
   },
 };
@@ -848,7 +884,7 @@ const priestT3: ClassSkill = {
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
-    const dmg = Math.round(m.hp * 0.25);
+    const dmg = Math.round(m.hp * 0.25 * getIntMult(s));
     s.log.push({
       type: "combat",
       attacker: "hero",

@@ -846,7 +846,7 @@ const zh: Record<DictKey, string> = {
   "uphero.stat.info.close": "关闭",
   "uphero.stat.info.tapHint": "点击各属性查看详细说明",
   "uphero.stat.info.str": "STR · 力量 — 物理攻击力提升。武器伤害更高。",
-  "uphero.stat.info.int": "INT · 智力 — 技能/法术伤害与资源回复量提升。",
+  "uphero.stat.info.int": "INT · 智力 — 技能伤害与回复量每 1 点 +1%。",
   "uphero.stat.info.vit": "VIT · 体力 — 最大 HP 提升,更耐打。",
   "uphero.stat.info.dex": "DEX · 敏捷 — 命中率与暴击辅助率提升。",
   "uphero.stat.info.agi": "AGI · 灵敏 — 闪避率提升,更易躲避攻击。",
