@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MinigameHeader, MinigameHint, TimeBar, StatusMessage, GiveUpButton } from "./_chrome";
 
 const FIELD_W = 280;
 const FIELD_H = 280;
@@ -24,7 +25,6 @@ interface Point {
 }
 
 function makePoints(n: number): Point[] {
-  // 그리드에서 n 개 무작위 위치 (상호 거리 확보)
   const margin = 40;
   const pts: Point[] = [];
   let tries = 0;
@@ -103,15 +103,11 @@ export default function TracePath({ difficulty, onComplete, onCancel }: Minigame
 
   return (
     <div className="flex flex-col items-center gap-3 p-4" style={{ minWidth: FIELD_W + 32 }}>
-      <div className="typo-caption tabular-nums" style={{ color: GB.lightest }}>
+      <MinigameHeader>
         {t("uphero.mini.trace.header", { time: (remainingMs / 1000).toFixed(1), done: cleared, total: points.length })}
-      </div>
-      <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: GB.dark }} aria-hidden="true">
-        <div style={{ width: `${timePct}%`, height: "100%", background: timePct > 40 ? GB.light : "#e88b7a" }} />
-      </div>
-      <div className="typo-caption" style={{ color: GB.light }}>
-        {t("uphero.mini.trace.hint")}
-      </div>
+      </MinigameHeader>
+      <TimeBar pct={timePct} maxWidthClass="" />
+      <MinigameHint>{t("uphero.mini.trace.hint")}</MinigameHint>
       <div
         ref={fieldRef}
         onPointerDown={onMove}
@@ -127,7 +123,6 @@ export default function TracePath({ difficulty, onComplete, onCancel }: Minigame
         }}
         aria-label={t("uphero.mini.trace.fieldAria")}
       >
-        {/* line from cleared to next */}
         <svg width={FIELD_W} height={FIELD_H} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
           {points.slice(0, Math.max(0, cleared)).map((p, i) =>
             i === 0 ? null : (
@@ -150,6 +145,7 @@ export default function TracePath({ difficulty, onComplete, onCancel }: Minigame
           return (
             <div
               key={i}
+              className="trace-dot"
               style={{
                 position: "absolute",
                 left: p.x - 16,
@@ -158,7 +154,7 @@ export default function TracePath({ difficulty, onComplete, onCancel }: Minigame
                 height: 32,
                 borderRadius: "50%",
                 background: isCleared ? `${GB.lightest}66` : isNext ? `${GB.lightest}33` : GB.dark,
-                border: `2px solid ${isNext ? GB.lightest : isCleared ? GB.light : GB.light}`,
+                border: `2px solid ${isNext ? GB.lightest : GB.light}`,
                 color: GB.lightest,
                 display: "flex",
                 alignItems: "center",
@@ -167,6 +163,7 @@ export default function TracePath({ difficulty, onComplete, onCancel }: Minigame
                 fontWeight: 700,
                 pointerEvents: "none",
                 boxShadow: isNext ? `0 0 8px ${GB.lightest}55` : undefined,
+                ["--trace-i" as string]: i,
               }}
               aria-hidden="true"
             >
@@ -176,26 +173,32 @@ export default function TracePath({ difficulty, onComplete, onCancel }: Minigame
         })}
       </div>
       {done && (
-        <div
-          role="status"
-          aria-live="assertive"
-          className="typo-body"
-          style={{ color: done === "success" ? GB.lightest : "#e88b7a", fontWeight: 600 }}
-        >
+        <StatusMessage kind={done}>
           {done === "success" ? t("uphero.mini.trace.success") : t("uphero.mini.trace.fail")}
-        </div>
+        </StatusMessage>
       )}
-      {!done && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="typo-caption rounded px-3 py-1"
-          style={{ color: GB.light, border: `1px solid ${GB.dark}`, background: "transparent" }}
-          aria-label={t("uphero.mini.giveUpAria")}
-        >
-          {t("uphero.mini.giveUpLabel")}
-        </button>
-      )}
+      {!done && <GiveUpButton onCancel={onCancel} />}
+      <style jsx>{`
+        .trace-dot {
+          opacity: 0;
+          transform: scale(0.85);
+          animation: traceDotEnter 280ms ${EASE_OUT} forwards;
+          animation-delay: calc(var(--trace-i) * 50ms);
+          transition: background 200ms ${EASE_OUT}, border-color 200ms ${EASE_OUT}, box-shadow 200ms ${EASE_OUT};
+        }
+        @keyframes traceDotEnter {
+          0% { opacity: 0; transform: scale(0.85); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .trace-dot {
+            animation: none;
+            transition: none;
+            opacity: 1;
+            transform: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }

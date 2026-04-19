@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MinigameHeader, MinigameHint, TimeBar, StatusMessage, GiveUpButton } from "./_chrome";
 
 const SYMBOLS = ["◆", "●", "■", "▲", "★", "♥"];
 
@@ -72,17 +73,13 @@ export default function SpotDiff({ difficulty, onComplete, onCancel }: MinigameP
 
   return (
     <div className="flex flex-col items-center gap-3 p-4" style={{ minWidth: size * cellSize + 40 }}>
-      <div className="typo-caption tabular-nums" style={{ color: GB.lightest }}>
+      <MinigameHeader>
         {t("uphero.mini.diff.header", { time: (remainingMs / 1000).toFixed(1) })}
-      </div>
-      <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: GB.dark }} aria-hidden="true">
-        <div style={{ width: `${timePct}%`, height: "100%", background: timePct > 40 ? GB.light : "#e88b7a" }} />
-      </div>
-      <div className="typo-caption" style={{ color: GB.light }}>
-        {t("uphero.mini.diff.hint")}
-      </div>
+      </MinigameHeader>
+      <TimeBar pct={timePct} maxWidthClass="" />
+      <MinigameHint>{t("uphero.mini.diff.hint")}</MinigameHint>
       <div
-        className="grid gap-1"
+        className="diff-grid grid gap-1"
         style={{
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
           gridTemplateRows: `repeat(${size}, ${cellSize}px)`,
@@ -105,6 +102,7 @@ export default function SpotDiff({ difficulty, onComplete, onCancel }: MinigameP
                 color: GB.lightest,
                 border: `1px solid ${highlight ? GB.lightest : GB.dark}`,
                 fontSize: Math.floor(cellSize * 0.6),
+                ["--diff-i" as string]: i,
               }}
               aria-label={t("uphero.mini.diff.cellAria", { n: i + 1 })}
             >
@@ -114,33 +112,44 @@ export default function SpotDiff({ difficulty, onComplete, onCancel }: MinigameP
         })}
       </div>
       {done && (
-        <div
-          role="status"
-          aria-live="assertive"
-          className="typo-body"
-          style={{ color: done === "success" ? GB.lightest : "#e88b7a", fontWeight: 600 }}
-        >
+        <StatusMessage kind={done}>
           {done === "success" ? t("uphero.mini.diff.success") : t("uphero.mini.diff.fail")}
-        </div>
+        </StatusMessage>
       )}
-      {!done && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="typo-caption rounded px-3 py-1"
-          style={{ color: GB.light, border: `1px solid ${GB.dark}`, background: "transparent" }}
-          aria-label={t("uphero.mini.giveUpAria")}
-        >
-          {t("uphero.mini.giveUpLabel")}
-        </button>
-      )}
+      {!done && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
         .diff-cell {
-          transition: transform 80ms ${EASE_OUT}, background 180ms ${EASE_OUT};
+          transition: transform 80ms ${EASE_OUT}, background 180ms ${EASE_OUT}, border-color 180ms ${EASE_OUT};
           touch-action: manipulation;
+          opacity: 0;
+          animation: diffEnter 240ms ${EASE_OUT} forwards;
+          animation-delay: calc(var(--diff-i) * 12ms);
+        }
+        @keyframes diffEnter {
+          0% { opacity: 0; transform: scale(0.92); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        .diff-cell:focus-visible {
+          outline: 2px solid ${GB.lightest};
+          outline-offset: 2px;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .diff-cell:hover:not(:disabled) {
+            background: ${GB.light}44 !important;
+          }
         }
         .diff-cell:not(:disabled):active {
-          transform: scale(0.96);
+          transform: scale(0.97);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .diff-cell {
+            transition: none;
+            animation: none;
+            opacity: 1;
+          }
+          .diff-cell:not(:disabled):active {
+            transform: none;
+          }
         }
       `}</style>
     </div>

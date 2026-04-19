@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MinigameHeader, TimeBar, StatusMessage, GiveUpButton } from "./_chrome";
 
 interface Card {
   id: number;
@@ -38,7 +39,6 @@ function makeDeck(pairs: number): Card[] {
     matched: false,
     flipped: false,
   }));
-  // shuffle
   for (let i = dup.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [dup[i], dup[j]] = [dup[j], dup[i]];
@@ -69,7 +69,6 @@ export default function PairMatch({
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
-  // Timer
   useEffect(() => {
     if (done) return;
     const start = performance.now();
@@ -88,16 +87,15 @@ export default function PairMatch({
     return () => cancelAnimationFrame(raf);
   }, [config.timeMs, done]);
 
-  // Done → onComplete 콜백 (한 번만)
   const reportedRef = useRef(false);
   useEffect(() => {
     if (!done) return;
     if (reportedRef.current) return;
     reportedRef.current = true;
-    const t = window.setTimeout(() => {
+    const tt = window.setTimeout(() => {
       onCompleteRef.current({ success: done === "success" });
     }, 700);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(tt);
   }, [done]);
 
   const onCardTap = (idx: number) => {
@@ -115,7 +113,6 @@ export default function PairMatch({
     if (newSelected.length === 2) {
       const [a, b] = newSelected;
       if (newDeck[a].symbol === newDeck[b].symbol) {
-        // 매칭 성공 — 잠시 후 matched 처리
         setTimeout(() => {
           setDeck((d) =>
             d.map((c, i) =>
@@ -123,14 +120,12 @@ export default function PairMatch({
             ),
           );
           setSelected([]);
-          // 전체 매칭 체크
           const allMatched = newDeck.every(
             (c, i) => c.matched || i === a || i === b,
           );
           if (allMatched) setDone("success");
         }, 400);
       } else {
-        // 불일치 — 600ms 후 다시 가림
         setTimeout(() => {
           setDeck((d) =>
             d.map((c, i) =>
@@ -147,29 +142,10 @@ export default function PairMatch({
 
   return (
     <div className="flex flex-col items-center gap-3 p-4">
-      <div
-        className="typo-caption tabular-nums"
-        style={{ color: GB.lightest }}
-      >
+      <MinigameHeader>
         {t("uphero.mini.pair.header", { time: (remainingMs / 1000).toFixed(1) })}
-      </div>
-      {/* 타이머 bar */}
-      <div
-        className="w-full max-w-xs h-1 rounded-full overflow-hidden"
-        style={{ background: GB.dark }}
-        aria-hidden="true"
-      >
-        <div
-          style={{
-            width: `${timePct}%`,
-            height: "100%",
-            background:
-              timePct > 50 ? GB.light : timePct > 20 ? "#e8d88b" : "#e88b7a",
-            transition: `background 240ms ${EASE_OUT}`,
-          }}
-        />
-      </div>
-      {/* 카드 grid */}
+      </MinigameHeader>
+      <TimeBar pct={timePct} />
       <div
         className="grid gap-2"
         style={{
@@ -185,63 +161,86 @@ export default function PairMatch({
               type="button"
               onClick={() => onCardTap(idx)}
               aria-label={shown ? t("uphero.mini.pair.cardAria", { symbol: card.symbol }) : t("uphero.mini.pair.cardCoveredAria")}
-              className="pair-card rounded flex items-center justify-center"
+              className={`pair-card rounded ${shown ? "is-shown" : ""} ${card.matched ? "is-matched" : ""}`}
               style={{
                 width: 56,
                 height: 56,
-                background: shown
-                  ? card.matched
-                    ? `${GB.lightest}33`
-                    : `${GB.lightest}55`
-                  : GB.dark,
-                color: GB.lightest,
-                border: `1px solid ${card.matched ? GB.lightest : GB.light}`,
-                fontSize: 24,
-                opacity: card.matched ? 0.55 : 1,
                 cursor: shown || done ? "default" : "pointer",
               }}
               disabled={shown || !!done}
             >
-              {shown ? card.symbol : "?"}
+              <div className="pair-card-inner">
+                <div className="pair-card-face pair-card-front">?</div>
+                <div className="pair-card-face pair-card-back">{card.symbol}</div>
+              </div>
             </button>
           );
         })}
       </div>
-      {/* 하단 상태 */}
       {done && (
-        <div
-          role="status"
-          aria-live="assertive"
-          className="typo-body"
-          style={{
-            color: done === "success" ? GB.lightest : "#e88b7a",
-            fontWeight: 600,
-          }}
-        >
+        <StatusMessage kind={done}>
           {done === "success" ? t("uphero.mini.pair.success") : t("uphero.mini.pair.fail")}
-        </div>
+        </StatusMessage>
       )}
-      {!done && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="typo-caption mt-1 rounded px-3 py-1"
-          style={{
-            background: "transparent",
-            color: GB.light,
-            border: `1px solid ${GB.dark}`,
-          }}
-          aria-label={t("uphero.mini.giveUpAria")}
-        >
-          {t("uphero.mini.giveUpLabel")}
-        </button>
-      )}
+      {!done && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
         .pair-card {
-          transition: transform 120ms ${EASE_OUT}, background 180ms ${EASE_OUT};
+          background: transparent;
+          border: 0;
+          padding: 0;
+          perspective: 600px;
+          transition: transform 120ms ${EASE_OUT};
+        }
+        .pair-card:focus-visible {
+          outline: 2px solid ${GB.lightest};
+          outline-offset: 2px;
         }
         .pair-card:not(:disabled):active {
-          transform: scale(0.96);
+          transform: scale(0.97);
+        }
+        .pair-card-inner {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          transform-style: preserve-3d;
+          transition: transform 320ms ${EASE_OUT};
+        }
+        .pair-card.is-shown .pair-card-inner {
+          transform: rotateY(180deg);
+        }
+        .pair-card-face {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
+          border-radius: 6px;
+          color: ${GB.lightest};
+          font-size: 24px;
+        }
+        .pair-card-front {
+          background: ${GB.dark};
+          border: 1px solid ${GB.light};
+        }
+        .pair-card-back {
+          background: ${GB.lightest}55;
+          border: 1px solid ${GB.lightest};
+          transform: rotateY(180deg);
+        }
+        .pair-card.is-matched .pair-card-back {
+          background: ${GB.lightest}33;
+          opacity: 0.55;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .pair-card,
+          .pair-card-inner {
+            transition: none;
+          }
+          .pair-card:not(:disabled):active {
+            transform: none;
+          }
         }
       `}</style>
     </div>

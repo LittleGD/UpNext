@@ -72,6 +72,9 @@ const ja: Record<DictKey, string> = {
   "onboarding.starter.openPack": "カードパックを開く",
   "onboarding.levelup.message": "レベルアップ! カードパックを開けます",
   "onboarding.levelup.button": "カードパックを引く",
+  "uphero.levelup.title": "LEVEL UP!",
+  "uphero.levelup.reached": "Lv.{level} に到達",
+  "uphero.levelup.announce": "レベルアップ! Lv.{level} に到達しました",
 
   // === splash ===
   "splash.tagline": "毎日小さな達成を積み重ねるローグライクチャレンジ",
@@ -732,6 +735,7 @@ const ja: Record<DictKey, string> = {
 
   // === Dungeons grid ===
   "uphero.dungeons.floorReached": "F{floor} 到達",
+  "uphero.dungeons.bestRecord": "最高 F{floor}",
   "uphero.dungeons.unexplored": "未探索",
 
   // === Shop ===
@@ -946,16 +950,17 @@ const ja: Record<DictKey, string> = {
   "uphero.mini.dodge.rightAria": "右へ移動",
   "uphero.mini.dodge.success": "無事回避!",
   "uphero.mini.dodge.fail": "びしょ濡れ",
-  // sort items
+  // sort items (color match)
   "uphero.mini.sort.header": "{time}s · {done}/{total}",
-  "uphero.mini.sort.itemAria": "品物 ({symbol})",
-  "uphero.mini.sort.hint": "どの箱に入れる?",
-  "uphero.mini.sort.leftAria": "左の箱 (食材)",
-  "uphero.mini.sort.leftLabel": "食材",
-  "uphero.mini.sort.rightAria": "右の箱 (文具)",
-  "uphero.mini.sort.rightLabel": "文具",
-  "uphero.mini.sort.success": "綺麗に仕分け!",
-  "uphero.mini.sort.fail": "混じった",
+  "uphero.mini.sort.hint": "同じ色をタップ",
+  "uphero.mini.sort.targetAria": "ターゲット色 {label}",
+  "uphero.mini.sort.swatchAria": "{label} の色ボタン",
+  "uphero.mini.sort.success": "ぴったり!",
+  "uphero.mini.sort.fail": "色違い",
+  "uphero.mini.sort.color.red": "赤",
+  "uphero.mini.sort.color.yellow": "黄",
+  "uphero.mini.sort.color.green": "緑",
+  "uphero.mini.sort.color.blue": "青",
   // quick sum
   "uphero.mini.sum.header": "{time}s · {done}/{total}",
   "uphero.mini.sum.problemAria": "式 {text}",
@@ -968,14 +973,14 @@ const ja: Record<DictKey, string> = {
   "uphero.mini.diff.cellAria": "マス {n}",
   "uphero.mini.diff.success": "見つけた!",
   "uphero.mini.diff.fail": "見逃した",
-  // breath hold
-  "uphero.mini.breath.header": "{left}s / {total}s",
-  "uphero.mini.breath.hint": "押し続けろ",
-  "uphero.mini.breath.btnAria": "息止め {pct}%",
-  "uphero.mini.breath.holding": "維持…",
-  "uphero.mini.breath.press": "長押し",
-  "uphero.mini.breath.success": "静寂に至る",
-  "uphero.mini.breath.fail": "息が切れた",
+  // breath hold (timing stop)
+  "uphero.mini.breath.header": "{left}s · {done}/{total}",
+  "uphero.mini.breath.hint": "緑ゾーンで STOP",
+  "uphero.mini.breath.btnAria": "カーソル位置 {pct}%",
+  "uphero.mini.breath.holding": "停止…",
+  "uphero.mini.breath.press": "STOP ボタン",
+  "uphero.mini.breath.success": "ぴたり停止!",
+  "uphero.mini.breath.fail": "タイミング外",
   // trace path
   "uphero.mini.trace.header": "{time}s · {done}/{total}",
   "uphero.mini.trace.hint": "番号順になぞれ",
@@ -1130,10 +1135,10 @@ const ja: Record<DictKey, string> = {
   "uphero.minigame.title.pipe_connect": "詰まったパイプ",
   "uphero.minigame.title.tap_burst": "閃光乱打",
   "uphero.minigame.title.dodge_drops": "雨粒避け",
-  "uphero.minigame.title.sort_items": "市場の木箱",
+  "uphero.minigame.title.sort_items": "カラーマッチ",
   "uphero.minigame.title.quick_sum": "商人の算盤",
   "uphero.minigame.title.spot_diff": "傷探し",
-  "uphero.minigame.title.breath_hold": "息止め",
+  "uphero.minigame.title.breath_hold": "タイミング停止",
   "uphero.minigame.title.trace_path": "星を繋ぐ",
   "uphero.minigame.title.reaction_tap": "雷光反応",
   "uphero.minigame.header": "{title} · 難易度 {difficulty}",
@@ -1217,7 +1222,7 @@ const ja: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.desc": "3ターン無敵。",
 
   // Phase 14 — Novice 튜토리얼 스킬 desc
-  "uphero.skill.novice_heal.desc": "HP を 7 回復。",
+  "uphero.skill.novice_heal.desc": "HP を 15 回復。",
   "uphero.skill.novice_focus.desc": "次の攻撃ダメージ +50%。",
   "uphero.skill.novice_brace.desc": "次の1ターン受けるダメージ -50%。",
 

@@ -9,8 +9,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
-import { GB, EASE_OUT } from "@/lib/upHeroPalette";
+import { GB, GB_DANGER, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MinigameHeader, TimeBar, StatusMessage, GiveUpButton, ResultIcon } from "./_chrome";
 
 const DURATION_MS = 8000;
 
@@ -51,6 +52,7 @@ export default function QuickSum({ difficulty, onComplete, onCancel }: MinigameP
   const [solved, setSolved] = useState(0);
   const [remainingMs, setRemainingMs] = useState(DURATION_MS);
   const [done, setDone] = useState<"success" | "fail" | null>(null);
+  const [problemKey, setProblemKey] = useState(0);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
@@ -93,20 +95,20 @@ export default function QuickSum({ difficulty, onComplete, onCancel }: MinigameP
       return;
     }
     setProblem(makeProblem(difficulty));
+    setProblemKey((k) => k + 1);
   };
 
   const timePct = (remainingMs / DURATION_MS) * 100;
 
   return (
     <div className="flex flex-col items-center gap-3 p-4" style={{ minWidth: 280 }}>
-      <div className="typo-caption tabular-nums" style={{ color: GB.lightest }}>
+      <MinigameHeader>
         {t("uphero.mini.sum.header", { time: (remainingMs / 1000).toFixed(1), done: solved, total: target })}
-      </div>
-      <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: GB.dark }} aria-hidden="true">
-        <div style={{ width: `${timePct}%`, height: "100%", background: timePct > 40 ? GB.light : "#e88b7a" }} />
-      </div>
+      </MinigameHeader>
+      <TimeBar pct={timePct} maxWidthClass="" />
       <div
-        className="rounded px-6 py-4 typo-body tabular-nums"
+        key={problemKey}
+        className="quicksum-problem rounded px-6 py-4 typo-body tabular-nums"
         style={{
           fontSize: 36,
           color: GB.lightest,
@@ -116,7 +118,13 @@ export default function QuickSum({ difficulty, onComplete, onCancel }: MinigameP
         }}
         aria-label={t("uphero.mini.sum.problemAria", { text: problem.text })}
       >
-        {done === "fail" ? "✗" : done === "success" ? "✓" : `${problem.text} = ?`}
+        {done === "fail" ? (
+          <ResultIcon kind="fail" size={32} color={GB_DANGER} />
+        ) : done === "success" ? (
+          <ResultIcon kind="success" size={32} color={GB.lightest} />
+        ) : (
+          `${problem.text} = ?`
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2" style={{ maxWidth: 260 }}>
         {problem.choices.map((n) => (
@@ -141,33 +149,45 @@ export default function QuickSum({ difficulty, onComplete, onCancel }: MinigameP
         ))}
       </div>
       {done && (
-        <div
-          role="status"
-          aria-live="assertive"
-          className="typo-body"
-          style={{ color: done === "success" ? GB.lightest : "#e88b7a", fontWeight: 600 }}
-        >
+        <StatusMessage kind={done}>
           {done === "success" ? t("uphero.mini.sum.success") : t("uphero.mini.sum.fail")}
-        </div>
+        </StatusMessage>
       )}
-      {!done && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="typo-caption rounded px-3 py-1"
-          style={{ color: GB.light, border: `1px solid ${GB.dark}`, background: "transparent" }}
-          aria-label={t("uphero.mini.giveUpAria")}
-        >
-          {t("uphero.mini.giveUpLabel")}
-        </button>
-      )}
+      {!done && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
+        .quicksum-problem {
+          animation: problemSwap 220ms ${EASE_OUT};
+        }
+        @keyframes problemSwap {
+          0% { transform: scale(0.94); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
         .sum-btn {
-          transition: transform 80ms ${EASE_OUT};
+          transition: transform 80ms ${EASE_OUT}, background 160ms ${EASE_OUT}, border-color 160ms ${EASE_OUT};
           touch-action: manipulation;
         }
+        .sum-btn:focus-visible {
+          outline: 2px solid ${GB.lightest};
+          outline-offset: 2px;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .sum-btn:hover:not(:disabled) {
+            background: ${GB.light}44;
+            border-color: ${GB.lightest};
+          }
+        }
         .sum-btn:not(:disabled):active {
-          transform: scale(0.96);
+          transform: scale(0.97);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .quicksum-problem,
+          .sum-btn {
+            animation: none;
+            transition: none;
+          }
+          .sum-btn:not(:disabled):active {
+            transform: none;
+          }
         }
       `}</style>
     </div>

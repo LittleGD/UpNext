@@ -20,6 +20,25 @@ export const GB_ENEMY = "#e88b7a";
 /** 경고 (중간 HP) — 앱 토큰 없음, GB 톤 */
 export const GB_WARN = "#e8d88b";
 
+/**
+ * 미니게임 위험/실패 신호 — `GB_ENEMY` 와 같은 값.
+ * 미니게임 컨텍스트(피격 플래시, 실패 메시지, time-bar 위험 구간)에서 사용해
+ * 의미를 명시적으로 만든다.
+ */
+export const GB_DANGER = GB_ENEMY;
+
+/**
+ * 미니게임 피격/위험 플래시 — 시스템 빨강(#ff3b30) 보다 한 톤 부드러운 톤.
+ * GB 팔레트와 충돌하지 않도록 채도를 살짝 낮춤.
+ */
+export const GB_DANGER_FLASH = "#ff5a4a";
+
+/**
+ * 미니게임 성공/긍정 시그널 — `GB.lightest` 와 같은 값.
+ * 의미상 highlight ≠ success 를 구분하고 싶을 때 사용.
+ */
+export const GB_SIGNAL = "#cdf564";
+
 /** 레전드 금색 — `--rarity-legend (#CDF564)` 의 GB 톤 대응 */
 export const GB_LEGEND = "#e8b887";
 

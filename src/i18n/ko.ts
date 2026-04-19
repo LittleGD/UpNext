@@ -70,6 +70,9 @@ const ko = {
   "onboarding.starter.openPack": "카드팩 열기",
   "onboarding.levelup.message": "레벨업! 카드팩을 뽑을 수 있어요",
   "onboarding.levelup.button": "카드팩 뽑기",
+  "uphero.levelup.title": "LEVEL UP!",
+  "uphero.levelup.reached": "Lv.{level} 달성",
+  "uphero.levelup.announce": "레벨업! Lv.{level} 에 도달했습니다",
 
   // === splash ===
   "splash.tagline": "매일 작은 성취를 쌓아가는 로그라이크 챌린지",
@@ -730,6 +733,7 @@ const ko = {
 
   // === Dungeons grid ===
   "uphero.dungeons.floorReached": "F{floor} 도달",
+  "uphero.dungeons.bestRecord": "최고 F{floor}",
   "uphero.dungeons.unexplored": "미탐험",
 
   // === Shop (item rows + meta) ===
@@ -944,16 +948,17 @@ const ko = {
   "uphero.mini.dodge.rightAria": "오른쪽으로 이동",
   "uphero.mini.dodge.success": "무사히 피했다!",
   "uphero.mini.dodge.fail": "흠뻑 젖었다",
-  // sort items
+  // sort items (color match)
   "uphero.mini.sort.header": "{time}s · {done}/{total}",
-  "uphero.mini.sort.itemAria": "물건 ({symbol})",
-  "uphero.mini.sort.hint": "어느 상자에 넣을까?",
-  "uphero.mini.sort.leftAria": "왼쪽 상자 (식재료)",
-  "uphero.mini.sort.leftLabel": "식재료",
-  "uphero.mini.sort.rightAria": "오른쪽 상자 (문구)",
-  "uphero.mini.sort.rightLabel": "문구",
-  "uphero.mini.sort.success": "깔끔하게 분류!",
-  "uphero.mini.sort.fail": "엇갈린 손길",
+  "uphero.mini.sort.hint": "같은 색을 탭하라",
+  "uphero.mini.sort.targetAria": "타겟 색상 {label}",
+  "uphero.mini.sort.swatchAria": "{label} 색 버튼",
+  "uphero.mini.sort.success": "정확히 맞췄다!",
+  "uphero.mini.sort.fail": "색이 어긋났다",
+  "uphero.mini.sort.color.red": "빨강",
+  "uphero.mini.sort.color.yellow": "노랑",
+  "uphero.mini.sort.color.green": "초록",
+  "uphero.mini.sort.color.blue": "파랑",
   // quick sum
   "uphero.mini.sum.header": "{time}s · {done}/{total}",
   "uphero.mini.sum.problemAria": "식 {text}",
@@ -966,14 +971,14 @@ const ko = {
   "uphero.mini.diff.cellAria": "칸 {n}",
   "uphero.mini.diff.success": "찾았다!",
   "uphero.mini.diff.fail": "놓쳤다",
-  // breath hold
-  "uphero.mini.breath.header": "{left}s / {total}s",
-  "uphero.mini.breath.hint": "누르고 있어라",
-  "uphero.mini.breath.btnAria": "숨 참기 {pct}%",
-  "uphero.mini.breath.holding": "유지…",
-  "uphero.mini.breath.press": "지그시 누르기",
-  "uphero.mini.breath.success": "고요해졌다",
-  "uphero.mini.breath.fail": "숨을 놓쳤다",
+  // breath hold (timing stop)
+  "uphero.mini.breath.header": "{left}s · {done}/{total}",
+  "uphero.mini.breath.hint": "녹색 존에서 STOP",
+  "uphero.mini.breath.btnAria": "커서 위치 {pct}%",
+  "uphero.mini.breath.holding": "정지…",
+  "uphero.mini.breath.press": "STOP 버튼",
+  "uphero.mini.breath.success": "정확히 멈췄다",
+  "uphero.mini.breath.fail": "타이밍 실패",
   // trace path
   "uphero.mini.trace.header": "{time}s · {done}/{total}",
   "uphero.mini.trace.hint": "번호 순으로 쓸어 넘겨라",
@@ -1128,10 +1133,10 @@ const ko = {
   "uphero.minigame.title.pipe_connect": "막힌 파이프",
   "uphero.minigame.title.tap_burst": "섬광 난타",
   "uphero.minigame.title.dodge_drops": "비바람 피하기",
-  "uphero.minigame.title.sort_items": "시장의 상자",
+  "uphero.minigame.title.sort_items": "색 맞추기",
   "uphero.minigame.title.quick_sum": "상인의 셈법",
   "uphero.minigame.title.spot_diff": "흠집 찾기",
-  "uphero.minigame.title.breath_hold": "숨 참기",
+  "uphero.minigame.title.breath_hold": "타이밍 정지",
   "uphero.minigame.title.trace_path": "별자리 잇기",
   "uphero.minigame.title.reaction_tap": "번개 반응",
   "uphero.minigame.header": "{title} · 난이도 {difficulty}",
@@ -1215,7 +1220,7 @@ const ko = {
   "uphero.skill.illus_dreamscape_t4.desc": "3 round 무적.",
 
   // Phase 14 — Novice tutorial skill desc
-  "uphero.skill.novice_heal.desc": "HP +7 회복.",
+  "uphero.skill.novice_heal.desc": "HP +15 회복.",
   "uphero.skill.novice_focus.desc": "다음 공격 피해 +50%.",
   "uphero.skill.novice_brace.desc": "다음 1 round 받는 피해 -50%.",
 

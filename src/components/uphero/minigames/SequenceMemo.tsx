@@ -14,13 +14,14 @@
  *   (2) "input" — 유저가 순서대로 4개 버튼 탭
  *   (3) 틀리면 즉시 실패, 끝까지 맞추면 성공
  *
- * 중단은 실패.
+ * 중단은 실패. 색맹 보조 — 각 셀에 1–4 번호 라벨.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MinigameHeader, StatusMessage, GiveUpButton } from "./_chrome";
 
 type Color = 0 | 1 | 2 | 3;
 const COLOR_PALETTE: Record<Color, string> = {
@@ -29,7 +30,6 @@ const COLOR_PALETTE: Record<Color, string> = {
   2: "#cdb887", // gold
   3: "#87c87a", // green
 };
-// Phase 12 i18n — 색 이름을 key 로 보관, 렌더 시점 t() 로 변환.
 const COLOR_NAME_KEYS: Record<Color, "uphero.mini.seq.color.red" | "uphero.mini.seq.color.blue" | "uphero.mini.seq.color.yellow" | "uphero.mini.seq.color.green"> = {
   0: "uphero.mini.seq.color.red",
   1: "uphero.mini.seq.color.blue",
@@ -43,7 +43,7 @@ export default function SequenceMemo({
   onCancel,
 }: MinigameProps) {
   const { t } = useTranslation();
-  const length = difficulty + 2; // 3 / 4 / 5
+  const length = difficulty + 2;
   const sequence = useMemo<Color[]>(() => {
     const arr: Color[] = [];
     for (let i = 0; i < length; i++) {
@@ -53,7 +53,7 @@ export default function SequenceMemo({
   }, [length]);
 
   const [phase, setPhase] = useState<"watch" | "input" | "done">("watch");
-  const [watchIdx, setWatchIdx] = useState(-1); // -1 = nothing highlighting
+  const [watchIdx, setWatchIdx] = useState(-1);
   const [inputIdx, setInputIdx] = useState(0);
   const [lastPressed, setLastPressed] = useState<Color | null>(null);
   const [result, setResult] = useState<"success" | "fail" | null>(null);
@@ -61,7 +61,6 @@ export default function SequenceMemo({
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
-  // watch phase — 시퀀스 재생
   useEffect(() => {
     if (phase !== "watch") return;
     let cancelled = false;
@@ -82,16 +81,15 @@ export default function SequenceMemo({
     };
   }, [phase, sequence]);
 
-  // done → onComplete
   const reportedRef = useRef(false);
   useEffect(() => {
     if (!result) return;
     if (reportedRef.current) return;
     reportedRef.current = true;
-    const t = window.setTimeout(() => {
+    const tt = window.setTimeout(() => {
       onCompleteRef.current({ success: result === "success" });
     }, 800);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(tt);
   }, [result]);
 
   const onPress = (c: Color) => {
@@ -114,10 +112,7 @@ export default function SequenceMemo({
 
   return (
     <div className="flex flex-col items-center gap-3 p-4">
-      <div
-        className="typo-caption tabular-nums"
-        style={{ color: GB.lightest }}
-      >
+      <MinigameHeader>
         {phase === "watch"
           ? t("uphero.mini.seq.header.watch")
           : phase === "input"
@@ -126,7 +121,7 @@ export default function SequenceMemo({
                 total: sequence.length,
               })
             : ""}
-      </div>
+      </MinigameHeader>
       <div
         className="grid gap-3"
         style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
@@ -140,7 +135,7 @@ export default function SequenceMemo({
               onClick={() => onPress(c)}
               disabled={phase !== "input" || !!result}
               aria-label={t(COLOR_NAME_KEYS[c])}
-              className="seq-btn rounded"
+              className="seq-btn rounded flex items-center justify-center"
               style={{
                 width: 80,
                 height: 80,
@@ -148,45 +143,41 @@ export default function SequenceMemo({
                 border: `2px solid ${COLOR_PALETTE[c]}`,
                 cursor:
                   phase === "input" && !result ? "pointer" : "default",
-                transition: `background 180ms ${EASE_OUT}`,
+                color: GB.darkest,
+                fontSize: 22,
+                fontWeight: 800,
               }}
-            />
+            >
+              {/* 색맹 보조 — 1..4 번호 라벨 */}
+              {c + 1}
+            </button>
           );
         })}
       </div>
       {result && (
-        <div
-          role="status"
-          aria-live="assertive"
-          className="typo-body"
-          style={{
-            color: result === "success" ? GB.lightest : "#e88b7a",
-            fontWeight: 600,
-          }}
-        >
+        <StatusMessage kind={result}>
           {result === "success" ? t("uphero.mini.seq.success") : t("uphero.mini.seq.fail")}
-        </div>
+        </StatusMessage>
       )}
-      {!result && phase === "input" && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="typo-caption mt-1 rounded px-3 py-1"
-          style={{
-            background: "transparent",
-            color: GB.light,
-            border: `1px solid ${GB.dark}`,
-          }}
-          aria-label={t("uphero.mini.giveUpAria")}
-        >
-          {t("uphero.mini.giveUpLabel")}
-        </button>
-      )}
+      {!result && phase === "input" && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
+        .seq-btn {
+          transition: background 180ms ${EASE_OUT}, transform 100ms ${EASE_OUT};
+        }
+        .seq-btn:focus-visible {
+          outline: 2px solid ${GB.lightest};
+          outline-offset: 2px;
+        }
         .seq-btn:not(:disabled):active {
-          /* Emil — press 0.97 통일 */
           transform: scale(0.97);
-          transition: transform 100ms ${EASE_OUT};
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .seq-btn {
+            transition: none;
+          }
+          .seq-btn:not(:disabled):active {
+            transform: none;
+          }
         }
       `}</style>
     </div>

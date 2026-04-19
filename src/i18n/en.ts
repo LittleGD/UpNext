@@ -72,6 +72,9 @@ const en: Record<DictKey, string> = {
   "onboarding.starter.openPack": "Open Pack",
   "onboarding.levelup.message": "Level up! You can open a card pack",
   "onboarding.levelup.button": "Open Card Pack",
+  "uphero.levelup.title": "LEVEL UP!",
+  "uphero.levelup.reached": "Reached Lv.{level}",
+  "uphero.levelup.announce": "Level up! You reached Lv.{level}",
 
   // === splash ===
   "splash.tagline": "A roguelike challenge for daily achievements",
@@ -732,6 +735,7 @@ const en: Record<DictKey, string> = {
 
   // === Dungeons grid ===
   "uphero.dungeons.floorReached": "Reached F{floor}",
+  "uphero.dungeons.bestRecord": "Best F{floor}",
   "uphero.dungeons.unexplored": "Unexplored",
 
   // === Shop (item rows + meta) ===
@@ -946,16 +950,17 @@ const en: Record<DictKey, string> = {
   "uphero.mini.dodge.rightAria": "Step right",
   "uphero.mini.dodge.success": "Dodged clean!",
   "uphero.mini.dodge.fail": "Soaked.",
-  // sort items
+  // sort items (color match)
   "uphero.mini.sort.header": "{time}s · {done}/{total}",
-  "uphero.mini.sort.itemAria": "Item ({symbol})",
-  "uphero.mini.sort.hint": "Which crate does it belong in?",
-  "uphero.mini.sort.leftAria": "Left crate (produce)",
-  "uphero.mini.sort.leftLabel": "Produce",
-  "uphero.mini.sort.rightAria": "Right crate (supplies)",
-  "uphero.mini.sort.rightLabel": "Supplies",
-  "uphero.mini.sort.success": "Neatly sorted!",
-  "uphero.mini.sort.fail": "Mixed up.",
+  "uphero.mini.sort.hint": "Tap the matching color.",
+  "uphero.mini.sort.targetAria": "Target color {label}",
+  "uphero.mini.sort.swatchAria": "{label} color button",
+  "uphero.mini.sort.success": "Spot on!",
+  "uphero.mini.sort.fail": "Wrong color.",
+  "uphero.mini.sort.color.red": "RED",
+  "uphero.mini.sort.color.yellow": "YEL",
+  "uphero.mini.sort.color.green": "GRN",
+  "uphero.mini.sort.color.blue": "BLU",
   // quick sum
   "uphero.mini.sum.header": "{time}s · {done}/{total}",
   "uphero.mini.sum.problemAria": "Equation {text}",
@@ -968,14 +973,14 @@ const en: Record<DictKey, string> = {
   "uphero.mini.diff.cellAria": "Cell {n}",
   "uphero.mini.diff.success": "Spotted!",
   "uphero.mini.diff.fail": "Missed it.",
-  // breath hold
-  "uphero.mini.breath.header": "{left}s / {total}s",
-  "uphero.mini.breath.hint": "Hold steady.",
-  "uphero.mini.breath.btnAria": "Breath hold {pct}%",
-  "uphero.mini.breath.holding": "Hold…",
-  "uphero.mini.breath.press": "Press & hold",
-  "uphero.mini.breath.success": "Centered.",
-  "uphero.mini.breath.fail": "Breath broke.",
+  // breath hold (timing stop)
+  "uphero.mini.breath.header": "{left}s · {done}/{total}",
+  "uphero.mini.breath.hint": "Stop in the green zone.",
+  "uphero.mini.breath.btnAria": "Cursor at {pct}%",
+  "uphero.mini.breath.holding": "Stopped…",
+  "uphero.mini.breath.press": "STOP button",
+  "uphero.mini.breath.success": "Perfect stop.",
+  "uphero.mini.breath.fail": "Mistimed.",
   // trace path
   "uphero.mini.trace.header": "{time}s · {done}/{total}",
   "uphero.mini.trace.hint": "Swipe through the points in order.",
@@ -1130,10 +1135,10 @@ const en: Record<DictKey, string> = {
   "uphero.minigame.title.pipe_connect": "Broken Pipes",
   "uphero.minigame.title.tap_burst": "Flash Flurry",
   "uphero.minigame.title.dodge_drops": "Rainstorm Dodge",
-  "uphero.minigame.title.sort_items": "Market Crates",
+  "uphero.minigame.title.sort_items": "Color Match",
   "uphero.minigame.title.quick_sum": "Merchant's Tally",
   "uphero.minigame.title.spot_diff": "Spot the Flaw",
-  "uphero.minigame.title.breath_hold": "Hold Your Breath",
+  "uphero.minigame.title.breath_hold": "Timing Stop",
   "uphero.minigame.title.trace_path": "Trace the Stars",
   "uphero.minigame.title.reaction_tap": "Lightning Reflex",
   "uphero.minigame.header": "{title} · difficulty {difficulty}",
@@ -1217,7 +1222,7 @@ const en: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.desc": "Invulnerable for 3 rounds.",
 
   // Phase 14 — Novice tutorial skill desc
-  "uphero.skill.novice_heal.desc": "Restore 7 HP.",
+  "uphero.skill.novice_heal.desc": "Restore 15 HP.",
   "uphero.skill.novice_focus.desc": "Next attack deals +50% damage.",
   "uphero.skill.novice_brace.desc": "Next round: take 50% less damage.",
 

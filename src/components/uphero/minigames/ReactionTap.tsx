@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MinigameHeader, MinigameHint, StatusMessage, GiveUpButton, ResultIcon } from "./_chrome";
 
 type Phase = "red" | "yellow" | "green" | "done";
 
@@ -29,7 +30,6 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
   const timersRef = useRef<number[]>([]);
 
   useEffect(() => {
-    // 신호 진행: red (1.2–2.6s) → yellow (500ms) → green
     const redDuration = 1200 + Math.random() * 1400;
     const t1 = window.setTimeout(() => {
       setPhase("yellow");
@@ -78,6 +78,20 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
     }
   };
 
+  // Space/Enter 키로도 탭
+  useEffect(() => {
+    if (done) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        onTap();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done, phase]);
+
   const color =
     done === "success" || phase === "green"
       ? "#7bc47f"
@@ -99,12 +113,10 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
 
   return (
     <div className="flex flex-col items-center gap-3 p-4" style={{ minWidth: 300 }}>
-      <div className="typo-caption" style={{ color: GB.lightest }}>
+      <MinigameHeader tabular={false}>
         {t("uphero.mini.reaction.header", { ms: windowMs })}
-      </div>
-      <div className="typo-caption" style={{ color: GB.light }}>
-        {t("uphero.mini.reaction.hint")}
-      </div>
+      </MinigameHeader>
+      <MinigameHint>{t("uphero.mini.reaction.hint")}</MinigameHint>
       <button
         type="button"
         onPointerDown={onTap}
@@ -122,35 +134,44 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
         }}
         aria-label={t("uphero.mini.reaction.btnAria", { phase })}
       >
-        {done === "success" ? "✓" : done === "fail" ? "✗" : phase === "green" ? "●" : phase === "yellow" ? "◐" : "○"}
+        {done === "success" ? (
+          <ResultIcon kind="success" size={64} color={GB.darkest} />
+        ) : done === "fail" ? (
+          <ResultIcon kind="fail" size={64} color={GB.darkest} />
+        ) : phase === "green" ? "●" : phase === "yellow" ? "◐" : "○"}
       </button>
-      <div
-        role="status"
-        aria-live="assertive"
-        className="typo-body tabular-nums"
-        style={{ color: done === "fail" ? "#e88b7a" : GB.lightest, fontWeight: 600, minHeight: "1.5em" }}
-      >
-        {label}
-      </div>
-      {!done && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="typo-caption rounded px-3 py-1"
-          style={{ color: GB.light, border: `1px solid ${GB.dark}`, background: "transparent" }}
-          aria-label={t("uphero.mini.giveUpAria")}
+      {done ? (
+        <StatusMessage kind={done}>{label}</StatusMessage>
+      ) : (
+        <div
+          className="typo-body"
+          aria-live="polite"
+          style={{ color: GB.lightest, fontWeight: 600, minHeight: "1.5em" }}
         >
-          {t("uphero.mini.giveUpLabel")}
-        </button>
+          {label}
+        </div>
       )}
+      {!done && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
         .reaction-btn {
-          transition: background 120ms ${EASE_OUT}, box-shadow 120ms ${EASE_OUT};
+          transition: background 120ms ${EASE_OUT}, box-shadow 120ms ${EASE_OUT}, transform 80ms ${EASE_OUT};
           touch-action: manipulation;
           user-select: none;
         }
+        .reaction-btn:focus-visible {
+          outline: 2px solid ${GB.lightest};
+          outline-offset: 4px;
+        }
         .reaction-btn:not(:disabled):active {
           transform: scale(0.97);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .reaction-btn {
+            transition: none;
+          }
+          .reaction-btn:not(:disabled):active {
+            transform: none;
+          }
         }
       `}</style>
     </div>

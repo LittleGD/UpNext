@@ -72,6 +72,9 @@ const zh: Record<DictKey, string> = {
   "onboarding.starter.openPack": "开启卡包",
   "onboarding.levelup.message": "升级了！可以抽取卡包",
   "onboarding.levelup.button": "抽取卡包",
+  "uphero.levelup.title": "LEVEL UP!",
+  "uphero.levelup.reached": "达到 Lv.{level}",
+  "uphero.levelup.announce": "升级！达到 Lv.{level}",
 
   // === splash ===
   "splash.tagline": "每天积累小成就的肉鸽挑战",
@@ -732,6 +735,7 @@ const zh: Record<DictKey, string> = {
 
   // === Dungeons grid ===
   "uphero.dungeons.floorReached": "到达 F{floor}",
+  "uphero.dungeons.bestRecord": "最高 F{floor}",
   "uphero.dungeons.unexplored": "未探索",
 
   // === Shop ===
@@ -946,16 +950,17 @@ const zh: Record<DictKey, string> = {
   "uphero.mini.dodge.rightAria": "向右移动",
   "uphero.mini.dodge.success": "成功躲避!",
   "uphero.mini.dodge.fail": "浑身湿透",
-  // sort items
+  // sort items (color match)
   "uphero.mini.sort.header": "{time}s · {done}/{total}",
-  "uphero.mini.sort.itemAria": "物品 ({symbol})",
-  "uphero.mini.sort.hint": "放进哪个箱子?",
-  "uphero.mini.sort.leftAria": "左箱 (食材)",
-  "uphero.mini.sort.leftLabel": "食材",
-  "uphero.mini.sort.rightAria": "右箱 (文具)",
-  "uphero.mini.sort.rightLabel": "文具",
-  "uphero.mini.sort.success": "整齐分类!",
-  "uphero.mini.sort.fail": "放错了",
+  "uphero.mini.sort.hint": "点击相同颜色",
+  "uphero.mini.sort.targetAria": "目标颜色 {label}",
+  "uphero.mini.sort.swatchAria": "{label} 颜色按钮",
+  "uphero.mini.sort.success": "完全正确!",
+  "uphero.mini.sort.fail": "颜色错了",
+  "uphero.mini.sort.color.red": "红",
+  "uphero.mini.sort.color.yellow": "黄",
+  "uphero.mini.sort.color.green": "绿",
+  "uphero.mini.sort.color.blue": "蓝",
   // quick sum
   "uphero.mini.sum.header": "{time}s · {done}/{total}",
   "uphero.mini.sum.problemAria": "算式 {text}",
@@ -968,14 +973,14 @@ const zh: Record<DictKey, string> = {
   "uphero.mini.diff.cellAria": "格子 {n}",
   "uphero.mini.diff.success": "找到了!",
   "uphero.mini.diff.fail": "看漏了",
-  // breath hold
-  "uphero.mini.breath.header": "{left}s / {total}s",
-  "uphero.mini.breath.hint": "按住别松",
-  "uphero.mini.breath.btnAria": "屏息 {pct}%",
-  "uphero.mini.breath.holding": "保持…",
-  "uphero.mini.breath.press": "长按",
-  "uphero.mini.breath.success": "归于寂静",
-  "uphero.mini.breath.fail": "断气了",
+  // breath hold (timing stop)
+  "uphero.mini.breath.header": "{left}s · {done}/{total}",
+  "uphero.mini.breath.hint": "在绿区按 STOP",
+  "uphero.mini.breath.btnAria": "光标位置 {pct}%",
+  "uphero.mini.breath.holding": "停止…",
+  "uphero.mini.breath.press": "STOP 按钮",
+  "uphero.mini.breath.success": "稳准停下!",
+  "uphero.mini.breath.fail": "时机错了",
   // trace path
   "uphero.mini.trace.header": "{time}s · {done}/{total}",
   "uphero.mini.trace.hint": "按编号顺序滑过",
@@ -1130,10 +1135,10 @@ const zh: Record<DictKey, string> = {
   "uphero.minigame.title.pipe_connect": "堵塞的管道",
   "uphero.minigame.title.tap_burst": "闪光连击",
   "uphero.minigame.title.dodge_drops": "躲避雨滴",
-  "uphero.minigame.title.sort_items": "市场木箱",
+  "uphero.minigame.title.sort_items": "颜色匹配",
   "uphero.minigame.title.quick_sum": "商人算盘",
   "uphero.minigame.title.spot_diff": "找出瑕疵",
-  "uphero.minigame.title.breath_hold": "屏住呼吸",
+  "uphero.minigame.title.breath_hold": "时机停止",
   "uphero.minigame.title.trace_path": "连星成线",
   "uphero.minigame.title.reaction_tap": "闪电反应",
   "uphero.minigame.header": "{title} · 难度 {difficulty}",
@@ -1217,7 +1222,7 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.desc": "3 回合无敌。",
 
   // Phase 14 — Novice 技能描述
-  "uphero.skill.novice_heal.desc": "恢复 7 点 HP。",
+  "uphero.skill.novice_heal.desc": "恢复 15 点 HP。",
   "uphero.skill.novice_focus.desc": "下次攻击伤害 +50%。",
   "uphero.skill.novice_brace.desc": "下 1 回合受到伤害 -50%。",
 

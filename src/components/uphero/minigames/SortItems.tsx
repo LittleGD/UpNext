@@ -1,180 +1,195 @@
 "use client";
 
 /**
- * Phase 15 WarioWare — SortItems.
+ * SortItems (재구성: Color Match).
  *
- * 화면 중앙의 아이템을 좌/우 버킷 중 올바른 쪽으로 탭해 분류.
- *   diff 1: 5 / 2: 7 / 3: 9 아이템 연속 정답. 실수 한 번이면 즉시 실패.
- *   단일 인풋: 좌/우 버튼 탭.
+ * 화면 중앙에 타겟 색상 원이 표시되고, 아래 4 개 버튼 중 같은 색을 탭한다.
+ * 매 라운드 색상이 무작위로 바뀌고, 정해진 횟수를 시간 안에 맞추면 성공.
+ *
+ * difficulty:
+ *   - 1: 4 라운드 / 8s
+ *   - 2: 6 라운드 / 9s
+ *   - 3: 8 라운드 / 10s
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
-import { GB, EASE_OUT } from "@/lib/upHeroPalette";
+import { GB, GB_DANGER, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MinigameHeader, MinigameHint, TimeBar, ProgressBar, StatusMessage, GiveUpButton } from "./_chrome";
 
-const DURATION_MS = 8000;
-
-type Bucket = "L" | "R";
-interface Item {
-  symbol: string;
-  answer: Bucket;
+interface Swatch {
+  id: string;
+  color: string;
+  labelKey: "uphero.mini.sort.color.red" | "uphero.mini.sort.color.yellow" | "uphero.mini.sort.color.green" | "uphero.mini.sort.color.blue";
 }
 
-// 아이템 심볼 풀 — 좌 (식재료) / 우 (문구)
-const POOL_L = ["🍎", "🍞", "🥕", "🧀", "🍇"];
-const POOL_R = ["✎", "□", "◇", "✱", "⌘"];
+const SWATCHES: Swatch[] = [
+  { id: "red", color: "#e88b7a", labelKey: "uphero.mini.sort.color.red" },
+  { id: "yellow", color: "#e8d88b", labelKey: "uphero.mini.sort.color.yellow" },
+  { id: "green", color: "#9bd28b", labelKey: "uphero.mini.sort.color.green" },
+  { id: "blue", color: "#8bb6e8", labelKey: "uphero.mini.sort.color.blue" },
+];
 
-function makeItems(n: number): Item[] {
-  const items: Item[] = [];
-  for (let i = 0; i < n; i++) {
-    const left = Math.random() < 0.5;
-    const pool = left ? POOL_L : POOL_R;
-    items.push({ symbol: pool[Math.floor(Math.random() * pool.length)], answer: left ? "L" : "R" });
-  }
-  return items;
+function pickTarget(): Swatch {
+  return SWATCHES[Math.floor(Math.random() * SWATCHES.length)];
 }
 
 export default function SortItems({ difficulty, onComplete, onCancel }: MinigameProps) {
   const { t } = useTranslation();
-  const targetCount = useMemo(() => ({ 1: 5, 2: 7, 3: 9 }[difficulty]), [difficulty]);
-  const [queue] = useState<Item[]>(() => makeItems(targetCount));
-  const [idx, setIdx] = useState(0);
-  const [remainingMs, setRemainingMs] = useState(DURATION_MS);
-  const [done, setDone] = useState<"success" | "fail" | null>(null);
+  const { rounds, timeMs } = useMemo(() => {
+    switch (difficulty) {
+      case 1: return { rounds: 4, timeMs: 8000 };
+      case 2: return { rounds: 6, timeMs: 9000 };
+      case 3: return { rounds: 8, timeMs: 10000 };
+    }
+  }, [difficulty]);
+
+  const [target, setTarget] = useState<Swatch>(() => pickTarget());
+  const [done, setDone] = useState(0);
+  const [remainingMs, setRemainingMs] = useState(timeMs);
+  const [result, setResult] = useState<"success" | "fail" | null>(null);
+  const [flash, setFlash] = useState<"hit" | "miss" | null>(null);
+
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    if (done) return;
+    if (result) return;
     const start = performance.now();
     let raf = 0;
     const tick = (now: number) => {
-      const left = Math.max(0, DURATION_MS - (now - start));
+      const left = Math.max(0, timeMs - (now - start));
       setRemainingMs(left);
       if (left <= 0) {
-        setDone((prev) => prev ?? "fail");
+        setResult((prev) => prev ?? "fail");
         return;
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [done]);
+  }, [timeMs, result]);
 
+  const reportedRef = useRef(false);
   useEffect(() => {
-    if (!done) return;
-    const timer = window.setTimeout(
-      () => onCompleteRef.current({ success: done === "success", score: idx }),
-      600,
-    );
-    return () => window.clearTimeout(timer);
-  }, [done, idx]);
+    if (!result) return;
+    if (reportedRef.current) return;
+    reportedRef.current = true;
+    const tt = window.setTimeout(() => {
+      onCompleteRef.current({ success: result === "success", score: done });
+    }, 700);
+    return () => window.clearTimeout(tt);
+  }, [result, done]);
 
-  const current = queue[idx];
-
-  const choose = (pick: Bucket) => {
-    if (done || !current) return;
-    if (pick !== current.answer) {
-      setDone("fail");
-      return;
+  const tap = (s: Swatch) => {
+    if (result) return;
+    if (s.id === target.id) {
+      const nextDone = done + 1;
+      setDone(nextDone);
+      setFlash("hit");
+      window.setTimeout(() => setFlash(null), 120);
+      if (nextDone >= rounds) {
+        setResult("success");
+        return;
+      }
+      let nxt = pickTarget();
+      while (nxt.id === target.id) nxt = pickTarget();
+      setTarget(nxt);
+    } else {
+      setFlash("miss");
+      window.setTimeout(() => setFlash(null), 140);
+      setResult("fail");
     }
-    const next = idx + 1;
-    setIdx(next);
-    if (next >= queue.length) setDone("success");
   };
 
-  const timePct = (remainingMs / DURATION_MS) * 100;
+  const timePct = (remainingMs / timeMs) * 100;
+  const donePct = (done / rounds) * 100;
 
   return (
-    <div className="flex flex-col items-center gap-3 p-4" style={{ minWidth: 300 }}>
-      <div className="typo-caption tabular-nums" style={{ color: GB.lightest }}>
-        {t("uphero.mini.sort.header", { time: (remainingMs / 1000).toFixed(1), done: idx, total: queue.length })}
-      </div>
-      <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: GB.dark }} aria-hidden="true">
-        <div style={{ width: `${timePct}%`, height: "100%", background: timePct > 40 ? GB.light : "#e88b7a" }} />
-      </div>
+    <div className="flex flex-col items-center gap-3 p-4" style={{ minWidth: 280 }}>
+      <MinigameHeader>
+        {t("uphero.mini.sort.header", { time: (remainingMs / 1000).toFixed(1), done, total: rounds })}
+      </MinigameHeader>
+      <TimeBar pct={timePct} />
+      <MinigameHint>{t("uphero.mini.sort.hint")}</MinigameHint>
       <div
-        className="rounded flex items-center justify-center"
+        className="color-target flex items-center justify-center"
+        aria-label={t("uphero.mini.sort.targetAria", { label: t(target.labelKey) })}
         style={{
-          width: 120,
-          height: 120,
-          fontSize: 48,
-          color: GB.lightest,
-          background: `${GB.light}22`,
-          border: `1px solid ${GB.lightest}`,
+          width: 96,
+          height: 96,
+          borderRadius: "50%",
+          background: target.color,
+          border: `3px solid ${flash === "hit" ? GB.lightest : flash === "miss" ? GB_DANGER : GB.dark}`,
+          color: GB.darkest,
+          fontSize: 18,
+          fontWeight: 800,
+          letterSpacing: "0.05em",
         }}
-        aria-label={t("uphero.mini.sort.itemAria", { symbol: current?.symbol ?? "" })}
       >
-        {done === "success" ? "✓" : done === "fail" ? "✗" : current?.symbol ?? ""}
+        {t(target.labelKey)}
       </div>
-      <div className="typo-caption" style={{ color: GB.light }}>
-        {t("uphero.mini.sort.hint")}
+      <div className="grid grid-cols-2 gap-2" style={{ width: 200 }}>
+        {SWATCHES.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => tap(s)}
+            disabled={!!result}
+            className="swatch-btn rounded flex items-center justify-center"
+            style={{
+              height: 60,
+              background: s.color,
+              border: `2px solid ${GB.dark}`,
+              cursor: result ? "default" : "pointer",
+              color: GB.darkest,
+              fontSize: 14,
+              fontWeight: 700,
+              letterSpacing: "0.05em",
+            }}
+            aria-label={t("uphero.mini.sort.swatchAria", { label: t(s.labelKey) })}
+          >
+            {t(s.labelKey)}
+          </button>
+        ))}
       </div>
-      <div className="flex gap-4 w-full justify-center">
-        <button
-          type="button"
-          onClick={() => choose("L")}
-          disabled={!!done}
-          className="sort-btn rounded typo-body flex flex-col items-center gap-1"
-          style={{
-            width: 120,
-            height: 80,
-            background: `${GB.light}22`,
-            color: GB.lightest,
-            border: `1px solid ${GB.light}`,
-          }}
-          aria-label={t("uphero.mini.sort.leftAria")}
-        >
-          <span style={{ fontSize: 22 }}>🍞</span>
-          <span className="typo-micro" style={{ color: GB.lightest }}>{t("uphero.mini.sort.leftLabel")}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => choose("R")}
-          disabled={!!done}
-          className="sort-btn rounded typo-body flex flex-col items-center gap-1"
-          style={{
-            width: 120,
-            height: 80,
-            background: `${GB.light}22`,
-            color: GB.lightest,
-            border: `1px solid ${GB.light}`,
-          }}
-          aria-label={t("uphero.mini.sort.rightAria")}
-        >
-          <span style={{ fontSize: 22 }}>✎</span>
-          <span className="typo-micro" style={{ color: GB.lightest }}>{t("uphero.mini.sort.rightLabel")}</span>
-        </button>
-      </div>
-      {done && (
-        <div
-          role="status"
-          aria-live="assertive"
-          className="typo-body"
-          style={{ color: done === "success" ? GB.lightest : "#e88b7a", fontWeight: 600 }}
-        >
-          {done === "success" ? t("uphero.mini.sort.success") : t("uphero.mini.sort.fail")}
-        </div>
+      <ProgressBar pct={donePct} />
+      {result && (
+        <StatusMessage kind={result}>
+          {result === "success" ? t("uphero.mini.sort.success") : t("uphero.mini.sort.fail")}
+        </StatusMessage>
       )}
-      {!done && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="typo-caption rounded px-3 py-1"
-          style={{ color: GB.light, border: `1px solid ${GB.dark}`, background: "transparent" }}
-          aria-label={t("uphero.mini.giveUpAria")}
-        >
-          {t("uphero.mini.giveUpLabel")}
-        </button>
-      )}
+      {!result && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
-        .sort-btn {
-          transition: transform 80ms ${EASE_OUT};
-          touch-action: manipulation;
+        .color-target {
+          transition: border-color 120ms ${EASE_OUT}, transform 180ms ${EASE_OUT};
         }
-        .sort-btn:not(:disabled):active {
-          transform: scale(0.96);
+        .swatch-btn {
+          transition: transform 80ms ${EASE_OUT}, box-shadow 120ms ${EASE_OUT};
+          touch-action: manipulation;
+          user-select: none;
+        }
+        .swatch-btn:focus-visible {
+          outline: 2px solid ${GB.lightest};
+          outline-offset: 2px;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .swatch-btn:hover:not(:disabled) {
+            box-shadow: 0 0 0 2px ${GB.lightest}66;
+          }
+        }
+        .swatch-btn:not(:disabled):active {
+          transform: scale(0.97);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .color-target,
+          .swatch-btn {
+            transition: none;
+          }
+          .swatch-btn:not(:disabled):active {
+            transform: none;
+          }
         }
       `}</style>
     </div>
