@@ -18,8 +18,12 @@ import type {
 import { getEquipmentBaseName } from "@/data/upHeroEquipment";
 
 /**
- * 사망 시 drops 절반 유실 계산.
- * reason === "heroDied" / "defeat" (legacy) 면 `floor(N/2)` 만 유지.
+ * 사망 시 drops 유실 계산.
+ * reason === "heroDied" / "defeat" (legacy) 면 drops 감산.
+ *   - N >= 2: `floor(N/2)` 만 유지 (절반 유실).
+ *   - N === 1: 50% 확률로 유지, 50% 확률로 유실.
+ *     (기존 floor(1/2)=0 은 항상 0개라 "1개밖에 못 얻었는데 무조건 날아감"
+ *     이라 체감이 너무 가혹했던 문제 완화.)
  * 나머지 reason (bossDefeated/timeExpired/heroAbandoned) 은 전량 유지.
  */
 export function calculateKeptDrops(session: CombatSession): Equipment[] {
@@ -28,10 +32,11 @@ export function calculateKeptDrops(session: CombatSession): Equipment[] {
     lastEntry?.type === "sessionEnd" ? lastEntry.reason : undefined;
   const heroDied = reason === "heroDied" || reason === "defeat";
   if (!heroDied) return session.rewards.drops;
-  return session.rewards.drops.slice(
-    0,
-    Math.floor(session.rewards.drops.length / 2),
-  );
+  const drops = session.rewards.drops;
+  if (drops.length === 1) {
+    return Math.random() < 0.5 ? drops : [];
+  }
+  return drops.slice(0, Math.floor(drops.length / 2));
 }
 
 /**

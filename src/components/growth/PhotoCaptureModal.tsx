@@ -123,6 +123,43 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     meterCanvasRef.current = null;
   }, []);
 
+  // 실제 카메라 플래시 (torch) 제어. Chrome Android 등 후면 카메라의 torch
+  //   capability 를 가진 기기에서만 실제 LED 발광. 미지원 (iOS Safari, 전면
+  //   카메라 등) 은 silent no-op → 기존 screen brightness/overlay fallback 유지.
+  //   facingMode / capturePhase / stream 재연결 시 현재 flashOn 을 재적용.
+  useEffect(() => {
+    if (capturePhase !== "camera") return;
+    let cancelled = false;
+    const applyTorch = async () => {
+      // stream 이 아직 준비 안 됐으면 다음 tick 에서 폴링 (재촬영/facing 전환 직후).
+      for (let i = 0; i < 20; i++) {
+        if (cancelled) return;
+        const stream = streamRef.current;
+        const track = stream?.getVideoTracks?.()[0];
+        if (track) {
+          // getCapabilities 는 Chromium/Firefox 지원, Safari 에선 없거나 torch key 없음.
+          const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & {
+            torch?: boolean;
+          };
+          if (!("torch" in caps)) return; // 미지원 기기 — fallback 에 위임
+          try {
+            await track.applyConstraints({
+              advanced: [{ torch: flashOn } as MediaTrackConstraintSet & { torch: boolean }],
+            });
+          } catch {
+            // 전면 카메라 등 torch 적용 실패 — 조용히 무시.
+          }
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    };
+    applyTorch();
+    return () => {
+      cancelled = true;
+    };
+  }, [flashOn, facingMode, capturePhase]);
+
   // 노출계 바늘 — 실제 비디오 프레임의 평균 휘도를 EV 오프셋으로 환산해
   // 바늘이 실시간으로 움직이게 한다 (Canon AE-1 / Nikon FM 스타일).
   useEffect(() => {
