@@ -28,6 +28,11 @@ const april16 = localFont({
 export const metadata: Metadata = {
   title: "UpNext",
   description: "A roguelike challenge for daily achievements",
+  appleWebApp: {
+    capable: true,
+    title: "UpNext",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     title: "UpNext",
     description: "A roguelike challenge for daily achievements",

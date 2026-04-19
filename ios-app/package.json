@@ -1,0 +1,22 @@
+{
+  "name": "upnext-ios",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UpNext iOS Capacitor wrapper — loads Vercel-hosted web app inside a native iOS shell.",
+  "scripts": {
+    "sync": "cap sync ios",
+    "open": "cap open ios",
+    "assets": "capacitor-assets generate --ios"
+  },
+  "dependencies": {
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.3.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
+  }
+}
