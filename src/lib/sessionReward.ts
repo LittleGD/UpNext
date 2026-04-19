@@ -90,17 +90,35 @@ export function calculateCodexDelta(log: LogEntry[], current: Codex): Codex {
 }
 
 /**
+ * 로그라이크 체크포인트 단위 — 30층마다 진행이 저장된다.
+ * 사망 시 현재 floor 를 이 단위로 내림 → 마지막 체크포인트까지만 영구 저장.
+ */
+export const DUNGEON_CHECKPOINT_INTERVAL = 30;
+
+/**
  * 던전 진행 상황 갱신 — 도달 floor max + 처치한 보스 floor 반영.
+ *
+ * 로그라이크 규칙: 사망 시 (heroDied/defeat) 현재 floor 를 그대로 저장하지 않고
+ * 30 단위 체크포인트로 내려서 저장한다. 예) F45 에서 사망 → 체크포인트 F30 저장.
+ * 기존 최고기록은 절대 후퇴하지 않으므로 (Math.max) 이전 플레이의 성취는 유지된다.
+ * 보스 처치 기록은 영구 — 로그라이크에서도 일회성이 아니라 Codex/재도전 unlock 용이다.
  */
 export function calculateDungeonProgress(
   session: CombatSession,
   existing: DungeonProgress | undefined,
   newBossesDefeated: number[],
 ): DungeonProgress {
-  const reached = Math.max(
-    existing?.floorReached ?? 0,
-    session.currentFloor,
-  );
+  const lastEntry = session.log[session.log.length - 1];
+  const reason: SessionEndReason | undefined =
+    lastEntry?.type === "sessionEnd" ? lastEntry.reason : undefined;
+  const heroDied = reason === "heroDied" || reason === "defeat";
+
+  const sessionFloor = heroDied
+    ? Math.floor(session.currentFloor / DUNGEON_CHECKPOINT_INTERVAL) *
+      DUNGEON_CHECKPOINT_INTERVAL
+    : session.currentFloor;
+
+  const reached = Math.max(existing?.floorReached ?? 0, sessionFloor);
   return {
     dungeonId: session.dungeonId,
     floorReached: reached,
