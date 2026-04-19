@@ -94,13 +94,22 @@ function StickerLayerImpl({ stickers, editable = false, onChange, className }: P
     );
   }, []);
 
+  // 유저 피드백 #4 — 스티커 제거 long-press timer (500ms).
+  //   기존 더블탭은 모바일에서 zoom 충돌 + 발견 어려움. 길게 누름은 자연스러움.
+  const longPressTimerRef = useRef<number | null>(null);
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, sticker: Sticker) => {
       if (!editable) return;
       e.stopPropagation();
       e.preventDefault();
       const target = e.currentTarget as HTMLElement;
-      target.setPointerCapture(e.pointerId);
+
+      // 유저 피드백 #3 — 멀티터치 변형 (pinch/rotate) 차단 원인 해결.
+      //   기존: setPointerCapture 가 첫 번째 포인터를 sticker 에 lock →
+      //   두 번째 포인터 down 이 같은 element 에 안 옴 (모바일 브라우저).
+      //   수정: 1 포인터 모드에서만 capture (sticker 밖 drag 허용용).
+      //         2 번째 포인터 진입 시점에 capture 해제 → 양 손가락 모두 받음.
 
       // 다른 sticker 가 활성 중이면 무시 (한 번에 하나만 변형)
       if (dragRef.current && dragRef.current.stickerId !== sticker.id) return;
@@ -111,20 +120,49 @@ function StickerLayerImpl({ stickers, editable = false, onChange, className }: P
       const stickerPxX = rect.width * (sticker.x / 100);
       const stickerPxY = rect.height * (sticker.y / 100);
 
-      if (!dragRef.current) {
+      const isFirstPointer = !dragRef.current;
+      if (isFirstPointer) {
         dragRef.current = {
           stickerId: sticker.id,
           pointers: new Map(),
           initialPos: { px: stickerPxX, py: stickerPxY },
         };
+        // 첫 포인터만 capture — sticker 밖으로 손가락이 나가도 drag 유지.
+        try {
+          target.setPointerCapture(e.pointerId);
+        } catch {}
+        // 유저 피드백 #4 — long-press 500ms 시 sticker 삭제.
+        if (longPressTimerRef.current) {
+          window.clearTimeout(longPressTimerRef.current);
+        }
+        longPressTimerRef.current = window.setTimeout(() => {
+          if (!onChange) return;
+          const next = localStickers.filter((s) => s.id !== sticker.id);
+          setLocalStickers(next);
+          onChange(next);
+          dragRef.current = null;
+          longPressTimerRef.current = null;
+        }, 500);
       }
 
-      dragRef.current.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      dragRef.current!.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-      // 두 번째 포인터 down → pinch/rotate 모드 진입
-      if (dragRef.current.pointers.size === 2) {
-        const [p1, p2] = Array.from(dragRef.current.pointers.values());
-        dragRef.current.initialPinch = {
+      // 두 번째 포인터 down → pinch/rotate 모드 진입.
+      //   이 시점에 모든 포인터 capture 해제 → 두 번째 손가락이 다른 element
+      //   위에 있어도 container 가 받을 수 있게.
+      if (dragRef.current!.pointers.size === 2) {
+        // long-press 취소 (멀티터치 변형 시작)
+        if (longPressTimerRef.current) {
+          window.clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+        for (const pointerId of dragRef.current!.pointers.keys()) {
+          try {
+            target.releasePointerCapture(pointerId);
+          } catch {}
+        }
+        const [p1, p2] = Array.from(dragRef.current!.pointers.values());
+        dragRef.current!.initialPinch = {
           dist: dist(p1, p2),
           angle: ang(p1, p2),
           scale: sticker.scale,
@@ -137,7 +175,7 @@ function StickerLayerImpl({ stickers, editable = false, onChange, className }: P
         };
       }
     },
-    [editable],
+    [editable, localStickers, onChange],
   );
 
   const handlePointerMove = useCallback(
@@ -147,6 +185,17 @@ function StickerLayerImpl({ stickers, editable = false, onChange, className }: P
       const drag = dragRef.current;
       const ptr = drag.pointers.get(e.pointerId);
       if (!ptr) return;
+
+      // 유저 피드백 #4 — 포인터가 살짝이라도 움직이면 long-press 취소.
+      //   임계값 4px (uncertain tap 허용). 그 이상이면 drag 의도로 판단.
+      if (longPressTimerRef.current) {
+        const dx = Math.abs(e.clientX - ptr.x);
+        const dy = Math.abs(e.clientY - ptr.y);
+        if (dx > 4 || dy > 4) {
+          window.clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+      }
 
       // 포인터 위치 업데이트
       ptr.x = e.clientX;
@@ -205,6 +254,11 @@ function StickerLayerImpl({ stickers, editable = false, onChange, className }: P
       const target = e.currentTarget as HTMLElement;
       if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
       dragRef.current.pointers.delete(e.pointerId);
+      // 유저 피드백 #4 — 포인터 뗌 → long-press 취소.
+      if (longPressTimerRef.current) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
       // 모든 포인터 떨어지면 drag 종료 + onChange flush
       if (dragRef.current.pointers.size === 0) {
         dragRef.current = null;
@@ -218,11 +272,11 @@ function StickerLayerImpl({ stickers, editable = false, onChange, className }: P
     [editable, localStickers, onChange],
   );
 
+  // 유저 피드백 #4 — 더블클릭은 long-press 로 대체. 데스크톱은 더블클릭 fallback 유지.
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent, id: string) => {
       if (!editable || !onChange) return;
       e.stopPropagation();
-      // 삭제는 즉시 flush + local + 부모 동시 update.
       const next = localStickers.filter((s) => s.id !== id);
       setLocalStickers(next);
       onChange(next);

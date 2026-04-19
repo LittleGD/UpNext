@@ -185,6 +185,7 @@ const ja: Record<DictKey, string> = {
   "playground.capture.save": "保存",
   "playground.capture.flip": "裏返す",
   "playground.capture.signRequired": "サインしてから保存できます",
+  "playground.capture.stickerHint": "二本指で回転・拡大 · 長押しで削除",
   "playground.capture.record": "記録を残す",
   "playground.capture.clear": "消す",
 

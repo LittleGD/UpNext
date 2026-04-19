@@ -185,6 +185,7 @@ const zh: Record<DictKey, string> = {
   "playground.capture.save": "保存",
   "playground.capture.flip": "翻转",
   "playground.capture.signRequired": "签名后才能保存",
+  "playground.capture.stickerHint": "双指旋转 / 缩放 · 长按移除",
   "playground.capture.record": "记录这一刻",
   "playground.capture.clear": "清除",
 

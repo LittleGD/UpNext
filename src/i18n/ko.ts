@@ -183,6 +183,7 @@ const ko = {
   "playground.capture.save": "저장",
   "playground.capture.flip": "뒤집기",
   "playground.capture.signRequired": "서명을 해야 저장할 수 있어요",
+  "playground.capture.stickerHint": "두 손가락으로 회전·확대 · 길게 눌러 제거",
   "playground.capture.record": "기록 남기기",
   "playground.capture.clear": "지우기",
 
