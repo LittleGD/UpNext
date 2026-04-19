@@ -30,10 +30,10 @@ import {
 } from "@/types/uphero";
 import { createMonsterForFloor } from "@/data/upHeroMonsters";
 import {
-  pickNarrative,
-  pickTreasureDescription,
   pickEvent,
-  pickRestDescription,
+  pickNarrativeWithKey,
+  pickTreasureWithKey,
+  pickRestWithKey,
 } from "@/data/upHeroFlavor";
 import { pickMysteryEvent } from "@/data/flavor/mystery";
 import { rollEquipmentDrop, rollDropRarity } from "@/data/upHeroEquipment";
@@ -813,10 +813,13 @@ export function tickSession(session: CombatSession): CombatSession {
     return s;
   }
   if (roll < 0.4) {
-    // narrative
+    // narrative — Phase 14 i18n: key + 한국어 fallback text 둘 다 저장.
+    //   CombatLog 가 narrativeKey 우선으로 현재 언어 번역, 없으면 text fallback.
+    const narr = pickNarrativeWithKey(s.dungeonId);
     s.log.push({
       type: "narrative",
-      text: pickNarrative(s.dungeonId),
+      text: narr.text,
+      narrativeKey: narr.key,
       timestamp: Date.now(),
     });
     consumeTime(s, -TIME_COST.narrative);
@@ -839,13 +842,20 @@ export function tickSession(session: CombatSession): CombatSession {
     const isRest = Math.random() < restChance;
     if (isRest) {
       const recoverAmount = 10 + Math.floor(Math.random() * 6); // 10~15 회복
-      const restDesc = pickRestDescription();
+      // Phase 14 i18n — restDesc 자체에도 i18n key 저장 (descriptionKey).
+      //   CombatLog 의 resolveNarrative 가 descriptionKey 를 현재 언어로 풀어
+      //   {description} slot 에 주입한다.
+      const rest = pickRestWithKey();
       s.log.push({
         type: "treasure",
         coins: 0,
-        description: `${restDesc} — 시간 +${recoverAmount}`,
+        description: `${rest.text} — 시간 +${recoverAmount}`,
         narrativeKey: "uphero.combat.narrative.restArea",
-        narrativeParams: { description: restDesc, time: recoverAmount },
+        narrativeParams: {
+          description: rest.text,
+          descriptionKey: rest.key,
+          time: recoverAmount,
+        },
         timestamp: Date.now(),
       });
       // 시간 회복 — consumeTime 에 양수 전달 (음수 = 소모, 양수 = 회복).
@@ -857,13 +867,18 @@ export function tickSession(session: CombatSession): CombatSession {
       (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
       classCoinMult(s.hero.classType);
     const coins = Math.round((5 + Math.floor(Math.random() * 16)) * coinMult);
-    const treasureDesc = pickTreasureDescription();
+    // Phase 14 i18n — treasureDesc 자체에도 i18n key 저장 (descriptionKey).
+    const treasure = pickTreasureWithKey();
     s.log.push({
       type: "treasure",
       coins,
-      description: treasureDesc,
+      description: treasure.text,
       narrativeKey: "uphero.combat.narrative.treasureFound",
-      narrativeParams: { description: treasureDesc, coins },
+      narrativeParams: {
+        description: treasure.text,
+        descriptionKey: treasure.key,
+        coins,
+      },
       timestamp: Date.now(),
     });
     s.rewards.coins += coins;
