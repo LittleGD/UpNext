@@ -121,8 +121,15 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
             const cloudData = await getCloudData(firebaseUser.uid);
             const store = useGameStore.getState();
 
-            if (store.isLocalEmpty && cloudData) {
-              // 쿠키 삭제 후 복원 — 클라우드 데이터로 복원
+            if (store.isLocalEmpty && cloudData && !store.hasCompletedOnboarding) {
+              // 쿠키 삭제 후 복원 — 클라우드 데이터로 복원.
+              //
+              // `!hasCompletedOnboarding` 가드: isLocalEmpty 는 initialize() 시점의
+              // 스냅샷이라 이후 유저가 온보딩을 끝내도 true 로 남아있을 수 있다.
+              // Firebase auth listener 가 whenIdle 로 지연되어 fire 하는 동안 유저가
+              // 온보딩을 완료하면, 여기서 fresh 로컬 선택(예: mode=godlife)을
+              // 조용히 클라우드 값(prior mode=normal)으로 덮어쓰는 데이터 손실 발생.
+              // 온보딩이 이미 완료된 상태면 로컬이 truth — 아래 compareProgress 로 합친다.
               useGameStore.getState()._setFromCloud(cloudData.progress, cloudData.daily);
               saveToStorage("progress", cloudData.progress);
               saveToStorage("daily", cloudData.daily);

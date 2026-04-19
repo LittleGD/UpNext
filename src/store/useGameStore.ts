@@ -644,7 +644,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       mode: cur.pendingMode ?? cur.mode,
       pendingMode: null,
     };
-    set({ hasCompletedOnboarding: true, progress, isOpeningPack: true });
+    // isLocalEmpty=false — 온보딩 완료 직후 Firebase auth listener 가 뒤늦게 fire
+    // 하면서 cloudData 로 로컬을 덮어쓰는 race 를 차단. (SyncProvider 의
+    // `isLocalEmpty && cloudData` 브랜치가 유저의 fresh 모드 선택을 지우는 버그.)
+    set({ hasCompletedOnboarding: true, progress, isOpeningPack: true, isLocalEmpty: false });
     saveToStorage("onboarding_complete", true);
     saveToStorage("progress", progress);
   },
