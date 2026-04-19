@@ -314,6 +314,70 @@ export function resolveMonsterInParams(
   };
 }
 
+/**
+ * params.dungeonId 가 있으면 dungeonName 으로 resolve 한 값을 params.dungeon 에
+ * 주입. session 생성 시점엔 language 를 모르므로 narrative render 직전에 호출.
+ * 입력 객체 불변.
+ */
+export function resolveDungeonInParams(
+  params: Record<string, string | number> | undefined,
+  language: Language,
+): Record<string, string | number> | undefined {
+  if (!params) return params;
+  const dungeonId = params.dungeonId;
+  if (typeof dungeonId !== "string" || dungeonId.length === 0) return params;
+  const koName = typeof params.dungeon === "string" ? params.dungeon : "";
+  return {
+    ...params,
+    dungeon: dungeonName(dungeonId as DungeonId, koName, language),
+  };
+}
+
+/**
+ * Phase 13b — structured choice/event effect summary → 다국어 한 줄.
+ *   store 가 `effectSummaryData` 로 구조체를 저장해 두면 render 직전에 현재 언어
+ *   라벨로 빌드. ChoiceResultModal / CombatLog 공통.
+ */
+export interface EffectSummaryData {
+  xp?: number;
+  coins?: number;
+  heal?: number;
+  damage?: number;
+  timeDelta?: number;
+}
+
+export function buildSummaryFromData(
+  data: EffectSummaryData,
+  t: (key: DictKey, params?: Record<string, string | number>) => string,
+): string {
+  const parts: string[] = [];
+  if (data.xp) {
+    parts.push(t("uphero.choice.effectSummary.xp", { sign: "+", value: data.xp }));
+  }
+  if (data.coins) {
+    parts.push(
+      t("uphero.choice.effectSummary.coins", { sign: "+", value: data.coins }),
+    );
+  }
+  if (data.heal) {
+    parts.push(
+      t("uphero.choice.effectSummary.hp", { sign: "+", value: data.heal }),
+    );
+  }
+  if (data.damage) {
+    parts.push(
+      t("uphero.choice.effectSummary.hp", { sign: "−", value: data.damage }),
+    );
+  }
+  if (data.timeDelta) {
+    const sign = data.timeDelta > 0 ? "+" : "";
+    parts.push(
+      t("uphero.choice.effectSummary.time", { sign, value: data.timeDelta }),
+    );
+  }
+  return parts.join(" · ");
+}
+
 /** Phase 13b — 주간 affix 이름 + 설명 다국어 */
 export function weeklyAffixName(
   affixId: string,

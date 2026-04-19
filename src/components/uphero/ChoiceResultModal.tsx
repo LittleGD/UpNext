@@ -27,6 +27,7 @@ import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
+import { buildSummaryFromData } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 interface ChoiceResultModalProps {
@@ -312,47 +313,3 @@ function parseChoiceNarrative(text: string): {
   return { action: action || null, result };
 }
 
-/**
- * Phase 13b — structured summary → 다국어 한 줄 빌드.
- *   각 비-zero 필드를 i18n 라벨로 풀어 ` · ` 으로 join.
- */
-function buildSummaryFromData(
-  data: NonNullable<ChoiceResultModalProps["summaryData"]>,
-  t: (
-    key: import("@/i18n").DictKey,
-    params?: Record<string, string | number>,
-  ) => string,
-): string {
-  const parts: string[] = [];
-  if (data.xp) {
-    parts.push(t("uphero.choice.effectSummary.xp", { sign: "+", value: data.xp }));
-  }
-  if (data.coins) {
-    parts.push(
-      t("uphero.choice.effectSummary.coins", { sign: "+", value: data.coins }),
-    );
-  }
-  if (data.heal) {
-    parts.push(
-      t("uphero.choice.effectSummary.hp", { sign: "+", value: data.heal }),
-    );
-  }
-  if (data.damage) {
-    parts.push(
-      t("uphero.choice.effectSummary.hp", {
-        sign: "−",
-        value: data.damage,
-      }),
-    );
-  }
-  if (data.timeDelta) {
-    const sign = data.timeDelta > 0 ? "+" : "";
-    parts.push(
-      t("uphero.choice.effectSummary.time", {
-        sign,
-        value: data.timeDelta,
-      }),
-    );
-  }
-  return parts.join(" · ");
-}
