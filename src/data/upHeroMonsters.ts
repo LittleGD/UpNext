@@ -258,6 +258,12 @@ export function createMonsterForFloor(
  *   - trait "tough"   : HP ×1.5, ATK ×0.8 (탱커)
  *   - trait "fragile" : HP ×0.7, ATK ×1.4 (유리 대포)
  *   - floor ≤ 10      : hp/atk/def 전체 ×0.75 (초반 페이싱 완화)
+ *
+ * Phase 15 밸런스 리밸런싱 (유저 피드백 "Lv24 영웅이 Lv14 몬스터에 진다"):
+ *   - ATK 성장률: floor ×1.5 → ×1.3 (영웅 STR 성장 ×1.0 과의 격차 완화)
+ *   - DEF 성장률: floor ×1.0 → ×0.5 (영웅 공격이 "씨알도 안 먹히는" 문제 해결)
+ *   - 영웅 측 computeHeroDamage 공식도 DR 기반으로 전환 (대칭).
+ *   모두 power / NG+ / trait / earlyNerf 스케일은 유지 — 고난도 루트의 도전성 보전.
  */
 function scaleMonster(
   t: MonsterTemplate,
@@ -289,8 +295,11 @@ function scaleMonster(
   const finalHp = Math.round(
     base * t.power * bossHpMult * ngMult * hpMult * traitHpMult * earlyNerf,
   );
+  // Phase 15 — ATK 성장률 ×1.5 → ×1.3. 영웅 STR 성장 (level 당 +1.0) 과의 격차 완화.
+  //   F14 power2: (5+14×1.3)×2 = 46 (기존 52, ≈12% 하향)
+  //   F30 power3 보스: (5+30×1.3)×3×1.7 = 224 (기존 265)
   const finalAtk = Math.round(
-    (5 + floor * 1.5) *
+    (5 + floor * 1.3) *
       t.power *
       bossAtkMult *
       ngMult *
@@ -298,7 +307,11 @@ function scaleMonster(
       traitAtkMult *
       earlyNerf,
   );
-  const finalDef = Math.round((2 + floor) * t.power * ngMult * earlyNerf);
+  // Phase 15 — DEF 성장률 ×1.0 → ×0.5. flat subtraction 공식에서 영웅 공격이 무력화되던 문제 해결.
+  //   (영웅 측 computeHeroDamage 도 DR 공식으로 전환됨 — 두 변경은 세트로 설계)
+  //   F14 power2: (2+7)×2 = 18 (기존 32, ≈44% 하향)
+  //   F30 power3: (2+15)×3 = 51 (기존 96)
+  const finalDef = Math.round((2 + floor * 0.5) * t.power * ngMult * earlyNerf);
 
   return {
     id: `${t.id}_f${floor}_${Date.now() % 10000}`,

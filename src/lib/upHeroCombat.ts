@@ -1848,16 +1848,32 @@ function rollEnemyOutcome(
   return "hit";
 }
 
-/** 영웅 데미지 — crit 시 1.8배 */
+/** 영웅 데미지 — crit 시 1.8배.
+ *
+ * Phase 15 balance fix: 이전 공식은 flat `- monster.def` 라 DEF 가 STR 에 근접하면
+ * 데미지가 1~4 로 무의미해졌음 (Lv24 STR 33 vs F14 power2 DEF 32 → 공격 1~4).
+ * 유저 피드백 "Lv24 가 Lv14 몬스터에 진다" 의 근본 원인.
+ *
+ * 새 공식: 몬스터 쪽과 대칭으로 **DR (damage reduction) 기반** 으로 전환.
+ *   defDR  = min(0.6, def / (def + 50))   ← cap 60%, DEF 50 에서 50%
+ *   rawDmg = str + random(0..6) - 3
+ *   base   = max(1, round(rawDmg × (1 - defDR)))
+ *   crit ×1.8 (변경 없음)
+ *
+ * 튜닝 포인트:
+ * - DR cap 0.6 (몬스터 측 0.75 보다 엄격) — 영웅이 주도권 가지도록.
+ * - +50 bias — F30 power3 DEF 51 기준 50% DR. 엔드게임도 공격이 유효.
+ * - Lv24 STR 33 vs DEF 32 (Phase 15 기준 18) → DR 0.265 → dmg ≈ 24, crit 43.
+ */
 function computeHeroDamage(
   stats: HeroBaseStats,
   monster: Monster,
   crit: boolean,
 ): number {
-  const base = Math.max(
-    1,
-    stats.str + Math.floor(rng() * 7) - 3 - monster.def,
-  );
+  const def = Math.max(0, monster.def);
+  const defDR = Math.min(0.6, def / (def + 50));
+  const rawDmg = stats.str + Math.floor(rng() * 7) - 3;
+  const base = Math.max(1, Math.round(rawDmg * (1 - defDR)));
   return crit ? Math.floor(base * 1.8) : base;
 }
 
