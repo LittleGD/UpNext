@@ -1043,13 +1043,42 @@ const illusT4: ClassSkill = {
  * 전직 (Lv30) 전까지 영웅은 class 가 없어 스킬 트리 자체를 사용하지 못했다.
  * 저레벨 전투가 '기본 공격만 반복' 이라 지루하고 skill 개념 학습 기회도 없다.
  *
- * 해결: 2 개의 가벼운 튜토리얼 스킬을 레벨별로 자동 지급.
+ * 해결: 3 개의 가벼운 튜토리얼 스킬을 레벨별로 자동 지급.
+ *  - novice_heal  (Lv1+): HP +15 회복 — "스킬 = 회복" 학습 (튜토리얼 입문).
  *  - novice_focus (Lv5+): 다음 공격 피해 +50% — "스킬 = 공격 강화" 학습.
  *  - novice_brace (Lv15+): 다음 1 round 피해 -50% — "스킬 = 방어" 학습.
  *
- * 자원 비용 0 (novice 는 클래스 자원 없음). 쿨다운 길게 (5/6 round) — 전직 후
+ * 자원 비용 0 (novice 는 클래스 자원 없음). 쿨다운 길게 (7/5/6 round) — 전직 후
  * 본격 스킬 트리 대비 DPS 기여도 제한.
  * ──────────────────────────────────────────── */
+
+const noviceHeal: ClassSkill = {
+  id: "novice_heal",
+  class: "novice",
+  tier: 0,
+  name: "초급 힐링",
+  description: "HP +15 회복.",
+  resourceCost: 0,
+  cooldown: 7,
+  requiredLevel: 1,
+  pointCost: 0,
+  // auto 발동: HP 60% 이하일 때만. "거의 풀피인데 힐 써서 쿨 낭비" 방지.
+  shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.6,
+  apply(s) {
+    // 고정 15 — novice 는 INT scaling 없이 튜토리얼 난이도 유지.
+    const heal = 15;
+    const healed = Math.min(s.hero.maxHp - s.hero.hp, heal);
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
+    pushSkillLog(
+      s,
+      "novice",
+      "초급 힐링",
+      `HP +${healed}`,
+      "novice_heal",
+      { heal: healed },
+    );
+  },
+};
 
 const noviceFocus: ClassSkill = {
   id: "novice_focus",
@@ -1104,7 +1133,8 @@ const noviceBrace: ClassSkill = {
   },
 };
 
-export const NOVICE_SKILLS: ClassSkill[] = [noviceFocus, noviceBrace];
+// 순서 = UI 렌더 순서. Lv1 힐 → Lv5 집중 → Lv15 방어 (해금 순).
+export const NOVICE_SKILLS: ClassSkill[] = [noviceHeal, noviceFocus, noviceBrace];
 
 /* ────────────────────────────────────────────
  * CLASS_SKILL_TREES — 각 클래스의 4 tier 스킬 배열

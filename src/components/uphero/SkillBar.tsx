@@ -9,7 +9,8 @@
  *   - disabled 상태: cooldown 남아있거나 자원 부족
  *   - 현재 CD 는 반원형 pie overlay 로 표시
  *
- * 학습된 스킬이 없으면 bar 자체 숨김 (T1 자동 해금이라 전직 후부터 최소 1 개).
+ * 학습된 스킬이 없으면 bar 자체 숨김 (Phase 14 — Lv5/Lv15 novice 자동 지급 이후
+ * 전직 전에도 최소 1 개, 전직 후 T1 자동 해금 포함).
  *
  * a11y: 각 버튼 aria-label 에 스킬명/비용/쿨다운/상태 포함.
  */
@@ -19,6 +20,7 @@ import type { CombatSession } from "@/types/uphero";
 import { CLASS_RESOURCE } from "@/types/uphero";
 import {
   CLASS_SKILL_TREES,
+  NOVICE_SKILLS,
   canFireSkill,
   type ClassSkill,
 } from "@/lib/classSkills";
@@ -27,19 +29,28 @@ import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { skillName, resourceName } from "@/lib/upHeroI18n";
 
+// Phase 14 — novice skill 전용 중립 자원 팔레트 (클래스 분화 전이라 자원이 없음).
+//   resourceCost 0 이므로 "자원 부족" 조건은 발생하지 않고, 쿨다운만이 유일한 gate.
+const NOVICE_RESOURCE = { color: GB.light, name: "FOCUS", short: "FOC" } as const;
+
 export default function SkillBar({ session }: { session: CombatSession }) {
   const fireSkillManual = useUpHeroStore((s) => s.fireSkillManual);
   const { play } = useSound();
   const { t, language } = useTranslation();
   const cls = session.hero.classType;
-  if (!cls) return null;
 
+  // Phase 14 — novice + 클래스 트리 통합. 전직 전에는 NOVICE_SKILLS 만, 전직 후엔 둘 다.
+  //   이전엔 cls null 이면 early return 이라 전직 전 스킬이 전투 UI 에 전혀 노출 안 됨.
   const learnedIds = session.hero.learnedSkills ?? [];
-  const tree = CLASS_SKILL_TREES[cls];
-  const learnedSkills = tree.filter((s) => learnedIds.includes(s.id));
+  const tree = cls ? CLASS_SKILL_TREES[cls] : [];
+  const learnedSkills = [...NOVICE_SKILLS, ...tree].filter((s) =>
+    learnedIds.includes(s.id),
+  );
   if (learnedSkills.length === 0) return null;
 
-  const resource = CLASS_RESOURCE[cls];
+  const classResource = cls ? CLASS_RESOURCE[cls] : null;
+  const resourceOf = (skill: ClassSkill) =>
+    skill.class === "novice" || !classResource ? NOVICE_RESOURCE : classResource;
 
   const onFire = (skill: ClassSkill) => {
     const result = fireSkillManual(skill.id);
@@ -58,6 +69,7 @@ export default function SkillBar({ session }: { session: CombatSession }) {
       aria-label={t("uphero.skillBar.aria")}
     >
       {learnedSkills.map((skill) => {
+        const resource = resourceOf(skill);
         const check = canFireSkill(session, skill.id);
         const cd = (session.skillCooldowns ?? {})[skill.id] ?? 0;
         const maxCd = skill.cooldown;
@@ -75,7 +87,7 @@ export default function SkillBar({ session }: { session: CombatSession }) {
         if (!ready) {
           if (check.reason === "cooldown") srLabel += ` · ${t("uphero.skill.cdSuffix", { cd })}`;
           else if (check.reason === "resource")
-            srLabel += ` · ${resourceName(cls, language) || resource.name}`;
+            srLabel += ` · ${(cls && resourceName(cls, language)) || resource.name}`;
         }
 
         return (
@@ -111,17 +123,24 @@ export default function SkillBar({ session }: { session: CombatSession }) {
             >
               {localName}
             </span>
-            {/* 자원 비용 */}
+            {/* 자원 비용 — novice (cost=0) 는 CD 값으로 대체해 "무료" 표기 */}
             <span
               className="typo-micro tabular-nums"
               style={{
-                color: hasResource ? resource.color : "#e88b7a",
+                color:
+                  skill.resourceCost === 0
+                    ? GB.light
+                    : hasResource
+                      ? resource.color
+                      : "#e88b7a",
                 fontSize: 9,
               }}
             >
-              {skill.resourceCost}
+              {skill.resourceCost === 0
+                ? t("uphero.stat.cdPrefix", { cd: skill.cooldown })
+                : skill.resourceCost}
             </span>
-            {/* tier 작은 뱃지 */}
+            {/* tier 작은 뱃지 — novice (tier 0) 는 "N" 으로 표기 */}
             <span
               className="absolute top-0.5 left-1 typo-micro tabular-nums"
               style={{
@@ -131,7 +150,7 @@ export default function SkillBar({ session }: { session: CombatSession }) {
               }}
               aria-hidden="true"
             >
-              T{skill.tier}
+              {skill.tier === 0 ? "N" : `T${skill.tier}`}
             </span>
             {/* 쿨다운 overlay */}
             {cd > 0 && (

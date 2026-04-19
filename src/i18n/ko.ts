@@ -492,6 +492,13 @@ const ko = {
   "uphero.skillTree.sp": "SP",
   "uphero.skillTree.cost": "비용",
 
+  // Novice skills (pre-awakening, Lv5/Lv15 자동 해금)
+  "uphero.novice.heading": "기본 스킬",
+  "uphero.novice.subtitle": "전직 전에도 쓸 수 있는 공용 기술",
+  "uphero.novice.unlockAt": "Lv {level} 해금",
+  "uphero.novice.badge.learned": "학습됨",
+  "uphero.novice.badge.locked": "잠김",
+
   // Choice panel
   "uphero.choice.mysteryBadge": "수상한 이벤트",
   "uphero.choice.mysteryBadgeAria": "수상한 이벤트 · 효과 증폭",
@@ -668,6 +675,7 @@ const ko = {
   "uphero.skill.illus_dreamscape_t4.name": "환몽",
 
   // Phase 14 — Novice tutorial skill names
+  "uphero.skill.novice_heal.name": "초급 힐링",
   "uphero.skill.novice_focus.name": "집중 일격",
   "uphero.skill.novice_brace.name": "방어 자세",
 
@@ -1142,6 +1150,7 @@ const ko = {
   "uphero.skill.illus_dreamscape_t4.desc": "3 round 무적.",
 
   // Phase 14 — Novice tutorial skill desc
+  "uphero.skill.novice_heal.desc": "HP +15 회복.",
   "uphero.skill.novice_focus.desc": "다음 공격 피해 +50%.",
   "uphero.skill.novice_brace.desc": "다음 1 round 받는 피해 -50%.",
 
@@ -1791,6 +1800,7 @@ const ko = {
   "uphero.skill.illus_dreamscape_t4.narrative": "영웅이 꿈 속으로 — 3 round 무적",
 
   // Phase 14 — Novice tutorial skills (전직 전)
+  "uphero.skill.novice_heal.narrative": "영웅이 상처를 어루만진다 — HP +{heal}",
   "uphero.skill.novice_focus.narrative": "영웅이 깊게 호흡한다 — 다음 공격 +50%",
   "uphero.skill.novice_brace.narrative": "영웅이 자세를 낮춘다 — 다음 피해 -50%",
 

@@ -637,6 +637,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     if (heroLevel >= 30 && mergedHero.classType === null) {
       get().assignClass();
     }
+
+    // Phase 14 retroactive — 업데이트 전부터 Lv5+/Lv15+ 도달했던 영웅에게
+    //   novice 스킬을 소급 지급. grantNoviceSkills 는 idempotent 라 매 init
+    //   마다 호출해도 중복 추가되지 않는다. (levelUp 훅에서만 지급하던 기존
+    //   구현으로는 "이미 Lv20 인 유저가 Lv21 될 때까지 스킬이 안 생김" 회귀)
+    get().grantNoviceSkills(heroLevel);
   },
 
   acknowledgeIdleReward() {
@@ -713,8 +719,29 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       ...state.hero,
       learnedSkills: [...learned, ...toAdd],
     };
-    set({ hero: newHero });
-    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+    // 진행 중 세션이 있으면 session.hero 에도 소급 반영 — 안 하면
+    //   "hero 엔 novice_focus 가 생겼는데 현재 던전에선 안 보임" 회귀.
+    //   session.hero 는 snapshot 이라 init 이후에도 자동 갱신되지 않음.
+    const prevSession = state.currentSession;
+    const newSession = prevSession
+      ? {
+          ...prevSession,
+          hero: {
+            ...prevSession.hero,
+            learnedSkills: [
+              ...(prevSession.hero.learnedSkills ?? []),
+              ...toAdd.filter(
+                (id) => !(prevSession.hero.learnedSkills ?? []).includes(id),
+              ),
+            ],
+          },
+        }
+      : prevSession;
+    set({ hero: newHero, currentSession: newSession });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, hero: newHero, currentSession: newSession }),
+    );
   },
 
   acknowledgeClassAwaken() {

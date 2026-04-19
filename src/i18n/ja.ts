@@ -494,6 +494,13 @@ const ja: Record<DictKey, string> = {
   "uphero.skillTree.sp": "SP",
   "uphero.skillTree.cost": "コスト",
 
+  // Novice skills (転職前、Lv5/Lv15 自動解放)
+  "uphero.novice.heading": "基本スキル",
+  "uphero.novice.subtitle": "転職前でも使える共通技",
+  "uphero.novice.unlockAt": "Lv {level} で解放",
+  "uphero.novice.badge.learned": "習得済み",
+  "uphero.novice.badge.locked": "未習得",
+
   // Choice panel
   "uphero.choice.mysteryBadge": "怪しいイベント",
   "uphero.choice.mysteryBadgeAria": "怪しいイベント · 効果増幅",
@@ -670,6 +677,7 @@ const ja: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.name": "幻夢",
 
   // Phase 14 — Novice 튜토리얼 스킬
+  "uphero.skill.novice_heal.name": "初級ヒール",
   "uphero.skill.novice_focus.name": "集中の一撃",
   "uphero.skill.novice_brace.name": "防御の構え",
 
@@ -1144,6 +1152,7 @@ const ja: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.desc": "3ターン無敵。",
 
   // Phase 14 — Novice 튜토리얼 스킬 desc
+  "uphero.skill.novice_heal.desc": "HP を 15 回復。",
   "uphero.skill.novice_focus.desc": "次の攻撃ダメージ +50%。",
   "uphero.skill.novice_brace.desc": "次の1ターン受けるダメージ -50%。",
 
@@ -1788,6 +1797,7 @@ const ja: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.narrative": "勇者が夢の中へ — 3 ターン無敵",
 
   // Phase 14 — Novice 튜토리얼 스킬
+  "uphero.skill.novice_heal.narrative": "勇者が傷をなでる — HP +{heal}",
   "uphero.skill.novice_focus.narrative": "勇者が深く息を吸う — 次の攻撃 +50%",
   "uphero.skill.novice_brace.narrative": "勇者が身を低くする — 次のダメージ -50%",
 

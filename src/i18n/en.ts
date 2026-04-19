@@ -494,6 +494,13 @@ const en: Record<DictKey, string> = {
   "uphero.skillTree.sp": "SP",
   "uphero.skillTree.cost": "Cost",
 
+  // Novice skills (pre-awakening, auto-unlocked at Lv5/Lv15)
+  "uphero.novice.heading": "Basic skills",
+  "uphero.novice.subtitle": "Shared techniques usable before class awakening",
+  "uphero.novice.unlockAt": "Unlocks at Lv {level}",
+  "uphero.novice.badge.learned": "Learned",
+  "uphero.novice.badge.locked": "Locked",
+
   // Choice panel
   "uphero.choice.mysteryBadge": "Mystery event",
   "uphero.choice.mysteryBadgeAria": "Mystery event · amplified effects",
@@ -670,6 +677,7 @@ const en: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.name": "Dreamscape",
 
   // Phase 14 — Novice tutorial skill names
+  "uphero.skill.novice_heal.name": "Minor Heal",
   "uphero.skill.novice_focus.name": "Focus Strike",
   "uphero.skill.novice_brace.name": "Brace",
 
@@ -1144,6 +1152,7 @@ const en: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.desc": "Invulnerable for 3 rounds.",
 
   // Phase 14 — Novice tutorial skill desc
+  "uphero.skill.novice_heal.desc": "Restore 15 HP.",
   "uphero.skill.novice_focus.desc": "Next attack deals +50% damage.",
   "uphero.skill.novice_brace.desc": "Next round: take 50% less damage.",
 
@@ -1788,6 +1797,7 @@ const en: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.narrative": "The hero dreamed away — invulnerable for 3 rounds.",
 
   // Phase 14 — Novice tutorial skills
+  "uphero.skill.novice_heal.narrative": "The hero tends a scrape — HP +{heal}.",
   "uphero.skill.novice_focus.narrative": "The hero takes a deep breath — next attack +50%.",
   "uphero.skill.novice_brace.narrative": "The hero braces low — next damage -50%.",
 

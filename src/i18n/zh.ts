@@ -494,6 +494,13 @@ const zh: Record<DictKey, string> = {
   "uphero.skillTree.sp": "SP",
   "uphero.skillTree.cost": "消耗",
 
+  // Novice skills (转职前,Lv5/Lv15 自动解锁)
+  "uphero.novice.heading": "基础技能",
+  "uphero.novice.subtitle": "转职前也能使用的通用技能",
+  "uphero.novice.unlockAt": "Lv {level} 解锁",
+  "uphero.novice.badge.learned": "已学习",
+  "uphero.novice.badge.locked": "未学习",
+
   // Choice panel
   "uphero.choice.mysteryBadge": "神秘事件",
   "uphero.choice.mysteryBadgeAria": "神秘事件 · 效果增幅",
@@ -670,6 +677,7 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.name": "幻梦",
 
   // Phase 14 — 转职前 Novice 技能
+  "uphero.skill.novice_heal.name": "初级治疗",
   "uphero.skill.novice_focus.name": "集中一击",
   "uphero.skill.novice_brace.name": "防御架势",
 
@@ -1144,6 +1152,7 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.desc": "3 回合无敌。",
 
   // Phase 14 — Novice 技能描述
+  "uphero.skill.novice_heal.desc": "恢复 15 点 HP。",
   "uphero.skill.novice_focus.desc": "下次攻击伤害 +50%。",
   "uphero.skill.novice_brace.desc": "下 1 回合受到伤害 -50%。",
 
@@ -1788,6 +1797,7 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.narrative": "勇者进入梦境 — 3 回合无敌",
 
   // Phase 14 — Novice 技能旁白
+  "uphero.skill.novice_heal.narrative": "勇者抚摸伤处 — HP +{heal}",
   "uphero.skill.novice_focus.narrative": "勇者深呼吸 — 下次攻击 +50%",
   "uphero.skill.novice_brace.narrative": "勇者放低身姿 — 下次伤害 -50%",
 

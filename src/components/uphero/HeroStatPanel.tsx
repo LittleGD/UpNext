@@ -170,6 +170,11 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
         {hero.classType && <ClassSection hero={hero} />}
         {/* Phase 12d — 클래스별 스킬트리 (전직 후에만 노출). */}
         {hero.classType && <SkillTreePanel classType={hero.classType} />}
+        {/* Phase 14 — 전직 전 영웅용 기본 스킬 섹션 (novice).
+             이전엔 class 분화가 돼야만 스킬 UI 가 떴는데, 그러면 Lv1–Lv29 구간에는
+             영웅이 "스킬 개념 자체를 모름". level gate 달성 시 자동 지급되는
+             튜토리얼 스킬을 여기서 노출해 전투 중 수동 발동 방법을 학습시킨다. */}
+        {!hero.classType && <NoviceSkillSection hero={hero} heroLevel={level} />}
 
         {/* Phase 12b — 스탯 radar chart. 기존 선형 bar (max 40 cap) → 육각형.
              각 축의 max 는 레벨/클래스 기반 동적 계산. 장비 bonus 가 max 초과 시
@@ -386,7 +391,7 @@ function HeroNameEditor({ name }: { name: string }) {
  * Phase 6b — ClassSection (분화된 영웅의 class 정보 + 스킬 + 자동 토글)
  * ──────────────────────────────────────────── */
 
-import { CLASS_SKILLS } from "@/lib/classSkills";
+import { CLASS_SKILLS, NOVICE_SKILLS } from "@/lib/classSkills";
 import type { Hero } from "@/types/uphero";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 
@@ -575,5 +580,96 @@ function StatPanelPhotoThumb({
       className="rounded-sm"
       style={{ width: size, height: size, objectFit: "cover" }}
     />
+  );
+}
+
+/* ────────────────────────────────────────────
+ * Phase 14 — NoviceSkillSection (전직 전 영웅의 기본 스킬 섹션)
+ *
+ * 분화 전 (classType === null) 영웅에게 novice 스킬 목록을 보여준다.
+ * - 이미 learned 인 스킬: 체크 표시 + 설명.
+ * - 아직 레벨 미달인 스킬: disabled 표시 + "Lv N 에 해금" 안내.
+ * 학습 버튼은 없음 — level gate 달성 시 자동 지급됨 (grantNoviceSkills).
+ * ──────────────────────────────────────────── */
+function NoviceSkillSection({ hero, heroLevel }: { hero: Hero; heroLevel: number }) {
+  const { t, language } = useTranslation();
+  const learned = hero.learnedSkills ?? [];
+
+  return (
+    <section className="px-5 pb-5" style={{ borderTop: `1px solid ${GB.dark}` }}>
+      <div className={`typo-caption pt-4 pb-2 ${gbClass.textDim}`}>
+        {t("uphero.novice.heading")}
+      </div>
+      <div className={`typo-micro mb-3 ${gbClass.textDim}`}>
+        {t("uphero.novice.subtitle")}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {NOVICE_SKILLS.map((skill) => {
+          const isLearned = learned.includes(skill.id);
+          const levelOk = heroLevel >= skill.requiredLevel;
+          const status: "learned" | "locked" = isLearned ? "learned" : "locked";
+          const borderColor = isLearned
+            ? GB.lightest
+            : levelOk
+              ? GB.light
+              : GB.dark;
+          return (
+            <div
+              key={skill.id}
+              className="flex items-start gap-2 rounded p-2.5"
+              style={{
+                background: `${GB.dark}55`,
+                border: `1px solid ${borderColor}`,
+                opacity: isLearned ? 1 : 0.7,
+              }}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="typo-caption" style={{ color: GB.lightest }}>
+                    {skillName(skill.id, skill.name, language)}
+                  </span>
+                  {isLearned && (
+                    <span
+                      className="typo-micro tabular-nums px-1.5 rounded-sm"
+                      style={{ background: GB.lightest, color: GB.darkest }}
+                    >
+                      ✓
+                    </span>
+                  )}
+                </div>
+                <div className={`typo-micro mb-1 ${gbClass.textDim}`}>
+                  {skillDesc(skill.id, skill.description, language)}
+                </div>
+                <div className="flex items-center gap-2 typo-micro tabular-nums">
+                  <span className={gbClass.textDim}>
+                    {t("uphero.stat.cdPrefix", { cd: skill.cooldown })}
+                  </span>
+                  {!isLearned && (
+                    <>
+                      <span className={gbClass.textDim}>·</span>
+                      <span style={{ color: levelOk ? GB.light : GB.dark }}>
+                        {t("uphero.novice.unlockAt", { level: skill.requiredLevel })}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <span
+                className="typo-micro px-1.5 py-0.5 rounded-sm"
+                style={{
+                  background: `${GB.dark}80`,
+                  color: GB.light,
+                  fontSize: 9,
+                }}
+              >
+                {status === "learned"
+                  ? t("uphero.novice.badge.learned")
+                  : t("uphero.novice.badge.locked")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

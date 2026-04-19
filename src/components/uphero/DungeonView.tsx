@@ -828,8 +828,10 @@ export default function DungeonView() {
         {awaitingChoice && !bossReveal && <ChoicePanel />}
       </div>
 
-      {/* Phase 12d — 수동 스킬 발동 bar. 학습된 스킬 있는 경우만 노출. */}
-      {session.hero.classType && (session.hero.learnedSkills?.length ?? 0) > 0 && (
+      {/* Phase 12d — 수동 스킬 발동 bar. 학습된 스킬 있는 경우만 노출.
+            Phase 14 — novice 스킬 쓰는 전직 전 영웅도 포함되도록 classType 게이트 제거.
+            SkillBar 내부에서도 learned skills 0 개면 return null 하므로 여기선 length 만 체크. */}
+      {(session.hero.learnedSkills?.length ?? 0) > 0 && (
         <SkillBar session={session} />
       )}
 
