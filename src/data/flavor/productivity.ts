@@ -263,4 +263,139 @@ export const PRODUCTIVITY_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    {
+      prompt: "작업대 위에 톱니바퀴와 녹슨 잡동사니가 뒤섞여 있다. 분류가 필요하다.",
+      promptKey: "uphero.flavor.prd.5.prompt",
+      options: [
+        {
+          label: "좌우로 분류",
+          labelKey: "uphero.flavor.prd.5.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "sort_items",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 60, coins: 30 },
+              { kind: "time", delta: 4 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 12 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "톱니와 잡동사니를 나눈다...",
+          resultTextKey: "uphero.flavor.prd.5.opt0.out0.result",
+        },
+        {
+          label: "전부 자루에 담기",
+          labelKey: "uphero.flavor.prd.5.opt1.label",
+          outcomes: [
+            {
+              weight: 70,
+              resultText: "무거워서 걸음이 느려졌다.",
+              resultTextKey: "uphero.flavor.prd.5.opt1.out0.result",
+              effects: [
+                { kind: "reward", coins: 15 },
+                { kind: "time", delta: -7 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "자루 속에서 은화가 쏟아졌다.",
+              resultTextKey: "uphero.flavor.prd.5.opt1.out1.result",
+              effects: [
+                { kind: "reward", coins: 35 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "시계탑의 신호등이 깜빡인다. 녹색이 켜지는 순간 레버를 당겨야 한다.",
+      promptKey: "uphero.flavor.prd.6.prompt",
+      options: [
+        {
+          label: "신호 맞춰 레버 당기기",
+          labelKey: "uphero.flavor.prd.6.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "reaction_tap",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 50, coins: 25 },
+              { kind: "time", delta: 5 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 15 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "빛을 응시한다...",
+          resultTextKey: "uphero.flavor.prd.6.opt0.out0.result",
+        },
+        {
+          label: "신호를 무시하고 우회",
+          labelKey: "uphero.flavor.prd.6.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "오래된 계단을 돌아 내려간다.",
+              resultTextKey: "uphero.flavor.prd.6.opt1.out0.result",
+              effects: [{ kind: "time", delta: -7 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "장부의 숫자가 맞지 않는다. 8초 안에 잔액을 맞춰야 한다.",
+      promptKey: "uphero.flavor.prd.7.prompt",
+      options: [
+        {
+          label: "암산으로 맞추기",
+          labelKey: "uphero.flavor.prd.7.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "quick_sum",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 70, coins: 35 },
+              { kind: "time", delta: 4 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 10 },
+              { kind: "time", delta: -6 },
+            ],
+          },
+          resultText: "펜촉을 장부에 가져간다...",
+          resultTextKey: "uphero.flavor.prd.7.opt0.out0.result",
+        },
+        {
+          label: "회계사에게 맡기기",
+          labelKey: "uphero.flavor.prd.7.opt1.label",
+          outcomes: [
+            {
+              weight: 80,
+              resultText: "회계사가 수수료를 떼고 정리해줬다.",
+              resultTextKey: "uphero.flavor.prd.7.opt1.out0.result",
+              effects: [
+                { kind: "reward", xp: 20 },
+                { kind: "time", delta: -9 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "회계사가 실수를 숨겼다. 손해를 봤다.",
+              resultTextKey: "uphero.flavor.prd.7.opt1.out1.result",
+              effects: [
+                { kind: "damage", amount: 8 },
+                { kind: "time", delta: -10 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
 ];

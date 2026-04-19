@@ -323,4 +323,143 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    // Phase 13 — WarioWare 미니게임 3종 추가 (식재료 분류 / 신선도 검수 / 장터 셈).
+    {
+      prompt: "장터 상인이 농산물과 잡동사니가 뒤섞였다며 분류를 부탁한다.",
+      promptKey: "uphero.flavor.ntr.6.prompt",
+      options: [
+        {
+          label: "두 바구니에 빠르게 나눈다",
+          labelKey: "uphero.flavor.ntr.6.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "sort_items",
+            difficulty: 1,
+            successEffects: [
+              { kind: "heal", amount: 40 },
+              { kind: "reward", coins: 25, xp: 50 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 12 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "깔끔히 나눠담자 상인이 햇과일 한 바구니를 건넸다.",
+          resultTextKey: "uphero.flavor.ntr.6.opt0.out0.result",
+        },
+        {
+          label: "대충 섞어서 돌려준다",
+          labelKey: "uphero.flavor.ntr.6.opt1.label",
+          outcomes: [
+            {
+              weight: 70,
+              resultText: "상인이 한숨을 쉬며 약간의 동전만 쥐어준다.",
+              resultTextKey: "uphero.flavor.ntr.6.opt1.out0.result",
+              effects: [
+                { kind: "reward", coins: 8 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "성난 상인이 썩은 무를 던졌다.",
+              resultTextKey: "uphero.flavor.ntr.6.opt1.out1.result",
+              effects: [
+                { kind: "damage", amount: 10 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "창고지기가 신선한 과일 속에 상한 놈이 하나 섞였다고 한다.",
+      promptKey: "uphero.flavor.ntr.7.prompt",
+      options: [
+        {
+          label: "한눈에 찾아낸다",
+          labelKey: "uphero.flavor.ntr.7.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "spot_diff",
+            difficulty: 2,
+            successEffects: [
+              { kind: "heal", amount: 55 },
+              { kind: "reward", coins: 30, xp: 70 },
+              { kind: "time", delta: -3 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 18 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "상한 열매를 골라내자 창고지기가 햇과일 꾸러미를 얹어준다.",
+          resultTextKey: "uphero.flavor.ntr.7.opt0.out0.result",
+        },
+        {
+          label: "전부 버리라고 권한다",
+          labelKey: "uphero.flavor.ntr.7.opt1.label",
+          outcomes: [
+            {
+              weight: 60,
+              resultText: "창고지기가 아까워하며 자투리 몇 개만 건넸다.",
+              resultTextKey: "uphero.flavor.ntr.7.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 10 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 40,
+              resultText: "멀쩡한 것까지 버려 낭비했다는 핀잔을 듣는다.",
+              resultTextKey: "uphero.flavor.ntr.7.opt1.out1.result",
+              effects: [
+                { kind: "damage", amount: 8 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "시골 장터에서 농부가 거스름돈을 셈해 달라 청한다.",
+      promptKey: "uphero.flavor.ntr.8.prompt",
+      options: [
+        {
+          label: "빠르게 셈한다",
+          labelKey: "uphero.flavor.ntr.8.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "quick_sum",
+            difficulty: 1,
+            successEffects: [
+              { kind: "heal", amount: 35 },
+              { kind: "reward", coins: 35, xp: 55 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 10 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "정확한 셈에 감탄한 농부가 수확물 한 아름을 나눠준다.",
+          resultTextKey: "uphero.flavor.ntr.8.opt0.out0.result",
+        },
+        {
+          label: "손사래 치며 거절한다",
+          labelKey: "uphero.flavor.ntr.8.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "농부가 아쉬운 표정으로 돌아선다.",
+              resultTextKey: "uphero.flavor.ntr.8.opt1.out0.result",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
 ];

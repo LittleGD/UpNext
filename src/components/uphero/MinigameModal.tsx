@@ -18,6 +18,14 @@ import { useTranslation } from "@/hooks/useTranslation";
 import PairMatch from "./minigames/PairMatch";
 import SequenceMemo from "./minigames/SequenceMemo";
 import PipeConnect from "./minigames/PipeConnect";
+import TapBurst from "./minigames/TapBurst";
+import DodgeDrops from "./minigames/DodgeDrops";
+import SortItems from "./minigames/SortItems";
+import QuickSum from "./minigames/QuickSum";
+import SpotDiff from "./minigames/SpotDiff";
+import BreathHold from "./minigames/BreathHold";
+import TracePath from "./minigames/TracePath";
+import ReactionTap from "./minigames/ReactionTap";
 
 interface MinigameModalProps {
   minigame: MinigameId;
@@ -27,13 +35,31 @@ interface MinigameModalProps {
 }
 
 // Phase 12 i18n — title 은 key 로 저장, 렌더 시점에 t() 조회.
-const MINIGAME_TITLE_KEY: Record<
-  MinigameId,
-  "uphero.minigame.title.pair_match" | "uphero.minigame.title.sequence_memo" | "uphero.minigame.title.pipe_connect"
-> = {
+type MinigameTitleKey =
+  | "uphero.minigame.title.pair_match"
+  | "uphero.minigame.title.sequence_memo"
+  | "uphero.minigame.title.pipe_connect"
+  | "uphero.minigame.title.tap_burst"
+  | "uphero.minigame.title.dodge_drops"
+  | "uphero.minigame.title.sort_items"
+  | "uphero.minigame.title.quick_sum"
+  | "uphero.minigame.title.spot_diff"
+  | "uphero.minigame.title.breath_hold"
+  | "uphero.minigame.title.trace_path"
+  | "uphero.minigame.title.reaction_tap";
+
+const MINIGAME_TITLE_KEY: Record<MinigameId, MinigameTitleKey> = {
   pair_match: "uphero.minigame.title.pair_match",
   sequence_memo: "uphero.minigame.title.sequence_memo",
   pipe_connect: "uphero.minigame.title.pipe_connect",
+  tap_burst: "uphero.minigame.title.tap_burst",
+  dodge_drops: "uphero.minigame.title.dodge_drops",
+  sort_items: "uphero.minigame.title.sort_items",
+  quick_sum: "uphero.minigame.title.quick_sum",
+  spot_diff: "uphero.minigame.title.spot_diff",
+  breath_hold: "uphero.minigame.title.breath_hold",
+  trace_path: "uphero.minigame.title.trace_path",
+  reaction_tap: "uphero.minigame.title.reaction_tap",
 };
 
 export default function MinigameModal({
@@ -59,6 +85,22 @@ export default function MinigameModal({
         return SequenceMemo;
       case "pipe_connect":
         return PipeConnect;
+      case "tap_burst":
+        return TapBurst;
+      case "dodge_drops":
+        return DodgeDrops;
+      case "sort_items":
+        return SortItems;
+      case "quick_sum":
+        return QuickSum;
+      case "spot_diff":
+        return SpotDiff;
+      case "breath_hold":
+        return BreathHold;
+      case "trace_path":
+        return TracePath;
+      case "reaction_tap":
+        return ReactionTap;
     }
   })();
 

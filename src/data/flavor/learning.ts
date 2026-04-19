@@ -330,4 +330,125 @@ export const LEARNING_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    // Phase 12f — WarioWare-style minigames: 학습 던전 지적 패턴 특화.
+    //   idx 7: quick_sum — 고서의 산술 문제 빠르게 풀기.
+    //   idx 8: trace_path — 밤하늘 별자리 순서대로 이어 그리기.
+    //   idx 9: breath_hold — 주문 집중 호흡 유지.
+    {
+      prompt: "먼지 쌓인 산술서가 펼쳐진다. 숫자들이 초침과 함께 깜빡인다.",
+      promptKey: "uphero.flavor.lrn.7.prompt",
+      options: [
+        {
+          label: "도전",
+          labelKey: "uphero.flavor.lrn.7.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "quick_sum",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 65, coins: 25 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 12 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "펜을 든다...",
+          resultTextKey: "uphero.flavor.lrn.7.opt0.out0.result",
+        },
+        {
+          label: "천천히 암산으로 풀기",
+          labelKey: "uphero.flavor.lrn.7.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "여유롭게 몇 문제만 풀었다.",
+              resultTextKey: "uphero.flavor.lrn.7.opt1.out0.result",
+              effects: [
+                { kind: "reward", xp: 15 },
+                { kind: "time", delta: -6 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "천장이 열리며 밤하늘이 드러난다. 별자리를 이어 그려 길을 열어라.",
+      promptKey: "uphero.flavor.lrn.8.prompt",
+      options: [
+        {
+          label: "도전",
+          labelKey: "uphero.flavor.lrn.8.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "trace_path",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 70, coins: 30 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 15 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "손끝으로 별을 따라간다...",
+          resultTextKey: "uphero.flavor.lrn.8.opt0.out0.result",
+        },
+        {
+          label: "별자리 지도를 참고만 한다",
+          labelKey: "uphero.flavor.lrn.8.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "눈으로만 훑고 지나간다.",
+              resultTextKey: "uphero.flavor.lrn.8.opt1.out0.result",
+              effects: [
+                { kind: "reward", xp: 10 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "사서의 경고가 떠오른다. \"이 주문은 숨을 참고 외워야 한다.\"",
+      promptKey: "uphero.flavor.lrn.9.prompt",
+      options: [
+        {
+          label: "도전",
+          labelKey: "uphero.flavor.lrn.9.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "breath_hold",
+            difficulty: 1,
+            successEffects: [
+              { kind: "reward", xp: 50, coins: 20 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 10 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "숨을 깊게 들이마신다...",
+          resultTextKey: "uphero.flavor.lrn.9.opt0.out0.result",
+        },
+        {
+          label: "주문을 건너뛴다",
+          labelKey: "uphero.flavor.lrn.9.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "다음 장으로 넘어간다.",
+              resultTextKey: "uphero.flavor.lrn.9.opt1.out0.result",
+              effects: [{ kind: "time", delta: -3 }],
+            },
+          ],
+        },
+      ],
+    },
 ];

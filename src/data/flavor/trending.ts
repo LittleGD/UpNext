@@ -235,4 +235,152 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    {
+      prompt: "고대 룬 벽에 미세한 왜곡 하나가 숨어 일렁인다.",
+      promptKey: "uphero.flavor.trd.4.prompt",
+      options: [
+        {
+          label: "왜곡 지점을 찾아낸다",
+          labelKey: "uphero.flavor.trd.4.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "spot_diff",
+            difficulty: 3,
+            successEffects: [
+              { kind: "reward", xp: 80, coins: 45 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 22 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "왜곡 속 비밀 룬이 깨어나 마나를 내어주었다.",
+          resultTextKey: "uphero.flavor.trd.4.opt0.out0.result",
+        },
+        {
+          label: "룬을 건드리지 않고 돌아간다",
+          labelKey: "uphero.flavor.trd.4.opt1.label",
+          outcomes: [
+            {
+              weight: 70,
+              resultText: "룬이 잠잠해지며 희미한 반향만 남는다.",
+              resultTextKey: "uphero.flavor.trd.4.opt1.out0.result",
+              effects: [{ kind: "time", delta: -2 }],
+            },
+            {
+              weight: 30,
+              resultText: "벽 틈새에서 떨어진 마나 조각을 주웠다.",
+              resultTextKey: "uphero.flavor.trd.4.opt1.out1.result",
+              effects: [
+                { kind: "reward", coins: 20, xp: 10 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "하늘이 찢기며 별똥별 소나기가 쏟아진다.",
+      promptKey: "uphero.flavor.trd.5.prompt",
+      options: [
+        {
+          label: "좌우로 피하며 별빛을 모은다",
+          labelKey: "uphero.flavor.trd.5.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "dodge_drops",
+            difficulty: 3,
+            successEffects: [
+              { kind: "reward", xp: 90, coins: 50 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 25 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "별빛 소나기를 가르며 천상의 보상을 손에 넣었다.",
+          resultTextKey: "uphero.flavor.trd.5.opt0.out0.result",
+        },
+        {
+          label: "방벽 뒤로 몸을 숨긴다",
+          labelKey: "uphero.flavor.trd.5.opt1.label",
+          outcomes: [
+            {
+              weight: 75,
+              resultText: "별똥별이 잦아들 때까지 버텨냈다.",
+              resultTextKey: "uphero.flavor.trd.5.opt1.out0.result",
+              effects: [{ kind: "time", delta: -3 }],
+            },
+            {
+              weight: 25,
+              resultText: "방벽에 박힌 별 조각을 긁어냈다.",
+              resultTextKey: "uphero.flavor.trd.5.opt1.out1.result",
+              effects: [
+                { kind: "reward", coins: 25, xp: 15 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "시공의 균열이 열리기 직전, 신호가 점멸하기 시작한다.",
+      promptKey: "uphero.flavor.trd.6.prompt",
+      options: [
+        {
+          label: "신호가 바뀌는 순간 뛰어든다",
+          labelKey: "uphero.flavor.trd.6.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "reaction_tap",
+            difficulty: 3,
+            successEffects: [
+              { kind: "reward", xp: 70, coins: 40 },
+              { kind: "heal", amount: 15 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 20 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "완벽한 타이밍으로 균열을 통과해 시간의 보상을 거머쥐었다.",
+          resultTextKey: "uphero.flavor.trd.6.opt0.out0.result",
+        },
+        {
+          label: "균열이 닫힐 때까지 기다린다",
+          labelKey: "uphero.flavor.trd.6.opt1.label",
+          outcomes: [
+            {
+              weight: 60,
+              resultText: "균열은 사라졌지만 흐릿한 잔상만 남았다.",
+              resultTextKey: "uphero.flavor.trd.6.opt1.out0.result",
+              effects: [{ kind: "time", delta: -3 }],
+            },
+            {
+              weight: 30,
+              resultText: "잔잔한 시간의 결을 느끼며 회복되었다.",
+              resultTextKey: "uphero.flavor.trd.6.opt1.out1.result",
+              effects: [
+                { kind: "heal", amount: 20 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 10,
+              resultText: "균열의 끝자락에서 떨어진 시간 조각을 주웠다.",
+              resultTextKey: "uphero.flavor.trd.6.opt1.out2.result",
+              effects: [
+                { kind: "reward", coins: 30, xp: 20 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
 ];

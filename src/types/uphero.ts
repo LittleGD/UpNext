@@ -309,8 +309,21 @@ export type ChoiceEffect =
       failEffects: SimpleChoiceEffect[];
     };
 
-/** Phase 12e — 인터랙티브 미니게임 id. 각 컴포넌트는 components/uphero/minigames/ 하위. */
-export type MinigameId = "pipe_connect" | "pair_match" | "sequence_memo";
+/** Phase 12e — 인터랙티브 미니게임 id. 각 컴포넌트는 components/uphero/minigames/ 하위.
+ *   Phase 15 WarioWare — 던전별 3 개 이상 보장용 8 종 추가 (1 동사 1 인풋, 5-10s). */
+export type MinigameId =
+  | "pipe_connect"
+  | "pair_match"
+  | "sequence_memo"
+  // Phase 15 WarioWare-style micro-games
+  | "tap_burst"
+  | "dodge_drops"
+  | "sort_items"
+  | "quick_sum"
+  | "spot_diff"
+  | "breath_hold"
+  | "trace_path"
+  | "reaction_tap";
 
 /**
  * Phase 12e — 미니게임 결과에 적용 가능한 단순 effects. startMinigame / fight /

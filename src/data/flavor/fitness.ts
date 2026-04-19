@@ -326,4 +326,142 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    {
+      prompt: "야생 산양이 돌진해 온다. 순간 가속이 필요하다!",
+      promptKey: "uphero.flavor.fit.6.prompt",
+      options: [
+        {
+          label: "전력 질주로 피하기",
+          labelKey: "uphero.flavor.fit.6.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "tap_burst",
+            difficulty: 1,
+            successEffects: [
+              { kind: "reward", xp: 50, coins: 25 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 15 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "숨을 고르고 다리에 힘을 모은다...",
+          resultTextKey: "uphero.flavor.fit.6.opt0.out0.result",
+        },
+        {
+          label: "바위 뒤로 몸을 숨기기",
+          labelKey: "uphero.flavor.fit.6.opt1.label",
+          outcomes: [
+            {
+              weight: 75,
+              resultText: "산양이 지나갈 때까지 숨을 죽였다.",
+              resultTextKey: "uphero.flavor.fit.6.opt1.out0.result",
+              effects: [{ kind: "time", delta: -8 }],
+            },
+            {
+              weight: 25,
+              resultText: "바위 틈에서 낡은 주머니를 발견했다.",
+              resultTextKey: "uphero.flavor.fit.6.opt1.out1.result",
+              effects: [
+                { kind: "reward", coins: 20 },
+                { kind: "time", delta: -10 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "머리 위 절벽에서 돌덩이가 우수수 떨어진다!",
+      promptKey: "uphero.flavor.fit.7.prompt",
+      options: [
+        {
+          label: "좌우로 피하며 돌파",
+          labelKey: "uphero.flavor.fit.7.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "dodge_drops",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 70, coins: 35 },
+              { kind: "time", delta: -3 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 18 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "발끝에 집중하고 리듬을 읽는다...",
+          resultTextKey: "uphero.flavor.fit.7.opt0.out0.result",
+        },
+        {
+          label: "뒤로 물러나 기다리기",
+          labelKey: "uphero.flavor.fit.7.opt1.label",
+          outcomes: [
+            {
+              weight: 90,
+              resultText: "낙석이 멈출 때까지 한참을 기다렸다.",
+              resultTextKey: "uphero.flavor.fit.7.opt1.out0.result",
+              effects: [{ kind: "time", delta: -12 }],
+            },
+            {
+              weight: 10,
+              resultText: "기다리는 사이 떨어진 바위에 가려진 수정을 주웠다.",
+              resultTextKey: "uphero.flavor.fit.7.opt1.out1.result",
+              effects: [
+                { kind: "reward", coins: 30, xp: 10 },
+                { kind: "time", delta: -12 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "산속 사냥꾼이 내기를 건다. 신호에 맞춰 활시위를 놓아라.",
+      promptKey: "uphero.flavor.fit.8.prompt",
+      options: [
+        {
+          label: "내기 수락하기",
+          labelKey: "uphero.flavor.fit.8.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "reaction_tap",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 60, coins: 40 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 10 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "신호등을 응시하며 호흡을 가다듬는다...",
+          resultTextKey: "uphero.flavor.fit.8.opt0.out0.result",
+        },
+        {
+          label: "정중히 거절하기",
+          labelKey: "uphero.flavor.fit.8.opt1.label",
+          outcomes: [
+            {
+              weight: 70,
+              resultText: "사냥꾼은 웃으며 길을 알려 주었다.",
+              resultTextKey: "uphero.flavor.fit.8.opt1.out0.result",
+              effects: [{ kind: "time", delta: -5 }],
+            },
+            {
+              weight: 30,
+              resultText: "사냥꾼이 건조육 한 조각을 내어 주었다.",
+              resultTextKey: "uphero.flavor.fit.8.opt1.out1.result",
+              effects: [
+                { kind: "heal", amount: 20 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
 ];

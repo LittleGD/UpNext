@@ -338,4 +338,155 @@ export const SOCIAL_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    // Phase 15 WarioWare — 3 social minigames: reaction_tap / sort_items / sequence_memo.
+    //   광장/시장/축제/사교/주점 모티프. Coin-heavy 성공 보상.
+    {
+      prompt: "광장 축제. 영주의 축배 신호에 맞춰 잔을 들어야 한다.",
+      promptKey: "uphero.flavor.soc.6.prompt",
+      options: [
+        {
+          label: "타이밍 맞춰 건배",
+          labelKey: "uphero.flavor.soc.6.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "reaction_tap",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 55, coins: 35 },
+              { kind: "heal", amount: 10 },
+              { kind: "time", delta: -3 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 12 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "잔을 들고 영주의 신호를 기다린다...",
+          resultTextKey: "uphero.flavor.soc.6.opt0.out0.result",
+        },
+        {
+          label: "뒷자리에서 조용히 마신다",
+          labelKey: "uphero.flavor.soc.6.opt1.label",
+          outcomes: [
+            {
+              weight: 70,
+              resultText: "주목받지 않고 편히 한 잔 비웠다.",
+              resultTextKey: "uphero.flavor.soc.6.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 8 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "구석에서도 눈에 띄어 상인이 덤 음식을 건넸다.",
+              resultTextKey: "uphero.flavor.soc.6.opt1.out1.result",
+              effects: [
+                { kind: "reward", coins: 15 },
+                { kind: "heal", amount: 12 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "시장 귀퉁이 선물 수레. 친구에게 갈 꽃과 적수에게 갈 가시를 분류해 달란다.",
+      promptKey: "uphero.flavor.soc.7.prompt",
+      options: [
+        {
+          label: "좌우로 나눠 담기",
+          labelKey: "uphero.flavor.soc.7.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "sort_items",
+            difficulty: 1,
+            successEffects: [
+              { kind: "reward", xp: 45, coins: 30 },
+              { kind: "time", delta: -3 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 10 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "꽃과 가시를 양손에 나눠 쥐었다...",
+          resultTextKey: "uphero.flavor.soc.7.opt0.out0.result",
+        },
+        {
+          label: "수레를 돌려준다",
+          labelKey: "uphero.flavor.soc.7.opt1.label",
+          outcomes: [
+            {
+              weight: 80,
+              resultText: "상인이 미소 지으며 작은 사과 하나를 쥐여준다.",
+              resultTextKey: "uphero.flavor.soc.7.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 6 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "상인이 혀를 차며 돌아선다. 분위기가 식었다.",
+              resultTextKey: "uphero.flavor.soc.7.opt1.out1.result",
+              effects: [
+                { kind: "damage", amount: 4 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "사교 모임의 비밀 악수. 선배가 동작 순서를 보여주고 따라 하라 한다.",
+      promptKey: "uphero.flavor.soc.8.prompt",
+      options: [
+        {
+          label: "순서대로 따라 하기",
+          labelKey: "uphero.flavor.soc.8.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "sequence_memo",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 60, coins: 40 },
+              { kind: "time", delta: -3 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 15 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "선배의 손짓을 눈에 새긴다...",
+          resultTextKey: "uphero.flavor.soc.8.opt0.out0.result",
+        },
+        {
+          label: "어색한 웃음으로 얼버무린다",
+          labelKey: "uphero.flavor.soc.8.opt1.label",
+          outcomes: [
+            {
+              weight: 60,
+              resultText: "눈치 빠른 선배가 빈 잔을 채워주며 넘어가 준다.",
+              resultTextKey: "uphero.flavor.soc.8.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 8 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 40,
+              resultText: "어색한 침묵이 흐른다. 자리에서 조용히 빠져나왔다.",
+              resultTextKey: "uphero.flavor.soc.8.opt1.out1.result",
+              effects: [
+                { kind: "damage", amount: 6 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
 ];

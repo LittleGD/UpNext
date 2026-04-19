@@ -338,4 +338,137 @@ export const WELLNESS_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    // Phase 13 — WarioWare 미니게임 3 종 추가 (breath_hold / dodge_drops / spot_diff).
+    {
+      prompt: "뜨거운 온천수에 몸을 담근다. 숨을 참고 오래 머물 수 있을까.",
+      promptKey: "uphero.flavor.wel.6.prompt",
+      options: [
+        {
+          label: "숨을 참고 깊이 잠긴다",
+          labelKey: "uphero.flavor.wel.6.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "breath_hold",
+            difficulty: 1,
+            successEffects: [
+              { kind: "heal", amount: 70 },
+              { kind: "reward", xp: 50, coins: 25 },
+              { kind: "time", delta: -6 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 15 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "뜨거운 수증기 속, 심장 박동이 느려진다.",
+          resultTextKey: "uphero.flavor.wel.6.opt0.out0.result",
+        },
+        {
+          label: "발만 담그고 쉰다",
+          labelKey: "uphero.flavor.wel.6.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "따끈한 물에 발을 담그니 피로가 풀린다.",
+              resultTextKey: "uphero.flavor.wel.6.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 20 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "젖은 이끼 돌다리. 위에서 뜨거운 물방울이 뚝뚝 떨어진다.",
+      promptKey: "uphero.flavor.wel.7.prompt",
+      options: [
+        {
+          label: "물방울을 피해 건넌다",
+          labelKey: "uphero.flavor.wel.7.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "dodge_drops",
+            difficulty: 1,
+            successEffects: [
+              { kind: "heal", amount: 40 },
+              { kind: "reward", xp: 45, coins: 30 },
+              { kind: "time", delta: -4 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 18 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "증기 사이로 물방울이 쏟아진다. 몸을 비틀어 피한다.",
+          resultTextKey: "uphero.flavor.wel.7.opt0.out0.result",
+        },
+        {
+          label: "우회로로 돌아간다",
+          labelKey: "uphero.flavor.wel.7.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "먼 길이지만 마른 돌을 밟으며 걷는다.",
+              resultTextKey: "uphero.flavor.wel.7.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 8 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "약초꾼이 나란히 놓은 약초 더미. 한 줌 속에 상한 잎이 섞여 있다.",
+      promptKey: "uphero.flavor.wel.8.prompt",
+      options: [
+        {
+          label: "상한 잎을 골라낸다",
+          labelKey: "uphero.flavor.wel.8.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "spot_diff",
+            difficulty: 2,
+            successEffects: [
+              { kind: "heal", amount: 55 },
+              { kind: "reward", xp: 70, coins: 40 },
+              { kind: "time", delta: -5 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 20 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "잎맥을 하나하나 살핀다. 어디가 달랐을까.",
+          resultTextKey: "uphero.flavor.wel.8.opt0.out0.result",
+        },
+        {
+          label: "전부 달여 먹는다",
+          labelKey: "uphero.flavor.wel.8.opt1.label",
+          outcomes: [
+            {
+              weight: 60,
+              resultText: "쓴맛이 돌지만 그럭저럭 몸을 덥혀준다.",
+              resultTextKey: "uphero.flavor.wel.8.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 18 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 40,
+              resultText: "상한 잎이 배를 뒤집었다.",
+              resultTextKey: "uphero.flavor.wel.8.opt1.out1.result",
+              effects: [
+                { kind: "damage", amount: 14 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
 ];

@@ -247,4 +247,130 @@ export const MINDFULNESS_EVENTS: DungeonEvent[] = [
         },
       ],
     },
+    {
+      prompt: "정화의 제단 앞. 향불 연기가 피어오른다. 숨을 깊이 모아 참아라.",
+      promptKey: "uphero.flavor.mnd.5.prompt",
+      options: [
+        {
+          label: "호흡을 모은다",
+          labelKey: "uphero.flavor.mnd.5.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "breath_hold",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 70 },
+              { kind: "heal", amount: 30 },
+              { kind: "reward", coins: 25 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 15 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "향불이 흔들린다...",
+          resultTextKey: "uphero.flavor.mnd.5.opt0.out0.result",
+        },
+        {
+          label: "천천히 예만 올린다",
+          labelKey: "uphero.flavor.mnd.5.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "정중한 예에 제단이 잔잔히 빛났다.",
+              resultTextKey: "uphero.flavor.mnd.5.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 15 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "돌바닥 위에 새겨진 만다라. 영혼의 인도자가 정해진 순서로 선을 따르라 이른다.",
+      promptKey: "uphero.flavor.mnd.6.prompt",
+      options: [
+        {
+          label: "선을 따라 그린다",
+          labelKey: "uphero.flavor.mnd.6.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "trace_path",
+            difficulty: 1,
+            successEffects: [
+              { kind: "reward", xp: 50 },
+              { kind: "heal", amount: 20 },
+              { kind: "reward", coins: 20 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 10 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "손끝이 문양을 따라간다...",
+          resultTextKey: "uphero.flavor.mnd.6.opt0.out0.result",
+        },
+        {
+          label: "멀리서 묵상한다",
+          labelKey: "uphero.flavor.mnd.6.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "멀리서 바라본 문양이 마음을 가라앉혔다.",
+              resultTextKey: "uphero.flavor.mnd.6.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 20 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "경전 조각이 흩어진 선방. 같은 뜻을 가진 구절끼리 짝지어라.",
+      promptKey: "uphero.flavor.mnd.7.prompt",
+      options: [
+        {
+          label: "경전을 읽는다",
+          labelKey: "uphero.flavor.mnd.7.opt0.label",
+          effect: {
+            kind: "startMinigame",
+            minigame: "pair_match",
+            difficulty: 2,
+            successEffects: [
+              { kind: "reward", xp: 75 },
+              { kind: "heal", amount: 25 },
+              { kind: "reward", coins: 30 },
+              { kind: "time", delta: -2 },
+            ],
+            failEffects: [
+              { kind: "damage", amount: 18 },
+              { kind: "time", delta: -5 },
+            ],
+          },
+          resultText: "글귀가 눈앞에서 어우러진다...",
+          resultTextKey: "uphero.flavor.mnd.7.opt0.out0.result",
+        },
+        {
+          label: "향만 피우고 떠난다",
+          labelKey: "uphero.flavor.mnd.7.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "한 줄기 향이 선방을 감쌌다.",
+              resultTextKey: "uphero.flavor.mnd.7.opt1.out0.result",
+              effects: [
+                { kind: "heal", amount: 12 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
 ];
