@@ -550,9 +550,58 @@ function normalizePattern(pattern: number[]): number[] {
   );
 }
 
+/**
+ * iOS 네이티브 햅틱 매핑.
+ * 웹의 [ms, pause, ms, ...] 진동 패턴을 iOS의 Impact/Notification 세기 단계로 번역.
+ * iOS Safari/WKWebView는 navigator.vibrate를 완전 무시(no-op)하므로 네이티브 플러그인 필수.
+ */
+const NATIVE_SUCCESS_HAPTICS: ReadonlySet<SoundName> = new Set<SoundName>([
+  "packOpen", "complete", "fullClear", "levelUp",
+  "treeGrow", "rewardChoose", "matchPair", "fireIgnite",
+]);
+
+async function triggerNativeHaptic(name: SoundName, pattern: number[]): Promise<void> {
+  try {
+    const { Haptics, ImpactStyle, NotificationType } = await import("@capacitor/haptics");
+
+    // 다중 스텝 패턴: 축하 계열은 Notification.Success, 충격 계열은 Heavy Impact
+    if (pattern.length > 1) {
+      if (NATIVE_SUCCESS_HAPTICS.has(name)) {
+        await Haptics.notification({ type: NotificationType.Success });
+        return;
+      }
+      await Haptics.impact({ style: ImpactStyle.Heavy });
+      return;
+    }
+
+    // 단일 스텝: 진동 길이에 따라 Selection/Light/Medium 분기
+    const ms = pattern[0] ?? 0;
+    if (ms <= 10) {
+      await Haptics.selectionChanged();
+    } else if (ms <= 17) {
+      await Haptics.impact({ style: ImpactStyle.Light });
+    } else {
+      await Haptics.impact({ style: ImpactStyle.Medium });
+    }
+  } catch { /* non-critical */ }
+}
+
 export function triggerHaptic(name: SoundName): void {
   const pattern = VIBRATION_PATTERNS[name];
-  if (pattern && typeof navigator !== "undefined" && navigator.vibrate) {
+  if (!pattern) return;
+
+  // iOS 네이티브(Capacitor WKWebView): UIImpactFeedbackGenerator 경로
+  // SSR/브라우저에선 Capacitor 전역이 없으므로 안전 체크
+  if (typeof window !== "undefined") {
+    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+    if (cap?.isNativePlatform?.()) {
+      void triggerNativeHaptic(name, pattern);
+      return;
+    }
+  }
+
+  // 웹/안드로이드(TWA): navigator.vibrate (iOS Safari에선 무시됨)
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
     try {
       const normalized = normalizePattern(pattern);
       // vibrate(0)으로 이전 패턴을 취소한 뒤 약간의 딜레이를 두고 새 패턴 실행
