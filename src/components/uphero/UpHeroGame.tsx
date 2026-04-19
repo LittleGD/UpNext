@@ -16,6 +16,7 @@ import DungeonView from "./DungeonView";
 import SessionResultModal from "./SessionResultModal";
 import IdleRewardToast from "./IdleRewardToast";
 import ClassAwakenModal from "./ClassAwakenModal";
+import UpHeroLevelUpOverlay from "./UpHeroLevelUpOverlay";
 import { GB } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -75,6 +76,8 @@ export default function UpHeroGame() {
       <IdleRewardToast />
       {/* Phase 5c.3 — Lv 30 도달 시 class 분화 풀스크린 연출. */}
       <ClassAwakenModal />
+      {/* Phase 15 — 챌린지 레벨업 시 전역 축하 오버레이. */}
+      <UpHeroLevelUpOverlay />
     </>
   );
 }
