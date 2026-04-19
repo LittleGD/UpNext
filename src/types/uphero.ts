@@ -1116,9 +1116,12 @@ export const HERO_NAME_POOLS: Record<Language, readonly string[]> = {
 /** Legacy export — 하위 호환용. 신규 코드는 `HERO_NAME_POOLS` 사용. */
 export const HERO_NAME_POOL = HERO_NAME_POOLS.ko;
 
-/** 이름 풀에서 랜덤 영웅 이름 1개 반환. language 미지정 시 ko 폴백. */
+/** 이름 풀에서 랜덤 영웅 이름 1개 반환. language 미지정 / unknown 시 ko 폴백.
+ *  런타임 방어: localStorage 에 legacy 값이 들어있어 Language 유니온 밖 string 이
+ *  전달되더라도 TypeError (undefined.length) 로 영웅 초기화를 터뜨리지 않도록. */
 export function rollHeroName(language?: Language): string {
-  const pool = language ? HERO_NAME_POOLS[language] : HERO_NAME_POOLS.ko;
+  const pool =
+    (language && HERO_NAME_POOLS[language]) || HERO_NAME_POOLS.ko;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 

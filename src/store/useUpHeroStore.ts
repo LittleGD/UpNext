@@ -554,6 +554,10 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       idleReward,
       pendingClassAwaken: null, // transient
       schemaVersion: CURRENT_SCHEMA_VERSION,
+      // 아지트 튜토리얼 노출 여부 — saved 에 있으면 복원, 없으면 default(false).
+      // Hotfix: 이전 버전에선 이 필드가 restore 누락되어 return 유저에게도 매 로드마다
+      // 튜토리얼이 다시 뜨는 버그가 있었음.
+      hasSeenCampTutorial: saved?.hasSeenCampTutorial ?? false,
       isLoaded: true,
     });
 
