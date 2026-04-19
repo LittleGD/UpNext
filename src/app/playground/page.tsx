@@ -4,12 +4,15 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { useMinigameStore } from "@/store/useMinigameStore";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { motion } from "framer-motion";
 import type { DictKey } from "@/i18n";
 
-const MinigameHome = lazy(() => import("@/components/minigame/MinigameHome"));
+// MinigameView = phase 기반 분기 (idle→Home, playing→Board+HUD …).
+// 단순 MinigameHome 만 걸어두면 Play 눌러도 Board 가 안 뜨는 회귀가 있어 교체.
+const MinigameView = lazy(() => import("@/components/minigame/MinigameView"));
 const UpHeroGame = lazy(() => import("@/components/uphero/UpHeroGame"));
 
 // Phase 8c — 앨범(archive) 은 Collection 페이지로 이동.
@@ -39,6 +42,12 @@ export default function PlaygroundPage() {
       upHeroStatus === "paused" ||
       upHeroStatus === "awaitingChoice");
 
+  // 카드매치 런 중엔 탭바/패딩 제거 — HUD+Board 가 전체 높이를 쓴다.
+  // MinigameHome (phase=idle) 만 padding 안쪽에서 렌더, 런 시작하면 몰입 모드.
+  const minigamePhase = useMinigameStore((s) => s.phase);
+  const inMinigameRun = tab === "game" && minigamePhase !== "idle";
+  const immersive = inUpHeroDungeon || inMinigameRun;
+
   useEffect(() => {
     if (!isGameLoaded) initGame();
     if (!isGrowthLoaded) initGrowth();
@@ -54,11 +63,11 @@ export default function PlaygroundPage() {
 
   return (
     // Phase 9d-ⅰ — compact Header 와 탭 사이가 더 가까이 붙음 (pt-3 → pt-2).
-    <div className={`${inUpHeroDungeon ? "px-0 py-0 pb-0" : "px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+96px)]"} max-w-lg md:max-w-xl lg:max-w-2xl mx-auto`}>
+    <div className={`${immersive ? "px-0 py-0 pb-0" : "px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+96px)]"} max-w-lg md:max-w-xl lg:max-w-2xl mx-auto`}>
       {/* Phase 9a — Collection 과 동일한 sliding underline 탭.
             이전엔 per-button border-opacity 로 두 객체 (A↓/B↑) 가 깜빡였음.
             하나의 밑줄이 옮겨가는 common-fate 지각 + flex-1 균일 width 로 일관성. */}
-      {!inUpHeroDungeon && (
+      {!immersive && (
         <nav
           className="relative flex items-stretch mb-5"
           style={{ borderBottom: "1px solid rgb(255 255 255 / 0.06)" }}
@@ -133,7 +142,7 @@ export default function PlaygroundPage() {
               </div>
             }
           >
-            <MinigameHome />
+            <MinigameView />
           </Suspense>
         )}
       </motion.div>
