@@ -17,26 +17,14 @@ import PixelConfetti from "@/components/effects/PixelConfetti";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle, cardDesc } from "@/i18n";
+import { categoryLabel } from "@/lib/upHeroI18n";
 import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 import ExtraChallengeBanner from "./ExtraChallengeBanner";
 import SuperChallengeBanner from "./SuperChallengeBanner";
 import ChallengeConfirmModal from "./ChallengeConfirmModal";
 
-// Phase 12 — 챌린지 완료 셀레브레이션의 탐험권 지급 chip 표기용 한국어 라벨.
-//   categoryLabel 은 cardBuffs.ts 에 있으나 local helper 중복 방지 위해 간단 재정의.
-function categoryLabelKo(category: string): string {
-  const map: Record<string, string> = {
-    fitness: "운동",
-    learning: "학습",
-    mindfulness: "명상",
-    nutrition: "식단",
-    social: "소통",
-    productivity: "생산성",
-    wellness: "건강",
-    trending: "트렌딩",
-  };
-  return map[category] ?? category;
-}
+// Phase 13 final review — `categoryLabelKo` 제거. upHeroI18n.ts 의 공용
+//   `categoryLabel(category, language)` 헬퍼 사용으로 통일 (i18n 4 언어 지원).
 
 // === Completion celebration ===
 function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
@@ -177,7 +165,7 @@ export default function DailyBoard() {
    */
   const [completingPass, setCompletingPass] = useState<{
     amount: number;
-    category: string;
+    category: import("@/types/card").Category;
     capped: boolean;
   } | null>(null);
   const [showChallengeModal, setShowChallengeModal] = useState<"extra" | "super" | null>(null);
@@ -404,8 +392,8 @@ export default function DailyBoard() {
               aria-pressed={isCompleted}
               aria-label={
                 isCompleted
-                  ? `${cardTitle(card, language)} · 완료됨`
-                  : `${cardTitle(card, language)} · 완료하기`
+                  ? t("daily.card.ariaCompleted", { title: cardTitle(card, language) })
+                  : t("daily.card.ariaComplete", { title: cardTitle(card, language) })
               }
               className={`
                 daily-card-btn relative w-full text-left rounded-2xl overflow-hidden transition-colors
@@ -744,8 +732,13 @@ export default function DailyBoard() {
                       }}
                     >
                       {completingPass.amount > 0
-                        ? `탐험권 +${completingPass.amount} (${categoryLabelKo(completingPass.category)})`
-                        : `탐험권 한도 (${categoryLabelKo(completingPass.category)} 20장)`}
+                        ? t("daily.pass.granted", {
+                            amount: completingPass.amount,
+                            category: categoryLabel(completingPass.category, language),
+                          })
+                        : t("daily.pass.capped", {
+                            category: categoryLabel(completingPass.category, language),
+                          })}
                     </span>
                   </motion.div>
                 )}

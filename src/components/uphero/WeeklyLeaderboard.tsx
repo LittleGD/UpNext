@@ -48,9 +48,12 @@ export default function WeeklyLeaderboard({
   >(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Phase 13 final review — sentinel 을 안정 identifier 로 (한국어 literal 제거).
+  //   유저 노출은 `t("uphero.leaderboard.loginRequired")` 로 이미 i18n 됨.
+  const FIREBASE_UNCONFIGURED = "firebase-unconfigured";
   useEffect(() => {
     if (!isFirebaseConfigured) {
-      setError("Firebase 미구성");
+      setError(FIREBASE_UNCONFIGURED);
       return;
     }
     let cancelled = false;

@@ -337,9 +337,12 @@ function CardsTab({
           {translate("collection.cards.empty", language)}
         </p>
         <p className="typo-caption text-text-tertiary max-w-[280px]">
-          {isFiltered
-            ? "다른 필터로 확인하거나 새 카드를 모아보세요."
-            : "챌린지를 완료하고 카드팩을 열어 수집해보세요."}
+          {translate(
+            isFiltered
+              ? "collection.cards.emptyFiltered"
+              : "collection.cards.emptyInitial",
+            language,
+          )}
         </p>
       </div>
     );
@@ -483,9 +486,12 @@ function TitlesTab({
           {translate("collection.titles.empty", language)}
         </p>
         <p className="typo-caption text-text-tertiary max-w-[280px]">
-          {isFiltered
-            ? "다른 필터로 확인해보세요."
-            : "챌린지를 반복하면 칭호를 획득할 수 있어요."}
+          {translate(
+            isFiltered
+              ? "collection.titles.emptyFiltered"
+              : "collection.titles.emptyInitial",
+            language,
+          )}
         </p>
       </div>
     );

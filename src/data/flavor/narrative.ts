@@ -1,11 +1,150 @@
 /**
  * Up Hero — 분위기 narrative + 보물 설명 pool.
  * 던전별 분위기 텍스트는 매 floor 시작/중간에 랜덤 삽입된다.
+ *
+ * i18n (Phase 14):
+ *   - NARRATIVE_POOL_IDS / TREASURE_IDS / REST_IDS 는 i18n key suffix 만 보관.
+ *     실제 문장은 `uphero.narrative.<dungeonShort>.<idx>` / `uphero.treasure.<idx>` /
+ *     `uphero.rest.<idx>` 로 4 언어 dict 에 저장. combat push 시 key 를 로그에
+ *     동반 저장하고 CombatLog 가 현재 언어로 풀어 표시한다.
+ *   - NARRATIVE_POOL / TREASURE_DESCRIPTIONS / REST_DESCRIPTIONS (한국어 배열) 은
+ *     legacy fallback 으로 유지 — (1) i18n key 미존재 시 fallback, (2) 기존
+ *     저장 데이터 (narrativeKey 가 아직 없는 legacy LogEntry) 그대로 사용.
  */
 
 import type { DungeonId } from "@/types/uphero";
 
-/** 분위기 narrative — 던전별 10개씩 */
+/* ───────── i18n key suffix (Phase 14 신규) ───────── */
+
+/**
+ * 던전별 narrative i18n key 배열.
+ *   각 key 는 `uphero.narrative.<dungeonShort>.<idx>` 형식 — dict 에 저장됨.
+ *   `fit/lrn/mnd/ntr/soc/prd/wel/trd` 는 i18n key 내 dungeon short code.
+ */
+export const NARRATIVE_POOL_IDS: Record<DungeonId, readonly string[]> = {
+  fitness: [
+    "uphero.narrative.fit.0",
+    "uphero.narrative.fit.1",
+    "uphero.narrative.fit.2",
+    "uphero.narrative.fit.3",
+    "uphero.narrative.fit.4",
+    "uphero.narrative.fit.5",
+    "uphero.narrative.fit.6",
+    "uphero.narrative.fit.7",
+    "uphero.narrative.fit.8",
+    "uphero.narrative.fit.9",
+  ],
+  learning: [
+    "uphero.narrative.lrn.0",
+    "uphero.narrative.lrn.1",
+    "uphero.narrative.lrn.2",
+    "uphero.narrative.lrn.3",
+    "uphero.narrative.lrn.4",
+    "uphero.narrative.lrn.5",
+    "uphero.narrative.lrn.6",
+    "uphero.narrative.lrn.7",
+    "uphero.narrative.lrn.8",
+    "uphero.narrative.lrn.9",
+  ],
+  mindfulness: [
+    "uphero.narrative.mnd.0",
+    "uphero.narrative.mnd.1",
+    "uphero.narrative.mnd.2",
+    "uphero.narrative.mnd.3",
+    "uphero.narrative.mnd.4",
+    "uphero.narrative.mnd.5",
+    "uphero.narrative.mnd.6",
+    "uphero.narrative.mnd.7",
+    "uphero.narrative.mnd.8",
+    "uphero.narrative.mnd.9",
+  ],
+  nutrition: [
+    "uphero.narrative.ntr.0",
+    "uphero.narrative.ntr.1",
+    "uphero.narrative.ntr.2",
+    "uphero.narrative.ntr.3",
+    "uphero.narrative.ntr.4",
+    "uphero.narrative.ntr.5",
+    "uphero.narrative.ntr.6",
+    "uphero.narrative.ntr.7",
+    "uphero.narrative.ntr.8",
+    "uphero.narrative.ntr.9",
+  ],
+  social: [
+    "uphero.narrative.soc.0",
+    "uphero.narrative.soc.1",
+    "uphero.narrative.soc.2",
+    "uphero.narrative.soc.3",
+    "uphero.narrative.soc.4",
+    "uphero.narrative.soc.5",
+    "uphero.narrative.soc.6",
+    "uphero.narrative.soc.7",
+    "uphero.narrative.soc.8",
+    "uphero.narrative.soc.9",
+  ],
+  productivity: [
+    "uphero.narrative.prd.0",
+    "uphero.narrative.prd.1",
+    "uphero.narrative.prd.2",
+    "uphero.narrative.prd.3",
+    "uphero.narrative.prd.4",
+    "uphero.narrative.prd.5",
+    "uphero.narrative.prd.6",
+    "uphero.narrative.prd.7",
+    "uphero.narrative.prd.8",
+    "uphero.narrative.prd.9",
+  ],
+  wellness: [
+    "uphero.narrative.wel.0",
+    "uphero.narrative.wel.1",
+    "uphero.narrative.wel.2",
+    "uphero.narrative.wel.3",
+    "uphero.narrative.wel.4",
+    "uphero.narrative.wel.5",
+    "uphero.narrative.wel.6",
+    "uphero.narrative.wel.7",
+    "uphero.narrative.wel.8",
+    "uphero.narrative.wel.9",
+  ],
+  trending: [
+    "uphero.narrative.trd.0",
+    "uphero.narrative.trd.1",
+    "uphero.narrative.trd.2",
+    "uphero.narrative.trd.3",
+    "uphero.narrative.trd.4",
+    "uphero.narrative.trd.5",
+    "uphero.narrative.trd.6",
+    "uphero.narrative.trd.7",
+    "uphero.narrative.trd.8",
+    "uphero.narrative.trd.9",
+  ],
+} as const;
+
+/** 보물 설명 i18n key 배열 — `uphero.treasure.<idx>`. */
+export const TREASURE_IDS = [
+  "uphero.treasure.0",
+  "uphero.treasure.1",
+  "uphero.treasure.2",
+  "uphero.treasure.3",
+  "uphero.treasure.4",
+  "uphero.treasure.5",
+] as const;
+
+/** 휴식처 설명 i18n key 배열 — `uphero.rest.<idx>`. */
+export const REST_IDS = [
+  "uphero.rest.0",
+  "uphero.rest.1",
+  "uphero.rest.2",
+  "uphero.rest.3",
+  "uphero.rest.4",
+  "uphero.rest.5",
+  "uphero.rest.6",
+  "uphero.rest.7",
+] as const;
+
+/* ───────── legacy fallback (한국어 원본 — i18n key 미존재/legacy save 용) ───────── */
+
+/** 분위기 narrative — 던전별 10개씩. legacy fallback (i18n 키가 없을 때만 사용). */
 export const NARRATIVE_POOL: Record<DungeonId, string[]> = {
   fitness: [
     "차가운 바람이 바위 사이를 휘감는다.",
@@ -105,7 +244,7 @@ export const NARRATIVE_POOL: Record<DungeonId, string[]> = {
   ],
 };
 
-/** 보물 상자 설명 풀 */
+/** 보물 상자 설명 풀. legacy fallback. */
 export const TREASURE_DESCRIPTIONS = [
   "오래된 나무 상자를 발견했다.",
   "반짝이는 동전이 흩어져 있다.",

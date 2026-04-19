@@ -34,6 +34,12 @@ import PixelIcon from "@/components/icons/PixelIcon";
  *   LogEntry 에 narrativeKey + narrativeParams 가 있으면 현재 언어로 번역.
  *   params 에 `monsterTemplateId` 가 있으면 monster name 을 먼저 현재 언어로
  *   풀어낸 뒤 `{monster}` slot 에 주입. fallback 은 저장된 한국어 narrative.
+ *
+ *   Phase 14 — `descriptionKey` 특수 param 도 지원. 보물/휴식 narrative 는
+ *     wrapping template (`uphero.combat.narrative.restArea` / `treasureFound`)
+ *     이 `{description}` slot 을 갖는데, 그 description 자체가 flavor pool 에서
+ *     뽑힌 문구라 i18n 이 필요. narrativeParams.descriptionKey 가 있으면 t() 로
+ *     현재 언어로 풀어 `{description}` slot 에 주입.
  */
 function resolveNarrative(
   t: (key: DictKey, params?: Record<string, string | number>) => string,
@@ -44,7 +50,17 @@ function resolveNarrative(
 ): string {
   if (!narrativeKey) return narrative ?? "";
   // Phase 13 review — monsterTemplateId resolve 를 upHeroI18n 공통 헬퍼로.
-  const params = resolveMonsterInParams(narrativeParams, language) ?? {};
+  let params = resolveMonsterInParams(narrativeParams, language) ?? {};
+  // Phase 14 — descriptionKey 를 현재 언어 문자열로 풀어 `{description}` slot 에 덮어쓰기.
+  //   legacy save (descriptionKey 없음) 는 기존 `description` (한국어) 을 그대로 사용.
+  if (typeof params.descriptionKey === "string" && params.descriptionKey.length > 0) {
+    const descKey = params.descriptionKey as DictKey;
+    const descTranslated = t(descKey);
+    // key 가 dict 에 없으면 기존 description (한국어 fallback) 유지.
+    if (descTranslated !== descKey) {
+      params = { ...params, description: descTranslated };
+    }
+  }
   const translated = t(narrativeKey as DictKey, params);
   // key 가 없는 경우 t() 는 key 그대로 돌려줌 → fallback 사용.
   if (translated === narrativeKey) return narrative ?? translated;

@@ -9,7 +9,13 @@
 
 import type { DungeonId, ChoiceOption } from "@/types/uphero";
 import type { DungeonEvent } from "./flavor/_types";
-import { NARRATIVE_POOL, TREASURE_DESCRIPTIONS } from "./flavor/narrative";
+import {
+  NARRATIVE_POOL,
+  TREASURE_DESCRIPTIONS,
+  NARRATIVE_POOL_IDS,
+  TREASURE_IDS,
+  REST_IDS,
+} from "./flavor/narrative";
 import { FITNESS_EVENTS } from "./flavor/fitness";
 import { LEARNING_EVENTS } from "./flavor/learning";
 import { MINDFULNESS_EVENTS } from "./flavor/mindfulness";
@@ -20,8 +26,15 @@ import { WELLNESS_EVENTS } from "./flavor/wellness";
 import { TRENDING_EVENTS } from "./flavor/trending";
 import { UNIVERSAL_EVENTS } from "./flavor/universal";
 
-/** 재export — narrative / treasure pool */
-export { NARRATIVE_POOL, TREASURE_DESCRIPTIONS, UNIVERSAL_EVENTS };
+/** 재export — narrative / treasure pool (legacy fallback) + i18n key arrays */
+export {
+  NARRATIVE_POOL,
+  TREASURE_DESCRIPTIONS,
+  UNIVERSAL_EVENTS,
+  NARRATIVE_POOL_IDS,
+  TREASURE_IDS,
+  REST_IDS,
+};
 
 /** 던전별 이벤트 맵 — 기존 EVENT_POOL 과 동일한 shape */
 export const EVENT_POOL: Record<DungeonId, DungeonEvent[]> = {
@@ -35,17 +48,44 @@ export const EVENT_POOL: Record<DungeonId, DungeonEvent[]> = {
   trending: TRENDING_EVENTS,
 };
 
-/** 랜덤 narrative 하나 선택 */
+/** 랜덤 narrative 하나 선택 — 한국어 legacy fallback (i18n key 미보유 경로 전용) */
 export function pickNarrative(dungeonId: DungeonId): string {
   const pool = NARRATIVE_POOL[dungeonId];
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-/** 랜덤 보물 설명 */
+/** 랜덤 보물 설명 — 한국어 legacy fallback */
 export function pickTreasureDescription(): string {
   return TREASURE_DESCRIPTIONS[
     Math.floor(Math.random() * TREASURE_DESCRIPTIONS.length)
   ];
+}
+
+/**
+ * Phase 14 i18n — 같은 index 의 narrative i18n key + 한국어 fallback 쌍을 반환.
+ *   호출자 (upHeroCombat) 는 key 를 로그 엔트리의 `narrativeKey` 로 저장하고,
+ *   한국어 fallback 을 `text` 로 저장한다. CombatLog 가 현재 언어로 풀이한다.
+ */
+export function pickNarrativeWithKey(dungeonId: DungeonId): {
+  key: string;
+  text: string;
+} {
+  const idx = Math.floor(Math.random() * NARRATIVE_POOL[dungeonId].length);
+  return {
+    key: NARRATIVE_POOL_IDS[dungeonId][idx],
+    text: NARRATIVE_POOL[dungeonId][idx],
+  };
+}
+
+/**
+ * Phase 14 i18n — 보물 설명 i18n key + 한국어 fallback 쌍.
+ */
+export function pickTreasureWithKey(): { key: string; text: string } {
+  const idx = Math.floor(Math.random() * TREASURE_DESCRIPTIONS.length);
+  return {
+    key: TREASURE_IDS[idx],
+    text: TREASURE_DESCRIPTIONS[idx],
+  };
 }
 
 /**
@@ -68,6 +108,17 @@ export function pickRestDescription(): string {
   return REST_DESCRIPTIONS[
     Math.floor(Math.random() * REST_DESCRIPTIONS.length)
   ];
+}
+
+/**
+ * Phase 14 i18n — 휴식처 설명 i18n key + 한국어 fallback 쌍.
+ */
+export function pickRestWithKey(): { key: string; text: string } {
+  const idx = Math.floor(Math.random() * REST_DESCRIPTIONS.length);
+  return {
+    key: REST_IDS[idx],
+    text: REST_DESCRIPTIONS[idx],
+  };
 }
 
 /**
