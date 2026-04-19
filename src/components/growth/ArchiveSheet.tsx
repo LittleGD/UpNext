@@ -24,6 +24,7 @@ function ArchiveSlot({
   /** Phase 7 polish — Up Hero 의 부적으로 바인딩된 사진. 표시 overlay */
   bound: boolean;
 }) {
+  const { t } = useTranslation();
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [sigUrl, setSigUrl] = useState<string | null>(null);
 
@@ -132,8 +133,8 @@ function ArchiveSlot({
               background: "#cdf564",
               boxShadow: "0 1px 4px rgba(0,0,0,0.35)",
             }}
-            aria-label="부적으로 바인딩됨"
-            title="부적으로 바인딩됨"
+            aria-label={t("photo.archive.boundBadge")}
+            title={t("photo.archive.boundBadge")}
           >
             <PixelIcon name="Sparkle" size={12} color="#0a1f0a" />
           </div>

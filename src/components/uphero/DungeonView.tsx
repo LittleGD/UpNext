@@ -28,13 +28,12 @@ import {
 import type { Monster } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
-import { useAnnounce } from "@/hooks/useAnnounce";
 import { useTranslation } from "@/hooks/useTranslation";
-import { dungeonName, monsterName, skillName } from "@/lib/upHeroI18n";
+import { dungeonName, monsterName } from "@/lib/upHeroI18n";
 import CombatLog from "./CombatLog";
 import ChoicePanel from "./ChoicePanel";
 import BossBanner from "./BossBanner";
-import HeroSprite, { type HeroSpriteState } from "./HeroSprite";
+import HeroSprite from "./HeroSprite";
 import MonsterSprite from "./MonsterSprite";
 import GbConfirm from "./GbConfirm";
 import NumberRoll from "./NumberRoll";
@@ -45,6 +44,8 @@ import SkillBar from "./SkillBar";
 import MinigameModal from "./MinigameModal";
 import DungeonHelpModal from "./DungeonHelpModal";
 import PixelIcon from "@/components/icons/PixelIcon";
+import { useDungeonAnimations } from "./useDungeonAnimations";
+import { useDungeonAnnouncer } from "./useDungeonAnnouncer";
 
 const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
   1: 1200,
@@ -66,8 +67,6 @@ export default function DungeonView() {
 
   const [speed, setSpeed] = useState<1 | 2 | 4>(1);
   const [paused, setPaused] = useState(false);
-  /** 치명타 발생 시 root shake 트리거 — 260ms 후 자동 해제 */
-  const [critShake, setCritShake] = useState(false);
   /** Phase 9a — 포기 confirm 다이얼로그 state (native confirm 대체) */
   const [abandonOpen, setAbandonOpen] = useState(false);
   /** Phase 12f — 인터랙션 도움말 overlay. */
@@ -92,42 +91,24 @@ export default function DungeonView() {
   } | null>(null);
   const choiceResultText = choiceResultData?.text ?? null;
   const { play } = useSound();
-  // Phase 11c R4 — screen reader 공지. 시각 float 이 aria-hidden 이므로 여기서 backup.
-  const { announce } = useAnnounce();
   const { t, language } = useTranslation();
+
+  // Phase 14 code-review High #6 — 전투 visual tell / SR 공지 로직을 hook 으로 분리.
+  //   DungeonView 는 render 전용이 되어 가독성 ↑ (1492 → 축소).
+  const {
+    critShake,
+    heroState,
+    enemyHurt,
+    attackFlash,
+    hpRegenFloats,
+    genericFloats,
+    pulseOverlay,
+    timeFlashing,
+  } = useDungeonAnimations(session);
+  useDungeonAnnouncer(session);
 
   const tickRef = useRef(tickSession);
   tickRef.current = tickSession;
-
-  // 치명타 (crit) 발생 감지 — log 의 새 combat 엔트리 중 outcome==="crit" 탐지
-  // 같은 엔트리에 대해 중복 발동 방지 위해 처리 완료된 log index 저장.
-  const seenCritIdxRef = useRef<Set<number>>(new Set());
-  const shakeTimerRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!session) return;
-    session.log.forEach((entry, idx) => {
-      if (entry.type !== "combat") return;
-      if (entry.outcome !== "crit") return;
-      if (seenCritIdxRef.current.has(idx)) return;
-      seenCritIdxRef.current.add(idx);
-      // 사운드 + 진동 (impactShake = 충격 효과 사운드/haptic)
-      play("impactShake");
-      // 화면 흔들기 — setTimeout 중첩 방지
-      if (shakeTimerRef.current) window.clearTimeout(shakeTimerRef.current);
-      setCritShake(true);
-      shakeTimerRef.current = window.setTimeout(() => {
-        setCritShake(false);
-        shakeTimerRef.current = null;
-      }, 260);
-    });
-  }, [session, play]);
-
-  // 세션 바뀌면 seen set 초기화 (다른 던전 / 재시작)
-  useEffect(() => {
-    if (!session) {
-      seenCritIdxRef.current.clear();
-    }
-  }, [session?.startedAt, session]);
 
   // Phase 10 — 이벤트 choice 결과 narrative 감지.
   //   resolveChoice 가 push 하는 "> {label} → {result}" narrative 를 잡아 모달 표시.
@@ -200,408 +181,6 @@ export default function DungeonView() {
     }, TICK_INTERVAL[speed]);
     return () => window.clearInterval(id);
   }, [session, speed, paused, choiceResultText]);
-
-  // Phase 4c-polish: HeroSprite state (idle/attack/hurt).
-  // 새 combat 엔트리 감지 → attacker 별로 sprite 상태 세팅.
-  //   attacker = "hero", damage > 0  → attack
-  //   attacker = "enemy", damage > 0 → hurt
-  //   miss/dodge (damage 0)          → sprite 반응 없음
-  const [heroState, setHeroState] = useState<HeroSpriteState>("idle");
-  const [enemyHurt, setEnemyHurt] = useState(false);
-  // Phase 12 — 전투 방향 flash. 공격 이벤트 발생 시 화면 edge 에서 한 번 번쩍.
-  //   side = "left"  : 영웅 공격 (영웅 클래스 색)
-  //   side = "right" : 적 공격 (GB_ENEMY 붉은색)
-  //   key 는 log entry idx — 같은 entry 를 두 번 처리하지 않도록 seenCombatIdxRef
-  //   로 dedupe 된 후 한 번만 set. React remount 기반 replay 는 key 변경으로 발동.
-  const [attackFlash, setAttackFlash] = useState<{
-    side: "left" | "right";
-    color: string;
-    key: number;
-  } | null>(null);
-  const seenCombatIdxRef = useRef<Set<number>>(new Set());
-  const heroStateTimerRef = useRef<number | null>(null);
-  const enemyHurtTimerRef = useRef<number | null>(null);
-  // Phase 12 R-perf — deps 를 [session] → [logLen] 로 축소. session 은 매 tick
-  //   새 ref 지만 log.length 는 새 entry push 될 때만 변경. seenCombatIdxRef
-  //   가 idempotent 보장하므로 미처리 entry 만 깔끔히 pop. closure 는 항상
-  //   최신 session 을 캡처 (component re-render 마다 effect 함수 재생성).
-  useEffect(() => {
-    if (!session) return;
-    session.log.forEach((entry, idx) => {
-      if (entry.type !== "combat") return;
-      if (seenCombatIdxRef.current.has(idx)) return;
-      seenCombatIdxRef.current.add(idx);
-      if (entry.damage === 0) return;
-      if (entry.attacker === "hero") {
-        if (heroStateTimerRef.current) window.clearTimeout(heroStateTimerRef.current);
-        setHeroState("attack");
-        heroStateTimerRef.current = window.setTimeout(() => {
-          setHeroState("idle");
-          heroStateTimerRef.current = null;
-        }, 240);
-        if (enemyHurtTimerRef.current) window.clearTimeout(enemyHurtTimerRef.current);
-        setEnemyHurt(true);
-        enemyHurtTimerRef.current = window.setTimeout(() => {
-          setEnemyHurt(false);
-          enemyHurtTimerRef.current = null;
-        }, 260);
-        setAttackFlash({
-          side: "left",
-          color: session.hero.classType
-            ? CLASS_THEME_COLOR[session.hero.classType]
-            : GB.lightest,
-          key: idx,
-        });
-      } else {
-        if (heroStateTimerRef.current) window.clearTimeout(heroStateTimerRef.current);
-        setHeroState("hurt");
-        heroStateTimerRef.current = window.setTimeout(() => {
-          setHeroState("idle");
-          heroStateTimerRef.current = null;
-        }, 260);
-        setAttackFlash({
-          side: "right",
-          color: GB_ENEMY,
-          key: idx,
-        });
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.log.length]);
-
-  // 세션 바뀌면 combat seen 초기화
-  useEffect(() => {
-    if (!session) {
-      seenCombatIdxRef.current.clear();
-    }
-  }, [session?.startedAt, session]);
-
-  // Phase 5d — Warrior HP regen visual tell.
-  // 매 combat round 끝 (enemy 공격 entry) + classType === "warrior" →
-  // HP bar 위에 "+2" 가 800ms 떠올랐다 사라짐. 이제 패시브가 체감됨.
-  // 세션 바뀌면 seen 초기화.
-  const [hpRegenFloats, setHpRegenFloats] = useState<number[]>([]);
-  const seenRegenIdxRef = useRef<Set<number>>(new Set());
-  useEffect(() => {
-    if (!session) return;
-    if (session.hero.classType !== "warrior") return;
-    session.log.forEach((entry, idx) => {
-      if (entry.type !== "combat" || entry.attacker !== "enemy") return;
-      if (seenRegenIdxRef.current.has(idx)) return;
-      seenRegenIdxRef.current.add(idx);
-      setHpRegenFloats((prev) => [...prev, idx]);
-      scheduleFloatCleanup(() => {
-        setHpRegenFloats((prev) => prev.filter((i) => i !== idx));
-      }, 820);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.log.length]);
-  useEffect(() => {
-    if (!session) {
-      seenRegenIdxRef.current.clear();
-      setHpRegenFloats([]);
-    }
-  }, [session?.startedAt, session]);
-
-  // Phase 6c — 다른 class 의 visual tell.
-  //
-  // 각 class 별 float array 를 개별 관리. 공통 패턴:
-  // 1. useEffect 로 session.log 순회 + seen set 으로 중복 방지
-  // 2. 조건 만족하는 entry 감지 시 float array 에 push (id = log idx)
-  // 3. 애니메이션 끝나면 setTimeout 으로 제거
-  // 4. 세션 바뀌면 seen set + float array 초기화
-  //
-  // Tell 종류 (warrior 외):
-  //  mage         — victory 시 XP float 금색 (버프 or class 배율 적용됐을 때)
-  //  monk         — dodge 성공 시 sprite ✦ pulse
-  //  druid        — heal 효과 발동 시 HP bar "+amount" 초록 float (heal combat 판정 없어서 choice 관찰)
-  //  bard         — coin 획득 시 "+amount" 금색 float (victory/treasure)
-  //  chronomancer — consumeTime 에서 mult 적용 시 "-25%" micro tag (log 감지 어려움 → Phase 6b skill fire 로 대체)
-  //  priest       — 세션 첫 tick 시 "+50" 초록 (applyClassStartEffects 에서 적용된 HP 를 보여줌)
-  //  illusionist  — crit 발동 시 sprite ◇ pulse (기존 shake 와 보완)
-
-  // Mage XP / Bard coin / Druid heal / Priest start float — 공통 float array 로 통합
-  // Phase 12 R5 — 데미지 float 추가. 공격 순간의 수치 임팩트를 narrative 에서 끌어올려
-  //   HP bar 위로 띄움. "heroDamage" = 적 → 영웅 HP 바 (붉은 -N), "enemyDamage" = 영웅
-  //   → 적 HP 바 (영웅 클래스 색 -N). 800ms rise + fade.
-  type GenericFloat = {
-    id: number;
-    kind:
-      | "xp"
-      | "coin"
-      | "heal"
-      | "priestStart"
-      | "timeSave"
-      | "heroDamage"
-      | "enemyDamage";
-    amount: number;
-  };
-  const [genericFloats, setGenericFloats] = useState<GenericFloat[]>([]);
-  const seenGenericRef = useRef<Set<string>>(new Set());
-  // Phase 11c R3 — float cleanup timer 들 추적. unmount 시 일괄 clear 해 React
-  //   "setState on unmounted component" 경고 방지 + 메모리 누수 제거.
-  const floatTimersRef = useRef<Set<number>>(new Set());
-  const scheduleFloatCleanup = (callback: () => void, delayMs: number) => {
-    const id = window.setTimeout(() => {
-      floatTimersRef.current.delete(id);
-      callback();
-    }, delayMs);
-    floatTimersRef.current.add(id);
-    return id;
-  };
-  useEffect(() => {
-    return () => {
-      floatTimersRef.current.forEach((id) => window.clearTimeout(id));
-      floatTimersRef.current.clear();
-    };
-  }, []);
-
-  // Monk dodge + Illusionist crit — HeroSprite pulseOverlay 를 통해 표시
-  const [pulseOverlay, setPulseOverlay] = useState<"dodge" | "crit" | null>(null);
-  const pulseTimerRef = useRef<number | null>(null);
-  const seenPulseIdxRef = useRef<Set<number>>(new Set());
-
-  // session 변경 시 초기화
-  useEffect(() => {
-    if (!session) {
-      setGenericFloats([]);
-      setPulseOverlay(null);
-      seenGenericRef.current.clear();
-      seenPulseIdxRef.current.clear();
-      // Phase 11c R4 R3 — announce seen idx 도 새 세션에서 -1 로 reset.
-      //   기존엔 session === null 분기에만 reset 되어, 세션 교체 시 stale idx 로
-      //   새 session.log[0..N] 공지 누락 가능.
-      seenLogIdxRef.current = -1;
-    }
-  }, [session?.startedAt, session]);
-
-  // Phase 11c R4 — 주요 이벤트 SR 공지. 시각 float/banner 는 aria-hidden 이라
-  //   키보드/SR 유저에게 전투 진행이 "조용". 여기서 보스 등장 · 처치 · 스킬 발동 ·
-  //   세션 종료를 announce() 호출로 상황 중계.
-  //
-  // Phase 11c R4 R2 — effect deps 를 `session` 전체 → `logLen` 으로 축소. tick 마다
-  //   새 session 객체가 와도 log length 변화 없으면 effect skip. 내부에서도 처리한
-  //   최대 idx (seenLogIdxRef) 이후만 순회해 O(N) → O(delta).
-  const seenLogIdxRef = useRef(-1);
-  const logLen = session?.log.length ?? 0;
-  useEffect(() => {
-    if (!session) {
-      seenLogIdxRef.current = -1;
-      return;
-    }
-    const startIdx = seenLogIdxRef.current + 1;
-    for (let idx = startIdx; idx < session.log.length; idx++) {
-      const entry = session.log[idx];
-      if (entry.type === "boss") {
-        announce(
-          t("uphero.announce.bossAppear", {
-            name: monsterName(entry.monster, language),
-            hp: entry.monster.hp,
-          }),
-          "assertive",
-        );
-      } else if (entry.type === "victory" && entry.monster.isBoss) {
-        announce(
-          t("uphero.announce.bossVictory", {
-            name: monsterName(entry.monster, language),
-            xp: entry.xp,
-            coins: entry.coins,
-          }),
-          "polite",
-        );
-      } else if (entry.type === "skill") {
-        const localName = entry.skillId
-          ? skillName(entry.skillId, entry.skillName, language)
-          : entry.skillName;
-        announce(
-          t("uphero.announce.skillFired", { name: localName }),
-          "polite",
-        );
-      } else if (entry.type === "drop") {
-        const rarityKey = `uphero.rarity.${entry.equipment.rarity}` as const;
-        announce(
-          t("uphero.announce.drop", {
-            rarity: t(rarityKey),
-            name: entry.equipment.name,
-          }),
-          "polite",
-        );
-      } else if (entry.type === "sessionEnd") {
-        const reasonKey =
-          entry.reason === "bossDefeated"
-            ? "uphero.announce.bossDefeated"
-            : entry.reason === "heroDied"
-              ? "uphero.announce.heroDied"
-              : entry.reason === "timeExpired"
-                ? "uphero.announce.timeExpired"
-                : "uphero.announce.ended";
-        announce(t(reasonKey), "assertive");
-      }
-    }
-    seenLogIdxRef.current = session.log.length - 1;
-    // session 자체가 아니라 logLen 에만 의존 — tick 마다 동일 참조여도 효과 skip.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [logLen, announce]);
-
-  // Mage XP float + Bard coin float — victory entry 감지
-  useEffect(() => {
-    if (!session) return;
-    const cls = session.hero.classType;
-    if (cls !== "mage" && cls !== "bard") return;
-    session.log.forEach((entry, idx) => {
-      if (entry.type !== "victory") return;
-      const key = `${cls}-victory-${idx}`;
-      if (seenGenericRef.current.has(key)) return;
-      seenGenericRef.current.add(key);
-      const id = Date.now() + idx;
-      const kind = cls === "mage" ? "xp" : "coin";
-      const amount = cls === "mage" ? entry.xp : entry.coins;
-      setGenericFloats((prev) => [...prev, { id, kind, amount }]);
-      scheduleFloatCleanup(() => {
-        setGenericFloats((prev) => prev.filter((f) => f.id !== id));
-      }, 1100);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.log.length]);
-
-  // Monk dodge + Illusionist crit — combat entry 감지 → pulseOverlay 설정
-  useEffect(() => {
-    if (!session) return;
-    const cls = session.hero.classType;
-    if (cls !== "monk" && cls !== "illusionist") return;
-    session.log.forEach((entry, idx) => {
-      if (entry.type !== "combat") return;
-      if (seenPulseIdxRef.current.has(idx)) return;
-      const match =
-        (cls === "monk" && entry.attacker === "enemy" && entry.outcome === "dodge") ||
-        (cls === "illusionist" && entry.attacker === "hero" && entry.outcome === "crit");
-      if (!match) return;
-      seenPulseIdxRef.current.add(idx);
-      if (pulseTimerRef.current) window.clearTimeout(pulseTimerRef.current);
-      setPulseOverlay(cls === "monk" ? "dodge" : "crit");
-      pulseTimerRef.current = window.setTimeout(() => {
-        setPulseOverlay(null);
-        pulseTimerRef.current = null;
-      }, cls === "monk" ? 460 : 510);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.log.length]);
-
-  // Phase 12 R5 — 피격 데미지 float.
-  //   combat entry 감지 → damage > 0 이면 heroDamage (적 공격) 또는 enemyDamage
-  //   (영웅 공격) float 추가. HP bar / 적 HP bar 영역 위에서 "-N" 이 위로 떠올라
-  //   800ms 페이드. miss/dodge (damage === 0) 는 float 없음 (기존 narrative 만).
-  const seenDamageIdxRef = useRef<Set<number>>(new Set());
-  useEffect(() => {
-    if (!session) {
-      seenDamageIdxRef.current.clear();
-      return;
-    }
-    session.log.forEach((entry, idx) => {
-      if (entry.type !== "combat") return;
-      if (seenDamageIdxRef.current.has(idx)) return;
-      if (entry.damage <= 0) return;
-      seenDamageIdxRef.current.add(idx);
-      const kind: GenericFloat["kind"] =
-        entry.attacker === "enemy" ? "heroDamage" : "enemyDamage";
-      const id = Date.now() + idx;
-      setGenericFloats((prev) => [
-        ...prev,
-        { id, kind, amount: entry.damage },
-      ]);
-      scheduleFloatCleanup(() => {
-        setGenericFloats((prev) => prev.filter((f) => f.id !== id));
-      }, 850);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.log.length]);
-
-  // Priest start HP float — 세션 첫 tick 에 한 번. Phase 11c R4 R2: flat +50 →
-  //   20% percentage 로 변경되어 실제 delta 를 maxHp 로부터 역산 (현재 maxHp 의 1/6).
-  const priestStartShownRef = useRef(false);
-  useEffect(() => {
-    if (!session) {
-      priestStartShownRef.current = false;
-      return;
-    }
-    if (session.hero.classType !== "priest") return;
-    if (priestStartShownRef.current) return;
-    // 세션 시작 직후 (log 3개 이하) 에 한 번만
-    if (session.log.length > 5) return;
-    priestStartShownRef.current = true;
-    const id = Date.now();
-    // +20% 의 실제 HP delta 계산: maxHp_after - maxHp_before = maxHp × (1 - 1/1.2).
-    const priestDelta = Math.round(session.hero.maxHp * (1 - 1 / 1.2));
-    setGenericFloats((prev) => [...prev, { id, kind: "priestStart", amount: priestDelta }]);
-    scheduleFloatCleanup(() => {
-      setGenericFloats((prev) => prev.filter((f) => f.id !== id));
-    }, 1200);
-  }, [session]);
-
-  // Druid heal float — hero.hp 가 증가한 구간을 감지해 실제 delta 수치 표시.
-  // narrative text 에는 수치가 들어있지 않아 log 파싱으론 불가. hp 변화
-  // 관찰이 가장 정확. warrior regen (+2) 은 druid 가 아닐 때만 발동하므로
-  // 충돌 없음. 5 미만 증가는 무시 (미세 변동 방지).
-  const prevHpRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!session) {
-      prevHpRef.current = null;
-      return;
-    }
-    if (session.hero.classType !== "druid") return;
-    const curHp = session.hero.hp;
-    const prev = prevHpRef.current;
-    prevHpRef.current = curHp;
-    if (prev === null) return; // 첫 샘플
-    const delta = curHp - prev;
-    if (delta < 5) return; // 노이즈 컷
-    const id = Date.now();
-    setGenericFloats((f) => [...f, { id, kind: "heal", amount: delta }]);
-    scheduleFloatCleanup(() => {
-      setGenericFloats((f) => f.filter((x) => x.id !== id));
-    }, 1000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.hero.hp]);
-
-  // Chronomancer time save tag — consumeTime 에서 mult 적용 시 combat log 에는
-  // 흔적이 없다. 차선책: TIME bar 옆에 "절약" micro tag 를 매 floor 진입
-  // (가장 자주 time 소모되는 지점) 시 1회 표시. Phase 6c MVP.
-  useEffect(() => {
-    if (!session) return;
-    if (session.hero.classType !== "chronomancer") return;
-    session.log.forEach((entry, idx) => {
-      if (entry.type !== "floor") return;
-      const key = `chrono-floor-${idx}`;
-      if (seenGenericRef.current.has(key)) return;
-      seenGenericRef.current.add(key);
-      const id = Date.now() + idx;
-      setGenericFloats((prev) => [...prev, { id, kind: "timeSave", amount: 25 }]);
-      scheduleFloatCleanup(() => {
-        setGenericFloats((prev) => prev.filter((f) => f.id !== id));
-      }, 720);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.log.length]);
-
-  // Time bar pulse — 시간이 ≥5 한 번에 빠지면 bar 가 한 번 번쩍.
-  // 이벤트 outcome (대피 -15, 보스 -8, 악몽 -10 등) 처럼 "큰 비용" 순간을
-  // 시각적으로 강조. rAF restart 패턴으로 keyframe 다시 재생.
-  const prevTimeRef = useRef(session?.time ?? 0);
-  const [timeFlashing, setTimeFlashing] = useState(false);
-  useEffect(() => {
-    const current = session?.time ?? 0;
-    const diff = prevTimeRef.current - current;
-    prevTimeRef.current = current;
-    if (diff >= 5) {
-      setTimeFlashing(false);
-      const raf = requestAnimationFrame(() => setTimeFlashing(true));
-      const t = window.setTimeout(() => setTimeFlashing(false), 340);
-      return () => {
-        cancelAnimationFrame(raf);
-        window.clearTimeout(t);
-      };
-    }
-  }, [session?.time]);
 
   if (!session) return null;
 

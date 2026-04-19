@@ -50,6 +50,7 @@ import {
   type TalismanModifiers,
 } from "@/lib/talismanSkills";
 import { getWeeklyAffixById } from "@/data/weeklyAffixes";
+import { rng } from "@/lib/upHeroRng";
 
 /**
  * Phase 4c.1 → 11a rebalance — 탐험 시간 리소스.
@@ -231,7 +232,7 @@ export function generateMysteryFloors(cycleIndex: number): number[] {
   gaps.forEach(([lo, hi], gapIdx) => {
     // cycle 0 의 첫 gap (F1-F9) 은 "첫 보스 이전" 이라 skip.
     if (cycleIndex === 0 && gapIdx === 0) return;
-    const floor = lo + Math.floor(Math.random() * (hi - lo + 1));
+    const floor = lo + Math.floor(rng() * (hi - lo + 1));
     out.push(floor);
   });
   return out;
@@ -493,13 +494,27 @@ function classHpRegen(cls: ClassType | null): number {
  * 반환값: 업데이트된 session (불변).
  * session.status 가 "awaitingChoice" 또는 "completed" 면 외부에서 tick 중단 필요.
  */
+/**
+ * Phase 14 code-review Medium #13 — in-memory log trim.
+ *   장기 NG+ 세션 / replay 에서 session.log 가 수천 entry 로 성장 → CombatLog 렌더
+ *   + useDungeonAnnouncer / findLastEncounterIndex 순회 모두 O(N). persist 단계에
+ *   이미 400 cap (SESSION_LOG_PERSIST_CAP) 이 있지만 in-memory 는 무제한이라 UI
+ *   lag. findLastEncounterIndex 가 backward-search 이므로 안전 거리 (200+)
+ *   충분히 두고 tail-slice.
+ */
+const SESSION_LOG_RUNTIME_CAP = 600;
+
 export function tickSession(session: CombatSession): CombatSession {
   if (session.status !== "active") return session;
 
   // 내부 state 로 working copy 만들기
+  const nextLog =
+    session.log.length > SESSION_LOG_RUNTIME_CAP
+      ? session.log.slice(-SESSION_LOG_RUNTIME_CAP)
+      : [...session.log];
   const s: CombatSession = {
     ...session,
-    log: [...session.log],
+    log: nextLog,
     hero: { ...session.hero },
     rewards: {
       ...session.rewards,
@@ -618,7 +633,7 @@ export function tickSession(session: CombatSession): CombatSession {
 
         // 일반 몬스터 drop 확률 — base 30% + dropRate buff %
         const dropChance = 0.3 + getBuffBoost(s.activeBuffs, "dropRate") / 100;
-        if (Math.random() < dropChance) {
+        if (rng() < dropChance) {
           const rarity = rollDropRarity(
             s.currentFloor,
             tMods.legendDropBonus + (s.ngPlusLevel ?? 0) * 0.02,
@@ -633,7 +648,7 @@ export function tickSession(session: CombatSession): CombatSession {
         if (
           s.extraDropAvailable &&
           tMods.extraDropChance > 0 &&
-          Math.random() < tMods.extraDropChance
+          rng() < tMods.extraDropChance
         ) {
           s.extraDropAvailable = false;
           const bonusRarity = rollDropRarity(
@@ -786,7 +801,7 @@ export function tickSession(session: CombatSession): CombatSession {
   //   monsterFrequency buff 는 encounter/non-encounter 마지막 분기에서만 적용.
   const monsterFreqDelta = getBuffBoost(s.activeBuffs, "monsterFrequency") / 100;
 
-  const roll = Math.random();
+  const roll = rng();
   if (roll < 0.25) {
     // choice 이벤트 — 사용자 선택 필요 (시간 소모는 resolveChoice 에서)
     const ev = pickEvent(s);
@@ -839,9 +854,9 @@ export function tickSession(session: CombatSession): CombatSession {
     // Phase 11a rebalance — 35% 확률로 "휴식처" 변주: 코인 대신 시간 회복 (+10~15).
     // Phase 11c R1 — long_march affix 시 +20% → 55%.
     const restChance = 0.35 + (s.restChanceBonus ?? 0);
-    const isRest = Math.random() < restChance;
+    const isRest = rng() < restChance;
     if (isRest) {
-      const recoverAmount = 10 + Math.floor(Math.random() * 6); // 10~15 회복
+      const recoverAmount = 10 + Math.floor(rng() * 6); // 10~15 회복
       // Phase 14 i18n — restDesc 자체에도 i18n key 저장 (descriptionKey).
       //   CombatLog 의 resolveNarrative 가 descriptionKey 를 현재 언어로 풀어
       //   {description} slot 에 주입한다.
@@ -866,7 +881,7 @@ export function tickSession(session: CombatSession): CombatSession {
     const coinMult =
       (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
       classCoinMult(s.hero.classType);
-    const coins = Math.round((5 + Math.floor(Math.random() * 16)) * coinMult);
+    const coins = Math.round((5 + Math.floor(rng() * 16)) * coinMult);
     // Phase 14 i18n — treasureDesc 자체에도 i18n key 저장 (descriptionKey).
     const treasure = pickTreasureWithKey();
     s.log.push({
@@ -1000,7 +1015,7 @@ export function resolveChoice(
 function pickWeighted<T extends { weight: number }>(outcomes: T[]): T {
   const total = outcomes.reduce((sum, o) => sum + Math.max(0, o.weight), 0);
   if (total <= 0) return outcomes[0];
-  let roll = Math.random() * total;
+  let roll = rng() * total;
   for (const o of outcomes) {
     roll -= Math.max(0, o.weight);
     if (roll <= 0) return o;
@@ -1166,7 +1181,7 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
       const encounterIdx = findLastEncounterIndex(session.log);
       if (encounterIdx < 0) break;
       const monster = (session.log[encounterIdx] as { type: "encounter"; monster: Monster }).monster;
-      const success = Math.random() < effect.successChance;
+      const success = rng() < effect.successChance;
       if (success) {
         // 도망 성공 — 몬스터 무시하고 다음 floor 진행
         // narrative 추가, 세션 계속 (다음 tick 에서 floor 전환)
@@ -1206,7 +1221,7 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
           outcome === "miss" || outcome === "dodge"
             ? 0
             : computeEnemyDamage(monster, stats, outcome === "crit");
-        const narr = Math.random() < shouldNarrate(outcome)
+        const narr = rng() < shouldNarrate(outcome)
           ? monsterAttackNarrativeI18n(monster, outcome, dmg)
           : undefined;
         session.log.push({
@@ -1373,7 +1388,7 @@ function executeCombatRound(
     heroDmg = Math.round(heroDmg * (1 + tMods.lowHpDmgBonus));
   }
 
-  const heroNarr = Math.random() < shouldNarrate(heroOutcome)
+  const heroNarr = rng() < shouldNarrate(heroOutcome)
     ? heroAttackNarrativeI18n(monster, heroOutcome, heroDmg)
     : undefined;
   s.log.push({
@@ -1444,11 +1459,11 @@ function executeCombatRound(
   //   monster HP 에 반격 damage 를 combat log 에 추가 push. "hit" 으로 표시.
   //   monster HP 는 다음 tick 의 computeMonsterHp 가 log 누적으로 계산하므로 여기선 log 만.
   let counterLogged = false;
-  if (enemyDmg > 0 && tMods.counterChance > 0 && Math.random() < tMods.counterChance) {
+  if (enemyDmg > 0 && tMods.counterChance > 0 && rng() < tMods.counterChance) {
     counterLogged = true;
   }
 
-  const enemyNarr = Math.random() < shouldNarrate(enemyOutcome)
+  const enemyNarr = rng() < shouldNarrate(enemyOutcome)
     ? monsterAttackNarrativeI18n(monster, enemyOutcome, enemyDmg)
     : undefined;
   s.log.push({
@@ -1646,15 +1661,15 @@ function rollHeroOutcome(
 ): CombatOutcome {
   // 공격자(영웅) 실수 — 낮은 dex 일수록 빗나감 (base 5%, dex 60 에서 2% 바닥)
   const missChance = Math.max(0.02, 0.05 - stats.dex * 0.0005);
-  if (Math.random() < missChance) return "miss";
+  if (rng() < missChance) return "miss";
   // 방어자(몬스터) 회피 — 고층 몬스터 더 잘 피함
   const dodgeChance = Math.min(0.2, monster.level * 0.005);
-  if (Math.random() < dodgeChance) return "dodge";
+  if (rng() < dodgeChance) return "dodge";
   // 공격자(영웅) 크리 — dex scaling + 장비 crit 보너스 (Phase 4a)
   //   stats.crit 은 장비에서만 합산 (영웅 base = 0)
   //   1 포인트 = +1% crit 확률
   const critChance = Math.min(0.5, 0.05 + stats.dex * 0.003 + stats.crit * 0.01);
-  if (Math.random() < critChance) return "crit";
+  if (rng() < critChance) return "crit";
   return "hit";
 }
 
@@ -1674,13 +1689,13 @@ function rollEnemyOutcome(
   // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 8%, floor 60 에서 2% 바닥)
   //   Phase 11b talisman "변덕" → enemyMissBonus 추가.
   const missChance = Math.max(0.02, 0.08 - monster.level * 0.001) + enemyMissBonus;
-  if (Math.random() < missChance) return "miss";
+  if (rng() < missChance) return "miss";
   // 방어자(영웅) 회피 — agi scaling + class bonus + talisman bonus. cap 0.45 (monk + 변덕 최대).
   const dodgeChance = Math.min(0.45, stats.agi * 0.006 + dodgeBonus);
-  if (Math.random() < dodgeChance) return "dodge";
+  if (rng() < dodgeChance) return "dodge";
   // 공격자(몬스터) 크리 — level scaling + affix bonus (cap 0.4 로 올림, fragile_world 대비).
   const critChance = Math.min(0.4, 0.03 + monster.level * 0.004 + monsterCritBonus);
-  if (Math.random() < critChance) return "crit";
+  if (rng() < critChance) return "crit";
   return "hit";
 }
 
@@ -1692,7 +1707,7 @@ function computeHeroDamage(
 ): number {
   const base = Math.max(
     1,
-    stats.str + Math.floor(Math.random() * 7) - 3 - monster.def,
+    stats.str + Math.floor(rng() * 7) - 3 - monster.def,
   );
   return crit ? Math.floor(base * 1.8) : base;
 }
@@ -1725,7 +1740,7 @@ function computeEnemyDamage(
   //   Lv50 vit 59: 59/84 = 70%.
   //   maxHp 성장 (×10 → ×12, Lv30 448 로) 과 결합해 NG+2 crit 도 2-hit 생존 보장.
   const dr = Math.min(0.75, vit / (vit + 25));
-  const rawDmg = monster.atk + Math.floor(Math.random() * 5) - 2;
+  const rawDmg = monster.atk + Math.floor(rng() * 5) - 2;
   const base = Math.max(
     1,
     Math.round(rawDmg * (1 - dr)) - Math.floor(vit / 4),

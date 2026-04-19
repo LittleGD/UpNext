@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useRef, useCallback, useState, useEffect, memo } from "react";
 import type { Sticker } from "@/types/growth";
 import UpNextLogoMark from "./UpNextLogoMark";
 
@@ -65,7 +65,7 @@ function ang(a: { x: number; y: number }, b: { x: number; y: number }) {
   return (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
 }
 
-export default function StickerLayer({ stickers, editable = false, onChange, className }: Props) {
+function StickerLayerImpl({ stickers, editable = false, onChange, className }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
 
@@ -255,6 +255,12 @@ export default function StickerLayer({ stickers, editable = false, onChange, cla
   );
 }
 
+// Phase 14 code-review High #11 — StickerLayer + StickerView 둘 다 memo.
+//   부모 모달은 toolbar / state 변경으로 자주 re-render 되지만 sticker 배열은
+//   drag 종료 시에만 변경됨 → shallow compare 로 무관 render skip.
+const StickerLayer = memo(StickerLayerImpl);
+export default StickerLayer;
+
 interface StickerViewProps {
   sticker: Sticker;
   editable: boolean;
@@ -264,7 +270,7 @@ interface StickerViewProps {
   onDoubleClick: (e: React.MouseEvent, id: string) => void;
 }
 
-function StickerView({ sticker, editable, onPointerDown, onPointerMove, onPointerUp, onDoubleClick }: StickerViewProps) {
+const StickerView = memo(function StickerView({ sticker, editable, onPointerDown, onPointerMove, onPointerUp, onDoubleClick }: StickerViewProps) {
   // 사이즈는 부모 컨테이너 기준 % — 텍스트는 base 36px, image 는 60px
   const isImage = sticker.type === "image";
   const baseSize = isImage ? 60 : 36;
@@ -313,4 +319,4 @@ function StickerView({ sticker, editable, onPointerDown, onPointerMove, onPointe
       ) : null}
     </div>
   );
-}
+});

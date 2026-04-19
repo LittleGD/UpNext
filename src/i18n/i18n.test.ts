@@ -1,9 +1,19 @@
-import { describe, it, expect } from "vitest";
-import { t } from "./index";
+import { describe, it, expect, beforeAll } from "vitest";
+import { t, ensureLanguage } from "./index";
 import ko from "./ko";
 import en from "./en";
 import ja from "./ja";
 import zh from "./zh";
+
+// Phase 14 code-review High #12 — i18n 이 lazy-loaded 로 전환됐으므로
+//   t() 가 non-ko dict 를 참조하려면 ensureLanguage 로 preload 필요.
+beforeAll(async () => {
+  await Promise.all([
+    ensureLanguage("en"),
+    ensureLanguage("ja"),
+    ensureLanguage("zh"),
+  ]);
+});
 
 /**
  * Phase 13 review — i18n dictionary 일관성 + placeholder 토큰 테스트.

@@ -94,8 +94,13 @@ export default function DecorationToolbar({
       g.style.pointerEvents = "none";
       g.style.zIndex = "99999";
       g.style.opacity = "0.92";
-      // 버튼 내용 그대로 복제 (이모지/UpNext 로고 모두 동일하게)
-      g.innerHTML = button.innerHTML;
+      // 버튼 내용 그대로 복제 (이모지/UpNext 로고 모두 동일하게).
+      //   Phase 14 code-review High #10 — innerHTML 재할당은 re-parse 되며 향후
+      //   STICKER_PRESETS 에 유저 입력 기반 content 가 들어올 경우 XSS 취약. 지금은
+      //   상수 pool 이지만 방어적으로 cloneNode 로 treewise copy 하도록 변경.
+      for (const child of Array.from(button.childNodes)) {
+        g.appendChild(child.cloneNode(true));
+      }
       // 이모지 사이즈 보정
       g.style.fontSize = "36px";
       g.style.lineHeight = "1";
@@ -163,7 +168,8 @@ export default function DecorationToolbar({
                 key={color}
                 onClick={() => onColorChange(color)}
                 aria-label={`Pen color ${color}`}
-                className="relative w-6 h-6 rounded-full active:scale-90 transition-transform"
+                // 시각: 24×24 / 히트: 44×44 (WCAG AAA — ::after 확장. 레이아웃 변화 X)
+                className="relative w-6 h-6 rounded-full active:scale-90 transition-transform after:absolute after:-inset-2.5 after:content-[''] after:rounded-full"
                 style={{
                   backgroundColor: color,
                   boxShadow: isSelected ? `${insetRing}, ${baseShadow}` : baseShadow,
@@ -185,7 +191,8 @@ export default function DecorationToolbar({
                 key={w.id}
                 onClick={() => onWidthChange(w.multiplier)}
                 aria-label={`Pen width ${w.label}`}
-                className="w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                // 시각: 24×24 / 히트: 44×44 (::after 확장)
+                className="relative w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-transform after:absolute after:-inset-2.5 after:content-[''] after:rounded-full"
                 style={{
                   boxShadow: isSelected
                     ? "inset 0 0 0 1.5px var(--accent-primary)"
@@ -213,7 +220,8 @@ export default function DecorationToolbar({
             key={s.id}
             onPointerDown={(e) => handleStickerPointerDown(e, s)}
             aria-label={`Add ${s.id} sticker (tap or drag onto polaroid)`}
-            className="h-8 rounded-md flex items-center justify-center text-lg active:scale-90 transition-transform hover:bg-text-tertiary/10 touch-none"
+            // 시각: 32H / 히트: 44H (::after 확장 — 세로 +12, 가로 +12). 드래그 시작점 판별에도 동일 box 적용.
+            className="relative h-8 rounded-md flex items-center justify-center text-lg active:scale-90 transition-transform hover:bg-text-tertiary/10 touch-none after:absolute after:-inset-1.5 after:content-[''] after:rounded-md"
             style={{
               minWidth: s.id === "upnext" ? 48 : 32,
               padding: s.id === "upnext" ? "0 4px" : 0,

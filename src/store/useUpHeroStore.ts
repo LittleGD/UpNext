@@ -8,6 +8,7 @@
 
 import { create } from "zustand";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
+import { rng } from "@/lib/upHeroRng";
 import {
   createDefaultHero,
   computeHeroForLevel,
@@ -51,7 +52,7 @@ import {
   calculateCodexDelta,
   calculateDungeonProgress,
 } from "@/lib/sessionReward";
-import { calculateIdleReward } from "@/lib/idleAccrual";
+import { calculateIdleReward, detectClockRewind } from "@/lib/idleAccrual";
 import {
   classXpMult,
   classCoinMult,
@@ -62,9 +63,9 @@ import { findSkillById, canFireSkill, fireSkill, CLASS_SKILL_TREES } from "@/lib
 import {
   PHOTO_TALISMAN_RITUAL_COST,
   buildPhotoTalisman,
-  findBoundTalisman,
+  findBoundPhotoTalisman,
   isPhotoBound,
-  rebuildTalismanWithLevel,
+  rebuildPhotoTalismanWithLevel,
   rebindPhotoTalismanCost,
   rollPhotoRarity,
 } from "@/lib/photoTalisman";
@@ -153,6 +154,9 @@ const STORAGE_KEY = "uphero";
 
 interface UpHeroActions {
   initialize(): void;
+
+  /** Phase 14 security — 로그아웃 시 in-memory state 초기화 (reload fallback). */
+  resetForSignOut(): void;
 
   // 탐험권
   grantExpeditionPass(dungeonId: DungeonId, rarity: Rarity): void;
@@ -314,6 +318,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     codex,
     cosmetics,
     lastIdleAccrualAt,
+    lastSeenAt,
     heroStartLevel,
     shopDaily,
     ngPlusLevel,
@@ -338,6 +343,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     codex,
     cosmetics,
     lastIdleAccrualAt,
+    lastSeenAt,
     heroStartLevel,
     shopDaily,
     ngPlusLevel,
@@ -357,6 +363,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   codex: { monsters: [], equipment: [], bosses: [] },
   cosmetics: {},
   lastIdleAccrualAt: Date.now(),
+  lastSeenAt: Date.now(),
   // Phase 9d — 초기값 undefined. initialize 에서 seed.
   heroStartLevel: undefined,
   // Phase 11a — 초기값 undefined. initialize 에서 오늘 날짜로 seed.
@@ -411,6 +418,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // idle reward 에도 적용. calculator 는 class 무관 pure 유지, caller 가 곱.
     const now = Date.now();
     const lastIdleAt = saved?.lastIdleAccrualAt ?? now;
+    // Phase 14 security — clock rewind guard.
+    //   user 가 시스템 시계를 되돌려 idle reward 를 반복 수령하는 공격 방지.
+    //   lastSeenAt / lastIdleAt 중 하나라도 현재보다 "미래" 면 rewind 로 판정 →
+    //   이번 hydrate 에서는 reward 지급 skip 하고 두 timestamp 를 now 로 재동기화.
+    const clockRewound = detectClockRewind(now, saved?.lastSeenAt, lastIdleAt);
     const gameStore = useGameStore.getState();
     const curLevel = gameStore.progress.level ?? 1;
 
@@ -448,7 +460,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
     // idle accrual 도 heroLevel 기준으로 — 챌린지 Lv 41 에 영웅 Lv 1 유저가
     // Lv 41 수준의 idle reward 를 받으면 "영웅 Lv 1 인데 거대 보상" 이 부자연.
-    const rawIdleReward = calculateIdleReward(now - lastIdleAt, heroLevel);
+    const rawIdleReward = clockRewound
+      ? null
+      : calculateIdleReward(now - lastIdleAt, heroLevel);
     const heroClass = mergedHero.classType;
     const idleReward = rawIdleReward
       ? {
@@ -479,7 +493,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // Phase 5c-fix #2: lastIdleAccrualAt 는 reward 가 실제로 지급됐을 때만
     // now 로 갱신. 5분 미만 reload 시에는 기존 timestamp 유지 → 누적 보전.
     // (이전: reward 유무 무관 now 로 갱신 → 잦은 reload 시 누적 손실 발생)
-    const newLastIdleAt = idleReward ? now : lastIdleAt;
+    // Phase 14 security: clock rewind 검출 시에도 now 로 강제 재동기화 —
+    //   이후 합법적인 offline 누적 window 를 clock rewind 시점부터 다시 시작.
+    const newLastIdleAt = idleReward || clockRewound ? now : lastIdleAt;
 
     // Phase 11a — shopDaily seed. date 가 오늘과 다르면 passesBought=0 리셋.
     const today = getTodayString();
@@ -514,6 +530,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       codex,
       cosmetics: saved?.cosmetics ?? {},
       lastIdleAccrualAt: newLastIdleAt,
+      lastSeenAt: now,
       heroStartLevel,
       shopDaily,
       ngPlusLevel: saved?.ngPlusLevel ?? 0,
@@ -526,7 +543,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
     // migration 이 실제로 실행됐거나 idle reward 가 지급됐으면 즉시 persist.
     // (schemaVersion / coins / lastIdleAccrualAt 모두 영속화 대상.)
-    if (needsMigration || idleReward) {
+    // Phase 14 security: clock rewind 재동기화된 timestamp 도 즉시 persist —
+    //   새 rewind 감지 기준점을 영속화해 두지 않으면 다음 hydrate 에서 무시됨.
+    if (needsMigration || idleReward || clockRewound) {
       saveToStorage(STORAGE_KEY, pickPersisted(get()));
     }
 
@@ -740,7 +759,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // Phase 11c R4 — cost 가 level 스케일 (80 × (1 + curLevel × 0.3)).
     //   +9→+10 은 296 coin. 총합 +0→+10 ≈ 1,880 coin.
     const state = get();
-    const found = findBoundTalisman(photoId, state.inventory, state.hero.equipped);
+    const found = findBoundPhotoTalisman(photoId, state.inventory, state.hero.equipped);
     if (!found) {
       return {
         ok: false,
@@ -764,7 +783,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     }
 
     const newLevel = curLevel + 1;
-    const newItem = rebuildTalismanWithLevel(current, newLevel);
+    const newItem = rebuildPhotoTalismanWithLevel(current, newLevel);
     const newCoins = state.coins - cost;
 
     // inventory 또는 equipped 슬롯에서 in-place 교체.
@@ -1323,7 +1342,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     //   legend +4%p / fail, unique +2%p / fail. normal/rare 는 미적용.
     const curStreak = item.enhanceFailStreak ?? 0;
     const rate = enhanceSuccessRate(item.rarity, curLevel, curStreak);
-    const roll = Math.random();
+    const roll = rng();
     const success = roll < rate;
 
     // 위치별 item 을 새 item 으로 교체하는 헬퍼.
@@ -1382,13 +1401,16 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     }
 
     // 실패 — 코인은 어쨌든 차감. 보존 확률은 rarity 별 다름.
-    const preserved = Math.random() < ENHANCE_PRESERVE_BY_RARITY[item.rarity];
+    const preserved = rng() < ENHANCE_PRESERVE_BY_RARITY[item.rarity];
     const newCoins = state.coins - cost;
     if (preserved) {
       // 아이템 그대로 + failStreak +1 (다음 시도에 pity 보너스 적용).
+      //   Phase 14 code-review Medium #14 — pity 포뮬러는 streak 15~20 에서 이미
+      //   100% 포화이므로 이 이상 값은 의미 없이 persisted 숫자만 증가. 100 cap
+      //   으로 UI overflow / future type drift 방지.
       const newItem: Equipment = {
         ...item,
-        enhanceFailStreak: curStreak + 1,
+        enhanceFailStreak: Math.min(100, curStreak + 1),
       };
       const { inventory: newInventory, hero: newHero } = replaceItem(newItem);
       set({ coins: newCoins, inventory: newInventory, hero: newHero });
@@ -1407,6 +1429,31 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       pickPersisted({ ...state, inventory: newInventory, hero: newHero, coins: newCoins }),
     );
     return { ok: false, reason: "destroyed", lostItemName: lostName };
+  },
+
+  resetForSignOut: () => {
+    const now = Date.now();
+    set({
+      hero: createDefaultHero(),
+      inventory: [],
+      coins: 0,
+      passes: {},
+      dungeons: {},
+      currentSession: null,
+      pendingDungeon: null,
+      codex: { monsters: [], equipment: [], bosses: [] },
+      cosmetics: {},
+      lastIdleAccrualAt: now,
+      lastSeenAt: now,
+      heroStartLevel: undefined,
+      shopDaily: undefined,
+      ngPlusLevel: 0,
+      weeklyVariant: undefined,
+      idleReward: null,
+      pendingClassAwaken: null,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      isLoaded: false,
+    });
   },
 }));
 

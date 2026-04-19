@@ -9,6 +9,7 @@
 
 import type { Equipment, EquipSlot, DungeonId } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
+import { rng } from "@/lib/upHeroRng";
 
 /** 장비 템플릿 — instance 생성 시 랜덤 ID 부여 */
 interface EquipmentTemplate {
@@ -347,7 +348,7 @@ function pickAffix(
 ): keyof import("@/types/uphero").HeroBaseStats | null {
   const available = AFFIX_POOL.filter((k) => !exclude.has(k));
   if (available.length === 0) return null;
-  return available[Math.floor(Math.random() * available.length)];
+  return available[Math.floor(rng() * available.length)];
 }
 
 /** 템플릿 + 등급 → Equipment instance */
@@ -407,7 +408,7 @@ export function createEquipmentFromTemplate(
       : "";
 
   return {
-    id: `eq_${template.baseName.replace(/\s/g, "")}_${rarity}_${Date.now() % 100000}_${Math.floor(Math.random() * 1000)}`,
+    id: `eq_${template.baseName.replace(/\s/g, "")}_${rarity}_${Date.now() % 100000}_${Math.floor(rng() * 1000)}`,
     name: `${RARITY_PREFIX[rarity]}${template.baseName}${affixSuffix}`,
     // Phase 13a — 다국어 lookup 용 stable id. UI 가 equipmentNameById(baseId, ...)
     //   호출 시 i18n 키 `uphero.equip.<baseId>.name` 으로 조회.
@@ -437,9 +438,9 @@ export function rollEquipmentDrop(
   // 친화 슬롯 drop 확률 상승 (70% 친화, 30% 다른)
   const affinityPool = pool.filter((t) => t.type === affinitySlot);
   const chosenPool =
-    affinityPool.length > 0 && Math.random() < 0.7 ? affinityPool : pool;
+    affinityPool.length > 0 && rng() < 0.7 ? affinityPool : pool;
 
-  const template = chosenPool[Math.floor(Math.random() * chosenPool.length)];
+  const template = chosenPool[Math.floor(rng() * chosenPool.length)];
   return createEquipmentFromTemplate(template, rarity, floor);
 }
 
@@ -453,7 +454,7 @@ export function rollDropRarity(
   legendDropBonus = 0,
   flatten = false,
 ): Rarity {
-  const r = Math.random();
+  const r = rng();
   if (flatten) {
     // "혼돈의 보물" — legend 25%, unique 25%, rare 25%, normal 25%.
     //   Phase 11c R2 — legendDropBonus + NG+ 가산 시 legendCut 이 0.33+ 까지 치솟아

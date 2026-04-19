@@ -28,6 +28,36 @@ const MIN_ELAPSED_MIN = 5;
 const MAX_ELAPSED_MIN = 8 * 60; // 8시간
 
 /**
+ * Phase 14 security — 시스템 시계 rewind 허용 여유 (ms).
+ * NTP 미세 조정 / DST 변경 / 타임존 (실제로 Date.now() 는 UTC 라 영향 없음) 등
+ * 합법적인 clock 소폭 후퇴를 허용. 이보다 크면 사용자의 의도적 조작으로 간주.
+ */
+const CLOCK_REWIND_TOLERANCE_MS = 60_000;
+
+/**
+ * 경과 시간 (ms) 이 유효한지 (= clock rewind 가 아닌지) 검증.
+ *
+ * `lastSeenAt` 은 직전 앱 활성 시 기록된 wall-clock. 현재 `now` 가 그보다 크게
+ * 과거라면 사용자가 시스템 시계를 되돌렸다는 의미 → idle reward grinding 방지
+ * 위해 reward 지급 skip 시그널로 사용.
+ *
+ * `lastIdleAt` 에 대해서도 동일 — 마지막 accrual 이 미래 시점이면 clock rewind.
+ */
+export function detectClockRewind(
+  now: number,
+  lastSeenAt: number | undefined,
+  lastIdleAt: number,
+): boolean {
+  if (lastSeenAt != null && now < lastSeenAt - CLOCK_REWIND_TOLERANCE_MS) {
+    return true;
+  }
+  if (now < lastIdleAt - CLOCK_REWIND_TOLERANCE_MS) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * 경과 시간 (ms) + 영웅 level 기반 누적 보상 계산.
  * 최소 5분 미만은 null 반환 (지급 없음 + UI 무시).
  */

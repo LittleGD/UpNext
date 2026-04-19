@@ -24,6 +24,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { GB, EASE_OUT, GB_ENEMY, GB_WARN } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 import RarityTexture from "@/components/cards/RarityTexture";
 import type { Equipment } from "@/types/uphero";
@@ -44,6 +45,7 @@ export default function EnhanceRitualOverlay({
   outcome,
   onDone,
 }: EnhanceRitualOverlayProps) {
+  const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -110,7 +112,7 @@ export default function EnhanceRitualOverlay({
           className="typo-caption text-center"
           style={{ color: GB.lightest }}
         >
-          강화 중
+          {t("uphero.enhance.inProgress")}
         </div>
       </div>
 

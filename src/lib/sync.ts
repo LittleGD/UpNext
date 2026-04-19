@@ -305,11 +305,20 @@ export async function uploadLocalData(
   });
 }
 
-// 클라우드 데이터 최소 검증
+// 클라우드 데이터 최소 검증.
+//   Phase 14 code-review Medium #17 — 이전엔 `Array.isArray(unlockedCardIds)` 만
+//   체크해 배열 요소가 string 이 아닐 때 (e.g. corrupted doc 이 number 나 null 혼입)
+//   후속 `.map(id => CARDS[id])` 가 undefined 반환 → UI crash. 요소 type 까지 검증.
 function isValidProgress(data: unknown): data is UserProgress {
   if (!data || typeof data !== "object") return false;
   const p = data as Record<string, unknown>;
-  return typeof p.totalDaysCompleted === "number" && Array.isArray(p.unlockedCardIds);
+  if (typeof p.totalDaysCompleted !== "number") return false;
+  if (!Array.isArray(p.unlockedCardIds)) return false;
+  // 요소 샘플링: 전체 배열 iterate 는 보통 수 십 개 수준이라 full check O(N) 감수.
+  for (const id of p.unlockedCardIds) {
+    if (typeof id !== "string") return false;
+  }
+  return true;
 }
 
 // 클라우드에 기존 데이터가 있는지 확인

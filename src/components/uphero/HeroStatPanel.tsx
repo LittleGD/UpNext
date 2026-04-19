@@ -160,7 +160,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
           <div
             className={`typo-caption mt-1 ${gbClass.textDim} tabular-nums`}
           >
-            다음 Lv.{level + 1} — 모든 스탯 +1, HP +10
+            {t("uphero.stat.nextLevelGrowth", { level: level + 1 })}
           </div>
         </section>
 
@@ -178,7 +178,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
           style={{ borderTop: `1px solid ${GB.dark}` }}
         >
           <div className={`typo-caption pt-4 pb-3 ${gbClass.textDim}`}>
-            스탯
+            {t("uphero.stat.statsLabel")}
           </div>
           <HexStatChart
             base={base}
@@ -195,7 +195,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
           style={{ borderTop: `1px solid ${GB.dark}` }}
         >
           <div className={`typo-caption pt-4 pb-3 ${gbClass.textDim}`}>
-            장착 장비
+            {t("uphero.stat.equipmentLabel")}
           </div>
           <div className="flex flex-col gap-2">
             {(Object.keys(SLOT_LABEL_KEY) as EquipSlot[]).map((slot) => {
@@ -259,7 +259,7 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                     </>
                   ) : (
                     <div className={`typo-caption flex-1 ${gbClass.textDim}`}>
-                      — 비어있음 —
+                      {t("uphero.stat.emptySlot")}
                     </div>
                   )}
                 </div>
@@ -335,7 +335,7 @@ function HeroNameEditor({ name }: { name: string }) {
     <button
       type="button"
       onClick={() => setEditing(true)}
-      aria-label={`영웅 이름: ${name}. 편집하려면 누르세요`}
+      aria-label={t("uphero.stat.nameEditAriaTap", { name })}
       className="typo-caption mb-3 px-2.5 py-1 rounded-sm"
       style={{
         background: GB.lightest,
@@ -387,7 +387,7 @@ function ClassSection({ hero }: { hero: Hero }) {
       style={{ borderTop: `1px solid ${GB.dark}` }}
     >
       <div className={`typo-caption pt-4 pb-3 ${gbClass.textDim}`}>
-        클래스
+        {t("uphero.stat.classLabel")}
       </div>
 
       {/* Class meta 카드 (name + passive) */}

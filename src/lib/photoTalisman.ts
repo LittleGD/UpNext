@@ -18,6 +18,7 @@ import type { Equipment, HeroBaseStats, DungeonId } from "@/types/uphero";
 import type { PhotoMeta } from "@/types/growth";
 import type { Rarity } from "@/types/card";
 import { computeTalismanSkillIds } from "@/lib/talismanSkills";
+import { rng } from "@/lib/upHeroRng";
 
 /** 첫 의식 (bind) 고정 비용. */
 export const PHOTO_TALISMAN_RITUAL_COST = 80;
@@ -59,7 +60,7 @@ const RARITY_STAT_MULT: Record<Rarity, number> = {
 
 /** rarity 분포 — drop 과 유사하나 photo 는 더 자주 실시되므로 legend 확률 약간 낮게 */
 export function rollPhotoRarity(): Rarity {
-  const r = Math.random();
+  const r = rng();
   if (r < 0.03) return "legend";
   if (r < 0.15) return "unique";
   if (r < 0.5) return "rare";
@@ -159,7 +160,7 @@ export function isPhotoBound(
  * Phase 11b — 이미 바인딩된 부적을 찾아 반환. rebind flow 에서 사용.
  * inventory + equipped 모두 탐색.
  */
-export function findBoundTalisman(
+export function findBoundPhotoTalisman(
   photoId: string,
   inventory: Equipment[],
   equipped?: Partial<Record<string, Equipment>>,
@@ -183,7 +184,7 @@ export function findBoundTalisman(
  *   - 이름에 `+N` suffix 부착.
  *   - 기타 필드 (rarity, category, flavor) 는 그대로.
  */
-export function rebuildTalismanWithLevel(
+export function rebuildPhotoTalismanWithLevel(
   current: Equipment,
   newLevel: number,
 ): Equipment {

@@ -15,6 +15,7 @@ import PixelIcon from "@/components/icons/PixelIcon";
 import { springSnappy } from "@/lib/motion";
 import PixelConfetti from "@/components/effects/PixelConfetti";
 import { useSound } from "@/hooks/useSound";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cardTitle, cardDesc } from "@/i18n";
 import { categoryLabel } from "@/lib/upHeroI18n";
@@ -30,6 +31,7 @@ import ChallengeConfirmModal from "./ChallengeConfirmModal";
 function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
   const progress = useGameStore((s) => s.progress);
   const { t } = useTranslation();
+  const reducedMotion = useReducedMotion();
 
   return (
     <motion.div
@@ -39,8 +41,8 @@ function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
       className="rounded-lg bg-accent overflow-hidden relative"
     >
       <div className="flex flex-col items-center justify-center py-10 px-6 relative z-20">
-        {/* Floating particles */}
-        {[...Array(6)].map((_, i) => {
+        {/* Floating particles — reduced-motion 시 숨김 (멀미/전정장애 배려) */}
+        {!reducedMotion && [...Array(6)].map((_, i) => {
           // 골든 앵글 기반 결정적 분포 — Math.random() 사용 시 SSR/CSR hydration mismatch 발생
           const angle = (i * 137.5 * Math.PI) / 180;
           const initX = Math.cos(angle) * (60 + (i % 3) * 40);
@@ -128,6 +130,7 @@ export default function DailyBoard() {
   const startSuperChallenge = useGameStore((s) => s.startSuperChallenge);
   const { play } = useSound();
   const { t, language } = useTranslation();
+  const reducedMotion = useReducedMotion();
   const [confirmCard, setConfirmCard] = useState<ChallengeCard | null>(null);
   // Portal mount 가드 (SSR safe)
   const [portalReady, setPortalReady] = useState(false);
@@ -613,8 +616,8 @@ export default function DailyBoard() {
                 }}
               />
 
-              {/* Radiating particles */}
-              {[...Array(8)].map((_, i) => {
+              {/* Radiating particles — reduced-motion 시 숨김 */}
+              {!reducedMotion && [...Array(8)].map((_, i) => {
                 const angle = (i / 8) * Math.PI * 2;
                 const dist = 80 + (i % 3) * 30;
                 return (
@@ -722,8 +725,8 @@ export default function DailyBoard() {
                   </motion.div>
                 )}
 
-                {/* Floating +XP particles going up */}
-                {[...Array(4)].map((_, i) => (
+                {/* Floating +XP particles going up — reduced-motion 시 숨김 */}
+                {!reducedMotion && [...Array(4)].map((_, i) => (
                   <motion.div
                     key={`xp-float-${i}`}
                     className="absolute typo-caption text-accent/60 pointer-events-none"

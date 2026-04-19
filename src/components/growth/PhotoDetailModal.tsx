@@ -7,6 +7,7 @@ import { getPhotoBlob, getSignatureBlob, blobToUrl } from "@/lib/photoStorage";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { useSound } from "@/hooks/useSound";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import { compositePolaroid, sharePolaroid } from "@/lib/polaroidComposite";
 import PolaroidFrame from "./PolaroidFrame";
 import PolaroidFlip from "./PolaroidFlip";
@@ -48,6 +49,11 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
   const deletePhoto = useGrowthStore((s) => s.deletePhoto);
   // Phase 13 review Critical #1 — 사진 삭제 확인 다이얼로그 state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Modal a11y — Esc 닫기 / focus trap / scroll lock / focus restore.
+  //   showDeleteConfirm 이 열려있을 때는 Esc/trap 을 sub-dialog 에 양보.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalA11y(containerRef, onClose, { disabled: showDeleteConfirm });
 
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [signatureBlob, setSignatureBlob] = useState<Blob | null>(null);
@@ -228,6 +234,10 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
   return createPortal(
     <AnimatePresence>
       <motion.div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("photo.detail.ariaLabel")}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}

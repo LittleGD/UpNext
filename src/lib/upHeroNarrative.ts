@@ -28,10 +28,11 @@ import {
   MONSTER_DODGE_LINES,
   MONSTER_MISS_LINES,
 } from "@/data/upHeroCombatFlavor";
+import { rng } from "@/lib/upHeroRng";
 
-/** 배열에서 random 요소 pick */
+/** 배열에서 random 요소 pick — seedable RNG 로 결정론 확보 (High #7). */
 function pick<T>(pool: readonly T[]): T {
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[Math.floor(rng() * pool.length)];
 }
 
 /** Phase 13c — i18n metadata 와 함께 묶인 narrative. */

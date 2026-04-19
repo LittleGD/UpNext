@@ -99,18 +99,33 @@ export async function deletePhotoBlobs(id: string): Promise<void> {
 /**
  * 로그아웃 시 전체 사진 blob wipe. IndexedDB 의 DB 자체를 delete.
  * Phase 11c R4 보안 수정 — 사용자 간 기기 공유 시 이전 유저 사진 노출 방지.
+ * Phase 14 code-review Low #18 — onblocked/onerror 에서 1회 재시도 + warn log.
+ *   다른 탭이 DB handle 을 쥐고 있으면 첫 delete 는 blocked. 250ms 후 한 번 더 시도.
  */
-export async function clearAllPhotoStorage(): Promise<void> {
+function attemptDeleteDB(): Promise<"success" | "blocked" | "error"> {
   return new Promise((resolve) => {
     try {
       const req = indexedDB.deleteDatabase(DB_NAME);
-      req.onsuccess = () => resolve();
-      req.onerror = () => resolve(); // best-effort
-      req.onblocked = () => resolve();
+      req.onsuccess = () => resolve("success");
+      req.onerror = () => resolve("error");
+      req.onblocked = () => resolve("blocked");
     } catch {
-      resolve();
+      resolve("error");
     }
   });
+}
+
+export async function clearAllPhotoStorage(): Promise<void> {
+  const first = await attemptDeleteDB();
+  if (first === "success") return;
+  // best-effort 재시도 — 250ms 후 한 번 더.
+  await new Promise((r) => setTimeout(r, 250));
+  const second = await attemptDeleteDB();
+  if (second !== "success" && typeof console !== "undefined") {
+    console.warn(
+      `[photoStorage] clearAllPhotoStorage could not fully delete DB (status=${second}). Other tabs may hold the connection.`,
+    );
+  }
 }
 
 // === 이미지 압축 유틸 ===
@@ -201,7 +216,14 @@ export async function compressImage(
     });
   } finally {
     // ImageBitmap 메모리 해제 (브라우저 GC 전에 명시적 close).
-    bitmap?.close();
+    // Phase 14 code-review Low #20 — 일부 WebKit/Safari 버전에서 이미
+    //   detached 된 bitmap close 시 InvalidStateError 가 튈 수 있다.
+    //   finally 에서 throw 하면 outer try 의 정상 결과가 대체되므로 swallow.
+    try {
+      bitmap?.close();
+    } catch {
+      /* best-effort — 이미 닫혔거나 detached 된 경우 */
+    }
   }
 }
 

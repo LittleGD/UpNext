@@ -66,18 +66,32 @@ export const useAuthStore = create<AuthState>((set) => ({
       //   SyncProvider 는 로컬 데이터가 cloud 보다 최신이면 자동 upload → 다른
       //   유저 Firestore doc 을 덮어쓰는 cross-account write 위험. 순서 중요:
       //     1) localStorage + IndexedDB wipe (sync upload trigger 차단 위해 먼저)
-      //     2) Firebase Auth signOut (SyncProvider 가 listener stop)
-      //     3) reload (Zustand 전체 초기화 + clean slate)
+      //     2) Zustand in-memory reset (Phase 14 — reload fallback 이중 방어)
+      //     3) Firebase Auth signOut (SyncProvider 가 listener stop)
+      //     4) reload (clean slate — 실패해도 2) 로 이미 UI 는 안전)
       const { clearAllAppStorage } = await import("@/lib/storage");
       const { clearAllPhotoStorage } = await import("@/lib/photoStorage");
       clearAllAppStorage();
       await clearAllPhotoStorage();
 
+      // Phase 14 security — in-memory Zustand singleton 명시적 reset. reload 가
+      //   SW / navigation 인터럽트로 실패해도 이전 유저 state 가 UI 에 드러나지
+      //   않도록. 동적 import 로 순환 의존 회피.
+      const [gameStoreMod, growthStoreMod, upHeroStoreMod] = await Promise.all([
+        import("@/store/useGameStore"),
+        import("@/store/useGrowthStore"),
+        import("@/store/useUpHeroStore"),
+      ]);
+      gameStoreMod.useGameStore.getState().resetForSignOut();
+      growthStoreMod.useGrowthStore.getState().resetForSignOut();
+      upHeroStoreMod.useUpHeroStore.getState().resetForSignOut();
+
       const { auth } = await getFirebase();
       const { signOut: firebaseSignOut } = await import("firebase/auth");
       await firebaseSignOut(auth);
 
-      // Zustand 스토어 (in-memory) reset — reload 가 가장 단순하고 확실.
+      // reload — 위 reset 으로 이미 안전하지만 clean slate + 모든 effect
+      //   재초기화를 위해 여전히 수행. 실패해도 보안 속성은 유지.
       if (typeof window !== "undefined") {
         window.location.reload();
       }

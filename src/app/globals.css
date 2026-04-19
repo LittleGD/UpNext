@@ -637,6 +637,16 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   }
   /* framer-motion 은 JS 레벨에서 useReducedMotion 로 처리해야 완전 — 여기선
      CSS 가 가능한 범위만. 개별 컴포넌트에서 훅 대응 추가 필요. */
+
+  /* Phase 14 code-review Low #21 — 안전망. enumerated 되지 않은 신규
+     애니메이션 클래스가 추가될 때 자동으로 감쇠되도록 전역 cap 을 둔다.
+     기존의 "기능적 애니메이션은 유지" 정책을 깨지 않기 위해 animation 은
+     건드리지 않고 (명시된 클래스만 none), scroll-behavior + smooth 관련
+     transition 의 default 만 조정. 개별 클래스가 duration 을 이미 지정하면
+     그대로 이긴다 (specificity 동일, 위치 later — 의도적 override). */
+  html {
+    scroll-behavior: auto !important;
+  }
 }
 
 /* === 모바일 safe area (개별 고정 요소에서 처리) === */

@@ -49,11 +49,13 @@ export interface ClassSkill {
  * ──────────────────────────────────────────── */
 
 /**
- * Phase 13c — skill 로그 push.
+ * Phase 13c → 14 — skill 로그 push.
  *
- * Phase 13 review P1 — TODO(maintenance): narrativeKey 인자가 거의 모두
- *   `uphero.skill.<skillId>.narrative` 형식이라 skillId 만 주면 자동 조립 가능.
- *   다음 refactor 에서 시그니처 단순화 예정 (32 호출 update 필요).
+ * Phase 14 code-review Medium #15 (P1 TODO follow-through) — 이전 시그니처의 6번째
+ *   param `narrativeKey` 는 32 call site 모두 `uphero.skill.${skillId}.narrative`
+ *   였으므로 auto-derive 로 전환. 호출부는 narrativeKey 인자를 제거하고 더 짧아짐.
+ *   향후 신규 skill 추가 시 네이밍 컨벤션 (skillId 기반) 만 지키면 narrativeKey
+ *   누락 버그 자체가 발생 불가.
  */
 function pushSkillLog(
   s: CombatSession,
@@ -61,7 +63,6 @@ function pushSkillLog(
   skillName: string,
   narrative: string,
   skillId?: string,
-  narrativeKey?: string,
   narrativeParams?: NarrativeParams,
 ): void {
   s.log.push({
@@ -70,7 +71,7 @@ function pushSkillLog(
     skillId,
     skillName,
     narrative,
-    narrativeKey,
+    narrativeKey: skillId ? `uphero.skill.${skillId}.narrative` : undefined,
     narrativeParams,
     timestamp: Date.now(),
   });
@@ -99,7 +100,6 @@ const warriorT1: ClassSkill = {
       "강타",
       "영웅이 강타를 준비한다 — 다음 공격 2배",
       "warrior_smash_t1",
-      "uphero.skill.warrior_smash_t1.narrative",
     );
   },
 };
@@ -123,7 +123,6 @@ const warriorT2: ClassSkill = {
       "광폭화",
       "영웅이 광폭화 — 3 round 공격 +30%",
       "warrior_berserk_t2",
-      "uphero.skill.warrior_berserk_t2.narrative",
     );
   },
 };
@@ -162,7 +161,6 @@ const warriorT3: ClassSkill = {
       "분쇄",
       `적 HP 20% 감소 (${dmg})`,
       "warrior_crush_t3",
-      "uphero.skill.warrior_crush_t3.narrative",
       { damage: dmg },
     );
   },
@@ -202,7 +200,6 @@ const warriorT4: ClassSkill = {
       "분노 폭발",
       "80 피해 + 다음 3 round 공격 +50%",
       "warrior_rage_burst_t4",
-      "uphero.skill.warrior_rage_burst_t4.narrative",
     );
   },
 };
@@ -245,7 +242,6 @@ const mageT1: ClassSkill = {
       "지식의 번개",
       `적 HP 25% 감소 (${dmg})`,
       "mage_lightning_t1",
-      "uphero.skill.mage_lightning_t1.narrative",
       { damage: dmg },
     );
   },
@@ -270,7 +266,6 @@ const mageT2: ClassSkill = {
       "빙결",
       "적이 얼어붙었다 — 1 round 공격 불가",
       "mage_freeze_t2",
-      "uphero.skill.mage_freeze_t2.narrative",
     );
   },
 };
@@ -308,7 +303,6 @@ const mageT3: ClassSkill = {
       "화염구",
       "50 고정 피해",
       "mage_fireball_t3",
-      "uphero.skill.mage_fireball_t3.narrative",
     );
   },
 };
@@ -347,7 +341,6 @@ const mageT4: ClassSkill = {
       "메테오",
       `적 HP 40% 감소 (${dmg})`,
       "mage_meteor_t4",
-      "uphero.skill.mage_meteor_t4.narrative",
       { damage: dmg },
     );
   },
@@ -376,7 +369,6 @@ const monkT1: ClassSkill = {
       "선정",
       "영웅이 선정에 든다 — 2 round 회피 100%",
       "monk_zen_t1",
-      "uphero.skill.monk_zen_t1.narrative",
     );
   },
 };
@@ -415,7 +407,6 @@ const monkT2: ClassSkill = {
       "일섬",
       `적 HP 30% 감소 (${dmg})`,
       "monk_flash_t2",
-      "uphero.skill.monk_flash_t2.narrative",
       { damage: dmg },
     );
   },
@@ -441,7 +432,6 @@ const monkT3: ClassSkill = {
       "태극",
       "HP +50 · 2 round 공격 +20%",
       "monk_taiji_t3",
-      "uphero.skill.monk_taiji_t3.narrative",
     );
   },
 };
@@ -465,7 +455,6 @@ const monkT4: ClassSkill = {
       "연화",
       "연꽃이 영웅을 감싼다 — 3 round 무적",
       "monk_lotus_t4",
-      "uphero.skill.monk_lotus_t4.narrative",
     );
   },
 };
@@ -494,7 +483,6 @@ const druidT1: ClassSkill = {
       "치유 결계",
       `HP +${healed}`,
       "druid_ward_t1",
-      "uphero.skill.druid_ward_t1.narrative",
       { heal: healed },
     );
   },
@@ -519,7 +507,6 @@ const druidT2: ClassSkill = {
       "뿌리옥죄기",
       "뿌리가 적을 잡아챈다 — 2 round 봉인",
       "druid_root_t2",
-      "uphero.skill.druid_root_t2.narrative",
     );
   },
 };
@@ -544,7 +531,6 @@ const druidT3: ClassSkill = {
       "숲의 포옹",
       "HP +80 · 3 round 피해 -30%",
       "druid_grove_t3",
-      "uphero.skill.druid_grove_t3.narrative",
     );
   },
 };
@@ -584,7 +570,6 @@ const druidT4: ClassSkill = {
       "야생의 부름",
       `적 HP 30% (${dmg}) · HP +100`,
       "druid_wild_call_t4",
-      "uphero.skill.druid_wild_call_t4.narrative",
       { damage: dmg },
     );
   },
@@ -613,7 +598,6 @@ const bardT1: ClassSkill = {
       "노래",
       "용기의 노래 — 다음 처치 보상 1.5배",
       "bard_song_t1",
-      "uphero.skill.bard_song_t1.narrative",
     );
   },
 };
@@ -637,7 +621,6 @@ const bardT2: ClassSkill = {
       "협연",
       "3 round 공격 +25%",
       "bard_ensemble_t2",
-      "uphero.skill.bard_ensemble_t2.narrative",
     );
   },
 };
@@ -662,7 +645,6 @@ const bardT3: ClassSkill = {
       "영웅가",
       "HP +30 · 3 round 피해 -25%",
       "bard_anthem_t3",
-      "uphero.skill.bard_anthem_t3.narrative",
     );
   },
 };
@@ -690,7 +672,6 @@ const bardT4: ClassSkill = {
       "대서사시",
       "다음 5 공격 반드시 crit",
       "bard_epic_t4",
-      "uphero.skill.bard_epic_t4.narrative",
     );
   },
 };
@@ -719,7 +700,6 @@ const chronoT1: ClassSkill = {
       "시간 되감기",
       `시간 +${restore}`,
       "chrono_rewind_t1",
-      "uphero.skill.chrono_rewind_t1.narrative",
       { time: restore },
     );
   },
@@ -750,7 +730,6 @@ const chronoT2: ClassSkill = {
       "시간 가속",
       "모든 스킬 CD -2",
       "chrono_accel_t2",
-      "uphero.skill.chrono_accel_t2.narrative",
     );
   },
 };
@@ -774,7 +753,6 @@ const chronoT3: ClassSkill = {
       "시간 정지",
       "시간이 멈춘다 — 2 round 봉인",
       "chrono_stop_t3",
-      "uphero.skill.chrono_stop_t3.narrative",
     );
   },
 };
@@ -800,7 +778,6 @@ const chronoT4: ClassSkill = {
       "시간 역류",
       "HP 완전 회복 · 시간 +30",
       "chrono_reflux_t4",
-      "uphero.skill.chrono_reflux_t4.narrative",
     );
   },
 };
@@ -829,7 +806,6 @@ const priestT1: ClassSkill = {
       "성스러운 빛",
       `HP 완전 회복 (+${healed})`,
       "priest_light_t1",
-      "uphero.skill.priest_light_t1.narrative",
       { heal: healed },
     );
   },
@@ -855,7 +831,6 @@ const priestT2: ClassSkill = {
       "정화",
       "HP +40 · 3 round 피해 -30%",
       "priest_purge_t2",
-      "uphero.skill.priest_purge_t2.narrative",
     );
   },
 };
@@ -894,7 +869,6 @@ const priestT3: ClassSkill = {
       "심판",
       `적 HP 25% (${dmg})`,
       "priest_judgment_t3",
-      "uphero.skill.priest_judgment_t3.narrative",
       { damage: dmg },
     );
   },
@@ -923,7 +897,6 @@ const priestT4: ClassSkill = {
       "부활",
       "부활의 축복이 준비된다",
       "priest_revive_t4",
-      "uphero.skill.priest_revive_t4.narrative",
     );
   },
 };
@@ -951,7 +924,6 @@ const illusT1: ClassSkill = {
       "환영",
       "환영 — 다음 3 공격 miss",
       "illus_mirage_t1",
-      "uphero.skill.illus_mirage_t1.narrative",
     );
   },
 };
@@ -975,7 +947,6 @@ const illusT2: ClassSkill = {
       "분신",
       "2 round 공격 2배",
       "illus_double_t2",
-      "uphero.skill.illus_double_t2.narrative",
     );
   },
 };
@@ -999,7 +970,6 @@ const illusT3: ClassSkill = {
       "환혹",
       "적이 홀려 움직이지 못한다 — 2 round",
       "illus_charm_t3",
-      "uphero.skill.illus_charm_t3.narrative",
     );
   },
 };
@@ -1023,7 +993,6 @@ const illusT4: ClassSkill = {
       "환몽",
       "영웅이 꿈 속으로 — 3 round 무적",
       "illus_dreamscape_t4",
-      "uphero.skill.illus_dreamscape_t4.narrative",
     );
   },
 };

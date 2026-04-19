@@ -15,7 +15,18 @@ import AccordionSection from "@/components/ui/AccordionSection";
 import LanguageToggle from "@/components/ui/LanguageToggle";
 import { useAuthStore } from "@/store/useAuthStore";
 import { deleteCloudData } from "@/lib/sync";
-import DevLeaderboardPanel from "@/components/uphero/DevLeaderboardPanel";
+import dynamic from "next/dynamic";
+// Phase 14 code-review High #9 — DevLeaderboardPanel 은 dev 환경에서만 사용되지만
+//   기존 static import 라 production 번들에 module + 의존성 (WEEKLY_AFFIX_POOL,
+//   uploadWeeklyScore 등) 이 포함돼 수 KB shipping. NODE_ENV 가드 뒤에서 dynamic
+//   import 으로 감싸면 webpack 이 DefinePlugin 으로 `false` 로 치환 → import 구문
+//   자체가 dead-code eliminate → prod 빌드에서 완전 제외.
+const DevLeaderboardPanel =
+  process.env.NODE_ENV === "development"
+    ? dynamic(() => import("@/components/uphero/DevLeaderboardPanel"), {
+        ssr: false,
+      })
+    : null;
 import GbConfirm from "@/components/uphero/GbConfirm";
 import { motion, AnimatePresence } from "framer-motion";
 import { springSnappy } from "@/lib/motion";
@@ -120,7 +131,7 @@ export default function SettingsPage() {
       )}
 
       {/* ── 일반 설정 (언어 + 사운드) ── */}
-      <section className="rounded-lg bg-bg-surface grid-border overflow-hidden">
+      <section className="rounded-lg bg-bg-surface overflow-hidden">
         {/* 언어 */}
         <LanguageToggle />
         {/* 구분선 */}
@@ -232,7 +243,7 @@ export default function SettingsPage() {
       {/* ── 챌린지 모드 ── */}
       <section className="space-y-2">
         <h3 className="typo-heading uppercase tracking-wider px-1">{t("settings.mode.heading")}</h3>
-        <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
+        <div className="rounded-lg bg-bg-surface overflow-hidden">
           {modes.map((mode, i) => {
             const isActive = progress.mode === mode.key;
             const isPending = progress.pendingMode === mode.key;
@@ -308,7 +319,7 @@ export default function SettingsPage() {
         {/* 레벨 칭호 */}
         <div className="space-y-2">
           <h4 className="typo-caption text-text-tertiary px-1">{t("settings.titles.level.heading")}</h4>
-          <div className="rounded-lg bg-bg-surface grid-border overflow-hidden">
+          <div className="rounded-lg bg-bg-surface overflow-hidden">
             <button
               onClick={() => { play("select"); equipTitle(null); }}
               className={`w-full text-left px-4 py-3.5 transition-colors relative ${
@@ -346,7 +357,7 @@ export default function SettingsPage() {
                   total={total}
                   defaultOpen={false}
                 >
-                  <div className="rounded-lg bg-bg-surface grid-border overflow-hidden mb-2">
+                  <div className="rounded-lg bg-bg-surface overflow-hidden mb-2">
                     {groupTitles.map((title, i) => {
                       const isEquipped = progress.equippedTitleId === title.id;
                       const rarity = RARITY_CONFIG[title.rarity];
@@ -390,7 +401,7 @@ export default function SettingsPage() {
             </div>
           </div>
         ) : (
-          <p className="typo-caption text-text-tertiary px-4 py-3 rounded-lg bg-bg-surface grid-border">
+          <p className="typo-caption text-text-tertiary px-4 py-3 rounded-lg bg-bg-surface">
             {t("settings.titles.empty")}
           </p>
         )}
@@ -481,8 +492,9 @@ export default function SettingsPage() {
       </section>
 
       {/* Phase 11c — Dev 도구 (production 제외).
-           리더보드/NG+/주간 변이 테스트 단축. */}
-      {process.env.NODE_ENV === "development" && <DevLeaderboardPanel />}
+           리더보드/NG+/주간 변이 테스트 단축.
+           Phase 14 High #9: dynamic import + NODE_ENV 가드 → prod 번들 제외. */}
+      {DevLeaderboardPanel && <DevLeaderboardPanel />}
 
       {/* ── 모드 변경 확인 모달 ── */}
       <AnimatePresence>
@@ -545,7 +557,7 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="bg-bg-surface rounded-lg p-3.5 grid-border">
+    <div className="bg-bg-surface rounded-lg p-3.5">
       <PixelIcon name={icon} size={20} color={color} />
       <p className="typo-heading text-text-primary mt-1.5 tabular-nums">{value}</p>
       <p className="typo-caption text-text-tertiary">{label}</p>

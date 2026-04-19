@@ -196,7 +196,7 @@ export default function PipeConnect({
         className="typo-caption tabular-nums"
         style={{ color: GB.lightest }}
       >
-        파이프 연결 · {(remainingMs / 1000).toFixed(1)}s
+        {t("uphero.mini.pipe.header", { time: (remainingMs / 1000).toFixed(1) })}
       </div>
       <div
         className="w-full max-w-xs h-1 rounded-full overflow-hidden"
@@ -220,17 +220,21 @@ export default function PipeConnect({
         }}
       >
         {grid.map((row, r) =>
-          row.map((t, c) => {
+          row.map((tile, c) => {
             const isStart = r === 0 && c === 0;
             const isEnd = r === size - 1 && c === size - 1;
-            const ops = tileOpenings(t);
+            const ops = tileOpenings(tile);
             return (
               <button
                 key={`${r}-${c}`}
                 type="button"
                 onClick={() => rotate(r, c)}
                 disabled={!!result}
-                aria-label={`타일 (${r + 1}, ${c + 1}) · ${t.kind} · 탭해서 회전`}
+                aria-label={t("uphero.mini.pipe.tileAria", {
+                  row: r + 1,
+                  col: c + 1,
+                  kind: tile.kind,
+                })}
                 className="pipe-tile rounded relative flex items-center justify-center"
                 style={{
                   width: 48,
@@ -326,7 +330,7 @@ export default function PipeConnect({
           }}
           aria-label={t("uphero.mini.giveUpAria")}
         >
-          포기
+          {t("uphero.mini.giveUpLabel")}
         </button>
       )}
       <style jsx>{`

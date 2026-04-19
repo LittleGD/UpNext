@@ -158,7 +158,10 @@ export default function CampPlaceholder() {
           <span
             className={`tabular-nums ${gbClass.textDim}`}
             style={{ fontSize: 11 }}
-            aria-label={`경험치 ${xpInfo.current} / ${xpInfo.needed}`}
+            aria-label={t("uphero.camp.xpAria", {
+              current: xpInfo.current,
+              needed: xpInfo.needed,
+            })}
           >
             {xpInfo.current}/{xpInfo.needed} XP
           </span>
@@ -176,7 +179,7 @@ export default function CampPlaceholder() {
                 fontSize: 10,
               }}
               aria-label={`NG+ ${ngPlusLevel}`}
-              title="F30 보스 클리어 반복 횟수"
+              title={t("uphero.camp.ngPlusTitle")}
             >
               NG+{ngPlusLevel}
             </span>

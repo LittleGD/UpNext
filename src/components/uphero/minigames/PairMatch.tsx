@@ -151,7 +151,7 @@ export default function PairMatch({
         className="typo-caption tabular-nums"
         style={{ color: GB.lightest }}
       >
-        짝 맞추기 · {(remainingMs / 1000).toFixed(1)}s
+        {t("uphero.mini.pair.header", { time: (remainingMs / 1000).toFixed(1) })}
       </div>
       {/* 타이머 bar */}
       <div
@@ -233,7 +233,7 @@ export default function PairMatch({
           }}
           aria-label={t("uphero.mini.giveUpAria")}
         >
-          포기
+          {t("uphero.mini.giveUpLabel")}
         </button>
       )}
       <style jsx>{`

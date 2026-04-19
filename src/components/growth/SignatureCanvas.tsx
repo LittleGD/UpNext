@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, memo } from "react";
 
 interface Props {
   width: number;
@@ -38,8 +38,12 @@ interface Pt {
  *  4. 따뜻한 다크 잉크 색 — rgba(22,18,14,0.92) — 순흑보다 자연스러움
  *
  * 향후 스티커 레이어와 공존 — 캔버스는 z-index 5, 스티커는 z-index 10.
+ *
+ * Phase 14 code-review High #11 — React.memo 로 감싸 부모 (PhotoCaptureModal 등)
+ *   의 toolbar state 변경 같은 무관 re-render 로 Canvas effect 재실행 방지. props
+ *   모두 primitive / stable callback 이라 shallow compare 충분.
  */
-export default function SignatureCanvas({
+function SignatureCanvasImpl({
   width,
   height,
   onSignatureChange,
@@ -239,3 +243,6 @@ export default function SignatureCanvas({
     </div>
   );
 }
+
+const SignatureCanvas = memo(SignatureCanvasImpl);
+export default SignatureCanvas;

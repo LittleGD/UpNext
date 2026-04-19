@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Phase 12 R13 — 404 페이지.
  *
@@ -10,8 +12,10 @@
 
 import Link from "next/link";
 import PixelIcon from "@/components/icons/PixelIcon";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function NotFoundPage() {
+  const { t } = useTranslation();
   return (
     <main className="min-h-[60vh] flex flex-col items-center justify-center px-6 py-12 text-center">
       <div
@@ -22,19 +26,18 @@ export default function NotFoundPage() {
       </div>
 
       <h1 className="typo-title text-text-primary mb-2">
-        여긴 길이 끊겨 있어요
+        {t("notFound.title")}
       </h1>
 
       <p className="typo-caption text-text-tertiary max-w-[320px] mb-6 leading-relaxed">
-        요청한 화면을 찾을 수 없어요. URL 을 확인하거나 처음으로
-        돌아가 주세요.
+        {t("notFound.body")}
       </p>
 
       <Link
         href="/"
         className="w-full max-w-[240px] py-3 rounded-xl bg-accent text-bg-primary typo-body transition-transform active:scale-[0.97] text-center"
       >
-        처음 화면으로
+        {t("notFound.cta")}
       </Link>
     </main>
   );

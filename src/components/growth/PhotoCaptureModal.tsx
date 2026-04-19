@@ -7,6 +7,7 @@ import { springSnappy } from "@/lib/motion";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import { cardTitle } from "@/i18n";
 import PolaroidFrame from "./PolaroidFrame";
 import SignatureCanvas from "./SignatureCanvas";
@@ -62,6 +63,19 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   //   만 보고 무슨 일인지 모름. 이 플래그로 명시적 안내 + 파일 선택 CTA 노출.
   const [cameraError, setCameraError] = useState(false);
 
+  // Phase 14 perf — ejecting 연출에 쓰이는 카메라 layer PNG/WebP 를 camera
+  //   단계 진입 시 warm cache. 198KB (webp) 정도로 부담 없고, ejecting 전환
+  //   순간의 블로킹 decode 를 없애 애니메이션 첫 프레임이 자연스럽다.
+  useEffect(() => {
+    if (capturePhase !== "camera") return;
+    const imgs = [
+      new Image(),
+      new Image(),
+    ];
+    imgs[0].src = "/polaroid-top.webp";
+    imgs[1].src = "/polaroid-bottom.webp";
+  }, [capturePhase]);
+
   // 카메라 시작
   useEffect(() => {
     if (capturePhase !== "camera") return;
@@ -95,6 +109,10 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    // Phase 14 perf — 명시적 stopCamera 경로 (ESC / back / close) 에서도
+    //   meter canvas 를 릴리즈. 이 경로는 exposure effect 의 cleanup 이
+    //   capturePhase 전환 전에 트리거되지 않을 수 있어 이중 방어.
+    meterCanvasRef.current = null;
   }, []);
 
   // 노출계 바늘 — 실제 비디오 프레임의 평균 휘도를 EV 오프셋으로 환산해
@@ -163,6 +181,10 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
+      // Phase 14 perf — meterCanvas 는 sample 최초 호출 시 lazy 생성. effect
+      //   종료 시 참조 해제해서 상단 모달 재개 시 누적되지 않도록. 32×32 라
+      //   작지만 수백 번 반복 open/close 하면 GC 지연이 눈에 띈다.
+      meterCanvasRef.current = null;
     };
   }, [capturePhase, isExposureManual]);
 
@@ -301,8 +323,18 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
         stickers,
       );
       play("collect");
-      if (meta) setSavedMeta(meta);
-      else onComplete(); // savePhoto 가 null 반환 (pendingCaptureCardId 없음)
+      if (meta) {
+        setSavedMeta(meta);
+        // Phase 14 code-review Low #19 — savePhoto 가 capturePhase 를 "idle" 로
+        //   전환해 polaroid 섹션이 unmount 된 후에도 큰 base64 dataUrl 이 state
+        //   에 그대로 남아 메모리에 머문다. 저장 성공 후 즉시 해제.
+        //   (300KB JPEG → ~400KB base64. 데코된 사인 dataUrl 도 유사 규모).
+        setCapturedImage(null);
+        setSignatureData(null);
+        setStickers([]);
+      } else {
+        onComplete(); // savePhoto 가 null 반환 (pendingCaptureCardId 없음)
+      }
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
@@ -343,27 +375,24 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     cancelCapture();
   }, [stopCamera, cancelCapture]);
 
-  // Phase 13 review Critical — ESC + back button (popstate) 로 camera/ejecting
-  //   phase 이탈 시 getUserMedia stream leak 방지. 이전엔 유저가 ESC 눌러도
-  //   stream 이 살아있어 camera indicator 가 남음.
+  // Phase 13 review Critical — back button (popstate) 로 camera/ejecting
+  //   phase 이탈 시 getUserMedia stream leak 방지. ESC 는 useModalA11y 가
+  //   통합 처리 (handleClose 동일 경로 → stopCamera + cancelCapture).
   //   savedMeta 가 있으면 detail 뷰라 handle 안 함 (detail 자체가 별도 close UX).
   useEffect(() => {
     if (savedMeta) return;
     if (capturePhase !== "camera" && capturePhase !== "ejecting") return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        handleClose();
-      }
-    };
     const onPopState = () => handleClose();
-    window.addEventListener("keydown", onKey);
     window.addEventListener("popstate", onPopState);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("popstate", onPopState);
-    };
+    return () => window.removeEventListener("popstate", onPopState);
   }, [capturePhase, handleClose, savedMeta]);
+
+  // Phase 14 a11y — ESC 닫기 + focus trap + body scrollLock + focus 복원.
+  //   savedMeta 가 set 되면 PhotoDetailModal 이 자체 useModalA11y 를 가지므로
+  //   여기는 disabled 로 양보. capturePhase null-states 에서는 return null 로
+  //   언마운트되므로 훅도 자연스레 cleanup 된다.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalA11y(containerRef, handleClose, { disabled: !!savedMeta });
 
   // Portal mount 가드 (SSR safe)
   const [mounted, setMounted] = useState(false);
@@ -382,6 +411,10 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   return createPortal(
     <AnimatePresence>
       <motion.div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("photo.capture.ariaLabel")}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -1114,12 +1147,11 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                 className="relative w-full"
                 style={{ aspectRatio: "1525 / 1426" }}
               >
-                {/* Bottom layer (z=1) — 위로 빠르게 퇴장 */}
-                <motion.img
-                  src="/polaroid-bottom.png"
-                  alt=""
+                {/* Bottom layer (z=1) — 위로 빠르게 퇴장.
+                    Phase 14 perf: PNG 1.3MB 를 WebP 로 전환 (14% 크기),
+                    fallback 은 기존 PNG 유지. animation 은 wrapper div 로 이동. */}
+                <motion.div
                   aria-hidden
-                  draggable={false}
                   className="absolute inset-x-0 bottom-0 w-full select-none pointer-events-none"
                   style={{ height: `${(188 / 1426) * 100}%`, zIndex: 1 }}
                   initial={{ y: 0 }}
@@ -1129,7 +1161,18 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                     times: [0, 0.5, 1],
                     ease: ["linear", [0.33, 1, 0.68, 1]],
                   }}
-                />
+                >
+                  <picture>
+                    <source srcSet="/polaroid-bottom.webp" type="image/webp" />
+                    <img
+                      src="/polaroid-bottom.png"
+                      alt=""
+                      draggable={false}
+                      decoding="async"
+                      className="w-full h-full"
+                    />
+                  </picture>
+                </motion.div>
 
                 {/* Polaroid (z=2) — 3키프레임: 직선출력 → 퇴장+확대
                     left:50% + framer x:"-50%" — Tailwind translate 충돌 방지 */}
@@ -1163,12 +1206,10 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                   </motion.div>
                 </motion.div>
 
-                {/* Top layer (z=3) — 위로 빠르게 퇴장 */}
-                <motion.img
-                  src="/polaroid-top.png"
-                  alt=""
+                {/* Top layer (z=3) — 위로 빠르게 퇴장.
+                    Phase 14 perf: WebP 전환 + animation wrapper 분리 (bottom 과 동일 패턴). */}
+                <motion.div
                   aria-hidden
-                  draggable={false}
                   className="absolute inset-x-0 top-0 w-full select-none pointer-events-none"
                   style={{ height: `${(1238 / 1426) * 100}%`, zIndex: 3 }}
                   initial={{ y: 0 }}
@@ -1178,7 +1219,18 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                     times: [0, 0.5, 1],
                     ease: ["linear", [0.33, 1, 0.68, 1]],
                   }}
-                />
+                >
+                  <picture>
+                    <source srcSet="/polaroid-top.webp" type="image/webp" />
+                    <img
+                      src="/polaroid-top.png"
+                      alt=""
+                      draggable={false}
+                      decoding="async"
+                      className="w-full h-full"
+                    />
+                  </picture>
+                </motion.div>
               </div>
             </div>
           )}

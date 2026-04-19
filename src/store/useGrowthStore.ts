@@ -30,6 +30,9 @@ interface GrowthState {
 interface GrowthActions {
   initialize: () => void;
 
+  /** Phase 14 security — 로그아웃 시 in-memory state 초기화 (reload fallback). */
+  resetForSignOut: () => void;
+
   // 캡처 플로우
   startCapture: (cardId: string) => void;
   setCapturePhase: (phase: CapturePhase) => void;
@@ -185,6 +188,9 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
     //   inventory 에서 필터 + equipped slot 에서 unequip.
     //   dynamic import 로 circular ref 회피 (useGrowthStore.ts ← useUpHeroStore.ts
     //   의존이 이미 있으므로 반대 방향은 runtime require).
+    // Phase 14 code-review Medium #16 — 이전엔 "다음 action 이 저장" 기대로 persist
+    //   생략했지만 유저가 삭제 후 바로 앱 닫으면 inventory 변경이 날아감.
+    //   pickPersisted + saveToStorage 로 즉시 flush 하여 crash-safety 확보.
     import("./useUpHeroStore")
       .then((mod) => {
         const s = mod.useUpHeroStore.getState();
@@ -204,16 +210,29 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
         }
         const invChanged = filteredInv.length !== s.inventory.length;
         if (!invChanged && !anyUnequipped) return;
-        mod.useUpHeroStore.setState({
+        const patched = {
+          ...s,
           inventory: filteredInv,
           hero: anyUnequipped
             ? { ...s.hero, equipped: newEquipped }
             : s.hero,
+        };
+        mod.useUpHeroStore.setState({
+          inventory: patched.inventory,
+          hero: patched.hero,
         });
-        // Persist pickPersisted 가 필요하지만 setState 후 useUpHeroStore 의
-        //   internal save hook 이 없어서 수동 save. 여기선 간단히 saveToStorage
-        //   직접 호출은 안 하고 다음 action 이 저장하도록 맡김 (idempotent).
+        // Phase 14 Medium #16 — pickPersisted 로 스키마 정합 유지 + 즉시 persist.
+        saveToStorage("uphero", mod.pickPersisted(patched));
       })
       .catch(() => {});
+  },
+
+  resetForSignOut: () => {
+    set({
+      photoMetas: [],
+      isLoaded: false,
+      pendingCaptureCardId: null,
+      capturePhase: "idle",
+    });
   },
 }));

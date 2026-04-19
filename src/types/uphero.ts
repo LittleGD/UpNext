@@ -752,6 +752,13 @@ export interface UpHeroState {
   /** 오프라인 누적 계산용 */
   lastIdleAccrualAt: number;
   /**
+   * Phase 14 security — 직전 앱 활성 시 기록한 wall-clock (ms).
+   * 매 hydrate 마다 갱신. 다음 hydrate 시 now < lastSeenAt 이면 시계 되감기로
+   * 판정하여 idle reward 지급을 skip (grinding 방지).
+   * undefined: legacy state — clock guard 무해 pass.
+   */
+  lastSeenAt?: number;
+  /**
    * Phase 9d — 영웅 게임을 처음 시작한 시점의 챌린지 레벨 (seed).
    * 영웅 Lv = max(1, gameLevel - heroStartLevel + 1).
    * - undefined: legacy (= 1 로 간주, 기존 유저 보존)

@@ -14,7 +14,7 @@ import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 import {
-  findBoundTalisman,
+  findBoundPhotoTalisman,
   isPhotoBound,
   PHOTO_TALISMAN_RITUAL_COST,
   rebindPhotoTalismanCost,
@@ -35,7 +35,7 @@ import {
 import { useSound } from "@/hooks/useSound";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
-import { cardTitle } from "@/i18n";
+import { cardTitle, type DictKey } from "@/i18n";
 import { ALL_CARDS } from "@/data/cards";
 import PixelIcon from "@/components/icons/PixelIcon";
 import GbConfirm from "./GbConfirm";
@@ -99,7 +99,7 @@ export default function PhotoTalismanPicker({
     () =>
       photos
         .map((p) => {
-          const bound = findBoundTalisman(p.id, inventory, equipped);
+          const bound = findBoundPhotoTalisman(p.id, inventory, equipped);
           if (!bound) return null;
           return { photo: p, item: bound.item };
         })
@@ -123,7 +123,11 @@ export default function PhotoTalismanPicker({
   const onBind = (photo: PhotoMeta) => {
     if (!canAfford) {
       play("cancel");
-      onNotify(`코인 부족 (${PHOTO_TALISMAN_RITUAL_COST} 필요)`);
+      onNotify(
+        t("uphero.photo.toast.insufficientCoin", {
+          cost: PHOTO_TALISMAN_RITUAL_COST,
+        }),
+      );
       return;
     }
     setPendingPhoto({ photo, mode: "bind" });
@@ -132,7 +136,11 @@ export default function PhotoTalismanPicker({
   const onRebind = (photo: PhotoMeta, existing: Equipment) => {
     if (!canAfford) {
       play("cancel");
-      onNotify(`코인 부족 (${PHOTO_TALISMAN_RITUAL_COST} 필요)`);
+      onNotify(
+        t("uphero.photo.toast.insufficientCoin", {
+          cost: PHOTO_TALISMAN_RITUAL_COST,
+        }),
+      );
       return;
     }
     if ((existing.enhanceLevel ?? 0) >= MAX_ENHANCE_LEVEL) {
@@ -235,18 +243,21 @@ export default function PhotoTalismanPicker({
           aria-label={t("uphero.photo.backAria")}
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
-          뒤로
+          {t("uphero.photo.back")}
         </button>
         <div className="flex flex-col leading-tight flex-1 ml-1 min-w-0">
           <div
             className="typo-body truncate"
             style={{ color: GB.lightest, fontWeight: 500 }}
           >
-            사진 부적
+            {t("uphero.photo.title")}
           </div>
           <div className={`typo-micro ${gbClass.textDim} tabular-nums`}>
-            미바인딩 {unboundPhotos.length} · 재의식 {boundPhotos.length} ·{" "}
-            {PHOTO_TALISMAN_RITUAL_COST}C
+            {t("uphero.photo.subheader", {
+              unbound: unboundPhotos.length,
+              bound: boundPhotos.length,
+              cost: PHOTO_TALISMAN_RITUAL_COST,
+            })}
           </div>
         </div>
         <style jsx>{`
@@ -273,13 +284,13 @@ export default function PhotoTalismanPicker({
           className={`typo-micro ${gbClass.textDim} mb-1.5`}
           style={{ letterSpacing: "0.05em" }}
         >
-          RARITY 확률
+          {t("uphero.photo.rarityHeader")}
         </div>
         <div className="flex items-center gap-3 flex-wrap typo-micro tabular-nums">
-          <RarityProb color={GB.light} label="일반" pct={50} />
-          <RarityProb color={GB_RARE} label="희귀" pct={35} />
-          <RarityProb color={GB_UNIQUE} label="고유" pct={12} />
-          <RarityProb color={GB_LEGEND} label="전설" pct={3} />
+          <RarityProb color={GB.light} label={t("uphero.photo.rarity.normal")} pct={50} />
+          <RarityProb color={GB_RARE} label={t("uphero.photo.rarity.rare")} pct={35} />
+          <RarityProb color={GB_UNIQUE} label={t("uphero.photo.rarity.unique")} pct={12} />
+          <RarityProb color={GB_LEGEND} label={t("uphero.photo.rarity.legend")} pct={3} />
         </div>
       </div>
 
@@ -291,7 +302,7 @@ export default function PhotoTalismanPicker({
           <div
             className={`typo-caption ${gbClass.textDim} text-center py-10`}
           >
-            챌린지를 완료하고 사진을 찍어보세요
+            {t("uphero.photo.emptyHint")}
           </div>
         )}
 
@@ -303,7 +314,7 @@ export default function PhotoTalismanPicker({
               style={{ color: GB.lightest }}
             >
               <PixelIcon name="Sparkle" size={14} color={GB.lightest} />
-              최초 의식 · 랜덤 rarity
+              {t("uphero.photo.section.bind")}
             </div>
             <div className="grid grid-cols-3 gap-2">
               {unboundPhotos.map((p) => (
@@ -326,7 +337,7 @@ export default function PhotoTalismanPicker({
               style={{ color: GB.lightest }}
             >
               <PixelIcon name="Fire" size={14} color={GB.lightest} />
-              재의식 · 기존 부적 +1 (최대 +{MAX_ENHANCE_LEVEL})
+              {t("uphero.photo.section.rebind", { max: MAX_ENHANCE_LEVEL })}
             </div>
             <div className="flex flex-col gap-1.5">
               {boundPhotos.map(({ photo: p, item }) => {
@@ -367,7 +378,7 @@ export default function PhotoTalismanPicker({
                         <span>+{level} → +{Math.min(MAX_ENHANCE_LEVEL, level + 1)}</span>
                         {gainingSkill && (
                           <span style={{ color: GB.lightest }}>
-                            ✦ 새 스킬
+                            {t("uphero.photo.newSkill")}
                           </span>
                         )}
                       </div>
@@ -388,7 +399,9 @@ export default function PhotoTalismanPicker({
                         opacity: rowCanAfford && !isMaxed ? 1 : 0.55,
                       }}
                     >
-                      {isMaxed ? "MAX" : `재의식 −${rebindCost}C`}
+                      {isMaxed
+                        ? t("uphero.photo.maxLabel")
+                        : t("uphero.photo.rebindButton", { cost: rebindCost })}
                     </button>
                   </div>
                 );
@@ -427,15 +440,19 @@ export default function PhotoTalismanPicker({
         open={pendingPhoto != null}
         title={
           pendingPhoto?.mode === "bind"
-            ? "이 사진을 부적으로 만들까요?"
-            : `${pendingPhoto?.existing?.name ?? ""} 을(를) +1 재의식?`
+            ? t("uphero.photo.confirm.bindTitle")
+            : t("uphero.photo.confirm.rebindTitle", {
+                name: pendingPhoto?.existing?.name ?? "",
+              })
         }
         body={
           pendingPhoto?.mode === "bind" ? (
             <>
-              비용 {PHOTO_TALISMAN_RITUAL_COST} 코인 · Rarity 는 랜덤 (일반/희귀/고유/전설)
+              {t("uphero.photo.confirm.bindBodyCost", {
+                cost: PHOTO_TALISMAN_RITUAL_COST,
+              })}
               <br />
-              이후 같은 사진을 재의식하면 +1 강화 + 5강/10강에서 고유 스킬 획득.
+              {t("uphero.photo.confirm.bindBodyHint")}
             </>
           ) : pendingPhoto?.mode === "rebind" ? (
             (() => {
@@ -454,13 +471,14 @@ export default function PhotoTalismanPicker({
               const rebindCost = rebindPhotoTalismanCost(cur);
               return (
                 <>
-                  비용 {rebindCost} 코인 · Rarity 유지
+                  {t("uphero.photo.confirm.rebindBodyCost", { cost: rebindCost })}
                   <br />
-                  강화 <span style={{ color: GB.lightest }}>+{cur} → +{next}</span>
+                  {t("uphero.photo.confirm.rebindEnhance")}{" "}
+                  <span style={{ color: GB.lightest }}>+{cur} → +{next}</span>
                   {newlyGained.length > 0 && (
                     <>
                       <br />
-                      ✦ 신규 스킬:{" "}
+                      {t("uphero.photo.confirm.rebindNewSkills")}{" "}
                       <span style={{ color: GB.lightest }}>
                         {newlyGained
                           .map((id) => TALISMAN_SKILLS[id]?.name ?? id)
@@ -473,7 +491,11 @@ export default function PhotoTalismanPicker({
             })()
           ) : null
         }
-        confirmLabel={pendingPhoto?.mode === "rebind" ? "재의식 시작" : "의식 시작"}
+        confirmLabel={
+          pendingPhoto?.mode === "rebind"
+            ? t("uphero.photo.button.ritualRebind")
+            : t("uphero.photo.button.ritualBind")
+        }
         onConfirm={executeBind}
         onCancel={() => setPendingPhoto(null)}
       />
@@ -521,7 +543,7 @@ function PhotoThumb({
   onClick: () => void;
   disabled?: boolean;
 }) {
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -606,7 +628,9 @@ function PhotoThumb({
               background: categoryColor,
               boxShadow: `0 0 4px ${categoryColor}, 0 1px 2px rgba(0,0,0,0.4)`,
             }}
-            aria-label={`${photo.category} 카테고리`}
+            aria-label={t("uphero.photo.categoryAria", {
+              category: t(`uphero.category.${photo.category}` as DictKey),
+            })}
           />
         )}
       </div>
@@ -642,6 +666,7 @@ function RitualReveal({
   item: Equipment;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMounted(true));
@@ -658,10 +683,10 @@ function RitualReveal({
           : GB.light;
 
   const rarityLabel = {
-    normal: "일반",
-    rare: "희귀",
-    unique: "고유",
-    legend: "전설",
+    normal: t("uphero.photo.rarity.normal"),
+    rare: t("uphero.photo.rarity.rare"),
+    unique: t("uphero.photo.rarity.unique"),
+    legend: t("uphero.photo.rarity.legend"),
   }[item.rarity];
 
   // Phase 11c R1 — picker z-50 / RitualAnimation z-55 와 겹쳐 stacking 보장 위해 z-[58].
@@ -703,7 +728,7 @@ function RitualReveal({
         </div>
         <div className="px-4 py-4 flex flex-col gap-2.5 typo-caption">
           <div className="flex flex-col gap-1">
-            <div className={gbClass.textDim}>스탯</div>
+            <div className={gbClass.textDim}>{t("uphero.photo.stats")}</div>
             {Object.entries(item.stats).map(([k, v]) => (
               <div key={k} style={{ color: GB.lightest }}>
                 {k.toUpperCase()} +{v}
@@ -730,7 +755,7 @@ function RitualReveal({
               border: `1px solid ${GB.lightest}`,
             }}
           >
-            인벤토리로
+            {t("uphero.photo.toInventory")}
           </button>
         </div>
       </div>
@@ -752,6 +777,7 @@ function RitualAnimation({
   photo: PhotoMeta;
   item: Equipment;
 }) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -891,7 +917,7 @@ function RitualAnimation({
           letterSpacing: "0.1em",
         }}
       >
-        의식이 진행되고 있다…
+        {t("uphero.photo.ritualProgress")}
       </div>
     </div>,
     document.body,

@@ -39,6 +39,57 @@ export interface WeeklyLeaderboardEntry {
 }
 
 /**
+ * Phase 14 code-review High #8 — client-side formula guard.
+ *
+ * Firestore rules 가 이미 score 상한을 강제하지만, rules rejection 은 네트워크
+ * round-trip 소비 + UX 혼란 (업로드 실패 로그만 남음) 이라 *전송 전* 수학적으로
+ * 불가능한 값을 거른다. rules 와 동일 공식:
+ *   score ≤ floors×100 + 2000 (완주) + 440 (timeBonus cap, BASE_EXPEDITION_TIME 220 × 2)
+ *           + heroLevel² × 2
+ *
+ * floors ∈ [0, 30], heroLevel ∈ [1, 500] 범위 외 값은 0 score 로 간주해 upload skip.
+ * 유효 범위 안에 들면 score 를 formula 상한으로 clamp (tampered local state 방어).
+ */
+const WEEKLY_MAX_FLOORS = 30;
+const WEEKLY_MAX_HERO_LEVEL = 500;
+const WEEKLY_COMPLETION_BONUS = 2000;
+const WEEKLY_TIME_BONUS_CAP = 440;
+
+function maxScoreFor(floors: number, heroLevel: number): number {
+  return (
+    floors * 100 +
+    WEEKLY_COMPLETION_BONUS +
+    WEEKLY_TIME_BONUS_CAP +
+    heroLevel * heroLevel * 2
+  );
+}
+
+function sanitizeEntry(
+  entry: Omit<WeeklyLeaderboardEntry, "uid">,
+): Omit<WeeklyLeaderboardEntry, "uid"> | null {
+  const floors = Math.floor(entry.floorsCleared);
+  const heroLevel = Math.floor(entry.heroLevel);
+  if (!Number.isFinite(floors) || floors < 0 || floors > WEEKLY_MAX_FLOORS) return null;
+  if (
+    !Number.isFinite(heroLevel) ||
+    heroLevel < 1 ||
+    heroLevel > WEEKLY_MAX_HERO_LEVEL
+  )
+    return null;
+  if (!Number.isFinite(entry.score) || entry.score < 0) return null;
+  if (!Number.isFinite(entry.clearedAt) || entry.clearedAt < 1_704_067_200_000)
+    return null;
+  const cap = maxScoreFor(floors, heroLevel);
+  const score = Math.min(Math.floor(entry.score), cap);
+  return {
+    ...entry,
+    floorsCleared: floors,
+    heroLevel,
+    score,
+  };
+}
+
+/**
  * Phase 11c R2 — Firestore read 결과의 runtime type guard. corrupted / 구버전 /
  *   악의적 doc 을 UI 진입 전에 거른다. CLASS_META[classType] 같은 후속 접근 크래시 방지.
  */
@@ -72,6 +123,16 @@ export async function uploadWeeklyScore(
   entry: Omit<WeeklyLeaderboardEntry, "uid">,
 ): Promise<"ok" | "no-auth" | "no-firebase" | "error"> {
   if (!isFirebaseConfigured) return "no-firebase";
+  // Phase 14 High #8 — formula 검증은 네트워크 전에. rule rejection 은 billed read
+  //   + 혼란스러운 failed UX 를 남기므로 불가능한 score 는 여기서 reject.
+  const sanitized = sanitizeEntry(entry);
+  if (!sanitized) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn("[weeklyLeaderboard] entry failed local validation:", entry);
+    }
+    return "error";
+  }
   try {
     const { auth, db } = await getFirebase();
     const user = auth.currentUser;
@@ -79,8 +140,8 @@ export async function uploadWeeklyScore(
     // Phase 11c R4 보안 — displayName 40자 cap. firestore rule 에서도 검증하지만
     //   client 측에서 먼저 잘라 rule rejection 없이 upload.
     //   Firebase Auth 는 displayName 길이 제한이 없어 악성 profile 가능.
-    const safeDisplayName = (entry.displayName ?? "익명 영웅").slice(0, 40);
-    const safeEntry = { ...entry, displayName: safeDisplayName };
+    const safeDisplayName = (sanitized.displayName ?? "익명 영웅").slice(0, 40);
+    const safeEntry = { ...sanitized, displayName: safeDisplayName };
     const { doc, setDoc } = await import("firebase/firestore");
     const ref = doc(db, "weekly-leaderboard", weekId, "entries", user.uid);
     await setDoc(ref, { uid: user.uid, ...safeEntry }, { merge: false });

@@ -7,6 +7,7 @@ import {
   useSpring,
   useTransform,
   useMotionTemplate,
+  useReducedMotion,
 } from "framer-motion";
 
 interface Props {
@@ -41,6 +42,10 @@ export default function PolaroidTilt({ children, enabled = true, autoHint = fals
   const containerRef = useRef<HTMLDivElement>(null);
   const neutralBetaRef = useRef<number | null>(null);
   const isPointerActiveRef = useRef(false);
+  // prefers-reduced-motion 시 3D tilt / auto-hint / 자이로 모두 비활성.
+  //   전정 장애/멀미 유저에게 회전 애니메이션은 증상을 유발 — children 만 그대로
+  //   렌더해 정적 폴라로이드로 보여준다.
+  const prefersReducedMotion = useReducedMotion();
 
   /* ── 모션 값 ── */
   // 포인터/자이로가 직접 설정하는 "목표" 회전각 (°, 최대 ±15)
@@ -111,18 +116,18 @@ export default function PolaroidTilt({ children, enabled = true, autoHint = fals
      strict mode 의 effect 더블 호출에도 안전 (re-schedule). 의존성은 stable
      props/MotionValues 라 mount 시 1회만 실행됨. */
   useEffect(() => {
-    if (!enabled || !autoHint) return;
+    if (!enabled || !autoHint || prefersReducedMotion) return;
     const timers = [
       setTimeout(() => { targetRotateX.set(-6); targetRotateY.set(8); }, 250),
       setTimeout(() => { targetRotateX.set(4); targetRotateY.set(-5); }, 700),
       setTimeout(() => { targetRotateX.set(0); targetRotateY.set(0); }, 1100),
     ];
     return () => timers.forEach(clearTimeout);
-  }, [enabled, autoHint, targetRotateX, targetRotateY]);
+  }, [enabled, autoHint, prefersReducedMotion, targetRotateX, targetRotateY]);
 
   /* ── 자이로스코프 ── */
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    if (!enabled || prefersReducedMotion || typeof window === "undefined") return;
     if (typeof DeviceOrientationEvent === "undefined") return;
 
     const container = containerRef.current;
@@ -166,10 +171,10 @@ export default function PolaroidTilt({ children, enabled = true, autoHint = fals
     // 비-iOS — 권한 불필요, 바로 리스너 등록
     window.addEventListener("deviceorientation", handler);
     return () => window.removeEventListener("deviceorientation", handler);
-  }, [enabled, targetRotateX, targetRotateY]);
+  }, [enabled, prefersReducedMotion, targetRotateX, targetRotateY]);
 
-  /* ── 비활성 시 passthrough ── */
-  if (!enabled) return <>{children}</>;
+  /* ── 비활성 / reduced-motion 시 passthrough ── */
+  if (!enabled || prefersReducedMotion) return <>{children}</>;
 
   return (
     <div

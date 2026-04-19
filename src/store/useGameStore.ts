@@ -166,6 +166,13 @@ interface GameStore {
   markPatchNotesSeen: (version: string) => void;
   _setFromCloud: (progress: UserProgress, daily: DailyState) => void;
 
+  /**
+   * Phase 14 security — 로그아웃 시 in-memory state 초기화.
+   * localStorage wipe 와 별개로 zustand 싱글톤도 초기값으로 되돌려, reload 가
+   * 실패해도 이전 유저 데이터가 UI 에 드러나지 않도록 이중 방어.
+   */
+  resetForSignOut: () => void;
+
   // 추가 챌린지 시스템
   startExtraChallenge: () => void;
   startSuperChallenge: () => void;
@@ -1116,6 +1123,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const shouldOpenPack = (updated.pendingPacks || 0) > (progress.pendingPacks || 0);
     set({ progress: updated, ...(shouldOpenPack && { isOpeningPack: true }) });
     saveToStorage("progress", updated);
+  },
+
+  resetForSignOut: () => {
+    completingCardIds.clear();
+    set({
+      daily: getInitialDailyState(),
+      progress: getInitialProgress(),
+      isLoaded: false,
+      hasCompletedOnboarding: false,
+      isOpeningPack: false,
+      isLocalEmpty: false,
+    });
   },
 }));
 

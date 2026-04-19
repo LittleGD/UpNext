@@ -179,7 +179,7 @@ export default function SequenceMemo({
           }}
           aria-label={t("uphero.mini.giveUpAria")}
         >
-          포기
+          {t("uphero.mini.giveUpLabel")}
         </button>
       )}
       <style jsx>{`
