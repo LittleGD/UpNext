@@ -581,64 +581,79 @@ function DungeonsView({
       <SubHeader title={t("uphero.subheader.dungeons")} onBack={onBack} />
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
-        <div className="grid grid-cols-2 gap-2">
-          {DUNGEON_LIST.map((d) => {
-            const count = passes[d.id] ?? 0;
-            const progress = dungeons[d.id];
-            const floor = progress?.floorReached ?? 0;
-            const disabled = count === 0;
-            return (
-              <PressButton
-                key={d.id}
-                onClick={() => onEnter(d.id)}
-                disabled={disabled}
-                style={{
-                  background: disabled ? "transparent" : `${GB.dark}99`,
-                  border: `1px solid ${disabled ? GB.dark : d.themeColor}`,
-                  opacity: disabled ? 0.45 : 1,
-                  minHeight: 76,
-                  padding: "14px 12px",
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <PixelIcon
-                    name={CATEGORY_ICON[d.id]}
-                    size={22}
-                    color={disabled ? GB.light : d.themeColor}
-                  />
-                  {/* typo-micro 예외: 작은 수량 배지 */}
-                  <span
-                    className="typo-micro px-1.5 py-0.5 rounded tabular-nums"
+        {/* Phase 15 — 총 탐험권 총합 disable 기준 (카테고리 호환 소비).
+             유저 피드백 "탐험권 구매해도 사용 안 된다" 해결: 특정 카테고리에서
+             구매했어도 다른 던전에서 사용 가능하도록 변경. 카드 우상단 배지는
+             해당 카테고리 누적을 정보로만 제공 — 0 이어도 다른 카테고리 잔고가
+             있으면 클릭 가능. */}
+        {(() => {
+          const total = Object.values(passes).reduce(
+            (a, b) => a + (b ?? 0),
+            0,
+          );
+          return (
+            <div className="grid grid-cols-2 gap-2">
+              {DUNGEON_LIST.map((d) => {
+                const count = passes[d.id] ?? 0;
+                const progress = dungeons[d.id];
+                const floor = progress?.floorReached ?? 0;
+                const disabled = total === 0;
+                return (
+                  <PressButton
+                    key={d.id}
+                    onClick={() => onEnter(d.id)}
+                    disabled={disabled}
                     style={{
-                      color: GB.lightest,
-                      background: count > 0 ? `${d.themeColor}30` : "transparent",
-                      border: count > 0 ? `1px solid ${d.themeColor}` : "none",
+                      background: disabled ? "transparent" : `${GB.dark}99`,
+                      border: `1px solid ${disabled ? GB.dark : d.themeColor}`,
+                      opacity: disabled ? 0.45 : 1,
+                      minHeight: 76,
+                      padding: "14px 12px",
                     }}
                   >
-                    ×{count}
-                  </span>
-                </div>
-                <div
-                  className="typo-caption leading-tight truncate"
-                  style={{ color: disabled ? GB.light : GB.lightest }}
-                >
-                  {dungeonName(d.id, d.name, language)}
-                </div>
-                <div
-                  className="typo-caption mt-1 tabular-nums"
-                  style={{
-                    color: GB.light,
-                    opacity: count >= PASS_CAP_PER_CATEGORY ? 1 : 0.75,
-                  }}
-                >
-                  {floor > 0
-                    ? t("uphero.dungeons.floorReached", { floor })
-                    : t("uphero.dungeons.unexplored")}
-                </div>
-              </PressButton>
-            );
-          })}
-        </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <PixelIcon
+                        name={CATEGORY_ICON[d.id]}
+                        size={22}
+                        color={disabled ? GB.light : d.themeColor}
+                      />
+                      {/* typo-micro 예외: 작은 수량 배지 — 해당 카테고리 누적. */}
+                      <span
+                        className="typo-micro px-1.5 py-0.5 rounded tabular-nums"
+                        style={{
+                          color: GB.lightest,
+                          background:
+                            count > 0 ? `${d.themeColor}30` : "transparent",
+                          border:
+                            count > 0 ? `1px solid ${d.themeColor}` : "none",
+                        }}
+                      >
+                        ×{count}
+                      </span>
+                    </div>
+                    <div
+                      className="typo-caption leading-tight truncate"
+                      style={{ color: disabled ? GB.light : GB.lightest }}
+                    >
+                      {dungeonName(d.id, d.name, language)}
+                    </div>
+                    <div
+                      className="typo-caption mt-1 tabular-nums"
+                      style={{
+                        color: GB.light,
+                        opacity: count >= PASS_CAP_PER_CATEGORY ? 1 : 0.75,
+                      }}
+                    >
+                      {floor > 0
+                        ? t("uphero.dungeons.floorReached", { floor })
+                        : t("uphero.dungeons.unexplored")}
+                    </div>
+                  </PressButton>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

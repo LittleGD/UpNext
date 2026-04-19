@@ -161,6 +161,44 @@ function migrateCodexEquipment(entries: unknown): string[] {
 
 const STORAGE_KEY = "uphero";
 
+/**
+ * Phase 15 — 탐험권 사용 정책.
+ *
+ * 탐험권은 `passes: Partial<Record<DungeonId, number>>` 로 **카테고리별** 저장되지만,
+ * UI (홈 PrimaryCTA 의 `×N` 총합 badge) 에서는 **총합만** 노출된다. 상점에서는
+ * 카테고리별로 구매해야 한다. 이 불일치로 유저가 "A 카테고리에 구매한 탐험권을
+ * B 카테고리에서 쓰려 하면 disabled" 라는 혼란을 반복 보고 (2026-04 피드백).
+ *
+ * 정책 결정: **소비는 모든 카테고리에서 호환**. 목표 던전 카테고리에 잔고가 있으면
+ * 거기서 먼저 차감, 없으면 다른 카테고리에서 1장 폴백 소비. 총 잔고가 0 이면 불가.
+ *
+ * 저장 구조는 유지 (마이그레이션 불필요). 홈/던전 UI 의 disable 기준도 총합으로 통일.
+ *
+ * @returns 소비 후 passes 객체, 잔고 0 이면 null.
+ */
+function consumeAnyPass(
+  passes: Partial<Record<DungeonId, number>>,
+  preferDungeon: DungeonId,
+): Partial<Record<DungeonId, number>> | null {
+  const preferCount = passes[preferDungeon] ?? 0;
+  if (preferCount >= 1) {
+    return { ...passes, [preferDungeon]: preferCount - 1 };
+  }
+  // 폴백 — 다른 카테고리에서 찾아 1장 소비. insertion order 순회로 결정적.
+  for (const [dId, count] of Object.entries(passes)) {
+    if ((count ?? 0) >= 1) {
+      return { ...passes, [dId as DungeonId]: (count ?? 0) - 1 };
+    }
+  }
+  return null;
+}
+
+function totalPassCount(passes: Partial<Record<DungeonId, number>>): number {
+  let total = 0;
+  for (const count of Object.values(passes)) total += count ?? 0;
+  return total;
+}
+
 interface UpHeroActions {
   initialize(): void;
 
@@ -916,8 +954,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
   prepareBuffDraw(dungeonId) {
     const state = get();
-    const passes = state.passes[dungeonId] ?? 0;
-    if (passes < 1) return "no-pass";
+    // Phase 15 — 총합 기준으로 소비 가능 여부 판정 (카테고리 상호 호환).
+    if (totalPassCount(state.passes) < 1) return "no-pass";
     // 보유 카드 가져오기 — useGameStore.progress.unlockedCardIds
     const gameState = useGameStore.getState();
     const unlockedIds = gameState.progress.unlockedCardIds ?? [];
@@ -941,8 +979,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const state = get();
     if (!state.pendingDungeon) return;
     const { dungeonId } = state.pendingDungeon;
-    const passes = state.passes[dungeonId] ?? 0;
-    if (passes < 1) {
+    // Phase 15 — 카테고리 호환 소비. 목표 던전에 잔고가 있으면 거기서, 없으면 폴백.
+    const updatedPasses = consumeAnyPass(state.passes, dungeonId);
+    if (updatedPasses === null) {
       // 중간에 탐험권 잃은 상황 — 취소
       set({ pendingDungeon: null });
       return;
@@ -960,7 +999,6 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // 반드시 네 번째 인자로 넘겨줘야 실제 전투에 효과가 적용된다.
     // Phase 5a.1: level 에 따라 base stat 이 자동 성장한 hero 를 전달.
     // Phase 9d: 챌린지 레벨이 아닌 영웅 레벨 (gameLevel - heroStartLevel + 1) 사용.
-    const updatedPasses = { ...state.passes, [dungeonId]: passes - 1 };
     const progress = state.dungeons[dungeonId];
     const startFloor = (progress?.floorReached ?? 0) + 1;
     const gameLevel = useGameStore.getState().progress.level ?? 1;
@@ -991,9 +1029,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   enterDungeon(dungeonId) {
     // 구 API — 버프 draw 스킵 직진입. 보유 카드 0 케이스나 테스트용.
     const state = get();
-    const passes = state.passes[dungeonId] ?? 0;
-    if (passes < 1) return false;
-    const updatedPasses = { ...state.passes, [dungeonId]: passes - 1 };
+    // Phase 15 — 카테고리 호환 소비 (prepareBuffDraw / confirmDungeon 과 동일 정책).
+    const updatedPasses = consumeAnyPass(state.passes, dungeonId);
+    if (updatedPasses === null) return false;
     const progress = state.dungeons[dungeonId];
     const startFloor = (progress?.floorReached ?? 0) + 1;
     // Phase 5a.1: level 기반 성장 반영. Phase 9d: 영웅 레벨 사용.
