@@ -17,6 +17,206 @@ export interface PatchNote {
 // 최신 순으로 맨 앞에 쌓기 — LATEST_PATCH는 항상 PATCH_NOTES[0]
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "2026.04.18",
+    date: "2026-04-18",
+    headline: {
+      ko: "폴라로이드 사진과 갓생 영웅 — 매일이 모험이 됩니다",
+      en: "Polaroid photos & Up Hero — every day becomes an adventure",
+      ja: "ポラロイド写真と갓생勇者 — 毎日が冒険に",
+      zh: "宝丽来照片与崛起勇者 — 让每一天都成为冒险",
+    },
+    entries: {
+      ko: [
+        {
+          icon: "Camera",
+          title: "챌린지 인증 사진 — 폴라로이드 카메라",
+          description: "챌린지를 완료할 때 그 순간을 사진으로 남겨보세요. 서명을 그리고, 스티커를 붙이고, 메모를 적을 수 있어요. 촬영 순간의 플래시 / 노출까지 실제로 반영됩니다.",
+        },
+        {
+          icon: "Image",
+          title: "앨범 — 기울이는 폴라로이드",
+          description: "컬렉션의 앨범 탭에서 촬영한 사진을 모아볼 수 있어요. 기기를 기울이면 폴라로이드도 함께 기울어지고, 뒤집어 메모를 확인하거나 친구에게 공유할 수 있습니다.",
+        },
+        {
+          icon: "Heart",
+          title: "사진 부적 — 추억을 장비로",
+          description: "찍은 사진을 '바인딩 의식' 으로 부적 장비로 만들어보세요. 영웅 탐험에서 능력치 보너스를 주고, +10 까지 강화할 수 있습니다.",
+        },
+        {
+          icon: "Sword",
+          title: "갓생 영웅 — 8 던전 로그라이크",
+          description: "챌린지를 완료하면 탐험권을 얻어 8 개 테마 던전에 입장할 수 있어요. F30 보스까지 자동 전투 + 이벤트 선택 + 미니게임으로 진행됩니다. 운동 / 학습 / 명상 / 식단 / 소통 / 생산성 / 건강 / 트렌딩 — 각 세계관이 따로 준비되어 있어요.",
+        },
+        {
+          icon: "Moon",
+          title: "Lv30 클래스 각성 — 8 클래스",
+          description: "레벨 30 에서 가장 많이 완료한 카테고리에 따라 영웅이 전사 / 마법사 / 수도승 / 드루이드 / 음유시인 / 시간술사 / 사제 / 환영술사 로 분화됩니다. 각 클래스는 고유 자원 (분노 / 마나 / 기 …) 과 패시브를 가집니다.",
+        },
+        {
+          icon: "Flame",
+          title: "스킬트리 — 32 스킬 수동 해금",
+          description: "레벨업마다 스킬 포인트를 얻어 T1~T4 스킬을 해금할 수 있어요. 자동 발동 / 수동 발동 전환 가능. 클래스마다 4 스킬 = 총 32 스킬.",
+        },
+        {
+          icon: "WarningDiamond",
+          title: "주간 악몽 — affix 도전",
+          description: "매주 월요일 KST 09:00 에 11 affix 중 하나가 선택됩니다. 유리 대포 / 시간의 압박 / 긴 행군 등 — 한 주간 전세계 유저가 같은 변이에 도전하고 리더보드에 기록합니다.",
+        },
+        {
+          icon: "BookOpen",
+          title: "도감 — 몬스터 & 장비 수집",
+          description: "만난 몬스터와 주운 장비가 도감에 자동 기록됩니다. 각 몬스터의 lore 와 던전 출처까지 확인 가능. 미발견 항목은 실루엣으로 표시돼 스포일러를 피합니다.",
+        },
+        {
+          icon: "Sparkle",
+          title: "장비 강화 — pity streak 포함",
+          description: "드롭한 장비를 +10 까지 강화할 수 있어요. 실패가 누적되면 보너스 확률이 가산되는 pity 시스템으로 legend / unique 강화도 체계적으로 도전 가능.",
+        },
+      ],
+      en: [
+        {
+          icon: "Camera",
+          title: "Polaroid capture — verify with a photo",
+          description: "Capture the moment when you finish a challenge. Sign it, add stickers, leave a memo. Flash and exposure are actually applied to the saved shot.",
+        },
+        {
+          icon: "Image",
+          title: "Album — tilt-responsive polaroids",
+          description: "Browse your captures in the Album tab. Tilt the device and each polaroid tilts with you. Flip to check the memo or share with friends.",
+        },
+        {
+          icon: "Heart",
+          title: "Photo talisman — bind memories as gear",
+          description: "Run a binding ritual to turn a photo into a talisman. Grants stat bonuses during hero expeditions and can be enhanced up to +10.",
+        },
+        {
+          icon: "Sword",
+          title: "Up Hero — 8-dungeon roguelike",
+          description: "Completing challenges earns expedition passes that unlock 8 themed dungeons. Auto-combat, event choices, and minigames take you from F1 to the F30 boss. Fitness / Learning / Mindfulness / Nutrition / Social / Productivity / Wellness / Trending — each with its own world.",
+        },
+        {
+          icon: "Moon",
+          title: "Class awakening at Lv30 — 8 classes",
+          description: "At level 30, your hero awakens as Warrior / Mage / Monk / Druid / Bard / Chronomancer / Priest / Illusionist based on your most-completed category. Each class has a unique resource (Rage / Mana / Chi…) and passive.",
+        },
+        {
+          icon: "Flame",
+          title: "Skill tree — 32 skills, manual unlock",
+          description: "Earn a skill point every level and unlock tier 1-4 skills. Toggle between auto-cast and manual. 4 skills per class × 8 classes = 32 total.",
+        },
+        {
+          icon: "WarningDiamond",
+          title: "Weekly nightmare — affix challenge",
+          description: "Every Monday at 09:00 KST, one of 11 affixes is selected. Glass Cannon / Time Pressure / Long March… — the whole world tackles the same variant for a week and posts to the leaderboard.",
+        },
+        {
+          icon: "BookOpen",
+          title: "Codex — collect monsters & gear",
+          description: "Every monster you meet and every drop you pick up is logged. Check each monster's lore and home dungeon. Unseen entries stay in silhouette to avoid spoilers.",
+        },
+        {
+          icon: "Sparkle",
+          title: "Enhancement — with pity streaks",
+          description: "Enhance dropped gear up to +10. Streaks of failures pile on a bonus via the pity system, so legend / unique enhancement stays approachable.",
+        },
+      ],
+      ja: [
+        {
+          icon: "Camera",
+          title: "チャレンジ認証写真 — ポラロイドカメラ",
+          description: "チャレンジを完了したその瞬間を写真に残そう。サインを描いて、ステッカーを貼って、メモも添えられる。撮影時のフラッシュ / 露出も実際に反映されます。",
+        },
+        {
+          icon: "Image",
+          title: "アルバム — 傾くポラロイド",
+          description: "コレクションのアルバムタブで撮影写真をまとめて見られます。端末を傾けるとポラロイドも一緒に傾き、裏返してメモを確認したり、友人にシェアできます。",
+        },
+        {
+          icon: "Heart",
+          title: "写真のお守り — 思い出を装備に",
+          description: "撮った写真を「バインディング儀式」でお守り装備に変えよう。勇者の探索でステータスボーナスを与え、+10 まで強化可能。",
+        },
+        {
+          icon: "Sword",
+          title: "갓생勇者 — 8 ダンジョン ローグライク",
+          description: "チャレンジを完了すると探検券を獲得し、8 つのテーマダンジョンに入場できます。F30 ボスまで自動戦闘 + イベント選択 + ミニゲームで進行。運動 / 学習 / 瞑想 / 食事 / 社交 / 生産性 / 健康 / トレンド — 各世界観が別々に用意されています。",
+        },
+        {
+          icon: "Moon",
+          title: "Lv30 クラス覚醒 — 8 クラス",
+          description: "レベル 30 で最も完了したカテゴリに応じて、勇者が 戦士 / 魔法使い / 武僧 / ドルイド / 吟遊詩人 / 時術師 / 司祭 / 幻術師 に分化。各クラスは固有の資源 (怒り / マナ / 気 …) とパッシブを持ちます。",
+        },
+        {
+          icon: "Flame",
+          title: "スキルツリー — 32 スキル手動解放",
+          description: "レベルアップごとにスキルポイントを獲得し、T1~T4 スキルを解放。自動発動 / 手動発動 切替可能。各クラス 4 スキル = 計 32 スキル。",
+        },
+        {
+          icon: "WarningDiamond",
+          title: "週間悪夢 — affix チャレンジ",
+          description: "毎週月曜 KST 09:00 に 11 affix のうち 1 つが選ばれます。ガラスの大砲 / 時間の圧迫 / 長き行軍 など — 一週間世界中のプレイヤーが同じ変異に挑戦し、ランキングに記録。",
+        },
+        {
+          icon: "BookOpen",
+          title: "図鑑 — モンスター & 装備収集",
+          description: "出会ったモンスターと拾った装備が図鑑に自動記録されます。各モンスターの lore と登場ダンジョンも確認可能。未発見項目はシルエットでネタバレ防止。",
+        },
+        {
+          icon: "Sparkle",
+          title: "装備強化 — pity streak 対応",
+          description: "ドロップした装備を +10 まで強化できます。失敗が積み重なるとボーナス確率が加算される pity システムで、legend / unique の強化も計画的に挑戦可能。",
+        },
+      ],
+      zh: [
+        {
+          icon: "Camera",
+          title: "挑战认证照片 — 宝丽来相机",
+          description: "完成挑战时把那一刻留成照片。签名、贴贴纸、写备忘。拍摄瞬间的闪光灯与曝光也真实反映到成片中。",
+        },
+        {
+          icon: "Image",
+          title: "相册 — 可倾斜的宝丽来",
+          description: "在收藏的相册标签里集中浏览拍摄的照片。倾斜设备时宝丽来也会一起倾斜,翻过来查看备忘或分享给朋友。",
+        },
+        {
+          icon: "Heart",
+          title: "照片护符 — 把回忆变成装备",
+          description: "通过「绑定仪式」把拍摄的照片变成护符装备。在勇者探险中提供属性加成,最高可强化至 +10。",
+        },
+        {
+          icon: "Sword",
+          title: "崛起勇者 — 8 地下城肉鸽",
+          description: "完成挑战就能获得探险券,解锁 8 个主题地下城。自动战斗 + 事件选择 + 小游戏一路推到 F30 首领。运动 / 学习 / 冥想 / 饮食 / 社交 / 效率 / 健康 / 潮流 — 每个世界各有独特氛围。",
+        },
+        {
+          icon: "Moon",
+          title: "Lv30 职业觉醒 — 8 职业",
+          description: "30 级时按你完成最多的类别觉醒为 战士 / 法师 / 武僧 / 德鲁伊 / 吟游诗人 / 时之法师 / 祭司 / 幻术师。每个职业都有专属资源 (愤怒 / 法力 / 气 …) 与被动。",
+        },
+        {
+          icon: "Flame",
+          title: "技能树 — 32 技能手动解锁",
+          description: "每次升级获得技能点,解锁 T1~T4 技能。可切换自动 / 手动触发。每职业 4 技能 × 8 职业 = 共 32 技能。",
+        },
+        {
+          icon: "WarningDiamond",
+          title: "周噩梦 — affix 挑战",
+          description: "每周一 KST 09:00 从 11 个 affix 中随机选择一个。玻璃大炮 / 时间压迫 / 漫长行军 等 — 一周内全球玩家挑战同一变异并上榜。",
+        },
+        {
+          icon: "BookOpen",
+          title: "图鉴 — 怪物与装备收集",
+          description: "遇到的怪物和拾取的装备会自动记录到图鉴。可查看每只怪物的 lore 和所属地下城。未发现项目以剪影显示,避免剧透。",
+        },
+        {
+          icon: "Sparkle",
+          title: "装备强化 — 含 pity 机制",
+          description: "掉落装备最高强化至 +10。连续失败会累积 pity 奖励概率,传说 / 独特强化也能按计划挑战。",
+        },
+      ],
+    },
+  },
+  {
     version: "2026.04.16",
     date: "2026-04-16",
     headline: {

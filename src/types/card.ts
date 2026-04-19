@@ -40,4 +40,10 @@ export interface ChallengeCard {
     category: Category;    // 해당 카테고리에서
     completions: number;   // N번 완료하면 해금
   };
+  /**
+   * Phase 4b — 카드 뒷면 버프. Up Hero 던전 진입 전 선택 가능.
+   * 선택적 필드 — 데이터 파일에서 직접 정의하지 않고
+   * `getCardBuff(card)` (src/data/cardBuffs.ts) 로 런타임 해결.
+   * normal = 카테고리 공통, rare/unique = auto-gen, legend = 개별 커스텀.
+   */
 }

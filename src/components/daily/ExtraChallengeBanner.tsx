@@ -228,9 +228,10 @@ export default function ExtraChallengeBanner({ onPress }: ExtraChallengeBannerPr
                   />
                 </svg>
               ) : activated ? (
+                // Phase 9c — scale 0 → 0.4 (Emil 원칙)
                 <motion.div
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
+                  initial={{ scale: 0.4, rotate: -180, opacity: 0 }}
+                  animate={{ scale: 1, rotate: 0, opacity: 1 }}
                   transition={{ type: "spring", stiffness: 500, damping: 15 }}
                 >
                   <PixelIcon name="ChevronRight" size={18} color="#FF4632" />

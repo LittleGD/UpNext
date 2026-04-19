@@ -1,0 +1,341 @@
+/**
+ * Up Hero — social 던전 이벤트 풀.
+ * 각 option 의 outcomes 는 weight 기반 확률 분기.
+ */
+
+import type { DungeonEvent } from "./_types";
+
+export const SOCIAL_EVENTS: DungeonEvent[] = [
+    {
+      prompt: "수상한 상인이 나타났다.",
+      promptKey: "uphero.flavor.soc.0.prompt",
+      options: [
+        {
+          label: "물건 구매 (80코인)",
+          labelKey: "uphero.flavor.soc.0.opt0.label",
+          outcomes: [
+            {
+              weight: 60,
+              resultText: "희귀 지식을 얻었다!",
+              resultTextKey: "uphero.flavor.soc.0.opt0.out0.result",
+              effects: [
+                { kind: "reward", coins: -80, xp: 50 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "사기였다. 품질이 낮은 물건.",
+              resultTextKey: "uphero.flavor.soc.0.opt0.out1.result",
+              effects: [
+                { kind: "reward", coins: -80 },
+                { kind: "damage", amount: 15 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 15,
+              resultText: "상인이 숨겨둔 보물까지 함께 넘겨줬다!",
+              resultTextKey: "uphero.flavor.soc.0.opt0.out2.result",
+              effects: [
+                { kind: "reward", coins: -80, xp: 120 },
+                { kind: "reward", coins: 50 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "지나치기",
+          labelKey: "uphero.flavor.soc.0.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "지나친다.",
+              resultTextKey: "uphero.flavor.soc.0.opt1.out0.result",
+              effects: [{ kind: "time", delta: -2 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "떠들썩한 술집에서 영웅을 초대한다.",
+      promptKey: "uphero.flavor.soc.1.prompt",
+      options: [
+        {
+          label: "이야기 나누기",
+          labelKey: "uphero.flavor.soc.1.opt0.label",
+          outcomes: [
+            {
+              weight: 55,
+              resultText: "흥미로운 모험담이 오갔다.",
+              resultTextKey: "uphero.flavor.soc.1.opt0.out0.result",
+              effects: [
+                { kind: "reward", xp: 30 },
+                { kind: "heal", amount: 10 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "취객이 시비를 걸었다.",
+              resultTextKey: "uphero.flavor.soc.1.opt0.out1.result",
+              effects: [
+                { kind: "damage", amount: 10 },
+                { kind: "reward", xp: 15 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "친구가 될 노병을 만났다.",
+              resultTextKey: "uphero.flavor.soc.1.opt0.out2.result",
+              effects: [
+                { kind: "reward", xp: 40, coins: 25 },
+                { kind: "heal", amount: 20 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "조용히 나가기",
+          labelKey: "uphero.flavor.soc.1.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "조용한 밤을 택했다.",
+              resultTextKey: "uphero.flavor.soc.1.opt1.out0.result",
+              effects: [{ kind: "time", delta: -2 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "광장에서 관악단이 큰 소리로 연주한다.",
+      promptKey: "uphero.flavor.soc.2.prompt",
+      options: [
+        {
+          label: "팁 던지기 (10 코인)",
+          labelKey: "uphero.flavor.soc.2.opt0.label",
+          outcomes: [
+            {
+              weight: 65,
+              resultText: "분위기에 녹아들어 기력이 돋는다.",
+              resultTextKey: "uphero.flavor.soc.2.opt0.out0.result",
+              effects: [
+                { kind: "reward", coins: -10, xp: 25 },
+                { kind: "heal", amount: 15 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "관악단 리더의 호응이 특별했다.",
+              resultTextKey: "uphero.flavor.soc.2.opt0.out1.result",
+              effects: [
+                { kind: "reward", coins: -10, xp: 45 },
+                { kind: "heal", amount: 25 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 15,
+              resultText: "동전이 실수로 멀리 굴러갔다.",
+              resultTextKey: "uphero.flavor.soc.2.opt0.out2.result",
+              effects: [
+                { kind: "reward", coins: -10 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "귀 막고 지나간다",
+          labelKey: "uphero.flavor.soc.2.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "시끄러움이 신경을 긁는다.",
+              resultTextKey: "uphero.flavor.soc.2.opt1.out0.result",
+              effects: [
+                { kind: "damage", amount: 3 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "음유시인이 노래한다.",
+      promptKey: "uphero.flavor.soc.3.prompt",
+      options: [
+        {
+          label: "감상하기",
+          labelKey: "uphero.flavor.soc.3.opt0.label",
+          outcomes: [
+            {
+              weight: 70,
+              resultText: "노래에 마음이 치유되었다.",
+              resultTextKey: "uphero.flavor.soc.3.opt0.out0.result",
+              effects: [
+                { kind: "heal", amount: 25 },
+                { kind: "reward", xp: 10 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "긴 서사시를 끝까지 들었다.",
+              resultTextKey: "uphero.flavor.soc.3.opt0.out1.result",
+              effects: [
+                { kind: "heal", amount: 40 },
+                { kind: "reward", xp: 20 },
+                { kind: "time", delta: -8 },
+              ],
+            },
+            {
+              weight: 10,
+              resultText: "짧은 후렴구만 듣고 지나갔다.",
+              resultTextKey: "uphero.flavor.soc.3.opt0.out2.result",
+              effects: [{ kind: "time", delta: -3 }],
+            },
+          ],
+        },
+        {
+          label: "동전 주고 가기",
+          labelKey: "uphero.flavor.soc.3.opt1.label",
+          outcomes: [
+            {
+              weight: 75,
+              resultText: "동전을 주고 축복을 받았다.",
+              resultTextKey: "uphero.flavor.soc.3.opt1.out0.result",
+              effects: [
+                { kind: "reward", coins: -10, xp: 30 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "음유시인이 깊은 축복을 내려주었다.",
+              resultTextKey: "uphero.flavor.soc.3.opt1.out1.result",
+              effects: [
+                { kind: "reward", coins: -10, xp: 50 },
+                { kind: "heal", amount: 10 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    // Phase 12 R3 — pool 다양성 확장 (4 → 6).
+    //   기존 풀이 상인/술집/관악단/음유시인 — 유흥 타인 편향. "길가의 아이"
+    //   (도움) 와 "낯선 편지" (익명 상호작용) 2 개로 사회적 상호작용 축 확장.
+    {
+      prompt: "길가의 아이가 울먹이며 인형을 잃었다 한다.",
+      promptKey: "uphero.flavor.soc.4.prompt",
+      options: [
+        {
+          label: "같이 찾아준다",
+          labelKey: "uphero.flavor.soc.4.opt0.label",
+          outcomes: [
+            {
+              weight: 55,
+              resultText: "수풀 속에서 인형을 찾아주었다. 아이의 웃음이 번진다.",
+              resultTextKey: "uphero.flavor.soc.4.opt0.out0.result",
+              effects: [
+                { kind: "heal", amount: 12 },
+                { kind: "reward", xp: 25, coins: 20 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+            {
+              weight: 25,
+              resultText: "아이의 부모가 감사해하며 말린 꽃을 쥐여준다.",
+              resultTextKey: "uphero.flavor.soc.4.opt0.out1.result",
+              effects: [
+                { kind: "reward", coins: 40, xp: 30 },
+                { kind: "time", delta: -6 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "수풀 너머로 뛰쳐나온 들개에게 물렸다.",
+              resultTextKey: "uphero.flavor.soc.4.opt0.out2.result",
+              effects: [
+                { kind: "damage", amount: 14 },
+                { kind: "time", delta: -5 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "모른 척 지나간다",
+          labelKey: "uphero.flavor.soc.4.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "울음 소리가 멀어진다.",
+              resultTextKey: "uphero.flavor.soc.4.opt1.out0.result",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      prompt: "돌 틈에 봉인도 없는 낡은 편지가 꽂혀 있다.",
+      promptKey: "uphero.flavor.soc.5.prompt",
+      options: [
+        {
+          label: "펼쳐 읽는다",
+          labelKey: "uphero.flavor.soc.5.opt0.label",
+          outcomes: [
+            {
+              weight: 50,
+              resultText: "오래된 여행자의 조언이 담겨 있다.",
+              resultTextKey: "uphero.flavor.soc.5.opt0.out0.result",
+              effects: [
+                { kind: "reward", xp: 30 },
+                { kind: "time", delta: -3 },
+              ],
+            },
+            {
+              weight: 30,
+              resultText: "지도 단편. 다음 길이 또렷해진다.",
+              resultTextKey: "uphero.flavor.soc.5.opt0.out1.result",
+              effects: [
+                { kind: "skipFloors", count: 1 },
+                { kind: "time", delta: -2 },
+              ],
+            },
+            {
+              weight: 20,
+              resultText: "저주받은 서신. 마음이 무거워진다.",
+              resultTextKey: "uphero.flavor.soc.5.opt0.out2.result",
+              effects: [
+                { kind: "damage", amount: 10 },
+                { kind: "time", delta: -4 },
+              ],
+            },
+          ],
+        },
+        {
+          label: "손대지 않는다",
+          labelKey: "uphero.flavor.soc.5.opt1.label",
+          outcomes: [
+            {
+              weight: 100,
+              resultText: "남의 사연은 남의 것으로 남긴다.",
+              resultTextKey: "uphero.flavor.soc.5.opt1.out0.result",
+              effects: [{ kind: "time", delta: -1 }],
+            },
+          ],
+        },
+      ],
+    },
+];

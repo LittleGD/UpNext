@@ -146,6 +146,16 @@ export async function startListener(
     // (flushSync 후 새 snapshot이 오면 정상 처리됨)
     if (hasLocalPendingWrite) return;
 
+    // Phase 13 review #14 — onSnapshot 이전엔 data.progress 무검증 cast 로
+    //   바로 local state 덮어씀. 손상된 Firestore snapshot 이 local 을 blow
+    //   away 가능. getCloudData 와 동일한 isValidProgress 가드 추가.
+    if (!isValidProgress(data.progress)) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[sync] onSnapshot: invalid progress shape, skipping");
+      }
+      return;
+    }
+
     isUpdatingFromCloud = true;
     cloudUpdatePromise = Promise.resolve().then(() => {
       try {

@@ -61,9 +61,26 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     if (!isFirebaseConfigured) return;
     try {
+      // Phase 11c R4 보안 수정 — Firebase Auth session 만 지우면 localStorage /
+      //   Zustand / IndexedDB 에 이전 유저의 데이터가 남아 다음 로그인 유저에게 노출.
+      //   SyncProvider 는 로컬 데이터가 cloud 보다 최신이면 자동 upload → 다른
+      //   유저 Firestore doc 을 덮어쓰는 cross-account write 위험. 순서 중요:
+      //     1) localStorage + IndexedDB wipe (sync upload trigger 차단 위해 먼저)
+      //     2) Firebase Auth signOut (SyncProvider 가 listener stop)
+      //     3) reload (Zustand 전체 초기화 + clean slate)
+      const { clearAllAppStorage } = await import("@/lib/storage");
+      const { clearAllPhotoStorage } = await import("@/lib/photoStorage");
+      clearAllAppStorage();
+      await clearAllPhotoStorage();
+
       const { auth } = await getFirebase();
       const { signOut: firebaseSignOut } = await import("firebase/auth");
       await firebaseSignOut(auth);
+
+      // Zustand 스토어 (in-memory) reset — reload 가 가장 단순하고 확실.
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
     } catch (error) {
       console.error("Sign-out failed:", error);
     }

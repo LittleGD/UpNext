@@ -8,10 +8,19 @@ import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import { STARTER_PACKS } from "@/data/starterPacks";
 import { scheduleChallengeReminder, cancelChallengeReminder, showChallengeStatus, hideChallengeStatus, showInstantNotify, scheduleExtraNudge, cancelExtraNudge } from "@/lib/notifications";
 import { t } from "@/i18n";
+import { useUpHeroStore } from "./useUpHeroStore";
+
+/**
+ * Phase 13 review Critical #1 — `completionHistory` 는 매일 push 되므로 2-3 년
+ *   사용자의 localStorage 를 잠식. 하루 1 entry 기준 365 일 × ~200 bytes =
+ *   ~73 KB 상한. 365 이전 기록은 stats 계산에 쓰지 않으므로 안전.
+ */
+export const COMPLETION_HISTORY_CAP = 365;
 
 // 오늘 날짜를 "2026-04-01" 형식으로 반환
 // 하루 기준: 새벽 1시 ~ 다음날 00:59 (1시간 빼서 날짜 계산)
-function getTodayString(): string {
+// Phase 11a — useUpHeroStore 의 shopDaily reset 에서도 공용으로 쓰이므로 export.
+export function getTodayString(): string {
   const d = new Date();
   d.setHours(d.getHours() - 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -214,6 +223,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (missingTrendingStarters.length > 0) {
       progress.unlockedCardIds = [...progress.unlockedCardIds, ...missingTrendingStarters];
     }
+    // Phase 13 review C#1 — 기존 유저 completionHistory migration. 365 이전
+    //   오래된 entry 절삭. 신규 cap 과 동일하게 유지. (migration idempotent)
+    if (
+      Array.isArray(progress.completionHistory) &&
+      progress.completionHistory.length > COMPLETION_HISTORY_CAP
+    ) {
+      progress.completionHistory = progress.completionHistory.slice(
+        -COMPLETION_HISTORY_CAP,
+      );
+    }
     let daily = { ...getInitialDailyState(), ...savedDaily } as DailyState;
     // 기존 저장 데이터에 새 필드가 없을 수 있으므로 배열 필드 보정
     daily.extraDrawnCards = daily.extraDrawnCards || [];
@@ -242,7 +261,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           superCompleted: superDone || undefined,
           wasFailed: dailyFailed || undefined,
         };
-        progress.completionHistory.push(record);
+        // Phase 13 review C#1 — history 누적 cap. 최근 365 entry 만 유지.
+        progress.completionHistory = [
+          ...progress.completionHistory,
+          record,
+        ].slice(-COMPLETION_HISTORY_CAP);
 
         if (extraDone) {
           progress.extraChallengesCompleted = (progress.extraChallengesCompleted || 0) + 1;
@@ -500,6 +523,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const levelsGained = newLevel - prevLevel;
       updatedProgress.level = newLevel;
       updatedProgress.pendingPacks += levelsGained;
+      // Phase 12d — Lv30+ (전직 후) 레벨업마다 스킬 포인트 +1 지급.
+      //   Lv31 부터 유효. prevLevel < 30, newLevel = 35 라면 35-30 = 5 포인트.
+      try {
+        if (newLevel > 30) {
+          const pointsToGrant =
+            prevLevel < 30
+              ? newLevel - 30 // 첫 전직 구간 : Lv31 ~ newLevel 까지 total
+              : levelsGained; // 이미 Lv30+ 였으면 획득한 level 만큼
+          if (pointsToGrant > 0) {
+            const heroStore = useUpHeroStore.getState();
+            const curPoints = heroStore.hero.skillPoints ?? 0;
+            heroStore.grantSkillPoints(pointsToGrant);
+            void curPoints;
+          }
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useGameStore] grantSkillPoints failed:", e);
+        }
+      }
     }
 
     const shouldOpenPack = updatedProgress.pendingPacks > (progress.pendingPacks || 0);
@@ -507,6 +550,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("daily", updatedDaily);
     saveToStorage("progress", updatedProgress);
     setTimeout(() => completingCardIds.delete(cardId), 100);
+
+    // Up Hero 탐험권 지급 — 해당 카테고리에 rarity 별 수량 (normal:1, rare:2, unique:3, legend:5)
+    // 자동 전투 트리거 없음 — 사용자가 캠프에서 능동적으로 던전 진입
+    try {
+      useUpHeroStore.getState().grantExpeditionPass(card.category, card.rarity);
+    } catch (e) {
+      // store 가 아직 초기화 안 된 edge case — 무시 (다음 챌린지 완료 시 정상 작동)
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[useGameStore] grantExpeditionPass failed:", e);
+      }
+    }
+
+    // Phase 5c.1: Lv 30 도달 시 영웅 class 자동 분화
+    // 이전 레벨 < 30 & 새 레벨 >= 30 인 edge 에서만 시도.
+    if (prevLevel < 30 && updatedProgress.level >= 30) {
+      try {
+        useUpHeroStore.getState().assignClass();
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useGameStore] assignClass failed:", e);
+        }
+      }
+    }
 
     // 알림 갱신
     if (updatedProgress.notificationsEnabled) {
@@ -561,16 +627,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // 온보딩 완료 → 레벨 0→1 + 카드팩 1개 + 미니게임 체험 티켓 1장
+  //
+  // Phase 13 review Critical #1 — onboarding 에서 선택한 난이도가 day 1 에
+  //   반영되지 않던 버그 수정. 이전엔 `setMode` 가 `pendingMode` 만 세팅하고
+  //   `checkDailyReset` (자정 cross) 에서만 pendingMode → mode 이전되어,
+  //   유저가 ultra (3장) 선택해도 첫 날은 normal (1장) 로 시작. 이제 온보딩
+  //   완료 시점에 즉시 반영.
   completeOnboarding: () => {
-    const progress = {
-      ...get().progress,
+    const cur = get().progress;
+    const progress: UserProgress = {
+      ...cur,
       level: 1,
       xp: totalXPForLevel(1), // 레벨 1에 맞는 XP 설정
-      pendingPacks: (get().progress.pendingPacks || 0) + 1,
-      tickets: Math.min(
-        MINIGAME_TICKET_CAP,
-        (get().progress.tickets || 0) + 1,
-      ),
+      pendingPacks: (cur.pendingPacks || 0) + 1,
+      tickets: Math.min(MINIGAME_TICKET_CAP, (cur.tickets || 0) + 1),
+      // pendingMode 가 있으면 즉시 mode 로 이전 (day 1 에 반영).
+      mode: cur.pendingMode ?? cur.mode,
+      pendingMode: null,
     };
     set({ hasCompletedOnboarding: true, progress, isOpeningPack: true });
     saveToStorage("onboarding_complete", true);
@@ -962,6 +1035,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("daily", updatedDaily);
     saveToStorage("progress", updatedProgress);
     completingCardIds.delete(cardId);
+
+    // Phase 12 bugfix — extra/super phase 에도 탐험권 지급.
+    //   유저 제보: "사진 기록 후 탐험 티켓이 안 들어온다". 원인은 photo flow 가
+    //   아니라 `completePhaseChallenge` 에 grantExpeditionPass 호출이 누락돼
+    //   extra/super 챌린지 완료 시 pass 미지급. daily path 와 동작 일치.
+    try {
+      useUpHeroStore.getState().grantExpeditionPass(card.category, card.rarity);
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[completePhaseChallenge] grantExpeditionPass failed:", e);
+      }
+    }
 
     // 알림: extra 풀클리어 → 축하 알림 + 넛지 취소
     if (phase === "extra" && phaseFullClear && updatedProgress.notificationsEnabled) {

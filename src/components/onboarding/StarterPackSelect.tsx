@@ -78,8 +78,9 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
                   {rarityLabel(card.rarity, language)}
                 </span>
                 <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
+                  // Phase 9d: scale 0 → 0.4 (Emil 원칙)
+                  initial={{ scale: 0.4, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
                   transition={{ ...springBouncy, delay: 0.6 + i * 0.12 }}
                   style={{ color: rarity.color }}
                 >

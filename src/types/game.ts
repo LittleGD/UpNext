@@ -104,9 +104,11 @@ export interface UserProgress {
   notificationTime: string;                  // 알림 시간 "HH:MM"
 
   // === 미니게임 ===
-  tickets: number;                           // 카드매치 미니게임 티켓 (0~10, 상한 10)
+  tickets: number;                           // 카드매치 티켓 (0~10, 상한 10)
   minigameRunsPlayed: number;                // 누적 런 수
   minigameBestMatches: number;               // 단일 런 최대 매치 수
+  // Phase 12a — 카드매치 티켓 상점 구매 하루 cap. date 가 오늘이 아니면 reset.
+  cardmatchShopDaily?: { date: string; bought: number };
 
   // === 패치 노트 ===
   lastSeenPatchVersion?: string;             // 마지막으로 확인한 패치 버전 (모달 중복 노출 방지)
@@ -114,6 +116,9 @@ export interface UserProgress {
 
 // === 미니게임 티켓 상한 ===
 export const MINIGAME_TICKET_CAP = 10;
+
+// Phase 12a — 카드매치 티켓 상점 하루 구매 cap. 탐험권 cap(4) 과 별도.
+export const DAILY_CARDMATCH_TICKET_CAP = 2;
 
 // === XP 보상 (등급별) ===
 // 카드에 명시된 XP — 모든 지급이 이 값 그대로 (배율/풀클리어 보너스 없음)

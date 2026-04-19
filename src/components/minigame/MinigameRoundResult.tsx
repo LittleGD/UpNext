@@ -5,6 +5,10 @@ import { useMinigameStore } from "@/store/useMinigameStore";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSound } from "@/hooks/useSound";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
+import { useCountUp } from "@/hooks/useCountUp";
+// Phase 9d-fix — Minigame RoundResult 는 한 번 mount 되고 유저가 "Continue"
+//   탭할 때까지 값이 변하지 않는 정적 화면이라 useCountUp 이 적절 (한 번만 0→target).
+//   만약 내부 값이 바뀐다면 NumberRoll 이 맞음.
 
 export default function MinigameRoundResult() {
   const { t } = useTranslation();
@@ -25,6 +29,11 @@ export default function MinigameRoundResult() {
   );
   const canContinue = matchedAnyChallenge;
   void matchedThisRound;
+
+  // Phase 9d — 스코어 숫자 count-up. hard swap 이면 "몇 개 맞췄지?" 인지 소실.
+  //   0 → totalMatched 로 700ms rolling → Up Hero 결산과 동일한 감각.
+  const totalMatchedDisplay = useCountUp(totalMatched, 700);
+  const chancesLeftDisplay = useCountUp(chancesLeft, 500);
 
   const headingKey = allCleared ? "minigame.round.cleared" : "minigame.round.failed";
 
@@ -49,13 +58,17 @@ export default function MinigameRoundResult() {
           <p className="typo-caption text-text-tertiary mb-1">
             {t("minigame.summary.totalMatches")}
           </p>
-          <p className="typo-heading text-text-primary">{totalMatched}</p>
+          <p className="typo-heading text-text-primary tabular-nums">
+            {totalMatchedDisplay}
+          </p>
         </div>
         <div className="bg-bg-surface rounded-lg p-4 grid-border text-center">
           <p className="typo-caption text-text-tertiary mb-1">
             {t("minigame.hud.chances")}
           </p>
-          <p className="typo-heading text-text-primary">{chancesLeft}</p>
+          <p className="typo-heading text-text-primary tabular-nums">
+            {chancesLeftDisplay}
+          </p>
         </div>
       </motion.div>
 

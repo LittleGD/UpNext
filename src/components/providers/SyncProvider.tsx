@@ -255,6 +255,25 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     setShowPatchModal(false);
   };
 
+  // Phase 13 review Critical #3 — `checkDailyReset` 호출 훅 (이전엔 어느 곳에서도
+  //   호출 안 됨). 앱을 켜둔 채 자정 (KST 01:00) 넘기면 daily.date 가 어제로 남아
+  //   새 드로우 불가. 해결: (a) visibilitychange 시 resume 확인, (b) 60초 주기
+  //   poll. 2 패턴 동시 사용 — 백그라운드 탭에서도 접근성.
+  useEffect(() => {
+    if (!syncSettled) return;
+    const tick = () => useGameStore.getState().checkDailyReset();
+    tick(); // 즉시 1회 (mount + syncSettled 직후)
+    const intervalId = window.setInterval(tick, 60_000);
+    const onVisibility = () => {
+      if (!document.hidden) tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [syncSettled]);
+
   const handleChooseLocal = async () => {
     if (!conflict) return;
     await uploadLocalData(conflict.uid, conflict.localProgress, conflict.localDaily);

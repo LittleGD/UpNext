@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useGameStore } from "@/store/useGameStore";
 import { useMinigameStore } from "@/store/useMinigameStore";
 import { useUIStore } from "@/store/useUIStore";
+import { useGrowthStore } from "@/store/useGrowthStore";
 import { getXPProgress, getTitleForLevel } from "@/types/game";
 import { ALL_TITLES } from "@/data/titles";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
@@ -28,6 +29,7 @@ export default function Header() {
   // 스플래시 오버레이(z-[60])가 위를 덮지만, 헤더도 함께 unmount 시켜
   // splash 종료 순간 fade-in 으로 자연스럽게 등장.
   const splashActive = useUIStore((s) => s.splashActive);
+  const capturePhase = useGrowthStore((s) => s.capturePhase);
   const pathname = usePathname();
 
   const { language } = useTranslation();
@@ -125,8 +127,13 @@ export default function Header() {
   if (!isLoaded || !hasCompletedOnboarding || splashActive) return null;
 
   // 미니게임 런 중에는 몰입 모드: idle이 아닌 모든 phase에서 헤더 숨김
-  const inMinigameRun = pathname === "/minigame" && minigamePhase !== "idle";
+  // /minigame 직접 진입과 /playground 내 game 탭 양쪽 모두 커버
+  const inMinigameRun =
+    (pathname === "/minigame" || pathname === "/playground") && minigamePhase !== "idle";
   if (inMinigameRun) return null;
+
+  // 사진 캡처 중에는 풀스크린 몰입 — 헤더 숨김
+  if (capturePhase !== "idle") return null;
 
   const equippedTitle = progress.equippedTitleId
     ? ALL_TITLES.find((t) => t.id === progress.equippedTitleId)
@@ -145,6 +152,13 @@ export default function Header() {
   const displayedPercent =
     barPhase === "full" ? 100 : barPhase === "snap" ? 0 : progressPercent;
 
+  // Phase 9d-ⅰ — 페이지별 Header 분기.
+  //   챌린지 (/ 루트) 에서만 풀 헤더 (Lv + 타이틀 + XP 숫자 + bar) — 여기가 진행 허브니까.
+  //   그 외 페이지 (playground/collection/minigame/settings) 에서는 compact —
+  //   Lv + 타이틀만 작게, XP 숫자/바 생략.
+  //   이전: 모든 페이지에서 풀 헤더 → XP 바와 다음 탭 사이 여백이 너무 커 답답했음.
+  const isFullHeader = pathname === "/";
+
   return (
     <motion.header
       // 스플래시 종료 직후 첫 mount 시 위에서 살짝 내려오며 fade-in — 하단 nav 의
@@ -152,42 +166,61 @@ export default function Header() {
       initial={{ y: -8, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-      className="sticky top-0 z-10 bg-bg-primary/80 backdrop-blur-md border-b border-white/5 px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
+      // Phase 9d-fix — 하단 요소 (IdleRewardToast 등) 가 Header 아래에 배치될 때
+      //   참조할 수 있도록 `data-header-mode` 속성 부여. 실제 높이 계산은 DOM 측정이
+      //   정확하지만 "full vs compact" 두 케이스만 있으므로 속성으로 충분.
+      data-header-mode={isFullHeader ? "full" : "compact"}
+      className={`sticky top-0 z-10 bg-bg-primary/80 backdrop-blur-md border-b border-white/5 px-4 ${
+        isFullHeader ? "py-3" : "py-2"
+      } pt-[max(env(safe-area-inset-top),12px)]`}
     >
       <div className="max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <motion.span
               animate={pulseControls}
-              className="font-display typo-heading text-accent inline-block origin-center"
+              className={`font-display ${
+                isFullHeader ? "typo-heading" : "typo-body"
+              } text-accent inline-block origin-center`}
             >
               Lv.{displayLevel}
             </motion.span>
-            <span className="typo-body" style={{ color: titleColor || "var(--text-primary)" }}>{title}</span>
+            <span
+              className={isFullHeader ? "typo-body" : "typo-caption"}
+              style={{ color: titleColor || "var(--text-primary)" }}
+            >
+              {title}
+            </span>
           </div>
-          <span
-            className="typo-caption text-text-tertiary"
-            style={{ visibility: isLevelAnimating ? "hidden" : "visible" }}
-          >
-            {current}/{needed} XP
-          </span>
+          {/* XP 숫자는 챌린지 페이지에서만 */}
+          {isFullHeader && (
+            <span
+              className="typo-caption text-text-tertiary"
+              style={{ visibility: isLevelAnimating ? "hidden" : "visible" }}
+            >
+              {current}/{needed} XP
+            </span>
+          )}
         </div>
-        {/* XP Progress Bar
+        {/* XP Progress Bar — 챌린지 페이지에서만.
+            compact 모드에서는 숨겨서 탭 ↔ 헤더 사이 여백이 자연스럽게 짧아짐.
             initial={false}: 첫 마운트 시 0→realPercent 로 차오르는 "오토 인트로" 를 비활성.
             초기 로드에서 0 → 100% → 줄어들기 처럼 보이던 현상의 1차 원인이었음.
             대신 정확한 % 로 즉시 표시되고, 이후 legit level-up 때만 full→snap→idle 시퀀스로 연출. */}
-        <div className="mt-1.5 h-1.5 bg-bg-elevated rounded-sm overflow-hidden">
-          <motion.div
-            className="h-full bg-accent rounded-sm"
-            initial={false}
-            animate={{ width: `${displayedPercent}%` }}
-            transition={
-              barPhase === "snap"
-                ? { duration: 0 }
-                : { duration: 0.6, ease: [0.23, 1, 0.32, 1] }
-            }
-          />
-        </div>
+        {isFullHeader && (
+          <div className="mt-1.5 h-1.5 bg-bg-elevated rounded-sm overflow-hidden">
+            <motion.div
+              className="h-full bg-accent rounded-sm"
+              initial={false}
+              animate={{ width: `${displayedPercent}%` }}
+              transition={
+                barPhase === "snap"
+                  ? { duration: 0 }
+                  : { duration: 0.6, ease: [0.23, 1, 0.32, 1] }
+              }
+            />
+          </div>
+        )}
       </div>
     </motion.header>
   );

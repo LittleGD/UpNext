@@ -43,7 +43,24 @@ function MinigameTileInner({
   echoGhostActive,
   disabled,
 }: MinigameTileProps) {
+  const { language } = useTranslation();
   const isFaceUp = tile.isFaceUp || tile.isMatched;
+
+  // Phase 12 R9 — a11y: 카드 상태를 SR 에 전달. 기존엔 <motion.button> 뿐
+  //   이라 "버튼 1, 버튼 2..." 로만 읽혀 카드 매칭 게임으로서 무의미.
+  //   상태별 label: 매치 완료 · 뒤집혀진 카드 (카드명) · 뒤집히지 않은 카드.
+  const cardLabel = (() => {
+    if (tile.isMatched) return "매치 완료";
+    if (isFaceUp) {
+      if (tile.kind === "challenge" && tile.card) {
+        return `앞면 · ${cardTitle(tile.card, language)}`;
+      }
+      if (tile.kind === "skill") return "앞면 · 스킬 카드";
+      if (tile.kind === "curse") return "앞면 · 저주 카드";
+      return "앞면";
+    }
+    return "뒤집지 않은 카드";
+  })();
 
   return (
     <motion.button
@@ -51,7 +68,7 @@ function MinigameTileInner({
       onClick={disabled ? undefined : onTap}
       disabled={disabled}
       layoutId={tile.tileId}
-      whileTap={disabled ? undefined : { scale: 0.95 }}
+      whileTap={disabled ? undefined : { scale: 0.97 }}
       animate={{
         opacity: tile.isMatched ? 0.55 : 1,
       }}
@@ -60,6 +77,9 @@ function MinigameTileInner({
       style={{
         perspective: 1000,
       }}
+      aria-label={cardLabel}
+      aria-pressed={isFaceUp && !tile.isMatched}
+      aria-disabled={disabled || tile.isMatched}
     >
       <motion.div
         className="relative w-full h-full"
