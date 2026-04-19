@@ -28,6 +28,7 @@ import {
   computeWeeklyScore,
   type UpHeroState,
   type DungeonId,
+  type DungeonProgress,
   type ClassType,
   type Equipment,
   type EquipSlot,
@@ -595,12 +596,22 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
             bestScore: 0,
           };
 
+    // Backfill: 기존 데이터에 bestFloorReached 가 없으면 floorReached 로 초기화.
+    const dungeonsBackfilled: Partial<Record<DungeonId, DungeonProgress>> = {};
+    for (const [id, prog] of Object.entries(saved?.dungeons ?? {})) {
+      if (!prog) continue;
+      dungeonsBackfilled[id as DungeonId] = {
+        ...prog,
+        bestFloorReached: prog.bestFloorReached ?? prog.floorReached ?? 0,
+      };
+    }
+
     set({
       hero: mergedHero,
       inventory: saved?.inventory ?? [],
       coins,
       passes: saved?.passes ?? {},
-      dungeons: saved?.dungeons ?? {},
+      dungeons: dungeonsBackfilled,
       currentSession: saved?.currentSession ?? null,
       pendingDungeon: null, // transient, 재시작 시 항상 null
       codex,

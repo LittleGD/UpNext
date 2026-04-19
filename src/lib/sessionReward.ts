@@ -124,9 +124,17 @@ export function calculateDungeonProgress(
     : session.currentFloor;
 
   const reached = Math.max(existing?.floorReached ?? 0, sessionFloor);
+  // bestFloorReached: 사망/체크포인트와 무관하게 실제 도달한 floor 의 역대 최고치.
+  // floorReached 가 체크포인트로 내림될 때도 best 는 진짜 도달치를 보존.
+  const best = Math.max(
+    existing?.bestFloorReached ?? existing?.floorReached ?? 0,
+    session.currentFloor,
+    reached,
+  );
   return {
     dungeonId: session.dungeonId,
     floorReached: reached,
+    bestFloorReached: best,
     bossesDefeated: newBossesDefeated,
   };
 }

@@ -273,7 +273,10 @@ export interface Dungeon {
 /** 던전 진행 상황 — 영속 저장 */
 export interface DungeonProgress {
   dungeonId: DungeonId;
+  /** 재진입 시작 기준 — 사망 시 30 단위 체크포인트로 floor down. 보스/탈출 시 도달 그대로. */
   floorReached: number;
+  /** 역대 최고 도달 floor — 사망/체크포인트 미달과 무관하게 절대 후퇴 안 함. UI "최고 기록" 표시용. */
+  bestFloorReached: number;
   bossesDefeated: number[]; // [10, 20, 30] 중 처치한 floor
 }
 

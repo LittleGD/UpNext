@@ -596,7 +596,10 @@ function DungeonsView({
               {DUNGEON_LIST.map((d) => {
                 const count = passes[d.id] ?? 0;
                 const progress = dungeons[d.id];
-                const floor = progress?.floorReached ?? 0;
+                // 표시는 역대 최고 도달 (사망/체크포인트와 무관). 재진입 시작점은
+                // floorReached(체크포인트). 둘이 다르면 best 가 더 큼.
+                const bestFloor =
+                  progress?.bestFloorReached ?? progress?.floorReached ?? 0;
                 const disabled = total === 0;
                 return (
                   <PressButton
@@ -644,8 +647,8 @@ function DungeonsView({
                         opacity: count >= PASS_CAP_PER_CATEGORY ? 1 : 0.75,
                       }}
                     >
-                      {floor > 0
-                        ? t("uphero.dungeons.floorReached", { floor })
+                      {bestFloor > 0
+                        ? t("uphero.dungeons.bestRecord", { floor: bestFloor })
                         : t("uphero.dungeons.unexplored")}
                     </div>
                   </PressButton>
