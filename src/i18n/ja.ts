@@ -1152,7 +1152,7 @@ const ja: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.desc": "3ターン無敵。",
 
   // Phase 14 — Novice 튜토리얼 스킬 desc
-  "uphero.skill.novice_heal.desc": "HP を 15 回復。",
+  "uphero.skill.novice_heal.desc": "HP を 7 回復。",
   "uphero.skill.novice_focus.desc": "次の攻撃ダメージ +50%。",
   "uphero.skill.novice_brace.desc": "次の1ターン受けるダメージ -50%。",
 

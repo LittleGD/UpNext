@@ -1150,7 +1150,7 @@ const ko = {
   "uphero.skill.illus_dreamscape_t4.desc": "3 round 무적.",
 
   // Phase 14 — Novice tutorial skill desc
-  "uphero.skill.novice_heal.desc": "HP +15 회복.",
+  "uphero.skill.novice_heal.desc": "HP +7 회복.",
   "uphero.skill.novice_focus.desc": "다음 공격 피해 +50%.",
   "uphero.skill.novice_brace.desc": "다음 1 round 받는 피해 -50%.",
 

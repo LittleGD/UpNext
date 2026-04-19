@@ -1152,7 +1152,7 @@ const en: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.desc": "Invulnerable for 3 rounds.",
 
   // Phase 14 — Novice tutorial skill desc
-  "uphero.skill.novice_heal.desc": "Restore 15 HP.",
+  "uphero.skill.novice_heal.desc": "Restore 7 HP.",
   "uphero.skill.novice_focus.desc": "Next attack deals +50% damage.",
   "uphero.skill.novice_brace.desc": "Next round: take 50% less damage.",
 

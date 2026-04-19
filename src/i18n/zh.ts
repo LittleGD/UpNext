@@ -1152,7 +1152,7 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.illus_dreamscape_t4.desc": "3 回合无敌。",
 
   // Phase 14 — Novice 技能描述
-  "uphero.skill.novice_heal.desc": "恢复 15 点 HP。",
+  "uphero.skill.novice_heal.desc": "恢复 7 点 HP。",
   "uphero.skill.novice_focus.desc": "下次攻击伤害 +50%。",
   "uphero.skill.novice_brace.desc": "下 1 回合受到伤害 -50%。",
 
