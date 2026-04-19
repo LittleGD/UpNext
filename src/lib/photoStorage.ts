@@ -33,9 +33,37 @@ function withStore(
         const req = fn(store);
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
+        // 유저 피드백 (iOS Safari) — tx.onabort 미처리 시 quota / private mode
+        //   에서 promise 가 영영 settle 안 됨 → savePhoto 가 hang → 모달 stuck.
+        tx.onabort = () => reject(tx.error ?? new Error("IndexedDB tx aborted"));
         tx.oncomplete = () => db.close();
       }),
   );
+}
+
+/**
+ * dataURL → Uint8Array (synchronous, iOS Safari 친화).
+ *
+ * 유저 피드백 (iOS Safari) — `fetch(dataUrl)` 는 iOS 15-16 에서 큰 dataURL
+ *   (>5MB) 에 대해 가끔 빈 Blob 반환 + private mode 에서 throw.
+ *   동기 atob 로 변환하면 fetch 우회 + 메모리 효율성 ↑ (1회 alloc).
+ */
+function dataUrlToBytes(dataUrl: string): { buffer: ArrayBuffer; mimeType: string } {
+  const commaIdx = dataUrl.indexOf(",");
+  if (commaIdx < 0) throw new Error("Invalid dataURL: no comma");
+  const header = dataUrl.slice(0, commaIdx);
+  const body = dataUrl.slice(commaIdx + 1);
+  const mimeMatch = /data:([^;]+)/.exec(header);
+  const mimeType = mimeMatch?.[1] ?? "application/octet-stream";
+  const isBase64 = /;base64/i.test(header);
+  // ArrayBuffer 직접 반환 — Blob([buffer]) 는 항상 ArrayBuffer 받음.
+  //   Uint8Array 반환 시 TS 가 ArrayBufferLike 로 widen 해 Blob constructor
+  //   거부함 (SharedArrayBuffer 가능성).
+  const source = isBase64 ? atob(body) : decodeURIComponent(body);
+  const buffer = new ArrayBuffer(source.length);
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < source.length; i++) bytes[i] = source.charCodeAt(i);
+  return { buffer, mimeType };
 }
 
 // === 키 형식: "{photoId}_{type}" ===
@@ -56,6 +84,9 @@ export async function savePhotoBlobs(
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };
+    // 유저 피드백 (iOS Safari) — quota 초과 / private mode 시 onabort 발생.
+    //   미처리 시 promise 영영 settle 안 됨 → savePhoto hang → 모달 stuck.
+    tx.onabort = () => { db.close(); reject(tx.error ?? new Error("savePhotoBlobs aborted")); };
   });
 }
 
@@ -80,6 +111,7 @@ export async function updateSignatureBlob(id: string, signature: Blob): Promise<
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.onabort = () => { db.close(); reject(tx.error ?? new Error("updateSignatureBlob aborted")); };
   });
 }
 
@@ -93,6 +125,7 @@ export async function deletePhotoBlobs(id: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.onabort = () => { db.close(); reject(tx.error ?? new Error("deletePhotoBlobs aborted")); };
   });
 }
 
@@ -131,8 +164,11 @@ export async function compressImage(
   maxWidth: number,
   quality: number,
 ): Promise<Blob> {
-  // dataURL → Blob 1회 변환 → createImageBitmap 에 전달.
-  const srcBlob = await fetch(dataUrl).then((r) => r.blob());
+  // 유저 피드백 (iOS Safari) — `fetch(dataUrl)` 가 큰 dataURL 에서 빈 Blob
+  //   반환 / private mode throw → createImageBitmap 이 받자마자 InvalidStateError
+  //   → savePhoto reject → 모달 stuck. 동기 atob 변환으로 우회.
+  const { buffer, mimeType } = dataUrlToBytes(dataUrl);
+  const srcBlob = new Blob([buffer], { type: mimeType });
 
   let bitmap: ImageBitmap | null = null;
   try {
@@ -145,8 +181,13 @@ export async function compressImage(
           resizeQuality: "high",
         });
       } catch {
-        // 옵션 미지원 구형 브라우저 fallback.
-        bitmap = await createImageBitmap(srcBlob);
+        // 옵션 미지원 구형 브라우저 fallback (iOS Safari < 16.4).
+        try {
+          bitmap = await createImageBitmap(srcBlob);
+        } catch {
+          // createImageBitmap 자체 실패 — Image fallback 으로 떨어짐.
+          bitmap = null;
+        }
       }
     }
 
@@ -205,9 +246,19 @@ export async function compressImage(
   }
 }
 
-/** dataURL(PNG) → Blob */
+/**
+ * dataURL(PNG) → Blob.
+ *
+ * 유저 피드백 (iOS Safari) — `fetch(dataUrl)` 가 일부 iOS 환경에서 빈 Blob
+ *   반환 / 비동기 hang. 동기 atob 로 변환 후 Promise wrap → API 호환 유지.
+ */
 export function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  return fetch(dataUrl).then((r) => r.blob());
+  try {
+    const { buffer, mimeType } = dataUrlToBytes(dataUrl);
+    return Promise.resolve(new Blob([buffer], { type: mimeType }));
+  } catch (e) {
+    return Promise.reject(e);
+  }
 }
 
 /** Blob → object URL (컴포넌트에서 <img src>용) */

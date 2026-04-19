@@ -151,6 +151,8 @@ const zh: Record<DictKey, string> = {
   "playground.capture.stickerHint": "双指旋转 / 缩放 · 长按移除",
   "playground.capture.record": "记录这一刻",
   "playground.capture.clear": "清除",
+  "playground.capture.saving": "保存中...",
+  "playground.capture.saveFailed": "保存失败，请重试。",
 
   // === settings ===
   "settings.title": "设置",

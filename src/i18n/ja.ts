@@ -151,6 +151,8 @@ const ja: Record<DictKey, string> = {
   "playground.capture.stickerHint": "二本指で回転・拡大 · 長押しで削除",
   "playground.capture.record": "記録を残す",
   "playground.capture.clear": "消す",
+  "playground.capture.saving": "保存中...",
+  "playground.capture.saveFailed": "保存できませんでした。もう一度お試しください。",
 
   // === settings ===
   "settings.title": "設定",

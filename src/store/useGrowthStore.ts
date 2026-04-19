@@ -91,54 +91,69 @@ export const useGrowthStore = create<GrowthStore>((set, get) => ({
     const { pendingCaptureCardId, photoMetas } = get();
     if (!pendingCaptureCardId) return null;
 
+    // 유저 피드백 (iOS Safari) — 이전엔 capturePhase="saving" 직후 await 동안
+    //   compressImage / savePhotoBlobs 가 throw 하면 PhotoCaptureModal 의
+    //   `if (capturePhase === "saving" && !savedMeta) return null` 가드가
+    //   모달을 unmount → onComplete 호출 안 됨 → captureCard state stuck →
+    //   useScrollLock 도 stuck → 챌린지 미완료 + 네비 사라짐.
+    //   수정: try/catch 로 감싸 throw 시 capturePhase reset + null 반환.
     set({ capturePhase: "saving" });
 
-    const now = Date.now();
-    const d = new Date(now);
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const id = `vp_${dateStr}_${pendingCaptureCardId}_${now}`;
+    try {
+      const now = Date.now();
+      const d = new Date(now);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const id = `vp_${dateStr}_${pendingCaptureCardId}_${now}`;
 
-    // 이미지 압축
-    const [photoBlob, thumbnailBlob, signatureBlob] = await Promise.all([
-      compressImage(imageDataUrl, 800, 0.7),
-      compressImage(imageDataUrl, 150, 0.5),
-      dataUrlToBlob(signatureDataUrl),
-    ]);
+      // 이미지 압축 (iOS Safari 호환)
+      const [photoBlob, thumbnailBlob, signatureBlob] = await Promise.all([
+        compressImage(imageDataUrl, 800, 0.7),
+        compressImage(imageDataUrl, 150, 0.5),
+        dataUrlToBlob(signatureDataUrl),
+      ]);
 
-    // IndexedDB에 Blob 저장
-    await savePhotoBlobs(id, photoBlob, thumbnailBlob, signatureBlob);
+      // IndexedDB에 Blob 저장
+      await savePhotoBlobs(id, photoBlob, thumbnailBlob, signatureBlob);
 
-    // 메타 생성
-    const meta: PhotoMeta = {
-      id,
-      challengeCardId: pendingCaptureCardId,
-      challengeTitle,
-      category,
-      date: dateStr,
-      timestamp: now,
-      memo: memo.slice(0, 200),
-      stickers: stickers && stickers.length > 0 ? stickers : undefined,
-    };
+      // 메타 생성
+      const meta: PhotoMeta = {
+        id,
+        challengeCardId: pendingCaptureCardId,
+        challengeTitle,
+        category,
+        date: dateStr,
+        timestamp: now,
+        memo: memo.slice(0, 200),
+        stickers: stickers && stickers.length > 0 ? stickers : undefined,
+      };
 
-    // Phase 13 review C#3 — ring-buffer cap. 최신 500 장만 유지.
-    //   오버된 오래된 entry 의 IndexedDB blob 도 같이 정리 (fire-and-forget;
-    //   실패해도 meta 삭제 우선).
-    let updatedMetas = [meta, ...photoMetas];
-    if (updatedMetas.length > PHOTO_METAS_CAP) {
-      const dropped = updatedMetas.slice(PHOTO_METAS_CAP);
-      updatedMetas = updatedMetas.slice(0, PHOTO_METAS_CAP);
-      for (const d of dropped) {
-        deletePhotoBlobs(d.id).catch(() => {});
+      // Phase 13 review C#3 — ring-buffer cap. 최신 500 장만 유지.
+      let updatedMetas = [meta, ...photoMetas];
+      if (updatedMetas.length > PHOTO_METAS_CAP) {
+        const dropped = updatedMetas.slice(PHOTO_METAS_CAP);
+        updatedMetas = updatedMetas.slice(0, PHOTO_METAS_CAP);
+        for (const d of dropped) {
+          deletePhotoBlobs(d.id).catch(() => {});
+        }
       }
-    }
-    set({
-      photoMetas: updatedMetas,
-      pendingCaptureCardId: null,
-      capturePhase: "idle",
-    });
+      set({
+        photoMetas: updatedMetas,
+        pendingCaptureCardId: null,
+        capturePhase: "idle",
+      });
 
-    saveToStorage(STORAGE_KEY, { photoMetas: updatedMetas });
-    return meta;
+      saveToStorage(STORAGE_KEY, { photoMetas: updatedMetas });
+      return meta;
+    } catch (e) {
+      // iOS Safari / private mode / quota / IndexedDB 실패 → 안전 복구.
+      //   capturePhase 를 polaroid 로 되돌려 모달 유지 (idle 로 reset 하면 모달
+      //   unmount 되어 사용자가 같은 증상 다시 만남).
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[useGrowthStore.savePhoto] failed:", e);
+      }
+      set({ capturePhase: "polaroid" });
+      throw e; // 호출자 (handleDone) 가 처리
+    }
   },
 
   skipCapture() {

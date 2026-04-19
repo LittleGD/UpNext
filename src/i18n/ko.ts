@@ -149,6 +149,8 @@ const ko = {
   "playground.capture.stickerHint": "두 손가락으로 회전·확대 · 길게 눌러 제거",
   "playground.capture.record": "기록 남기기",
   "playground.capture.clear": "지우기",
+  "playground.capture.saving": "저장 중...",
+  "playground.capture.saveFailed": "저장에 실패했어요. 다시 시도해주세요.",
 
   // === settings ===
   "settings.title": "설정",

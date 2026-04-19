@@ -284,13 +284,21 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   // Phase 13 review Critical — double-click 가드. 이전엔 await 중 재탭 시
   //   compressImage + savePhoto 2회 실행 → 같은 순간 두 id 로 중복 저장 +
   //   IndexedDB 블롭 2배. `isSaving` ref 로 in-flight lock.
+  //
+  // 유저 피드백 (iOS Safari) — 이전엔 try/finally 만 있어 savePhoto 가 throw
+  //   하면 (compressImage / IndexedDB 실패) silent. setSavedMeta 도 안 되고
+  //   onComplete 도 안 불려 모달이 frozen polaroid 상태로 남음 → 유저는
+  //   "Done 눌렀는데 반응 없음" 으로 인지. catch 로 잡아서 saveError state 세팅
+  //   → UI 에 inline 에러 메시지 + 재시도 가능 상태 유지.
   const isSavingRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const handleDone = useCallback(async () => {
     if (!capturedImage || !signatureData) return;
     if (isSavingRef.current) return;
     isSavingRef.current = true;
     setIsSaving(true);
+    setSaveError(false);
     try {
       const meta = await savePhoto(
         capturedImage,
@@ -303,6 +311,13 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
       play("collect");
       if (meta) setSavedMeta(meta);
       else onComplete(); // savePhoto 가 null 반환 (pendingCaptureCardId 없음)
+    } catch (e) {
+      // savePhoto 가 throw → useGrowthStore 가 capturePhase 를 polaroid 로
+      //   되돌림. 여기선 inline error UI 만 띄우고 모달 유지 → 재시도 가능.
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[PhotoCaptureModal.handleDone] save failed:", e);
+      }
+      setSaveError(true);
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
@@ -374,7 +389,17 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   //   unmount 됨 → 유저가 detail 에서 onClose 를 누를 기회가 사라지고,
   //   결과적으로 onComplete 가 never fire → 챌린지 완료/XP 누락 버그.
   //   savedMeta 가 존재하면 이 early-return 을 건너뛰어 detail 뷰는 유지.
-  if (!savedMeta && (capturePhase === "idle" || capturePhase === "saving")) return null;
+  //
+  // 유저 피드백 (iOS Safari) — capturePhase === "saving" 도 여기서 unmount 했었음.
+  //   savePhoto 가 await 중 throw 시 capturePhase 가 "saving" 인 채로 꽤 오래
+  //   render 되어 모달이 "검정 화면 → 챌린지 화면" 으로 보였음. 이제 saving
+  //   에선 unmount 하지 않고 polaroid UI 위에 saving overlay 만 띄움.
+  //
+  //   추가 가드: `isSaving` 도 체크. savePhoto 성공 시 capturePhase 를 "idle" 로
+  //   set 한 뒤 handleDone 의 setSavedMeta 가 다음 microtask 에 실행되는데, 그
+  //   사이 1프레임 동안 capturePhase="idle" + savedMeta=null 상태가 있어 모달이
+  //   깜빡일 수 있음. isSaving 이 true 인 동안엔 return null 하지 않음.
+  if (!savedMeta && capturePhase === "idle" && !isSaving) return null;
   if (!mounted) return null;
 
   // ⚠ Portal 로 document.body 에 마운트 — 페이지 헤더 (sticky z-10) 의 stacking context
@@ -1186,8 +1211,17 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
           {/* ========== POLAROID PHASE — 자유 낙서 + 스티커 + 데코레이션 툴바 ==========
               구조: 폴라로이드 (사진 + 사인 캔버스 + 스티커 레이어) + 툴바 + Done 버튼
               사인은 잉크 색 변경 가능 (toolbar). 스티커는 탭으로 추가, drag 로 이동.
-              메모는 capture 단계에서 받지 않음 — Done 후 디테일 뷰에서 작성. */}
-          {(capturePhase === "polaroid" || capturePhase === "memo") && capturedImage && (
+              메모는 capture 단계에서 받지 않음 — Done 후 디테일 뷰에서 작성.
+
+              유저 피드백 (iOS Safari) — `saving` + `isSaving` 도 여기 포함.
+              이전엔 saving 시 모달이 unmount 되어 "검정 화면" 이 보였음. 이제
+              polaroid 를 그대로 렌더하면서 Done 버튼 disabled + isSaving overlay
+              (button 내 "저장 중...") 로 저장 중 표시.
+              `isSaving` 가드: savePhoto 가 capturePhase="idle" 로 set 한 뒤
+              handleDone 의 setSavedMeta 가 다음 microtask 에 실행되는 1 프레임
+              gap 동안에도 polaroid 유지 → 깜빡임 방지.
+              에러 시 saveError state 로 inline 메시지. */}
+          {(capturePhase === "polaroid" || capturePhase === "memo" || capturePhase === "saving" || isSaving) && capturedImage && !savedMeta && (
             <motion.div
               initial={{ opacity: 0, scale: 0.97, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1291,9 +1325,9 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                   aria-busy={isSaving}
                   className="w-full py-3.5 rounded-xl bg-accent text-bg-primary typo-body active:scale-[0.97] transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                 >
-                  {isSaving ? "…" : t("common.done")}
+                  {isSaving ? t("playground.capture.saving") : t("common.done")}
                 </motion.button>
-                {!signatureData && (
+                {!signatureData && !saveError && (
                   <div
                     className="typo-micro text-center"
                     style={{
@@ -1302,6 +1336,22 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                     }}
                   >
                     {t("playground.capture.signRequired")}
+                  </div>
+                )}
+                {/* 유저 피드백 (iOS Safari) — 저장 실패 시 inline 메시지.
+                     모달 유지된 채 재시도 가능 — Done 다시 누르면 새로 시도. */}
+                {saveError && (
+                  <div
+                    role="alert"
+                    aria-live="assertive"
+                    className="typo-micro text-center"
+                    style={{
+                      color: "#d23a3a",
+                      fontWeight: 600,
+                      letterSpacing: "0.02em",
+                    }}
+                  >
+                    {t("playground.capture.saveFailed")}
                   </div>
                 )}
               </div>

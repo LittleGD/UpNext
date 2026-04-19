@@ -151,6 +151,8 @@ const en: Record<DictKey, string> = {
   "playground.capture.stickerHint": "Pinch / rotate with two fingers · long-press to remove",
   "playground.capture.record": "Record this moment",
   "playground.capture.clear": "Clear",
+  "playground.capture.saving": "Saving...",
+  "playground.capture.saveFailed": "Couldn't save. Please try again.",
 
   // === settings ===
   "settings.title": "Settings",
