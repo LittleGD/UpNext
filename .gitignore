@@ -61,3 +61,7 @@ android-twa/generate.mjs
 android-twa/keystore.properties
 keystore.properties
 
+# Firebase / Google config (iOS/Android) — API Key 노출 차단, 로컬 빌드에만 사용
+**/GoogleService-Info.plist
+**/google-services.json
+
