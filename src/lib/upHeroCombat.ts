@@ -543,7 +543,19 @@ export function tickSession(session: CombatSession): CombatSession {
   // 4) 기본: encounter → 전투 시작
 
   // 진행 중 전투 (encounter 후 hero/enemy alive) 면 전투 한 round
-  if (lastEntry?.type === "encounter" || lastEntry?.type === "combat") {
+  //
+  // Phase 15 bugfix — fireSkillManual 이 log 에 "skill" 엔트리를 push 하면
+  //   lastEntry.type === "skill" 이 되어 기존 check ("encounter"|"combat") 를
+  //   빗겨나가, fallthrough 로 같은 floor 에 새 event/encounter 가 생성되며
+  //   현재 보스/몬스터가 orphan 처리 → "방어자세 → 라운드 스킵 → 보스 스킵"
+  //   익스플로잇. "skill" / "monsterEffect" 도 combat-continuation 상태로 포함
+  //   (findLastEncounterIndex 가 active encounter 존재를 재확인하므로 이중 안전).
+  if (
+    lastEntry?.type === "encounter" ||
+    lastEntry?.type === "combat" ||
+    lastEntry?.type === "skill" ||
+    lastEntry?.type === "monsterEffect"
+  ) {
     // 마지막 encounter 의 monster 찾기
     const encounterIdx = findLastEncounterIndex(s.log);
     if (encounterIdx >= 0) {
