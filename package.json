@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^8.2.0",
     "@capacitor/core": "^8.3.1",
     "@capacitor/haptics": "^8.0.2",
     "@vercel/analytics": "^2.0.1",

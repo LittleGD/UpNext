@@ -2,6 +2,7 @@
  * 8-bit chip-tune sound effects using Web Audio API
  * All sounds use square waves for classic retro game feel
  */
+import { isNative } from "@/lib/platform";
 
 export type SoundName =
   | "select"
@@ -591,13 +592,9 @@ export function triggerHaptic(name: SoundName): void {
   if (!pattern) return;
 
   // iOS 네이티브(Capacitor WKWebView): UIImpactFeedbackGenerator 경로
-  // SSR/브라우저에선 Capacitor 전역이 없으므로 안전 체크
-  if (typeof window !== "undefined") {
-    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
-    if (cap?.isNativePlatform?.()) {
-      void triggerNativeHaptic(name, pattern);
-      return;
-    }
+  if (isNative()) {
+    void triggerNativeHaptic(name, pattern);
+    return;
   }
 
   // 웹/안드로이드(TWA): navigator.vibrate (iOS Safari에선 무시됨)

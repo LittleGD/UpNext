@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
+import { isNative } from "@/lib/platform";
 import type { AuthUser } from "@/types/auth";
 
 /** Sign-in 실패 분류 — UI 는 i18n key 로 renderer 가 t() 호출. */
@@ -26,7 +27,24 @@ interface AuthState {
 
   setUser: (user: AuthUser | null) => void;
   signInWithGoogle: () => Promise<void>;
+  /** iOS Capacitor에서만 동작. 웹/Android에서는 no-op (UI에서 버튼 숨김). */
+  signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
+}
+
+/**
+ * 에러 분류 매퍼 — 웹 팝업 코드 + Capacitor Firebase Auth 네이티브 에러를 통합 처리.
+ */
+function mapSignInError(error: unknown): SignInError | null {
+  const code = (error as { code?: string })?.code;
+  const message = (error as { message?: string })?.message;
+  console.error("Sign-in failed:", code, message, error);
+
+  if (code === "auth/popup-blocked") return { kind: "popup-blocked" };
+  if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return null;
+  if (code === "auth/unauthorized-domain") return { kind: "unauthorized-domain" };
+  if (code === "auth/operation-not-allowed") return { kind: "not-allowed" };
+  return { kind: "generic", code: code || "unknown" };
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -47,25 +65,47 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (!isFirebaseConfigured) return;
     set({ isSigningIn: true, signInError: null });
     try {
-      const { auth, googleProvider } = await getFirebase();
-      const { signInWithPopup } = await import("firebase/auth");
-      await signInWithPopup(auth, googleProvider);
-    } catch (error: unknown) {
-      const code = (error as { code?: string })?.code;
-      const message = (error as { message?: string })?.message;
-      console.error("Google sign-in failed:", code, message, error);
-
-      if (code === "auth/popup-blocked") {
-        set({ signInError: { kind: "popup-blocked" } });
-      } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        // 사용자가 직접 닫은 경우 — 에러 표시 불필요
-      } else if (code === "auth/unauthorized-domain") {
-        set({ signInError: { kind: "unauthorized-domain" } });
-      } else if (code === "auth/operation-not-allowed") {
-        set({ signInError: { kind: "not-allowed" } });
+      if (isNative()) {
+        // iOS Capacitor: 네이티브 sheet → Firebase credential 합류
+        const { signInWithGoogleNative, AuthCanceledError } = await import("@/lib/auth-native");
+        try {
+          await signInWithGoogleNative();
+        } catch (e) {
+          if (e instanceof AuthCanceledError) return; // 취소는 조용히 무시
+          throw e;
+        }
       } else {
-        set({ signInError: { kind: "generic", code: code || "unknown" } });
+        // 웹/Android TWA: 기존 팝업 플로우
+        const { auth, googleProvider } = await getFirebase();
+        const { signInWithPopup } = await import("firebase/auth");
+        await signInWithPopup(auth, googleProvider);
       }
+    } catch (error: unknown) {
+      const mapped = mapSignInError(error);
+      if (mapped) set({ signInError: mapped });
+    } finally {
+      set({ isSigningIn: false });
+    }
+  },
+
+  signInWithApple: async () => {
+    if (!isFirebaseConfigured) return;
+    // iOS 네이티브에서만 노출되는 버튼이지만 방어적으로 가드 — 웹/Android에서 호출되면 즉시 반환.
+    // 추후 웹 Apple 로그인 (signInWithPopup + OAuthProvider("apple.com"))을 여기서 확장 가능.
+    if (!isNative()) return;
+
+    set({ isSigningIn: true, signInError: null });
+    try {
+      const { signInWithAppleNative, AuthCanceledError } = await import("@/lib/auth-native");
+      try {
+        await signInWithAppleNative();
+      } catch (e) {
+        if (e instanceof AuthCanceledError) return;
+        throw e;
+      }
+    } catch (error: unknown) {
+      const mapped = mapSignInError(error);
+      if (mapped) set({ signInError: mapped });
     } finally {
       set({ isSigningIn: false });
     }
