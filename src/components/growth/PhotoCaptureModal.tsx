@@ -1295,19 +1295,43 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                 onAddSticker={handleAddSticker}
               />
 
-              {/* 유저 피드백 #4 — 스티커가 있을 때만 인터랙션 hint 노출.
-                   "두 손가락으로 회전·확대 · 길게 눌러 제거". */}
+              {/* 유저 피드백 Round 2 — 힌트가 typo-micro + 회색 + 중간 위치에 끼어
+                   시각적으로 missed. 이제 칩 스타일로 강조:
+                   - 배경 accent tint + 아이콘 prefix → 눈에 띔
+                   - 처음 3초 동안 pulse scale → 주의 환기 후 settle
+                   - typo-caption 사이즈 (14px) 로 가독성 ↑ */}
               {stickers.length > 0 && (
-                <div
-                  className="typo-micro text-center"
+                <motion.div
+                  key={`hint-${stickers.length > 0 ? "on" : "off"}`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    scale: [1, 1.04, 1, 1.04, 1],
+                  }}
+                  transition={{
+                    opacity: { duration: 0.3, ease: [0.23, 1, 0.32, 1] },
+                    y: { duration: 0.3, ease: [0.23, 1, 0.32, 1] },
+                    scale: {
+                      duration: 2.4,
+                      times: [0, 0.25, 0.5, 0.75, 1],
+                      ease: "easeInOut",
+                    },
+                  }}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-full"
                   style={{
-                    color: "rgba(0, 0, 0, 0.5)",
-                    letterSpacing: "0.01em",
-                    marginTop: -4,
+                    backgroundColor: "rgba(205, 245, 100, 0.22)",
+                    border: "1px solid rgba(205, 245, 100, 0.5)",
+                    color: "rgba(33, 39, 39, 0.9)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    letterSpacing: "-0.01em",
+                    marginTop: -2,
                   }}
                 >
-                  {t("playground.capture.stickerHint")}
-                </div>
+                  <PixelIcon name="Hand" size={14} color="rgba(33, 39, 39, 0.75)" />
+                  <span>{t("playground.capture.stickerHint")}</span>
+                </motion.div>
               )}
 
               {/* Done 버튼 — 서명이 있어야 활성 (스티커만으로는 저장 불가).
