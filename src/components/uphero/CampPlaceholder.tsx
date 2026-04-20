@@ -576,87 +576,84 @@ function DungeonsView({
     play("select");
   };
 
+  const total = Object.values(passes).reduce(
+    (a, b) => a + (b ?? 0),
+    0,
+  );
+  const disabled = total === 0;
+
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       <SubHeader title={t("uphero.subheader.dungeons")} onBack={onBack} />
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
-        {/* Phase 15 — 총 탐험권 총합 disable 기준 (카테고리 호환 소비).
-             유저 피드백 "탐험권 구매해도 사용 안 된다" 해결: 특정 카테고리에서
-             구매했어도 다른 던전에서 사용 가능하도록 변경. 카드 우상단 배지는
-             해당 카테고리 누적을 정보로만 제공 — 0 이어도 다른 카테고리 잔고가
-             있으면 클릭 가능. */}
-        {(() => {
-          const total = Object.values(passes).reduce(
-            (a, b) => a + (b ?? 0),
-            0,
-          );
-          return (
-            <div className="grid grid-cols-2 gap-2">
-              {DUNGEON_LIST.map((d) => {
-                const count = passes[d.id] ?? 0;
-                const progress = dungeons[d.id];
-                // 표시는 역대 최고 도달 (사망/체크포인트와 무관). 재진입 시작점은
-                // floorReached(체크포인트). 둘이 다르면 best 가 더 큼.
-                const bestFloor =
-                  progress?.bestFloorReached ?? progress?.floorReached ?? 0;
-                const disabled = total === 0;
-                return (
-                  <PressButton
-                    key={d.id}
-                    onClick={() => onEnter(d.id)}
-                    disabled={disabled}
-                    style={{
-                      background: disabled ? "transparent" : `${GB.dark}99`,
-                      border: `1px solid ${disabled ? GB.dark : d.themeColor}`,
-                      opacity: disabled ? 0.45 : 1,
-                      minHeight: 76,
-                      padding: "14px 12px",
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <PixelIcon
-                        name={CATEGORY_ICON[d.id]}
-                        size={22}
-                        color={disabled ? GB.light : d.themeColor}
-                      />
-                      {/* typo-micro 예외: 작은 수량 배지 — 해당 카테고리 누적. */}
-                      <span
-                        className="typo-micro px-1.5 py-0.5 rounded tabular-nums"
-                        style={{
-                          color: GB.lightest,
-                          background:
-                            count > 0 ? `${d.themeColor}30` : "transparent",
-                          border:
-                            count > 0 ? `1px solid ${d.themeColor}` : "none",
-                        }}
-                      >
-                        ×{count}
-                      </span>
-                    </div>
-                    <div
-                      className="typo-caption leading-tight truncate"
-                      style={{ color: disabled ? GB.light : GB.lightest }}
-                    >
-                      {dungeonName(d.id, d.name, language)}
-                    </div>
-                    <div
-                      className="typo-caption mt-1 tabular-nums"
-                      style={{
-                        color: GB.light,
-                        opacity: count >= PASS_CAP_PER_CATEGORY ? 1 : 0.75,
-                      }}
-                    >
-                      {bestFloor > 0
-                        ? t("uphero.dungeons.bestRecord", { floor: bestFloor })
-                        : t("uphero.dungeons.unexplored")}
-                    </div>
-                  </PressButton>
-                );
-              })}
-            </div>
-          );
-        })()}
+        {/* Phase 15d — 통합 탐험권 표기.
+             탐험권은 카테고리 호환 소비 (consumeAnyPass) 이므로 각 카드에 per-
+             category 배지를 두면 ×0 카드가 실제로는 입장 가능한 모순이 발생.
+             총합 하나만 상단에 표기하여 일치시킴. */}
+        <div
+          className="mb-3 flex items-center justify-between px-1"
+          aria-live="polite"
+        >
+          <span className="typo-caption" style={{ color: GB.light }}>
+            {t("uphero.camp.passes.heading")}
+          </span>
+          <span
+            className="typo-caption tabular-nums px-2 py-0.5 rounded"
+            style={{
+              color: total > 0 ? GB.lightest : GB.light,
+              background: total > 0 ? `${GB.light}22` : "transparent",
+              border: `1px solid ${total > 0 ? GB.light : GB.dark}`,
+            }}
+          >
+            ×{total}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {DUNGEON_LIST.map((d) => {
+            const progress = dungeons[d.id];
+            // 표시는 역대 최고 도달 (사망/체크포인트와 무관). 재진입 시작점은
+            // floorReached(체크포인트). 둘이 다르면 best 가 더 큼.
+            const bestFloor =
+              progress?.bestFloorReached ?? progress?.floorReached ?? 0;
+            return (
+              <PressButton
+                key={d.id}
+                onClick={() => onEnter(d.id)}
+                disabled={disabled}
+                style={{
+                  background: disabled ? "transparent" : `${GB.dark}99`,
+                  border: `1px solid ${disabled ? GB.dark : d.themeColor}`,
+                  opacity: disabled ? 0.45 : 1,
+                  minHeight: 76,
+                  padding: "14px 12px",
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <PixelIcon
+                    name={CATEGORY_ICON[d.id]}
+                    size={22}
+                    color={disabled ? GB.light : d.themeColor}
+                  />
+                </div>
+                <div
+                  className="typo-caption leading-tight truncate"
+                  style={{ color: disabled ? GB.light : GB.lightest }}
+                >
+                  {dungeonName(d.id, d.name, language)}
+                </div>
+                <div
+                  className="typo-caption mt-1 tabular-nums"
+                  style={{ color: GB.light, opacity: 0.75 }}
+                >
+                  {bestFloor > 0
+                    ? t("uphero.dungeons.bestRecord", { floor: bestFloor })
+                    : t("uphero.dungeons.unexplored")}
+                </div>
+              </PressButton>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
