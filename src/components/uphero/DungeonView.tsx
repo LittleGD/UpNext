@@ -201,9 +201,14 @@ export default function DungeonView() {
   //   몬스터는 static hp 에서 hero-attacker combat entry 의 damage 만 누적 감산.
   // Phase 12 R3 — useMemo 래핑: log 길이 / currentEnemy 변화 시에만 재계산.
   //   speed toggle / paused / other state 변경에 의한 무상관 recompute 제거.
+  // Phase 15 bugfix — regen trait 몬스터는 engine 의 computeMonsterHp 가 log 의
+  //   monsterEffect/regen 을 더해 HP 를 유지하는데 UI 계산이 이를 누락해 "바는
+  //   0 인데 몬스터가 안 죽는" 상태 노출. engine 로직과 일치시킴 (regen 가산 +
+  //   maxHp cap). 14 종 regen 몬스터 (일반 7 + 보스 7) 모두 영향.
   const enemyHpPct = useMemo(() => {
     if (!currentEnemy) return 100;
     let hp = currentEnemy.hp;
+    const cap = currentEnemy.maxHp ?? currentEnemy.hp;
     let startIdx = -1;
     for (let i = session.log.length - 1; i >= 0; i--) {
       if (session.log[i].type === "encounter") {
@@ -214,10 +219,16 @@ export default function DungeonView() {
     if (startIdx < 0) return 100;
     for (let i = startIdx + 1; i < session.log.length; i++) {
       const e = session.log[i];
-      if (e.type !== "combat" || e.attacker !== "hero") continue;
-      if (e.damage > 0) hp -= e.damage;
+      if (e.type === "combat") {
+        if (e.damage === 0) continue;
+        if (e.attacker === "hero") hp -= e.damage;
+        continue;
+      }
+      if (e.type === "monsterEffect" && e.effect === "regen") {
+        hp = Math.min(cap, hp + e.amount);
+      }
     }
-    return Math.max(0, Math.min(100, (hp / currentEnemy.hp) * 100));
+    return Math.max(0, Math.min(100, (hp / cap) * 100));
   }, [currentEnemy, session.log]);
   const heroVariant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
 
