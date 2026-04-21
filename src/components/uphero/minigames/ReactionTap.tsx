@@ -102,7 +102,7 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
   }, [done, phase]);
 
   // Phase 16 U2 — 신호등 색을 시그널 토큰으로 승격. red 는 GB.darkest 글리프와
-  // 대비 충족을 위해 `-strong` 변종 사용.
+  // 대비 충족을 위해 `-strong` 변종 사용 (#e85a5a, 4.93:1 vs darkest).
   const color =
     done === "success" || phase === "green"
       ? "var(--signal-go)"

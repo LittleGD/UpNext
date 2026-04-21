@@ -101,11 +101,17 @@
      확인 가능하게 만든 것도 부수 효과. */
 
   /* 신호등 시그널 — ReactionTap 이 hard-code 하던 red/yellow/green.
-     -strong 변종은 GB.darkest 글리프/label 대비가 필요한 경우에 사용(≥4.5:1). */
+     -strong 변종은 GB.darkest 글리프/label 대비가 필요한 경우에 사용(≥4.5:1).
+     자체 검증 (2026-04): 원래 340bb06 에서 넣은 #a83838 은 darkest(#0a1f0a)
+     대비 2.68:1 로 오히려 WCAG 1.4.11 (3:1) 미달. 빨강을 "어둡게" 가 아니라
+     "더 채도 높고 밝게" 가야 dark 글리프와 대비가 올라간다는 걸 놓침.
+     #e85a5a = 4.93:1 로 text(4.5:1) 기준까지 충족. 실측 traffic-light 계열과도
+     더 가까움 (기존 #a83838 은 dark crimson 에 가까워 "멈춤" 보다 "경고없음"
+     으로 읽힘). */
   --signal-go: #7bc47f;           /* 초록 = GO, 탭해도 OK */
   --signal-ready: #e5c454;        /* 노랑 = 준비, 아직 탭 금지 */
-  --signal-stop: #c44a4a;         /* 빨강 = 대기 */
-  --signal-stop-strong: #a83838;  /* 빨강 어두운 변종 — darkest 글리프 대비 확보 */
+  --signal-stop: #c44a4a;         /* 빨강 = 대기 (3.58:1 vs darkest — UI 기준 통과) */
+  --signal-stop-strong: #e85a5a;  /* 빨강 밝은 변종 — darkest 글리프 4.93:1 */
 
   /* 미니게임 surface 상태 스펙트럼 — TapBurst / ReactionTap 이 `${GB.lightest}55`
      같은 문자열 concat + raw hex 를 혼재하던 것을 5단계 layering 으로 통합.
