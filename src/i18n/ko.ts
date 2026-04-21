@@ -25,6 +25,12 @@ const ko = {
   "a11y.penWidth": "펜 굵기 {label}",
   "a11y.addSticker": "{id} 스티커 추가",
   "a11y.eraser": "지우개",
+  // Phase 15 review U2 — 잉크 색 라벨 (토큰 기반 aria-label 용).
+  "ink.warmBlack": "따뜻한 검정",
+  "ink.red": "빨강",
+  "ink.blue": "파랑",
+  "ink.green": "초록",
+  "ink.purple": "보라",
   "a11y.flashOn": "플래시 켜짐",
   "a11y.flashOff": "플래시 꺼짐",
   "a11y.switchToFront": "전면 카메라로 전환",

@@ -71,6 +71,27 @@
   --z-exit-overlay: 65;
   --z-run-zoom: 70;
 
+  /* ─── Phase 15 design review — 폴라로이드 토큰 레이어 ───
+     MemoEditor / DecorationToolbar / StickerLayer 의 raw hex 를 단일 토큰으로
+     승격. 다크모드/테마 재스킨 시 한 곳만 변경하면 됨. Canvas API 는 CSS
+     변수를 직접 읽지 못하므로 ink 팔레트는 문자열 pool 을 DecorationToolbar
+     에 객체 배열로 유지하되, swatch 미리보기/aria-label 등은 여기 토큰에서
+     파생하는 구조로 정리. */
+  --paper-cream: #f9f8f5;           /* MemoEditor 뒷면 바탕 */
+  --paper-line: #d4c9b8;            /* 라인 노트 guide 라인 */
+  --paper-placeholder: #a09080;     /* placeholder / 카운터 정지 색 */
+  --ink-warm-text: #2a2a2a;         /* 메모 본문 (순흑보다 따뜻한 다크) */
+  --ink-warm-black: rgba(22, 18, 14, 0.92);
+  --ink-red: rgba(220, 38, 38, 0.92);
+  --ink-blue: rgba(30, 64, 175, 0.92);
+  --ink-green: rgba(5, 150, 105, 0.92);
+  --ink-purple: rgba(124, 58, 237, 0.92);
+  /* 오류/경고 공용 — 글자 수 초과 경고, share 실패 토스트 등 */
+  --color-error: #d84343;
+  --color-error-strong: #c42929;
+  /* 폴라로이드 tooltip/ring 배경 (long-press ✕ 라벨 등) */
+  --surface-tooltip: rgba(0, 0, 0, 0.75);
+
   /* 폰트 — CSS variable 기반 (next/font에서 주입) */
   --font-display: var(--font-april16), sans-serif;
   --font-body: var(--font-april16), sans-serif;
@@ -1038,6 +1059,10 @@ html[lang="zh"] body {
 
 .stickerlayer-longpress-ring {
   animation: stickerlayer-longpress-ring-fill 500ms linear forwards;
+  /* R1 — ring transform origin 을 border-box 기준으로 고정해 스티커 rotation/
+     scale 역보정이 sub-pixel 단위까지 정확히 맞음. */
+  transform-box: fill-box;
+  will-change: transform;
 }
 
 @keyframes stickerlayer-longpress-ring-fill {
@@ -1049,5 +1074,30 @@ html[lang="zh"] body {
   .stickerlayer-longpress-ring {
     animation: none;
     --p: 100%;
+  }
+}
+
+/* Phase 15 — MemoEditor textarea placeholder 전용 유틸리티.
+   Tailwind 의 arbitrary `placeholder:text-[var(--...)]` 는 CSS 변수 확장이
+   불완전해 이 선택자로 대체. */
+.memo-placeholder::placeholder {
+  color: var(--paper-placeholder);
+  opacity: 1;
+}
+
+/* P2 — UpNext 브랜드 스티커 탭 시 한 번의 accent pulse.
+   `data-brand-flash` 속성을 true 로 두는 동안 애니메이션이 실행되고, 부모
+   컴포넌트가 800ms 후 false 로 되돌리면 초기화되어 다음 탭에 다시 트리거됨. */
+@keyframes polaroid-brand-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(205, 245, 100, 0.0); transform: scale(1); }
+  30%  { box-shadow: 0 0 0 8px rgba(205, 245, 100, 0.55); transform: scale(1.06); }
+  100% { box-shadow: 0 0 0 14px rgba(205, 245, 100, 0); transform: scale(1); }
+}
+[data-brand-flash="true"] {
+  animation: polaroid-brand-flash 640ms var(--ease-gb-out) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-brand-flash="true"] {
+    animation: none;
   }
 }

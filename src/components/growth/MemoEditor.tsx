@@ -58,7 +58,8 @@ const MemoEditor = forwardRef<HTMLTextAreaElement, Props>(function MemoEditor(
       onPointerDown={readOnly ? undefined : forceFocus}
       style={{
         aspectRatio: "184 / 223",
-        backgroundColor: "#f9f8f5",
+        // Phase 15 review U1 — raw hex 를 폴라로이드 토큰으로 교체.
+        backgroundColor: "var(--paper-cream)",
         borderRadius: 2,
         boxShadow: FRAME_DROP_SHADOW,
       }}
@@ -86,16 +87,20 @@ const MemoEditor = forwardRef<HTMLTextAreaElement, Props>(function MemoEditor(
         className="relative flex-1 mx-6 mt-6 mb-2"
         style={{
           backgroundImage:
-            "repeating-linear-gradient(transparent, transparent 23px, #d4c9b8 23px, #d4c9b8 24px)",
+            "repeating-linear-gradient(transparent, transparent 23px, var(--paper-line) 23px, var(--paper-line) 24px)",
           backgroundPosition: "0 8px",
         }}
       >
         {readOnly ? (
           <p
-            className="w-full h-full text-[#2a2a2a] leading-[24px] pt-[9px] typo-body whitespace-pre-wrap overflow-auto"
-            style={{ fontFamily: "'April16', sans-serif" }}
+            className="w-full h-full leading-[24px] pt-[9px] typo-body whitespace-pre-wrap overflow-auto"
+            style={{ fontFamily: "'April16', sans-serif", color: "var(--ink-warm-text)" }}
           >
-            {value || <span className="text-[#a09080]">{t("playground.capture.memo")}</span>}
+            {value || (
+              <span style={{ color: "var(--paper-placeholder)" }}>
+                {t("playground.capture.memo")}
+              </span>
+            )}
           </p>
         ) : (
           <textarea
@@ -106,10 +111,11 @@ const MemoEditor = forwardRef<HTMLTextAreaElement, Props>(function MemoEditor(
             onBlur={onBlur}
             onPointerDown={forceFocus}
             placeholder={t("playground.capture.memo")}
-            className="w-full h-full bg-transparent resize-none outline-none text-[#2a2a2a] leading-[24px] pt-[9px] typo-body placeholder:text-[#a09080]"
+            className="memo-placeholder w-full h-full bg-transparent resize-none outline-none leading-[24px] pt-[9px] typo-body"
             style={{
               fontFamily: "'April16', sans-serif",
-              caretColor: "#2a2a2a",
+              color: "var(--ink-warm-text)",
+              caretColor: "var(--ink-warm-text)",
               // iOS 탭 gesture 지연 제거 + zoom 방지 (16px baseline).
               touchAction: "manipulation",
               fontSize: 16,
@@ -118,13 +124,17 @@ const MemoEditor = forwardRef<HTMLTextAreaElement, Props>(function MemoEditor(
         )}
       </div>
 
-      {/* 글자 수 카운터 — 프레임 하단 우측 (날짜 스탬프 위치 일관) */}
+      {/* 글자 수 카운터 — 프레임 하단 우측 (날짜 스탬프 위치 일관).
+           P3 — 초과 경고색을 raw hex (#c44) 대신 시맨틱 토큰으로 */}
       <div className="relative px-4 pb-3 text-right">
         <span
           className="font-mono tabular-nums"
           style={{
             fontSize: 10,
-            color: value.length > MAX_CHARS * 0.9 ? "#c44" : "#a09080",
+            color:
+              value.length > MAX_CHARS * 0.9
+                ? "var(--color-error)"
+                : "var(--paper-placeholder)",
             letterSpacing: "0.02em",
           }}
         >

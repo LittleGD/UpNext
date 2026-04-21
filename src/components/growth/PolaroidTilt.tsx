@@ -85,7 +85,14 @@ export default function PolaroidTilt({ children, enabled = true, autoHint = fals
     (e: React.PointerEvent) => {
       if (!enabled || !containerRef.current) return;
       const target = e.target as HTMLElement;
-      if (target.closest("textarea, input, button, [data-no-tilt]")) {
+      // Phase 15 review U3 — 단일 passthrough 규약으로 통합.
+      //   [data-polaroid-passthrough] 하나만 걸면 Flip/Tilt/StickerLayer 가 공통
+      //   대응. legacy `[data-no-tilt]` 도 backward-compat.
+      if (
+        target.closest(
+          "textarea, input, button, [data-polaroid-passthrough], [data-no-tilt]",
+        )
+      ) {
         // editable 위 — tilt 0 으로 복귀하고 종료
         targetRotateX.set(0);
         targetRotateY.set(0);
@@ -125,10 +132,26 @@ export default function PolaroidTilt({ children, enabled = true, autoHint = fals
     return () => timers.forEach(clearTimeout);
   }, [enabled, autoHint, prefersReducedMotion, targetRotateX, targetRotateY]);
 
-  /* ── 자이로스코프 ── */
+  /* ── 자이로스코프 ──
+     R6 — 자이로 거부/미지원 시 wiggleFallback 을 한번 더 돌려 "정적 카드처럼
+     보이지 않게" 한다. 사용자가 탭 가능한 물건임을 시그널. */
+  const wiggleFallback = useCallback(() => {
+    if (prefersReducedMotion) return;
+    const timers = [
+      window.setTimeout(() => { targetRotateX.set(-6); targetRotateY.set(8); }, 300),
+      window.setTimeout(() => { targetRotateX.set(4); targetRotateY.set(-5); }, 780),
+      window.setTimeout(() => { targetRotateX.set(0); targetRotateY.set(0); }, 1200),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [prefersReducedMotion, targetRotateX, targetRotateY]);
+
   useEffect(() => {
     if (!enabled || prefersReducedMotion || typeof window === "undefined") return;
-    if (typeof DeviceOrientationEvent === "undefined") return;
+    if (typeof DeviceOrientationEvent === "undefined") {
+      // 모바일 Safari 외 브라우저 — 자이로 이벤트 자체가 없음. fallback wiggle.
+      wiggleFallback();
+      return;
+    }
 
     const container = containerRef.current;
 
@@ -155,9 +178,13 @@ export default function PolaroidTilt({ children, enabled = true, autoHint = fals
           ).requestPermission();
           if (perm === "granted") {
             window.addEventListener("deviceorientation", handler);
+          } else {
+            // 권한 거부 → wiggle 로 카드임을 시그널
+            wiggleFallback();
           }
         } catch {
-          /* 권한 거부 — 자이로 없이 포인터 트래킹만 사용 */
+          // 예외 → wiggle fallback
+          wiggleFallback();
         }
         container?.removeEventListener("pointerdown", onGesture);
       };
@@ -171,7 +198,7 @@ export default function PolaroidTilt({ children, enabled = true, autoHint = fals
     // 비-iOS — 권한 불필요, 바로 리스너 등록
     window.addEventListener("deviceorientation", handler);
     return () => window.removeEventListener("deviceorientation", handler);
-  }, [enabled, prefersReducedMotion, targetRotateX, targetRotateY]);
+  }, [enabled, prefersReducedMotion, targetRotateX, targetRotateY, wiggleFallback]);
 
   /* ── 비활성 / reduced-motion 시 passthrough ── */
   if (!enabled || prefersReducedMotion) return <>{children}</>;

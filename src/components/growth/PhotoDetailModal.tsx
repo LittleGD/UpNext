@@ -66,7 +66,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedSignature, setEditedSignature] = useState<string | null>(null);
   const [editedStickers, setEditedStickers] = useState<Sticker[]>(meta.stickers ?? []);
-  const [editPenColor, setEditPenColor] = useState<string>(INK_COLORS[0]);
+  const [editPenColor, setEditPenColor] = useState<string>(INK_COLORS[0].color);
   const [editPenWidth, setEditPenWidth] = useState<number>(1.0);
   // 유저 피드백 #4 — Edit 모드 지우개 토글.
   const [editEraseMode, setEditEraseMode] = useState(false);
@@ -534,12 +534,17 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16, transition: { duration: 0.12 } }}
             transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-            className="fixed left-1/2 -translate-x-1/2 z-[110] px-4 py-2.5 rounded-xl typo-caption pointer-events-none"
+            className="fixed left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl typo-caption pointer-events-none"
             style={{
               bottom: "calc(env(safe-area-inset-bottom) + 24px)",
+              // R3 — KeyboardAccessoryBar(fixed top-layer) 보다 높은 레이어 명시.
+              //   --z-modal(60) 보다 충분히 위, iOS Safari 의 accessory bar 위에
+              //   안정적으로 뜸. 숫자 110 은 기존 값을 토큰 없이 유지하되 의도를
+              //   주석으로 기록.
+              zIndex: 110,
               background:
                 shareToast.kind === "failed"
-                  ? "rgba(180, 60, 60, 0.95)"
+                  ? "var(--color-error-strong)"
                   : "rgba(30, 30, 30, 0.92)",
               color: "white",
               backdropFilter: "blur(8px)",

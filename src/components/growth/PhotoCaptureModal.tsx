@@ -39,7 +39,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   const [captureTimestamp, setCaptureTimestamp] = useState(0);
   const [signatureData, setSignatureData] = useState<string | null>(null);
   // capture 단계의 데코레이션 상태 — 사인 잉크 색 + 굵기 + 스티커 배열
-  const [penColor, setPenColor] = useState<string>(INK_COLORS[0]);
+  const [penColor, setPenColor] = useState<string>(INK_COLORS[0].color);
   const [penWidth, setPenWidth] = useState<number>(1.0); // multiplier
   // 유저 피드백 #4 — 지우개 모드. on 일 때 pen stroke 이 erase 로 동작.
   const [eraseMode, setEraseMode] = useState(false);

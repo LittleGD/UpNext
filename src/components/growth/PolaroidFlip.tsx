@@ -76,9 +76,18 @@ export default function PolaroidFlip({ front, back, flipped: controlledFlipped, 
   });
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    // 자식 인터랙티브 (textarea, button 등) 위에서는 드래그 시작 안 함
+    // Phase 15 review U3 — 제스처 passthrough selector 를 단일 규약으로 통합.
+    //   PolaroidFlip / PolaroidTilt / StickerLayer 가 전부 `textarea, input,
+    //   button, [data-polaroid-passthrough]` 하나만 체크하도록 규격화.
+    //   legacy `[data-no-flip]` / `[data-no-tilt]` 도 backward-compat 으로 동작.
     const target = e.target as HTMLElement;
-    if (target.closest("textarea, input, button, [data-no-flip]")) return;
+    if (
+      target.closest(
+        "textarea, input, button, [data-polaroid-passthrough], [data-no-flip]",
+      )
+    ) {
+      return;
+    }
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     springTarget.current = null; // 진행 중 복귀 애니 중단
@@ -117,7 +126,11 @@ export default function PolaroidFlip({ front, back, flipped: controlledFlipped, 
       if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
 
       const dragDeg = dragRotation.get();
-      const flickThreshold = 1.5; // px/ms
+      // P4 — 120Hz 디스플레이(iPhone Pro / iPad Pro)에서 dt 가 작아져 velocity 가
+      //   과장되며 flick 이 과민 트리거되던 문제. touch 입력만 살짝 올려
+      //   의도치 않은 flip 을 줄임. pointerType 은 up 이벤트에서 읽음.
+      const isTouch = (e.nativeEvent as PointerEvent).pointerType === "touch";
+      const flickThreshold = isTouch ? 1.8 : 1.5; // px/ms
       const angleThreshold = 90; // degrees
 
       const passedAngle = Math.abs(dragDeg) > angleThreshold;

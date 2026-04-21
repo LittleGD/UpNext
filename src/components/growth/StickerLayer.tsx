@@ -87,8 +87,13 @@ function StickerLayerImpl({ stickers, editable = false, onChange, className }: P
   //   useState(stickers) 초기화 + 외부 prop 변경 시 동기화. drag 중이면 외부
   //   동기화 건너뛰어 덮어쓰기 방지.
   const [localStickers, setLocalStickers] = useState(stickers);
+  // Phase 14 — drag 중이 아닐 때만 external prop 을 local 로 동기화.
+  //   `set-state-in-effect` 경고는 "외부 스토어 동기화" 가 아닌 "부모 prop →
+  //   자식 로컬 state mirror" 라는 특수 케이스라 의도된 패턴. useSyncExternalStore
+  //   는 부모 state 에 맞지 않으므로 linter 억제.
   useEffect(() => {
     if (!dragRef.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalStickers(stickers);
     }
   }, [stickers]);
@@ -336,8 +341,8 @@ function StickerLayerImpl({ stickers, editable = false, onChange, className }: P
   // React 엘리먼트-레벨 move/up 은 document 리스너 이전에 첫 pointerdown 을 받을
   // 때만 의미가 있음. document 리스너가 붙으면 동일 포인터의 move/up 을 document
   // 가 받으므로 여기선 no-op 처리하고 noop 시그니처만 유지.
-  const handlePointerMove = useCallback((_e: React.PointerEvent) => {}, []);
-  const handlePointerUp = useCallback((_e: React.PointerEvent) => {}, []);
+  const handlePointerMove = useCallback(() => {}, []);
+  const handlePointerUp = useCallback(() => {}, []);
 
   // 유저 피드백 #4 — 더블클릭은 long-press 로 대체. 데스크톱은 더블클릭 fallback 유지.
   const handleDoubleClick = useCallback(
@@ -463,7 +468,8 @@ const StickerView = memo(function StickerView({ sticker, editable, isPressing = 
             className="absolute left-1/2 -translate-x-1/2 typo-micro whitespace-nowrap px-1.5 py-0.5 rounded"
             style={{
               top: ringSize + 4,
-              background: "rgba(0,0,0,0.75)",
+              // Phase 15 review — tooltip 배경 토큰.
+              background: "var(--surface-tooltip)",
               color: "white",
               fontSize: 10,
             }}

@@ -225,6 +225,24 @@ function SignatureCanvasImpl({
     if (n >= 3) {
       // 마지막 두 점도 단순 segment 로 마무리 (보간이 가능한 마지막 구간 누락 방지)
       drawSimpleSegment(arr[n - 2], arr[n - 1]);
+    } else if (n === 1) {
+      // R4 — 탭 + 즉시 떼기 (포인트 1개) 케이스는 segment 도 보간도 불가능.
+      //   만년필이라면 한 점을 찍으면 잉크 도트가 남아야 자연스러움. 지우개 모드
+      //   에선 효과 없음 (destination-out 에 지울 픽셀 없음).
+      const ctx = canvasRef.current?.getContext("2d");
+      if (ctx && !eraseModeRef.current) {
+        const p = arr[0];
+        // computeWidth 는 두 점이 필요하므로 동일 좌표 fallback 으로 기본 굵기.
+        const w = computeWidth(p, p);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.8, w * 0.6), 0, Math.PI * 2);
+        ctx.fillStyle = inkColorRef.current;
+        ctx.shadowColor = "rgba(255,255,255,0.55)";
+        ctx.shadowBlur = 1.6;
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+      }
     }
     points.current = [];
     setHasStrokes(true);
@@ -232,7 +250,7 @@ function SignatureCanvasImpl({
     if (canvas) {
       onSignatureChange(canvas.toDataURL("image/png"));
     }
-  }, [drawSimpleSegment, onSignatureChange]);
+  }, [drawSimpleSegment, computeWidth, onSignatureChange]);
 
   const clear = useCallback(() => {
     const canvas = canvasRef.current;
@@ -270,7 +288,11 @@ function SignatureCanvasImpl({
     <div className={`relative ${className || ""}`}>
       <canvas
         ref={canvasRef}
-        className="block w-full h-full touch-none cursor-crosshair"
+        // P5 — 지우개 모드일 땐 cursor 를 `cell` 로 바꿔 모드 인지 ↑.
+        //   그리기 모드: crosshair / 지우개: cell (격자 선택 느낌 → 지우는 느낌).
+        className={`block w-full h-full touch-none ${
+          eraseMode ? "cursor-cell" : "cursor-crosshair"
+        }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

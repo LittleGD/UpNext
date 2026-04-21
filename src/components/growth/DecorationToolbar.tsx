@@ -1,7 +1,7 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import UpNextLogoMark from "./UpNextLogoMark";
-import PixelIcon from "@/components/icons/PixelIcon";
 import { useTranslation } from "@/hooks/useTranslation";
 
 /**
@@ -13,15 +13,22 @@ import { useTranslation } from "@/hooks/useTranslation";
  *  - 라벨 제거 (가로 공간 부족 + 시각적 자명함). aria-label 로 접근성 유지
  *  - 모든 swatch 외곽에 subtle 화이트 보더 → 어두운 bg 위에서 검정 잉크도 잘 보임
  *  - 굵기 dot 색은 text-secondary 고정 (잉크 색 따라가면 검정 → 안 보임)
+ *
+ * Phase 15 review U2 — 잉크 팔레트를 `{ id, labelKey, color }` 객체 배열로 승격.
+ *  기존 raw rgba 문자열만 있던 구조는 aria-label 에 `rgba(...)` 가 그대로
+ *  삽입되고 다크 모드/커스텀 팔레트 추가가 불가능했음. 이제 id/번역키 기반.
  */
 
 export const INK_COLORS = [
-  "rgba(22,18,14,0.92)",  // 따뜻한 검정 (default 잉크)
-  "rgba(220,38,38,0.92)", // 빨강 (마커 펜)
-  "rgba(30,64,175,0.92)", // 파랑 (볼펜)
-  "rgba(5,150,105,0.92)", // 초록
-  "rgba(124,58,237,0.92)", // 보라
+  { id: "warm-black", labelKey: "ink.warmBlack", color: "rgba(22, 18, 14, 0.92)" },
+  { id: "red", labelKey: "ink.red", color: "rgba(220, 38, 38, 0.92)" },
+  { id: "blue", labelKey: "ink.blue", color: "rgba(30, 64, 175, 0.92)" },
+  { id: "green", labelKey: "ink.green", color: "rgba(5, 150, 105, 0.92)" },
+  { id: "purple", labelKey: "ink.purple", color: "rgba(124, 58, 237, 0.92)" },
 ] as const;
+
+/** 편의 상수 — 외부 import 시 rgba 문자열만 필요한 경우 사용. */
+export const INK_COLOR_VALUES = INK_COLORS.map((c) => c.color);
 
 export const PEN_WIDTHS = [
   { id: "thin", label: "S", multiplier: 0.6, dotSize: 4 },
@@ -56,6 +63,30 @@ interface Props {
   ) => void;
 }
 
+/** P2 — UpNext 브랜드 스티커 전용 인라인 pixel-style 로고 버튼용 wrapper.
+ *  기존엔 단순히 UpNextLogoMark 만 있었으나, 탭/드롭 성공 시 한 번의 accent
+ *  pulse 를 주기 위해 data-brand-flash 속성으로 CSS keyframe 을 트리거. */
+
+/** 픽셀 스타일 지우개 아이콘 — pixelarticons 에 eraser 계열이 없어 인라인.
+ *  8x8 격자 ratio, 기울어진 사각형 + ferrule (금속띠) 2톤. */
+function EraserIcon({ size = 14, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill={color}
+      aria-hidden
+      style={{ display: "block" }}
+    >
+      {/* rubber body — 기울어진 지우개 몸통 */}
+      <path d="M10 2 L14 6 L6 14 L2 10 Z" />
+      {/* ferrule — 금속 띠 (약간 어둡게) */}
+      <path d="M10 2 L14 6 L11 9 L7 5 Z" opacity="0.55" />
+    </svg>
+  );
+}
+
 export default function DecorationToolbar({
   selectedColor,
   onColorChange,
@@ -66,6 +97,19 @@ export default function DecorationToolbar({
   onAddSticker,
 }: Props) {
   const { t } = useTranslation();
+
+  /** P2 — UpNext 브랜드 스티커 탭 시 accent pulse 한 번.
+   *  두 번째 탭을 위해 data attribute 를 false 로 돌려놓고 rAF 로 true → 브라우저가
+   *  style recalculation 을 보장해 keyframe 이 다시 트리거됨.
+   *  800ms 후 자동 해제 (`polaroid-brand-flash` duration 640ms + 여유). */
+  const [brandFlashing, setBrandFlashing] = useState(false);
+  const triggerBrandFlash = useCallback(() => {
+    setBrandFlashing(false);
+    requestAnimationFrame(() => {
+      setBrandFlashing(true);
+      window.setTimeout(() => setBrandFlashing(false), 720);
+    });
+  }, []);
   /**
    * 스티커 드래그-앤-드롭:
    *  - pointerdown 부터 추적 시작
@@ -139,6 +183,7 @@ export default function DecorationToolbar({
       if (!isDragging) {
         // 그냥 tap — 중앙에 추가 (기존 동작 유지)
         onAddSticker(sticker.type, sticker.content);
+        if (sticker.id === "upnext") triggerBrandFlash();
         return;
       }
       // Drag — 드롭 위치가 폴라로이드 위인지 확인
@@ -152,6 +197,7 @@ export default function DecorationToolbar({
       const x = Math.max(0, Math.min(100, xPct));
       const y = Math.max(0, Math.min(100, yPct));
       onAddSticker(sticker.type, sticker.content, { x, y });
+      if (sticker.id === "upnext") triggerBrandFlash();
     };
 
     document.addEventListener("pointermove", onMove);
@@ -164,8 +210,8 @@ export default function DecorationToolbar({
       {/* 잉크 색상 + 펜 굵기 한 행 — 라벨 제거로 공간 확보 */}
       <div className="flex items-center justify-center gap-2">
         <div className="flex items-center gap-1.5">
-          {INK_COLORS.map((color) => {
-            const isSelected = color === selectedColor;
+          {INK_COLORS.map((ink) => {
+            const isSelected = ink.color === selectedColor;
             // 모든 swatch: 외곽에 subtle 화이트 보더 (검정도 어두운 bg 위에서 보임).
             // 선택 시: inset 라이트 그레이 ring → 외곽 사이즈 변화 X.
             const baseShadow =
@@ -173,13 +219,13 @@ export default function DecorationToolbar({
             const insetRing = "inset 0 0 0 2px rgba(220,220,220,0.95)";
             return (
               <button
-                key={color}
-                onClick={() => onColorChange(color)}
-                aria-label={t("a11y.penColor", { color })}
+                key={ink.id}
+                onClick={() => onColorChange(ink.color)}
+                aria-label={t("a11y.penColor", { color: t(ink.labelKey) })}
                 // 시각: 24×24 / 히트: 44×44 (WCAG AAA — ::after 확장. 레이아웃 변화 X)
                 className="relative w-6 h-6 rounded-full active:scale-90 transition-transform after:absolute after:-inset-2.5 after:content-[''] after:rounded-full"
                 style={{
-                  backgroundColor: color,
+                  backgroundColor: ink.color,
                   boxShadow: isSelected ? `${insetRing}, ${baseShadow}` : baseShadow,
                 }}
               />
@@ -206,7 +252,9 @@ export default function DecorationToolbar({
                   : "inset 0 0 0 1px rgba(255,255,255,0.18)",
               }}
             >
-              <PixelIcon name="MagicEdit" size={14} color="currentColor" />
+              {/* R2 — pixelarticons 에 전용 eraser 가 없어 인라인 SVG. 기울어진
+                   rubber body + 금속 ferrule 2톤으로 지우개임을 즉시 인식. */}
+              <EraserIcon size={14} color="currentColor" />
             </button>
             <div className="w-px h-5 bg-text-tertiary/15 mx-1" />
           </>
@@ -245,27 +293,36 @@ export default function DecorationToolbar({
       {/* 스티커 팔레트 — UpNext 첫번째 (브랜드 우선).
           탭 = 중앙에 추가 / 드래그 = 폴라로이드 위 정확한 위치에 배치 */}
       <div className="flex items-center justify-center gap-1.5 flex-wrap">
-        {STICKER_PRESETS.map((s) => (
-          <button
-            key={s.id}
-            onPointerDown={(e) => handleStickerPointerDown(e, s)}
-            aria-label={t("a11y.addSticker", { id: s.id })}
-            // 시각: 32H / 히트: 44H (::after 확장 — 세로 +12, 가로 +12). 드래그 시작점 판별에도 동일 box 적용.
-            className="relative h-8 rounded-md flex items-center justify-center text-lg active:scale-90 transition-transform hover:bg-text-tertiary/10 touch-none after:absolute after:-inset-1.5 after:content-[''] after:rounded-md"
-            style={{
-              minWidth: s.id === "upnext" ? 48 : 32,
-              padding: s.id === "upnext" ? "0 4px" : 0,
-            }}
-          >
-            {s.type === "emoji" ? (
-              <span>{s.content}</span>
-            ) : (
-              <div className="flex items-center justify-center bg-white rounded px-1 py-0.5">
-                <UpNextLogoMark width={32} color="#212727" />
-              </div>
-            )}
-          </button>
-        ))}
+        {STICKER_PRESETS.map((s) => {
+          const isBrand = s.id === "upnext";
+          return (
+            <button
+              key={s.id}
+              onPointerDown={(e) => handleStickerPointerDown(e, s)}
+              aria-label={t("a11y.addSticker", { id: s.id })}
+              // 시각: 32H / 히트: 44H (::after 확장 — 세로 +12, 가로 +12). 드래그 시작점 판별에도 동일 box 적용.
+              className="relative h-8 rounded-md flex items-center justify-center text-lg active:scale-90 transition-transform hover:bg-text-tertiary/10 touch-none after:absolute after:-inset-1.5 after:content-[''] after:rounded-md"
+              style={{
+                minWidth: isBrand ? 48 : 32,
+                padding: isBrand ? "0 4px" : 0,
+              }}
+            >
+              {s.type === "emoji" ? (
+                <span>{s.content}</span>
+              ) : (
+                // P2 — 탭 성공 시 한 번의 accent pulse. `data-brand-flash` 속성이
+                //   globals.css 의 keyframe 을 트리거. 래퍼 div 에만 걸어 외곽
+                //   히트박스/레이아웃에 영향 없음.
+                <div
+                  data-brand-flash={isBrand && brandFlashing ? "true" : undefined}
+                  className="flex items-center justify-center bg-white rounded px-1 py-0.5"
+                >
+                  <UpNextLogoMark width={32} color="#212727" />
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
