@@ -133,15 +133,17 @@ export default function HexStatChart({
     { ratio: 2.5, emphasis: "over" },
   ];
 
-  // a11y label
+  // a11y label — eff / bonus / Lv 기준 대비 % 까지 포함 (시각 legend 와 parity).
+  //   SR 유저도 "INT 117 은 기준의 186%" 라는 편차 감각을 얻을 수 있도록.
   const ariaLabel =
     t("uphero.stat.chartAria") + ": " +
     ratios
       .map((a) => {
         const bonus = a.effVal - a.baseVal;
+        const pct = Math.round((a.effVal / a.maxRef) * 100);
         return `${a.label} ${a.effVal}${a.isCrit ? "%" : ""}${
           bonus !== 0 ? ` (${bonus > 0 ? "+" : ""}${bonus})` : ""
-        }`;
+        } · ${pct}%`;
       })
       .join(", ");
 
@@ -353,9 +355,12 @@ export default function HexStatChart({
       </div>
       {/* 숫자 legend (SR/시각 fallback) — 각 스탯의 eff 값 + 장비 보너스 + Lv
            기준 대비 비율. 이전엔 eff 값만 표시해 "내 INT 117 이 얼마나 강한가" 가
-           감이 안 왔는데, 기준 대비 % 를 병기하면 숫자만 봐도 편차 파악 가능. */}
+           감이 안 왔는데, 기준 대비 % 를 병기하면 숫자만 봐도 편차 파악 가능.
+           grid-cols-3 (ko/ja/zh 에서 typo-micro 11-12px × "127 (+75) 235%" 14 char
+           → 셀 폭 72px 초과) → grid-cols-2 로 완화. 행 수는 2→3 으로 늘지만
+           "잘리거나 wrap 되는 숫자" 가 훨씬 더 큰 UX 부채. */}
       <div
-        className="grid grid-cols-3 gap-x-3 gap-y-1 tabular-nums typo-micro mt-1 px-2"
+        className="grid grid-cols-2 gap-x-3 gap-y-1 tabular-nums typo-micro mt-1 px-2"
         style={{ color: GB.light }}
         aria-hidden="true"
       >
