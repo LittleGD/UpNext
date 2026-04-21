@@ -877,6 +877,8 @@ const zh: Record<DictKey, string> = {
   "uphero.stat.autoToggleOn": "开",
   "uphero.stat.autoToggleOff": "关",
   "uphero.stat.chartAria": "属性图表",
+  "uphero.stat.scaleBase": "Lv {level} 成长基准",
+  "uphero.stat.scaleOver": "外侧为装备/增益强化",
   "uphero.stat.info.buttonAria": "查看属性说明",
   "uphero.stat.info.title": "属性如何影响战斗?",
   "uphero.stat.info.close": "关闭",

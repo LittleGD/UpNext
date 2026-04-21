@@ -875,6 +875,8 @@ const ko = {
   "uphero.stat.autoToggleOn": "켜짐",
   "uphero.stat.autoToggleOff": "꺼짐",
   "uphero.stat.chartAria": "스탯 차트",
+  "uphero.stat.scaleBase": "Lv {level} 성장 기준",
+  "uphero.stat.scaleOver": "바깥은 장비/버프 강화",
   "uphero.stat.info.buttonAria": "스탯 설명 보기",
   "uphero.stat.info.title": "스탯이 어떻게 영향을 미치나요?",
   "uphero.stat.info.close": "닫기",

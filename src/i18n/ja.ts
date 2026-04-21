@@ -877,6 +877,8 @@ const ja: Record<DictKey, string> = {
   "uphero.stat.autoToggleOn": "オン",
   "uphero.stat.autoToggleOff": "オフ",
   "uphero.stat.chartAria": "ステータスチャート",
+  "uphero.stat.scaleBase": "Lv {level} 成長基準",
+  "uphero.stat.scaleOver": "外側は装備/バフによる強化",
   "uphero.stat.info.buttonAria": "ステータスの説明を見る",
   "uphero.stat.info.title": "ステータスはどう影響するの?",
   "uphero.stat.info.close": "閉じる",

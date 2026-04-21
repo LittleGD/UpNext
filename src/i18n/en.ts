@@ -877,6 +877,8 @@ const en: Record<DictKey, string> = {
   "uphero.stat.autoToggleOn": "on",
   "uphero.stat.autoToggleOff": "off",
   "uphero.stat.chartAria": "Stats chart",
+  "uphero.stat.scaleBase": "Lv {level} growth baseline",
+  "uphero.stat.scaleOver": "Outside = gear/buff boost",
   "uphero.stat.info.buttonAria": "Show stat descriptions",
   "uphero.stat.info.title": "How do stats affect combat?",
   "uphero.stat.info.close": "Close",
