@@ -21,6 +21,7 @@ import {
   ResultIcon,
   MinigameShell,
   MinigameLiveText,
+  SignalIcon,
 } from "./_chrome";
 
 type Phase = "red" | "yellow" | "green" | "done";
@@ -151,11 +152,19 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
         }}
         aria-label={t("uphero.mini.reaction.btnAria", { phase })}
       >
+        {/* Phase 16 U1 — ●/◐/○ 유니코드 글리프를 SignalIcon SVG primitive 로
+             교체. 폰트 폴백 / 픽셀 정렬 / 크기 일관성 확보. */}
         {done === "success" ? (
           <ResultIcon kind="success" size={64} color={GB.darkest} />
         ) : done === "fail" ? (
           <ResultIcon kind="fail" size={64} color={GB.darkest} />
-        ) : phase === "green" ? "●" : phase === "yellow" ? "◐" : "○"}
+        ) : (
+          <SignalIcon
+            kind={phase === "green" ? "go" : phase === "yellow" ? "ready" : "stop"}
+            size={64}
+            color={GB.darkest}
+          />
+        )}
       </button>
       {done ? (
         <StatusMessage kind={done}>{label}</StatusMessage>

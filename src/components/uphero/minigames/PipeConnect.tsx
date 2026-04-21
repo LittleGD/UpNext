@@ -35,6 +35,8 @@ import {
   GiveUpButton,
   MinigameShell,
   MinigameLiveText,
+  FlowArrow,
+  EndpointBadge,
 } from "./_chrome";
 
 type Dir = 0 | 1 | 2 | 3; // N, E, S, W
@@ -369,17 +371,20 @@ export default function PipeConnect({
           gap: "var(--mg-tile-gap)",
         }}
       >
+        {/* Phase 16 U1 — ▶ 유니코드 글리프를 FlowArrow SVG 로 교체.
+             폰트 의존 제거 + 크기/정렬 일관. 시작 화살표는 그리드 왼쪽에서
+             첫 타일을 향해, 끝 화살표는 마지막 타일에서 그리드 오른쪽으로. */}
         <div
           aria-hidden="true"
           className="pipe-arrow pipe-arrow-start"
         >
-          ▶
+          <FlowArrow direction="right" size={14} color={GB.lightest} />
         </div>
         <div
           aria-hidden="true"
           className="pipe-arrow pipe-arrow-end"
         >
-          ▶
+          <FlowArrow direction="right" size={14} color={GB.lightest} />
         </div>
         {grid.map((row, r) =>
           row.map((tile, c) => {
@@ -425,14 +430,18 @@ export default function PipeConnect({
                 >
                   <PipeShape kind={tile.kind} />
                 </div>
+                {/* Phase 16 U1 — S/E 텍스트 라벨을 EndpointBadge SVG 로 교체.
+                     1글자 텍스트는 letter-spacing 이 무효고 폰트 weight 가
+                     불안정 → 삼각(play) / 동심원(target) 으로 시각 대비 확보.
+                     aria-hidden — 타일의 aria-label 이 이미 기능을 전달. */}
                 {isStart && (
-                  <span aria-hidden="true" className="pipe-endpoint-label pipe-endpoint-start">
-                    S
+                  <span className="pipe-endpoint-label pipe-endpoint-start">
+                    <EndpointBadge kind="start" size={12} color={GB.lightest} />
                   </span>
                 )}
                 {isEnd && (
-                  <span aria-hidden="true" className="pipe-endpoint-label pipe-endpoint-end">
-                    E
+                  <span className="pipe-endpoint-label pipe-endpoint-end">
+                    <EndpointBadge kind="end" size={12} color={GB.lightest} />
                   </span>
                 )}
               </button>
@@ -449,37 +458,33 @@ export default function PipeConnect({
       )}
       {!result && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
-        /* Phase 16 — 화살표를 음수 left/right 매직넘버 대신 그리드 기준 flex 로 정렬.
-           S→E 흐름을 시각 신호로 유지하면서 cellSize 가 변해도 자동 정렬. */
+        /* Phase 16 U1 — FlowArrow SVG 로 교체됨. font-size/color/font-weight
+           는 더 이상 필요 없음 (SVG 자체 색 상속). 위치 + 크기만 담당. */
         .pipe-arrow {
-          width: 18px;
+          width: 14px;
           height: 14px;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: ${GB.lightest};
-          font-size: 16px;
-          font-weight: 800;
-          line-height: 1;
           position: absolute;
         }
         .pipe-arrow-start {
           left: -24px;
-          top: calc(var(--mg-tile-size) / 2 - 8px);
+          top: calc(var(--mg-tile-size) / 2 - 7px);
         }
         .pipe-arrow-end {
           right: -24px;
-          bottom: calc(var(--mg-tile-size) / 2 - 8px);
+          bottom: calc(var(--mg-tile-size) / 2 - 7px);
         }
-        /* Phase 16 — S/E endpoint label 을 개별 hard-code 대신 클래스로 재사용.
-           letterSpacing 은 1글자에선 무효라 제거. */
+        /* Phase 16 U1 — EndpointBadge SVG 로 교체됨. text 스타일(font-size/
+           weight/color) 제거 — SVG 컴포넌트가 자체 색/크기 관리. 포지션만 담당. */
         .pipe-endpoint-label {
           position: absolute;
           left: 50%;
           transform: translateX(-50%);
-          font-size: 10px;
-          font-weight: 800;
-          color: ${GB.lightest};
+          display: flex;
+          align-items: center;
+          justify-content: center;
           pointer-events: none;
         }
         .pipe-endpoint-start { top: 4px; }
