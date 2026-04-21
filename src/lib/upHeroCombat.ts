@@ -661,11 +661,23 @@ export function tickSession(session: CombatSession): CombatSession {
           if (tMods.bossTimeRecover > 0) {
             consumeTime(s, tMods.bossTimeRecover);
           }
-          // 보스 처치 → 세션 종료. detail 로 보스 이름.
-          endSession(s, "bossDefeated", `${monster.name} 을(를) 쓰러뜨렸다`, {
-            detailKey: "uphero.session.detail.bossDefeated",
-            monster: { templateId: monster.templateId, name: monster.name },
-          });
+          // Phase 15 bugfix — 보스 처치 종료 조건 수정.
+          //   버그: 기존 코드는 `monster.isBoss` 만 체크해서 F10/F20 중간 보스
+          //   에서도 세션이 즉시 끝나버렸다. 유저 피드백 "10층 보스전 후 바로
+          //   탐험이 끝난다" 의 원인.
+          //   의도 (윗 주석에서 이미 선언됨): F10/F20 은 중간 보스 — 드롭 받고
+          //   그대로 탐험 지속, F30 (CYCLE_SIZE) 만 최종 보스 → endSession.
+          //   `isBossFloor` 생성 상한 `nextFloor <= 30` 때문에 보스는 {10, 20,
+          //   30} 에만 등장하므로 `currentFloor >= CYCLE_SIZE` 로 최종 여부를
+          //   판별. return 만 하면 다음 tick 에서 lastEntry=drop 분기로 들어가
+          //   F11 로 진행된다.
+          const isFinalBoss = s.currentFloor >= CYCLE_SIZE;
+          if (isFinalBoss) {
+            endSession(s, "bossDefeated", `${monster.name} 을(를) 쓰러뜨렸다`, {
+              detailKey: "uphero.session.detail.bossDefeated",
+              monster: { templateId: monster.templateId, name: monster.name },
+            });
+          }
           return s;
         }
 
