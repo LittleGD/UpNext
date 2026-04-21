@@ -24,11 +24,18 @@
  *   - 3: 4x4, 25s, + 추가 장애물 (corner 위주)
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
-import { MinigameHeader, TimeBar, StatusMessage, GiveUpButton } from "./_chrome";
+import {
+  MinigameHeader,
+  TimeBar,
+  StatusMessage,
+  GiveUpButton,
+  MinigameShell,
+  MinigameLiveText,
+} from "./_chrome";
 
 type Dir = 0 | 1 | 2 | 3; // N, E, S, W
 type Openings = [boolean, boolean, boolean, boolean];
@@ -225,8 +232,16 @@ export default function PipeConnect({
   );
   const [remainingMs, setRemainingMs] = useState(timeMs);
   const [result, setResult] = useState<"success" | "fail" | null>(null);
+  /** Phase 16 R5 — roving tabindex. 포커스된 셀만 `tabIndex=0`, 나머지는 -1.
+   *   ArrowKeys 로 그리드 내 이동, Enter/Space 로 회전. 25s 안에 16 탭 Tab 순회
+   *   불가능하던 키보드 사용성 문제 해결. 시작값 `[0,0]` (START 타일). */
+  const [focusedCell, setFocusedCell] = useState<[number, number]>([0, 0]);
+  const tileRefs = useRef<(HTMLButtonElement | null)[][]>([]);
 
   const onCompleteRef = useRef(onComplete);
+  // Phase 16 design review 범위 밖 — TapBurst/ReactionTap 과 동일한 established
+  // "ref 최신화" 패턴. Unmount race 방지 목적이라 effect 로 옮기지 않고 유지.
+  // eslint-disable-next-line react-hooks/refs
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
@@ -258,53 +273,111 @@ export default function PipeConnect({
     return () => window.clearTimeout(tt);
   }, [result]);
 
-  const rotate = (r: number, c: number) => {
-    if (result) return;
-    setGrid((g) => {
-      const next = g.map((row) => row.slice());
-      next[r][c] = {
-        ...next[r][c],
-        rotation: ((next[r][c].rotation + 1) % 4) as Dir,
-      };
-      if (isConnected(next)) {
-        setResult("success");
+  const rotate = useCallback(
+    (r: number, c: number) => {
+      if (result) return;
+      setGrid((g) => {
+        const next = g.map((row) => row.slice());
+        next[r][c] = {
+          ...next[r][c],
+          rotation: ((next[r][c].rotation + 1) % 4) as Dir,
+        };
+        if (isConnected(next)) {
+          setResult("success");
+        }
+        return next;
+      });
+      setRotations((rs) => {
+        const next = rs.map((row) => row.slice());
+        next[r][c] = next[r][c] + 90;
+        return next;
+      });
+    },
+    [result],
+  );
+
+  /** Phase 16 R5 — 그리드 키보드 내비.
+   *   ArrowKeys 이동, Enter/Space 회전. 방향 이동 시 실제 DOM focus 도 이동해야
+   *   스크린리더가 셀 aria-label 을 읽는다. */
+  const moveFocus = useCallback(
+    (dr: number, dc: number) => {
+      setFocusedCell(([r, c]) => {
+        const nr = Math.max(0, Math.min(size - 1, r + dr));
+        const nc = Math.max(0, Math.min(size - 1, c + dc));
+        // 다음 tick 에서 DOM ref 에 focus() — tabIndex 업데이트가 선행돼야
+        requestAnimationFrame(() => {
+          tileRefs.current[nr]?.[nc]?.focus();
+        });
+        return [nr, nc];
+      });
+    },
+    [size],
+  );
+
+  const onGridKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (result) return;
+      switch (e.key) {
+        case "ArrowUp":    e.preventDefault(); moveFocus(-1, 0); break;
+        case "ArrowDown":  e.preventDefault(); moveFocus(1, 0);  break;
+        case "ArrowLeft":  e.preventDefault(); moveFocus(0, -1); break;
+        case "ArrowRight": e.preventDefault(); moveFocus(0, 1);  break;
+        case "Enter":
+        case " ":
+          e.preventDefault();
+          rotate(focusedCell[0], focusedCell[1]);
+          break;
       }
-      return next;
-    });
-    setRotations((rs) => {
-      const next = rs.map((row) => row.slice());
-      next[r][c] = next[r][c] + 90;
-      return next;
-    });
-  };
+    },
+    [result, moveFocus, rotate, focusedCell],
+  );
 
   const timePct = (remainingMs / timeMs) * 100;
-  const cellSize = 48;
+
+  /** Phase 16 R6 — 플레이 중 live region 안내.
+   *   aria-live="polite" 는 텍스트가 바뀔 때마다 읽으므로, 임계 구간 동안 같은
+   *   문구를 유지해도 스크린리더는 최초 진입 시 한 번만 공지한다. "한 번만
+   *   발화" 를 위한 ref 트래킹은 필요 없음 — React refs-during-render 위반만
+   *   초래한다. 임계를 넘어 다시 높아지면 재공지되는 것도 자연스러움.
+   *   TODO(i18n): 추후 `uphero.mini.pipe.liveLow/Half/Connected` 키를 4개 언어에
+   *     추가. 지금은 silence 해결이 우선이라 간단한 한글 문자열로 시작. */
+  const liveText =
+    result === "success"
+      ? t("uphero.mini.pipe.success")
+      : timePct <= 20
+        ? "시간이 얼마 남지 않았습니다"
+        : timePct <= 50
+          ? "절반 지났습니다"
+          : "";
 
   return (
-    <div className="flex flex-col items-center gap-3 p-4">
+    <MinigameShell>
       <MinigameHeader>
         {t("uphero.mini.pipe.header", { time: (remainingMs / 1000).toFixed(1) })}
       </MinigameHeader>
       <TimeBar pct={timePct} />
+      {/* Phase 16 R6 — 플레이 중 live region (결과 발표 전 silence 방지) */}
+      {liveText && <MinigameLiveText>{liveText}</MinigameLiveText>}
       <div
-        className="grid gap-1 relative"
+        role="grid"
+        aria-label={t("uphero.mini.pipe.header", { time: (remainingMs / 1000).toFixed(1) })}
+        className="grid relative"
+        onKeyDown={onGridKeyDown}
         style={{
-          gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`,
-          maxWidth: size * (cellSize + 4) - 4,
+          /* Phase 16 R1/R8 — 반응형 사이즈 토큰 + HIG 8pt 간격 */
+          gridTemplateColumns: `repeat(${size}, var(--mg-tile-size))`,
+          gap: "var(--mg-tile-gap)",
         }}
       >
         <div
           aria-hidden="true"
-          className="pipe-arrow"
-          style={{ position: "absolute", left: -22, top: cellSize / 2 - 7 }}
+          className="pipe-arrow pipe-arrow-start"
         >
           ▶
         </div>
         <div
           aria-hidden="true"
-          className="pipe-arrow"
-          style={{ position: "absolute", right: -22, bottom: cellSize / 2 - 7 }}
+          className="pipe-arrow pipe-arrow-end"
         >
           ▶
         </div>
@@ -312,22 +385,36 @@ export default function PipeConnect({
           row.map((tile, c) => {
             const isStart = r === 0 && c === 0;
             const isEnd = r === size - 1 && c === size - 1;
+            const isFocused = focusedCell[0] === r && focusedCell[1] === c;
             return (
               <button
                 key={`${r}-${c}`}
+                ref={(el) => {
+                  if (!tileRefs.current[r]) tileRefs.current[r] = [];
+                  tileRefs.current[r][c] = el;
+                }}
                 type="button"
-                onClick={() => rotate(r, c)}
+                role="gridcell"
+                /* Phase 16 R5 — roving tabindex. 포커스된 셀만 tab 진입 가능. */
+                tabIndex={isFocused ? 0 : -1}
+                onClick={() => {
+                  setFocusedCell([r, c]);
+                  rotate(r, c);
+                }}
+                onFocus={() => setFocusedCell([r, c])}
                 disabled={!!result}
                 aria-label={t("uphero.mini.pipe.tileAria", {
                   row: r + 1,
                   col: c + 1,
                   kind: tile.kind,
                 })}
-                className="pipe-tile rounded relative flex items-center justify-center"
+                className={`pipe-tile rounded relative flex items-center justify-center ${result ? "mg-disabled" : ""}`}
                 style={{
-                  width: cellSize,
-                  height: cellSize,
-                  background: isStart || isEnd ? `${GB.lightest}44` : GB.dark,
+                  /* Phase 16 R1 — 토큰 기반 사이즈 */
+                  width: "var(--mg-tile-size)",
+                  height: "var(--mg-tile-size)",
+                  /* Phase 16 R2 — 문자열 concat alpha 제거, surface 토큰 사용 */
+                  background: isStart || isEnd ? "var(--surface-minigame-active)" : GB.dark,
                   border: `1px solid ${isStart || isEnd ? GB.lightest : GB.light}`,
                   cursor: result ? "default" : "pointer",
                 }}
@@ -339,38 +426,12 @@ export default function PipeConnect({
                   <PipeShape kind={tile.kind} />
                 </div>
                 {isStart && (
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      top: 4,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      fontSize: 9,
-                      fontWeight: 800,
-                      color: GB.lightest,
-                      letterSpacing: "0.05em",
-                      pointerEvents: "none",
-                    }}
-                  >
+                  <span aria-hidden="true" className="pipe-endpoint-label pipe-endpoint-start">
                     S
                   </span>
                 )}
                 {isEnd && (
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      bottom: 4,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      fontSize: 9,
-                      fontWeight: 800,
-                      color: GB.lightest,
-                      letterSpacing: "0.05em",
-                      pointerEvents: "none",
-                    }}
-                  >
+                  <span aria-hidden="true" className="pipe-endpoint-label pipe-endpoint-end">
                     E
                   </span>
                 )}
@@ -388,6 +449,8 @@ export default function PipeConnect({
       )}
       {!result && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
+        /* Phase 16 — 화살표를 음수 left/right 매직넘버 대신 그리드 기준 flex 로 정렬.
+           S→E 흐름을 시각 신호로 유지하면서 cellSize 가 변해도 자동 정렬. */
         .pipe-arrow {
           width: 18px;
           height: 14px;
@@ -398,9 +461,37 @@ export default function PipeConnect({
           font-size: 16px;
           font-weight: 800;
           line-height: 1;
+          position: absolute;
         }
+        .pipe-arrow-start {
+          left: -24px;
+          top: calc(var(--mg-tile-size) / 2 - 8px);
+        }
+        .pipe-arrow-end {
+          right: -24px;
+          bottom: calc(var(--mg-tile-size) / 2 - 8px);
+        }
+        /* Phase 16 — S/E endpoint label 을 개별 hard-code 대신 클래스로 재사용.
+           letterSpacing 은 1글자에선 무효라 제거. */
+        .pipe-endpoint-label {
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 10px;
+          font-weight: 800;
+          color: ${GB.lightest};
+          pointer-events: none;
+        }
+        .pipe-endpoint-start { top: 4px; }
+        .pipe-endpoint-end   { bottom: 4px; }
+
         .pipe-tile {
-          transition: transform 100ms ${EASE_OUT}, background 160ms ${EASE_OUT};
+          transition:
+            transform 100ms ${EASE_OUT},
+            background 160ms ${EASE_OUT},
+            border-color 160ms ${EASE_OUT};
+          /* Phase 16 R1 — 탭 지연 제거 + 핀치-줌 제스처 방해 없음 */
+          touch-action: manipulation;
         }
         .pipe-tile:focus-visible {
           outline: 2px solid ${GB.lightest};
@@ -408,15 +499,15 @@ export default function PipeConnect({
         }
         @media (hover: hover) and (pointer: fine) {
           .pipe-tile:hover:not(:disabled) {
-            background: ${GB.light}44;
+            background: var(--surface-minigame-hover);
           }
         }
         .pipe-tile:not(:disabled):active {
           transform: scale(0.97);
         }
         .pipe-tile-rot {
-          width: 40px;
-          height: 40px;
+          width: var(--mg-tile-inner);
+          height: var(--mg-tile-inner);
           transition: transform 220ms ${EASE_OUT};
         }
         @media (prefers-reduced-motion: reduce) {
@@ -429,7 +520,7 @@ export default function PipeConnect({
           }
         }
       `}</style>
-    </div>
+    </MinigameShell>
   );
 }
 
@@ -438,8 +529,10 @@ export default function PipeConnect({
  */
 function PipeShape({ kind }: { kind: PipeKind }) {
   const ops = baseOpenings(kind);
+  /* Phase 16 — width/height 100% 로 부모 pipe-tile-rot(--mg-tile-inner) 에 맞춤.
+     반응형 토큰 변경만으로 tile/shape 이 함께 스케일. */
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+    <svg width="100%" height="100%" viewBox="0 0 40 40" aria-hidden="true">
       {ops[0] && <rect x="17" y="0" width="6" height="20" fill={GB.lightest} />}
       {ops[1] && <rect x="20" y="17" width="20" height="6" fill={GB.lightest} />}
       {ops[2] && <rect x="17" y="20" width="6" height="20" fill={GB.lightest} />}

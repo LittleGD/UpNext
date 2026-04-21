@@ -202,18 +202,63 @@ export function GiveUpButton({ onCancel }: GiveUpProps) {
 }
 
 /**
- * 미니게임 wrapper — 일관된 padding/gap, prefers-reduced-motion 자동 처리.
+ * 미니게임 wrapper — 일관된 padding/gap, 엔트리 애니메이션, z-hud 집행.
+ *
+ * Phase 16 design review R3/R7 — 기존에는 각 게임이 `<div className="flex flex-col
+ * items-center gap-3 p-4">` 를 인라인 반복하고 `minWidth` 도 280 / 300 / 파생
+ * 으로 제각각이었다. Shell 로 통합하면:
+ *   - z-index 가 토큰(`--z-hud`) 을 강제해 toast/zoom 위로 올라올 일이 없고
+ *   - mg-shell-in 애니메이션이 마운트 시 일관되게 재생되며
+ *   - `minWidth` default 가 "반응형 토큰 기반" 으로 통일됨.
+ *
+ * `allowOverflow` 는 PipeConnect 처럼 grid 크기가 content-driven 일 때 사용.
  */
 interface ShellProps {
   children: React.ReactNode;
-  minWidth?: number;
+  /** 기본값 `auto` — mg-hero-btn-size 에 맞춘 반응형 min-width. */
+  minWidth?: number | "auto";
 }
 
-export function MinigameShell({ children, minWidth }: ShellProps) {
+export function MinigameShell({ children, minWidth = "auto" }: ShellProps) {
+  const inlineMinWidth =
+    minWidth === "auto"
+      ? "calc(var(--mg-hero-btn-size) + 80px)" /* 버튼 + 양쪽 여백 */
+      : typeof minWidth === "number"
+        ? minWidth
+        : undefined;
   return (
     <div
-      className="flex flex-col items-center gap-3 p-4 minigame-shell"
-      style={minWidth ? { minWidth } : undefined}
+      className="flex flex-col items-center gap-3 p-4 mg-shell-in"
+      style={{
+        minWidth: inlineMinWidth,
+        zIndex: "var(--z-hud)" as unknown as number,
+        position: "relative",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * 플레이 도중 상태 안내용 라이브 리전 — 결과 발표 전까지 스크린리더가
+ * 완전한 silence 상태가 되는 걸 막는다 (UX #9 / Phase 16 R6).
+ *
+ * StatusMessage 와 차이:
+ *   - StatusMessage: 결과 발표 (success/fail), pulse 애니메이션, aria-live="assertive"
+ *   - MinigameLiveText: 플레이 중간 텍스트, 조용한 전환, aria-live="polite"
+ *
+ * ReactionTap "wait/ready/now" 같은 phase label 을 담는다.
+ */
+interface LiveTextProps {
+  children: React.ReactNode;
+}
+export function MinigameLiveText({ children }: LiveTextProps) {
+  return (
+    <div
+      className="typo-body"
+      aria-live="polite"
+      style={{ color: GB.lightest, fontWeight: 600, minHeight: "1.5em" }}
     >
       {children}
     </div>

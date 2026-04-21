@@ -13,7 +13,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "./_types";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
-import { MinigameHeader, MinigameHint, StatusMessage, GiveUpButton, ResultIcon } from "./_chrome";
+import {
+  MinigameHeader,
+  MinigameHint,
+  StatusMessage,
+  GiveUpButton,
+  ResultIcon,
+  MinigameShell,
+  MinigameLiveText,
+} from "./_chrome";
 
 type Phase = "red" | "yellow" | "green" | "done";
 
@@ -92,12 +100,14 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done, phase]);
 
+  // Phase 16 U2 — 신호등 색을 시그널 토큰으로 승격. red 는 GB.darkest 글리프와
+  // 대비 충족을 위해 `-strong` 변종 사용.
   const color =
     done === "success" || phase === "green"
-      ? "#7bc47f"
+      ? "var(--signal-go)"
       : phase === "yellow"
-        ? "#e5c454"
-        : "#c44a4a";
+        ? "var(--signal-ready)"
+        : "var(--signal-stop-strong)";
   const label =
     done === "success"
       ? t("uphero.mini.reaction.success", { ms: reactionMs ?? 0 })
@@ -112,7 +122,7 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
             : t("uphero.mini.reaction.wait");
 
   return (
-    <div className="flex flex-col items-center gap-3 p-4" style={{ minWidth: 300 }}>
+    <MinigameShell>
       <MinigameHeader tabular={false}>
         {t("uphero.mini.reaction.header", { ms: windowMs })}
       </MinigameHeader>
@@ -121,16 +131,23 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
         type="button"
         onPointerDown={onTap}
         disabled={!!done}
-        className="reaction-btn rounded-full flex items-center justify-center"
+        className={`reaction-btn rounded-full flex items-center justify-center ${done ? "mg-disabled" : ""}`}
         style={{
-          width: 200,
-          height: 200,
+          /* Phase 16 R8 — 반응형 사이즈 토큰 */
+          width: "var(--mg-hero-btn-size)",
+          height: "var(--mg-hero-btn-size)",
           background: color,
           border: `3px solid ${phase === "green" ? GB.lightest : GB.dark}`,
           color: GB.darkest,
           fontSize: 20,
           fontWeight: 700,
-          boxShadow: phase === "green" ? `0 0 24px ${GB.lightest}88` : undefined,
+          /* Phase 16 R12 — boxShadow 를 항상 정의된 값으로 유지 (off = transparent).
+             undefined 와 값 사이 전환은 일부 브라우저서 즉시 스냅 → "green go!"
+             전환의 가장 중요한 frame 이 죽는다. */
+          boxShadow:
+            phase === "green"
+              ? "var(--glow-mg-signal-go)"
+              : "var(--glow-mg-signal-go-off)",
         }}
         aria-label={t("uphero.mini.reaction.btnAria", { phase })}
       >
@@ -143,24 +160,31 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
       {done ? (
         <StatusMessage kind={done}>{label}</StatusMessage>
       ) : (
-        <div
-          className="typo-body"
-          aria-live="polite"
-          style={{ color: GB.lightest, fontWeight: 600, minHeight: "1.5em" }}
-        >
-          {label}
-        </div>
+        /* Phase 16 R6 — MinigameLiveText primitive 로 교체 (StatusMessage 이중화 해소) */
+        <MinigameLiveText>{label}</MinigameLiveText>
       )}
       {!done && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
+        /* Phase 16 R11 — border-color 도 transition 목록에 포함 */
         .reaction-btn {
-          transition: background 120ms ${EASE_OUT}, box-shadow 120ms ${EASE_OUT}, transform 80ms ${EASE_OUT};
+          transition:
+            background 120ms ${EASE_OUT},
+            box-shadow 120ms ${EASE_OUT},
+            border-color 120ms ${EASE_OUT},
+            transform 80ms ${EASE_OUT};
           touch-action: manipulation;
           user-select: none;
         }
         .reaction-btn:focus-visible {
           outline: 2px solid ${GB.lightest};
           outline-offset: 4px;
+        }
+        /* Phase 16 U3 — 데스크톱 hover state */
+        @media (hover: hover) and (pointer: fine) {
+          .reaction-btn:not(:disabled):hover {
+            transform: scale(1.02);
+            filter: brightness(1.08);
+          }
         }
         .reaction-btn:not(:disabled):active {
           transform: scale(0.97);
@@ -169,11 +193,13 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
           .reaction-btn {
             transition: none;
           }
-          .reaction-btn:not(:disabled):active {
+          .reaction-btn:not(:disabled):active,
+          .reaction-btn:not(:disabled):hover {
             transform: none;
+            filter: none;
           }
         }
       `}</style>
-    </div>
+    </MinigameShell>
   );
 }

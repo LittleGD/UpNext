@@ -18,6 +18,7 @@ import {
   StatusMessage,
   GiveUpButton,
   ResultIcon,
+  MinigameShell,
 } from "./_chrome";
 
 const DURATION_MS = 3000;
@@ -66,7 +67,11 @@ export default function TapBurst({ difficulty, onComplete, onCancel }: MinigameP
     });
   };
 
-  // Space/Enter 키로도 탭 가능
+  // Space/Enter 키로도 탭 가능.
+  //   Phase 16 R10 재검토: :active scale(0.97) 을 키보드에서 억제하려 했으나
+  //   Space on focused button 은 브라우저 기본 "press" 시그널이므로 scale 반응이
+  //   오히려 자연스럽다. 사용자 피드백 발생 시 재논의 — 지금은 Pointer/Key 경로가
+  //   같은 `:active` 시각을 공유하도록 둔다.
   useEffect(() => {
     if (done) return;
     const onKey = (e: KeyboardEvent) => {
@@ -83,8 +88,16 @@ export default function TapBurst({ difficulty, onComplete, onCancel }: MinigameP
   const timePct = (remainingMs / DURATION_MS) * 100;
   const countPct = Math.min(100, (count / target) * 100);
 
+  // 배경 — surface 토큰 스펙트럼(Phase 16 R2). 문자열 concat alpha 제거.
+  const bgVar =
+    done === "success"
+      ? "var(--surface-minigame-success)"
+      : done === "fail"
+        ? "var(--surface-minigame-fail)"
+        : "var(--surface-minigame-idle)";
+
   return (
-    <div className="flex flex-col items-center gap-3 p-4" style={{ minWidth: 280 }}>
+    <MinigameShell>
       <MinigameHeader>
         {t("uphero.mini.tap.header", { time: (remainingMs / 1000).toFixed(1), count, target })}
       </MinigameHeader>
@@ -93,11 +106,12 @@ export default function TapBurst({ difficulty, onComplete, onCancel }: MinigameP
         type="button"
         onPointerDown={onTap}
         disabled={!!done}
-        className="tap-burst-btn rounded-full flex items-center justify-center"
+        className={`tap-burst-btn rounded-full flex items-center justify-center ${done ? "mg-disabled" : ""}`}
         style={{
-          width: 200,
-          height: 200,
-          background: done === "success" ? `${GB.lightest}55` : done === "fail" ? "#5a2a2a" : `${GB.light}33`,
+          /* Phase 16 R8 — 반응형 사이즈 토큰 */
+          width: "var(--mg-hero-btn-size)",
+          height: "var(--mg-hero-btn-size)",
+          background: bgVar,
           border: `2px solid ${done === "fail" ? GB_DANGER : GB.lightest}`,
           color: GB.lightest,
           fontSize: 32,
@@ -122,14 +136,27 @@ export default function TapBurst({ difficulty, onComplete, onCancel }: MinigameP
       )}
       {!done && <GiveUpButton onCancel={onCancel} />}
       <style jsx>{`
+        /* Phase 16 R11 — border-color 를 transition 목록에 명시.
+           원래 background 는 페이드되는데 border 는 스냅 → "버그처럼 보임". */
         .tap-burst-btn {
-          transition: transform 60ms ${EASE_OUT}, background 200ms ${EASE_OUT};
+          transition:
+            transform 60ms ${EASE_OUT},
+            background 200ms ${EASE_OUT},
+            border-color 200ms ${EASE_OUT};
           touch-action: manipulation;
           user-select: none;
         }
         .tap-burst-btn:focus-visible {
           outline: 2px solid ${GB.lightest};
           outline-offset: 4px;
+        }
+        /* Phase 16 U3 — 데스크톱 hover state. 미묘한 scale + border 밝기로
+           "탭 가능한 물건" 시그널. 모바일/터치에선 @media 로 차단. */
+        @media (hover: hover) and (pointer: fine) {
+          .tap-burst-btn:not(:disabled):hover {
+            transform: scale(1.02);
+            background: var(--surface-minigame-hover);
+          }
         }
         .tap-burst-btn:not(:disabled):active {
           transform: scale(0.97);
@@ -138,11 +165,12 @@ export default function TapBurst({ difficulty, onComplete, onCancel }: MinigameP
           .tap-burst-btn {
             transition: none;
           }
-          .tap-burst-btn:not(:disabled):active {
+          .tap-burst-btn:not(:disabled):active,
+          .tap-burst-btn:not(:disabled):hover {
             transform: none;
           }
         }
       `}</style>
-    </div>
+    </MinigameShell>
   );
 }

@@ -92,6 +92,47 @@
   /* 폴라로이드 tooltip/ring 배경 (long-press ✕ 라벨 등) */
   --surface-tooltip: rgba(0, 0, 0, 0.75);
 
+  /* ─── Phase 16 design review — 이벤트연동 미니게임 보강 토큰 레이어 ───
+     ReactionTap / TapBurst / PipeConnect 가 Phase 14 토큰을 우회하며 inline hex
+     로 찍던 3가지 레이어(시그널 신호등 / surface 상태 스펙트럼 / 실패 배경) 를
+     토큰으로 승격. Phase 14 는 rarity/skill/z-index 를 다뤘고, Phase 16 은
+     "미니게임 본체의 runtime state" 를 책임진다. 문자열-concat alpha
+     (`${GB.lightest}55`) 를 일괄로 rgba 로 옮겨 IDE 툴팁/DevTools 에서 즉시
+     확인 가능하게 만든 것도 부수 효과. */
+
+  /* 신호등 시그널 — ReactionTap 이 hard-code 하던 red/yellow/green.
+     -strong 변종은 GB.darkest 글리프/label 대비가 필요한 경우에 사용(≥4.5:1). */
+  --signal-go: #7bc47f;           /* 초록 = GO, 탭해도 OK */
+  --signal-ready: #e5c454;        /* 노랑 = 준비, 아직 탭 금지 */
+  --signal-stop: #c44a4a;         /* 빨강 = 대기 */
+  --signal-stop-strong: #a83838;  /* 빨강 어두운 변종 — darkest 글리프 대비 확보 */
+
+  /* 미니게임 surface 상태 스펙트럼 — TapBurst / ReactionTap 이 `${GB.lightest}55`
+     같은 문자열 concat + raw hex 를 혼재하던 것을 5단계 layering 으로 통합.
+     `GB.light = #87b87a`, `GB.lightest = #cdf564` 의 rgba 변종. alpha idiom 을
+     단일화해 DevTools 에서 값이 읽히고 다크모드 재스킨 시 한 줄만 바꾸면 된다. */
+  --surface-minigame-idle: rgba(135, 184, 122, 0.20);       /* GB.light @ 20% */
+  --surface-minigame-hover: rgba(135, 184, 122, 0.28);      /* GB.light @ 28% */
+  --surface-minigame-active: rgba(205, 245, 100, 0.20);     /* GB.lightest @ 20% */
+  --surface-minigame-success: rgba(205, 245, 100, 0.33);    /* GB.lightest @ 33% */
+  --surface-minigame-fail: #5a2a2a;                          /* GB_DANGER 계열 딥 레드 */
+
+  /* 미니게임 glow — ReactionTap "green go!" 전환용. Phase 14 `--glow-rarity-*`
+     와 의미가 다름(등급 ≠ 순간 하이라이트) 이라 별도 정의. */
+  --glow-mg-signal-go: 0 0 24px rgba(205, 245, 100, 0.53);
+  --glow-mg-signal-go-off: 0 0 0 transparent;
+
+  /* disabled 시각 언어 — inline button/tile 이 완료 후에도 탭 가능해 보이던
+     문제 해결. filter 한 줄로 모든 게임 버튼에 적용 가능. */
+  --filter-mg-disabled: opacity(0.6) saturate(0.7);
+
+  /* 반응형 미니게임 사이즈 스케일 — Mobile(≤599) 기본값, @media 쿼리에서 오버라이드.
+     각 컴포넌트가 breakpoint 반복하지 않고 토큰만 참조하면 된다. */
+  --mg-hero-btn-size: 180px;    /* TapBurst / ReactionTap 원형 버튼 */
+  --mg-tile-size: 44px;         /* PipeConnect 타일 — Apple HIG 44pt 기준 */
+  --mg-tile-gap: 8px;           /* 타일 간격 — HIG 8pt separation */
+  --mg-tile-inner: 36px;        /* 타일 내부 SVG 사이즈 (cellSize - padding) */
+
   /* 폰트 — CSS variable 기반 (next/font에서 주입) */
   --font-display: var(--font-april16), sans-serif;
   --font-body: var(--font-april16), sans-serif;
@@ -342,6 +383,51 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   html[lang="zh"] .typo-caption { font-size: 18px; }
   html[lang="ja"] .typo-micro,
   html[lang="zh"] .typo-micro   { font-size: 15px; }
+}
+
+/* === Phase 16 — 미니게임 반응형 사이즈 스케일 ===
+   :root 의 `--mg-*` 토큰은 mobile 기본값. 768px(md) / 1024px(lg) 에서 오버라이드.
+   컴포넌트는 breakpoint 를 의식하지 않고 `var(--mg-hero-btn-size)` 만 쓰면 된다. */
+@media (min-width: 768px) {
+  :root {
+    --mg-hero-btn-size: 220px;
+    --mg-tile-size: 52px;
+    --mg-tile-inner: 44px;
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --mg-hero-btn-size: 240px;
+    --mg-tile-size: 56px;
+    --mg-tile-inner: 48px;
+  }
+}
+
+/* === Phase 16 — 미니게임 공용 유틸리티 === */
+/* 미니게임 셸 엔트리 애니메이션 — `MinigameShell` 이 mount 될 때 재생.
+   opacity + 미세 scale 로 "여기서 시작" 을 알리고, 220ms 로 다음 입력까지
+   렉처럼 느껴지지 않는 경계 안에 둠. */
+@keyframes mg-shell-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.mg-shell-in {
+  animation: mg-shell-in 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mg-shell-in { animation: none; }
+}
+
+/* 미니게임 disabled 상태 — 결과 발표 후 600–800ms savor 대기 구간에서
+   버튼이 여전히 탭 가능해 보이던 문제 해결. `var(--filter-mg-disabled)` 를
+   filter 로 적용. `pointer-events` 는 `<button disabled>` 의 기본 동작으로
+   이미 차단되므로 여기선 시각만 처리. */
+.mg-disabled {
+  filter: var(--filter-mg-disabled);
+  transition: filter 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mg-disabled { transition: none; }
 }
 
 /* === 스켈레톤 shimmer === */
