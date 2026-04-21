@@ -915,6 +915,15 @@ export interface UpHeroState {
    * transient — persist 되지 않음 (hero.classType 으로 영구 기록됨).
    */
   pendingClassAwaken: ClassType | null;
+  /**
+   * Bug 2026-04 — 전직 선택 UI (ClassChoiceModal) 표시용.
+   *   recommended 는 주요 완료 카테고리 기반 자동 추천 (기존 로직). 유저가
+   *   추천을 받아들이거나 8개 클래스 중 직접 고를 수 있다.
+   *   confirmClassChoice(classType) 호출 시 null 로 clear + pendingClassAwaken
+   *   으로 바톤 전달되어 기존 연출 재사용.
+   *   transient — persist 되지 않음.
+   */
+  pendingClassChoice: { recommended: ClassType } | null;
   isLoaded: boolean;
 }
 

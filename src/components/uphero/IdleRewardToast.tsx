@@ -38,8 +38,12 @@ export default function IdleRewardToast() {
   // 해당 modal 들이 모두 사라질 때까지 mount / timer 를 지연.
   const sessionStatus = useUpHeroStore((s) => s.currentSession?.status);
   const pendingClassAwaken = useUpHeroStore((s) => s.pendingClassAwaken);
+  // Bug 2026-04 — ClassChoiceModal 도 전체 blocking modal 이므로 동일하게 차단.
+  const pendingClassChoice = useUpHeroStore((s) => s.pendingClassChoice);
   const blocked =
-    sessionStatus === "completed" || pendingClassAwaken !== null;
+    sessionStatus === "completed" ||
+    pendingClassAwaken !== null ||
+    pendingClassChoice !== null;
 
   const [mounted, setMounted] = useState(false);
   // Phase 11c R4 — reduced-motion 대응. slide 제거, fade 만 유지.

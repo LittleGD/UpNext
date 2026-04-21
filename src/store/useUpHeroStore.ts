@@ -240,8 +240,28 @@ interface UpHeroActions {
    * useGameStore.progress.categoryCompletions 기반으로 가장 많이 완료한
    * 카테고리 → class 할당. 이미 분화된 영웅이면 no-op.
    * 반환: 새로 할당된 classType (또는 이미 할당됨/조건 미충족이면 null)
+   *
+   * Bug 2026-04 — classType 인자를 주면 추천 로직을 우회하고 해당 class 로
+   *   즉시 분화 (ClassChoiceModal 의 사용자 선택 경로). 인자 없음 = 기존 자동
+   *   분화 (init 안전망 / legacy fallback).
    */
-  assignClass(): ClassType | null;
+  assignClass(classType?: ClassType): ClassType | null;
+
+  /**
+   * Bug 2026-04 — Lv30 도달 시 "추천 + 선택" UX 의 proposal step.
+   *   추천 classType 을 계산해 pendingClassChoice 에 저장. assignClass 는
+   *   호출하지 않음 — 실제 분화는 confirmClassChoice 에서.
+   *   이미 분화된 영웅 / 이미 proposal pending / 카테고리 완료 기록 전무 →
+   *   모두 no-op 반환.
+   */
+  proposeClassChoice(): ClassType | null;
+
+  /**
+   * Bug 2026-04 — ClassChoiceModal 에서 유저가 고른 class 확정.
+   *   assignClass 를 위임 호출 + pendingClassChoice 를 null 로 clear.
+   *   성공 시 pendingClassAwaken 이 세팅되어 기존 연출 modal 이 이어받음.
+   */
+  confirmClassChoice(classType: ClassType): void;
 
   /** Phase 5c.1 — ClassAwakenModal 닫을 때 호출. pendingClassAwaken null 로. */
   acknowledgeClassAwaken(): void;
@@ -442,6 +462,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   weeklyVariant: undefined,
   idleReward: null,
   pendingClassAwaken: null,
+  pendingClassChoice: null,
   // 아지트 첫 진입 튜토리얼 — 최초 false. 유저가 완료/Skip 누르면 true persist.
   hasSeenCampTutorial: false,
   isLoaded: false,
@@ -625,6 +646,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       weeklyVariant,
       idleReward,
       pendingClassAwaken: null, // transient
+      pendingClassChoice: null, // transient
       schemaVersion: CURRENT_SCHEMA_VERSION,
       // 아지트 튜토리얼 노출 여부 — saved 에 있으면 복원, 없으면 default(false).
       // Hotfix: 이전 버전에선 이 필드가 restore 누락되어 return 유저에게도 매 로드마다
@@ -642,12 +664,13 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     }
 
     // Phase 5c.1 safety — 이미 Lv30+ 인데 classType 이 null 인 영웅
-    // (이 기능 출시 전 Lv30 도달한 유저) 은 여기서 자동 분화 시도.
-    // assignClass 는 categoryCompletions 있어야 반환 non-null.
+    // (이 기능 출시 전 Lv30 도달한 유저) 은 여기서 분화 제안 시도.
+    // Bug 2026-04 — assignClass (자동) → proposeClassChoice (선택 UI) 로 교체.
+    //   init 직후 ClassChoiceModal 이 자동으로 열림. 아직 proposal 없을 때만.
     // Phase 9d — 챌린지 레벨이 아닌 영웅 레벨 기준 (heroLevel >= 30).
     //   신규 영웅 유저는 heroStartLevel 부터 30 단계 성장해야 class 분화.
     if (heroLevel >= 30 && mergedHero.classType === null) {
-      get().assignClass();
+      get().proposeClassChoice();
     }
 
     // Phase 14 retroactive — 업데이트 전부터 Lv5+/Lv15+ 도달했던 영웅에게
@@ -663,17 +686,86 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // persist 할 필요 없음 — idleReward 는 transient.
   },
 
-  assignClass() {
+  assignClass(pickedClassType) {
     const state = get();
     if (state.hero.classType) return null; // 이미 분화됨
 
-    // Phase 5c-fix #6: DUNGEON_LIST 의 canonical 순서로 순회해 tie 에서
-    // 결정적 결과 보장. 이전엔 Object.entries 순서 의존 → 같은 완료 수
-    // 일 때 어느 class 가 뽑히는지 불확실. 이제 fitness > learning >
-    // mindfulness > nutrition > social > productivity > wellness > trending
-    // 순으로 우선.
+    let classType: ClassType | null = pickedClassType ?? null;
+    if (!classType) {
+      // Phase 5c-fix #6: DUNGEON_LIST 의 canonical 순서로 순회해 tie 에서
+      // 결정적 결과 보장. 이전엔 Object.entries 순서 의존 → 같은 완료 수
+      // 일 때 어느 class 가 뽑히는지 불확실. 이제 fitness > learning >
+      // mindfulness > nutrition > social > productivity > wellness > trending
+      // 순으로 우선.
+      const progress = useGameStore.getState().progress;
+      const completions =
+        progress.categoryCompletions ?? ({} as Record<Category, number>);
+      let bestCategory: DungeonId | null = null;
+      let bestCount = 0;
+      for (const dungeon of DUNGEON_LIST) {
+        const count = completions[dungeon.id as Category] ?? 0;
+        if (count > bestCount) {
+          bestCategory = dungeon.id;
+          bestCount = count;
+        }
+      }
+      // 완료 기록 전혀 없으면 nothing — 모든 카테고리 0
+      if (!bestCategory || bestCount === 0) return null;
+      classType = CLASS_BY_DUNGEON[bestCategory] ?? null;
+    }
+    if (!classType) return null;
+
+    // Phase 12d — 전직 시 해당 클래스의 T1 스킬 자동 해금.
+    // Bug 2026-04 — 전직 시 novice 스킬 (초급힐링/초급집중/초급방어) 을 포함해
+    //   learnedSkills 를 완전 초기화. 이전엔 기존 배열이 merge 되어 novice 스킬이
+    //   전직 후에도 SkillBar 에 계속 노출됨 → 유저 피드백: "전직해도 이전 스킬이
+    //   그대로 쓰임".  노비스 단계는 전직과 함께 완전히 종료.
+    const t1Skill = CLASS_SKILL_TREES[classType].find((s) => s.tier === 1);
+    const learnedSkills = t1Skill ? [t1Skill.id] : [];
+    const newHero = {
+      ...state.hero,
+      classType,
+      learnedSkills,
+      skillPoints: state.hero.skillPoints ?? 0,
+    };
+    // 진행 중 세션이 있으면 session.hero snapshot 도 동기화 — 전직 직후
+    //   시작된 배틀에서 novice 스킬이 여전히 보이는 회귀 방지.
+    const prevSession = state.currentSession;
+    const newSession = prevSession
+      ? {
+          ...prevSession,
+          hero: {
+            ...prevSession.hero,
+            classType,
+            learnedSkills: [...learnedSkills],
+          },
+        }
+      : prevSession;
+    set({
+      hero: newHero,
+      currentSession: newSession,
+      pendingClassAwaken: classType,
+    });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({
+        ...state,
+        hero: newHero,
+        currentSession: newSession,
+      }),
+    );
+    return classType;
+  },
+
+  proposeClassChoice() {
+    const state = get();
+    if (state.hero.classType) return null; // 이미 분화됨 → proposal 불필요
+    if (state.pendingClassChoice) return state.pendingClassChoice.recommended;
+
+    // 추천 classType = 가장 많이 완료한 카테고리 (기존 assignClass 로직과 동일).
     const progress = useGameStore.getState().progress;
-    const completions = progress.categoryCompletions ?? ({} as Record<Category, number>);
+    const completions =
+      progress.categoryCompletions ?? ({} as Record<Category, number>);
     let bestCategory: DungeonId | null = null;
     let bestCount = 0;
     for (const dungeon of DUNGEON_LIST) {
@@ -683,24 +775,24 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         bestCount = count;
       }
     }
-    // 완료 기록 전혀 없으면 nothing — 모든 카테고리 0
     if (!bestCategory || bestCount === 0) return null;
+    const recommended = CLASS_BY_DUNGEON[bestCategory];
+    if (!recommended) return null;
 
-    const classType = CLASS_BY_DUNGEON[bestCategory];
-    if (!classType) return null;
+    set({ pendingClassChoice: { recommended } });
+    // 영속 필요 없음 — 다음 init 에서 heroLevel>=30 & classType null 이면 재제안
+    // (init 안전망 경로가 proposeClassChoice 로 라우팅되므로 natural restore).
+    return recommended;
+  },
 
-    // Phase 12d — 전직 시 해당 클래스의 T1 스킬 자동 해금.
-    const t1Skill = CLASS_SKILL_TREES[classType].find((s) => s.tier === 1);
-    const learnedSkills = t1Skill ? [t1Skill.id] : [];
-    const newHero = {
-      ...state.hero,
-      classType,
-      learnedSkills,
-      skillPoints: state.hero.skillPoints ?? 0,
-    };
-    set({ hero: newHero, pendingClassAwaken: classType });
-    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
-    return classType;
+  confirmClassChoice(classType: ClassType) {
+    const state = get();
+    if (state.hero.classType) return; // 이미 분화 — 중복 확정 방지
+    if (!state.pendingClassChoice) return; // modal 띄운 적 없는데 호출됨 → no-op
+    // pendingClassChoice 를 먼저 null 로 내려두면 이후 assignClass 가 실패해도
+    // modal 이 무한 재표출되지 않음. 실패 시 재제안은 init/레벨업 경로가 담당.
+    set({ pendingClassChoice: null });
+    get().assignClass(classType);
   },
 
   /**
@@ -722,6 +814,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   grantNoviceSkills(currentLevel: number) {
     if (currentLevel < 1) return;
     const state = get();
+    // Bug 2026-04 — 전직 이후엔 novice 단계 종료. classType 이 세팅된 영웅은
+    //   레벨업 훅/초기화/소급 호출 경로 모두에서 novice 스킬 재지급을 막는다.
+    //   이 가드가 없으면 `assignClass()` 가 learnedSkills 를 비워도 다음 init
+    //   (또는 novice 지급 레벨 재진입) 에서 novice_heal 등이 다시 추가되어
+    //   전직 후에도 초급힐링이 계속 쓸 수 있는 회귀 발생.
+    if (state.hero.classType) return;
     const learned = state.hero.learnedSkills ?? [];
     const toAdd = NOVICE_SKILLS.filter(
       (sk) => currentLevel >= sk.requiredLevel && !learned.includes(sk.id),
@@ -1646,6 +1744,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       weeklyVariant: undefined,
       idleReward: null,
       pendingClassAwaken: null,
+      pendingClassChoice: null,
       schemaVersion: CURRENT_SCHEMA_VERSION,
       isLoaded: false,
     });

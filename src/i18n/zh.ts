@@ -1141,6 +1141,16 @@ const zh: Record<DictKey, string> = {
   "uphero.class.awakenSubtitle": "英雄找到了自己的道路",
   "uphero.class.toCamp": "返回营地",
 
+  // === Class choice modal (Bug 2026-04) ===
+  "uphero.classChoice.title": "选择道路",
+  "uphero.classChoice.subtitle": "英雄现在必须决定自己的方向",
+  "uphero.classChoice.recommendedBadge": "推荐",
+  "uphero.classChoice.recommendedHint": "与你最常完成的领域相匹配",
+  "uphero.classChoice.confirm": "走这条路",
+  "uphero.classChoice.dialogAria": "职业选择",
+  "uphero.classChoice.optionAria": "{name} — {passive}",
+  "uphero.classChoice.warning": "确认后不可撤销",
+
   // === Hero codex header ===
   "uphero.codex.back": "返回",
   "uphero.codex.title": "图鉴",

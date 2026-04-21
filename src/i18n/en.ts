@@ -1141,6 +1141,16 @@ const en: Record<DictKey, string> = {
   "uphero.class.awakenSubtitle": "The hero has found their path.",
   "uphero.class.toCamp": "Back to Camp",
 
+  // === Class choice modal (Bug 2026-04) ===
+  "uphero.classChoice.title": "Choose Your Path",
+  "uphero.classChoice.subtitle": "The hero must now decide their own way",
+  "uphero.classChoice.recommendedBadge": "Recommended",
+  "uphero.classChoice.recommendedHint": "Matches the category you've completed most",
+  "uphero.classChoice.confirm": "Walk this path",
+  "uphero.classChoice.dialogAria": "Class selection",
+  "uphero.classChoice.optionAria": "{name} — {passive}",
+  "uphero.classChoice.warning": "This cannot be undone after confirming",
+
   // === Hero codex header ===
   "uphero.codex.back": "Back",
   "uphero.codex.title": "Codex",

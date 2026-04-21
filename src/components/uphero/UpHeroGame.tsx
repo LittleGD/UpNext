@@ -16,6 +16,7 @@ import DungeonView from "./DungeonView";
 import SessionResultModal from "./SessionResultModal";
 import IdleRewardToast from "./IdleRewardToast";
 import ClassAwakenModal from "./ClassAwakenModal";
+import ClassChoiceModal from "./ClassChoiceModal";
 import UpHeroLevelUpOverlay from "./UpHeroLevelUpOverlay";
 import { GB } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -30,7 +31,8 @@ export default function UpHeroGame() {
   const sessionStatus = useUpHeroStore((s) => s.currentSession?.status);
   const gameLoaded = useGameStore((s) => s.isLoaded);
   const heroClassType = useUpHeroStore((s) => s.hero.classType);
-  const assignClass = useUpHeroStore((s) => s.assignClass);
+  const pendingClassChoice = useUpHeroStore((s) => s.pendingClassChoice);
+  const proposeClassChoice = useUpHeroStore((s) => s.proposeClassChoice);
   const gameLevel = useGameStore((s) => s.progress.level);
   const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
   const heroLevel = getEffectiveHeroLevel(gameLevel, heroStartLevel);
@@ -44,12 +46,22 @@ export default function UpHeroGame() {
   // 수 있어서 heroLevel=1 로 safety path 가 발동 안 함. 이후 두 store 모두
   // load 되고 heroLevel>=30 인데 classType 이 여전히 null 이면 여기서 재시도.
   // Phase 9d: 챌린지 레벨이 아닌 영웅 레벨 기준.
+  // Bug 2026-04: assignClass 직접 호출 → proposeClassChoice 로 교체. 이미
+  //   pendingClassChoice 가 있으면 중복 제안하지 않음 (store 에서도 guard).
   useEffect(() => {
     if (!isLoaded || !gameLoaded) return;
     if (heroClassType !== null) return;
     if (heroLevel < 30) return;
-    assignClass();
-  }, [isLoaded, gameLoaded, heroClassType, heroLevel, assignClass]);
+    if (pendingClassChoice) return;
+    proposeClassChoice();
+  }, [
+    isLoaded,
+    gameLoaded,
+    heroClassType,
+    heroLevel,
+    pendingClassChoice,
+    proposeClassChoice,
+  ]);
 
   if (!isLoaded || !gameLoaded) {
     return (
@@ -74,7 +86,9 @@ export default function UpHeroGame() {
       {sessionStatus === "completed" && <SessionResultModal />}
       {/* Phase 5b.1 — 앱 재진입 시 idle accrual 토스트. 상단 배너로 표시. */}
       <IdleRewardToast />
-      {/* Phase 5c.3 — Lv 30 도달 시 class 분화 풀스크린 연출. */}
+      {/* Bug 2026-04 — Lv 30 도달 시 8개 직업 중 선택 (추천 pre-select). */}
+      <ClassChoiceModal />
+      {/* Phase 5c.3 — 선택 확정 후 class 분화 풀스크린 연출. */}
       <ClassAwakenModal />
       {/* Phase 15 — 챌린지 레벨업 시 전역 축하 오버레이. */}
       <UpHeroLevelUpOverlay />

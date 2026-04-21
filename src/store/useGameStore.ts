@@ -570,14 +570,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
-    // Phase 5c.1: Lv 30 도달 시 영웅 class 자동 분화
+    // Phase 5c.1: Lv 30 도달 시 영웅 class 분화.
+    // Bug 2026-04 — 자동 할당 → "추천 + 선택" UX 로 변경. proposeClassChoice 가
+    //   pendingClassChoice 를 세팅하면 ClassChoiceModal 이 열리고, 유저가 8개
+    //   중 하나를 고르면 confirmClassChoice 로 실제 분화가 이뤄진다.
     // 이전 레벨 < 30 & 새 레벨 >= 30 인 edge 에서만 시도.
     if (prevLevel < 30 && updatedProgress.level >= 30) {
       try {
-        useUpHeroStore.getState().assignClass();
+        useUpHeroStore.getState().proposeClassChoice();
       } catch (e) {
         if (process.env.NODE_ENV !== "production") {
-          console.warn("[useGameStore] assignClass failed:", e);
+          console.warn("[useGameStore] proposeClassChoice failed:", e);
         }
       }
     }

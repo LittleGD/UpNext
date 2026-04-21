@@ -1140,6 +1140,16 @@ const ko = {
   "uphero.class.awakenSubtitle": "영웅이 길을 찾았다",
   "uphero.class.toCamp": "캠프로",
 
+  // === Class choice modal (Bug 2026-04) ===
+  "uphero.classChoice.title": "길을 선택하라",
+  "uphero.classChoice.subtitle": "영웅은 이제 자신의 길을 정해야 한다",
+  "uphero.classChoice.recommendedBadge": "추천",
+  "uphero.classChoice.recommendedHint": "지금까지 가장 많이 완료한 분야에 어울리는 길",
+  "uphero.classChoice.confirm": "이 길로 간다",
+  "uphero.classChoice.dialogAria": "전직 클래스 선택",
+  "uphero.classChoice.optionAria": "{name} — {passive}",
+  "uphero.classChoice.warning": "전직 후에는 되돌릴 수 없다",
+
   // === Hero codex header ===
   "uphero.codex.back": "뒤로",
   "uphero.codex.title": "도감",

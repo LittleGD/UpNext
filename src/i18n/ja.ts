@@ -1141,6 +1141,16 @@ const ja: Record<DictKey, string> = {
   "uphero.class.awakenSubtitle": "勇者が道を見出す",
   "uphero.class.toCamp": "キャンプへ",
 
+  // === Class choice modal (Bug 2026-04) ===
+  "uphero.classChoice.title": "道を選べ",
+  "uphero.classChoice.subtitle": "勇者は今、自らの道を決めねばならない",
+  "uphero.classChoice.recommendedBadge": "おすすめ",
+  "uphero.classChoice.recommendedHint": "これまで最も完了した分野に合う道",
+  "uphero.classChoice.confirm": "この道を行く",
+  "uphero.classChoice.dialogAria": "クラス選択",
+  "uphero.classChoice.optionAria": "{name} — {passive}",
+  "uphero.classChoice.warning": "確定後は戻せない",
+
   // === Hero codex header ===
   "uphero.codex.back": "戻る",
   "uphero.codex.title": "図鑑",
