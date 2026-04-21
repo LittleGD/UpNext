@@ -44,6 +44,11 @@ interface Pt {
  *   의 toolbar state 변경 같은 무관 re-render 로 Canvas effect 재실행 방지. props
  *   모두 primitive / stable callback 이라 shallow compare 충분.
  */
+interface Props2 extends Props {
+  /** 지우개 모드 — true 면 globalCompositeOperation = "destination-out" */
+  eraseMode?: boolean;
+}
+
 function SignatureCanvasImpl({
   width,
   height,
@@ -52,17 +57,25 @@ function SignatureCanvasImpl({
   initialDataUrl,
   inkColor = "rgba(22,18,14,0.92)",
   widthMultiplier = 1,
-}: Props) {
+  eraseMode = false,
+}: Props2) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
   const points = useRef<Pt[]>([]);
   const [hasStrokes, setHasStrokes] = useState(false);
+  // 유저 피드백 #2 — 멀티터치 (pinch/rotate) 진행 중엔 그리기 중단.
+  //   SignatureCanvas 는 폴라로이드 전체에 pointer-events 로 깔려있어, 스티커
+  //   변형하려고 두 손가락 pinch 할 때 두 번째 손가락의 pointerdown 이 캔버스로
+  //   들어와 의도치 않은 선이 그려지던 버그. active pointer 수를 추적.
+  const activePointersRef = useRef<Set<number>>(new Set());
   // ink color / width multiplier 를 ref 로도 보관 — useCallback closure 에서 최신 값 참조
   const inkColorRef = useRef(inkColor);
   const widthMultRef = useRef(widthMultiplier);
+  const eraseModeRef = useRef(eraseMode);
   useEffect(() => { inkColorRef.current = inkColor; }, [inkColor]);
   useEffect(() => { widthMultRef.current = widthMultiplier; }, [widthMultiplier]);
+  useEffect(() => { eraseModeRef.current = eraseMode; }, [eraseMode]);
 
   const getPos = useCallback((e: PointerEvent | React.PointerEvent): Pt => {
     const canvas = canvasRef.current!;
@@ -106,16 +119,27 @@ function SignatureCanvasImpl({
 
   // 흰 halo 와 함께 stroke — 어두운 사진 배경에서도 잉크 보이게.
   // canvas shadow 는 stroke 바깥 테두리에 약한 흰색 글로우 추가. reset 필수.
+  // 지우개 모드: globalCompositeOperation "destination-out" 으로 기존 픽셀 제거.
+  //   halo(흰 shadow) 는 그리기 전용이므로 지우개 때는 비활성.
   const applyHaloAndStroke = useCallback((ctx: CanvasRenderingContext2D, width: number) => {
-    ctx.shadowColor = "rgba(255,255,255,0.55)";
-    ctx.shadowBlur = 1.6;
-    ctx.strokeStyle = inkColorRef.current;
-    ctx.lineWidth = width;
+    const erasing = eraseModeRef.current;
+    const prevComposite = ctx.globalCompositeOperation;
+    if (erasing) {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.strokeStyle = "rgba(0,0,0,1)"; // alpha 만 중요
+      ctx.lineWidth = Math.max(8, width * 4); // 지우개는 더 크게
+    } else {
+      ctx.shadowColor = "rgba(255,255,255,0.55)";
+      ctx.shadowBlur = 1.6;
+      ctx.strokeStyle = inkColorRef.current;
+      ctx.lineWidth = width;
+    }
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.stroke();
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
+    ctx.globalCompositeOperation = prevComposite;
   }, []);
 
   // Catmull-Rom 보간으로 부드러운 베지어 곡선 그리기.
@@ -154,6 +178,14 @@ function SignatureCanvasImpl({
   );
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // 유저 피드백 #2 — 멀티터치 방지. 두 번째 손가락 진입 시점엔 그리기 중단 +
+    //   이미 그려진 스트로크를 취소 (지금까지 points 버리고 commit 안함).
+    activePointersRef.current.add(e.pointerId);
+    if (activePointersRef.current.size >= 2) {
+      isDrawing.current = false;
+      points.current = [];
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     const canvas = canvasRef.current;
@@ -165,6 +197,8 @@ function SignatureCanvasImpl({
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDrawing.current) return;
+    // 멀티터치 중엔 move 무시
+    if (activePointersRef.current.size >= 2) return;
     e.stopPropagation();
 
     const pt = getPos(e);
@@ -181,7 +215,8 @@ function SignatureCanvasImpl({
     }
   }, [getPos, drawCatmullRom, drawSimpleSegment]);
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    activePointersRef.current.delete(e.pointerId);
     if (!isDrawing.current) return;
     isDrawing.current = false;
     // 마지막 1~2개 포인트의 tail 마무리 (4개 미만이라 그려지지 않은 경우)

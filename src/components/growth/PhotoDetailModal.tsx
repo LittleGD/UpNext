@@ -68,7 +68,26 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
   const [editedStickers, setEditedStickers] = useState<Sticker[]>(meta.stickers ?? []);
   const [editPenColor, setEditPenColor] = useState<string>(INK_COLORS[0]);
   const [editPenWidth, setEditPenWidth] = useState<number>(1.0);
+  // 유저 피드백 #4 — Edit 모드 지우개 토글.
+  const [editEraseMode, setEditEraseMode] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  // 유저 피드백 #6 — 공유 결과 토스트. success / saved (download fallback) /
+  //   cancelled / failed 4종. 2s 후 자동 해제.
+  const [shareToast, setShareToast] = useState<
+    { kind: "success" | "saved" | "cancelled" | "failed"; msg: string } | null
+  >(null);
+  const shareToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showShareToast = useCallback(
+    (kind: "success" | "saved" | "cancelled" | "failed", msg: string) => {
+      if (shareToastTimerRef.current) clearTimeout(shareToastTimerRef.current);
+      setShareToast({ kind, msg });
+      shareToastTimerRef.current = setTimeout(() => setShareToast(null), 2000);
+    },
+    [],
+  );
+  useEffect(() => () => {
+    if (shareToastTimerRef.current) clearTimeout(shareToastTimerRef.current);
+  }, []);
 
   // 메모 — 뒷면에서 편집 가능 (debounced auto-save)
   const [memoDraft, setMemoDraft] = useState(meta.memo);
@@ -220,11 +239,26 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
         timestamp: meta.timestamp,
         stickers: meta.stickers,
       });
-      await sharePolaroid(blob, `polaroid-${meta.date}.png`);
+      // 유저 피드백 #6 — 공유 결과에 따라 토스트.
+      //   - shared+share: "공유 완료"
+      //   - shared+download: "이미지가 저장되었어요"
+      //   - !shared+share (AbortError): "공유 취소"
+      const result = await sharePolaroid(blob, `polaroid-${meta.date}.png`);
+      if (result.shared) {
+        if (result.method === "share") {
+          showShareToast("success", t("photo.detail.share.success"));
+        } else {
+          showShareToast("saved", t("photo.detail.share.saved"));
+        }
+      } else {
+        // 유저가 네이티브 share sheet 에서 취소
+        showShareToast("cancelled", t("photo.detail.share.cancelled"));
+      }
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
         console.error("[PhotoDetailModal] share failed", err);
       }
+      showShareToast("failed", t("photo.detail.share.failed"));
     } finally {
       setIsSharing(false);
     }
@@ -236,6 +270,8 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
     meta.date,
     isSharing,
     play,
+    t,
+    showShareToast,
   ]);
 
   // 마운트 후에만 portal 렌더 — SSR safe
@@ -296,6 +332,7 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                     initialDataUrl={signatureUrl}
                     inkColor={editPenColor}
                     widthMultiplier={editPenWidth}
+                    eraseMode={editEraseMode}
                     onSignatureChange={setEditedSignature}
                     className="w-full h-full"
                   />
@@ -312,6 +349,8 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
                 onColorChange={setEditPenColor}
                 selectedWidth={editPenWidth}
                 onWidthChange={setEditPenWidth}
+                eraseMode={editEraseMode}
+                onEraseToggle={setEditEraseMode}
                 onAddSticker={handleAddSticker}
               />
               {/* 유저 피드백 #4 — 스티커 hint */}
@@ -482,6 +521,36 @@ export default function PhotoDetailModal({ meta, onClose }: Props) {
           />
         </motion.div>
       </motion.div>
+      {/* 유저 피드백 #6 — 공유 결과 토스트. 2초 auto-hide. aria-live=polite 로
+           스크린리더도 읽어줌. 색상은 kind 로 구분: success/saved = 성공,
+           cancelled = 중립, failed = 경고. */}
+      <AnimatePresence>
+        {shareToast && (
+          <motion.div
+            key={shareToast.kind + shareToast.msg}
+            role="status"
+            aria-live="polite"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16, transition: { duration: 0.12 } }}
+            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+            className="fixed left-1/2 -translate-x-1/2 z-[110] px-4 py-2.5 rounded-xl typo-caption pointer-events-none"
+            style={{
+              bottom: "calc(env(safe-area-inset-bottom) + 24px)",
+              background:
+                shareToast.kind === "failed"
+                  ? "rgba(180, 60, 60, 0.95)"
+                  : "rgba(30, 30, 30, 0.92)",
+              color: "white",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+            }}
+          >
+            {shareToast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* 키보드 액세서리 바 — memo 편집 중에만 노출. 확인 = 현재 값 유지하며 blur
            (debounce 가 최종 저장 처리); 취소 = snapshot 으로 rollback 후 blur. */}
       <KeyboardAccessoryBar

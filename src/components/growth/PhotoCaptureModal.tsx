@@ -41,6 +41,8 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   // capture 단계의 데코레이션 상태 — 사인 잉크 색 + 굵기 + 스티커 배열
   const [penColor, setPenColor] = useState<string>(INK_COLORS[0]);
   const [penWidth, setPenWidth] = useState<number>(1.0); // multiplier
+  // 유저 피드백 #4 — 지우개 모드. on 일 때 pen stroke 이 erase 로 동작.
+  const [eraseMode, setEraseMode] = useState(false);
   const [stickers, setStickers] = useState<Sticker[]>([]);
   // Done 후 디테일 뷰 (savePhoto 가 반환한 meta 를 set 하면 PhotoDetailModal 렌더)
   const [savedMeta, setSavedMeta] = useState<PhotoMeta | null>(null);
@@ -1384,6 +1386,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                     height={363}
                     inkColor={penColor}
                     widthMultiplier={penWidth}
+                    eraseMode={eraseMode}
                     onSignatureChange={setSignatureData}
                     className="w-full h-full"
                   />
@@ -1428,6 +1431,8 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
                 onColorChange={setPenColor}
                 selectedWidth={penWidth}
                 onWidthChange={setPenWidth}
+                eraseMode={eraseMode}
+                onEraseToggle={setEraseMode}
                 onAddSticker={handleAddSticker}
               />
 

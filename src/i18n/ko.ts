@@ -24,6 +24,7 @@ const ko = {
   "a11y.penColor": "펜 색상 {color}",
   "a11y.penWidth": "펜 굵기 {label}",
   "a11y.addSticker": "{id} 스티커 추가",
+  "a11y.eraser": "지우개",
   "a11y.flashOn": "플래시 켜짐",
   "a11y.flashOff": "플래시 꺼짐",
   "a11y.switchToFront": "전면 카메라로 전환",
@@ -35,6 +36,9 @@ const ko = {
   "a11y.minigame.skillCard": "스킬 카드",
   "a11y.minigame.curseCard": "저주 카드",
   "a11y.minigame.exitRun": "게임 나가기",
+  "a11y.minigame.board": "메모리 그리드",
+  "a11y.minigame.chances": "남은 기회 {left}개 / 총 {total}개",
+  "a11y.minigame.cardZoom": "카드 상세 보기",
 
   // === header ===
   "header.level": "Lv.{level}",
@@ -1027,6 +1031,10 @@ const ko = {
   "photo.detail.action.sharing": "...",
   "photo.detail.action.delete": "삭제",
   "photo.detail.action.close": "닫기",
+  "photo.detail.share.success": "공유 완료",
+  "photo.detail.share.saved": "이미지가 저장되었어요",
+  "photo.detail.share.failed": "공유에 실패했어요",
+  "photo.detail.share.cancelled": "공유 취소",
   "photo.detail.deleteConfirm.title": "사진을 삭제할까요?",
   "photo.detail.deleteConfirm.body": "복구할 수 없어요. 바인딩된 부적도 함께 정리됩니다.",
   "photo.detail.deleteConfirm.cancel": "취소",

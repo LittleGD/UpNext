@@ -12,7 +12,14 @@ import { fadeInUp, staggerContainer } from "@/lib/motion";
 
 /**
  * 미니게임 홈 — phase="idle" 일 때 표시되는 랜딩 화면.
- * 티켓 카운트, Play 버튼, 통계, 간단한 규칙 설명.
+ *
+ * Phase 14 design review 변경:
+ * - Play CTA 를 티켓 카운트 카드 안의 사이드 버튼에서 분리 — 전체폭 hero CTA 로
+ *   승격. 첫 방문자 눈이 "내가 여기서 뭘 해야 하지?" 에 즉시 답하도록 한다.
+ * - "How to play" 섹션의 `h3 + typo-caption` 미스매치 수정 → `typo-title` 로
+ *   hierarchy 복구. 헤더는 헤더 크기여야 한다.
+ * - `transition-all` 범위 제한 → `transition-[background-color,filter]`.
+ * - press-affordance 유틸로 버튼 active 상태 일관화.
  */
 export default function MinigameHome() {
   const { t } = useTranslation();
@@ -38,7 +45,7 @@ export default function MinigameHome() {
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
-      className="px-4 py-8 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg mx-auto flex flex-col gap-6"
+      className="px-4 sm:px-6 py-8 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg mx-auto flex flex-col gap-6"
     >
       {/* 타이틀 */}
       <motion.div variants={fadeInUp} className="text-center">
@@ -46,36 +53,41 @@ export default function MinigameHome() {
         <p className="typo-body text-text-secondary">{t("minigame.subtitle")}</p>
       </motion.div>
 
-      {/* 티켓 카운터 */}
+      {/* 티켓 카운터 — 이제 read-only 정보 카드 */}
       <motion.div
         variants={fadeInUp}
-        className="bg-bg-surface rounded-xl p-5 grid-border flex items-center justify-between"
+        className="bg-bg-surface rounded-xl p-5 grid-border flex items-center gap-3"
       >
-        <div className="flex items-center gap-3">
-          <div className="text-accent-secondary">
-            <PixelIcon name="Coins" size={32} />
-          </div>
-          <div>
-            <p className="typo-caption text-text-tertiary">{t("minigame.tickets.label")}</p>
-            <p className="typo-title text-text-primary">
-              {t("minigame.tickets.count", { count: tickets })}
-              <span className="typo-caption text-text-tertiary ml-1">/ {MINIGAME_TICKET_CAP}</span>
-            </p>
-          </div>
+        <div className="text-accent-secondary">
+          <PixelIcon name="Coins" size={32} />
         </div>
-        <motion.button
-          onClick={handlePlay}
-          whileTap={canPlay ? { scale: 0.95 } : undefined}
-          disabled={!canPlay}
-          className={`px-6 py-3 rounded-lg typo-body transition-all ${
-            canPlay
-              ? "bg-accent text-bg-primary hover:brightness-110"
-              : "bg-bg-elevated text-text-tertiary cursor-not-allowed"
-          }`}
-        >
-          {t("minigame.play")}
-        </motion.button>
+        <div className="flex-1">
+          <p className="typo-caption text-text-tertiary">{t("minigame.tickets.label")}</p>
+          <p className="typo-title text-text-primary">
+            {t("minigame.tickets.count", { count: tickets })}
+            <span className="typo-caption text-text-tertiary ml-1">
+              / {MINIGAME_TICKET_CAP}
+            </span>
+          </p>
+        </div>
       </motion.div>
+
+      {/* Play hero CTA — 전체폭, 48px 높이. 첫 방문자 eye-catch */}
+      <motion.button
+        variants={fadeInUp}
+        onClick={handlePlay}
+        whileTap={canPlay ? { scale: 0.97 } : undefined}
+        disabled={!canPlay}
+        aria-disabled={!canPlay}
+        className={`press-affordance w-full min-h-[52px] rounded-xl typo-title font-semibold flex items-center justify-center gap-2 transition-[background-color,filter,color] duration-200 ease-out ${
+          canPlay
+            ? "bg-accent text-bg-primary hover:brightness-110"
+            : "bg-bg-elevated text-text-tertiary cursor-not-allowed"
+        }`}
+      >
+        <PixelIcon name="Play" size={20} />
+        <span>{t("minigame.play")}</span>
+      </motion.button>
 
       {tickets === 0 && (
         <motion.div
@@ -94,12 +106,12 @@ export default function MinigameHome() {
             </p>
           </div>
           <motion.button
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => {
               play("select");
               router.push("/");
             }}
-            className="mt-1 px-5 py-2 rounded-lg bg-accent text-bg-primary typo-caption"
+            className="press-affordance mt-1 px-5 min-h-[44px] rounded-lg bg-accent text-bg-primary typo-caption transition-[background-color,filter] duration-200 ease-out hover:brightness-110"
           >
             {t("minigame.tickets.goToChallenges")}
           </motion.button>
@@ -118,9 +130,11 @@ export default function MinigameHome() {
         </div>
       </motion.div>
 
-      {/* 플레이 방법 */}
+      {/* 플레이 방법 — h3 ≠ typo-caption 교정. typo-title 로 헤더 역할 복구 */}
       <motion.div variants={fadeInUp} className="bg-bg-surface rounded-lg p-4 grid-border">
-        <h3 className="typo-caption text-text-primary mb-3">{t("minigame.howToPlay.heading")}</h3>
+        <h3 className="typo-title text-text-primary mb-3">
+          {t("minigame.howToPlay.heading")}
+        </h3>
         <ul className="space-y-2">
           {[
             t("minigame.howToPlay.line1"),
@@ -128,7 +142,9 @@ export default function MinigameHome() {
             t("minigame.howToPlay.line3"),
           ].map((line, i) => (
             <li key={i} className="typo-caption text-text-secondary flex gap-2">
-              <span className="text-accent flex-shrink-0">•</span>
+              <span className="text-accent flex-shrink-0" aria-hidden="true">
+                •
+              </span>
               <span>{line}</span>
             </li>
           ))}

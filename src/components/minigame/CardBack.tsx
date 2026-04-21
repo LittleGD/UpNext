@@ -68,7 +68,7 @@ export default function CardBack({
       {/* 중앙 마크 */}
       {!showHint && !peekHinted && (
         <div className="absolute inset-0 flex items-center justify-center opacity-30">
-          <PixelIcon name="Card" size={Math.max(16, sizePx * 0.4)} color="#ffffff" />
+          <PixelIcon name="Card" size={Math.max(16, sizePx * 0.4)} color="var(--text-primary)" />
         </div>
       )}
 
@@ -81,7 +81,7 @@ export default function CardBack({
           transition={{ duration: 0.3 }}
           className="absolute inset-0 flex items-center justify-center"
         >
-          <PixelIcon name={hintIcon} size={Math.max(20, sizePx * 0.5)} color="#9BF0E1" />
+          <PixelIcon name={hintIcon} size={Math.max(20, sizePx * 0.5)} color="var(--color-skill)" />
         </motion.div>
       )}
 

@@ -4,8 +4,15 @@ import { motion } from "framer-motion";
 import { useMinigameStore } from "@/store/useMinigameStore";
 import { useTranslation } from "@/hooks/useTranslation";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
-import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
+import RarityTexture from "@/components/cards/RarityTexture";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
+
+const rarityGlowVar = (rarity: string) => {
+  if (rarity === "legend") return "var(--glow-rarity-legend)";
+  if (rarity === "unique") return "var(--glow-rarity-unique)";
+  if (rarity === "rare") return "var(--glow-rarity-rare)";
+  return "var(--glow-rarity-common)";
+};
 
 export default function MinigameRewardDraft() {
   const { t, language } = useTranslation();
@@ -41,12 +48,13 @@ export default function MinigameRewardDraft() {
               key={reward.id}
               whileTap={{ scale: 0.97 }}
               onClick={() => pickReward(reward.id)}
-              className="text-left rounded-xl p-4 relative overflow-hidden"
+              className="press-affordance text-left rounded-xl p-4 relative overflow-hidden min-h-[72px] transition-[filter] duration-200 ease-out hover:brightness-110"
               style={{
                 background: "var(--bg-surface)",
                 border: `2px solid ${color}`,
-                boxShadow: rarityGlow(reward.tier),
+                boxShadow: rarityGlowVar(reward.tier),
               }}
+              aria-label={`${t(reward.nameKey as "minigame.title")} — ${rarityLabel(reward.tier, language)}`}
             >
               <RarityTexture rarity={reward.tier} borderRadius={12} />
               <div className="relative flex items-start justify-between gap-3">

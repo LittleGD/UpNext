@@ -152,8 +152,22 @@ export default function PolaroidFlip({ front, back, flipped: controlledFlipped, 
           touchAction: "pan-y", // 세로 스크롤은 허용
         }}
       >
-        {/* Front face */}
-        <div style={{ backfaceVisibility: "hidden" }}>{front}</div>
+        {/* Front face.
+             유저 피드백 #1 / #5 — iOS Safari 의 backface-visibility: hidden 는
+             시각적으론 뒤집힌 면을 숨겨도 pointer events / repaint 를 항상
+             차단하진 않음 → (1) 뒤집혀 있는데 textarea 탭이 먹통 (2) 앞면
+             스티커/사인이 메모 배경에 비침.
+             committed flip 상태 (isFlipped) 기준으로 inactive face 를
+             pointer-events: none + visibility: hidden 으로 이중 차단.
+             drag 중엔 양쪽 다 보이게 해서 3D 회전 중간 프레임 유지. */}
+        <div
+          style={{
+            backfaceVisibility: "hidden",
+            pointerEvents: isFlipped ? "none" : "auto",
+          }}
+        >
+          {front}
+        </div>
         {/* Back face — 동일 사이즈로 같은 축 회전 */}
         <div
           className="absolute inset-0"
@@ -161,6 +175,7 @@ export default function PolaroidFlip({ front, back, flipped: controlledFlipped, 
             backfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
             transformOrigin: "center center",
+            pointerEvents: isFlipped ? "auto" : "none",
           }}
         >
           {back}

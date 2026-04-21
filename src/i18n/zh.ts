@@ -26,6 +26,7 @@ const zh: Record<DictKey, string> = {
   "a11y.penColor": "笔颜色 {color}",
   "a11y.penWidth": "笔宽 {label}",
   "a11y.addSticker": "添加 {id} 贴纸",
+  "a11y.eraser": "橡皮擦",
   "a11y.flashOn": "闪光灯开启",
   "a11y.flashOff": "闪光灯关闭",
   "a11y.switchToFront": "切换到前置相机",
@@ -37,6 +38,9 @@ const zh: Record<DictKey, string> = {
   "a11y.minigame.skillCard": "技能卡",
   "a11y.minigame.curseCard": "诅咒卡",
   "a11y.minigame.exitRun": "退出游戏",
+  "a11y.minigame.board": "记忆网格",
+  "a11y.minigame.chances": "剩余机会 {left} / {total}",
+  "a11y.minigame.cardZoom": "卡片预览",
 
   // === header ===
   "header.level": "Lv.{level}",
@@ -1029,6 +1033,10 @@ const zh: Record<DictKey, string> = {
   "photo.detail.action.sharing": "...",
   "photo.detail.action.delete": "删除",
   "photo.detail.action.close": "关闭",
+  "photo.detail.share.success": "已分享",
+  "photo.detail.share.saved": "图片已保存",
+  "photo.detail.share.failed": "分享失败",
+  "photo.detail.share.cancelled": "取消分享",
   "photo.detail.deleteConfirm.title": "删除照片?",
   "photo.detail.deleteConfirm.body": "无法恢复。绑定的护符也会一并清理。",
   "photo.detail.deleteConfirm.cancel": "取消",

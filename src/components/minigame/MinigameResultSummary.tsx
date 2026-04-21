@@ -80,10 +80,11 @@ export default function MinigameResultSummary() {
         <button
           onClick={handlePlayAgain}
           disabled={!canPlayAgain}
-          className={`py-3 rounded-lg typo-body transition-all ${
+          aria-disabled={!canPlayAgain}
+          className={`press-affordance min-h-[48px] px-4 rounded-lg typo-body transition-[background-color,filter] duration-200 ease-out ${
             canPlayAgain
-              ? "bg-accent text-bg-primary"
-              : "bg-bg-elevated text-text-tertiary"
+              ? "bg-accent text-bg-primary hover:brightness-110"
+              : "bg-bg-elevated text-text-tertiary cursor-not-allowed"
           }`}
         >
           {t("minigame.summary.playAgain")}
@@ -91,7 +92,7 @@ export default function MinigameResultSummary() {
         </button>
         <button
           onClick={handleExit}
-          className="py-3 rounded-lg bg-bg-surface text-text-primary typo-body"
+          className="press-affordance min-h-[48px] px-4 rounded-lg bg-bg-surface text-text-primary typo-body transition-[background-color] duration-200 ease-out hover:brightness-110"
         >
           {t("minigame.summary.exit")}
         </button>

@@ -6,6 +6,7 @@ import Header from "@/components/layout/Header";
 import BottomNav from "@/components/layout/BottomNav";
 import SyncProvider from "@/components/providers/SyncProvider";
 import LanguageSync from "@/components/providers/LanguageSync";
+import MotionProvider from "@/components/providers/MotionProvider";
 import ClientEffects from "@/components/effects/ClientEffects";
 import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
 import { Analytics } from "@vercel/analytics/next";
@@ -80,12 +81,14 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-bg-primary font-sans antialiased">
         <ClientEffects />
         <ServiceWorkerRegistrar />
-        <SyncProvider>
-          <LanguageSync />
-          <Header />
-          <main className="relative z-[1] flex-1">{children}</main>
-          <BottomNav />
-        </SyncProvider>
+        <MotionProvider>
+          <SyncProvider>
+            <LanguageSync />
+            <Header />
+            <main className="relative z-[1] flex-1">{children}</main>
+            <BottomNav />
+          </SyncProvider>
+        </MotionProvider>
         <Analytics />
       </body>
     </html>

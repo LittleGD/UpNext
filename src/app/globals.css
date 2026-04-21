@@ -42,6 +42,35 @@
   /* Phase 13 design review — 공용 card-in 모션 easing 토큰 */
   --ease-gb-out: cubic-bezier(0.23, 1, 0.32, 1);
 
+  /* ─── Phase 14 design review — 이벤트연동 미니게임 토큰 레이어 ───
+     색(skill/curse/heart-empty) · elevation(rarity glow intensity map) ·
+     z-index scale 세 갈래를 공식화. 각 컴포넌트의 inline hex 를 걷어내기
+     위한 단일 진실원. */
+  --color-skill: #9BF0E1;
+  --color-skill-strong: #5ed1ba;
+  --color-curse: #F037A5;
+  --color-curse-strong: #a8226f;
+  --color-heart-active: #F037A5;
+  --color-heart-empty: #3a3a3a;
+
+  /* Rarity glow intensity map — common 은 무글로우, legend 로 갈수록
+     blur/알파가 단조증가. border 2px + box-shadow 0 0 {blur} {color}{alpha}.
+     알파는 33(20%)·40(25%)·4d(30%)로 고정 — 컴포넌트별로 0.5/0.6 들쑥날쑥
+     하던 것을 막기 위함. */
+  --glow-rarity-common: 0 0 0 transparent;
+  --glow-rarity-rare: 0 0 14px rgba(155, 240, 225, 0.28);
+  --glow-rarity-unique: 0 0 18px rgba(240, 55, 165, 0.32);
+  --glow-rarity-legend: 0 0 22px rgba(205, 245, 100, 0.38);
+
+  /* z-index scale — 매직 넘버 제거. Minigame HUD 가 toast/zoom/modal 위에
+     쌓이면 안 되므로 숫자는 작게 유지. */
+  --z-hud: 40;
+  --z-toast: 50;
+  --z-zoom: 55;
+  --z-modal: 60;
+  --z-exit-overlay: 65;
+  --z-run-zoom: 70;
+
   /* 폰트 — CSS variable 기반 (next/font에서 주입) */
   --font-display: var(--font-april16), sans-serif;
   --font-body: var(--font-april16), sans-serif;
@@ -152,6 +181,42 @@ textarea,
 /* 키보드가 아닌 클릭/터치 focus 에서는 ring 제거 */
 .daily-card-btn:focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ── 전역 focus-visible 기본 — 모든 <button>·<a>·role=button 에 자동 ──
+   키보드 유저가 현재 포커스된 요소를 식별 가능해야 함. daily-card-btn 처럼
+   컴포넌트마다 opt-in 하면 누락이 잦고, 이벤트 연동 미니게임처럼 버튼 밀도
+   높은 화면에서 포커스링이 아예 없는 회귀가 발생.
+   - ring 색: accent-cyan (다크 배경 대비 8:1). rarity/primary 버튼과도 충돌
+     안 함.
+   - offset 2px 로 rounded 경계 바깥에 떠 시각적 여유.
+   - pointer focus(클릭) 에서는 제거. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── 버튼 press feedback — motion.button 이 아닌 plain <button> 용 ──
+   `.press-affordance` 클래스 오픈. 모바일에서 hover:state 가 stuck highlight
+   를 남기는 문제를 피하기 위한 active scale. 150ms ease-out. */
+.press-affordance {
+  transition: transform 150ms var(--ease-gb-out);
+}
+.press-affordance:active {
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+  .press-affordance { transition: none; }
+  .press-affordance:active { transform: none; }
 }
 
 /* ============================================
@@ -919,5 +984,70 @@ html[lang="zh"] body {
 @media (prefers-reduced-motion: reduce) {
   .gb-card-in {
     animation: none;
+  }
+}
+
+/* ─── Minigame — 저주 카드 opacity pulse ─────────────────────────
+   정적 glow 세기로 "위험" 을 전달하려 하면 시각 언어가 빈곤. 저주 카드만
+   미묘한 opacity breathing 을 더해 스킬 카드와 motion 언어를 분리.
+   2s ease-in-out 느린 호흡 — 시각적 스팸 없이 "살아있는 위협" 인식. */
+@keyframes minigame-curse-breath {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+.minigame-curse-breath {
+  animation: minigame-curse-breath 2.4s ease-in-out infinite;
+}
+
+/* 빈 하트 — 색만으로 구분하지 않도록 사선 strike 추가.
+   Heart 아이콘 위에 absolute 로 2px 사선을 오버레이. 색약 사용자도
+   "쓰인 목숨" 임을 모양으로 식별 가능. */
+.minigame-heart-empty-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.minigame-heart-empty-wrap::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 50%;
+  height: 2px;
+  background: var(--text-tertiary);
+  transform: translateY(-50%) rotate(-22deg);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .minigame-curse-breath {
+    animation: none;
+    opacity: 0.92;
+  }
+}
+
+/* 유저 피드백 #3 — StickerLayer long-press progress ring.
+    @property 는 conic-gradient 의 percentage variable 을 animate 가능하게.
+    지원 안 되는 브라우저는 ring 이 즉시 100% 로 뜨고 0.5s 뒤 삭제 — 기능적으론
+    여전히 작동. */
+@property --p {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+.stickerlayer-longpress-ring {
+  animation: stickerlayer-longpress-ring-fill 500ms linear forwards;
+}
+
+@keyframes stickerlayer-longpress-ring-fill {
+  from { --p: 0%; }
+  to { --p: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stickerlayer-longpress-ring {
+    animation: none;
+    --p: 100%;
   }
 }

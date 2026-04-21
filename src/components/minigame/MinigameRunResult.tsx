@@ -6,8 +6,15 @@ import { useMinigameStore } from "@/store/useMinigameStore";
 import { useGameStore } from "@/store/useGameStore";
 import { useTranslation } from "@/hooks/useTranslation";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
-import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
+import RarityTexture from "@/components/cards/RarityTexture";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
+
+const rarityGlowVar = (rarity: string) => {
+  if (rarity === "legend") return "var(--glow-rarity-legend)";
+  if (rarity === "unique") return "var(--glow-rarity-unique)";
+  if (rarity === "rare") return "var(--glow-rarity-rare)";
+  return "var(--glow-rarity-common)";
+};
 import { CATEGORY_ICONS } from "@/components/icons";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { cardTitle } from "@/i18n";
@@ -90,7 +97,8 @@ export default function MinigameRunResult() {
         <motion.button
           variants={fadeInUp}
           onClick={() => pickRunReward([])}
-          className="px-6 py-3 rounded-lg bg-accent text-bg-primary typo-body"
+          whileTap={{ scale: 0.97 }}
+          className="press-affordance min-h-[48px] px-6 rounded-lg bg-accent text-bg-primary typo-body transition-[filter] duration-200 ease-out hover:brightness-110"
         >
           {t("minigame.summary.exit")}
         </motion.button>
@@ -127,16 +135,31 @@ export default function MinigameRunResult() {
             <motion.button
               key={tile.tileId}
               layoutId={`runresult-${tile.tileId}`}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => toggle(tile.tileId)}
-              className="relative aspect-[3/4] rounded-lg overflow-hidden"
+              aria-pressed={isSelected}
+              aria-label={`${cardTitle(tile.card, language)}${isSelected ? " — selected" : ""}`}
+              className="relative aspect-[3/4] rounded-lg overflow-hidden transition-[box-shadow,opacity] duration-200 ease-out"
               style={{
                 background: "var(--bg-surface)",
                 border: `2px solid ${isSelected ? color : "rgba(255,255,255,0.1)"}`,
-                boxShadow: isSelected ? rarityGlow(tile.card.rarity) : "none",
+                boxShadow: isSelected ? rarityGlowVar(tile.card.rarity) : "none",
                 opacity: isSelected ? 1 : 0.8,
               }}
             >
+              {/* 선택 체크 배지 — 색 + shape 이중화 (색약 대응) */}
+              {isSelected && (
+                <span
+                  className="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{
+                    background: color,
+                    color: "var(--bg-primary)",
+                  }}
+                  aria-hidden="true"
+                >
+                  <PixelIcon name="Check" size={12} />
+                </span>
+              )}
               <RarityTexture rarity={tile.card.rarity} borderRadius={8} />
               <div className="relative flex flex-col items-center justify-center h-full p-2 gap-1">
                 <PixelIcon
@@ -165,10 +188,11 @@ export default function MinigameRunResult() {
         <button
           onClick={confirm}
           disabled={selected.length === 0}
-          className={`w-full py-3 rounded-lg typo-body transition-all ${
+          aria-disabled={selected.length === 0}
+          className={`press-affordance w-full min-h-[48px] rounded-lg typo-body transition-[background-color,filter] duration-200 ease-out ${
             selected.length > 0
-              ? "bg-accent text-bg-primary"
-              : "bg-bg-elevated text-text-tertiary"
+              ? "bg-accent text-bg-primary hover:brightness-110"
+              : "bg-bg-elevated text-text-tertiary cursor-not-allowed"
           }`}
         >
           {t("common.confirm")} ({selected.length}/{maxPicks})
@@ -181,9 +205,12 @@ export default function MinigameRunResult() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-bg-primary/90 backdrop-blur-md px-8"
+            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            className="fixed inset-0 flex items-center justify-center bg-bg-primary/90 backdrop-blur-md px-8"
+            style={{ zIndex: "var(--z-run-zoom)" as unknown as number }}
             onClick={() => setZoomedTileId(null)}
+            role="dialog"
+            aria-modal="true"
           >
             <motion.div
               layoutId={`runresult-${zoomedTile.tileId}`}
@@ -192,7 +219,7 @@ export default function MinigameRunResult() {
               style={{
                 background: "var(--bg-surface)",
                 border: `2px solid ${RARITY_CONFIG[zoomedTile.card.rarity].color}`,
-                boxShadow: rarityGlow(zoomedTile.card.rarity),
+                boxShadow: rarityGlowVar(zoomedTile.card.rarity),
               }}
             >
               <RarityTexture rarity={zoomedTile.card.rarity} borderRadius={16} />
@@ -210,12 +237,13 @@ export default function MinigameRunResult() {
             <motion.button
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
+              exit={{ opacity: 0, y: 8, transition: { duration: 0.12 } }}
+              whileTap={{ scale: 0.97 }}
               onClick={(e) => {
                 e.stopPropagation();
                 deselectFromZoom(zoomedTile.tileId);
               }}
-              className="absolute bottom-[calc(env(safe-area-inset-bottom)+120px)] left-1/2 -translate-x-1/2 px-5 py-2 rounded-lg bg-bg-surface typo-caption text-text-primary grid-border"
+              className="press-affordance absolute bottom-[calc(env(safe-area-inset-bottom)+120px)] left-1/2 -translate-x-1/2 min-h-[44px] px-5 rounded-lg bg-bg-surface typo-caption text-text-primary grid-border"
             >
               {t("minigame.runResult.deselect")}
             </motion.button>

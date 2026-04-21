@@ -1,6 +1,7 @@
 "use client";
 
 import UpNextLogoMark from "./UpNextLogoMark";
+import PixelIcon from "@/components/icons/PixelIcon";
 import { useTranslation } from "@/hooks/useTranslation";
 
 /**
@@ -44,6 +45,9 @@ interface Props {
   onColorChange: (color: string) => void;
   selectedWidth: number; // multiplier (0.6, 1.0, 1.5)
   onWidthChange: (multiplier: number) => void;
+  /** 지우개 모드 토글 — 선택 시 pen stroke 이 지우개로 동작 */
+  eraseMode?: boolean;
+  onEraseToggle?: (next: boolean) => void;
   /** position 이 주어지면 드래그-앤-드롭 결과 (% 좌표), 없으면 탭 → 중앙 (50,50) */
   onAddSticker: (
     type: "emoji" | "image",
@@ -57,6 +61,8 @@ export default function DecorationToolbar({
   onColorChange,
   selectedWidth,
   onWidthChange,
+  eraseMode = false,
+  onEraseToggle,
   onAddSticker,
 }: Props) {
   const { t } = useTranslation();
@@ -183,6 +189,28 @@ export default function DecorationToolbar({
 
         {/* 세로 구분선 */}
         <div className="w-px h-5 bg-text-tertiary/15 mx-1" />
+
+        {/* 지우개 토글 — 유저 피드백 #4. 선택 시 pen stroke 이 지우개로 동작 */}
+        {onEraseToggle && (
+          <>
+            <button
+              onClick={() => onEraseToggle(!eraseMode)}
+              aria-label={t("a11y.eraser") || "Eraser"}
+              aria-pressed={eraseMode}
+              className="relative w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-transform after:absolute after:-inset-2 after:content-[''] after:rounded-full"
+              style={{
+                background: eraseMode ? "var(--accent-primary)" : "transparent",
+                color: eraseMode ? "var(--bg-primary)" : "var(--text-secondary)",
+                boxShadow: eraseMode
+                  ? undefined
+                  : "inset 0 0 0 1px rgba(255,255,255,0.18)",
+              }}
+            >
+              <PixelIcon name="MagicEdit" size={14} color="currentColor" />
+            </button>
+            <div className="w-px h-5 bg-text-tertiary/15 mx-1" />
+          </>
+        )}
 
         {/* 펜 굵기 토글 — dot 색은 항상 text-secondary (잉크 색 따라가면 검정 → 안 보임) */}
         <div className="flex items-center gap-1.5">

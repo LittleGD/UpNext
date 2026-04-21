@@ -26,6 +26,7 @@ const ja: Record<DictKey, string> = {
   "a11y.penColor": "ペン色 {color}",
   "a11y.penWidth": "ペン幅 {label}",
   "a11y.addSticker": "{id} ステッカー追加",
+  "a11y.eraser": "消しゴム",
   "a11y.flashOn": "フラッシュ オン",
   "a11y.flashOff": "フラッシュ オフ",
   "a11y.switchToFront": "フロントカメラに切替",
@@ -37,6 +38,9 @@ const ja: Record<DictKey, string> = {
   "a11y.minigame.skillCard": "スキルカード",
   "a11y.minigame.curseCard": "呪いカード",
   "a11y.minigame.exitRun": "ゲームを終了",
+  "a11y.minigame.board": "メモリーグリッド",
+  "a11y.minigame.chances": "残りチャンス {left} / {total}",
+  "a11y.minigame.cardZoom": "カードのプレビュー",
 
   // === header ===
   "header.level": "Lv.{level}",
@@ -1029,6 +1033,10 @@ const ja: Record<DictKey, string> = {
   "photo.detail.action.sharing": "...",
   "photo.detail.action.delete": "削除",
   "photo.detail.action.close": "閉じる",
+  "photo.detail.share.success": "共有しました",
+  "photo.detail.share.saved": "画像を保存しました",
+  "photo.detail.share.failed": "共有に失敗しました",
+  "photo.detail.share.cancelled": "共有をキャンセル",
   "photo.detail.deleteConfirm.title": "写真を削除しますか？",
   "photo.detail.deleteConfirm.body": "元に戻せません。バインドされたお守りも一緒に整理されます。",
   "photo.detail.deleteConfirm.cancel": "キャンセル",

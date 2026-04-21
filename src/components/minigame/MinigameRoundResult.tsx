@@ -79,8 +79,8 @@ export default function MinigameRoundResult() {
       <motion.button
         variants={fadeInUp}
         onClick={handleContinue}
-        whileTap={{ scale: 0.95 }}
-        className={`px-8 py-3 rounded-lg typo-body ${
+        whileTap={{ scale: 0.97 }}
+        className={`press-affordance min-h-[48px] px-8 rounded-lg typo-body transition-[background-color,filter] duration-200 ease-out hover:brightness-110 ${
           canContinue
             ? "bg-accent text-bg-primary"
             : "bg-bg-surface text-text-primary grid-border"

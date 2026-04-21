@@ -26,6 +26,7 @@ const en: Record<DictKey, string> = {
   "a11y.penColor": "Pen color {color}",
   "a11y.penWidth": "Pen width {label}",
   "a11y.addSticker": "Add {id} sticker",
+  "a11y.eraser": "Eraser",
   "a11y.flashOn": "Flash on",
   "a11y.flashOff": "Flash off",
   "a11y.switchToFront": "Switch to front camera",
@@ -37,6 +38,9 @@ const en: Record<DictKey, string> = {
   "a11y.minigame.skillCard": "Skill card",
   "a11y.minigame.curseCard": "Curse card",
   "a11y.minigame.exitRun": "Exit run",
+  "a11y.minigame.board": "Memory grid",
+  "a11y.minigame.chances": "{left} chances left of {total}",
+  "a11y.minigame.cardZoom": "Card preview",
 
   // === header ===
   "header.level": "Lv.{level}",
@@ -1029,6 +1033,10 @@ const en: Record<DictKey, string> = {
   "photo.detail.action.sharing": "...",
   "photo.detail.action.delete": "Delete",
   "photo.detail.action.close": "Close",
+  "photo.detail.share.success": "Shared",
+  "photo.detail.share.saved": "Image saved",
+  "photo.detail.share.failed": "Share failed",
+  "photo.detail.share.cancelled": "Share cancelled",
   "photo.detail.deleteConfirm.title": "Delete photo?",
   "photo.detail.deleteConfirm.body": "This can't be undone. Any talismans bound to this photo will also be cleaned up.",
   "photo.detail.deleteConfirm.cancel": "Cancel",

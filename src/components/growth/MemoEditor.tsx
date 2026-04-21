@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useRef, useImperativeHandle } from "react";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
   PAPER_FIBER_URL,
@@ -38,10 +38,24 @@ const MemoEditor = forwardRef<HTMLTextAreaElement, Props>(function MemoEditor(
   ref,
 ) {
   const { t } = useTranslation();
+  // 유저 피드백 #1 — iOS Safari 에서 3D flip 뒷면의 textarea 를 탭해도 자판이
+  //   올라오지 않던 버그. 원인 후보: backface-visibility 기반 pointer routing
+  //   불완전, 또는 parent 의 touch-action/transform 컨텍스트로 인한 focus 지연.
+  //   방어적 수정 — 래퍼/textarea 모두 pointerdown 시 명시적으로 textarea.focus()
+  //   를 호출. 이미 focus 된 상태면 no-op, 그렇지 않으면 강제 focus → virtual
+  //   keyboard 확실히 올라옴.
+  const innerRef = useRef<HTMLTextAreaElement | null>(null);
+  useImperativeHandle(ref, () => innerRef.current as HTMLTextAreaElement, []);
+  const forceFocus = () => {
+    // requestAnimationFrame — layout thrash 방지 + iOS 에서 pointer 이벤트 기본
+    //   처리 직후 focus 가 신뢰성 있게 먹힘.
+    requestAnimationFrame(() => innerRef.current?.focus());
+  };
 
   return (
     <div
       className="mx-auto max-w-[300px] w-full relative overflow-hidden flex flex-col"
+      onPointerDown={readOnly ? undefined : forceFocus}
       style={{
         aspectRatio: "184 / 223",
         backgroundColor: "#f9f8f5",
@@ -85,16 +99,20 @@ const MemoEditor = forwardRef<HTMLTextAreaElement, Props>(function MemoEditor(
           </p>
         ) : (
           <textarea
-            ref={ref}
+            ref={innerRef}
             value={value}
             onChange={(e) => onChange?.(e.target.value.slice(0, MAX_CHARS))}
             onFocus={onFocus}
             onBlur={onBlur}
+            onPointerDown={forceFocus}
             placeholder={t("playground.capture.memo")}
             className="w-full h-full bg-transparent resize-none outline-none text-[#2a2a2a] leading-[24px] pt-[9px] typo-body placeholder:text-[#a09080]"
             style={{
               fontFamily: "'April16', sans-serif",
               caretColor: "#2a2a2a",
+              // iOS 탭 gesture 지연 제거 + zoom 방지 (16px baseline).
+              touchAction: "manipulation",
+              fontSize: 16,
             }}
           />
         )}
