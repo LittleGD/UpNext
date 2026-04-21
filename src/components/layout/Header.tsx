@@ -135,6 +135,11 @@ export default function Header() {
   // 사진 캡처 중에는 풀스크린 몰입 — 헤더 숨김
   if (capturePhase !== "idle") return null;
 
+  // 아지트 (/playground) 에서는 레벨/칭호 바 숨김 — 영웅 카드 안에 이미 Lv + XP 가
+  // 있고 상단 중복 표기가 시각 노이즈를 늘림. 던전 탐험 중에도 DungeonView 헤더가
+  // 자체 UI 를 제공하므로 전역 헤더는 불필요.
+  if (pathname === "/playground") return null;
+
   const equippedTitle = progress.equippedTitleId
     ? ALL_TITLES.find((t) => t.id === progress.equippedTitleId)
     : null;
