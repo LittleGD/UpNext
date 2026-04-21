@@ -60,6 +60,7 @@ import {
   classXpMult,
   classCoinMult,
   findLastEncounterIndex,
+  computeMonsterHp,
   resolveMinigame as applyResolveMinigame,
 } from "@/lib/upHeroCombat";
 import {
@@ -263,7 +264,7 @@ interface UpHeroActions {
   /** Phase 12d — 스킬 해금 (skill points 소모). */
   learnSkill(skillId: string): "ok" | "no-points" | "already" | "not-found" | "level" | "class";
   /** Phase 12d — 전투 중 수동 스킬 발동. 자원 + 쿨다운 체크 후 apply. */
-  fireSkillManual(skillId: string): "ok" | "no-session" | "cooldown" | "resource" | "locked" | "no-monster";
+  fireSkillManual(skillId: string): "ok" | "no-session" | "cooldown" | "resource" | "locked" | "no-monster" | "no-target";
   /** Phase 12e — 미니게임 결과 해소. success 에 따라 effects 적용 + status=active. */
   resolveMinigame(success: boolean): void;
 
@@ -856,6 +857,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       encounterIdx >= 0
         ? ((session.log[encounterIdx] as { type: "encounter"; monster: Monster }).monster)
         : null;
+    // Phase 15 code-review High — 몬스터가 이미 죽었는데 (HP ≤ 0) victory 커밋이
+    //   다음 tick 에서 이뤄지기 전의 찰나에 스킬을 쏘면 "skill" 엔트리가 죽은
+    //   몬스터 위에 쌓여, 다음 tick 에서 이미 죽은 상대로 전투 round 를 한 번 더
+    //   돌리거나 (log 오염) 보스 처치 보상 전에 의도치 않은 연출이 삽입될 수 있다.
+    //   활성 encounter 가 있고 monsterHp ≤ 0 이면 발동 거부.
+    if (monster && encounterIdx >= 0) {
+      const hpNow = computeMonsterHp(session.log, encounterIdx, monster);
+      if (hpNow <= 0) return "no-target";
+    }
     const check = canFireSkill(session, skillId);
     if (!check.ok) {
       if (check.reason === "locked") return "locked";

@@ -516,10 +516,28 @@ export function tickSession(session: CombatSession): CombatSession {
   if (session.status !== "active") return session;
 
   // 내부 state 로 working copy 만들기
-  const nextLog =
-    session.log.length > SESSION_LOG_RUNTIME_CAP
-      ? session.log.slice(-SESSION_LOG_RUNTIME_CAP)
-      : [...session.log];
+  //
+  // Phase 15 code-review High — 단순 tail-slice 는 "활성 encounter" 가 cap 바깥으로
+  //   밀려나면 findLastEncounterIndex 가 -1 을 돌려줘 현재 전투가 통째로 orphan 된다
+  //   (monster HP 재계산 불가 → tickSession fallthrough 로 새 이벤트 생성 → 보스 스킵
+  //   재현). 활성 encounter 이후 엔트리 수를 보존해야 safe. victory/sessionEnd 이후의
+  //   오래된 엔트리만 잘라낸다.
+  let nextLog: LogEntry[];
+  if (session.log.length > SESSION_LOG_RUNTIME_CAP) {
+    const activeEncounterIdx = findLastEncounterIndex(session.log);
+    if (activeEncounterIdx >= 0) {
+      // 활성 encounter 이후 구간은 반드시 유지, 그 앞쪽만 tail-cap 까지 자름.
+      const preserveFrom = Math.min(
+        activeEncounterIdx,
+        Math.max(0, session.log.length - SESSION_LOG_RUNTIME_CAP),
+      );
+      nextLog = session.log.slice(preserveFrom);
+    } else {
+      nextLog = session.log.slice(-SESSION_LOG_RUNTIME_CAP);
+    }
+  } else {
+    nextLog = [...session.log];
+  }
   const s: CombatSession = {
     ...session,
     log: nextLog,
@@ -1726,7 +1744,7 @@ export function findLastEncounterIndex(log: LogEntry[]): number {
  *   이전 `computeCombatState` 는 heroHp 도 반환했으나 double subtraction 위험
  *   (R1 review 지적) 으로 제거.
  */
-function computeMonsterHp(
+export function computeMonsterHp(
   log: LogEntry[],
   encounterIdx: number,
   monster: Monster,
