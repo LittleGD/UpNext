@@ -155,10 +155,14 @@ export default function SessionResultModal() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="session-result-title"
-        className="w-full max-w-sm rounded-md overflow-hidden"
+        className="w-full max-w-sm rounded-md overflow-hidden flex flex-col"
         style={{
           background: GB.darkest,
           border: `1px solid ${GB.light}`,
+          // 콘텐츠가 viewport 를 넘으면 모달 내부에서 스크롤. 100dvh 는 모바일
+          // 동적 viewport (iOS URL bar / 안드로이드 nav bar 고려). p-4 (1rem × 2)
+          //   + 약간의 여유 (safe-area) 차감.
+          maxHeight: "calc(100dvh - 2rem)",
           transform: reducedMotion ? undefined : mounted ? "scale(1)" : "scale(0.96)",
           opacity: mounted ? 1 : 0,
           transition: reducedMotion
@@ -167,9 +171,9 @@ export default function SessionResultModal() {
           outline: "none",
         }}
       >
-        {/* Header */}
+        {/* Header — 항상 보이도록 flex-shrink-0 */}
         <div
-          className="px-4 py-4 text-center flex flex-col items-center gap-1.5"
+          className="px-4 py-4 text-center flex flex-col items-center gap-1.5 flex-shrink-0"
           style={{ borderBottom: `1px solid ${GB.dark}` }}
         >
           <div className="typo-caption" style={{ color: GB.light }}>
@@ -222,8 +226,8 @@ export default function SessionResultModal() {
           )}
         </div>
 
-        {/* Rewards */}
-        <div className="px-4 py-4 flex flex-col gap-2.5">
+        {/* Rewards — 콘텐츠가 길어지면 이 영역만 스크롤 */}
+        <div className="px-4 py-4 flex flex-col gap-2.5 flex-1 overflow-y-auto min-h-0">
           <RewardRow
             iconName="Sparkle"
             label={t("uphero.session.result.xp")}
@@ -294,10 +298,13 @@ export default function SessionResultModal() {
           </div>
         </div>
 
-        {/* CTA */}
+        {/* CTA — 항상 하단에 고정. safe-area 고려해 padding 보강 */}
         <div
-          className="px-4 py-3"
-          style={{ borderTop: `1px solid ${GB.dark}` }}
+          className="px-4 py-3 flex-shrink-0"
+          style={{
+            borderTop: `1px solid ${GB.dark}`,
+            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+          }}
         >
           {/* Phase 9c — inline onMouseDown/Up/Leave/TouchStart/TouchEnd 5핸들러를
                 CSS :active 로 교체. 다른 uphero 버튼들과 패턴 통일. */}
