@@ -14,6 +14,13 @@
  * - 탭 → 뒤집기 → 두 번째 탭 시 매칭 확인, 다르면 600ms 후 다시 가림
  * - 모든 짝 맞추면 성공, 타이머 0 → 실패
  * - 중단 (Esc / X) 은 실패 처리
+ *
+ * Phase 16 후속 — 유저 피드백 2건:
+ *   1) 마운트 즉시 타이머가 깎여 인지 시간이 없음 → ready phase 추가
+ *      (3 → 2 → 1 → "시작!" 카운트다운, 타이머·탭 모두 가드)
+ *   2) ◆/▲/■ 같은 비슷한 도형을 56×56 안에서 구분 못해 매치/미스 판정 결과가
+ *      "왜 틀렸지?" 가 됨 → 카드 뒷면에 짧은 한글 라벨 병기, aria-label 도
+ *      라벨 우선으로 변경.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -22,20 +29,57 @@ import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
 import { MinigameHeader, TimeBar, StatusMessage, GiveUpButton } from "./_chrome";
 
+type LabelKey =
+  | "diamond"
+  | "circle"
+  | "square"
+  | "triangle"
+  | "star"
+  | "heart"
+  | "sun"
+  | "note"
+  | "flag"
+  | "hammer";
+
+type LabelDictKey = `uphero.mini.pair.label.${LabelKey}`;
+type CountdownDictKey =
+  | "uphero.mini.pair.countdown.3"
+  | "uphero.mini.pair.countdown.2"
+  | "uphero.mini.pair.countdown.1"
+  | "uphero.mini.pair.countdown.go";
+
+interface SymbolDef {
+  symbol: string;
+  labelKey: LabelKey;
+}
+
 interface Card {
   id: number;
   symbol: string;
+  labelKey: LabelKey;
   matched: boolean;
   flipped: boolean;
 }
 
-const SYMBOL_POOL = ["◆", "●", "■", "▲", "★", "♥", "☀", "♪", "⚑", "⚒"];
+const SYMBOL_POOL: SymbolDef[] = [
+  { symbol: "◆", labelKey: "diamond" },
+  { symbol: "●", labelKey: "circle" },
+  { symbol: "■", labelKey: "square" },
+  { symbol: "▲", labelKey: "triangle" },
+  { symbol: "★", labelKey: "star" },
+  { symbol: "♥", labelKey: "heart" },
+  { symbol: "☀", labelKey: "sun" },
+  { symbol: "♪", labelKey: "note" },
+  { symbol: "⚑", labelKey: "flag" },
+  { symbol: "⚒", labelKey: "hammer" },
+];
 
 function makeDeck(pairs: number): Card[] {
   const chosen = SYMBOL_POOL.slice(0, pairs);
-  const dup = [...chosen, ...chosen].map((sym, i) => ({
+  const dup = [...chosen, ...chosen].map((def, i) => ({
     id: i,
-    symbol: sym,
+    symbol: def.symbol,
+    labelKey: def.labelKey,
     matched: false,
     flipped: false,
   }));
@@ -45,6 +89,12 @@ function makeDeck(pairs: number): Card[] {
   }
   return dup;
 }
+
+type Phase = "ready" | "playing";
+type CountdownStep = 3 | 2 | 1 | 0;
+
+const COUNTDOWN_TICK_MS = 700;
+const COUNTDOWN_GO_MS = 400;
 
 export default function PairMatch({
   difficulty,
@@ -64,12 +114,31 @@ export default function PairMatch({
   const [selected, setSelected] = useState<number[]>([]);
   const [remainingMs, setRemainingMs] = useState(config.timeMs);
   const [done, setDone] = useState<"success" | "fail" | null>(null);
+  const [phase, setPhase] = useState<Phase>("ready");
+  const [countdownStep, setCountdownStep] = useState<CountdownStep>(3);
   const doneRef = useRef<"success" | "fail" | null>(null);
   doneRef.current = done;
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
+  // 카운트다운: 3 → 2 → 1 → "시작!" → playing.
+  // 각 step COUNTDOWN_TICK_MS, 마지막 GO 표시는 COUNTDOWN_GO_MS 후 phase 전환.
   useEffect(() => {
+    const timers: number[] = [];
+    timers.push(window.setTimeout(() => setCountdownStep(2), COUNTDOWN_TICK_MS));
+    timers.push(window.setTimeout(() => setCountdownStep(1), COUNTDOWN_TICK_MS * 2));
+    timers.push(window.setTimeout(() => setCountdownStep(0), COUNTDOWN_TICK_MS * 3));
+    timers.push(
+      window.setTimeout(
+        () => setPhase("playing"),
+        COUNTDOWN_TICK_MS * 3 + COUNTDOWN_GO_MS,
+      ),
+    );
+    return () => timers.forEach((id) => window.clearTimeout(id));
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "playing") return;
     if (done) return;
     const start = performance.now();
     let raf = 0;
@@ -85,7 +154,7 @@ export default function PairMatch({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [config.timeMs, done]);
+  }, [config.timeMs, done, phase]);
 
   const reportedRef = useRef(false);
   useEffect(() => {
@@ -99,6 +168,7 @@ export default function PairMatch({
   }, [done]);
 
   const onCardTap = (idx: number) => {
+    if (phase !== "playing") return;
     if (done) return;
     if (deck[idx].flipped || deck[idx].matched) return;
     if (selected.length >= 2) return;
@@ -138,14 +208,40 @@ export default function PairMatch({
     }
   };
 
-  const timePct = (remainingMs / config.timeMs) * 100;
+  const timePct = phase === "ready" ? 100 : (remainingMs / config.timeMs) * 100;
+
+  const countdownKey: CountdownDictKey =
+    countdownStep === 0
+      ? "uphero.mini.pair.countdown.go"
+      : (`uphero.mini.pair.countdown.${countdownStep}` as CountdownDictKey);
+  const countdownText = t(countdownKey);
 
   return (
     <div className="flex flex-col items-center gap-3 p-4">
       <MinigameHeader>
-        {t("uphero.mini.pair.header", { time: (remainingMs / 1000).toFixed(1) })}
+        {phase === "playing"
+          ? t("uphero.mini.pair.header", { time: (remainingMs / 1000).toFixed(1) })
+          : t("uphero.mini.pair.ready")}
       </MinigameHeader>
       <TimeBar pct={timePct} />
+      <div
+        className="pair-countdown"
+        aria-live="polite"
+        style={{
+          minHeight: 40,
+          color: GB.lightest,
+          fontSize: 32,
+          fontWeight: 600,
+          lineHeight: 1,
+          letterSpacing: "-0.02em",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          visibility: phase === "ready" ? "visible" : "hidden",
+        }}
+      >
+        {phase === "ready" ? countdownText : ""}
+      </div>
       <div
         className="grid gap-2"
         style={{
@@ -155,23 +251,28 @@ export default function PairMatch({
       >
         {deck.map((card, idx) => {
           const shown = card.flipped || card.matched;
+          const labelKey: LabelDictKey = `uphero.mini.pair.label.${card.labelKey}`;
+          const label = t(labelKey);
           return (
             <button
               key={card.id}
               type="button"
               onClick={() => onCardTap(idx)}
-              aria-label={shown ? t("uphero.mini.pair.cardAria", { symbol: card.symbol }) : t("uphero.mini.pair.cardCoveredAria")}
+              aria-label={shown ? t("uphero.mini.pair.cardAria", { label }) : t("uphero.mini.pair.cardCoveredAria")}
               className={`pair-card rounded ${shown ? "is-shown" : ""} ${card.matched ? "is-matched" : ""}`}
               style={{
                 width: 56,
                 height: 56,
-                cursor: shown || done ? "default" : "pointer",
+                cursor: shown || done || phase !== "playing" ? "default" : "pointer",
               }}
-              disabled={shown || !!done}
+              disabled={shown || !!done || phase !== "playing"}
             >
               <div className="pair-card-inner">
                 <div className="pair-card-face pair-card-front">?</div>
-                <div className="pair-card-face pair-card-back">{card.symbol}</div>
+                <div className="pair-card-face pair-card-back">
+                  <span className="pair-card-symbol">{card.symbol}</span>
+                  <span className="pair-card-label">{label}</span>
+                </div>
               </div>
             </button>
           );
@@ -228,6 +329,18 @@ export default function PairMatch({
           background: ${GB.lightest}55;
           border: 1px solid ${GB.lightest};
           transform: rotateY(180deg);
+          flex-direction: column;
+          gap: 2px;
+        }
+        .pair-card-symbol {
+          font-size: 20px;
+          line-height: 1;
+        }
+        .pair-card-label {
+          font-size: 9px;
+          line-height: 1;
+          letter-spacing: -0.02em;
+          font-weight: 600;
         }
         .pair-card.is-matched .pair-card-back {
           background: ${GB.lightest}33;
