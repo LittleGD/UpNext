@@ -146,6 +146,11 @@ const zh: Record<DictKey, string> = {
   "cards.pack.addedToCollection": "已加入收藏！",
   "cards.pack.arriving": "新卡包来啦！",
   "cards.pack.whatsInside": "里面有什么呢？",
+  "cards.collectionComplete.title": "图鉴全收集！",
+  "cards.collectionComplete.body": "你已集齐 {count} 张卡牌，向真正的神级达人迈进了一步。",
+  "cards.collectionComplete.titleAwarded": "获得称号",
+  "cards.collectionComplete.coinsLabel": "英雄币",
+  "title.collectionMaster.name": "卡牌收藏家",
 
   // === nav ===
   "nav.challenge": "挑战",

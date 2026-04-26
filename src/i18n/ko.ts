@@ -145,6 +145,11 @@ const ko = {
   "cards.pack.addedToCollection": "컬렉션에 추가되었어요!",
   "cards.pack.arriving": "새로운 카드팩이 도착했어요!",
   "cards.pack.whatsInside": "어떤 카드가 들어있을까요?",
+  "cards.collectionComplete.title": "도감 완성!",
+  "cards.collectionComplete.body": "{count}장의 카드를 모두 모았어요. 진정한 갓생러의 길에 한 발 더 다가섰습니다.",
+  "cards.collectionComplete.titleAwarded": "칭호 획득",
+  "cards.collectionComplete.coinsLabel": "영웅 코인",
+  "title.collectionMaster.name": "도감 완성자",
 
   // === nav ===
   "nav.challenge": "챌린지",

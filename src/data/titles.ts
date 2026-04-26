@@ -1,6 +1,7 @@
 import type { TitleDefinition } from "@/types/title";
 import type { Category } from "@/types/card";
 import type { UserProgress, Language } from "@/types/game";
+import { ALL_CARDS } from "@/data/cards";
 
 // === 카테고리 한글 라벨 ===
 export const CATEGORY_LABELS: Record<Category, string> = {
@@ -577,6 +578,24 @@ export const ALL_TITLES: TitleDefinition[] = [
   ...funTitles,
   ...streakTitles,
   ...extraChallengeTitles,
+  // === 컬렉션 마스터 칭호 (legend) ===
+  // count 는 의미상 "전체 카드 수" — isTitleEarned 안에서 ALL_CARDS.length 와 비교.
+  // count 필드는 진행도 표시(getTitleProgress) 용으로만 쓰이며, 실제 비교는
+  // length 동적 비교라 카드 풀이 늘어나면 다시 미달성 → 다시 모으면 재달성.
+  {
+    id: "title-collection-master",
+    name: "도감 완성자",
+    nameEn: "Card Collector",
+    nameJa: "カード収集家",
+    nameZh: "卡牌收藏家",
+    description: "모든 카드를 수집했다",
+    descriptionEn: "Collected every card",
+    descriptionJa: "すべてのカードを収集",
+    descriptionZh: "收集所有卡牌",
+    rarity: "legend",
+    condition: { type: "collection", count: ALL_CARDS.length },
+    icon: "Trophy",
+  },
 ];
 
 // === 칭호 획득 여부 체크 ===
@@ -594,6 +613,9 @@ export function isTitleEarned(title: TitleDefinition, progress: UserProgress): b
         return (progress.extraChallengesCompleted || 0) >= condition.count;
       }
       return (progress.superChallengesCompleted || 0) >= condition.count;
+    case "collection":
+      // 동적 비교 — 풀 크기 변화(카드 추가/제거) 에 자동 적응.
+      return (progress.unlockedCardIds?.length || 0) >= ALL_CARDS.length;
   }
 }
 
@@ -617,5 +639,8 @@ export function getTitleProgress(title: TitleDefinition, progress: UserProgress)
         return { current: progress.extraChallengesCompleted || 0, target: condition.count };
       }
       return { current: progress.superChallengesCompleted || 0, target: condition.count };
+    case "collection":
+      // 진행도 표시는 항상 현재 풀 크기를 기준으로 (condition.count 는 정의 시점 스냅샷)
+      return { current: progress.unlockedCardIds?.length || 0, target: ALL_CARDS.length };
   }
 }

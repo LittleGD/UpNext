@@ -341,6 +341,13 @@ interface UpHeroActions {
   purchaseCardPack(size: "small" | "full"): boolean;
 
   /**
+   * 외부 시스템(메인 게임 컬렉션 완료 보상 등) 에서 코인을 +N 적립.
+   * Up Hero 의 idle reward 와 동일하게 state.coins + n + persist 만 수행.
+   * 토스트는 호출자 책임 (showInstantNotify 등).
+   */
+  addCoins(n: number): void;
+
+  /**
    * Phase 11a — 상점에서 탐험권 구매.
    * 고정 가격 SHOP_PRICES.expeditionPass, 하루 최대 DAILY_PASS_PURCHASE_CAP 장.
    * @returns
@@ -1525,6 +1532,14 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     set({ coins: newCoins });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, coins: newCoins }));
     return true;
+  },
+
+  addCoins(n) {
+    if (!Number.isFinite(n) || n <= 0) return;
+    const state = get();
+    const newCoins = state.coins + Math.floor(n);
+    set({ coins: newCoins });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, coins: newCoins }));
   },
 
   purchasePass(dungeonId) {

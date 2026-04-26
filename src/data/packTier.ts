@@ -73,3 +73,41 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
+
+/**
+ * 컬렉션 100% 도달 후 받는 팩의 환산 보상.
+ *
+ * 메인 게임에 코인 시스템이 없으므로:
+ *  - XP 는 progress.xp 직접 가산 (normalize 안 함 → 즉시 레벨 갱신 안 됨,
+ *    다음 일반 챌린지 완료 시 자연스럽게 catch up)
+ *  - Coins 는 useUpHeroStore.addCoins(N) 으로 영웅 시스템 코인에 적립
+ *
+ * 단가는 "팩이 가질 수 있었던 카드의 XP_PER_RARITY" 와 비례하도록 설정.
+ */
+export const COLLECTION_COMPENSATION_PER_TIER: Record<Rarity, { xp: number; coins: number }> = {
+  normal: { xp: 50, coins: 100 },
+  rare:   { xp: 100, coins: 200 },
+  unique: { xp: 200, coins: 400 },
+  legend: { xp: 500, coins: 1000 },
+};
+
+// 보너스 카드 (1장) 환산 — normal pack 의 절반 정도
+export const COLLECTION_COMPENSATION_BONUS = { xp: 25, coins: 50 };
+
+// 첫 회 컬렉션 100% 도달 시 1회성 보너스 (환산 보상에 추가).
+export const COLLECTION_FIRST_CLEAR_BONUS = { xp: 500, coins: 2000 };
+
+/**
+ * 레벨업 levelsGained 만큼 팩 등급을 굴려 환산 보상 합산.
+ * 컬렉션 100% 완료자가 레벨업/보너스 카드를 받았어야 할 시점에 사용.
+ */
+export function rollCompensationForLevels(levelsGained: number): { xp: number; coins: number } {
+  let xp = 0;
+  let coins = 0;
+  for (let i = 0; i < Math.max(0, levelsGained); i++) {
+    const t = rollPackTier();
+    xp += COLLECTION_COMPENSATION_PER_TIER[t].xp;
+    coins += COLLECTION_COMPENSATION_PER_TIER[t].coins;
+  }
+  return { xp, coins };
+}

@@ -30,6 +30,10 @@ const CardPackOpener = dynamic(
   () => import("@/components/cards/CardPackOpener"),
   { ssr: false },
 );
+const CollectionCelebration = dynamic(
+  () => import("@/components/cards/CollectionCelebration"),
+  { ssr: false },
+);
 const LoginOverlay = dynamic(
   () => import("@/components/auth/LoginOverlay"),
   { ssr: false },
@@ -136,6 +140,10 @@ export default function Home() {
             <LoginOverlay onDismiss={() => setShowLoginOverlay(false)} />
           )}
         </AnimatePresence>
+
+        {/* 컬렉션 100% 첫 달성 축하 — store.collectionCelebration 토글 시 자동 마운트.
+            CardPackOpener 닫힌 다음 프레임에 자연스럽게 등장. */}
+        <CollectionCelebration />
       </div>
     </>
   );

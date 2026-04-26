@@ -146,6 +146,11 @@ const ja: Record<DictKey, string> = {
   "cards.pack.addedToCollection": "コレクションに追加されました!",
   "cards.pack.arriving": "新しいカードパックが届きました!",
   "cards.pack.whatsInside": "何が入っているかな?",
+  "cards.collectionComplete.title": "図鑑コンプリート!",
+  "cards.collectionComplete.body": "{count}枚のカードをすべて集めました。真のガッセンマスターへ一歩前進。",
+  "cards.collectionComplete.titleAwarded": "称号獲得",
+  "cards.collectionComplete.coinsLabel": "勇者コイン",
+  "title.collectionMaster.name": "カード収集家",
 
   // === nav ===
   "nav.challenge": "チャレンジ",

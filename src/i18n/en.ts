@@ -146,6 +146,11 @@ const en: Record<DictKey, string> = {
   "cards.pack.addedToCollection": "Added to your collection!",
   "cards.pack.arriving": "A new card pack has arrived!",
   "cards.pack.whatsInside": "What's inside?",
+  "cards.collectionComplete.title": "Collection Complete!",
+  "cards.collectionComplete.body": "You've collected all {count} cards. One step closer to becoming a true God-Tier achiever.",
+  "cards.collectionComplete.titleAwarded": "Title earned",
+  "cards.collectionComplete.coinsLabel": "Hero Coins",
+  "title.collectionMaster.name": "Card Collector",
 
   // === nav ===
   "nav.challenge": "Challenge",
