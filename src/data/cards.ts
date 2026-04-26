@@ -1815,7 +1815,7 @@ export const ALL_CARDS: ChallengeCard[] = [
     descriptionZh: "抬头看看，把今天的天空拍一张",
     category: "mindfulness",
     rarity: "normal",
-    icon: "Moon",
+    icon: "Cloud",
     verifyType: "self",
   },
 

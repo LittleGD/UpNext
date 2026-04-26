@@ -33,6 +33,8 @@ export function rollPackTier(): Rarity {
     roll -= PACK_TIER_WEIGHT[tier];
     if (roll <= 0) return tier;
   }
+  // Math.random() < 1 이고 총합이 양수 이므로 위 루프에서 항상 return.
+  // 이 라인은 부동소수점 안전망 (실제로 도달 불가).
   return "normal";
 }
 

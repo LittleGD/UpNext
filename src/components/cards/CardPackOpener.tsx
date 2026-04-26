@@ -9,6 +9,7 @@ import PixelIcon from "@/components/icons/PixelIcon";
 import { springBouncy } from "@/lib/motion";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { cardTitle } from "@/i18n";
 import { categoryLabel } from "@/lib/upHeroI18n";
 import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
@@ -26,18 +27,40 @@ interface CardPackOpenerProps {
  *  - revealStaggerMs: 카드 등장 시간차 (legend 일수록 느릿하게 한 장씩)
  *  - flashIntensity: opening 시 풀스크린 플래시 (0=없음, 1=강)
  *  - haloRings: 등장 시 박스 주변 확장링 수
+ *  - shakeAnimate: framer-motion `animate` prop — rotate/scale 키프레임
  */
-const PACK_FX: Record<Rarity, {
+interface PackFx {
   shakeMs: number;
   particleCount: number;
   revealStaggerMs: number;
   flashIntensity: number;
   haloRings: number;
-}> = {
-  normal: { shakeMs: 1200, particleCount: 4, revealStaggerMs: 120, flashIntensity: 0, haloRings: 0 },
-  rare:   { shakeMs: 1600, particleCount: 7, revealStaggerMs: 140, flashIntensity: 0.25, haloRings: 1 },
-  unique: { shakeMs: 2000, particleCount: 11, revealStaggerMs: 170, flashIntensity: 0.5, haloRings: 2 },
-  legend: { shakeMs: 2500, particleCount: 16, revealStaggerMs: 210, flashIntensity: 0.85, haloRings: 3 },
+  shakeAnimate: { rotate: number[]; scale: number[] };
+}
+
+const PACK_FX: Record<Rarity, PackFx> = {
+  normal: {
+    shakeMs: 1200, particleCount: 4, revealStaggerMs: 120, flashIntensity: 0, haloRings: 0,
+    shakeAnimate: { rotate: [0, -8, 8, -8, 8, -5, 5, 0], scale: [1, 1.1, 1.1, 1.1, 1.1, 1.05, 1.05, 1.15] },
+  },
+  rare: {
+    shakeMs: 1600, particleCount: 7, revealStaggerMs: 140, flashIntensity: 0.25, haloRings: 1,
+    shakeAnimate: { rotate: [0, -10, 10, -9, 9, -6, 6, 0], scale: [1, 1.12, 1.12, 1.12, 1.14, 1.08, 1.08, 1.18] },
+  },
+  unique: {
+    shakeMs: 2000, particleCount: 11, revealStaggerMs: 170, flashIntensity: 0.5, haloRings: 2,
+    shakeAnimate: { rotate: [0, -11, 11, -10, 10, -7, 7, -5, 5, 0], scale: [1, 1.15, 1.15, 1.15, 1.18, 1.12, 1.12, 1.08, 1.08, 1.2] },
+  },
+  legend: {
+    shakeMs: 2500, particleCount: 16, revealStaggerMs: 210, flashIntensity: 0.85, haloRings: 3,
+    shakeAnimate: { rotate: [0, -14, 14, -12, 12, -10, 10, -8, 8, -5, 5, 0], scale: [1, 1.18, 1.18, 1.18, 1.2, 1.18, 1.18, 1.15, 1.15, 1.1, 1.1, 1.25] },
+  },
+};
+
+// reduced-motion 시 대체 — 흔들림/플래시/링/파티클 모두 최소화 (수치만 컬러로 통지)
+const REDUCED_FX: PackFx = {
+  shakeMs: 600, particleCount: 0, revealStaggerMs: 60, flashIntensity: 0, haloRings: 0,
+  shakeAnimate: { rotate: [0, 0], scale: [1, 1.05, 1] },
 };
 
 export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
@@ -45,17 +68,23 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
   const openCardPack = useGameStore((s) => s.openCardPack);
   const { play } = useSound();
   const { t, language } = useTranslation();
+  const reducedMotion = useReducedMotion();
   const [revealedCards, setRevealedCards] = useState<ChallengeCard[]>([]);
   const [packTier, setPackTier] = useState<Rarity>("normal");
   const [phase, setPhase] = useState<Phase>("shaking");
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const fx = PACK_FX[packTier];
+  // reduced-motion 시 모든 tier 의 fx 를 minimal 로 다운그레이드.
+  // 색상(tierColor) 만으로 등급 차이를 전달.
+  const fx = reducedMotion ? REDUCED_FX : PACK_FX[packTier];
   const tierColor = RARITY_CONFIG[packTier].color;
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // handleDone 재진입 방지 (더블탭/연속탭으로 팩이 중복 소모되는 것 차단)
   const isDoneInFlightRef = useRef(false);
+  // StrictMode dev 더블 마운트 시 openCardPack 가 큐를 두 번 소비하는 회귀 방지.
+  // useEffect 본문이 동기적으로 openCardPack() 을 호출하므로, ref 가드로 1회만 실행.
+  const initializedRef = useRef(false);
 
   const addTimer = (fn: () => void, ms: number) => {
     const id = setTimeout(fn, ms);
@@ -70,15 +99,18 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
 
   // 자동 열기: 마운트 시 바로 흔들림 시작 → 카드 리빌
   useEffect(() => {
+    // StrictMode dev 더블 마운트에서 openCardPack 이 2번 호출되어 큐가 중복 소모되던
+    // 회귀를 방지. ref 가드로 effect 본문이 1회만 실행됨을 보장.
+    if (initializedRef.current) return;
+    initializedRef.current = true;
     // 첫 팩의 tier 를 미리 알기 위해 shake 시작 전에 굴림.
-    // openCardPack() 은 한 번만 호출되어야 하므로 결과를 보관 후 phase 전환 시 사용.
     const result = openCardPack();
     if (result.cards.length === 0) {
       onComplete?.();
       return;
     }
     setPackTier(result.tier);
-    const initialFx = PACK_FX[result.tier];
+    const initialFx = reducedMotion ? REDUCED_FX : PACK_FX[result.tier];
     addTimer(() => {
       setRevealedCards(result.cards);
       setPhase("opening");
@@ -120,7 +152,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
         setRevealedCards([]);
         setPackTier(next.tier);
         setPhase("shaking");
-        const nextFx = PACK_FX[next.tier];
+        const nextFx = reducedMotion ? REDUCED_FX : PACK_FX[next.tier];
         addTimer(() => {
           setRevealedCards(next.cards);
           setPhase("opening");
@@ -348,8 +380,8 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
   // 흔들림 상태 (자동 — 버튼 없음)
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
-      {/* legend 일 때 배경 펄스 — 화려함 강조 */}
-      {packTier === "legend" && (
+      {/* legend 일 때 배경 펄스 — 화려함 강조. reduced-motion 시 생략. */}
+      {packTier === "legend" && !reducedMotion && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: [0, 0.25, 0, 0.18, 0] }}
@@ -364,15 +396,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
 
       {/* 박스 아이콘 — 자동 흔들림. tier 가 높을수록 더 길고 흔들림 강도 ↑ */}
       <motion.div
-        animate={
-          packTier === "legend"
-            ? { rotate: [0, -14, 14, -12, 12, -10, 10, -8, 8, -5, 5, 0], scale: [1, 1.18, 1.18, 1.18, 1.2, 1.18, 1.18, 1.15, 1.15, 1.1, 1.1, 1.25] }
-            : packTier === "unique"
-            ? { rotate: [0, -11, 11, -10, 10, -7, 7, -5, 5, 0], scale: [1, 1.15, 1.15, 1.15, 1.18, 1.12, 1.12, 1.08, 1.08, 1.2] }
-            : packTier === "rare"
-            ? { rotate: [0, -10, 10, -9, 9, -6, 6, 0], scale: [1, 1.12, 1.12, 1.12, 1.14, 1.08, 1.08, 1.18] }
-            : { rotate: [0, -8, 8, -8, 8, -5, 5, 0], scale: [1, 1.1, 1.1, 1.1, 1.1, 1.05, 1.05, 1.15] }
-        }
+        animate={fx.shakeAnimate}
         transition={{ duration: fx.shakeMs / 1000, ease: "easeInOut" }}
         className="relative"
       >
