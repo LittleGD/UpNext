@@ -22,7 +22,11 @@ import { COLLECTION_FIRST_CLEAR_BONUS } from "@/data/packTier";
 import { GB } from "@/lib/upHeroPalette";
 
 export default function CollectionCelebration() {
-  const visible = useGameStore((s) => s.collectionCelebration);
+  const celebrationFlag = useGameStore((s) => s.collectionCelebration);
+  // CardPackOpener 가 열려있는 동안엔 카드 reveal 화면이 보여야 하므로 모달 마운트 보류.
+  // 팩 오프너가 닫힌 다음 프레임에 자연스럽게 등장.
+  const isOpeningPack = useGameStore((s) => s.isOpeningPack);
+  const visible = celebrationFlag && !isOpeningPack;
   const dismiss = useGameStore((s) => s.dismissCollectionCelebration);
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
@@ -33,15 +37,15 @@ export default function CollectionCelebration() {
     play("xpGain");
   }, [visible, play]);
 
-  if (!visible) return null;
-
   // 트로피 주변 방사형 광선 (reduced-motion 시 생략)
   const rayCount = reducedMotion ? 0 : 12;
   const accent = GB.lightest;
 
   return (
     <AnimatePresence>
+      {visible && (
       <motion.div
+        key="collection-celebration"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -150,6 +154,7 @@ export default function CollectionCelebration() {
           </motion.button>
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 }
