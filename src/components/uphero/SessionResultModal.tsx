@@ -226,8 +226,9 @@ export default function SessionResultModal() {
           )}
         </div>
 
-        {/* Rewards — 콘텐츠가 길어지면 이 영역만 스크롤 */}
-        <div className="px-4 py-4 flex flex-col gap-2.5 flex-1 overflow-y-auto min-h-0">
+        {/* Rewards — 콘텐츠가 길어지면 이 영역만 스크롤. flex-1 안 씀 — 짧을 땐
+            자기 콘텐츠 크기, 길어지면 부모 maxHeight 가 cap 후 내부 스크롤. */}
+        <div className="px-4 py-4 flex flex-col gap-2.5 overflow-y-auto min-h-0">
           <RewardRow
             iconName="Sparkle"
             label={t("uphero.session.result.xp")}

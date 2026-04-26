@@ -17,6 +17,126 @@ export interface PatchNote {
 // 최신 순으로 맨 앞에 쌓기 — LATEST_PATCH는 항상 PATCH_NOTES[0]
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "2026.04.26",
+    date: "2026-04-26",
+    headline: {
+      ko: "카드팩 등급 + 컬렉션 보상 + 사진 챌린지 — 매 레벨업이 더 짜릿해집니다",
+      en: "Pack tiers, collection rewards, photo challenges — every level-up gets sharper",
+      ja: "パック等級＋コンプ報酬＋写真チャレンジ — レベルアップがもっと刺激的に",
+      zh: "卡包等级 + 图鉴奖励 + 摄影挑战 — 每次升级都更有冲击力",
+    },
+    entries: {
+      ko: [
+        {
+          icon: "Gift",
+          title: "레벨업 카드팩 — 등급 시스템",
+          description: "레벨업할 때마다 일반/레어/유니크/레전드 등급이 굴려집니다 (50/30/15/5%). 등급에 따라 2~5 장의 카드를 받고, 등급이 올라갈수록 오픈 연출이 화려해져요. 레전드 팩은 풀스크린 플래시와 확장 링까지 등장합니다.",
+        },
+        {
+          icon: "Trophy",
+          title: "도감 완성 — 컬렉션 100% 보상",
+          description: "모든 카드를 모으면 '도감 완성자' 칭호와 1회성 큰 보너스(+500 XP, +2000 영웅 코인) 를 받아요. 이후 레벨업/보너스 카드 이벤트는 등급별 환산 보상으로 자동 전환됩니다. 새 카드가 추가되면 다시 모을 수 있어요.",
+        },
+        {
+          icon: "Camera",
+          title: "사진 발견 챌린지 8장",
+          description: "야생화 한 송이, 황금시간 풍경, 오늘의 하늘, 그림자 한 컷, 길 위의 작은 발견, 음식 톱뷰, 오늘의 컬러 헌트, 정돈된 책상 — 일상을 사진으로 기록하는 챌린지가 추가되었습니다.",
+        },
+        {
+          icon: "Clock",
+          title: "카드매치 — 카운트다운 + 이름 표시",
+          description: "카드매치 미니게임이 시작 전 3-2-1-시작 카운트다운으로 시작합니다. 카드 뒷면에 짧은 이름(다이아/별/하트 등) 이 함께 표시되어 매칭이 한눈에 보여요.",
+        },
+        {
+          icon: "Sword",
+          title: "영웅 보상 화면 스크롤 수정",
+          description: "탐험에서 7개 이상의 장비를 획득해도 보상 화면이 정상 스크롤되고 확인 버튼이 항상 보입니다.",
+        },
+      ],
+      en: [
+        {
+          icon: "Gift",
+          title: "Level-up packs — tier system",
+          description: "Every level-up rolls a tier (Normal/Rare/Unique/Legend at 50/30/15/5%) that decides how many cards (2–5) and how flashy the opening gets. Legend packs come with a full-screen flash and expanding rings.",
+        },
+        {
+          icon: "Trophy",
+          title: "Collection complete — 100% reward",
+          description: "Collect every card to earn the 'Card Collector' title plus a one-time bonus (+500 XP, +2000 Hero Coins). After that, level-up and bonus-card events auto-convert into tiered rewards. New cards in updates put the goal back in reach.",
+        },
+        {
+          icon: "Camera",
+          title: "8 photo discovery challenges",
+          description: "Wildflower, golden hour, today's sky, shadow play, tiny find on the road, top-down plate, color hunt, tidy desk — challenges that turn everyday moments into photos.",
+        },
+        {
+          icon: "Clock",
+          title: "Pair match — countdown & card names",
+          description: "The pair-match minigame now starts with a 3-2-1-GO countdown. Each card shows a short name (Diamond, Star, Heart…) so matches read at a glance.",
+        },
+        {
+          icon: "Sword",
+          title: "Hero reward screen scroll fix",
+          description: "Reward screens with 7+ items now scroll cleanly and the confirm button stays visible at the bottom.",
+        },
+      ],
+      ja: [
+        {
+          icon: "Gift",
+          title: "レベルアップパック — 等級システム",
+          description: "レベルアップごとにノーマル/レア/ユニーク/レジェンド (50/30/15/5%) を抽選。等級により2~5枚のカードを獲得し、上位等級ほどオープン演出が華やかに。レジェンドはフルスクリーンフラッシュ＋拡張リングまで出現します。",
+        },
+        {
+          icon: "Trophy",
+          title: "図鑑コンプリート — 100%報酬",
+          description: "すべてのカードを集めると「カード収集家」称号と1回限りのボーナス(+500 XP、+2000 勇者コイン)を獲得。以降のレベルアップ/ボーナスカードイベントは等級別報酬に自動変換されます。新カード追加で再挑戦も可能。",
+        },
+        {
+          icon: "Camera",
+          title: "写真発見チャレンジ8枚",
+          description: "野花、ゴールデンアワー、今日の空、影遊び、道での小さな発見、料理を真上から、カラーハント、整った机 — 日常を写真で記録するチャレンジが追加されました。",
+        },
+        {
+          icon: "Clock",
+          title: "ペアマッチ — カウントダウン＋名前表示",
+          description: "ペアマッチミニゲームが3-2-1-スタートのカウントダウンで開始。カード裏面に短い名前(ダイヤ/星/ハートなど)も表示され、マッチが一目で分かります。",
+        },
+        {
+          icon: "Sword",
+          title: "勇者報酬画面のスクロール修正",
+          description: "探検で7個以上の装備を獲得しても報酬画面が正常にスクロールし、確認ボタンが常に表示されます。",
+        },
+      ],
+      zh: [
+        {
+          icon: "Gift",
+          title: "升级卡包 — 等级系统",
+          description: "每次升级都会抽取等级 (普通/稀有/独特/传说 50/30/15/5%)，根据等级获得2~5张卡牌，等级越高开包演出越华丽。传说包带有全屏闪光和扩散光环。",
+        },
+        {
+          icon: "Trophy",
+          title: "图鉴全收集 — 100%奖励",
+          description: "集齐所有卡牌可获得「卡牌收藏家」称号和一次性大奖励 (+500 XP，+2000 英雄币)。之后的升级/奖励卡事件会自动转换为按等级折算的奖励。新卡更新后可再次挑战。",
+        },
+        {
+          icon: "Camera",
+          title: "8张摄影发现挑战",
+          description: "一朵野花、黄金时刻风景、今天的天空、光影一刻、路上的小发现、美食俯拍、今日色彩猎手、整洁书桌 — 用照片记录日常的挑战已加入。",
+        },
+        {
+          icon: "Clock",
+          title: "配对游戏 — 倒计时＋卡牌名称",
+          description: "配对小游戏现在以 3-2-1-开始 倒计时启动。卡牌背面会显示简短名称 (钻石/星/心等)，匹配一目了然。",
+        },
+        {
+          icon: "Sword",
+          title: "勇者奖励界面滚动修复",
+          description: "探险获得7个以上装备时奖励界面也能正常滚动，确认按钮始终可见。",
+        },
+      ],
+    },
+  },
+  {
     version: "2026.04.18",
     date: "2026-04-18",
     headline: {
