@@ -1771,6 +1771,54 @@ export const ALL_CARDS: ChallengeCard[] = [
     unlockCondition: { category: "mindfulness", completions: 20 },
   },
 
+  // MINDFULNESS — 사진 발견 챌린지 (034-036)
+  {
+    id: "mindfulness-034",
+    title: "야생화 한 송이",
+    titleEn: "A Single Wildflower",
+    description: "산책 중 발견한 야생화 1장 찰칵",
+    descriptionEn: "Snap one wildflower you spot on a walk",
+    titleJa: "野花を一輪",
+    descriptionJa: "散歩中に見つけた野花を1枚撮ろう",
+    titleZh: "一朵野花",
+    descriptionZh: "散步时发现的一朵野花拍一张",
+    category: "mindfulness",
+    rarity: "normal",
+    icon: "Leaf",
+    verifyType: "self",
+  },
+  {
+    id: "mindfulness-035",
+    title: "황금시간 풍경",
+    titleEn: "Golden Hour Snap",
+    description: "일출 또는 일몰 30분 안에 풍경 1장",
+    descriptionEn: "Capture a landscape within 30 min of sunrise or sunset",
+    titleJa: "ゴールデンアワー風景",
+    descriptionJa: "日の出または日没の30分以内に風景を1枚",
+    titleZh: "黄金时刻风景",
+    descriptionZh: "日出或日落前后30分钟内拍一张风景",
+    category: "mindfulness",
+    rarity: "rare",
+    icon: "CloudSun",
+    verifyType: "self",
+    unlockCondition: { category: "mindfulness", completions: 5 },
+  },
+  {
+    id: "mindfulness-036",
+    title: "오늘의 하늘",
+    titleEn: "Today's Sky",
+    description: "위 한번 올려다보고 하늘 1장 기록",
+    descriptionEn: "Look up and snap one shot of today's sky",
+    titleJa: "今日の空",
+    descriptionJa: "見上げて今日の空を1枚記録しよう",
+    titleZh: "今天的天空",
+    descriptionZh: "抬头看看，把今天的天空拍一张",
+    category: "mindfulness",
+    rarity: "normal",
+    icon: "Moon",
+    verifyType: "self",
+  },
+
   // LEARNING 추가 (030-033)
   {
     id: "learning-030",
@@ -1901,6 +1949,39 @@ export const ALL_CARDS: ChallengeCard[] = [
     unlockCondition: { category: "social", completions: 20 },
   },
 
+  // SOCIAL — 사진 발견 챌린지 (034-035)
+  {
+    id: "social-034",
+    title: "음식 톱뷰",
+    titleEn: "Top-Down Plate",
+    description: "오늘 먹은 음식 위에서 한 컷",
+    descriptionEn: "Snap today's meal from directly above",
+    titleJa: "料理を真上から",
+    descriptionJa: "今日食べたものを真上から1枚",
+    titleZh: "美食俯拍",
+    descriptionZh: "今天吃的从正上方拍一张",
+    category: "social",
+    rarity: "normal",
+    icon: "Coffee",
+    verifyType: "self",
+  },
+  {
+    id: "social-035",
+    title: "오늘의 컬러 헌트",
+    titleEn: "Color Hunt",
+    description: "오늘 거리에서 본 가장 인상적인 색 1컷",
+    descriptionEn: "Snap the most striking color you saw on the street today",
+    titleJa: "今日のカラーハント",
+    descriptionJa: "街で見た一番印象的な色を1枚",
+    titleZh: "今日色彩猎手",
+    descriptionZh: "拍一张今天街上最抢眼的颜色",
+    category: "social",
+    rarity: "rare",
+    icon: "Sparkle",
+    verifyType: "self",
+    unlockCondition: { category: "social", completions: 5 },
+  },
+
   // PRODUCTIVITY 추가 (030-033)
   {
     id: "productivity-030",
@@ -1966,6 +2047,23 @@ export const ALL_CARDS: ChallengeCard[] = [
     unlockCondition: { category: "productivity", completions: 20 },
   },
 
+  // PRODUCTIVITY — 사진 발견 챌린지 (034)
+  {
+    id: "productivity-034",
+    title: "정돈된 책상",
+    titleEn: "Tidy Desk Shot",
+    description: "정리한 작업공간 1장 인증",
+    descriptionEn: "Snap your cleaned-up workspace as proof",
+    titleJa: "整った机",
+    descriptionJa: "片付けたワークスペースを1枚で証明",
+    titleZh: "整洁书桌",
+    descriptionZh: "整理后的工作台拍一张存档",
+    category: "productivity",
+    rarity: "normal",
+    icon: "Folder",
+    verifyType: "self",
+  },
+
   // WELLNESS 추가 (030-033)
   {
     id: "wellness-030",
@@ -2029,6 +2127,39 @@ export const ALL_CARDS: ChallengeCard[] = [
     icon: "Leaf",
     verifyType: "self",
     unlockCondition: { category: "wellness", completions: 20 },
+  },
+
+  // WELLNESS — 사진 발견 챌린지 (034-035)
+  {
+    id: "wellness-034",
+    title: "그림자 한 컷",
+    titleEn: "Shadow Play",
+    description: "재미있는 그림자나 실루엣 1장 발견",
+    descriptionEn: "Find a fun shadow or silhouette and snap it",
+    titleJa: "影遊び一枚",
+    descriptionJa: "面白い影やシルエットを見つけて1枚",
+    titleZh: "光影一刻",
+    descriptionZh: "发现有趣的影子或剪影，拍一张",
+    category: "wellness",
+    rarity: "normal",
+    icon: "Eye",
+    verifyType: "self",
+  },
+  {
+    id: "wellness-035",
+    title: "길 위의 작은 발견",
+    titleEn: "Tiny Find on the Road",
+    description: "오늘 걷다 마주친 작은 디테일 1컷",
+    descriptionEn: "Snap one small detail you noticed while walking today",
+    titleJa: "道での小さな発見",
+    descriptionJa: "今日歩きながら出会った小さなディテールを1枚",
+    titleZh: "路上的小发现",
+    descriptionZh: "拍下今天走路时遇到的一个小细节",
+    category: "wellness",
+    rarity: "rare",
+    icon: "MapPin",
+    verifyType: "self",
+    unlockCondition: { category: "wellness", completions: 5 },
   },
 
   // ==========================================

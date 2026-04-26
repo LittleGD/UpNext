@@ -1,9 +1,10 @@
 import { create } from "zustand";
-import type { ChallengeCard, Category } from "@/types/card";
+import type { ChallengeCard, Category, Rarity } from "@/types/card";
 import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase } from "@/types/game";
 import { MODE_CARD_COUNT, XP_PER_RARITY, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, normalizeProgressXpLevel, PHASE_MIN_CARDS, PHASE_MAX_CARDS, MINIGAME_TICKET_CAP } from "@/types/game";
 import { ALL_CARDS, STARTER_CARD_IDS } from "@/data/cards";
 import { drawCards, drawFromPool } from "@/lib/deck";
+import { drawTierPack, rollPackTier, PACK_TIER_COUNT } from "@/data/packTier";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import { STARTER_PACKS } from "@/data/starterPacks";
 import { scheduleChallengeReminder, cancelChallengeReminder, showChallengeStatus, hideChallengeStatus, showInstantNotify, scheduleExtraNudge, cancelExtraNudge } from "@/lib/notifications";
@@ -154,7 +155,7 @@ interface GameStore {
   checkDailyReset: () => void;
   completeOnboarding: () => void;
   selectStarterPack: (packId: string) => void;
-  openCardPack: () => ChallengeCard[];
+  openCardPack: () => { cards: ChallengeCard[]; tier: Rarity };
   dismissPackOpener: () => void;
   setLanguage: (lang: Language) => void;
   toggleSound: () => void;
@@ -692,13 +693,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // 카드팩 열기
   // - 보너스 카드(pendingBonusCards) 우선 소진: 1장
-  // - 레벨업 팩(pendingPacks): 2장
-  // 둘 다 없으면 빈 배열
+  // - 레벨업 팩(pendingPacks): 등급 굴림 (normal 50% / rare 30% / unique 15% / legend 5%)
+  //   → 등급별 2/3/4/5 장. 카드 등급은 우선 같은 tier, 부족 시 fallback (drawTierPack).
+  // - 보너스 카드(pendingBonusCards): normal tier · 1 장 (기존 그대로)
+  // 둘 다 없으면 빈 결과
   openCardPack: () => {
     const { progress } = get();
     const pendingPacks = progress.pendingPacks || 0;
     const pendingBonusCards = progress.pendingBonusCards || 0;
-    if (pendingPacks <= 0 && pendingBonusCards <= 0) return [];
+    if (pendingPacks <= 0 && pendingBonusCards <= 0) {
+      return { cards: [], tier: "normal" as Rarity };
+    }
 
     const lockedCards = ALL_CARDS.filter(
       (c) => !progress.unlockedCardIds.includes(c.id)
@@ -709,13 +714,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const updatedProgress = { ...progress, pendingPacks: 0, pendingBonusCards: 0 };
       set({ progress: updatedProgress });
       saveToStorage("progress", updatedProgress);
-      return [];
+      return { cards: [], tier: "normal" as Rarity };
     }
 
-    // 보너스 카드 먼저 (1장), 그 다음에 레벨업 팩 (2장)
     const isBonus = pendingBonusCards > 0;
-    const count = isBonus ? 1 : 2;
-    const newCards = drawFromPool(lockedCards, count);
+    let tier: Rarity;
+    let newCards: ChallengeCard[];
+    if (isBonus) {
+      tier = "normal";
+      newCards = drawFromPool(lockedCards, 1);
+    } else {
+      tier = rollPackTier();
+      newCards = drawTierPack(lockedCards, tier, PACK_TIER_COUNT[tier]);
+    }
 
     const updatedProgress = {
       ...progress,
@@ -729,7 +740,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({ progress: updatedProgress });
     saveToStorage("progress", updatedProgress);
-    return newCards;
+    return { cards: newCards, tier };
   },
 
   // 언어 변경
