@@ -34,6 +34,10 @@ const CollectionCelebration = dynamic(
   () => import("@/components/cards/CollectionCelebration"),
   { ssr: false },
 );
+const BackupReminderBanner = dynamic(
+  () => import("@/components/auth/BackupReminderBanner"),
+  { ssr: false },
+);
 const LoginOverlay = dynamic(
   () => import("@/components/auth/LoginOverlay"),
   { ssr: false },
@@ -127,6 +131,11 @@ export default function Home() {
       <MeteorShower active={phase === "super" && !superDone} />
 
       <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
+        {/* P2 — 미로그인 + 진행 누적된 사용자에게 백업 안내. 카드팩 오픈 / 컬렉션
+            축하 등 모달이 띄워진 상태에서는 자동으로 가려지므로 항상 마운트 가능. */}
+        {!isOpeningPack && (
+          <BackupReminderBanner onLogin={() => setShowLoginOverlay(true)} />
+        )}
         {isOpeningPack ? (
           <CardPackOpener onComplete={dismissPackOpener} />
         ) : showBoard ? (

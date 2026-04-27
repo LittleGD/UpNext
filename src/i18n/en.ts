@@ -1,6 +1,14 @@
 import type { DictKey } from "./ko";
 
 const en: Record<DictKey, string> = {
+  // === backup banner ===
+  "backup.banner.title": "{days} days in — your data isn't backed up",
+  "backup.banner.body": "If your device data is wiped, it can't be recovered. Sign in to safely store progress in the cloud.",
+  "backup.banner.cta": "Back up now",
+  "backup.banner.later": "Later",
+  "backup.lastSyncedAt": "Last backup: {ago}",
+  "backup.notSynced": "Not yet backed up",
+  "backup.signInToBackup": "Sign in to back up",
   // === common ===
   "common.next": "Next",
   "common.cancel": "Cancel",

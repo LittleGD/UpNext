@@ -1,4 +1,12 @@
 const ko = {
+  // === backup banner ===
+  "backup.banner.title": "{days}일째 진행 중 — 백업이 안 되어 있어요",
+  "backup.banner.body": "기기 데이터가 사라지면 복구할 수 없어요. 로그인해서 클라우드에 안전하게 보관하세요.",
+  "backup.banner.cta": "지금 백업",
+  "backup.banner.later": "나중에",
+  "backup.lastSyncedAt": "마지막 백업: {ago}",
+  "backup.notSynced": "아직 백업되지 않음",
+  "backup.signInToBackup": "로그인하여 백업하기",
   // === common ===
   "common.next": "다음",
   "common.cancel": "취소",

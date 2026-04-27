@@ -1,6 +1,14 @@
 import type { DictKey } from "./ko";
 
 const zh: Record<DictKey, string> = {
+  // === backup banner ===
+  "backup.banner.title": "已坚持 {days} 天 — 数据还未备份",
+  "backup.banner.body": "如果本机数据丢失将无法恢复。登录以将进度安全保存到云端。",
+  "backup.banner.cta": "立即备份",
+  "backup.banner.later": "稍后",
+  "backup.lastSyncedAt": "最后备份: {ago}",
+  "backup.notSynced": "尚未备份",
+  "backup.signInToBackup": "登录以备份",
   // === common ===
   "common.next": "下一步",
   "common.cancel": "取消",

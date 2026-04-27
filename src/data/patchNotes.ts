@@ -52,6 +52,11 @@ export const PATCH_NOTES: PatchNote[] = [
           title: "영웅 보상 화면 스크롤 수정",
           description: "탐험에서 7개 이상의 장비를 획득해도 보상 화면이 정상 스크롤되고 확인 버튼이 항상 보입니다.",
         },
+        {
+          icon: "Lock",
+          title: "백업 안전성 강화 — 데이터 손실 방어",
+          description: "로그인 직후 일부 사용자에게 진행도가 0일차로 보이던 race condition 을 차단했어요. 미로그인 사용자에게 백업 안내 배너를 추가했고, 설정 화면에 마지막 백업 시각이 '몇 분 전' 형태로 표시됩니다.",
+        },
       ],
       en: [
         {
@@ -78,6 +83,11 @@ export const PATCH_NOTES: PatchNote[] = [
           icon: "Sword",
           title: "Hero reward screen scroll fix",
           description: "Reward screens with 7+ items now scroll cleanly and the confirm button stays visible at the bottom.",
+        },
+        {
+          icon: "Lock",
+          title: "Cloud backup safety hardening",
+          description: "Fixed a race condition where some users saw their progress drop to 'day 0' right after signing in. Signed-out users now see a gentle reminder banner, and Settings shows when the last backup happened (e.g. \"3 minutes ago\").",
         },
       ],
       ja: [
@@ -106,6 +116,11 @@ export const PATCH_NOTES: PatchNote[] = [
           title: "勇者報酬画面のスクロール修正",
           description: "探検で7個以上の装備を獲得しても報酬画面が正常にスクロールし、確認ボタンが常に表示されます。",
         },
+        {
+          icon: "Lock",
+          title: "クラウドバックアップ安全性の強化",
+          description: "ログイン直後に進行度が「0日目」と表示される競合状態を修正。未ログインユーザーにはバックアップ案内バナーを表示し、設定画面に最終バックアップ時刻が「数分前」形式で表示されます。",
+        },
       ],
       zh: [
         {
@@ -132,6 +147,11 @@ export const PATCH_NOTES: PatchNote[] = [
           icon: "Sword",
           title: "勇者奖励界面滚动修复",
           description: "探险获得7个以上装备时奖励界面也能正常滚动，确认按钮始终可见。",
+        },
+        {
+          icon: "Lock",
+          title: "云端备份安全性增强",
+          description: "修复了登录后部分用户进度显示为「第0天」的竞态问题。未登录用户会显示备份提示横幅，设置页面会以「几分钟前」的形式显示最后一次备份时间。",
         },
       ],
     },

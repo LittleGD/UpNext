@@ -236,6 +236,7 @@ async function flushSync(): Promise<void> {
       { merge: true },
     );
     success = true;
+    markBackupSucceeded();
     for (const key of Object.keys(dataToSync)) {
       if (pendingSyncData[key] === dataToSync[key]) {
         delete pendingSyncData[key];
@@ -281,7 +282,11 @@ async function flushSync(): Promise<void> {
   }
 }
 
-// 로컬 데이터를 클라우드에 초기 업로드
+// 로컬 데이터를 클라우드에 초기 업로드.
+//   P1 — uploadLocalData 는 syncToCloud 디바운스를 우회하므로, 별도로
+//   `hasLocalPendingWrite` 플래그를 잡았다 풀어야 startListener 의 첫
+//   onSnapshot emit 이 stale 빈 doc 으로 로컬을 덮어쓰는 race 를 차단할 수 있다.
+//   유저 피드백: "로그인 직후 0일차 됨".
 export async function uploadLocalData(
   uid: string,
   progress: UserProgress,
@@ -292,17 +297,23 @@ export async function uploadLocalData(
   const { db } = await getFirebase();
   const { doc, setDoc, serverTimestamp } = await getFirestoreMod();
 
-  const docRef = doc(db, "users", uid);
-  await setDoc(docRef, {
-    progress,
-    daily: dehydrateDaily(daily),
-    onboardingComplete: true,
-    meta: {
-      createdAt: serverTimestamp(),
-      lastSyncedAt: serverTimestamp(),
-      lastDeviceId: getDeviceId(),
-    },
-  });
+  hasLocalPendingWrite = true;
+  try {
+    const docRef = doc(db, "users", uid);
+    await setDoc(docRef, {
+      progress,
+      daily: dehydrateDaily(daily),
+      onboardingComplete: true,
+      meta: {
+        createdAt: serverTimestamp(),
+        lastSyncedAt: serverTimestamp(),
+        lastDeviceId: getDeviceId(),
+      },
+    });
+    markBackupSucceeded();
+  } finally {
+    hasLocalPendingWrite = false;
+  }
 }
 
 // 클라우드 데이터 최소 검증.
@@ -365,4 +376,35 @@ function getDeviceId(): string {
     localStorage.setItem("upnext_device_id", id);
   }
   return id;
+}
+
+/**
+ * P3 — 마지막 클라우드 백업 성공 시각 (ms epoch).
+ *
+ * Settings / AuthSection 에서 "마지막 백업: N분 전" 표시용.
+ * - flushSync 성공 / uploadLocalData 성공 시점에 갱신.
+ * - 클라우드의 meta.lastSyncedAt 은 serverTimestamp 라 round-trip 후에야 읽을 수
+ *   있으므로 로컬 시각으로 별도 저장 (사용자에게 보여줄 용도로는 충분).
+ */
+const LAST_BACKUP_KEY = "upnext_last_backup_at";
+
+function markBackupSucceeded(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
+  } catch {
+    /* storage full / private mode — silently ignore */
+  }
+}
+
+export function getLastBackupAt(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LAST_BACKUP_KEY);
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
 }

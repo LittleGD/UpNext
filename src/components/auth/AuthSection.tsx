@@ -1,10 +1,35 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { isFirebaseConfigured } from "@/lib/firebase";
+import { getLastBackupAt } from "@/lib/sync";
 import { isIos } from "@/lib/platform";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { useTranslation } from "@/hooks/useTranslation";
+
+/**
+ * P3 — "N분 전 / N시간 전" 등 사람이 읽을 수 있는 상대 시간.
+ * Intl.RelativeTimeFormat 으로 4 locale 자동 처리.
+ */
+function formatRelativeTime(ts: number, language: string): string {
+  const diffSec = Math.round((ts - Date.now()) / 1000); // 음수
+  const abs = Math.abs(diffSec);
+  let unit: Intl.RelativeTimeFormatUnit;
+  let value: number;
+  if (abs < 60) { unit = "second"; value = diffSec; }
+  else if (abs < 3600) { unit = "minute"; value = Math.round(diffSec / 60); }
+  else if (abs < 86_400) { unit = "hour"; value = Math.round(diffSec / 3600); }
+  else if (abs < 86_400 * 30) { unit = "day"; value = Math.round(diffSec / 86_400); }
+  else if (abs < 86_400 * 365) { unit = "month"; value = Math.round(diffSec / (86_400 * 30)); }
+  else { unit = "year"; value = Math.round(diffSec / (86_400 * 365)); }
+  try {
+    const rtf = new Intl.RelativeTimeFormat(language, { numeric: "auto" });
+    return rtf.format(value, unit);
+  } catch {
+    return new Date(ts).toLocaleString(language);
+  }
+}
 
 export default function AuthSection() {
   const user = useAuthStore((s) => s.user);
@@ -17,7 +42,17 @@ export default function AuthSection() {
   const signInError = useAuthStore((s) => s.signInError);
   const showAppleButton = isIos();
 
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+
+  // P3 — 마지막 백업 시각 표시. 60초 마다 갱신해서 "1분 전 → 2분 전" 자동.
+  // localStorage 폴링이라 비용 무시 가능.
+  const [lastBackupAt, setLastBackupAt] = useState<number | null>(null);
+  useEffect(() => {
+    const tick = () => setLastBackupAt(getLastBackupAt());
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   if (!isFirebaseConfigured) return null;
   if (isLoading) return null;
@@ -48,7 +83,11 @@ export default function AuthSection() {
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <PixelIcon name="Reload" size={12} color="var(--accent-primary)" />
-                <span className="typo-micro text-accent">{t("auth.section.syncing")}</span>
+                <span className="typo-micro text-accent">
+                  {lastBackupAt
+                    ? t("backup.lastSyncedAt", { ago: formatRelativeTime(lastBackupAt, language) })
+                    : t("auth.section.syncing")}
+                </span>
               </div>
             </div>
           </div>
