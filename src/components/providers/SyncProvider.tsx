@@ -251,7 +251,9 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
 
   const handleChooseCloud = async () => {
     if (!conflict) return;
-    useGameStore.getState()._setFromCloud(conflict.cloudProgress, conflict.cloudDaily);
+    // force=true — 사용자가 MergeConflictDialog 에서 명시적으로 "클라우드" 선택.
+    // 로컬이 일부 축에서 앞서더라도 사용자 의도를 우선해 P0 sanity guard 우회.
+    useGameStore.getState()._setFromCloud(conflict.cloudProgress, conflict.cloudDaily, { force: true });
     setSyncReady(true);
     await startListener(conflict.uid, (progress, daily) => {
       useGameStore.getState()._setFromCloud(progress, daily);

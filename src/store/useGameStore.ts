@@ -178,7 +178,11 @@ interface GameStore {
   equipTitle: (titleId: string | null) => void;
   markTitlesSeen: (titleIds: string[]) => void;
   markPatchNotesSeen: (version: string) => void;
-  _setFromCloud: (progress: UserProgress, daily: DailyState) => void;
+  _setFromCloud: (
+    progress: UserProgress,
+    daily: DailyState,
+    options?: { force?: boolean },
+  ) => void;
 
   /**
    * Phase 14 security — 로그아웃 시 in-memory state 초기화.
@@ -900,7 +904,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   //    로컬보다 strictly behind 인 progress 를 들고 와도, compareProgress 가
   //    "aAhead"(로컬이 앞섬) 라면 적용 거부 — 로컬 보존. 정당한 클라우드 복원
   //    (로컬이 비거나 같거나 뒤처진 경우) 은 그대로 통과.
-  _setFromCloud: (progress: UserProgress, daily: DailyState) => {
+  // 4) options.force=true — MergeConflictDialog 등 사용자가 명시적으로 "클라우드
+  //    덮어쓰기" 선택한 경로에서만 P0 가드를 우회. 자동 sync 경로는 force 없이 호출.
+  _setFromCloud: (
+    progress: UserProgress,
+    daily: DailyState,
+    options?: { force?: boolean },
+  ) => {
     const today = getTodayString();
     const safeDailyState = daily.date === today
       ? daily
@@ -919,16 +929,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     //     - "equal" / "bAhead" : 클라우드가 같거나 앞섬 → 정상 적용
     //     - "aAhead"           : 로컬이 strictly 앞섬 → 적용 거부 (로컬 보존)
     //     - "conflict"         : 둘 다 다른 축에서 앞섬 → 적용 (마지막-쓰기-승)
-    const localProgress = get().progress;
-    const cmp = compareProgress(localProgress, normalized);
-    if (cmp === "aAhead") {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          "[useGameStore._setFromCloud] cloud progress strictly behind local — skipping to prevent data loss.",
-          { localDays: localProgress.totalDaysCompleted, cloudDays: normalized.totalDaysCompleted },
-        );
+    //   force=true 시 가드 우회 — 사용자가 명시적으로 cloud 선택했을 때만.
+    if (!options?.force) {
+      const localProgress = get().progress;
+      const cmp = compareProgress(localProgress, normalized);
+      if (cmp === "aAhead") {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            "[useGameStore._setFromCloud] cloud progress strictly behind local — skipping to prevent data loss.",
+            { localDays: localProgress.totalDaysCompleted, cloudDays: normalized.totalDaysCompleted },
+          );
+        }
+        return;
       }
-      return;
     }
 
     const localDaily = get().daily;
