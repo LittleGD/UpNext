@@ -7,6 +7,12 @@ const ko = {
   "backup.lastSyncedAt": "마지막 백업: {ago}",
   "backup.notSynced": "아직 백업되지 않음",
   "backup.signInToBackup": "로그인하여 백업하기",
+  // === android first launch ===
+  "androidFirstLaunch.title": "데이터 보존 안내",
+  "androidFirstLaunch.body1": "Play Store 앱은 별도 저장소를 사용해요. Chrome 에서 PWA 로 쓰던 진행 데이터를 가져오려면 같은 계정으로 로그인이 필요합니다.",
+  "androidFirstLaunch.body2": "지금 로그인하면 클라우드에 자동 동기화되어 기기를 바꿔도 안전해요.",
+  "androidFirstLaunch.cta": "지금 로그인",
+  "androidFirstLaunch.later": "나중에",
   // === common ===
   "common.next": "다음",
   "common.cancel": "취소",

@@ -38,6 +38,10 @@ const BackupReminderBanner = dynamic(
   () => import("@/components/auth/BackupReminderBanner"),
   { ssr: false },
 );
+const AndroidFirstLaunchModal = dynamic(
+  () => import("@/components/auth/AndroidFirstLaunchModal"),
+  { ssr: false },
+);
 const LoginOverlay = dynamic(
   () => import("@/components/auth/LoginOverlay"),
   { ssr: false },
@@ -153,6 +157,10 @@ export default function Home() {
         {/* 컬렉션 100% 첫 달성 축하 — store.collectionCelebration 토글 시 자동 마운트.
             CardPackOpener 닫힌 다음 프레임에 자연스럽게 등장. */}
         <CollectionCelebration />
+
+        {/* Phase F — Android Capacitor 첫 실행 1회 백업 안내. PWA → Play Store 앱
+            전환 시 데이터 격리로 인한 손실 방지. */}
+        <AndroidFirstLaunchModal onLogin={() => setShowLoginOverlay(true)} />
       </div>
     </>
   );

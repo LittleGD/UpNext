@@ -1,19 +1,28 @@
 {
-  "name": "upnext-ios",
+  "name": "upnext-mobile",
   "version": "0.1.0",
   "private": true,
-  "description": "UpNext iOS Capacitor wrapper — loads Vercel-hosted web app inside a native iOS shell.",
+  "description": "UpNext mobile Capacitor wrapper — loads Vercel-hosted web app inside iOS / Android native shells.",
   "scripts": {
-    "sync": "cap sync ios",
+    "sync": "cap sync",
+    "sync:ios": "cap sync ios",
+    "sync:android": "cap sync android",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android",
     "open": "cap open ios",
-    "assets": "capacitor-assets generate --ios"
+    "assets": "capacitor-assets generate",
+    "assets:ios": "capacitor-assets generate --ios",
+    "assets:android": "capacitor-assets generate --android"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",
+    "@capacitor/android": "^8.3.3",
     "@capacitor/cli": "^8.3.1",
     "@capacitor/core": "^8.3.1",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.3.1",
+    "@capacitor/local-notifications": "^8.1.0",
+    "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2"
   },

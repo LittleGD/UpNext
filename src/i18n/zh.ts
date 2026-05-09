@@ -9,6 +9,12 @@ const zh: Record<DictKey, string> = {
   "backup.lastSyncedAt": "最后备份: {ago}",
   "backup.notSynced": "尚未备份",
   "backup.signInToBackup": "登录以备份",
+  // === android first launch ===
+  "androidFirstLaunch.title": "数据保护提醒",
+  "androidFirstLaunch.body1": "Play Store 版本使用独立的存储区域。要从 Chrome PWA 中继承进度，请使用相同账号登录。",
+  "androidFirstLaunch.body2": "登录后自动同步到云端，更换设备或重装也安全。",
+  "androidFirstLaunch.cta": "立即登录",
+  "androidFirstLaunch.later": "稍后",
   // === common ===
   "common.next": "下一步",
   "common.cancel": "取消",

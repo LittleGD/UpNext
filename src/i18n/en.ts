@@ -9,6 +9,12 @@ const en: Record<DictKey, string> = {
   "backup.lastSyncedAt": "Last backup: {ago}",
   "backup.notSynced": "Not yet backed up",
   "backup.signInToBackup": "Sign in to back up",
+  // === android first launch ===
+  "androidFirstLaunch.title": "Keep your progress safe",
+  "androidFirstLaunch.body1": "The Play Store app uses separate storage. To bring over progress from your Chrome PWA, sign in with the same account.",
+  "androidFirstLaunch.body2": "Signing in syncs everything to the cloud — safe across devices and reinstalls.",
+  "androidFirstLaunch.cta": "Sign in now",
+  "androidFirstLaunch.later": "Later",
   // === common ===
   "common.next": "Next",
   "common.cancel": "Cancel",

@@ -35,3 +35,7 @@ export function getNativePlatform(): "ios" | "android" | "web" {
 export function isIos(): boolean {
   return getNativePlatform() === "ios";
 }
+
+export function isAndroidNative(): boolean {
+  return getNativePlatform() === "android";
+}

@@ -9,6 +9,12 @@ const ja: Record<DictKey, string> = {
   "backup.lastSyncedAt": "最終バックアップ: {ago}",
   "backup.notSynced": "まだバックアップされていません",
   "backup.signInToBackup": "ログインしてバックアップ",
+  // === android first launch ===
+  "androidFirstLaunch.title": "データ保護のお知らせ",
+  "androidFirstLaunch.body1": "Play Store版アプリは別の保存領域を使います。ChromeのPWAで進めていたデータを引き継ぐには、同じアカウントでログインしてください。",
+  "androidFirstLaunch.body2": "ログインするとクラウドに自動同期され、機種変更や再インストールでも安心です。",
+  "androidFirstLaunch.cta": "今すぐログイン",
+  "androidFirstLaunch.later": "あとで",
   // === common ===
   "common.next": "次へ",
   "common.cancel": "キャンセル",
