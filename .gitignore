@@ -65,3 +65,6 @@ keystore.properties
 **/GoogleService-Info.plist
 **/google-services.json
 
+
+# JetBrains IDE files (Android Studio)
+.idea/

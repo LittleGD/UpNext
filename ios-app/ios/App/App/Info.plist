@@ -49,5 +49,18 @@
 	<string>챌린지 인증 사진을 촬영하는 데 카메라를 사용합니다.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>촬영한 챌린지 사진을 사진 라이브러리에 저장합니다.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.783949986057-hm0rrukpgmudae8n02il1opgfbk2djmp</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
 </dict>
 </plist>

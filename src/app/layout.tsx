@@ -9,6 +9,7 @@ import LanguageSync from "@/components/providers/LanguageSync";
 import MotionProvider from "@/components/providers/MotionProvider";
 import ClientEffects from "@/components/effects/ClientEffects";
 import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
+import WidgetSync from "@/components/providers/WidgetSync";
 import { Analytics } from "@vercel/analytics/next";
 
 // ── April16Promise 로컬 셀프호스팅 ──
@@ -81,6 +82,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-bg-primary font-sans antialiased">
         <ClientEffects />
         <ServiceWorkerRegistrar />
+        <WidgetSync />
         <MotionProvider>
           <SyncProvider>
             <LanguageSync />

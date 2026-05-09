@@ -552,52 +552,120 @@ function normalizePattern(pattern: number[]): number[] {
 }
 
 /**
- * iOS 네이티브 햅틱 매핑.
- * 웹의 [ms, pause, ms, ...] 진동 패턴을 iOS의 Impact/Notification 세기 단계로 번역.
- * iOS Safari/WKWebView는 navigator.vibrate를 완전 무시(no-op)하므로 네이티브 플러그인 필수.
+ * iOS 네이티브 햅틱 의도 매핑.
+ *
+ * 설계 원칙: 사운드별 "느낌"을 명시적 intent로 선언 → 패턴 길이/숫자 기반 휴리스틱 폐기.
+ * 디자이너 의도(사운드의 무게감/감정)와 햅틱 강도가 1:1로 보이게 만들어 추후 튜닝 용이.
+ *
+ * iOS Apple HIG 매핑:
+ * - "selection": UISelectionFeedbackGenerator — 가벼운 선택/스크롤
+ * - "light":     UIImpactFeedbackGenerator(.light) — 작은 물리 이벤트
+ * - "medium":    UIImpactFeedbackGenerator(.medium) — 분명한 물리 이벤트
+ * - "heavy":     UIImpactFeedbackGenerator(.heavy) — 강한 충격/대미지
+ * - "success":   UINotificationFeedbackGenerator(.success) — 완료/달성
+ * - "warning":   UINotificationFeedbackGenerator(.warning) — 부정적 이벤트
+ * - "celebration": Heavy → 100ms 후 Success — 레벨업 등 "큰 보상" 컴파운드
  */
-const NATIVE_SUCCESS_HAPTICS: ReadonlySet<SoundName> = new Set<SoundName>([
-  "packOpen", "complete", "fullClear", "levelUp",
-  "treeGrow", "rewardChoose", "matchPair", "fireIgnite",
-]);
+type HapticIntent =
+  | "selection"
+  | "light"
+  | "medium"
+  | "heavy"
+  | "success"
+  | "warning"
+  | "celebration";
 
-async function triggerNativeHaptic(name: SoundName, pattern: number[]): Promise<void> {
+const HAPTIC_INTENT: Record<SoundName, HapticIntent | null> = {
+  // 선택 — UI 탐색
+  select:        "selection",
+  cardSelect:    "selection",
+  cardPreview:   "selection",
+  cardHover:     null,         // 너무 빈번
+  equip:         "selection",
+  cameraShutter: "selection",
+
+  // 가벼운 임팩트 — 사소한 물리 이벤트
+  cardFlip:      "light",
+  polaroidSlide: "light",
+  xpGain:        "light",
+  cancel:        "light",
+
+  // 중간 임팩트 — 분명한 사용자 액션
+  confirm:       "medium",   // 확정 — 가벼운 "딸깍"보다 무게감
+  collect:       "medium",   // 사운드: heavy thud + metallic lock — 무게감 일치
+  matchPair:     "medium",   // 매칭 성공 — 짧은 보상 임팩트
+
+  // 강한 임팩트 — 격렬한 이펙트
+  impactShake:   "heavy",
+  fireIgnite:    "heavy",    // 불 점화 — "축하"가 아닌 강력한 이벤트
+  chargeUp:      "heavy",
+  pulseWave:     "heavy",
+  meteorWhoosh:  "heavy",
+  superIgnite:   "heavy",
+
+  // 성공 알림 — 완료/달성
+  packOpen:      "success",
+  complete:      "success",
+  fullClear:     "success",
+  treeGrow:      "success",
+  rewardChoose:  "success",
+
+  // 경고 알림 — 부정적
+  curseTrigger:  "warning",
+
+  // 컴파운드 — Heavy + Success 더블 임팩트로 "큰 보상" 강조
+  levelUp:       "celebration",
+
+  // 햅틱 없음
+  ambientFloat:  null,
+};
+
+async function triggerNativeHaptic(intent: HapticIntent): Promise<void> {
   try {
     const { Haptics, ImpactStyle, NotificationType } = await import("@capacitor/haptics");
 
-    // 다중 스텝 패턴: 축하 계열은 Notification.Success, 충격 계열은 Heavy Impact
-    if (pattern.length > 1) {
-      if (NATIVE_SUCCESS_HAPTICS.has(name)) {
+    switch (intent) {
+      case "selection":
+        await Haptics.selectionChanged();
+        return;
+      case "light":
+        await Haptics.impact({ style: ImpactStyle.Light });
+        return;
+      case "medium":
+        await Haptics.impact({ style: ImpactStyle.Medium });
+        return;
+      case "heavy":
+        await Haptics.impact({ style: ImpactStyle.Heavy });
+        return;
+      case "success":
         await Haptics.notification({ type: NotificationType.Success });
         return;
-      }
-      await Haptics.impact({ style: ImpactStyle.Heavy });
-      return;
-    }
-
-    // 단일 스텝: 진동 길이에 따라 Selection/Light/Medium 분기
-    const ms = pattern[0] ?? 0;
-    if (ms <= 10) {
-      await Haptics.selectionChanged();
-    } else if (ms <= 17) {
-      await Haptics.impact({ style: ImpactStyle.Light });
-    } else {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      case "warning":
+        await Haptics.notification({ type: NotificationType.Warning });
+        return;
+      case "celebration":
+        // Heavy 충격 + 100ms 후 Success → "꽝!" 다음 "팡팡팡" 패턴
+        // setTimeout 안 잡고 두 호출 사이에 await 짧게 걸어 약간 더 자연스럽게
+        await Haptics.impact({ style: ImpactStyle.Heavy });
+        await new Promise((r) => setTimeout(r, 110));
+        await Haptics.notification({ type: NotificationType.Success });
+        return;
     }
   } catch { /* non-critical */ }
 }
 
 export function triggerHaptic(name: SoundName): void {
-  const pattern = VIBRATION_PATTERNS[name];
-  if (!pattern) return;
-
-  // iOS 네이티브(Capacitor WKWebView): UIImpactFeedbackGenerator 경로
+  // iOS 네이티브(Capacitor WKWebView): 명시적 intent → UIFeedbackGenerator 경로
   if (isNative()) {
-    void triggerNativeHaptic(name, pattern);
+    const intent = HAPTIC_INTENT[name];
+    if (!intent) return;
+    void triggerNativeHaptic(intent);
     return;
   }
 
   // 웹/안드로이드(TWA): navigator.vibrate (iOS Safari에선 무시됨)
+  const pattern = VIBRATION_PATTERNS[name];
+  if (!pattern) return;
   if (typeof navigator !== "undefined" && navigator.vibrate) {
     try {
       const normalized = normalizePattern(pattern);
