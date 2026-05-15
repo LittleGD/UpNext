@@ -136,16 +136,22 @@ for (const lv of [1, 10, 30, 50]) {
 lines.push(
   `computeHeroForLevel(injured,10) = ${fmtHero(computeHeroForLevel(mkHero({ hp: 50 }), 10))}`,
 );
-for (const cls of ["warrior", "mage"]) {
+for (const cls of ["warrior", "mage", "monk", "druid", "bard", "chronomancer", "priest", "illusionist"]) {
   lines.push(
     `computeHeroForLevel(${cls},42) = ${fmtHero(computeHeroForLevel(mkHero({ classType: cls }), 42))}`,
   );
 }
-// 11. computeStatMax
+// 11. computeStatMax — 8개 클래스 전부 (classStatGrowth 테이블 완전 검증)
 for (const [lv, cls] of [
   [1, null],
   [42, "warrior"],
   [42, "mage"],
+  [42, "monk"],
+  [42, "druid"],
+  [42, "bard"],
+  [42, "chronomancer"],
+  [42, "priest"],
+  [42, "illusionist"],
   [30, "monk"],
   [50, null],
 ]) {
