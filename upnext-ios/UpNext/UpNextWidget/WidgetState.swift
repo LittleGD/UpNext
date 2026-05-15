@@ -44,7 +44,7 @@ struct WidgetState: Codable, Equatable {
     )
 
     static func load() -> WidgetState {
-        guard let defaults = UserDefaults(suiteName: "group.com.littlegd.upnext"),
+        guard let defaults = AppConfig.sharedDefaults,
               let data = defaults.data(forKey: "widgetState") else {
             return .empty
         }

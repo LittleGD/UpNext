@@ -94,10 +94,11 @@ struct ContentView: View {
                 user = result.user
             }
 
-            // 2. Firestore에서 자기 progress 문서 read 시도
+            // 2. Firestore에서 자기 user doc read 시도 — 웹과 동일한 스키마 /users/{uid}
+            //    (src/lib/sync.ts:139의 doc(db, "users", uid)와 1:1 매칭)
             status = .reading
             let db = Firestore.firestore()
-            let docRef = db.collection("users").document(user.uid).collection("progress").document("main")
+            let docRef = db.collection(AppConfig.firestoreUsersCollection).document(user.uid)
             let snapshot = try await docRef.getDocument()
 
             status = .success(uid: user.uid, docExists: snapshot.exists)
