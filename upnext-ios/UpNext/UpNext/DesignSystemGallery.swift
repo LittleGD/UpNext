@@ -14,6 +14,7 @@ struct DesignSystemGallery: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
                 header
+                catalogSection
 
                 colorSection("배경", [
                     ("bgPrimary", .bgPrimary), ("bgSurface", .bgSurface),
@@ -65,6 +66,31 @@ struct DesignSystemGallery: View {
                 .foregroundStyle(Color.accentPrimary)
             Text("Phase 1 — 색상 46 · 타이포 6단계 · 아이콘 34")
                 .typography(.caption)
+                .foregroundStyle(Color.textTertiary)
+        }
+    }
+
+    // MARK: - 카드 카탈로그 검증 (Phase 2.2)
+
+    private var catalogSection: some View {
+        let cards = CardCatalog.allCards
+        let byRarity = Dictionary(grouping: cards, by: \.rarity)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("카드 카탈로그")
+                .typography(.heading)
+                .foregroundStyle(Color.textPrimary)
+            HStack(spacing: 6) {
+                PixelIcon(cards.isEmpty ? .warningDiamond : .check,
+                          size: 14,
+                          color: cards.isEmpty ? .colorError : .signalGo)
+                Text(cards.isEmpty
+                     ? "Cards.json 디코드 실패"
+                     : "\(cards.count)장 로드 · 스타터 \(CardCatalog.starterCardIds.count)")
+                    .typography(.caption)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            Text("normal \(byRarity[.normal]?.count ?? 0) · rare \(byRarity[.rare]?.count ?? 0) · unique \(byRarity[.unique]?.count ?? 0) · legend \(byRarity[.legend]?.count ?? 0)")
+                .typography(.micro)
                 .foregroundStyle(Color.textTertiary)
         }
     }
