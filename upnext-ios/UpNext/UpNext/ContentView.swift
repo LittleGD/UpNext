@@ -1,13 +1,12 @@
 //
 //  ContentView.swift
-//  UpNext — Phase 0.4 검증 화면.
+//  UpNext — 앱 루트 뷰.
 //
-//  목적: Firebase iOS SDK 통합이 제대로 됐는지 end-to-end 검증.
-//   1. FirebaseAuth로 익명 로그인 (UID 발급)
-//   2. Firestore에서 /users/{uid}/progress 문서 read 시도
-//   3. 결과(연결됨 / 새 사용자 / 에러)를 화면에 표시
+//  현재는 마이그레이션 검증용 2탭:
+//   - 디자인 시스템 갤러리 (Phase 1 산출물)
+//   - Firebase 연결 검증 (Phase 0 산출물)
 //
-//  Phase 1 이후엔 이 화면이 통째로 SwiftUI Daily Home으로 교체될 예정.
+//  Phase 4에서 실제 Daily Home / Collection / Camp 등 화면으로 교체될 예정.
 //
 
 import SwiftUI
@@ -15,17 +14,32 @@ import FirebaseAuth
 import FirebaseFirestore
 
 struct ContentView: View {
+    var body: some View {
+        TabView {
+            DesignSystemGallery()
+                .tabItem { Label("디자인", systemImage: "paintpalette") }
+
+            FirebaseCheckView()
+                .tabItem { Label("Firebase", systemImage: "checkmark.icloud") }
+        }
+        .tint(Color.accentPrimary)
+    }
+}
+
+// MARK: - Firebase 연결 검증 (Phase 0.4)
+
+struct FirebaseCheckView: View {
     @State private var status: ConnectionStatus = .idle
 
     var body: some View {
         VStack(spacing: 16) {
             Text("UpNext")
-                .font(.system(size: 32, weight: .bold, design: .rounded))
-                .foregroundStyle(Color(red: 0.78, green: 0.95, blue: 0.42))
+                .typography(.display)
+                .foregroundStyle(Color.accentPrimary)
 
             Text("Phase 0.4 — Firebase 연결 검증")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .typography(.caption)
+                .foregroundStyle(Color.textTertiary)
 
             Divider().padding(.vertical, 8)
 
@@ -36,8 +50,8 @@ struct ContentView: View {
                     Text("UID: \(uid.prefix(12))…")
                         .font(.system(.caption, design: .monospaced))
                     Text(docExists ? "기존 progress 발견" : "새 사용자 (progress 없음)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .typography(.micro)
+                        .foregroundStyle(Color.textTertiary)
                 }
                 .padding(.top, 8)
             }
@@ -51,9 +65,9 @@ struct ContentView: View {
             }
         }
         .padding()
-        .task {
-            await runCheck()
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.bgPrimary)
+        .task { await runCheck() }
     }
 
     @ViewBuilder
@@ -68,15 +82,15 @@ struct ContentView: View {
         case .success:
             Label("연결 성공", systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-                .font(.headline)
+                .typography(.heading)
         case .error(let msg):
             VStack(spacing: 6) {
                 Label("연결 실패", systemImage: "xmark.octagon.fill")
-                    .foregroundStyle(.red)
-                    .font(.headline)
+                    .foregroundStyle(Color.colorError)
+                    .typography(.heading)
                 Text(msg)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .typography(.caption)
+                    .foregroundStyle(Color.textTertiary)
                     .multilineTextAlignment(.center)
             }
         }

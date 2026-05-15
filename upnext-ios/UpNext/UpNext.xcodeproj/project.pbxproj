@@ -17,6 +17,10 @@
 		CC000000000000000000000C /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CC0000000000000000000007 /* GoogleSignInSwift */; };
 		DD0000000000000000000002 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* AppConfig.swift */; };
 		DD0000000000000000000003 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* AppConfig.swift */; };
+		DD0000000000000000000006 /* Color+Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000005 /* Color+Tokens.swift */; };
+		DD0000000000000000000007 /* Color+Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000005 /* Color+Tokens.swift */; };
+		DD0000000000000000000009 /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000008 /* Typography.swift */; };
+		DD000000000000000000000A /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000008 /* Typography.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +52,8 @@
 		BB0000000000000000000025 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		BB0000000000000000000026 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		DD0000000000000000000001 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		DD0000000000000000000005 /* Color+Tokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Tokens.swift"; sourceTree = "<group>"; };
+		DD0000000000000000000008 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		E6B6A0952FB6DEB800E7EA09 /* UpNext.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UpNext.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -115,6 +121,8 @@
 			isa = PBXGroup;
 			children = (
 				DD0000000000000000000001 /* AppConfig.swift */,
+				DD0000000000000000000005 /* Color+Tokens.swift */,
+				DD0000000000000000000008 /* Typography.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -258,6 +266,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				DD0000000000000000000003 /* AppConfig.swift in Sources */,
+				DD0000000000000000000007 /* Color+Tokens.swift in Sources */,
+				DD000000000000000000000A /* Typography.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -266,6 +276,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				DD0000000000000000000002 /* AppConfig.swift in Sources */,
+				DD0000000000000000000006 /* Color+Tokens.swift in Sources */,
+				DD0000000000000000000009 /* Typography.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -493,6 +505,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -526,6 +539,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (

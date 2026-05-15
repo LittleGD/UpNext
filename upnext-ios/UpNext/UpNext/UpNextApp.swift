@@ -15,6 +15,9 @@ struct UpNextApp: App {
         // Firebase iOS SDK 초기화 — GoogleService-Info.plist를 읽어 FirebaseApp.default 설정.
         // FirebaseAuth/Firestore/Messaging 등 모든 Firebase 서비스가 이 시점 이후 사용 가능.
         FirebaseApp.configure()
+
+        // 커스텀 폰트(April16th-Promise) 런타임 등록 — typography(_:) 모디파이어가 쓰는 폰트.
+        AppFont.register()
     }
 
     var body: some Scene {
