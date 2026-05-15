@@ -378,7 +378,7 @@ function endSession(
  *  - affinity 가 같은 카테고리 던전이면 그 buff 의 stat 만 multiplier 적용
  *  - healStart: maxHp 와 hp 둘 다 증가 (세션 끝까지 유지되는 내구력 버프)
  */
-function applyStatAndHealBuffs(
+export function applyStatAndHealBuffs(
   hero: Hero,
   buffs: CardBuff[],
   dungeonId: CombatSession["dungeonId"],
@@ -452,7 +452,7 @@ const ILLUSIONIST_CRIT_BONUS = 8; // percentage points (on stats.crit)
  *
  * classType null 이면 no-op. Pure — 원본 hero mutate 안함.
  */
-function applyClassStartEffects(hero: Hero): Hero {
+export function applyClassStartEffects(hero: Hero): Hero {
   const cls = hero.classType;
   if (!cls) return hero;
   const newHero = { ...hero, baseStats: { ...hero.baseStats } };
@@ -478,22 +478,22 @@ export function classCoinMult(cls: ClassType | null): number {
 }
 
 /** heal 효과 배율 (druid +30%) — heal choice effect 적용 시 사용 */
-function classHealMult(cls: ClassType | null): number {
+export function classHealMult(cls: ClassType | null): number {
   return cls === "druid" ? DRUID_HEAL_MULT : 1;
 }
 
 /** 시간 소모 배율 (chronomancer 0.75) — consumeTime 음수 delta 에만 적용 */
-function classTimeMult(cls: ClassType | null): number {
+export function classTimeMult(cls: ClassType | null): number {
   return cls === "chronomancer" ? CHRONOMANCER_TIME_MULT : 1;
 }
 
 /** dodge 가산량 (monk +0.1 확률) — rollEnemyOutcome 에서 사용 */
-function classDodgeBonus(cls: ClassType | null): number {
+export function classDodgeBonus(cls: ClassType | null): number {
   return cls === "monk" ? MONK_DODGE_BONUS : 0;
 }
 
 /** round 당 hp regen (warrior +2) — executeCombatRound 끝에서 적용 */
-function classHpRegen(cls: ClassType | null): number {
+export function classHpRegen(cls: ClassType | null): number {
   return cls === "warrior" ? WARRIOR_REGEN_PER_ROUND : 0;
 }
 
@@ -1064,7 +1064,7 @@ export function resolveChoice(
 }
 
 /** weight 기반 랜덤 outcome pick. weight 합 0 가드. */
-function pickWeighted<T extends { weight: number }>(outcomes: T[]): T {
+export function pickWeighted<T extends { weight: number }>(outcomes: T[]): T {
   const total = outcomes.reduce((sum, o) => sum + Math.max(0, o.weight), 0);
   if (total <= 0) return outcomes[0];
   let roll = rng() * total;
@@ -1084,7 +1084,7 @@ function pickWeighted<T extends { weight: number }>(outcomes: T[]): T {
  * heal 은 heroClass/talisman mult 가 곱해지므로 "예상 수치" (명시된 amount 기준).
  * fight/flee/revealBoss/skipFloors 같은 구조 이벤트는 summary 에서 제외.
  */
-function summarizeEffects(effects: readonly ChoiceEffect[]): string {
+export function summarizeEffects(effects: readonly ChoiceEffect[]): string {
   const data = summarizeEffectsData(effects);
   const parts: string[] = [];
   if (data.xp) parts.push(`경험치 +${data.xp}`);
@@ -1813,12 +1813,12 @@ function initMonsterTraitState(s: CombatSession, monster: Monster): void {
  *   눈에 띄지 않도록 crit +8% / hit +3% (miss 감산) / dodge +6% / enemy miss +5% / enemy crit −4%.
  *   Lv 5+ 나 11F+ 는 자동 해제 — 튜토리얼 쿠션이지 영구 버프 아님.
  */
-function isNewbieBuffActive(heroLevel: number, floorLevel: number): boolean {
+export function isNewbieBuffActive(heroLevel: number, floorLevel: number): boolean {
   return heroLevel < 5 && floorLevel <= 10;
 }
 
 /** 영웅 공격의 outcome 판정 */
-function rollHeroOutcome(
+export function rollHeroOutcome(
   stats: HeroBaseStats,
   monster: Monster,
   heroLevel = 99,
@@ -1853,7 +1853,7 @@ function rollHeroOutcome(
  * @param enemyMissBonus Phase 11b — talisman "변덕" 등 적 miss 확률 가산.
  * @param monsterCritBonus Phase 11c R1 — "깨지기 쉬운 세계" affix runtime. 몬스터 crit +0.15.
  */
-function rollEnemyOutcome(
+export function rollEnemyOutcome(
   monster: Monster,
   stats: HeroBaseStats,
   dodgeBonus = 0,
@@ -1907,7 +1907,7 @@ function rollEnemyOutcome(
  * - +50 bias — F30 power3 DEF 51 기준 50% DR. 엔드게임도 공격이 유효.
  * - Lv24 STR 33 vs DEF 32 (Phase 15 기준 18) → DR 0.265 → dmg ≈ 24, crit 43.
  */
-function computeHeroDamage(
+export function computeHeroDamage(
   stats: HeroBaseStats,
   monster: Monster,
   crit: boolean,
@@ -1935,7 +1935,7 @@ function computeHeroDamage(
  * Lv30 vit 39 기준 DR ≈ 50% → NG+2 atk 1000 → 500 × (1 - 0.5) = 250 (여전히 아프지만
  * maxHp 390 에서 1.5hit 소요, 생존 가능).
  */
-function computeEnemyDamage(
+export function computeEnemyDamage(
   monster: Monster,
   stats: HeroBaseStats,
   crit: boolean,
@@ -1968,7 +1968,7 @@ function computeEnemyDamage(
  * hit (일반) 는 3턴당 1개 꼴 (33%) 로 낮춰 시각적 리듬 일관화.
  * crit / miss / dodge 는 특수 상황이므로 항상 narrative.
  */
-function shouldNarrate(outcome: CombatOutcome): number {
+export function shouldNarrate(outcome: CombatOutcome): number {
   return outcome === "hit" ? 0.33 : 1.0;
 }
 
@@ -1979,7 +1979,7 @@ function shouldNarrate(outcome: CombatOutcome): number {
  *
  * @returns 값 (0 = 없음, 음수 가능 — monsterFrequency 감소)
  */
-function getBuffBoost(
+export function getBuffBoost(
   buffs: CardBuff[] | undefined,
   type: SpecialEffect,
 ): number {
