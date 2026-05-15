@@ -3,40 +3,15 @@
 //  UpNext 로직 — Up Hero 사진 부적 passive 스킬 (8카테고리 × 2티어 = 16종).
 //
 //  웹 src/lib/talismanSkills.ts (388줄) 1:1 포팅.
-//  Phase 2.4 (RPG 엔진) "스킬" 단계 — UpHero.swift 의 TalismanModifiers 스텁을
-//  여기 실제 구조체로 정의 (CombatSession.talismanMods 가 참조).
+//  Phase 2.4 (RPG 엔진) "스킬" 단계 — 부적 스킬 카탈로그 + 수집/적용 로직.
 //
 //  부적 +5 / +10 강화 시 category 기반 passive skill 부여. 각 skill 은 세션 시작
 //  시 TalismanModifiers 에 효과를 누적 → combat/time/drop 각 지점에서 참조.
 //
+//  `TalismanModifiers` 상태 구조체는 UpHero.swift 에 정의 (CombatSession 이 참조).
+//
 
 import Foundation
-
-/// 부적 passive 합산 modifier 버킷. 웹 `TalismanModifiers`.
-/// 기본 생성자 `TalismanModifiers()` = 웹 `emptyTalismanMods()` (배율은 1, 나머지 0).
-struct TalismanModifiers: Equatable {
-    var dodgeBonus: Double = 0          // 회피 추가 확률 (0-1)
-    var enemyMissBonus: Double = 0      // 적 miss 추가 확률 (0-1)
-    var critDmgBonus: Double = 0        // crit damage 배율 가산
-    var coinMult: Double = 1            // coin 보상 곱
-    var timeCostMult: Double = 1        // time 소모 곱
-    var healEffectMult: Double = 1      // heal 효과 곱
-    var hpRegenEvery2Rounds: Int = 0    // 2 round 마다 +N HP
-    var extraDropChance: Double = 0     // 세션 중 1회 보너스 드롭 확률
-    var legendDropBonus: Double = 0     // legend 드롭 확률 가산 (%p)
-    var bossTimeRecover: Int = 0        // 보스 처치 시 time 회복
-    var counterChance: Double = 0       // 피격 시 반격 확률
-    var lowHpDmgBonus: Double = 0       // HP ≤ 20% 공격 배율 가산
-    var agiRoundAccum: Int = 0          // round 당 agi 누적치
-    var agiRoundCap: Int = 0            // agi 누적 상한
-    var classSkillCdReduce: Int = 0     // class skill 쿨다운 감소
-    var startXp: Int = 0                // 세션 시작 즉시 XP
-    var startHpMult: Double = 1         // 세션 시작 HP 배율
-    var startHpFlat: Int = 0            // 세션 시작 HP 고정 가산
-
-    /// 부적 스킬 0개인 영웅용 기본값. 웹 `emptyTalismanMods()`.
-    static let empty = TalismanModifiers()
-}
 
 /// 부적 스킬 1종. 웹 `TalismanSkill`.
 struct TalismanSkill {
