@@ -68,3 +68,17 @@ keystore.properties
 
 # JetBrains IDE files (Android Studio)
 .idea/
+
+# Xcode user-specific state (per-user UI state, not shared)
+**/xcuserdata/
+**/*.xcuserstate
+**/UserInterfaceState.xcuserstate
+
+# Xcode build artifacts
+**/DerivedData/
+**/*.xcframework/
+**/build/
+
+# Swift Package Manager local artifacts (Package.resolved is shared, but .build is local)
+upnext-ios/**/.build/
+upnext-ios/**/.swiftpm/
