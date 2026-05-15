@@ -414,11 +414,7 @@ struct PendingMinigame: Equatable {
     var failEffects: [SimpleChoiceEffect]
 }
 
-/// 부적 passive skill 합산 modifier 버킷.
-/// Phase 2.4 — talismanSkills.ts 포팅 시 실제 필드로 채움. 현재는 전방 참조용 스텁.
-struct TalismanModifiers: Equatable {
-    // talismanSkills.ts 의 TalismanModifiers 포팅 예정 (Phase 2.4 "스킬" 단계).
-}
+// `TalismanModifiers` 는 TalismanSkills.swift 에 정의 — CombatSession.talismanMods 가 참조.
 
 /// 전투 세션 — 현재 진행 중인 던전 탐험. 웹 `CombatSession`.
 struct CombatSession: Equatable {
