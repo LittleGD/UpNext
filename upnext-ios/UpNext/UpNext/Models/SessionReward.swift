@@ -15,23 +15,6 @@ enum SessionReward {
     /// 로그라이크 체크포인트 단위 — 30층마다 진행 저장. 웹 `DUNGEON_CHECKPOINT_INTERVAL`.
     static let dungeonCheckpointInterval = 30
 
-    // MARK: - 장비 baseName (upHeroEquipment.ts 부분 포팅)
-
-    /// 등급별 이름 접두사. 웹 `RARITY_PREFIX` (upHeroEquipment.ts).
-    /// 전체 upHeroEquipment.ts 는 Phase 2.2 장비 데이터 포팅 시 별도 파일로 분리 예정.
-    static let rarityPrefix: [Rarity: String] = [
-        .normal: "", .rare: "빛나는 ", .unique: "전설적 ", .legend: "신성한 ",
-    ]
-
-    /// Equipment.name 에서 rarity 접두사 제거해 baseName 복원. 웹 `getEquipmentBaseName`.
-    static func equipmentBaseName(_ eq: Equipment) -> String {
-        let prefix = rarityPrefix[eq.rarity] ?? ""
-        if !prefix.isEmpty && eq.name.hasPrefix(prefix) {
-            return String(eq.name.dropFirst(prefix.count))
-        }
-        return eq.name
-    }
-
     // MARK: - 세션 종료 헬퍼
 
     /// 마지막 로그 엔트리에서 sessionEnd reason 추출.
@@ -101,7 +84,7 @@ enum SessionReward {
                 }
             }
             if case let .drop(equip, _) = entry {
-                let base = equipmentBaseName(equip)
+                let base = EquipmentPool.equipmentBaseName(equip)
                 if !equipSeen.contains(base) {
                     equipSeen.insert(base)
                     equipment.append(base)

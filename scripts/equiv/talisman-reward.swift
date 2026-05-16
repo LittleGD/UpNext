@@ -88,7 +88,7 @@ let nameRarity: [(String, Rarity)] = [
 ]
 for (name, rarity) in nameRarity {
     let eq = mkEquip(id: name, name: name, rarity: rarity)
-    print("equipBaseName:\(name):\(rarity.rawValue) = \(SessionReward.equipmentBaseName(eq))")
+    print("equipBaseName:\(name):\(rarity.rawValue) = \(EquipmentPool.equipmentBaseName(eq))")
 }
 
 func eqArr(_ ids: [String]) -> [Equipment] { ids.map { mkEquip(id: $0) } }

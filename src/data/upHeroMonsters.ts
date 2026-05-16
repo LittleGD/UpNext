@@ -265,7 +265,7 @@ export function createMonsterForFloor(
  *   - 영웅 측 computeHeroDamage 공식도 DR 기반으로 전환 (대칭).
  *   모두 power / NG+ / trait / earlyNerf 스케일은 유지 — 고난도 루트의 도전성 보전.
  */
-function scaleMonster(
+export function scaleMonster(
   t: MonsterTemplate,
   dungeonId: DungeonId,
   floor: number,
