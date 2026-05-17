@@ -13,6 +13,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var store: GameStore
     @State private var modeToConfirm: GameMode?
+    @State private var showPrivacy = false
 
     var body: some View {
         ScrollView {
@@ -24,6 +25,7 @@ struct SettingsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgPrimary)
+        .sheet(isPresented: $showPrivacy) { PrivacyView() }
     }
 
     // 부트스트랩 전 / 로그아웃 상태 안내
@@ -51,6 +53,7 @@ struct SettingsView: View {
             generalSection(progress)
             modeSection(progress)
             statsSection(progress)
+            infoSection()
 
             Text("UpNext v0.1.0")
                 .typography(.micro)
@@ -200,6 +203,33 @@ struct SettingsView: View {
         .padding(14)
         .background(Color.bgSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - 정보
+
+    private func infoSection() -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("정보")
+            Button {
+                showPrivacy = true
+            } label: {
+                HStack {
+                    Text("개인정보 처리방침")
+                        .typography(.body)
+                        .foregroundStyle(Color.textPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(Color.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .background(Color.bgSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
     }
 
     // MARK: - 공통 행 / 헬퍼
