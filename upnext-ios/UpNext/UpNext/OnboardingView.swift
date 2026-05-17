@@ -9,9 +9,9 @@
 //  finishOnboarding() 이 progress 를 확정하고 클라우드 업로드 → phase 가 .ready 로
 //  바뀌면 라우터가 자동으로 메인 앱으로 넘어간다.
 //
-//  웹 SplashScreen 은 미포팅(iOS 런치 스크린이 대체), AppDescription(405줄 다중 페이지)
-//  은 핵심 메시지로 압축, LevelUpScreen 의 파티클 연출은 단순화 — 흐름은 완결,
-//  연출/카피 폴리시는 이후 디자인 패스.
+//  하단 바: 좌측 아이콘 백버튼 + 우측 진행 버튼 (intro 는 첫 단계라 백버튼 없음).
+//  웹 SplashScreen 미포팅(iOS 런치 스크린이 대체), AppDescription(405줄)은 핵심
+//  메시지로 압축, LevelUpScreen 파티클 연출 단순화 — 흐름 완결, 연출은 디자인 패스.
 //
 
 import SwiftUI
@@ -31,19 +31,21 @@ struct OnboardingView: View {
             Group {
                 switch step {
                 case .intro:
-                    OnboardingIntro { advance(to: .difficulty) }
+                    OnboardingIntro { goTo(.difficulty) }
                 case .difficulty:
-                    OnboardingDifficulty { mode in
+                    OnboardingDifficulty(onBack: { goTo(.intro) }) { mode in
                         store.setMode(mode)
-                        advance(to: .starterPack)
+                        goTo(.starterPack)
                     }
                 case .starterPack:
-                    OnboardingStarterPack { packId in
+                    OnboardingStarterPack(onBack: { goTo(.difficulty) }) { packId in
                         store.selectStarterPack(packId)
-                        advance(to: .levelUp)
+                        goTo(.levelUp)
                     }
                 case .levelUp:
-                    OnboardingLevelUp { store.finishOnboarding() }
+                    OnboardingLevelUp(onBack: { goTo(.starterPack) }) {
+                        store.finishOnboarding()
+                    }
                 }
             }
 
@@ -53,7 +55,7 @@ struct OnboardingView: View {
         }
     }
 
-    private func advance(to next: Step) {
+    private func goTo(_ next: Step) {
         withAnimation(.easeInOut(duration: 0.2)) { step = next }
     }
 
@@ -91,7 +93,8 @@ private struct OnboardingIntro: View {
                 }
             }
             Spacer()
-            OnboardingPrimaryButton(title: "시작하기", action: onNext)
+            // 첫 단계 — 백버튼 없음
+            OnboardingBottomBar(title: "시작하기", action: onNext)
         }
         .padding(.horizontal, 32)
         .padding(.bottom, 40)
@@ -110,6 +113,7 @@ private struct OnboardingIntro: View {
 // MARK: - 2. 난이도 선택
 
 private struct OnboardingDifficulty: View {
+    let onBack: () -> Void
     let onSelect: (GameMode) -> Void
     @State private var selected: GameMode?
 
@@ -136,7 +140,7 @@ private struct OnboardingDifficulty: View {
 
             Spacer()
 
-            OnboardingPrimaryButton(title: "다음", enabled: selected != nil) {
+            OnboardingBottomBar(onBack: onBack, title: "다음", enabled: selected != nil) {
                 if let selected { onSelect(selected) }
             }
         }
@@ -193,6 +197,7 @@ private struct OnboardingDifficulty: View {
 // MARK: - 3. 스타터 팩 선택
 
 private struct OnboardingStarterPack: View {
+    let onBack: () -> Void
     let onSelect: (String) -> Void
     @State private var selectedId: String?
     @State private var revealing = false
@@ -229,7 +234,7 @@ private struct OnboardingStarterPack: View {
 
             Spacer()
 
-            OnboardingPrimaryButton(title: "팩 열기", enabled: selectedId != nil) {
+            OnboardingBottomBar(onBack: onBack, title: "팩 열기", enabled: selectedId != nil) {
                 withAnimation(.easeInOut(duration: 0.2)) { revealing = true }
             }
         }
@@ -282,7 +287,13 @@ private struct OnboardingStarterPack: View {
             }
             .padding(.top, 24)
             Spacer()
-            OnboardingPrimaryButton(title: "시작") { onSelect(pack.id) }
+            // 백버튼 — 팩 선택 화면으로 되돌아가 다른 팩을 고를 수 있다
+            OnboardingBottomBar(
+                onBack: { withAnimation(.easeInOut(duration: 0.2)) { revealing = false } },
+                title: "시작"
+            ) {
+                onSelect(pack.id)
+            }
         }
         .padding(.horizontal, 32)
         .padding(.bottom, 40)
@@ -331,6 +342,7 @@ private struct OnboardingStarterPack: View {
 // MARK: - 4. 레벨 1 달성
 
 private struct OnboardingLevelUp: View {
+    let onBack: () -> Void
     let onComplete: () -> Void
 
     var body: some View {
@@ -349,7 +361,7 @@ private struct OnboardingLevelUp: View {
                     .multilineTextAlignment(.center)
             }
             Spacer()
-            OnboardingPrimaryButton(title: "UpNext 시작하기", action: onComplete)
+            OnboardingBottomBar(onBack: onBack, title: "UpNext 시작하기", action: onComplete)
         }
         .padding(.horizontal, 32)
         .padding(.bottom, 40)
@@ -357,7 +369,31 @@ private struct OnboardingLevelUp: View {
     }
 }
 
-// MARK: - 공통 버튼
+// MARK: - 공통 하단 바 (좌: 아이콘 백버튼 · 우: 진행 버튼)
+
+private struct OnboardingBottomBar: View {
+    var onBack: (() -> Void)? = nil
+    let title: String
+    var enabled: Bool = true
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let onBack {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.textSecondary)
+                        .frame(width: 52, height: 52)
+                        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("이전")
+            }
+            OnboardingPrimaryButton(title: title, enabled: enabled, action: action)
+        }
+    }
+}
 
 private struct OnboardingPrimaryButton: View {
     let title: String
@@ -369,7 +405,7 @@ private struct OnboardingPrimaryButton: View {
             Text(title)
                 .typography(.body)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
+                .frame(height: 52)
                 .foregroundStyle(Color.bgPrimary)
                 .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
                 .opacity(enabled ? 1 : 0.3)
