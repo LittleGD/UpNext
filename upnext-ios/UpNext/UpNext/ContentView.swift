@@ -71,16 +71,4 @@ private struct BootErrorView: View {
     }
 }
 
-/// 로그인·부트스트랩 완료 후의 메인 앱.
-private struct MainTabView: View {
-    var body: some View {
-        TabView {
-            DesignSystemGallery()
-                .tabItem { Label("디자인", systemImage: "paintpalette") }
-
-            SettingsView()
-                .tabItem { Label("설정", systemImage: "gearshape") }
-        }
-        .tint(Color.accentPrimary)
-    }
-}
+// 로그인·부트스트랩 완료 후의 메인 앱은 MainShell.swift 의 MainTabView.
