@@ -1,0 +1,282 @@
+//
+//  SettingsView.swift
+//  UpNext — 설정 화면 (Phase 4 슬라이스 2).
+//
+//  웹 src/app/settings/page.tsx 의 일반 설정·챌린지 모드·통계 부분을 SwiftUI 로 포팅.
+//  칭호 / 계정 연동 / 데이터 초기화 섹션은 데이터·화면 의존성이 있어 이후 슬라이스로 분리.
+//
+//  GameStore 를 환경 객체로 받아 progress 를 읽고, 설정 액션으로 변경 → 클라우드 동기화.
+//
+
+import SwiftUI
+
+struct SettingsView: View {
+    @EnvironmentObject private var store: GameStore
+    @State private var modeToConfirm: GameMode?
+
+    var body: some View {
+        ScrollView {
+            if let progress = store.progress {
+                content(progress)
+            } else {
+                placeholder
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.bgPrimary)
+    }
+
+    // 부트스트랩 전 / 로그아웃 상태 안내
+    private var placeholder: some View {
+        VStack(spacing: 8) {
+            Text("설정")
+                .typography(.title)
+                .foregroundStyle(Color.textPrimary)
+            Text("로그인 후 설정이 표시됩니다 — Auth/Sync 탭에서 로그인하세요")
+                .typography(.caption)
+                .foregroundStyle(Color.textTertiary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 80)
+        .padding(.horizontal, 24)
+    }
+
+    private func content(_ progress: UserProgress) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text("설정")
+                .typography(.title)
+                .foregroundStyle(Color.textPrimary)
+
+            generalSection(progress)
+            modeSection(progress)
+            statsSection(progress)
+
+            Text("UpNext v0.1.0")
+                .typography(.micro)
+                .foregroundStyle(Color.textTertiary)
+                .opacity(0.6)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(20)
+    }
+
+    // MARK: - 일반
+
+    private func generalSection(_ p: UserProgress) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("일반")
+            VStack(spacing: 0) {
+                settingRow("언어") {
+                    Picker("", selection: Binding(
+                        get: { p.language },
+                        set: { store.setLanguage($0) })
+                    ) {
+                        ForEach(Language.allCases, id: \.self) { lang in
+                            Text(langLabel(lang)).tag(lang)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(Color.accentPrimary)
+                }
+                divider
+                toggleRow("사운드 효과", isOn: Binding(
+                    get: { p.soundEnabled }, set: { _ in store.toggleSound() }))
+                divider
+                toggleRow("햅틱 (진동)", isOn: Binding(
+                    get: { p.hapticEnabled }, set: { _ in store.toggleHaptic() }))
+                divider
+                toggleRow("알림", isOn: Binding(
+                    get: { p.notificationsEnabled },
+                    set: { store.setNotificationsEnabled($0) }))
+                if p.notificationsEnabled {
+                    divider
+                    settingRow("알림 시간") {
+                        DatePicker("", selection: Binding(
+                            get: { Self.timeToDate(p.notificationTime) },
+                            set: { store.setNotificationTime(Self.dateToTime($0)) }),
+                            displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                    }
+                }
+            }
+            .background(Color.bgSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
+    // MARK: - 챌린지 모드
+
+    private func modeSection(_ p: UserProgress) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("챌린지 모드")
+            VStack(spacing: 0) {
+                ForEach(Array(GameMode.allCases.enumerated()), id: \.element) { idx, mode in
+                    modeRow(mode, progress: p)
+                    if idx < GameMode.allCases.count - 1 { divider }
+                }
+            }
+            .background(Color.bgSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .alert("모드 변경", isPresented: Binding(
+            get: { modeToConfirm != nil },
+            set: { if !$0 { modeToConfirm = nil } }),
+            presenting: modeToConfirm
+        ) { mode in
+            Button("변경") {
+                store.setMode(mode)
+                modeToConfirm = nil
+            }
+            Button("취소", role: .cancel) { modeToConfirm = nil }
+        } message: { mode in
+            Text("\(modeLabel(mode)) 모드는 내일부터 적용됩니다.")
+        }
+    }
+
+    private func modeRow(_ mode: GameMode, progress p: UserProgress) -> some View {
+        let isActive = p.mode == mode
+        let isPending = p.pendingMode == mode
+        return Button {
+            if isPending {
+                store.cancelPendingMode()
+            } else if !isActive {
+                modeToConfirm = mode
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isActive ? "largecircle.fill.circle"
+                      : isPending ? "circle.lefthalf.filled" : "circle")
+                    .foregroundStyle(isActive || isPending ? Color.accentPrimary : Color.textTertiary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(modeLabel(mode))
+                        .typography(.body)
+                        .foregroundStyle(isActive ? Color.accentPrimary : Color.textPrimary)
+                    Text(modeDesc(mode))
+                        .typography(.caption)
+                        .foregroundStyle(Color.textTertiary)
+                }
+                Spacer()
+                if isPending {
+                    Text("내일 적용")
+                        .typography(.micro)
+                        .foregroundStyle(Color.accentPrimary)
+                }
+                Text("\(mode.cardCount)장")
+                    .typography(.caption)
+                    .foregroundStyle(Color.textTertiary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - 내 기록
+
+    private func statsSection(_ p: UserProgress) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("내 기록")
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                statCard("현재 스트릭", "\(p.currentStreak)일")
+                statCard("최장 스트릭", "\(p.longestStreak)일")
+                statCard("총 XP", "\(p.xp) XP")
+                statCard("해금 카드", "\(p.unlockedCardIds.count)장")
+            }
+        }
+    }
+
+    private func statCard(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value)
+                .typography(.heading)
+                .foregroundStyle(Color.textPrimary)
+            Text(label)
+                .typography(.caption)
+                .foregroundStyle(Color.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color.bgSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - 공통 행 / 헬퍼
+
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .typography(.caption)
+            .foregroundStyle(Color.textTertiary)
+            .padding(.leading, 4)
+    }
+
+    private func settingRow<Control: View>(
+        _ label: String,
+        @ViewBuilder control: () -> Control
+    ) -> some View {
+        HStack {
+            Text(label)
+                .typography(.body)
+                .foregroundStyle(Color.textPrimary)
+            Spacer()
+            control()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private func toggleRow(_ label: String, isOn: Binding<Bool>) -> some View {
+        settingRow(label) {
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(Color.accentPrimary)
+        }
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.06))
+            .frame(height: 1)
+    }
+
+    private func langLabel(_ l: Language) -> String {
+        switch l {
+        case .ko: return "한국어"
+        case .en: return "English"
+        case .ja: return "日本語"
+        case .zh: return "中文"
+        }
+    }
+
+    private func modeLabel(_ m: GameMode) -> String {
+        switch m {
+        case .normal:  return "일반"
+        case .godlife: return "갓생"
+        case .ultra:   return "초갓생"
+        }
+    }
+
+    private func modeDesc(_ m: GameMode) -> String {
+        switch m {
+        case .normal:  return "하루에 카드 1장 — 가볍게"
+        case .godlife: return "하루에 카드 2장 — 갓생 모드"
+        case .ultra:   return "하루에 카드 3장 — 초갓생 모드"
+        }
+    }
+
+    /// "HH:MM" → Date (시·분만). 알림 시간 DatePicker 바인딩용.
+    private static func timeToDate(_ hhmm: String) -> Date {
+        let parts = hhmm.split(separator: ":")
+        var c = DateComponents()
+        c.hour = parts.count > 0 ? Int(parts[0]) ?? 9 : 9
+        c.minute = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
+        return Calendar.current.date(from: c) ?? Date()
+    }
+
+    /// Date → "HH:MM".
+    private static func dateToTime(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", c.hour ?? 9, c.minute ?? 0)
+    }
+}

@@ -19,6 +19,9 @@ struct ContentView: View {
 
             SyncDevView()
                 .tabItem { Label("Auth/Sync", systemImage: "person.crop.circle.badge.checkmark") }
+
+            SettingsView()
+                .tabItem { Label("설정", systemImage: "gearshape") }
         }
         .tint(Color.accentPrimary)
     }

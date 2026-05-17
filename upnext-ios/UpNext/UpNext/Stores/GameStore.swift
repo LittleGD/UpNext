@@ -83,8 +83,6 @@ final class GameStore: ObservableObject {
             // 기존 유저 — XP/레벨 정규화 적용 (구 XP 커브 마이그레이션, 음수 XP 방어).
             progress = GameRules.normalizeXpLevel(cloudProgress).progress
             daily = cloudDaily
-            sync.setSyncReady(true)
-            phase = .ready
 
         case .notFound:
             // 신규 계정 — 기본 상태 생성 후 클라우드에 최초 업로드.
@@ -93,15 +91,30 @@ final class GameStore: ObservableObject {
             progress = p
             daily = d
             await sync.uploadLocalData(uid: uid, progress: p, daily: d)
-            sync.setSyncReady(true)
-            phase = .ready
 
         case .failed:
             // 조회 실패 — 기본 상태로 덮어쓰지 않는다 (기존 클라우드 데이터 보호).
             //   bootstrappedUid 를 비워 재시도(retry()) 를 허용.
             bootstrappedUid = nil
             phase = .failed("클라우드 데이터를 불러오지 못했습니다 — 네트워크 확인 후 다시 시도")
+            return
         }
+
+        // 성공 — 라이브 리스너 시작 (다른 기기 변경 수신) + 로컬 write 허용.
+        sync.startListener(uid: uid) { [weak self] cloudProgress, cloudDaily in
+            self?.applyCloudUpdate(cloudProgress, cloudDaily)
+        }
+        sync.setSyncReady(true)
+        phase = .ready
+    }
+
+    /// 라이브 리스너가 전달한 클라우드 변경을 로컬에 반영.
+    /// SyncManager.handleSnapshot 이 3중 가드(hasPendingWrites/isUpdatingFromCloud/
+    /// hasLocalPendingWrite)를 통과시킨 변경만 전달한다.
+    /// (웹 _setFromCloud 의 dailyProgressScore 단조 stale 가드는 다음 슬라이스에서 보강.)
+    private func applyCloudUpdate(_ cloudProgress: UserProgress, _ cloudDaily: DailyState) {
+        progress = GameRules.normalizeXpLevel(cloudProgress).progress
+        daily = cloudDaily
     }
 
     /// 부트스트랩 실패 후 수동 재시도 (루트 뷰의 "다시 시도" 버튼용).
@@ -110,6 +123,27 @@ final class GameStore: ObservableObject {
         guard uid != bootstrappedUid else { return }
         bootstrappedUid = uid
         Task { await bootstrap(uid: uid) }
+    }
+
+    // MARK: - 설정 액션 (웹 useGameStore setLanguage / toggleSound / setMode …)
+
+    func setLanguage(_ lang: Language) { mutateProgress { $0.language = lang } }
+    func toggleSound() { mutateProgress { $0.soundEnabled.toggle() } }
+    func toggleHaptic() { mutateProgress { $0.hapticEnabled.toggle() } }
+    func setNotificationsEnabled(_ enabled: Bool) { mutateProgress { $0.notificationsEnabled = enabled } }
+    func setNotificationTime(_ time: String) { mutateProgress { $0.notificationTime = time } }
+
+    /// 챌린지 모드 변경 — pendingMode 에 예약 (다음 날부터 적용). 웹 setMode.
+    func setMode(_ mode: GameMode) { mutateProgress { $0.pendingMode = mode } }
+    func cancelPendingMode() { mutateProgress { $0.pendingMode = nil } }
+
+    /// progress 를 변경 → 발행 → 클라우드 동기화(디바운스). 모든 설정 액션의 공통 경로.
+    /// (웹 액션의 `set({progress})` + `saveToStorage` 대응 — 단 저장은 SyncManager 가 담당.)
+    private func mutateProgress(_ change: (inout UserProgress) -> Void) {
+        guard var p = progress else { return }
+        change(&p)
+        progress = p
+        sync.syncProgress(p)
     }
 
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
