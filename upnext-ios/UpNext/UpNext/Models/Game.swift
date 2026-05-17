@@ -168,3 +168,73 @@ struct UserProgress: Codable {
     // 컬렉션 완료
     var collectionCompletedAt: String?
 }
+
+// MARK: - Firestore 관대 디코딩 (Phase 3.1)
+//
+// 웹은 `data.progress as UserProgress` — 런타임 검증 0의 무검증 cast. 필드가
+// 없으면 그냥 undefined 이고, 기본값은 store 초기화/사용처의 `??` 가 채운다.
+// Swift 합성 Codable 은 키 1개 누락에도 throw — 옛 웹 버전이 쓴 문서가 native
+// 에서 로드 실패하면 안 되므로(웹 sunset 안전망), 디코더를 웹의 암묵적 cast
+// 만큼 관대하게 만든다: 누락/null/타입불일치 → 기본값.
+//
+// 예외 — totalDaysCompleted / unlockedCardIds 2필드는 strict. 웹 isValidProgress
+// 가드와 동일하게, 이 둘이 없거나 타입이 틀리면 throw → UserProgress(따라서
+// UserDoc) 디코딩 전체가 실패 → 호출부가 "유효한 클라우드 데이터 없음" 으로
+// 처리한다(웹 getCloudData 가 !isValidProgress 시 null 반환하는 것과 동치).
+//
+// init(from:) 을 확장(extension)에 두어 멤버와이즈 init 은 보존된다.
+
+extension UserProgress {
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // 필수 — 웹 isValidProgress 가드 (누락·타입불일치 시 throw)
+        totalDaysCompleted = try c.decode(Int.self, forKey: .totalDaysCompleted)
+        unlockedCardIds = try c.decode([String].self, forKey: .unlockedCardIds)
+        // 이하 관대 — 누락/null/타입불일치 → 기본값
+        currentStreak = (try? c.decode(Int.self, forKey: .currentStreak)) ?? 0
+        longestStreak = (try? c.decode(Int.self, forKey: .longestStreak)) ?? 0
+        completionHistory = (try? c.decode([DayRecord].self, forKey: .completionHistory)) ?? []
+        categoryCompletions = (try? c.decode([String: Int].self, forKey: .categoryCompletions)) ?? [:]
+        mode = GameMode(rawValue: (try? c.decode(String.self, forKey: .mode)) ?? "") ?? .normal
+        level = (try? c.decode(Int.self, forKey: .level)) ?? 0
+        xp = (try? c.decode(Int.self, forKey: .xp)) ?? 0
+        daysTowardNextLevel = (try? c.decode(Int.self, forKey: .daysTowardNextLevel)) ?? 0
+        pendingPacks = (try? c.decode(Int.self, forKey: .pendingPacks)) ?? 0
+        pendingBonusCards = (try? c.decode(Int.self, forKey: .pendingBonusCards)) ?? 0
+        cardCompletions = (try? c.decode([String: Int].self, forKey: .cardCompletions)) ?? [:]
+        extraChallengesCompleted = (try? c.decode(Int.self, forKey: .extraChallengesCompleted)) ?? 0
+        superChallengesCompleted = (try? c.decode(Int.self, forKey: .superChallengesCompleted)) ?? 0
+        equippedTitleId = try? c.decode(String.self, forKey: .equippedTitleId)
+        seenTitleIds = (try? c.decode([String].self, forKey: .seenTitleIds)) ?? []
+        pendingMode = GameMode(rawValue: (try? c.decode(String.self, forKey: .pendingMode)) ?? "")
+        hasPendingPenalty = (try? c.decode(Bool.self, forKey: .hasPendingPenalty)) ?? false
+        language = Language(rawValue: (try? c.decode(String.self, forKey: .language)) ?? "") ?? .ko
+        soundEnabled = (try? c.decode(Bool.self, forKey: .soundEnabled)) ?? true
+        hapticEnabled = (try? c.decode(Bool.self, forKey: .hapticEnabled)) ?? true
+        notificationsEnabled = (try? c.decode(Bool.self, forKey: .notificationsEnabled)) ?? false
+        notificationTime = (try? c.decode(String.self, forKey: .notificationTime)) ?? "21:00"
+        tickets = (try? c.decode(Int.self, forKey: .tickets)) ?? 0
+        minigameRunsPlayed = (try? c.decode(Int.self, forKey: .minigameRunsPlayed)) ?? 0
+        minigameBestMatches = (try? c.decode(Int.self, forKey: .minigameBestMatches)) ?? 0
+        cardmatchShopDaily = try? c.decode(CardmatchShopDaily.self, forKey: .cardmatchShopDaily)
+        lastSeenPatchVersion = try? c.decode(String.self, forKey: .lastSeenPatchVersion)
+        collectionCompletedAt = try? c.decode(String.self, forKey: .collectionCompletedAt)
+    }
+}
+
+extension DayRecord {
+    /// completionHistory 원소는 수년치 누적 — 옛 버전이 쓴 레코드도 견디게 관대 디코딩.
+    /// 한 레코드가 throw 하면 [DayRecord] 디코딩 전체가 실패하므로(배열은 all-or-nothing),
+    /// 원소 단위 기본값으로 throw 자체를 차단한다.
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        date = (try? c.decode(String.self, forKey: .date)) ?? ""
+        selectedCardIds = (try? c.decode([String].self, forKey: .selectedCardIds)) ?? []
+        completedCardIds = (try? c.decode([String].self, forKey: .completedCardIds)) ?? []
+        wasFullClear = (try? c.decode(Bool.self, forKey: .wasFullClear)) ?? false
+        mode = GameMode(rawValue: (try? c.decode(String.self, forKey: .mode)) ?? "") ?? .normal
+        extraCompleted = try? c.decode(Bool.self, forKey: .extraCompleted)
+        superCompleted = try? c.decode(Bool.self, forKey: .superCompleted)
+        wasFailed = try? c.decode(Bool.self, forKey: .wasFailed)
+    }
+}

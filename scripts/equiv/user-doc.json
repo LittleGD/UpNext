@@ -1,0 +1,93 @@
+{
+  "_comment": "Phase 3.1 동치성 검증 픽스처 — Firestore /users/{uid} 문서 3종. full=완전한 문서(모든 필드), legacy=옛 버전이 쓴 최소 문서(기본값 경로), corrupt=손상 문서(isValidProgress 거부). 카드 ID는 Cards.json에 실재하는 것 + __ghost__ (없는 ID, hydrate 시 탈락 검증).",
+  "full": {
+    "progress": {
+      "currentStreak": 12,
+      "longestStreak": 30,
+      "totalDaysCompleted": 87,
+      "unlockedCardIds": ["fitness-001", "fitness-002", "fitness-003", "fitness-004"],
+      "completionHistory": [
+        {
+          "date": "2026-05-15",
+          "selectedCardIds": ["fitness-001"],
+          "completedCardIds": ["fitness-001"],
+          "wasFullClear": true,
+          "mode": "godlife",
+          "extraCompleted": true
+        },
+        {
+          "date": "2026-05-16",
+          "selectedCardIds": ["fitness-002", "fitness-003"],
+          "completedCardIds": ["fitness-002"],
+          "wasFullClear": false,
+          "mode": "ultra",
+          "wasFailed": true
+        }
+      ],
+      "categoryCompletions": { "fitness": 40, "nutrition": 12, "mindfulness": 8 },
+      "mode": "godlife",
+      "level": 6,
+      "xp": 1450,
+      "daysTowardNextLevel": 3,
+      "pendingPacks": 2,
+      "pendingBonusCards": 1,
+      "cardCompletions": { "fitness-001": 15, "fitness-002": 7 },
+      "extraChallengesCompleted": 22,
+      "superChallengesCompleted": 5,
+      "equippedTitleId": "title-godlife",
+      "seenTitleIds": ["title-newbie", "title-godlife"],
+      "hasPendingPenalty": false,
+      "language": "ko",
+      "soundEnabled": true,
+      "hapticEnabled": false,
+      "notificationsEnabled": true,
+      "notificationTime": "21:30",
+      "tickets": 4,
+      "minigameRunsPlayed": 19,
+      "minigameBestMatches": 8,
+      "cardmatchShopDaily": { "date": "2026-05-17", "bought": 1 },
+      "lastSeenPatchVersion": "1.4.0",
+      "collectionCompletedAt": null
+    },
+    "daily": {
+      "date": "2026-05-17",
+      "drawnCardIds": ["fitness-001", "__ghost__", "fitness-002", "fitness-003"],
+      "selectedCardIds": ["fitness-001", "fitness-002"],
+      "completedIds": ["fitness-001"],
+      "isDrawComplete": true,
+      "isSelectionComplete": true,
+      "rerollUsed": false,
+      "challengePhase": "extra",
+      "extraDrawnCardIds": ["fitness-002", "fitness-003"],
+      "extraSelectedCardIds": ["fitness-003"],
+      "extraCompletedIds": [],
+      "extraDrawComplete": true,
+      "extraSelectionComplete": false,
+      "superDrawnCardIds": [],
+      "superSelectedCardIds": [],
+      "superCompletedIds": [],
+      "superDrawComplete": false,
+      "superSelectionComplete": false,
+      "hasPenalty": false,
+      "penaltyCardId": null,
+      "extraNudgeScheduled": true
+    },
+    "onboardingComplete": true,
+    "meta": { "lastDeviceId": "dev-7f3a9c" }
+  },
+  "legacy": {
+    "progress": {
+      "totalDaysCompleted": 3,
+      "unlockedCardIds": ["fitness-001"]
+    },
+    "daily": {
+      "date": "2026-05-10"
+    }
+  },
+  "corrupt": {
+    "progress": {
+      "totalDaysCompleted": 5,
+      "unlockedCardIds": ["fitness-001", 42, "fitness-002"]
+    }
+  }
+}

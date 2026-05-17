@@ -78,7 +78,7 @@ run_smoke() {
   fi
 }
 
-echo "═══ UpNext 동치성 검증 (Phase 2.3~2.4) ═══"
+echo "═══ UpNext 동치성 검증 (Phase 2.3~3.1) ═══"
 run_suite rng              UpHeroRNG.swift
 run_suite idle             IdleAccrual.swift
 run_suite gamerules        Card.swift Game.swift GameRules.swift
@@ -89,6 +89,7 @@ run_suite talisman-reward  Card.swift Game.swift UpHero.swift UpHeroRNG.swift Up
 run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift
 run_suite affix-narrative  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift
 run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift FlavorPool.swift
+run_suite sync             Card.swift Game.swift FirestoreModels.swift
 run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift
 echo "──────────────────────────────────────────"
 echo "결과: $PASS/$((PASS + FAIL)) suite 통과 · 총 $TOTAL 라인 동치"
