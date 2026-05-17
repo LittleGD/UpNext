@@ -1,32 +1,84 @@
 //
 //  ContentView.swift
-//  UpNext — 앱 루트 뷰.
+//  UpNext — 앱 루트 뷰 (단계 기반 라우터, Phase 4 슬라이스 3).
 //
-//  현재는 마이그레이션 검증용 2탭:
-//   - 디자인 시스템 갤러리 (Phase 1 산출물)
-//   - Auth / Sync 검증 (Phase 3 산출물 — Phase 0.4 FirebaseCheckView 후속)
+//  GameStore.phase 로 화면을 분기한다:
+//   .launching/.loading → 로딩  ·  .needsSignIn → 로그인  ·  .ready → 메인  ·  .failed → 에러
 //
-//  Phase 4에서 실제 Daily Home / Collection / Camp 등 화면으로 교체될 예정.
+//  Phase 4 가 진행되며 MainTabView 의 탭이 실제 게임 화면(Daily Home / Collection /
+//  Camp …)으로 채워진다. 현재는 디자인 갤러리(Phase 1 참조) + 설정.
 //
 
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var store: GameStore
+
+    var body: some View {
+        switch store.phase {
+        case .launching, .loading:
+            BootLoadingView()
+        case .needsSignIn:
+            LoginView()
+        case .ready:
+            MainTabView()
+        case let .failed(message):
+            BootErrorView(message: message)
+        }
+    }
+}
+
+// MARK: - 단계별 화면
+
+/// Auth 확인 / 클라우드 부트스트랩 진행 중.
+private struct BootLoadingView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("UpNext")
+                .typography(.display)
+                .foregroundStyle(Color.accentPrimary)
+            ProgressView()
+                .tint(Color.accentPrimary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.bgPrimary)
+    }
+}
+
+/// 부트스트랩 실패 — 재시도.
+private struct BootErrorView: View {
+    @EnvironmentObject private var store: GameStore
+    let message: String
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "xmark.octagon.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(Color.colorError)
+            Text(message)
+                .typography(.body)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+            Button("다시 시도") { store.retry() }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.accentPrimary)
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.bgPrimary)
+    }
+}
+
+/// 로그인·부트스트랩 완료 후의 메인 앱.
+private struct MainTabView: View {
     var body: some View {
         TabView {
             DesignSystemGallery()
                 .tabItem { Label("디자인", systemImage: "paintpalette") }
-
-            SyncDevView()
-                .tabItem { Label("Auth/Sync", systemImage: "person.crop.circle.badge.checkmark") }
 
             SettingsView()
                 .tabItem { Label("설정", systemImage: "gearshape") }
         }
         .tint(Color.accentPrimary)
     }
-}
-
-#Preview {
-    ContentView()
 }
