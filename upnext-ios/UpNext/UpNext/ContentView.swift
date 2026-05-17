@@ -20,6 +20,8 @@ struct ContentView: View {
             BootLoadingView()
         case .needsSignIn:
             LoginView()
+        case .onboarding:
+            OnboardingView()
         case .ready:
             MainTabView()
         case let .failed(message):

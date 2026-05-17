@@ -27,6 +27,7 @@ final class GameStore: ObservableObject {
         case launching      // Auth 상태 확인 중
         case needsSignIn    // 로그아웃 — 로그인 화면 필요
         case loading        // 로그인됨, 클라우드 데이터 로드 중
+        case onboarding     // 신규 계정 — 온보딩 진행 중
         case ready          // progress/daily 준비 완료
         case failed(String) // 클라우드 로드 실패 — 재시도 필요
     }
@@ -83,29 +84,32 @@ final class GameStore: ObservableObject {
             // 기존 유저 — XP/레벨 정규화 적용 (구 XP 커브 마이그레이션, 음수 XP 방어).
             progress = GameRules.normalizeXpLevel(cloudProgress).progress
             daily = cloudDaily
+            startLiveSync(uid: uid)
+            phase = .ready
 
         case .notFound:
-            // 신규 계정 — 기본 상태 생성 후 클라우드에 최초 업로드.
-            let p = Self.makeDefaultProgress()
-            let d = Self.makeDefaultDaily()
-            progress = p
-            daily = d
-            await sync.uploadLocalData(uid: uid, progress: p, daily: d)
+            // 신규 계정 — 온보딩 진입. 기본 상태는 메모리에만 두고, 클라우드 업로드는
+            //   온보딩 완료(finishOnboarding) 후로 미룬다 — 온보딩 중단 시 빈 문서가
+            //   남지 않아, 재로그인하면 온보딩이 깨끗하게 다시 시작된다.
+            progress = Self.makeDefaultProgress()
+            daily = Self.makeDefaultDaily()
+            phase = .onboarding
 
         case .failed:
             // 조회 실패 — 기본 상태로 덮어쓰지 않는다 (기존 클라우드 데이터 보호).
             //   bootstrappedUid 를 비워 재시도(retry()) 를 허용.
             bootstrappedUid = nil
             phase = .failed("클라우드 데이터를 불러오지 못했습니다 — 네트워크 확인 후 다시 시도")
-            return
         }
+    }
 
-        // 성공 — 라이브 리스너 시작 (다른 기기 변경 수신) + 로컬 write 허용.
+    /// 라이브 리스너 시작 (다른 기기 변경 수신) + 로컬 write 허용.
+    /// bootstrap(.loaded) 와 finishOnboarding 이 공유.
+    private func startLiveSync(uid: String) {
         sync.startListener(uid: uid) { [weak self] cloudProgress, cloudDaily in
             self?.applyCloudUpdate(cloudProgress, cloudDaily)
         }
         sync.setSyncReady(true)
-        phase = .ready
     }
 
     /// 라이브 리스너가 전달한 클라우드 변경을 로컬에 반영.
@@ -144,6 +148,42 @@ final class GameStore: ObservableObject {
         change(&p)
         progress = p
         sync.syncProgress(p)
+    }
+
+    // MARK: - 온보딩 (웹 useGameStore selectStarterPack / completeOnboarding)
+
+    /// 스타터 팩 선택 — 팩 6장 + 트렌딩 스타터 카드를 해금. 웹 selectStarterPack.
+    func selectStarterPack(_ packId: String) {
+        guard let pack = StarterPacks.all.first(where: { $0.id == packId }) else { return }
+        // 트렌딩은 카테고리 노출 자체가 핵심 가치 — pack 선택과 무관하게 항상 deck 에 포함.
+        let trendingStarters = CardCatalog.allCards
+            .filter { $0.category == .trending && $0.unlockCondition == nil }
+            .map(\.id)
+        // 순서 보존 dedup (웹 Array.from(new Set(...)) 대응 — Swift Set 은 순서 불보장).
+        var seen = Set<String>()
+        let merged = (pack.cardIds + trendingStarters).filter { seen.insert($0).inserted }
+        mutateProgress { $0.unlockedCardIds = merged }
+    }
+
+    /// 온보딩 마지막 단계 — 웹 completeOnboarding. 레벨 0→1, 카드팩·체험 티켓 적립,
+    /// pendingMode 즉시 반영 후 클라우드 최초 업로드 → 라이브 동기화 시작 → .ready.
+    func finishOnboarding() {
+        guard var p = progress, let d = daily, let uid = auth.uid else { return }
+        p.level = 1
+        p.xp = GameRules.totalXPForLevel(1)
+        p.pendingPacks += 1
+        p.tickets = min(GameConstants.minigameTicketCap, p.tickets + 1)
+        if let pendingMode = p.pendingMode {
+            p.mode = pendingMode          // 온보딩에서 고른 난이도를 day 1 에 즉시 반영
+            p.pendingMode = nil
+        }
+        progress = p
+        phase = .loading
+        Task {
+            await sync.uploadLocalData(uid: uid, progress: p, daily: d)
+            startLiveSync(uid: uid)
+            phase = .ready
+        }
     }
 
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
