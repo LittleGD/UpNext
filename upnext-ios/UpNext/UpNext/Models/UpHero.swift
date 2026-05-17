@@ -66,7 +66,7 @@ enum MonsterTrait: String, CaseIterable, Hashable {
 }
 
 /// 인터랙티브 미니게임 id. 웹 `MinigameId`.
-enum MinigameId: String, CaseIterable, Hashable {
+enum MinigameId: String, CaseIterable, Hashable, Decodable {
     case pipeConnect = "pipe_connect"
     case pairMatch = "pair_match"
     case sequenceMemo = "sequence_memo"
@@ -300,7 +300,7 @@ enum ChoiceEffect: Equatable {
 }
 
 /// Choice 옵션. 웹 `ChoiceOption`.
-struct ChoiceOption: Equatable {
+struct ChoiceOption: Equatable, Decodable {
     var label: String
     var labelKey: String?               // i18n key
     var labelParams: NarrativeParams?   // runtime 주입 토큰
@@ -311,7 +311,7 @@ struct ChoiceOption: Equatable {
 }
 
 /// Choice 옵션의 확률적 결과. 웹 `ChoiceOutcome`.
-struct ChoiceOutcome: Equatable {
+struct ChoiceOutcome: Equatable, Decodable {
     var weight: Int                  // 상대 가중치 (합산되어 normalize)
     var resultText: String
     var resultTextKey: String?
@@ -1005,5 +1005,92 @@ enum UpHeroRules {
         let accessoryBonus = hero.equipped[.accessory]?.stats[.slotBonus] ?? 0
         let talismanBonus = hero.equipped[.talisman]?.stats[.slotBonus] ?? 0
         return min(4, base + accessoryBonus + talismanBonus)
+    }
+}
+
+// MARK: - 던전 이벤트 + flavor JSON Decodable
+//
+// flavor 이벤트 데이터(Flavor.json)를 디코드하기 위한 타입/준수.
+// discriminated union (ChoiceEffect/SimpleChoiceEffect/NarrativeValue) 은
+// kind 판별자 기반 custom init(from:). ChoiceOption/ChoiceOutcome/DungeonEvent
+// 는 필드명이 JSON 키와 동일 → synthesized Decodable.
+
+/// 던전 이벤트 — prompt + 선택지. 웹 `DungeonEvent` (flavor/_types.ts).
+struct DungeonEvent: Equatable, Decodable {
+    var prompt: String
+    var promptKey: String?
+    var options: [ChoiceOption]
+}
+
+extension NarrativeValue: Decodable {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if let s = try? c.decode(String.self) {
+            self = .text(s)
+        } else if let d = try? c.decode(Double.self) {
+            self = .number(d)
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: c, debugDescription: "NarrativeValue: string|number 아님")
+        }
+    }
+}
+
+extension SimpleChoiceEffect: Decodable {
+    private enum K: String, CodingKey {
+        case kind, coins, xp, dropEquipmentId, amount, delta, count
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        switch try c.decode(String.self, forKey: .kind) {
+        case "reward":
+            self = .reward(
+                coins: try c.decodeIfPresent(Int.self, forKey: .coins),
+                xp: try c.decodeIfPresent(Int.self, forKey: .xp),
+                dropEquipmentId: try c.decodeIfPresent(String.self, forKey: .dropEquipmentId))
+        case "damage": self = .damage(amount: try c.decode(Int.self, forKey: .amount))
+        case "heal": self = .heal(amount: try c.decode(Int.self, forKey: .amount))
+        case "time": self = .time(delta: try c.decode(Int.self, forKey: .delta))
+        case "skipFloors": self = .skipFloors(count: try c.decode(Int.self, forKey: .count))
+        case "revealBoss": self = .revealBoss
+        case "nothing": self = .nothing
+        case let k:
+            throw DecodingError.dataCorruptedError(
+                forKey: K.kind, in: c, debugDescription: "SimpleChoiceEffect kind: \(k)")
+        }
+    }
+}
+
+extension ChoiceEffect: Decodable {
+    private enum K: String, CodingKey {
+        case kind, coins, xp, dropEquipmentId, amount, count, delta, successChance,
+             minigame, difficulty, successEffects, failEffects
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        switch try c.decode(String.self, forKey: .kind) {
+        case "reward":
+            self = .reward(
+                coins: try c.decodeIfPresent(Int.self, forKey: .coins),
+                xp: try c.decodeIfPresent(Int.self, forKey: .xp),
+                dropEquipmentId: try c.decodeIfPresent(String.self, forKey: .dropEquipmentId))
+        case "damage": self = .damage(amount: try c.decode(Int.self, forKey: .amount))
+        case "heal": self = .heal(amount: try c.decode(Int.self, forKey: .amount))
+        case "skipFloors": self = .skipFloors(count: try c.decode(Int.self, forKey: .count))
+        case "revealBoss": self = .revealBoss
+        case "nothing": self = .nothing
+        case "time": self = .time(delta: try c.decode(Int.self, forKey: .delta))
+        case "fight": self = .fight
+        case "flee": self = .flee(successChance: try c.decode(Double.self, forKey: .successChance))
+        case "startMinigame":
+            self = .startMinigame(
+                minigame: try c.decode(MinigameId.self, forKey: .minigame),
+                difficulty: try c.decode(Int.self, forKey: .difficulty),
+                successEffects: try c.decode([SimpleChoiceEffect].self, forKey: .successEffects),
+                failEffects: try c.decode([SimpleChoiceEffect].self, forKey: .failEffects))
+        case let k:
+            throw DecodingError.dataCorruptedError(
+                forKey: K.kind, in: c, debugDescription: "ChoiceEffect kind: \(k)")
+        }
     }
 }

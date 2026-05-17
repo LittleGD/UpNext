@@ -93,7 +93,7 @@ export function pickTreasureWithKey(): { key: string; text: string } {
  * treasure 이벤트의 35% 확률 variant 에서 사용. 세계관 보존을 위해 던전 무관
  * 공용 문구 8개. 끝에 "— 시간 +N" 이 자동 append 되므로 본문은 "휴식처" 맥락만.
  */
-const REST_DESCRIPTIONS = [
+export const REST_DESCRIPTIONS = [
   "모닥불을 발견했다",
   "조용한 샘터에서 숨을 고른다",
   "이끼가 낀 바위에 앉아 잠시 쉰다",
