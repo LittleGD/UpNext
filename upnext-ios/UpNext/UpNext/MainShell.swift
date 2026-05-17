@@ -60,8 +60,7 @@ struct MainTabView: View {
             ComingSoonView(title: "오늘의 챌린지",
                            subtitle: "Daily Home — Phase 4.2 다음 슬라이스")
         case .collection:
-            ComingSoonView(title: "컬렉션",
-                           subtitle: "카드 도감 — Phase 4.2 다음 슬라이스")
+            CollectionView()
         case .playground:
             ComingSoonView(title: "플레이그라운드",
                            subtitle: "Up Hero — Phase 4.4")
