@@ -39,7 +39,8 @@ run_suite() {
     return
   fi
   "$TMP/bin-$name" > "$TMP/swift-$name.txt" 2>&1
-  npx tsx "scripts/$name-check.mjs" > "$TMP/web-$name.txt" 2>&1
+  # npm 설치 경고(첫 npx 실행 시) 가 출력에 섞이지 않도록 `npm ` 라인 필터.
+  npx tsx "scripts/$name-check.mjs" 2>&1 | grep -v -E '^npm ' > "$TMP/web-$name.txt" || true
   if diff "$TMP/web-$name.txt" "$TMP/swift-$name.txt" > "$TMP/diff-$name.txt" 2>&1; then
     local n
     n=$(wc -l < "$TMP/swift-$name.txt" | tr -d ' ')
@@ -49,6 +50,30 @@ run_suite() {
   else
     echo "❌ $name — 웹/Swift 불일치 (< 웹, > Swift):"
     sed 's/^/   /' "$TMP/diff-$name.txt" | head -24
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+# 스모크 suite — 비결정론 오케스트레이션(tickSession)은 동치 검증 불가.
+# 시드 고정으로 세션을 끝까지 돌려 크래시·불변식·종료 보장만 확인 (exit 0 = pass).
+run_smoke() {
+  local name="$1"; shift
+  local args=()
+  local f
+  for f in "$@"; do args+=("$MODELS/$f"); done
+  cp "scripts/equiv/$name.swift" "$TMP/main.swift"
+  if ! swiftc "${args[@]}" "$TMP/main.swift" -o "$TMP/bin-$name" 2>"$TMP/err-$name"; then
+    echo "❌ $name — Swift 컴파일 실패"
+    sed 's/^/   /' "$TMP/err-$name" | head -12
+    FAIL=$((FAIL + 1))
+    return
+  fi
+  if "$TMP/bin-$name" > "$TMP/out-$name.txt" 2>&1; then
+    printf "✅ %-16s 스모크 통과\n" "$name"
+    PASS=$((PASS + 1))
+  else
+    echo "❌ $name — 스모크 실패:"
+    sed 's/^/   /' "$TMP/out-$name.txt" | head -20
     FAIL=$((FAIL + 1))
   fi
 }
@@ -64,6 +89,7 @@ run_suite talisman-reward  Card.swift Game.swift UpHero.swift UpHeroRNG.swift Up
 run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift
 run_suite affix-narrative  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift
 run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift FlavorPool.swift
+run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift
 echo "──────────────────────────────────────────"
 echo "결과: $PASS/$((PASS + FAIL)) suite 통과 · 총 $TOTAL 라인 동치"
 if [ "$FAIL" -eq 0 ]; then
