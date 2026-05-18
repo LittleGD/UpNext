@@ -1094,3 +1094,26 @@ extension ChoiceEffect: Decodable {
         }
     }
 }
+
+// MARK: - Codable 준수 (Phase 4 슬라이스 15 — Up Hero 로컬 영속화)
+//
+// Up Hero 상태를 기기 로컬 파일에 저장하기 위한 영속 대상 도메인 타입의 Codable.
+// struct 의 Codable 합성은 타입 선언과 같은 파일이어야 하므로 여기에 둔다.
+// String-raw enum·단순 struct 라 전부 자동 합성된다 (custom 구현 불필요).
+// 영속 스냅샷 구조(PersistedUpHeroState)와 파일 I/O 는 UpHeroPersistence.swift.
+//
+// currentSession(CombatSession)·LogEntry·CardBuff 등 전투 세션 그래프는
+// discriminated-union 의 custom Codable 이 필요해 전투 슬라이스로 유보한다.
+
+extension EquipSlot: Codable {}
+extension ClassType: Codable {}
+extension StatKey: Codable {}
+extension HeroBaseStats: Codable {}
+extension Equipment: Codable {}
+extension Hero: Codable {}
+extension DungeonProgress: Codable {}
+extension PendingDungeonPrep: Codable {}
+extension Codex: Codable {}
+extension Cosmetics: Codable {}
+extension ShopDaily: Codable {}
+extension WeeklyVariant: Codable {}
