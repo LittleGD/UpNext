@@ -123,6 +123,14 @@ final class GameStore: ObservableObject {
     /// (웹 _setFromCloud 의 dailyProgressScore 단조 stale 가드는 다음 슬라이스에서 보강.)
     private func applyCloudUpdate(_ cloudProgress: UserProgress, _ cloudDaily: DailyState) {
         progress = GameRules.normalizeXpLevel(cloudProgress).progress
+        // stale 가드 — 같은 날짜인데 클라우드 daily 의 진행 점수가 로컬보다 낮으면
+        //   (리오더돼 늦게 도착한 오래된 snapshot) daily 를 덮어쓰지 않는다.
+        //   웹 _setFromCloud 의 dailyProgressScore 단조 비교.
+        if let local = daily,
+           local.date == cloudDaily.date,
+           Self.dailyProgressScore(cloudDaily) < Self.dailyProgressScore(local) {
+            return
+        }
         daily = cloudDaily
     }
 
@@ -190,6 +198,260 @@ final class GameStore: ObservableObject {
             startLiveSync(uid: uid)
             phase = .ready
         }
+    }
+
+    // MARK: - 데일리 루프 (웹 useGameStore drawDailyCards / selectCard / completeChallenge …)
+
+    /// 오늘의 카드 6장 드로우. 웹 drawDailyCards.
+    func drawDailyCards() {
+        guard let p = progress else { return }
+        let unlocked = CardCatalog.allCards.filter { p.unlockedCardIds.contains($0.id) }
+        let drawn = Deck.drawCards(unlocked: unlocked)
+        mutateDaily { d in
+            applyDraw(&d, drawn: drawn)
+            d.isDrawComplete = true
+        }
+    }
+
+    /// 리롤 — 하루 1회, 선택 미확정 시. 웹 rerollCards.
+    func rerollCards() {
+        guard let p = progress, let current = daily else { return }
+        guard !current.rerollUsed, !current.isSelectionComplete else { return }
+        let unlocked = CardCatalog.allCards.filter { p.unlockedCardIds.contains($0.id) }
+        let drawn = Deck.drawCards(unlocked: unlocked)
+        mutateDaily { d in
+            applyDraw(&d, drawn: drawn)
+            d.rerollUsed = true
+        }
+    }
+
+    /// 드로우 결과 반영 — 패널티 시 6장 중 1장 랜덤 잠금 + 자동 선택. drawDailyCards/rerollCards 공통.
+    private func applyDraw(_ d: inout DailyState, drawn: [ChallengeCard]) {
+        d.drawnCards = drawn
+        d.selectedCards = []
+        d.penaltyCardId = nil
+        if d.hasPenalty, let penalty = drawn.randomElement() {
+            d.penaltyCardId = penalty.id
+            d.selectedCards = [penalty]
+        }
+    }
+
+    /// 카드 선택 — mode 별 최대 장수까지. 웹 selectCard.
+    func selectCard(_ card: ChallengeCard) {
+        guard let p = progress, let current = daily else { return }
+        guard current.selectedCards.count < p.mode.cardCount,
+              !current.selectedCards.contains(where: { $0.id == card.id }) else { return }
+        mutateDaily { $0.selectedCards.append(card) }
+    }
+
+    /// 카드 선택 취소 — 패널티 카드·확정 후엔 불가. 웹 deselectCard.
+    func deselectCard(_ cardId: String) {
+        guard let current = daily else { return }
+        guard !current.isSelectionComplete, current.penaltyCardId != cardId else { return }
+        mutateDaily { $0.selectedCards.removeAll { $0.id == cardId } }
+    }
+
+    /// 선택 확정 — mode 장수와 정확히 일치할 때만. 웹 confirmSelection.
+    func confirmSelection() {
+        guard let p = progress, let current = daily else { return }
+        guard current.selectedCards.count == p.mode.cardCount else { return }
+        mutateDaily { $0.isSelectionComplete = true }
+    }
+
+    /// 챌린지 완료 — 웹 completeChallenge. XP·카테고리/카드 완료수·신규 해금·
+    /// 풀클리어 보너스(티켓)·레벨업까지 포팅. Up Hero 탐험 패스/코인/스킬포인트
+    /// 지급은 Phase 4.4 — 미포함(stub).
+    func completeChallenge(_ cardId: String) {
+        guard var p = progress, var d = daily else { return }
+        guard !d.completedIds.contains(cardId),
+              let card = d.selectedCards.first(where: { $0.id == cardId }) else { return }
+
+        d.completedIds.append(cardId)
+        p.categoryCompletions[card.category.rawValue, default: 0] += 1
+        p.cardCompletions[cardId, default: 0] += 1
+        p.xp += GameConstants.xpPerRarity[card.rarity] ?? 10
+
+        // 신규 카드 해금 — unlockCondition 충족분
+        let newUnlocks = CardCatalog.allCards.filter { c in
+            guard !p.unlockedCardIds.contains(c.id), let cond = c.unlockCondition else { return false }
+            return p.categoryCompletions[cond.category.rawValue, default: 0] >= cond.completions
+        }
+        p.unlockedCardIds.append(contentsOf: newUnlocks.map(\.id))
+
+        // 풀클리어 — 미니게임 티켓 +1 (상한)
+        if d.completedIds.count >= d.selectedCards.count {
+            d.extraNudgeScheduled = true
+            p.tickets = min(GameConstants.minigameTicketCap, p.tickets + 1)
+        }
+        // 레벨업 — XP/레벨 정규화로 level 재계산 + 상승분만큼 pendingPacks 적립.
+        //   웹 completeChallenge 의 getLevelFromXP 기반 레벨업과 동치
+        //   (normalizeProgressXpLevel 이 같은 getLevelFromXP + pendingPacks 로직).
+        p = GameRules.normalizeXpLevel(p).progress
+
+        progress = p
+        daily = d
+        sync.syncProgress(p)
+        sync.syncDaily(d)
+    }
+
+    /// daily 를 변경 → 발행 → 클라우드 동기화 (디바운스). mutateProgress 의 daily 판.
+    private func mutateDaily(_ change: (inout DailyState) -> Void) {
+        guard var d = daily else { return }
+        change(&d)
+        daily = d
+        sync.syncDaily(d)
+    }
+
+    /// daily 진행 정도를 단조 정수로 환산 — stale 클라우드 snapshot 판별용 (웹 dailyProgressScore).
+    /// phase 간 100배 간격으로 daily→extra→super 파이프라인 순서를 반영.
+    static func dailyProgressScore(_ d: DailyState) -> Int {
+        var s = 0
+        if d.isDrawComplete { s += 1 }
+        if d.rerollUsed { s += 1 }
+        s += d.selectedCards.count * 2
+        if d.isSelectionComplete { s += 10 }
+        s += d.completedIds.count * 5
+        if d.extraDrawComplete { s += 100 }
+        s += d.extraSelectedCards.count * 2
+        if d.extraSelectionComplete { s += 1000 }
+        s += d.extraCompletedIds.count * 50
+        if d.superDrawComplete { s += 10000 }
+        s += d.superSelectedCards.count * 2
+        if d.superSelectionComplete { s += 100000 }
+        s += d.superCompletedIds.count * 500
+        return s
+    }
+
+    // MARK: - Extra / Super 챌린지 페이즈 (웹 useGameStore startExtraChallenge / drawPhaseCards …)
+
+    /// 추가 챌린지 시작 — daily 풀클리어 후. 웹 startExtraChallenge.
+    func startExtraChallenge() {
+        guard let d = daily, !d.selectedCards.isEmpty,
+              d.completedIds.count >= d.selectedCards.count else { return }
+        mutateDaily { $0.challengePhase = .extra }
+    }
+
+    /// 슈퍼 챌린지 시작 — extra 풀클리어 후. 웹 startSuperChallenge.
+    func startSuperChallenge() {
+        guard let d = daily, !d.extraSelectedCards.isEmpty,
+              d.extraCompletedIds.count >= d.extraSelectedCards.count else { return }
+        mutateDaily { $0.challengePhase = .`super` }
+    }
+
+    /// 현재 페이즈에 6장 드로우. daily 면 drawDailyCards 로 위임. 웹 drawPhaseCards.
+    func drawPhaseCards() {
+        guard let p = progress, let d = daily else { return }
+        switch d.challengePhase {
+        case .daily:
+            drawDailyCards()
+        case .extra, .`super`:
+            // 이전 페이즈에서 고른 카드는 풀에서 제외 (중복 방지).
+            var exclude = Set(d.selectedCards.map(\.id))
+            if d.challengePhase == .`super` {
+                exclude.formUnion(d.extraSelectedCards.map(\.id))
+            }
+            let pool = CardCatalog.allCards.filter {
+                p.unlockedCardIds.contains($0.id) && !exclude.contains($0.id)
+            }
+            let drawn = Deck.drawCards(unlocked: pool)
+            mutateDaily { dd in
+                if dd.challengePhase == .extra {
+                    dd.extraDrawnCards = drawn
+                    dd.extraDrawComplete = true
+                } else {
+                    dd.superDrawnCards = drawn
+                    dd.superDrawComplete = true
+                }
+            }
+        }
+    }
+
+    /// 현재 페이즈 카드 선택. 웹 selectPhaseCard.
+    func selectPhaseCard(_ card: ChallengeCard) {
+        guard let d = daily else { return }
+        switch d.challengePhase {
+        case .daily:
+            selectCard(card)
+        case .extra:
+            guard d.extraSelectedCards.count < ChallengePhase.extra.cardCount,
+                  !d.extraSelectedCards.contains(where: { $0.id == card.id }) else { return }
+            mutateDaily { $0.extraSelectedCards.append(card) }
+        case .`super`:
+            guard d.superSelectedCards.count < ChallengePhase.`super`.cardCount,
+                  !d.superSelectedCards.contains(where: { $0.id == card.id }) else { return }
+            mutateDaily { $0.superSelectedCards.append(card) }
+        }
+    }
+
+    /// 현재 페이즈 카드 선택 취소. 웹 deselectPhaseCard.
+    func deselectPhaseCard(_ cardId: String) {
+        guard let d = daily else { return }
+        switch d.challengePhase {
+        case .daily:
+            deselectCard(cardId)
+        case .extra:
+            guard !d.extraSelectionComplete else { return }
+            mutateDaily { $0.extraSelectedCards.removeAll { $0.id == cardId } }
+        case .`super`:
+            guard !d.superSelectionComplete else { return }
+            mutateDaily { $0.superSelectedCards.removeAll { $0.id == cardId } }
+        }
+    }
+
+    /// 현재 페이즈 선택 확정. 웹 confirmPhaseSelection.
+    func confirmPhaseSelection() {
+        guard let d = daily else { return }
+        switch d.challengePhase {
+        case .daily:
+            confirmSelection()
+        case .extra:
+            guard d.extraSelectedCards.count >= ChallengePhase.extra.cardCount else { return }
+            mutateDaily { $0.extraSelectionComplete = true }
+        case .`super`:
+            guard d.superSelectedCards.count >= ChallengePhase.`super`.cardCount else { return }
+            mutateDaily { $0.superSelectionComplete = true }
+        }
+    }
+
+    /// 현재 페이즈 챌린지 완료. daily 면 completeChallenge 로 위임. 웹 completePhaseChallenge.
+    /// 페이즈 풀클리어 시 보너스 카드 + 티켓. (Up Hero 패스 지급은 Phase 4.4 — stub.)
+    func completePhaseChallenge(_ cardId: String) {
+        guard let phase = daily?.challengePhase else { return }
+        if phase == .daily {
+            completeChallenge(cardId)
+            return
+        }
+        guard var p = progress, var d = daily else { return }
+        let isExtra = phase == .extra
+        let selected = isExtra ? d.extraSelectedCards : d.superSelectedCards
+        let completed = isExtra ? d.extraCompletedIds : d.superCompletedIds
+        guard !completed.contains(cardId),
+              let card = selected.first(where: { $0.id == cardId }) else { return }
+
+        if isExtra { d.extraCompletedIds.append(cardId) }
+        else { d.superCompletedIds.append(cardId) }
+        p.categoryCompletions[card.category.rawValue, default: 0] += 1
+        p.cardCompletions[cardId, default: 0] += 1
+        p.xp += GameConstants.xpPerRarity[card.rarity] ?? 10
+
+        let newUnlocks = CardCatalog.allCards.filter { c in
+            guard !p.unlockedCardIds.contains(c.id), let cond = c.unlockCondition else { return false }
+            return p.categoryCompletions[cond.category.rawValue, default: 0] >= cond.completions
+        }
+        p.unlockedCardIds.append(contentsOf: newUnlocks.map(\.id))
+
+        // 페이즈 풀클리어 — 보너스 카드 1장 + 미니게임 티켓 1장
+        let nowCompleted = isExtra ? d.extraCompletedIds : d.superCompletedIds
+        if nowCompleted.count >= selected.count {
+            p.pendingBonusCards += 1
+            p.tickets = min(GameConstants.minigameTicketCap, p.tickets + 1)
+        }
+        p = GameRules.normalizeXpLevel(p).progress
+
+        progress = p
+        daily = d
+        sync.syncProgress(p)
+        sync.syncDaily(d)
     }
 
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)

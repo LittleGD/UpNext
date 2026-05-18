@@ -115,12 +115,12 @@ struct CollectionView: View {
     private func cardCell(_ card: ChallengeCard, unlocked: Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if unlocked {
-                Text(rarityLabel(card.rarity))
+                Text(card.rarity.displayName)
                     .typography(.micro)
                     .foregroundStyle(Color.bgPrimary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(rarityColor(card.rarity), in: Capsule())
+                    .background(card.rarity.color, in: Capsule())
                 Text(card.title)
                     .typography(.caption)
                     .foregroundStyle(Color.textPrimary)
@@ -156,24 +156,6 @@ struct CollectionView: View {
         case .productivity: return "생산성"
         case .wellness:     return "웰니스"
         case .trending:     return "트렌드"
-        }
-    }
-
-    private func rarityColor(_ r: Rarity) -> Color {
-        switch r {
-        case .normal: return Color.rarityNormal
-        case .rare:   return Color.rarityRare
-        case .unique: return Color.rarityUnique
-        case .legend: return Color.rarityLegend
-        }
-    }
-
-    private func rarityLabel(_ r: Rarity) -> String {
-        switch r {
-        case .normal: return "노멀"
-        case .rare:   return "레어"
-        case .unique: return "유니크"
-        case .legend: return "레전드"
         }
     }
 }

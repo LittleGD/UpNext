@@ -302,12 +302,12 @@ private struct OnboardingStarterPack: View {
 
     private func revealCard(_ card: ChallengeCard) -> some View {
         VStack(spacing: 6) {
-            Text(rarityLabel(card.rarity))
+            Text(card.rarity.displayName)
                 .typography(.micro)
                 .foregroundStyle(Color.bgPrimary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(rarityColor(card.rarity), in: Capsule())
+                .background(card.rarity.color, in: Capsule())
             Text(card.title)
                 .typography(.micro)
                 .foregroundStyle(Color.textPrimary)
@@ -318,24 +318,6 @@ private struct OnboardingStarterPack: View {
         .padding(.vertical, 12)
         .padding(.horizontal, 6)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
-    }
-
-    private func rarityColor(_ r: Rarity) -> Color {
-        switch r {
-        case .normal: return Color.rarityNormal
-        case .rare:   return Color.rarityRare
-        case .unique: return Color.rarityUnique
-        case .legend: return Color.rarityLegend
-        }
-    }
-
-    private func rarityLabel(_ r: Rarity) -> String {
-        switch r {
-        case .normal: return "노멀"
-        case .rare:   return "레어"
-        case .unique: return "유니크"
-        case .legend: return "레전드"
-        }
     }
 }
 

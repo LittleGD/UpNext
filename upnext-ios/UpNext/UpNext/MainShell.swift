@@ -57,8 +57,7 @@ struct MainTabView: View {
     @ViewBuilder private var screen: some View {
         switch tab {
         case .challenge:
-            ComingSoonView(title: "오늘의 챌린지",
-                           subtitle: "Daily Home — Phase 4.2 다음 슬라이스")
+            DailyHomeView()
         case .collection:
             CollectionView()
         case .playground:
