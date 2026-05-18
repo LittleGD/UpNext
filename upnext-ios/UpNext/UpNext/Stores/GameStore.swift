@@ -40,6 +40,10 @@ final class GameStore: ObservableObject {
     @Published private(set) var daily: DailyState?
     @Published private(set) var phase: BootPhase = .launching
 
+    /// 컬렉션 100% 최초 달성 축하 모달 트리거. openCardPack 에서 켜지고
+    /// 사용자가 확인하면 dismissCollectionCelebration 으로 꺼진다 (웹 collectionCelebration).
+    @Published private(set) var collectionCelebration = false
+
     private var cancellables = Set<AnyCancellable>()
     private var bootstrappedUid: String?
 
@@ -63,6 +67,7 @@ final class GameStore: ObservableObject {
             bootstrappedUid = nil
             progress = nil
             daily = nil
+            collectionCelebration = false
             sync.setSyncReady(false)
             sync.stopListener()
             phase = .needsSignIn
@@ -468,6 +473,7 @@ final class GameStore: ObservableObject {
         let locked = CardCatalog.allCards.filter { !p.unlockedCardIds.contains($0.id) }
         guard !locked.isEmpty else {
             // 컬렉션 100% — 환산 보상은 Phase 4.4(영웅 코인). 우선 큐만 소진.
+            //   웹과 동일하게 이 분기(이미 완료)에선 첫 완료 보너스를 부여하지 않는다.
             p.pendingPacks = 0
             p.pendingBonusCards = 0
             progress = p
@@ -487,9 +493,27 @@ final class GameStore: ObservableObject {
         }
         p.unlockedCardIds.append(contentsOf: newCards.map(\.id))
         if isBonus { p.pendingBonusCards -= 1 } else { p.pendingPacks -= 1 }
+
+        // 첫 컬렉션 완료 감지 — 이번 개봉으로 풀 100% 채워졌고, 달성 이력이 없을 때.
+        //   웹 openCardPack 의 justCompleted. firstClearBonus.xp 만 직접 가산하고
+        //   레벨 재계산은 하지 않는다 (웹과 동일 — 다음 로드의 normalizeXpLevel 가 보정).
+        //   영웅 코인(firstClearBonus.coins) 지급은 Up Hero 의존 → Phase 4.4 stub.
+        let justCompleted = p.collectionCompletedAt == nil
+            && p.unlockedCardIds.count >= CardCatalog.allCards.count
+        if justCompleted {
+            p.collectionCompletedAt = ISO8601DateFormatter().string(from: Date())
+            p.xp += PackTier.firstClearBonus.xp
+        }
+
         progress = p
         sync.syncProgress(p)
+        if justCompleted { collectionCelebration = true }
         return (newCards, tier)
+    }
+
+    /// 컬렉션 완성 축하 모달 닫기 (웹 dismissCollectionCelebration).
+    func dismissCollectionCelebration() {
+        collectionCelebration = false
     }
 
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)

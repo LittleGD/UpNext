@@ -12,6 +12,10 @@ import Foundation
 
 enum PackTier {
 
+    /// 컬렉션 100% 최초 달성 보너스. 웹 COLLECTION_FIRST_CLEAR_BONUS.
+    /// coins(영웅 코인) 지급은 Up Hero 의존이라 Phase 4.4 — 현재는 안내 표기만(stub).
+    static let firstClearBonus = (xp: 500, coins: 2000)
+
     /// 등급별 팩 굴림 가중치. 웹 PACK_TIER_WEIGHT (50:30:15:5).
     static func weight(_ tier: Rarity) -> Int {
         switch tier {

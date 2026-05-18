@@ -53,7 +53,15 @@ struct MainTabView: View {
             }
 
             BottomNav(selected: $tab)
+
+            // 컬렉션 100% 최초 달성 축하 오버레이.
+            if showCelebration {
+                CollectionCelebrationView()
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
         }
+        .animation(.easeInOut(duration: 0.3), value: showCelebration)
         .onAppear { syncPackOpener() }
         .onChange(of: pendingPackCount) { _ in syncPackOpener() }
         .fullScreenCover(isPresented: $showPackOpener) {
@@ -64,6 +72,13 @@ struct MainTabView: View {
     /// 미개봉 카드팩 수 (레벨업 팩 + 보너스 카드).
     private var pendingPackCount: Int {
         (store.progress?.pendingPacks ?? 0) + (store.progress?.pendingBonusCards ?? 0)
+    }
+
+    /// 컬렉션 완성 축하 모달 노출 조건. 팩 개봉(fullScreenCover)이 떠 있는 동안엔
+    /// 보류했다가 닫힌 뒤 등장 — 웹 CollectionCelebration 의 `flag && !isOpeningPack`.
+    /// (개봉 중 띄우면 등장 연출이 cover 뒤에서 소진돼 버린다.)
+    private var showCelebration: Bool {
+        store.collectionCelebration && !showPackOpener
     }
 
     /// 열 팩이 있으면 개봉 화면을 띄운다. 개봉 중 pendingPacks 가 0 이 돼도
