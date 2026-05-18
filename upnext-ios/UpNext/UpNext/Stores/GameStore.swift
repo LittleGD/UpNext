@@ -36,6 +36,9 @@ final class GameStore: ObservableObject {
     let auth = AuthService()
     let sync = SyncManager()
 
+    /// Up Hero RPG 스토어 — 함께 소유하고 환경 객체로 노출 (Phase 4.4).
+    let upHero = UpHeroStore()
+
     @Published private(set) var progress: UserProgress?
     @Published private(set) var daily: DailyState?
     @Published private(set) var phase: BootPhase = .launching
@@ -68,6 +71,7 @@ final class GameStore: ObservableObject {
             progress = nil
             daily = nil
             collectionCelebration = false
+            upHero.resetForSignOut()
             sync.setSyncReady(false)
             sync.stopListener()
             phase = .needsSignIn

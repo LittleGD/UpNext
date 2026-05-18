@@ -94,8 +94,7 @@ struct MainTabView: View {
         case .collection:
             CollectionView()
         case .playground:
-            ComingSoonView(title: "플레이그라운드",
-                           subtitle: "Up Hero — Phase 4.4")
+            UpHeroGameView()
         case .settings:
             SettingsView()
         }
@@ -191,25 +190,5 @@ struct BottomNav: View {
         .padding(6)
         .background(Color.bgElevated, in: Capsule())
         .padding(.bottom, 8)
-    }
-}
-
-// MARK: - 미구현 화면 placeholder
-
-struct ComingSoonView: View {
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(title)
-                .typography(.title)
-                .foregroundStyle(Color.textPrimary)
-            Text(subtitle)
-                .typography(.caption)
-                .foregroundStyle(Color.textTertiary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
     }
 }

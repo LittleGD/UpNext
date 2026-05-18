@@ -12,7 +12,7 @@ import FirebaseCore
 @main
 struct UpNextApp: App {
     // 앱 전역 게임 상태 (Phase 4) — 모든 화면이 환경 객체로 공유.
-    // GameStore 가 AuthService 를 소유하므로 그것도 함께 환경에 노출한다.
+    // GameStore 가 AuthService·UpHeroStore 를 소유하므로 그것도 함께 환경에 노출한다.
     @StateObject private var store = GameStore()
 
     init() {
@@ -29,6 +29,7 @@ struct UpNextApp: App {
             ContentView()
                 .environmentObject(store)
                 .environmentObject(store.auth)
+                .environmentObject(store.upHero)
         }
     }
 }
