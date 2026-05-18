@@ -39,7 +39,9 @@ enum MainTab: CaseIterable {
 // MARK: - 메인 셸
 
 struct MainTabView: View {
+    @EnvironmentObject private var store: GameStore
     @State private var tab: MainTab = .challenge
+    @State private var showPackOpener = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -52,6 +54,22 @@ struct MainTabView: View {
 
             BottomNav(selected: $tab)
         }
+        .onAppear { syncPackOpener() }
+        .onChange(of: pendingPackCount) { _ in syncPackOpener() }
+        .fullScreenCover(isPresented: $showPackOpener) {
+            CardPackOpenerView { showPackOpener = false }
+        }
+    }
+
+    /// 미개봉 카드팩 수 (레벨업 팩 + 보너스 카드).
+    private var pendingPackCount: Int {
+        (store.progress?.pendingPacks ?? 0) + (store.progress?.pendingBonusCards ?? 0)
+    }
+
+    /// 열 팩이 있으면 개봉 화면을 띄운다. 개봉 중 pendingPacks 가 0 이 돼도
+    /// showPackOpener 는 별도 상태라 마지막 reveal 까지 보이고 "완료" 로 닫힌다.
+    private func syncPackOpener() {
+        if pendingPackCount > 0 { showPackOpener = true }
     }
 
     @ViewBuilder private var screen: some View {

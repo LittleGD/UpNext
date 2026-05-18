@@ -14,6 +14,8 @@ import SwiftUI
 struct CollectionView: View {
     @EnvironmentObject private var store: GameStore
     @State private var filter: CardFilter = .all
+    /// 탭한 해금 카드 — 값이 있으면 상세 모달이 sheet 로 뜬다.
+    @State private var selectedCard: ChallengeCard?
 
     enum CardFilter: CaseIterable {
         case all, owned, unowned
@@ -41,6 +43,9 @@ struct CollectionView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgPrimary)
+        .sheet(item: $selectedCard) { card in
+            CardDetailModal(card: card)
+        }
     }
 
     // MARK: - 헤더 / 필터
@@ -112,7 +117,22 @@ struct CollectionView: View {
         }
     }
 
+    /// 해금 카드는 탭하면 상세 모달을 띄우는 버튼, 미해금은 비활성 셀.
+    @ViewBuilder
     private func cardCell(_ card: ChallengeCard, unlocked: Bool) -> some View {
+        if unlocked {
+            Button {
+                selectedCard = card
+            } label: {
+                cellBody(card, unlocked: true)
+            }
+            .buttonStyle(.plain)
+        } else {
+            cellBody(card, unlocked: false)
+        }
+    }
+
+    private func cellBody(_ card: ChallengeCard, unlocked: Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if unlocked {
                 Text(card.rarity.displayName)

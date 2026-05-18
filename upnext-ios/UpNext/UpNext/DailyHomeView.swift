@@ -143,10 +143,12 @@ struct DailyHomeView: View {
                 }
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
                                     GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    ForEach(s.drawn) { card in
-                        drawnCard(card,
-                                  selected: selectedIds.contains(card.id),
-                                  isPenalty: s.penaltyCardId == card.id)
+                    ForEach(Array(s.drawn.enumerated()), id: \.element.id) { index, card in
+                        FlipInCard(index: index) {
+                            drawnCard(card,
+                                      selected: selectedIds.contains(card.id),
+                                      isPenalty: s.penaltyCardId == card.id)
+                        }
                     }
                 }
                 if daily.challengePhase == .daily && !daily.rerollUsed {
@@ -347,5 +349,28 @@ struct DailyHomeView: View {
                 .opacity(enabled ? 1 : 0.3)
         }
         .disabled(!enabled)
+    }
+}
+
+// MARK: - 카드 플립-인 (슬라이스 11)
+
+/// 드로우된 카드의 staggered 3D 플립-인 등장 — 웹 CardDrawScreen 리빌 연출의 압축 포팅.
+/// 각 카드가 모서리(-82°)에서 정면(0°)으로 회전하며 index 순으로 차례차례 등장한다.
+private struct FlipInCard<Content: View>: View {
+    let index: Int
+    @ViewBuilder var content: Content
+    @State private var shown = false
+
+    var body: some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .scaleEffect(shown ? 1 : 0.86)
+            .rotation3DEffect(.degrees(shown ? 0 : -82), axis: (x: 0, y: 1, z: 0))
+            .onAppear {
+                withAnimation(.spring(response: 0.46, dampingFraction: 0.72)
+                    .delay(Double(index) * 0.08)) {
+                    shown = true
+                }
+            }
     }
 }

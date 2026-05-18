@@ -454,6 +454,44 @@ final class GameStore: ObservableObject {
         sync.syncDaily(d)
     }
 
+    // MARK: - 카드팩 개봉 (웹 useGameStore openCardPack)
+
+    /// 카드팩 1개 개봉 — 잠긴 카드 풀에서 등급 굴림으로 N장 해금.
+    /// 보너스 카드(pendingBonusCards) 우선 소진 (normal tier 1장).
+    /// 컬렉션 100% 시 환산 보상(영웅 코인)은 Phase 4.4 — 우선 큐만 비운다(stub).
+    /// 반환: 개봉된 카드 + 팩 등급. 열 팩이 없으면 nil.
+    @discardableResult
+    func openCardPack() -> (cards: [ChallengeCard], tier: Rarity)? {
+        guard var p = progress else { return nil }
+        guard p.pendingPacks > 0 || p.pendingBonusCards > 0 else { return nil }
+
+        let locked = CardCatalog.allCards.filter { !p.unlockedCardIds.contains($0.id) }
+        guard !locked.isEmpty else {
+            // 컬렉션 100% — 환산 보상은 Phase 4.4(영웅 코인). 우선 큐만 소진.
+            p.pendingPacks = 0
+            p.pendingBonusCards = 0
+            progress = p
+            sync.syncProgress(p)
+            return nil
+        }
+
+        let isBonus = p.pendingBonusCards > 0
+        let tier: Rarity
+        let newCards: [ChallengeCard]
+        if isBonus {
+            tier = .normal
+            newCards = Deck.drawFromPool(locked, count: 1)
+        } else {
+            tier = PackTier.rollPackTier()
+            newCards = PackTier.drawTierPack(locked, tier: tier, count: PackTier.count(tier))
+        }
+        p.unlockedCardIds.append(contentsOf: newCards.map(\.id))
+        if isBonus { p.pendingBonusCards -= 1 } else { p.pendingPacks -= 1 }
+        progress = p
+        sync.syncProgress(p)
+        return (newCards, tier)
+    }
+
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
 
     static func makeDefaultProgress() -> UserProgress {
