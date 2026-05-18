@@ -26,10 +26,12 @@ struct UpHeroGameView: View {
 // MARK: - 아지트 (Camp)
 
 /// Up Hero 의 허브 화면. 웹 CampPlaceholder.
-/// 슬라이스 14 는 골격 — 영웅 요약 + 코인 + 메뉴 자리표시.
-/// 영웅 스탯 패널·던전 선택·상점·장비 인벤토리는 이후 슬라이스에서 실제 화면으로 교체.
+/// 슬라이스 16 — 영웅 요약(탭 → 스탯 패널) + 코인 + 메뉴 자리표시.
+/// 던전 선택·상점·장비 인벤토리는 이후 슬라이스에서 실제 화면으로 교체.
 private struct CampView: View {
     @EnvironmentObject private var upHero: UpHeroStore
+    @EnvironmentObject private var store: GameStore
+    @State private var statsOpen = false
 
     var body: some View {
         ScrollView {
@@ -43,6 +45,14 @@ private struct CampView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgPrimary)
+        .sheet(isPresented: $statsOpen) { HeroStatPanel() }
+    }
+
+    /// 영웅 전용 레벨 — 챌린지 레벨 기반. 웹 getEffectiveHeroLevel.
+    private var heroLevel: Int {
+        UpHeroRules.getEffectiveHeroLevel(
+            gameLevel: store.progress?.level ?? 1,
+            heroStartLevel: upHero.state.heroStartLevel)
     }
 
     // MARK: 헤더 — 제목 + 코인
@@ -59,24 +69,40 @@ private struct CampView: View {
         }
     }
 
-    // MARK: 영웅 요약 카드
+    // MARK: 영웅 요약 카드 — 탭하면 스탯 패널 sheet.
 
     private var heroCard: some View {
         let hero = upHero.state.hero
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(hero.name)
-                .typography(.heading)
-                .foregroundStyle(Color.textPrimary)
-            Text(classLabel(hero.classType))
-                .typography(.caption)
-                .foregroundStyle(Color.textTertiary)
-            Text("HP \(hero.hp) / \(hero.maxHp)")
-                .typography(.caption)
-                .foregroundStyle(Color.textSecondary)
+        let leveled = UpHeroRules.computeHeroForLevel(hero, level: heroLevel)
+        return Button {
+            statsOpen = true
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "figure.stand")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color.accentPrimary)
+                    .frame(width: 56)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(hero.name)
+                        .typography(.heading)
+                        .foregroundStyle(Color.textPrimary)
+                    Text("Lv.\(heroLevel) · \(classLabel(hero.classType))")
+                        .typography(.caption)
+                        .foregroundStyle(Color.textTertiary)
+                    Text("HP \(leveled.hp) / \(leveled.maxHp)")
+                        .typography(.caption)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.textTertiary)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 14))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 14))
+        .buttonStyle(.plain)
     }
 
     // MARK: 메뉴 자리표시 — 다음 슬라이스에서 실제 화면으로 교체
