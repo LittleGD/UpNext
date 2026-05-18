@@ -12,17 +12,14 @@
 import SwiftUI
 
 struct UpHeroGameView: View {
-    @EnvironmentObject private var store: GameStore
-
     var body: some View {
         // 웹 UpHeroGame 의 currentSession.status 분기 자리.
-        // 슬라이스 18 까지는 세션 진입 경로가 없으므로 항상 아지트.
+        // 슬라이스 19 까지는 세션 진입 경로가 없으므로 항상 아지트.
         // 던전 뷰(전투)는 전투 슬라이스에서 이 분기에 추가된다.
         //
-        // enterUpHero — UpHeroStore 초기화 + 오프라인 수련 보상 XP 를 progress 에 반영.
-        // 1회성(UpHeroStore.isLoaded 가드)이라 탭 재진입 시 중복 누적되지 않는다.
+        // UpHeroStore 초기화·idle accrual 은 GameStore.bootstrapUpHero 가 앱 부팅
+        // 시점(.ready)에 처리한다 — 이 화면 진입과 무관 (idle 은 "앱 닫은 사이" 기준).
         CampView()
-            .onAppear { store.enterUpHero() }
     }
 }
 
@@ -38,7 +35,7 @@ private struct CampView: View {
     @State private var screen: CampScreen = .home
 
     /// 아지트 내부 화면 — 웹 CampPlaceholder 의 `view` 상태(home/dungeons/…) 대응.
-    private enum CampScreen { case home, dungeons }
+    private enum CampScreen { case home, dungeons, equipment }
 
     var body: some View {
         Group {
@@ -47,6 +44,8 @@ private struct CampView: View {
                 campHome
             case .dungeons:
                 DungeonSelectView(onBack: { screen = .home })
+            case .equipment:
+                EquipmentInventoryView(onBack: { screen = .home })
             }
         }
         .sheet(isPresented: $statsOpen) { HeroStatPanel() }
@@ -173,8 +172,11 @@ private struct CampView: View {
                         icon: "map", active: true)
             }
             .buttonStyle(.plain)
-            menuRow(title: "장비", subtitle: "인벤토리 — 다음 슬라이스",
-                    icon: "shield", active: false)
+            Button { screen = .equipment } label: {
+                menuRow(title: "장비", subtitle: "장착·판매·정리",
+                        icon: "shield", active: true)
+            }
+            .buttonStyle(.plain)
             menuRow(title: "상점", subtitle: "갓생 상점 — 이후 슬라이스",
                     icon: "bag", active: false)
         }

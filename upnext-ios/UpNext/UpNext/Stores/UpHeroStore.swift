@@ -93,6 +93,58 @@ final class UpHeroStore: ObservableObject {
         state = Self.loadPersisted() ?? Self.makeDefaultState()
     }
 
+    // MARK: - 장비 (웹 equipItem / unequipItem / sellItem / discardItem)
+
+    /// 인벤토리 장비를 해당 슬롯에 장착. 슬롯에 기존 장비가 있으면 인벤토리로 되돌린다.
+    /// 슬롯은 item.type 으로 결정 (웹 equipItem 의 slot 인자는 item.type 과 동일).
+    func equipItem(_ itemId: String) {
+        mutate { s in
+            guard let item = s.inventory.first(where: { $0.id == itemId }) else { return }
+            s.inventory.removeAll { $0.id == itemId }
+            if let existing = s.hero.equipped[item.type] {
+                s.inventory.append(existing)
+            }
+            s.hero.equipped[item.type] = item
+        }
+    }
+
+    /// 슬롯의 장비를 해제해 인벤토리로 되돌린다. 웹 unequipItem.
+    func unequipItem(_ slot: EquipSlot) {
+        mutate { s in
+            guard let item = s.hero.equipped[slot] else { return }
+            s.hero.equipped[slot] = nil
+            s.inventory.append(item)
+        }
+    }
+
+    /// 인벤토리 장비 판매 — 등급별 코인 환급. 반환: 환급액(없으면 0). 웹 sellItem.
+    @discardableResult
+    func sellItem(_ itemId: String) -> Int {
+        guard let item = state.inventory.first(where: { $0.id == itemId }) else { return 0 }
+        let refund = UpHeroRules.sellPrice[item.rarity] ?? 0
+        mutate { s in
+            s.inventory.removeAll { $0.id == itemId }
+            s.coins += refund
+        }
+        return refund
+    }
+
+    /// 인벤토리 장비 버리기 — 환급 없음. 웹 discardItem.
+    func discardItem(_ itemId: String) {
+        mutate { s in
+            s.inventory.removeAll { $0.id == itemId }
+        }
+    }
+
+    /// 상태 변경 + 발행 + 로컬 영속화 — 상태를 바꾸는 Up Hero 액션의 공통 경로.
+    /// (GameStore.mutateProgress 의 Up Hero 판.)
+    private func mutate(_ change: (inout UpHeroState) -> Void) {
+        var s = state
+        change(&s)
+        state = s
+        persist()
+    }
+
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
 
     /// 현재 상태를 디스크에 저장. 상태를 바꾸는 액션이 호출한다 (best-effort).

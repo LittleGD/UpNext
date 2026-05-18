@@ -100,6 +100,7 @@ final class GameStore: ObservableObject {
             daily = cloudDaily
             startLiveSync(uid: uid)
             phase = .ready
+            bootstrapUpHero()  // 앱 진입 시점에 idle accrual — 웹 useUpHeroStore.initialize
 
         case .notFound:
             // 신규 계정 — 온보딩 진입. 기본 상태는 메모리에만 두고, 클라우드 업로드는
@@ -206,6 +207,7 @@ final class GameStore: ObservableObject {
             guard bootstrappedUid == uid else { return }  // 업로드 중 로그아웃 — 폐기
             startLiveSync(uid: uid)
             phase = .ready
+            bootstrapUpHero()  // 신규 유저도 동일 — heroStartLevel seed
         }
     }
 
@@ -522,11 +524,16 @@ final class GameStore: ObservableObject {
 
     // MARK: - Up Hero 연동 (웹 useUpHeroStore ↔ useGameStore)
 
-    /// Up Hero 진입 시 1회 호출 — UpHeroStore 를 초기화하고, 오프라인 수련 보상의
+    /// 앱 부팅 완료(.ready) 시 1회 — UpHeroStore 를 초기화하고, 오프라인 수련 보상의
     /// XP 를 progress 에 반영한다. 영웅 XP 의 진실의 원천은 progress 이므로
     /// UpHeroStore 가 직접 쓰지 않고 지급량만 반환 → 여기서 부모 스토어가 반영
     /// (웹 useUpHeroStore.initialize 가 useGameStore 에 XP 를 써넣는 흐름과 동일).
-    func enterUpHero() {
+    ///
+    /// Up Hero 탭 진입이 아니라 부팅 시점에 호출하는 이유: idle accrual 은 "앱을 닫은
+    /// 사이"가 기준이라 앱 진입 즉시 계산해야 한다. 탭 진입 때 돌리면 그전까지 앱 안에
+    /// 머문 시간까지 idle 로 잡히고, heroStartLevel seed 도 늦어 영웅 Lv 표기가 한 번
+    /// 깜빡인다. 1회성(UpHeroStore.isLoaded 가드)이라 부팅마다 한 번만 실행된다.
+    func bootstrapUpHero() {
         guard let p = progress else { return }
         let idleXP = upHero.initialize(gameLevel: p.level)
         guard idleXP > 0 else { return }
