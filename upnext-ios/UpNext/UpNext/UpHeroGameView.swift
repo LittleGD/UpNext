@@ -5,8 +5,8 @@
 //  웹 components/uphero/UpHeroGame.tsx 포팅. 웹은 currentSession.status 로 화면을
 //  분기한다 — 세션이 없으면 아지트(Camp), 진행 중이면 던전(전투).
 //
-//  슬라이스 14 는 진입점만 — 아지트 셸 골격이다. 던전·전투·상점·장비·전직·스킬은
-//  이후 슬라이스에서 채운다. 그때 currentSession 분기에 던전 뷰가 들어온다.
+//  슬라이스 14~17 — 아지트(영웅 요약·스탯 패널·던전 선택). 전투·상점·장비·전직·
+//  스킬은 이후 슬라이스에서 채운다. 그때 currentSession 분기에 던전 뷰가 들어온다.
 //
 
 import SwiftUI
@@ -26,26 +26,43 @@ struct UpHeroGameView: View {
 // MARK: - 아지트 (Camp)
 
 /// Up Hero 의 허브 화면. 웹 CampPlaceholder.
-/// 슬라이스 16 — 영웅 요약(탭 → 스탯 패널) + 코인 + 메뉴 자리표시.
-/// 던전 선택·상점·장비 인벤토리는 이후 슬라이스에서 실제 화면으로 교체.
+/// 슬라이스 17 — 아지트 홈(영웅 요약·코인·메뉴) ↔ 던전 선택 내부 전환.
+/// 상점·장비 인벤토리는 이후 슬라이스에서 메뉴에 연결된다.
 private struct CampView: View {
     @EnvironmentObject private var upHero: UpHeroStore
     @EnvironmentObject private var store: GameStore
     @State private var statsOpen = false
+    @State private var screen: CampScreen = .home
+
+    /// 아지트 내부 화면 — 웹 CampPlaceholder 의 `view` 상태(home/dungeons/…) 대응.
+    private enum CampScreen { case home, dungeons }
 
     var body: some View {
+        Group {
+            switch screen {
+            case .home:
+                campHome
+            case .dungeons:
+                DungeonSelectView(onBack: { screen = .home })
+            }
+        }
+        .sheet(isPresented: $statsOpen) { HeroStatPanel() }
+    }
+
+    // MARK: 아지트 홈
+
+    private var campHome: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
                 heroCard
-                menuPlaceholder
+                menu
             }
             .padding(16)
             .padding(.bottom, 88)  // 하단 플로팅 네비 여유
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgPrimary)
-        .sheet(isPresented: $statsOpen) { HeroStatPanel() }
     }
 
     /// 영웅 전용 레벨 — 챌린지 레벨 기반. 웹 getEffectiveHeroLevel.
@@ -105,40 +122,48 @@ private struct CampView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: 메뉴 자리표시 — 다음 슬라이스에서 실제 화면으로 교체
+    // MARK: 메뉴 — 탐험은 활성, 장비·상점은 다음 슬라이스 자리표시
 
-    private var menuPlaceholder: some View {
+    private var menu: some View {
         VStack(spacing: 10) {
-            ForEach(menuItems, id: \.title) { item in
-                HStack(spacing: 12) {
-                    Image(systemName: item.icon)
-                        .font(.system(size: 18))
-                        .foregroundStyle(Color.textTertiary)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.title)
-                            .typography(.body)
-                            .foregroundStyle(Color.textSecondary)
-                        Text(item.subtitle)
-                            .typography(.micro)
-                            .foregroundStyle(Color.textTertiary)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity)
-                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-                .opacity(0.55)  // 아직 비활성 — 다음 슬라이스에서 활성화
+            Button { screen = .dungeons } label: {
+                menuRow(title: "탐험 시작", subtitle: "던전을 골라 출발",
+                        icon: "map", active: true)
             }
+            .buttonStyle(.plain)
+            menuRow(title: "장비", subtitle: "인벤토리 — 다음 슬라이스",
+                    icon: "shield", active: false)
+            menuRow(title: "상점", subtitle: "갓생 상점 — 이후 슬라이스",
+                    icon: "bag", active: false)
         }
     }
 
-    private var menuItems: [(title: String, subtitle: String, icon: String)] {
-        [
-            ("탐험 시작", "던전 선택 — 다음 슬라이스", "map"),
-            ("장비", "인벤토리 — 다음 슬라이스", "shield"),
-            ("상점", "갓생 상점 — 이후 슬라이스", "bag"),
-        ]
+    private func menuRow(title: String, subtitle: String,
+                         icon: String, active: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundStyle(active ? Color.accentPrimary : Color.textTertiary)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .typography(.body)
+                    .foregroundStyle(active ? Color.textPrimary : Color.textSecondary)
+                Text(subtitle)
+                    .typography(.micro)
+                    .foregroundStyle(Color.textTertiary)
+            }
+            Spacer(minLength: 0)
+            if active {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.textTertiary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity)
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+        .opacity(active ? 1 : 0.55)  // 비활성 메뉴는 흐리게 — 다음 슬라이스에서 활성화
     }
 
     private func classLabel(_ c: ClassType?) -> String {

@@ -30,6 +30,17 @@ extension Color {
             opacity: alpha
         )
     }
+
+    /// "#RRGGBB" 또는 "RRGGBB" 16진 문자열로 Color 생성. 데이터에 문자열로 박힌
+    /// hex (Up Hero 던전 themeColor 등)용. 파싱 실패 시 중립 회색 fallback.
+    init(hexString: String) {
+        let raw = hexString.hasPrefix("#") ? String(hexString.dropFirst()) : hexString
+        if raw.count == 6, let value = UInt32(raw, radix: 16) {
+            self.init(hex: value)
+        } else {
+            self.init(hex: 0x808080)
+        }
+    }
 }
 
 // MARK: - 디자인 토큰
