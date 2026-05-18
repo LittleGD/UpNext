@@ -79,7 +79,12 @@ final class GameStore: ObservableObject {
         phase = .loading
         sync.setSyncReady(false)  // 부트스트랩 동안 로컬 write 차단 (race 방지)
 
-        switch await sync.getCloudData(uid: uid) {
+        let result = await sync.getCloudData(uid: uid)
+        // await(네트워크) 중 로그아웃·계정 전환이 일어났으면 이 결과를 폐기한다.
+        //   안 그러면 로그아웃된 유저에게 .ready/.onboarding 화면이 노출된다.
+        guard bootstrappedUid == uid else { return }
+
+        switch result {
         case let .loaded(cloudProgress, cloudDaily):
             // 기존 유저 — XP/레벨 정규화 적용 (구 XP 커브 마이그레이션, 음수 XP 방어).
             progress = GameRules.normalizeXpLevel(cloudProgress).progress
@@ -181,6 +186,7 @@ final class GameStore: ObservableObject {
         phase = .loading
         Task {
             await sync.uploadLocalData(uid: uid, progress: p, daily: d)
+            guard bootstrappedUid == uid else { return }  // 업로드 중 로그아웃 — 폐기
             startLiveSync(uid: uid)
             phase = .ready
         }

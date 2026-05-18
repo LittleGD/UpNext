@@ -28,20 +28,13 @@ struct SettingsView: View {
         .sheet(isPresented: $showPrivacy) { PrivacyView() }
     }
 
-    // 부트스트랩 전 / 로그아웃 상태 안내
+    // progress 가 아직 없을 때의 방어용 표시. 실제로는 .ready 단계에서만 이 화면이
+    // 렌더되어 progress 가 항상 존재하므로 도달하지 않는 분기다.
     private var placeholder: some View {
-        VStack(spacing: 8) {
-            Text("설정")
-                .typography(.title)
-                .foregroundStyle(Color.textPrimary)
-            Text("로그인 후 설정이 표시됩니다 — Auth/Sync 탭에서 로그인하세요")
-                .typography(.caption)
-                .foregroundStyle(Color.textTertiary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 80)
-        .padding(.horizontal, 24)
+        ProgressView()
+            .tint(Color.accentPrimary)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 80)
     }
 
     private func content(_ progress: UserProgress) -> some View {
@@ -61,7 +54,9 @@ struct SettingsView: View {
                 .opacity(0.6)
                 .frame(maxWidth: .infinity)
         }
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 100)  // 하단 플로팅 네비에 가리지 않도록 여유
     }
 
     // MARK: - 일반
