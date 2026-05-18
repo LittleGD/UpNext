@@ -12,14 +12,17 @@
 import SwiftUI
 
 struct UpHeroGameView: View {
-    @EnvironmentObject private var upHero: UpHeroStore
+    @EnvironmentObject private var store: GameStore
 
     var body: some View {
         // 웹 UpHeroGame 의 currentSession.status 분기 자리.
-        // 슬라이스 14 는 세션 진입 경로가 아직 없으므로 항상 아지트.
+        // 슬라이스 18 까지는 세션 진입 경로가 없으므로 항상 아지트.
         // 던전 뷰(전투)는 전투 슬라이스에서 이 분기에 추가된다.
+        //
+        // enterUpHero — UpHeroStore 초기화 + 오프라인 수련 보상 XP 를 progress 에 반영.
+        // 1회성(UpHeroStore.isLoaded 가드)이라 탭 재진입 시 중복 누적되지 않는다.
         CampView()
-            .onAppear { upHero.initialize() }
+            .onAppear { store.enterUpHero() }
     }
 }
 
@@ -55,6 +58,7 @@ private struct CampView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
+                idleRewardBanner
                 heroCard
                 menu
             }
@@ -63,6 +67,44 @@ private struct CampView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgPrimary)
+    }
+
+    // MARK: 오프라인 수련 보상 토스트 (웹 IdleRewardToast)
+
+    /// idle accrual 결과가 있으면 표시. 확인하면 acknowledgeIdleReward 로 사라진다.
+    @ViewBuilder private var idleRewardBanner: some View {
+        if let reward = upHero.state.idleReward {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("영웅의 수련 성과")
+                    .typography(.caption)
+                    .foregroundStyle(Color.accentPrimary)
+                Text("영웅이 \(IdleAccrual.formatElapsed(reward.elapsedMin)) 동안 수련했어요")
+                    .typography(.body)
+                    .foregroundStyle(Color.textPrimary)
+                HStack(spacing: 14) {
+                    Text("경험치 +\(reward.xp)")
+                        .typography(.caption)
+                        .foregroundStyle(Color.textSecondary)
+                    Text("코인 +\(reward.coins)")
+                        .typography(.caption)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                Button {
+                    upHero.acknowledgeIdleReward()
+                } label: {
+                    Text("확인")
+                        .typography(.caption)
+                        .foregroundStyle(Color.bgPrimary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 7)
+                        .background(Color.accentPrimary, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 12))
+        }
     }
 
     /// 영웅 전용 레벨 — 챌린지 레벨 기반. 웹 getEffectiveHeroLevel.

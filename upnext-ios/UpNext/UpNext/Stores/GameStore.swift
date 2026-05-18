@@ -520,6 +520,24 @@ final class GameStore: ObservableObject {
         collectionCelebration = false
     }
 
+    // MARK: - Up Hero 연동 (웹 useUpHeroStore ↔ useGameStore)
+
+    /// Up Hero 진입 시 1회 호출 — UpHeroStore 를 초기화하고, 오프라인 수련 보상의
+    /// XP 를 progress 에 반영한다. 영웅 XP 의 진실의 원천은 progress 이므로
+    /// UpHeroStore 가 직접 쓰지 않고 지급량만 반환 → 여기서 부모 스토어가 반영
+    /// (웹 useUpHeroStore.initialize 가 useGameStore 에 XP 를 써넣는 흐름과 동일).
+    func enterUpHero() {
+        guard let p = progress else { return }
+        let idleXP = upHero.initialize(gameLevel: p.level)
+        guard idleXP > 0 else { return }
+        // idle XP 반영 — 웹 idle 과 동일하게 level 만 재계산 (pendingPacks 미적립).
+        //   normalizeXpLevel 의 레벨 산출(grandfather·승급)만 쓰고 pendingPacks 는 버린다.
+        mutateProgress {
+            $0.xp += idleXP
+            $0.level = GameRules.normalizeXpLevel($0).progress.level
+        }
+    }
+
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
 
     static func makeDefaultProgress() -> UserProgress {

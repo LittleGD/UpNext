@@ -6,16 +6,16 @@
 //  GameStore 와 마찬가지로 화면 슬라이스가 요구하는 액션을 한 슬라이스씩 덧붙여 키운다
 //  (1,750줄 Zustand 액션을 일괄 포팅하지 않는다 — on-demand 포팅).
 //
-//  ── 슬라이스 14~15 (현재) ──
-//  상태 컨테이너 + 기본 상태 팩토리 + 진입점(아지트 셸) + 로컬 영속화.
+//  ── 슬라이스 14~18 (현재) ──
+//  상태 컨테이너 + 기본 상태 팩토리 + 로컬 영속화 + initialize(idle accrual).
 //   - UpHeroState 를 보유하고, 비-세션 부분을 기기 로컬 파일에 JSON 으로 저장한다
 //     (PersistedUpHeroState — UpHeroPersistence.swift). 웹 localStorage["uphero"] 대응.
-//   - initialize()/resetForSignOut() 골격. idle accrual·영웅 레벨 동기화·주간 변종
-//     seed 등 웹 initialize() 의 본체 로직은 이후 슬라이스에서 채운다.
+//   - initialize(gameLevel:) 가 heroStartLevel seed + 오프라인 수련 보상을 적용.
+//     영웅 XP 는 GameStore 소관이라 지급량을 반환 → GameStore.enterUpHero 가 반영.
 //
 //  ── 다음 슬라이스 ──
-//  아지트 홈+스탯 패널(16), 던전 선택·idle 보상(17), 장비(...), 버프 드로우,
-//  전투(currentSession 영속화 포함), 세션 결과·전직, 스킬트리·도감.
+//  장비 인벤토리, 버프 드로우, 전투(currentSession 영속화 포함),
+//  세션 결과·전직, 스킬트리·도감. 주간 변종 seed 도 이후 슬라이스.
 //
 //  영웅 레벨/XP 의 진실의 원천은 GameStore.progress — UpHeroStore 가 소유하지 않는다.
 //  (전투 세션 생성 시 그 시점 레벨을 스냅샷할 뿐. 웹 useUpHeroStore 와 동일.)
@@ -37,14 +37,52 @@ final class UpHeroStore: ObservableObject {
 
     // MARK: - 수명주기
 
-    /// 앱/계정 진입 시 1회 — 로드 플래그를 세우고 현재 상태를 디스크에 기록한다
-    /// (최초 실행이면 기본 상태 파일이 이때 생성됨 — 웹 initialize → saveToStorage).
-    /// 웹 initialize() 의 idle accrual·영웅 레벨 동기화·주간 변종 seed 는
-    /// 해당 기능 슬라이스에서 이 메서드에 덧붙인다.
-    func initialize() {
-        guard !state.isLoaded else { return }
-        state.isLoaded = true
+    /// Up Hero 진입 시 1회 — heroStartLevel seed + 오프라인 수련 보상(idle accrual).
+    /// 코인은 즉시 반영하고 idleReward 스냅샷을 저장한다 (아지트가 토스트로 표시).
+    /// 영웅 XP 의 진실의 원천은 GameStore.progress 라 XP 는 여기서 더하지 않고
+    /// 지급할 양을 반환 — 호출부(GameStore.enterUpHero)가 progress 에 반영한다.
+    /// 웹 useUpHeroStore.initialize() 대응. 이미 로드됐으면 0 (1회성).
+    func initialize(gameLevel: Int) -> Int {
+        guard !state.isLoaded else { return 0 }
+
+        var s = state
+        s.isLoaded = true
+        let now = Self.nowMillis()
+
+        // heroStartLevel seed — 최초 1회. 웹은 기존 저장 데이터 마이그레이션
+        //   휴리스틱(hasPlayedUpHero)으로 1 또는 curLevel 을 정하지만, 네이티브 앱은
+        //   항상 brand-new 진입이라 curLevel 로 seed (영웅 Lv 을 1부터 키운다).
+        if s.heroStartLevel == nil {
+            s.heroStartLevel = gameLevel
+        }
+
+        // 오프라인 수련 보상 — 영웅 effective 레벨 기준 (웹과 동일).
+        //   클래스 XP/coin 배율은 전직 슬라이스에서 — 현재 영웅은 무직이라 ×1.
+        let heroLevel = UpHeroRules.getEffectiveHeroLevel(
+            gameLevel: gameLevel, heroStartLevel: s.heroStartLevel)
+        var grantedXP = 0
+        let rewound = IdleAccrual.detectClockRewind(
+            now: now, lastSeenAt: s.lastSeenAt, lastIdleAt: s.lastIdleAccrualAt)
+        if !rewound,
+           let reward = IdleAccrual.calculateIdleReward(
+               elapsedMs: now - s.lastIdleAccrualAt, level: heroLevel) {
+            s.coins += reward.coins
+            s.idleReward = IdleRewardSnapshot(
+                xp: reward.xp, coins: reward.coins,
+                elapsedMin: reward.elapsedMin, rawElapsedMin: reward.rawElapsedMin)
+            s.lastIdleAccrualAt = now   // 보상 지급분만큼 누적 기준점 이동
+            grantedXP = reward.xp
+        }
+        s.lastSeenAt = now              // 시계 rewind 감지 기준 — 매 진입 갱신
+
+        state = s
         persist()
+        return grantedXP
+    }
+
+    /// idle 보상 토스트 확인 — 스냅샷을 비운다. transient 라 저장은 불필요.
+    func acknowledgeIdleReward() {
+        state.idleReward = nil
     }
 
     /// 로그아웃 — 메모리 상태를 디스크 저장본 기준으로 다시 맞춘다.
@@ -86,10 +124,15 @@ final class UpHeroStore: ObservableObject {
         try? data.write(to: url, options: .atomic)
     }
 
+    /// 현재 시각 (epoch ms) — 웹 Date.now() 대응.
+    static func nowMillis() -> Int {
+        Int(Date().timeIntervalSince1970 * 1000)
+    }
+
     // MARK: - 기본 상태 팩토리 (웹 useUpHeroStore 초기 상태 리터럴)
 
     static func makeDefaultState() -> UpHeroState {
-        let now = Int(Date().timeIntervalSince1970 * 1000)  // 웹 Date.now() (ms)
+        let now = nowMillis()
         return UpHeroState(
             hero: UpHeroRules.createDefaultHero(),
             inventory: [],
