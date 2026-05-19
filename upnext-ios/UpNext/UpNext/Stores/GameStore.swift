@@ -43,9 +43,12 @@ final class GameStore: ObservableObject {
     let growth = GrowthStore()
 
     @Published private(set) var progress: UserProgress? {
-        // 설정의 hapticEnabled 를 Haptics 헬퍼에 동기 — progress 가 바뀌는 모든
+        // 설정의 haptic/sound 토글을 헬퍼에 동기 — progress 가 바뀌는 모든
         // 경로(bootstrap·applyCloudUpdate·mutateProgress·onboarding)에서 자동 반영.
-        didSet { Haptics.enabled = progress?.hapticEnabled ?? true }
+        didSet {
+            Haptics.enabled = progress?.hapticEnabled ?? true
+            SoundPlayer.enabled = progress?.soundEnabled ?? true
+        }
     }
     @Published private(set) var daily: DailyState?
     @Published private(set) var phase: BootPhase = .launching
@@ -254,6 +257,7 @@ final class GameStore: ObservableObject {
             d.isDrawComplete = true
         }
         Haptics.play(.light)
+        SoundPlayer.shared.play(.cardFlip)
     }
 
     /// 리롤 — 하루 1회, 선택 미확정 시. 웹 rerollCards.
@@ -267,6 +271,7 @@ final class GameStore: ObservableObject {
             d.rerollUsed = true
         }
         Haptics.play(.medium)
+        SoundPlayer.shared.play(.cardFlip)
     }
 
     /// 드로우 결과 반영 — 패널티 시 6장 중 1장 랜덤 잠금 + 자동 선택. drawDailyCards/rerollCards 공통.
@@ -287,6 +292,7 @@ final class GameStore: ObservableObject {
               !current.selectedCards.contains(where: { $0.id == card.id }) else { return }
         mutateDaily { $0.selectedCards.append(card) }
         Haptics.play(.selection)
+        SoundPlayer.shared.play(.cardSelect)
     }
 
     /// 카드 선택 취소 — 패널티 카드·확정 후엔 불가. 웹 deselectCard.
@@ -295,6 +301,7 @@ final class GameStore: ObservableObject {
         guard !current.isSelectionComplete, current.penaltyCardId != cardId else { return }
         mutateDaily { $0.selectedCards.removeAll { $0.id == cardId } }
         Haptics.play(.selection)
+        SoundPlayer.shared.play(.cancel)
     }
 
     /// 선택 확정 — mode 장수와 정확히 일치할 때만. 웹 confirmSelection.
@@ -303,6 +310,7 @@ final class GameStore: ObservableObject {
         guard current.selectedCards.count == p.mode.cardCount else { return }
         mutateDaily { $0.isSelectionComplete = true }
         Haptics.play(.medium)
+        SoundPlayer.shared.play(.confirm)
     }
 
     /// 챌린지 완료 — 웹 completeChallenge. XP·카테고리/카드 완료수·신규 해금·
@@ -340,8 +348,9 @@ final class GameStore: ObservableObject {
         daily = d
         sync.syncProgress(p)
         sync.syncDaily(d)
-        // 완료 햅틱 — 레벨업이면 celebration(컴파운드), 아니면 success.
+        // 완료 햅틱·사운드 — 레벨업이면 celebration/levelUp, 아니면 success/complete.
         Haptics.play(normalized.levelsGained > 0 ? .celebration : .success)
+        SoundPlayer.shared.play(normalized.levelsGained > 0 ? .levelUp : .complete)
     }
 
     /// daily 를 변경 → 발행 → 클라우드 동기화 (디바운스). mutateProgress 의 daily 판.
@@ -513,6 +522,7 @@ final class GameStore: ObservableObject {
         sync.syncProgress(p)
         sync.syncDaily(d)
         Haptics.play(normalized.levelsGained > 0 ? .celebration : .success)
+        SoundPlayer.shared.play(normalized.levelsGained > 0 ? .levelUp : .complete)
     }
 
     // MARK: - 카드팩 개봉 (웹 useGameStore openCardPack)
@@ -564,8 +574,9 @@ final class GameStore: ObservableObject {
         progress = p
         sync.syncProgress(p)
         if justCompleted { collectionCelebration = true }
-        // 개봉 햅틱 — 컬렉션 첫 완성이면 celebration, 아니면 success.
+        // 개봉 햅틱·사운드 — 컬렉션 첫 완성이면 celebration, 아니면 success.
         Haptics.play(justCompleted ? .celebration : .success)
+        SoundPlayer.shared.play(.packOpen)
         return (newCards, tier)
     }
 
