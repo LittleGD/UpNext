@@ -6,8 +6,7 @@
 //  가 아지트 대신 이 화면을 보여준다. 타이머가 advanceCombat 을 반복 호출해 전투가
 //  자동 진행되고, 전투 로그가 실시간으로 쌓인다.
 //
-//  슬라이스 22 — 자동 진행 전투 + 로그 + 종료 화면. condensed:
-//   - 이벤트 선택지는 자동 결정 (인터랙티브 선택은 다음 슬라이스)
+//  슬라이스 22~23 — 자동 진행 전투 + 로그 + 이벤트 선택지 + 종료 화면. condensed:
 //   - 미니게임은 자동 처리 (플레이는 Phase 4.6)
 //   - 보스 등장 연출·속도 조절은 이후, 보상 지급은 세션 결과 슬라이스
 //
@@ -19,7 +18,9 @@ struct DungeonView: View {
     @EnvironmentObject private var upHero: UpHeroStore
 
     /// 전투 tick 타이머 — 0.7초마다 한 스텝. 화면이 살아있는 동안만 발화.
-    private let tick = Timer.publish(every: 0.7, on: .main, in: .common).autoconnect()
+    /// @State 로 1회만 생성 — let 이면 struct 재생성마다 새 publisher 가 나와
+    /// onReceive 가 매 tick 구독을 갈아끼운다 (render cadence 에 의존하는 fragile).
+    @State private var tick = Timer.publish(every: 0.7, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -121,18 +122,50 @@ struct DungeonView: View {
     private func footer(_ session: CombatSession) -> some View {
         if session.status == .completed {
             endResult(session)
+        } else if session.status == .awaitingChoice {
+            choiceOptions(session)
         } else {
-            Button { upHero.abandonSession() } label: {
-                Text("탐험 포기")
-                    .typography(.body)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .foregroundStyle(Color.textSecondary)
-                    .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-            }
-            .buttonStyle(.plain)
-            .padding(16)
+            abandonButton
         }
+    }
+
+    /// awaitingChoice — 대기 중인 이벤트 선택지의 옵션을 버튼으로. 탭 → resolveChoice.
+    /// 선택지 프롬프트는 바로 위 전투 로그에 이미 떠 있어 여기선 옵션만 보여준다.
+    @ViewBuilder
+    private func choiceOptions(_ session: CombatSession) -> some View {
+        if let idx = session.pendingChoiceIndex, session.log.indices.contains(idx),
+           case let .choice(_, _, _, options, _, _, _, _, _, _) = session.log[idx] {
+            VStack(spacing: 8) {
+                ForEach(Array(options.enumerated()), id: \.offset) { i, option in
+                    Button { upHero.resolveChoice(i) } label: {
+                        Text(option.label)
+                            .typography(.body)
+                            .foregroundStyle(Color.textPrimary)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 50)
+                            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(16)
+        } else {
+            // 방어 — 선택지를 찾지 못하면(엔진 불변식 위반) 최소한 빠져나갈 길은 둔다.
+            abandonButton
+        }
+    }
+
+    private var abandonButton: some View {
+        Button { upHero.abandonSession() } label: {
+            Text("탐험 포기")
+                .typography(.body)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .foregroundStyle(Color.textSecondary)
+                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .padding(16)
     }
 
     private func endResult(_ session: CombatSession) -> some View {

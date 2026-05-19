@@ -224,9 +224,8 @@ final class UpHeroStore: ObservableObject {
             // 보스 등장 연출 — 슬라이스 22 는 자동 재개 (인트로 연출은 이후 슬라이스).
             session.status = .active
         case .awaitingChoice:
-            // 자동 진행 — 기본 선택지로 해결 (인터랙티브 선택은 다음 슬라이스).
-            session = UpHeroSession.resolveChoice(
-                session, optionIndex: Self.defaultChoiceOption(session), rng: &rng)
+            // 사용자가 선택지를 고를 때까지 대기 — resolveChoice 가 전투를 재개시킨다.
+            return
         case .awaitingMinigame:
             // 미니게임은 Phase 4.6 — 자동 성공 처리 (미구현 기능으로 벌점 X).
             session = UpHeroSession.resolveMinigame(session, success: true, rng: &rng)
@@ -236,12 +235,14 @@ final class UpHeroStore: ObservableObject {
         state.currentSession = session
     }
 
-    /// 대기 중인 선택지의 기본 옵션 인덱스 (timeout 자동선택용). 없으면 0.
-    private static func defaultChoiceOption(_ session: CombatSession) -> Int {
-        guard let idx = session.pendingChoiceIndex, session.log.indices.contains(idx),
-              case let .choice(_, _, _, _, _, _, _, defaultIdx, _, _) = session.log[idx]
-        else { return 0 }
-        return defaultIdx ?? 0
+    /// 이벤트 선택지 해결 — 사용자가 고른 옵션으로 전투를 재개시킨다. 웹 resolveChoice.
+    /// currentSession 만 바꾸므로 persist 생략 (advanceCombat 과 동일).
+    func resolveChoice(_ optionIndex: Int) {
+        guard let session = state.currentSession,
+              session.status == .awaitingChoice else { return }
+        var rng = SystemRandom()
+        state.currentSession = UpHeroSession.resolveChoice(
+            session, optionIndex: optionIndex, rng: &rng)
     }
 
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
