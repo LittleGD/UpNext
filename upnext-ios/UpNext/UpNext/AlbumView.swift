@@ -14,10 +14,11 @@ import PhotosUI
 
 struct AlbumView: View {
     @EnvironmentObject private var growth: GrowthStore
+    @EnvironmentObject private var upHero: UpHeroStore
     /// PhotosPicker 선택 항목 — 선택되면 onChange 가 GrowthStore 에 추가.
     @State private var pickerItem: PhotosPickerItem?
-    /// 삭제 확인 대상.
-    @State private var deleteTarget: PhotoMeta?
+    /// 항목 액션(부적 만들기/삭제) 대상.
+    @State private var actionTarget: PhotoMeta?
 
     private let columns = Array(
         repeating: GridItem(.flexible(), spacing: 8), count: 3)
@@ -50,12 +51,13 @@ struct AlbumView: View {
             }
         }
         .confirmationDialog(
-            "이 사진을 삭제할까요?",
+            "사진",
             isPresented: Binding(
-                get: { deleteTarget != nil },
-                set: { if !$0 { deleteTarget = nil } }),
-            presenting: deleteTarget
+                get: { actionTarget != nil },
+                set: { if !$0 { actionTarget = nil } }),
+            presenting: actionTarget
         ) { meta in
+            Button("부적으로 만들기") { upHero.createPhotoTalisman(photoId: meta.id) }
             Button("삭제", role: .destructive) { growth.deletePhoto(meta.id) }
             Button("취소", role: .cancel) {}
         }
@@ -84,9 +86,9 @@ struct AlbumView: View {
             .padding(.top, 20)
     }
 
-    /// 사진 셀 — 정사각 썸네일. 탭하면 삭제 확인.
+    /// 사진 셀 — 정사각 썸네일. 탭하면 부적 만들기/삭제 시트.
     private func photoCell(_ meta: PhotoMeta) -> some View {
-        Button { deleteTarget = meta } label: {
+        Button { actionTarget = meta } label: {
             Group {
                 if let img = growth.image(for: meta.id) {
                     Image(uiImage: img)

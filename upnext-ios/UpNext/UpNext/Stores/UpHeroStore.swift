@@ -307,6 +307,23 @@ final class UpHeroStore: ObservableObject {
         }
     }
 
+    // MARK: - 사진 부적 (웹 PhotoTalisman)
+
+    /// 인증 사진을 부적 장비로 만들어 인벤토리에 추가. 웹 사진 부적 시스템.
+    /// condensed — 부적은 사진 id 참조 + 기본 스탯만 (passive talismanSkills 는
+    /// 웹 매핑이 복잡해 이후 슬라이스로 유보). 장착하면 스탯이 전투에 반영된다.
+    func createPhotoTalisman(photoId: String) {
+        let talisman = Equipment(
+            id: "talisman_photo_\(Self.nowMillis())",
+            name: "추억의 부적", baseId: nil, type: .talisman,
+            rarity: .rare, category: .wellness, iconName: "photo",
+            stats: [.vit: 3, .agi: 2], effects: nil,
+            flavor: "성장의 순간을 담은 부적.", photoId: photoId,
+            enhanceLevel: nil, enhanceFailStreak: nil,
+            affix: nil, affixes: nil, talismanSkills: nil)
+        mutate { $0.inventory.append(talisman) }
+    }
+
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
 
     /// 현재 상태를 디스크에 저장. 상태를 바꾸는 액션이 호출한다 (best-effort).
