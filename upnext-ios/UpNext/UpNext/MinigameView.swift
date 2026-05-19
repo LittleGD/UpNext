@@ -97,6 +97,7 @@ struct MinigameView: View {
         guard !busy, !flipped.contains(idx), !matched.contains(idx) else { return }
         flipped.append(idx)
         Haptics.play(.selection)        // 카드 뒤집기 — 매 인터랙션 촉각 반응
+        SoundPlayer.shared.play(.cardFlip)
         guard flipped.count == 2 else { return }
         let (a, b) = (flipped[0], flipped[1])
         if cards[a].symbol == cards[b].symbol {
@@ -104,9 +105,10 @@ struct MinigameView: View {
             matched.insert(b)
             flipped = []
             if matched.count == cards.count {
-                win()                   // win → awardMinigameWin 이 .celebration
+                win()                   // win → awardMinigameWin 이 .celebration + .levelUp
             } else {
                 Haptics.play(.medium)    // 짝 맞춤 — 만족스러운 임팩트
+                SoundPlayer.shared.play(.complete)
             }
         } else {
             // 불일치 — 0.7초 뒤 두 장을 다시 뒤집는다.

@@ -389,6 +389,7 @@ final class GameStore: ObservableObject {
               d.completedIds.count >= d.selectedCards.count else { return }
         mutateDaily { $0.challengePhase = .extra }
         Haptics.play(.medium)
+        SoundPlayer.shared.play(.confirm)
     }
 
     /// 슈퍼 챌린지 시작 — extra 풀클리어 후. 웹 startSuperChallenge.
@@ -397,6 +398,7 @@ final class GameStore: ObservableObject {
               d.extraCompletedIds.count >= d.extraSelectedCards.count else { return }
         mutateDaily { $0.challengePhase = .`super` }
         Haptics.play(.medium)
+        SoundPlayer.shared.play(.confirm)
     }
 
     /// 현재 페이즈에 6장 드로우. daily 면 drawDailyCards 로 위임. 웹 drawPhaseCards.
@@ -425,6 +427,7 @@ final class GameStore: ObservableObject {
                 }
             }
             Haptics.play(.light)
+            SoundPlayer.shared.play(.cardFlip)
         }
     }
 
@@ -439,11 +442,13 @@ final class GameStore: ObservableObject {
                   !d.extraSelectedCards.contains(where: { $0.id == card.id }) else { return }
             mutateDaily { $0.extraSelectedCards.append(card) }
             Haptics.play(.selection)
+            SoundPlayer.shared.play(.cardSelect)
         case .`super`:
             guard d.superSelectedCards.count < ChallengePhase.`super`.cardCount,
                   !d.superSelectedCards.contains(where: { $0.id == card.id }) else { return }
             mutateDaily { $0.superSelectedCards.append(card) }
             Haptics.play(.selection)
+            SoundPlayer.shared.play(.cardSelect)
         }
     }
 
@@ -457,10 +462,12 @@ final class GameStore: ObservableObject {
             guard !d.extraSelectionComplete else { return }
             mutateDaily { $0.extraSelectedCards.removeAll { $0.id == cardId } }
             Haptics.play(.selection)
+            SoundPlayer.shared.play(.cancel)
         case .`super`:
             guard !d.superSelectionComplete else { return }
             mutateDaily { $0.superSelectedCards.removeAll { $0.id == cardId } }
             Haptics.play(.selection)
+            SoundPlayer.shared.play(.cancel)
         }
     }
 
@@ -474,10 +481,12 @@ final class GameStore: ObservableObject {
             guard d.extraSelectedCards.count >= ChallengePhase.extra.cardCount else { return }
             mutateDaily { $0.extraSelectionComplete = true }
             Haptics.play(.medium)
+            SoundPlayer.shared.play(.confirm)
         case .`super`:
             guard d.superSelectedCards.count >= ChallengePhase.`super`.cardCount else { return }
             mutateDaily { $0.superSelectionComplete = true }
             Haptics.play(.medium)
+            SoundPlayer.shared.play(.confirm)
         }
     }
 
@@ -631,6 +640,7 @@ final class GameStore: ObservableObject {
             if full { $0.pendingPacks += 1 } else { $0.pendingBonusCards += 1 }
         }
         Haptics.play(.success)
+        SoundPlayer.shared.play(.packOpen)
     }
 
     // MARK: - 미니게임 (웹 useMinigameStore — 티켓 소비 / 보상)
@@ -641,6 +651,7 @@ final class GameStore: ObservableObject {
         guard (progress?.tickets ?? 0) > 0 else { return false }
         mutateProgress { $0.tickets -= 1 }
         Haptics.play(.light)
+        SoundPlayer.shared.play(.select)
         return true
     }
 
@@ -652,6 +663,7 @@ final class GameStore: ObservableObject {
             $0.level = GameRules.normalizeXpLevel($0).progress.level
         }
         Haptics.play(.celebration)
+        SoundPlayer.shared.play(.levelUp)
     }
 
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
