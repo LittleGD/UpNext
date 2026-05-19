@@ -200,10 +200,48 @@ final class UpHeroStore: ObservableObject {
         }
     }
 
-    /// 탐험 포기 — 현재 세션을 버린다. 웹 abandonSession.
-    /// 결산·층 기록(floorReached 갱신)은 세션 결과 슬라이스에서 — 지금은 세션만 비운다.
+    /// 탐험 종료/포기 — 현재 세션을 버린다. 웹 abandonSession / acknowledgeSessionEnd.
+    /// 결산·보상 지급(XP·코인·장비·층 기록)은 세션 결과 슬라이스에서 — 지금은 세션만 비운다.
+    /// currentSession 은 영속 대상이 아니라 persist 불필요 (mutate 아님).
     func abandonSession() {
-        mutate { $0.currentSession = nil }
+        state.currentSession = nil
+    }
+
+    // MARK: - 전투 진행 (웹 tickSession / resolveChoice / resolveMinigame)
+
+    /// 전투 한 스텝 진행 — status 에 따라 tick / 선택 자동결정 / 미니게임 자동해결 /
+    /// 보스 자동재개. 슬라이스 22 는 자동 진행 — 이벤트 선택지 인터랙션은 다음 슬라이스.
+    /// currentSession 은 영속 대상이 아니므로(PersistedUpHeroState 제외) persist 를
+    /// 건너뛴다 — 매 tick 파일 쓰기 방지.
+    func advanceCombat() {
+        guard var session = state.currentSession else { return }
+        var rng = SystemRandom()
+        switch session.status {
+        case .active:
+            session = UpHeroSession.tickSession(
+                session, flavor: FlavorPool.bundled, rng: &rng)
+        case .paused:
+            // 보스 등장 연출 — 슬라이스 22 는 자동 재개 (인트로 연출은 이후 슬라이스).
+            session.status = .active
+        case .awaitingChoice:
+            // 자동 진행 — 기본 선택지로 해결 (인터랙티브 선택은 다음 슬라이스).
+            session = UpHeroSession.resolveChoice(
+                session, optionIndex: Self.defaultChoiceOption(session), rng: &rng)
+        case .awaitingMinigame:
+            // 미니게임은 Phase 4.6 — 자동 성공 처리 (미구현 기능으로 벌점 X).
+            session = UpHeroSession.resolveMinigame(session, success: true, rng: &rng)
+        case .completed:
+            return
+        }
+        state.currentSession = session
+    }
+
+    /// 대기 중인 선택지의 기본 옵션 인덱스 (timeout 자동선택용). 없으면 0.
+    private static func defaultChoiceOption(_ session: CombatSession) -> Int {
+        guard let idx = session.pendingChoiceIndex, session.log.indices.contains(idx),
+              case let .choice(_, _, _, _, _, _, _, defaultIdx, _, _) = session.log[idx]
+        else { return 0 }
+        return defaultIdx ?? 0
     }
 
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
