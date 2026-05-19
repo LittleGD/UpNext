@@ -22,6 +22,10 @@ final class GrowthStore: ObservableObject {
     /// 로드된 이미지 메모리 캐시 — 그리드가 매 렌더 디스크를 안 읽도록.
     private var imageCache: [String: UIImage] = [:]
 
+    /// 사진 보관 상한 — 초과 시 가장 오래된 것부터 정리. 웹 useGrowthStore 의 cap 대응
+    /// (저장 공간·앨범 로딩 무한 증가 방지).
+    private static let photoCap = 60
+
     init() {
         photoMetas = Self.loadMetas()
     }
@@ -40,6 +44,12 @@ final class GrowthStore: ObservableObject {
             date: GameStore.todayString(), timestamp: UpHeroStore.nowMillis(), memo: "")
         imageCache[id] = image
         photoMetas.insert(meta, at: 0)   // 최신이 앞
+        // cap 초과분 — 가장 오래된 것(메타 끝)부터 메타·캐시·파일 정리.
+        while photoMetas.count > Self.photoCap {
+            let old = photoMetas.removeLast()
+            imageCache[old.id] = nil
+            Self.deleteImage(id: old.id)
+        }
         Self.saveMetas(photoMetas)
     }
 

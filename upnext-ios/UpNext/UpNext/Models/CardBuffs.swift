@@ -201,7 +201,7 @@ enum CardBuffs {
                 .stat(stats: [primary: statValue]),
                 .special(type: special.type, value: Double(special.rare)),
             ],
-            description: "\(statLabel(primary)) +\(statValue)\(isCrit ? "%" : "")"
+            description: "\(primary.label) +\(statValue)\(isCrit ? "%" : "")"
                 + " · \(describeSpecial(special.type, special.rare))")
     }
 
@@ -218,7 +218,7 @@ enum CardBuffs {
                     .stat(stats: [primary: statValue]),
                     .affinity(category: card.category, multiplier: affinityMultiplier),
                 ],
-                description: "\(statLabel(primary)) +\(statValue)\(isCrit ? "%" : "")"
+                description: "\(primary.label) +\(statValue)\(isCrit ? "%" : "")"
                     + " · \(categoryLabel(card.category)) 던전 1.3배")
         }
         return CardBuff(
@@ -226,7 +226,7 @@ enum CardBuffs {
                 .stat(stats: [primary: statValue]),
                 .special(type: special.type, value: Double(special.unique)),
             ],
-            description: "\(statLabel(primary)) +\(statValue)\(isCrit ? "%" : "")"
+            description: "\(primary.label) +\(statValue)\(isCrit ? "%" : "")"
                 + " · \(describeSpecial(special.type, special.unique))")
     }
 
@@ -251,19 +251,8 @@ enum CardBuffs {
         }
     }
 
-    private static func statLabel(_ key: StatKey) -> String {
-        switch key {
-        case .str: return "STR"
-        case .int: return "INT"
-        case .vit: return "VIT"
-        case .dex: return "DEX"
-        case .agi: return "AGI"
-        case .crit: return "CRIT"
-        case .slotBonus: return "슬롯"
-        }
-    }
-
-    /// 카테고리 한국어 라벨 (친화 문구용). 웹 categoryLabel.
+    /// 카테고리 한국어 라벨 (친화 문구용 — Up Hero 라벨 셋, 메인 게임 Category.label
+    /// 과 의도적으로 다름: mindfulness 명상 / trending 트렌딩).
     private static func categoryLabel(_ c: Category) -> String {
         switch c {
         case .fitness:      return "운동"

@@ -182,20 +182,8 @@ struct EquipmentInventoryView: View {
     private func statSummary(_ stats: [StatKey: Int]) -> String {
         let parts = StatKey.allCases.compactMap { key -> String? in
             guard let v = stats[key], v != 0 else { return nil }
-            return "\(statLabel(key))\(v > 0 ? "+" : "")\(v)"
+            return "\(key.label)\(v > 0 ? "+" : "")\(v)"
         }
         return parts.isEmpty ? "효과 없음" : parts.joined(separator: " ")
-    }
-
-    private func statLabel(_ key: StatKey) -> String {
-        switch key {
-        case .str:       return "STR"
-        case .int:       return "INT"
-        case .vit:       return "VIT"
-        case .dex:       return "DEX"
-        case .agi:       return "AGI"
-        case .crit:      return "CRIT"
-        case .slotBonus: return "슬롯"
-        }
     }
 }

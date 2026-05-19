@@ -134,7 +134,7 @@ struct CollectionView: View {
         if !shown.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(categoryLabel(category))
+                    Text(category.label)
                         .typography(.heading)
                         .foregroundStyle(Color.textPrimary)
                     Spacer()
@@ -184,7 +184,7 @@ struct CollectionView: View {
                     .foregroundStyle(Color.textPrimary)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
-                Text(categoryLabel(card.category))
+                Text(card.category.label)
                     .typography(.micro)
                     .foregroundStyle(Color.textTertiary)
             } else {
@@ -200,20 +200,5 @@ struct CollectionView: View {
         .padding(12)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
         .opacity(unlocked ? 1 : 0.5)
-    }
-
-    // MARK: - 라벨 헬퍼
-
-    private func categoryLabel(_ c: Category) -> String {
-        switch c {
-        case .fitness:      return "운동"
-        case .nutrition:    return "영양"
-        case .mindfulness:  return "마음챙김"
-        case .learning:     return "학습"
-        case .social:       return "소통"
-        case .productivity: return "생산성"
-        case .wellness:     return "웰니스"
-        case .trending:     return "트렌드"
-        }
     }
 }

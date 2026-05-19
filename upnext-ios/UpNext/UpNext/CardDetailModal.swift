@@ -46,7 +46,7 @@ struct Card3DView: View {
     private var cardFace: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Image(systemName: categoryIcon(card.category))
+                Image(systemName: card.category.icon)
                     .font(.system(size: 30))
                     .foregroundStyle(card.rarity.color)
                 Spacer()
@@ -62,7 +62,7 @@ struct Card3DView: View {
                 .typography(.heading)
                 .foregroundStyle(Color.textPrimary)
                 .padding(.top, 24)
-            Text(categoryLabel(card.category))
+            Text(card.category.label)
                 .typography(.caption)
                 .foregroundStyle(Color.textTertiary)
                 .padding(.top, 6)
@@ -78,32 +78,6 @@ struct Card3DView: View {
         .frame(width: 280, height: 392)  // TCG 5:7 비율
         .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 16))
         .shadow(color: card.rarity.color.opacity(0.35), radius: 22, y: 10)
-    }
-
-    private func categoryIcon(_ c: Category) -> String {
-        switch c {
-        case .fitness:      return "figure.run"
-        case .nutrition:    return "fork.knife"
-        case .mindfulness:  return "leaf.fill"
-        case .learning:     return "book.fill"
-        case .social:       return "person.2.fill"
-        case .productivity: return "checklist"
-        case .wellness:     return "heart.fill"
-        case .trending:     return "flame.fill"
-        }
-    }
-
-    private func categoryLabel(_ c: Category) -> String {
-        switch c {
-        case .fitness:      return "운동"
-        case .nutrition:    return "영양"
-        case .mindfulness:  return "마음챙김"
-        case .learning:     return "학습"
-        case .social:       return "소통"
-        case .productivity: return "생산성"
-        case .wellness:     return "웰니스"
-        case .trending:     return "트렌드"
-        }
     }
 }
 
