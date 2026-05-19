@@ -39,13 +39,19 @@ private struct CampView: View {
 
     var body: some View {
         Group {
-            switch screen {
-            case .home:
-                campHome
-            case .dungeons:
-                DungeonSelectView(onBack: { screen = .home })
-            case .equipment:
-                EquipmentInventoryView(onBack: { screen = .home })
+            if let prep = upHero.state.pendingDungeon {
+                // 던전 진입 준비 중 — 버프 드로우가 다른 화면보다 우선 (웹 CampPlaceholder
+                // 의 pendingDungeon 우선 분기와 동일). 취소하면 던전 선택으로 복귀.
+                BuffDrawPanel(prep: prep)
+            } else {
+                switch screen {
+                case .home:
+                    campHome
+                case .dungeons:
+                    DungeonSelectView(onBack: { screen = .home })
+                case .equipment:
+                    EquipmentInventoryView(onBack: { screen = .home })
+                }
             }
         }
         .sheet(isPresented: $statsOpen) { HeroStatPanel() }

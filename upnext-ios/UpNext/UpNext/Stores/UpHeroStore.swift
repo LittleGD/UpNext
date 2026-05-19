@@ -145,6 +145,26 @@ final class UpHeroStore: ObservableObject {
         persist()
     }
 
+    // MARK: - 던전 진입 준비 (웹 prepareBuffDraw / cancelBuffDraw)
+
+    /// 던전 진입 전 버프 카드 6장 드로우 → pendingDungeon 에 저장. 웹 prepareBuffDraw.
+    /// ownedCardIds 는 사용자 해금 카드 (GameStore.progress.unlockedCardIds — 호출부 전달).
+    /// 웹의 탐험권(passes) 게이팅은 패스 경제(상점·챌린지 보상) 슬라이스에서 — 지금은 생략.
+    func prepareBuffDraw(dungeonId: DungeonId, ownedCardIds: [String]) {
+        let ownedSet = Set(ownedCardIds)
+        let owned = CardCatalog.allCards.filter { ownedSet.contains($0.id) }
+        let drawn = BuffDraw.drawBuffCards(owned: owned, dungeonId: dungeonId, drawCount: 6)
+        mutate {
+            $0.pendingDungeon = PendingDungeonPrep(
+                dungeonId: dungeonId, drawnCardIds: drawn.map(\.id))
+        }
+    }
+
+    /// 버프 드로우 취소 — pendingDungeon 클리어. 웹 cancelBuffDraw.
+    func cancelBuffDraw() {
+        mutate { $0.pendingDungeon = nil }
+    }
+
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
 
     /// 현재 상태를 디스크에 저장. 상태를 바꾸는 액션이 호출한다 (best-effort).
