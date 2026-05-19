@@ -39,12 +39,14 @@ struct LoginView: View {
             // 로그인
             VStack(spacing: 12) {
                 providerButton(
-                    title: "Apple로 계속하기", systemImage: "apple.logo",
+                    title: "Apple로 계속하기",
+                    icon: Image(systemName: "apple.logo"),
                     foreground: .white, background: .black
                 ) { Task { await auth.signInWithApple() } }
 
                 providerButton(
-                    title: "Google로 계속하기", systemImage: nil,
+                    title: "Google로 계속하기",
+                    icon: Image("GoogleG"),
                     foreground: Color(hex: 0x1F1F1F), background: .white
                 ) { Task { await auth.signInWithGoogle() } }
 
@@ -73,22 +75,29 @@ struct LoginView: View {
         .background(Color.bgPrimary)
     }
 
+    /// 공급자 버튼 골격 — Apple/Google 동일 layout 으로 유지하기 위해 1개 헬퍼.
+    ///  - 고정 높이 52pt : 폰트 metric 에 따른 descender 클리핑을 padding 으로 잡지 않고
+    ///    명시적 frame 으로 해결. body 16pt × 1.5 line-height = 24pt 라인 + 여유 28pt.
+    ///  - 아이콘 20×20 : SF Symbol(apple.logo) · 자산(GoogleG) 모두 resizable 로 같은 크기.
+    ///  - icon 은 Image 타입 — `Image(systemName:)` 과 `Image("name")` 둘 다 호환.
     private func providerButton(
         title: String,
-        systemImage: String?,
+        icon: Image,
         foreground: Color,
         background: Color,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                }
-                Text(title).typography(.body)
+            HStack(spacing: 10) {
+                icon
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
+                Text(title)
+                    .typography(.body)
+                    .lineLimit(1)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
+            .frame(maxWidth: .infinity, minHeight: 52)
             .foregroundStyle(foreground)
             .background(background, in: RoundedRectangle(cornerRadius: 12))
         }
