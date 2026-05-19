@@ -293,6 +293,20 @@ final class UpHeroStore: ObservableObject {
         return true
     }
 
+    // MARK: - 전직 (웹 assignClass / confirmClassChoice)
+
+    /// 영웅 전직 — classType 을 확정한다. 이미 전직했으면 no-op. 웹 assignClass.
+    /// 진행 중 세션이 있으면 그 hero 스냅샷의 classType 도 동기화.
+    /// 스킬트리(learnedSkills)는 condensed — 전직 슬라이스에선 classType 만 설정한다
+    /// (전투 엔진은 classType 기반 스탯·자원만 적용, 클래스 액티브 스킬은 이후).
+    func assignClass(_ classType: ClassType) {
+        guard state.hero.classType == nil else { return }
+        mutate { s in
+            s.hero.classType = classType
+            s.currentSession?.hero.classType = classType
+        }
+    }
+
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
 
     /// 현재 상태를 디스크에 저장. 상태를 바꾸는 액션이 호출한다 (best-effort).

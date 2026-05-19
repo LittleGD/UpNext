@@ -38,7 +38,7 @@ private struct CampView: View {
     @State private var screen: CampScreen = .home
 
     /// 아지트 내부 화면 — 웹 CampPlaceholder 의 `view` 상태(home/dungeons/…) 대응.
-    private enum CampScreen { case home, dungeons, equipment, shop }
+    private enum CampScreen { case home, dungeons, equipment, shop, classChoice }
 
     var body: some View {
         Group {
@@ -56,6 +56,8 @@ private struct CampView: View {
                     EquipmentInventoryView(onBack: { screen = .home })
                 case .shop:
                     ShopView(onBack: { screen = .home })
+                case .classChoice:
+                    ClassChoiceView(onBack: { screen = .home })
                 }
             }
         }
@@ -176,8 +178,20 @@ private struct CampView: View {
 
     // MARK: 메뉴 — 탐험은 활성, 장비·상점은 다음 슬라이스 자리표시
 
+    /// Lv.30 도달 + 미전직이면 전직 가능 — 웹 ClassChoiceModal 트리거 조건.
+    private var classEligible: Bool {
+        heroLevel >= 30 && upHero.state.hero.classType == nil
+    }
+
     private var menu: some View {
         VStack(spacing: 10) {
+            if classEligible {
+                Button { screen = .classChoice } label: {
+                    menuRow(title: "전직", subtitle: "Lv.30 — 전문 클래스 선택",
+                            icon: "star", active: true)
+                }
+                .buttonStyle(.plain)
+            }
             Button { screen = .dungeons } label: {
                 menuRow(title: "탐험 시작", subtitle: "던전을 골라 출발",
                         icon: "map", active: true)
