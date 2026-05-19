@@ -36,8 +36,11 @@ struct ContentView: View {
 private struct BootLoadingView: View {
     var body: some View {
         VStack(spacing: 16) {
-            Text("UpNext")
-                .typography(.display)
+            Image("Wordmark")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(height: 48)
                 .foregroundStyle(Color.accentPrimary)
             ProgressView()
                 .tint(Color.accentPrimary)

@@ -20,10 +20,13 @@ struct LoginView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            // 브랜딩 — 워드마크 (아이콘 박스 미사용)
+            // 브랜딩 — 워드마크 SVG (텍스트 렌더 대신 정식 로고 자산).
             VStack(spacing: 14) {
-                Text("UpNext")
-                    .typography(.display)
+                Image("Wordmark")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 56)
                     .foregroundStyle(Color.accentPrimary)
                 Text("로그라이크 챌린지 카드로\n매일 갓생을 시작하세요")
                     .typography(.body)

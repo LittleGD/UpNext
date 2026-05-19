@@ -80,8 +80,11 @@ private struct OnboardingIntro: View {
         VStack(spacing: 0) {
             Spacer()
             VStack(spacing: 28) {
-                Text("UpNext")
-                    .typography(.display)
+                Image("Wordmark")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 56)
                     .foregroundStyle(Color.accentPrimary)
                 VStack(alignment: .leading, spacing: 18) {
                     point("매일 챌린지 카드를 뽑아요",

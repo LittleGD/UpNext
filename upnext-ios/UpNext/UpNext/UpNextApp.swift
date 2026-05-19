@@ -16,6 +16,17 @@ struct UpNextApp: App {
     @StateObject private var store = GameStore()
     @Environment(\.scenePhase) private var scenePhase
 
+    /// 스플래시 모션이 끝나면 true → 본 컨텐츠 노출. 콜드 스타트 1회만 발생 (App 인스턴스
+    /// 생애 동안 유지) — scenePhase background→active 복귀 시엔 다시 안 나타남.
+    /// UI 테스트는 스플래시를 건너뛴다 (deterministic 진입을 위해 UITestBypassAuth 검사).
+    @State private var splashDone: Bool = {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("UITestBypassAuth")
+        #else
+        return false
+        #endif
+    }()
+
     init() {
         // Firebase iOS SDK 초기화 — GoogleService-Info.plist를 읽어 FirebaseApp.default 설정.
         // FirebaseAuth/Firestore/Messaging 등 모든 Firebase 서비스가 이 시점 이후 사용 가능.
@@ -27,17 +38,27 @@ struct UpNextApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(store)
-                .environmentObject(store.auth)
-                .environmentObject(store.upHero)
-                .environmentObject(store.growth)
-                .environmentObject(store.duo)
-                .onChange(of: scenePhase) { phase in
-                    if phase == .active {
-                        store.reconcileForToday()
-                    }
+            ZStack {
+                ContentView()
+                    .environmentObject(store)
+                    .environmentObject(store.auth)
+                    .environmentObject(store.upHero)
+                    .environmentObject(store.growth)
+                    .environmentObject(store.duo)
+                if !splashDone {
+                    // 스플래시는 본 컨텐츠 위에 떠 있다가 끝나면 사라진다. 아래에서 auth
+                    // 부트스트랩이 병렬로 진행되므로 3.2s 뒤 곧장 로그인/메인으로 진입.
+                    SplashView { splashDone = true }
+                        .transition(.opacity)
+                        .zIndex(1)
                 }
+            }
+            .animation(.easeOut(duration: 0.2), value: splashDone)
+            .onChange(of: scenePhase) { phase in
+                if phase == .active {
+                    store.reconcileForToday()
+                }
+            }
         }
     }
 }
