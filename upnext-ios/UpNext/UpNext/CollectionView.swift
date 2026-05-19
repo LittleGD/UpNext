@@ -62,6 +62,7 @@ struct CollectionView: View {
                                     in: Capsule())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier(t == .cards ? "cardsTabButton" : "albumTabButton")
             }
             Spacer()
         }

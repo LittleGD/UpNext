@@ -14,11 +14,18 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct DailyHomeView: View {
     @EnvironmentObject private var store: GameStore
+    @EnvironmentObject private var duo: DuoStore
     @State private var confirmCard: ChallengeCard?
     @State private var confirmStartPhase: ChallengePhase?
+    @State private var logPromptCard: ChallengeCard?
+    @State private var logPickerItem: PhotosPickerItem?
+    @State private var logCaption = ""
+    @State private var shownReport: WeeklyReportSummary?
+    @State private var duoJoinCode = ""
     /// 미니게임 시트 — startMinigame() 으로 티켓 소비 성공 시 true.
     @State private var showMinigame = false
 
@@ -42,6 +49,7 @@ struct DailyHomeView: View {
         .alert("챌린지 완료", isPresented: cardConfirmBinding, presenting: confirmCard) { card in
             Button("완료") {
                 store.completePhaseChallenge(card.id)
+                logPromptCard = card
                 confirmCard = nil
             }
             Button("취소", role: .cancel) { confirmCard = nil }
@@ -61,6 +69,27 @@ struct DailyHomeView: View {
         }
         .sheet(isPresented: $showMinigame) {
             MinigameView()
+        }
+        .sheet(item: $logPromptCard) { card in
+            logPromptSheet(card)
+                .presentationDetents([.medium])
+        }
+        .sheet(item: $shownReport) { report in
+            reportSheet(report)
+                .presentationDetents([.medium, .large])
+        }
+        .onChange(of: logPickerItem) { item in
+            guard let item, let card = logPromptCard else { return }
+            let caption = logCaption
+            Task {
+                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+                await MainActor.run {
+                    store.growth.addChallengeLog(imageData: data, card: card, caption: caption)
+                    logPickerItem = nil
+                    logPromptCard = nil
+                    logCaption = ""
+                }
+            }
         }
     }
 
@@ -115,21 +144,24 @@ struct DailyHomeView: View {
     // MARK: - 상태 1 — 미드로우
 
     private func drawPrompt(_ daily: DailyState, _ s: PhaseSlice) -> some View {
-        VStack(spacing: 24) {
-            Spacer()
-            VStack(spacing: 8) {
-                Text(heading(daily.challengePhase))
-                    .typography(.title)
-                    .foregroundStyle(Color.textPrimary)
-                Text("덱에서 카드 6장을 펼쳐\n실천할 \(s.maxCards)장을 골라요")
-                    .typography(.body)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
+        ScrollView {
+            VStack(spacing: 24) {
+                homeRetentionStack
+                VStack(spacing: 8) {
+                    Text(heading(daily.challengePhase))
+                        .typography(.title)
+                        .foregroundStyle(Color.textPrimary)
+                    Text("덱에서 카드 6장을 펼쳐\n실천할 \(s.maxCards)장을 골라요")
+                        .typography(.body)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                primaryButton("카드 뽑기") { store.drawPhaseCards() }
             }
-            primaryButton("카드 뽑기") { store.drawPhaseCards() }
-            Spacer()
+            .padding(.horizontal, 20)
+            .padding(.vertical, 24)
+            .padding(.bottom, 88)
         }
-        .padding(.horizontal, 32)
     }
 
     // MARK: - 상태 2 — 드로우 완료, 선택 중
@@ -138,6 +170,7 @@ struct DailyHomeView: View {
         let selectedIds = Set(s.selected.map(\.id))
         return ScrollView {
             VStack(spacing: 16) {
+                homeRetentionStack
                 VStack(spacing: 4) {
                     Text("\(heading(daily.challengePhase)) — 카드 고르기")
                         .typography(.title)
@@ -227,6 +260,7 @@ struct DailyHomeView: View {
         let allDone = total > 0 && done >= total
         return ScrollView {
             VStack(spacing: 16) {
+                homeRetentionStack
                 HStack {
                     Text(heading(daily.challengePhase))
                         .typography(.title)
@@ -373,6 +407,321 @@ struct DailyHomeView: View {
         }
         .buttonStyle(.plain)
         .disabled(completed)
+    }
+
+    // MARK: - 리텐션 카드
+
+    private var homeRetentionStack: some View {
+        VStack(spacing: 10) {
+            retentionCard
+            if let report = store.retention?.weeklyReports.first {
+                weeklyReportCard(report)
+            }
+            duoCard
+        }
+    }
+
+    private var retentionCard: some View {
+        let state = store.retention ?? RetentionState.fresh(today: GameStore.todayString())
+        let checked = state.lastCheckInDate == GameStore.todayString()
+        return HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(checked ? Color.accentPrimary : Color.bgElevated)
+                    .frame(width: 44, height: 44)
+                Image(systemName: checked ? "flame.fill" : "flame")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(checked ? Color.bgPrimary : Color.accentPrimary)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(checked ? "오늘 불꽃이 켜졌어요" : "오늘 불꽃 켜기")
+                    .typography(.body)
+                    .foregroundStyle(Color.textPrimary)
+                Text("\(state.currentLightStreak)일째 · 세이버 \(state.streakSavers)개")
+                    .typography(.micro)
+                    .foregroundStyle(Color.textTertiary)
+                    .accessibilityIdentifier("lightStreakLabel")
+            }
+            Spacer(minLength: 0)
+            Button {
+                store.checkInToday()
+            } label: {
+                Text(checked ? "완료" : "체크인")
+                    .typography(.caption)
+                    .foregroundStyle(checked ? Color.textTertiary : Color.bgPrimary)
+                    .padding(.horizontal, 12)
+                    .frame(height: 34)
+                    .background(checked ? Color.bgElevated : Color.accentPrimary, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(checked)
+            .accessibilityIdentifier("todayFlameButton")
+        }
+        .padding(14)
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func weeklyReportCard(_ report: WeeklyReportSummary) -> some View {
+        Button { shownReport = report } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Color.accentPrimary)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("지난주 리포트")
+                        .typography(.body)
+                        .foregroundStyle(Color.textPrimary)
+                    Text("\(report.checkInCount)일 체크인 · 카드 \(report.completedCardCount)장 · 로그 \(report.photoLogCount)개")
+                        .typography(.micro)
+                        .foregroundStyle(Color.textTertiary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.textTertiary)
+            }
+            .padding(14)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("weeklyReportCard")
+    }
+
+    private var duoCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("2인 불꽃", systemImage: "person.2.fill")
+                    .typography(.body)
+                    .foregroundStyle(Color.textPrimary)
+                Spacer()
+                if duo.isWorking {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .tint(Color.accentPrimary)
+                }
+            }
+            if let active = duo.activeDuo, let uid = store.auth.uid {
+                activeDuoContent(active, uid: uid)
+            } else {
+                inviteDuoContent
+            }
+            if let message = duo.message {
+                Text(message)
+                    .typography(.micro)
+                    .foregroundStyle(Color.textTertiary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(14)
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func activeDuoContent(_ active: DuoSnapshot, uid: String) -> some View {
+        let today = GameStore.todayString()
+        let otherId = active.memberIds.first { $0 != uid }
+        let friendName = otherId.flatMap { active.memberNames[$0] } ?? "친구"
+        let friendChecked = otherId.map { active.checkedIn(uid: $0, on: today) } ?? false
+        let mineChecked = active.checkedIn(uid: uid, on: today)
+        let sharedGoal = min(active.sharedDays(currentUid: uid).count, 7)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                duoPill(title: "나", on: mineChecked)
+                duoPill(title: friendName, on: friendChecked)
+                Spacer(minLength: 0)
+                Text("\(sharedGoal) / 7")
+                    .typography(.caption)
+                    .foregroundStyle(Color.accentPrimary)
+            }
+            HStack(spacing: 8) {
+                ForEach(recentSevenDays(), id: \.self) { day in
+                    Circle()
+                        .fill(duoColor(active, uid: uid, day: day))
+                        .frame(width: 12, height: 12)
+                        .accessibilityLabel(day)
+                }
+                Spacer(minLength: 0)
+                Button("나가기") { duo.leaveDuo() }
+                    .typography(.micro)
+                    .foregroundStyle(Color.textTertiary)
+                    .buttonStyle(.plain)
+            }
+            if let code = duo.inviteCode, active.memberIds.count == 1 {
+                Text("초대코드 \(code)")
+                    .typography(.caption)
+                    .foregroundStyle(Color.accentPrimary)
+                    .accessibilityIdentifier("duoInviteCodeLabel")
+            }
+        }
+    }
+
+    private var inviteDuoContent: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                TextField("초대코드", text: $duoJoinCode)
+                    .typography(.caption)
+                    .textInputAutocapitalization(.characters)
+                    .disableAutocorrection(true)
+                    .padding(.horizontal, 10)
+                    .frame(height: 38)
+                    .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityIdentifier("duoJoinCodeField")
+                Button("참여") {
+                    duo.joinInvite(code: duoJoinCode)
+                }
+                .typography(.caption)
+                .foregroundStyle(Color.bgPrimary)
+                .frame(width: 56, height: 38)
+                .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("duoJoinButton")
+            }
+            Button {
+                duo.createInvite()
+            } label: {
+                Label("초대코드 만들기", systemImage: "link")
+                    .typography(.caption)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 38)
+                    .foregroundStyle(Color.accentPrimary)
+                    .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("duoCreateInviteButton")
+        }
+    }
+
+    private func duoPill(title: String, on: Bool) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(on ? Color.accentPrimary : Color.textTertiary.opacity(0.35))
+                .frame(width: 7, height: 7)
+            Text(title)
+                .typography(.micro)
+        }
+        .foregroundStyle(on ? Color.textPrimary : Color.textTertiary)
+        .padding(.horizontal, 8)
+        .frame(height: 24)
+        .background(Color.bgElevated, in: Capsule())
+    }
+
+    private func duoColor(_ duo: DuoSnapshot, uid: String, day: String) -> Color {
+        let other = duo.memberIds.first { $0 != uid }
+        let mine = duo.checkedIn(uid: uid, on: day)
+        let theirs = other.map { duo.checkedIn(uid: $0, on: day) } ?? false
+        if mine && theirs { return Color.accentPrimary }
+        if mine || theirs { return Color.accentPrimary.opacity(0.38) }
+        return Color.bgElevated
+    }
+
+    private func recentSevenDays() -> [String] {
+        (-6...0).compactMap { RetentionEngine.addDays(GameStore.todayString(), $0) }
+    }
+
+    private func logPromptSheet(_ card: ChallengeCard) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Capsule()
+                .fill(Color.textTertiary.opacity(0.3))
+                .frame(width: 42, height: 5)
+                .frame(maxWidth: .infinity)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("2초 로그 남기기")
+                    .typography(.title)
+                    .foregroundStyle(Color.textPrimary)
+                Text(card.title)
+                    .typography(.body)
+                    .foregroundStyle(Color.accentPrimary)
+            }
+            TextField("한 줄 캡션", text: $logCaption)
+                .typography(.body)
+                .padding(.horizontal, 12)
+                .frame(height: 46)
+                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityIdentifier("challengeLogCaption")
+            PhotosPicker(selection: $logPickerItem, matching: .images) {
+                Label("사진 1장 선택", systemImage: "camera.fill")
+                    .typography(.body)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .foregroundStyle(Color.bgPrimary)
+                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .accessibilityIdentifier("challengeLogPicker")
+            Button("나중에") {
+                logPromptCard = nil
+                logCaption = ""
+            }
+            .typography(.caption)
+            .foregroundStyle(Color.textTertiary)
+            .frame(maxWidth: .infinity)
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .background(Color.bgPrimary)
+    }
+
+    private func reportSheet(_ report: WeeklyReportSummary) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("지난주 리포트")
+                    .typography(.title)
+                    .foregroundStyle(Color.textPrimary)
+                Text("\(report.weekStart) - \(report.weekEnd)")
+                    .typography(.caption)
+                    .foregroundStyle(Color.textTertiary)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    reportMetric("체크인", "\(report.checkInCount)일", "flame.fill")
+                    reportMetric("완료 카드", "\(report.completedCardCount)장", "checkmark.seal.fill")
+                    reportMetric("사진 로그", "\(report.photoLogCount)개", "photo.fill")
+                    reportMetric("세이버", report.usedSaver ? "사용" : "미사용", "shield.fill")
+                }
+                if let category = report.topCategory {
+                    reportRow(icon: category.icon, title: "가장 많이 한 카테고리", value: category.label)
+                }
+                if let title = report.highlightCardTitle {
+                    reportRow(icon: "sparkles", title: "인상적인 카드", value: title)
+                }
+            }
+            .padding(20)
+        }
+        .background(Color.bgPrimary)
+    }
+
+    private func reportMetric(_ title: String, _ value: String, _ icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Color.accentPrimary)
+            Text(value)
+                .typography(.heading)
+                .foregroundStyle(Color.textPrimary)
+            Text(title)
+                .typography(.micro)
+                .foregroundStyle(Color.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func reportRow(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(Color.accentPrimary)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .typography(.micro)
+                    .foregroundStyle(Color.textTertiary)
+                Text(value)
+                    .typography(.body)
+                    .foregroundStyle(Color.textPrimary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - 공통

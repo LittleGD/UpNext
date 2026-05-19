@@ -40,9 +40,45 @@ final class GrowthStore: ObservableObject {
         let id = "vp_\(UpHeroStore.nowMillis())"
         guard Self.saveImage(jpeg, id: id) else { return }
         let meta = PhotoMeta(
-            id: id, challengeCardId: nil, challengeTitle: nil, category: nil,
-            date: GameStore.todayString(), timestamp: UpHeroStore.nowMillis(), memo: "")
-        imageCache[id] = image
+            id: id,
+            kind: .free,
+            challengeCardId: nil,
+            challengeTitle: nil,
+            category: nil,
+            date: GameStore.todayString(),
+            timestamp: UpHeroStore.nowMillis(),
+            memo: ""
+        )
+        insert(meta: meta, image: image)
+    }
+
+    /// 챌린지 완료 직후 남기는 "2초 로그" v1 — 실제 영상 대신 사진 1장 + 짧은 캡션.
+    func addChallengeLog(imageData: Data, card: ChallengeCard, caption: String) {
+        guard let image = UIImage(data: imageData),
+              let jpeg = image.jpegData(compressionQuality: 0.85) else { return }
+        let now = Date()
+        let id = "cl_\(UpHeroStore.nowMillis())"
+        guard Self.saveImage(jpeg, id: id) else { return }
+        let day = GameStore.todayString()
+        let cleanCaption = String(caption.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
+        let meta = PhotoMeta(
+            id: id,
+            kind: .challengeLog,
+            challengeCardId: card.id,
+            challengeTitle: card.title,
+            category: card.category,
+            date: day,
+            timestamp: UpHeroStore.nowMillis(),
+            memo: cleanCaption,
+            timeSlot: Self.timeSlotFormatter.string(from: now),
+            caption: cleanCaption,
+            weekId: RetentionEngine.weekId(for: day)
+        )
+        insert(meta: meta, image: image)
+    }
+
+    private func insert(meta: PhotoMeta, image: UIImage) {
+        imageCache[meta.id] = image
         photoMetas.insert(meta, at: 0)   // 최신이 앞
         // cap 초과분 — 가장 오래된 것(메타 끝)부터 메타·캐시·파일 정리.
         while photoMetas.count > Self.photoCap {
@@ -69,6 +105,29 @@ final class GrowthStore: ObservableObject {
         return img
     }
 
+    #if DEBUG
+    /// UI 테스트용 — 사진 라이브러리 권한 없이 챌린지 로그 badge 렌더링만 검증한다.
+    func seedChallengeLogForUITests(card: ChallengeCard) {
+        let day = GameStore.todayString()
+        let meta = PhotoMeta(
+            id: "cl_ui_seed",
+            kind: .challengeLog,
+            challengeCardId: card.id,
+            challengeTitle: card.title,
+            category: card.category,
+            date: day,
+            timestamp: UpHeroStore.nowMillis(),
+            memo: "UI seed",
+            timeSlot: "09:00",
+            caption: "UI seed",
+            weekId: RetentionEngine.weekId(for: day)
+        )
+        photoMetas = [meta]
+        imageCache[meta.id] = nil
+        Self.saveMetas(photoMetas)
+    }
+    #endif
+
     // MARK: - 파일 저장 (Application Support/growth/)
 
     private static var dir: URL {
@@ -81,6 +140,14 @@ final class GrowthStore: ObservableObject {
     private static var metasURL: URL {
         dir.appendingPathComponent("metas.json")
     }
+
+    private static let timeSlotFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "HH:mm"
+        return f
+    }()
 
     private static func ensureDir() {
         try? FileManager.default.createDirectory(

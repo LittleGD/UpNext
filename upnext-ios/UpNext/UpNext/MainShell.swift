@@ -186,10 +186,22 @@ struct BottomNav: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(tab.label)
+                .accessibilityIdentifier("\(tab.accessibilityKey)TabButton")
             }
         }
         .padding(6)
         .background(Color.bgElevated, in: Capsule())
         .padding(.bottom, 8)
+    }
+}
+
+private extension MainTab {
+    var accessibilityKey: String {
+        switch self {
+        case .challenge: return "challenge"
+        case .collection: return "collection"
+        case .playground: return "playground"
+        case .settings: return "settings"
+        }
     }
 }

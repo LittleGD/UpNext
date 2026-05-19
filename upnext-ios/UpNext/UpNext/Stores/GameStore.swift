@@ -42,6 +42,9 @@ final class GameStore: ObservableObject {
     /// Growth(인증 사진) 스토어 — 함께 소유하고 환경 객체로 노출 (Phase 4.5).
     let growth = GrowthStore()
 
+    /// Duo streak experiment — Firestore-backed, independent from solo retention.
+    let duo = DuoStore()
+
     @Published private(set) var progress: UserProgress? {
         // 설정의 haptic/sound 토글을 헬퍼에 동기 + 위젯 상태 publish.
         // progress 가 바뀌는 모든 경로(bootstrap·applyCloudUpdate·mutateProgress·
@@ -60,6 +63,7 @@ final class GameStore: ObservableObject {
             WidgetSync.reconcileChallengeActivity(daily: daily)
         }
     }
+    @Published private(set) var retention: RetentionState?
     @Published private(set) var phase: BootPhase = .launching
 
     /// 컬렉션 100% 최초 달성 축하 모달 트리거. openCardPack 에서 켜지고
@@ -70,6 +74,11 @@ final class GameStore: ObservableObject {
     private var bootstrappedUid: String?
 
     init() {
+        #if DEBUG
+        if Self.applyUITestSeedIfNeeded(to: self) {
+            return
+        }
+        #endif
         // Auth 상태 변화를 단일 진입점에서 처리 — 로그인 시 부트스트랩, 로그아웃 시 클리어.
         auth.$state
             .sink { [weak self] state in
@@ -89,17 +98,20 @@ final class GameStore: ObservableObject {
             bootstrappedUid = nil
             progress = nil
             daily = nil
+            retention = nil
             collectionCelebration = false
             upHero.resetForSignOut()
+            duo.reset()
             sync.setSyncReady(false)
             sync.stopListener()
             // 위젯·Live Activity 잔여 청소 — 잠금화면에 이전 사용자 데이터가 남지 않게.
             WidgetSync.endAllActivities()
             phase = .needsSignIn
 
-        case let .signedIn(uid, _, _):
+        case let .signedIn(uid, _, displayName):
             guard uid != bootstrappedUid else { return }  // 동일 유저 중복 부트스트랩 방지
             bootstrappedUid = uid
+            duo.start(uid: uid, displayName: displayName)
             Task { await bootstrap(uid: uid) }
         }
     }
@@ -115,10 +127,12 @@ final class GameStore: ObservableObject {
         guard bootstrappedUid == uid else { return }
 
         switch result {
-        case let .loaded(cloudProgress, cloudDaily):
+        case let .loaded(cloudProgress, cloudDaily, cloudRetention):
             // 기존 유저 — XP/레벨 정규화 적용 (구 XP 커브 마이그레이션, 음수 XP 방어).
             progress = GameRules.normalizeXpLevel(cloudProgress).progress
             daily = cloudDaily
+            retention = cloudRetention ?? RetentionState.fresh(today: Self.todayString())
+            reconcileForToday(syncChanges: false)
             startLiveSync(uid: uid)
             phase = .ready
             bootstrapUpHero()  // 앱 진입 시점에 idle accrual — 웹 useUpHeroStore.initialize
@@ -133,6 +147,7 @@ final class GameStore: ObservableObject {
             //   남지 않아, 재로그인하면 온보딩이 깨끗하게 다시 시작된다.
             progress = Self.makeDefaultProgress()
             daily = Self.makeDefaultDaily()
+            retention = RetentionState.fresh(today: Self.todayString())
             phase = .onboarding
 
         case .failed:
@@ -146,18 +161,20 @@ final class GameStore: ObservableObject {
     /// 라이브 리스너 시작 (다른 기기 변경 수신) + 로컬 write 허용.
     /// bootstrap(.loaded) 와 finishOnboarding 이 공유.
     private func startLiveSync(uid: String) {
-        sync.startListener(uid: uid) { [weak self] cloudProgress, cloudDaily in
-            self?.applyCloudUpdate(cloudProgress, cloudDaily)
+        sync.startListener(uid: uid) { [weak self] cloudProgress, cloudDaily, cloudRetention in
+            self?.applyCloudUpdate(cloudProgress, cloudDaily, cloudRetention)
         }
         sync.setSyncReady(true)
+        syncAllIfReady()
     }
 
     /// 라이브 리스너가 전달한 클라우드 변경을 로컬에 반영.
     /// SyncManager.handleSnapshot 이 3중 가드(hasPendingWrites/isUpdatingFromCloud/
     /// hasLocalPendingWrite)를 통과시킨 변경만 전달한다.
     /// (웹 _setFromCloud 의 dailyProgressScore 단조 stale 가드는 다음 슬라이스에서 보강.)
-    private func applyCloudUpdate(_ cloudProgress: UserProgress, _ cloudDaily: DailyState) {
+    private func applyCloudUpdate(_ cloudProgress: UserProgress, _ cloudDaily: DailyState, _ cloudRetention: RetentionState?) {
         progress = GameRules.normalizeXpLevel(cloudProgress).progress
+        retention = cloudRetention ?? retention ?? RetentionState.fresh(today: Self.todayString())
         // stale 가드 — 같은 날짜인데 클라우드 daily 의 진행 점수가 로컬보다 낮으면
         //   (리오더돼 늦게 도착한 오래된 snapshot) daily 를 덮어쓰지 않는다.
         //   웹 _setFromCloud 의 dailyProgressScore 단조 비교.
@@ -167,6 +184,7 @@ final class GameStore: ObservableObject {
             return
         }
         daily = cloudDaily
+        reconcileForToday(syncChanges: true)
     }
 
     /// 부트스트랩 실패 후 수동 재시도 (루트 뷰의 "다시 시도" 버튼용).
@@ -175,6 +193,110 @@ final class GameStore: ObservableObject {
         guard uid != bootstrappedUid else { return }
         bootstrappedUid = uid
         Task { await bootstrap(uid: uid) }
+    }
+
+    // MARK: - 리텐션 / 일일 롤오버
+
+    /// 앱 진입·foreground 복귀 시 오늘 날짜 기준으로 daily 를 정리한다.
+    func reconcileForToday(syncChanges: Bool = true) {
+        guard var p = progress, var d = daily else { return }
+        var r = retention ?? RetentionState.fresh(today: Self.todayString())
+        let today = Self.todayString()
+        var changedProgress = false
+        var changedDaily = false
+        var changedRetention = false
+
+        let refreshed = RetentionEngine.refreshMonthlySavers(r, today: today)
+        if refreshed != r {
+            r = refreshed
+            changedRetention = true
+        }
+
+        if d.date != today {
+            if d.isSelectionComplete && !d.selectedCards.isEmpty {
+                let wasFullClear = d.completedIds.count >= d.selectedCards.count
+                let extraDone = d.extraSelectionComplete
+                    && !d.extraSelectedCards.isEmpty
+                    && d.extraCompletedIds.count >= d.extraSelectedCards.count
+                let superDone = d.superSelectionComplete
+                    && !d.superSelectedCards.isEmpty
+                    && d.superCompletedIds.count >= d.superSelectedCards.count
+                let record = DayRecord(
+                    date: d.date,
+                    selectedCardIds: d.selectedCards.map(\.id),
+                    completedCardIds: d.completedIds,
+                    wasFullClear: wasFullClear,
+                    mode: p.mode,
+                    extraCompleted: extraDone ? true : nil,
+                    superCompleted: superDone ? true : nil,
+                    wasFailed: wasFullClear ? nil : true
+                )
+                p.completionHistory.append(record)
+                if p.completionHistory.count > GameConstants.completionHistoryCap {
+                    p.completionHistory = Array(p.completionHistory.suffix(GameConstants.completionHistoryCap))
+                }
+                if wasFullClear { p.totalDaysCompleted += 1 }
+                if extraDone { p.extraChallengesCompleted += 1 }
+                if superDone { p.superChallengesCompleted += 1 }
+                changedProgress = true
+            }
+
+            if let pending = p.pendingMode {
+                p.mode = pending
+                p.pendingMode = nil
+                changedProgress = true
+            }
+
+            d = Self.makeDefaultDaily()
+            d.date = today
+            changedDaily = true
+        }
+
+        let reported = RetentionEngine.generatePreviousWeekReport(
+            retention: r,
+            progress: p,
+            photos: growth.photoMetas,
+            today: today
+        )
+        if reported != r {
+            r = reported
+            changedRetention = true
+        }
+
+        progress = p
+        daily = d
+        retention = r
+
+        guard syncChanges else { return }
+        if changedProgress { sync.syncProgress(p) }
+        if changedDaily { sync.syncDaily(d) }
+        if changedRetention { sync.syncRetention(r) }
+    }
+
+    func checkInToday() {
+        guard var p = progress else { return }
+        let today = Self.todayString()
+        let current = retention ?? RetentionState.fresh(today: today)
+        let result = RetentionEngine.checkIn(current, today: today)
+        retention = result.state
+        p.currentStreak = result.state.currentLightStreak
+        p.longestStreak = result.state.bestLightStreak
+        progress = p
+        sync.syncRetention(result.state)
+        sync.syncProgress(p)
+        if result.changed {
+            duo.publishCheckIn(date: today)
+            Haptics.play(result.usedSaver ? .medium : .success)
+            SoundPlayer.shared.play(.confirm)
+        } else {
+            Haptics.play(.selection)
+        }
+    }
+
+    private func syncAllIfReady() {
+        if let progress { sync.syncProgress(progress) }
+        if let daily { sync.syncDaily(daily) }
+        if let retention { sync.syncRetention(retention) }
     }
 
     // MARK: - 설정 액션 (웹 useGameStore setLanguage / toggleSound / setMode …)
@@ -247,8 +369,10 @@ final class GameStore: ObservableObject {
         }
         progress = p
         phase = .loading
+        let r = retention ?? RetentionState.fresh(today: Self.todayString())
+        retention = r
         Task {
-            await sync.uploadLocalData(uid: uid, progress: p, daily: d)
+            await sync.uploadLocalData(uid: uid, progress: p, daily: d, retention: r)
             guard bootstrappedUid == uid else { return }  // 업로드 중 로그아웃 — 폐기
             startLiveSync(uid: uid)
             phase = .ready
@@ -677,6 +801,50 @@ final class GameStore: ObservableObject {
         SoundPlayer.shared.play(.levelUp)
     }
 
+    #if DEBUG
+    /// UI tests can bypass Firebase Auth and land directly in a deterministic ready state.
+    private static func applyUITestSeedIfNeeded(to store: GameStore) -> Bool {
+        let args = ProcessInfo.processInfo.arguments
+        guard args.contains("UITestBypassAuth") else { return false }
+        var p = makeDefaultProgress()
+        p.level = 1
+        p.xp = GameRules.totalXPForLevel(1)
+        p.unlockedCardIds = CardCatalog.starterCardIds
+        var d = makeDefaultDaily()
+        if args.contains("UITestSeedBoard"),
+           let card = CardCatalog.allCards.first {
+            d.drawnCards = Array(CardCatalog.allCards.prefix(6))
+            d.selectedCards = [card]
+            d.isDrawComplete = true
+            d.isSelectionComplete = true
+        }
+        var r = RetentionState.fresh(today: todayString())
+        if args.contains("UITestSeedReport") {
+            let report = WeeklyReportSummary(
+                weekStart: RetentionEngine.addDays(todayString(), -7) ?? todayString(),
+                weekEnd: RetentionEngine.addDays(todayString(), -1) ?? todayString(),
+                generatedAt: UpHeroStore.nowMillis(),
+                checkInCount: 5,
+                completedCardCount: 8,
+                topCategory: .fitness,
+                highlightCardTitle: "1000보 걷기",
+                photoLogCount: 2,
+                usedSaver: false
+            )
+            r.weeklyReports = [report]
+        }
+        if args.contains("UITestSeedChallengeLog"),
+           let card = CardCatalog.allCards.first {
+            store.growth.seedChallengeLogForUITests(card: card)
+        }
+        store.progress = p
+        store.daily = d
+        store.retention = r
+        store.phase = .ready
+        return true
+    }
+    #endif
+
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
 
     static func makeDefaultProgress() -> UserProgress {
@@ -743,7 +911,6 @@ final class GameStore: ObservableObject {
 
     /// 오늘 날짜 YYYY-MM-DD (로컬 타임존). 웹 getTodayString.
     static func todayString() -> String {
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        return String(format: "%04d-%02d-%02d", c.year ?? 1970, c.month ?? 1, c.day ?? 1)
+        AppClock.todayString()
     }
 }

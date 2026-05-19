@@ -16,10 +16,31 @@ import Foundation
 /// 인증 사진 메타데이터. 웹 `PhotoMeta`.
 struct PhotoMeta: Codable, Identifiable, Equatable {
     let id: String                  // "vp_{timestamp}"
-    var challengeCardId: String?    // 챌린지 인증 사진이면 그 카드 id
-    var challengeTitle: String?     // 카드 제목 스냅샷 (아카이브 라벨)
-    var category: Category?         // 챌린지 카테고리
+    var kind: PhotoKind = .free     // 자유 사진 vs 챌린지 로그
+    var challengeCardId: String? = nil  // 챌린지 인증 사진이면 그 카드 id
+    var challengeTitle: String? = nil   // 카드 제목 스냅샷 (아카이브 라벨)
+    var category: Category? = nil       // 챌린지 카테고리
     var date: String                // "2026-05-18" (로컬 날짜)
     var timestamp: Int              // epoch ms
     var memo: String                // 뒷면 메모 (최대 200자)
+    var timeSlot: String? = nil     // "09:00" 등 2초 로그 타임슬롯
+    var caption: String? = nil      // 짧은 로그 캡션
+    var weekId: String? = nil       // 월요일 시작 주간 key
+}
+
+extension PhotoMeta {
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? "vp_\(UpHeroStore.nowMillis())"
+        kind = (try? c.decode(PhotoKind.self, forKey: .kind)) ?? .free
+        challengeCardId = try? c.decode(String.self, forKey: .challengeCardId)
+        challengeTitle = try? c.decode(String.self, forKey: .challengeTitle)
+        category = try? c.decode(Category.self, forKey: .category)
+        date = (try? c.decode(String.self, forKey: .date)) ?? GameStore.todayString()
+        timestamp = (try? c.decode(Int.self, forKey: .timestamp)) ?? UpHeroStore.nowMillis()
+        memo = (try? c.decode(String.self, forKey: .memo)) ?? ""
+        timeSlot = try? c.decode(String.self, forKey: .timeSlot)
+        caption = try? c.decode(String.self, forKey: .caption)
+        weekId = try? c.decode(String.self, forKey: .weekId)
+    }
 }

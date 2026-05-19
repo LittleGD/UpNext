@@ -14,6 +14,7 @@ struct UpNextApp: App {
     // 앱 전역 게임 상태 (Phase 4) — 모든 화면이 환경 객체로 공유.
     // GameStore 가 AuthService·UpHeroStore·GrowthStore 를 소유 → 함께 환경에 노출.
     @StateObject private var store = GameStore()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Firebase iOS SDK 초기화 — GoogleService-Info.plist를 읽어 FirebaseApp.default 설정.
@@ -31,6 +32,12 @@ struct UpNextApp: App {
                 .environmentObject(store.auth)
                 .environmentObject(store.upHero)
                 .environmentObject(store.growth)
+                .environmentObject(store.duo)
+                .onChange(of: scenePhase) { phase in
+                    if phase == .active {
+                        store.reconcileForToday()
+                    }
+                }
         }
     }
 }

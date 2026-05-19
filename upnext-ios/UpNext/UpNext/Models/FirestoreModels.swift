@@ -99,6 +99,7 @@ struct MetaDoc: Codable {
 struct UserDoc: Codable {
     var progress: UserProgress?
     var daily: DailyDoc?
+    var retention: RetentionState?
     var onboardingComplete: Bool?
     var meta: MetaDoc?
 }

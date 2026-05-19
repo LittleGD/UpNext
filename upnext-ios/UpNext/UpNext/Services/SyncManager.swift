@@ -23,7 +23,7 @@ import FirebaseFirestore
 
 /// getCloudData 결과 — "문서 없음" 과 "조회 실패" 를 명확히 구분한다.
 enum CloudLoad {
-    case loaded(progress: UserProgress, daily: DailyState)
+    case loaded(progress: UserProgress, daily: DailyState, retention: RetentionState?)
     case notFound   // 문서 자체가 없음 — 신규 계정
     case failed     // 네트워크/권한 오류 또는 손상 문서 — 기존 데이터 보호 위해 덮어쓰면 안 됨
 }
@@ -43,7 +43,7 @@ final class SyncManager: ObservableObject {
     @Published private(set) var status: SyncStatus = .idle
 
     /// 클라우드 변경을 로컬 상태로 반영하는 콜백 (Phase 4 에서 store 연결).
-    private var onCloudUpdate: ((UserProgress, DailyState) -> Void)?
+    private var onCloudUpdate: ((UserProgress, DailyState, RetentionState?) -> Void)?
 
     private var listener: ListenerRegistration?
     private var currentUid: String?
@@ -59,6 +59,7 @@ final class SyncManager: ObservableObject {
     // 디바운스 중인 pending write — 키별 최신값만 보관 (웹 pendingSyncData).
     private var pendingProgress: UserProgress?
     private var pendingDaily: DailyDoc?
+    private var pendingRetention: RetentionState?
     private var pendingOnboarding: Bool?
 
     private var debounceTask: Task<Void, Never>?
@@ -77,7 +78,7 @@ final class SyncManager: ObservableObject {
 
     func startListener(
         uid: String,
-        onCloudUpdate: @escaping (UserProgress, DailyState) -> Void
+        onCloudUpdate: @escaping (UserProgress, DailyState, RetentionState?) -> Void
     ) {
         stopListener()
         currentUid = uid
@@ -102,6 +103,7 @@ final class SyncManager: ObservableObject {
         retryAttempt = 0
         pendingProgress = nil
         pendingDaily = nil
+        pendingRetention = nil
         pendingOnboarding = nil
         hasLocalPendingWrite = false
         status = .idle
@@ -127,7 +129,7 @@ final class SyncManager: ObservableObject {
         let daily = FirestoreSchema.hydrateDaily(
             userDoc.daily ?? emptyDailyDoc(),
             catalog: { CardCatalog.card(id: $0) })
-        onCloudUpdate?(progress, daily)
+        onCloudUpdate?(progress, daily, userDoc.retention)
         isUpdatingFromCloud = false
     }
 
@@ -139,6 +141,10 @@ final class SyncManager: ObservableObject {
 
     func syncDaily(_ daily: DailyState) {
         enqueue { self.pendingDaily = FirestoreSchema.dehydrateDaily(daily) }
+    }
+
+    func syncRetention(_ retention: RetentionState) {
+        enqueue { self.pendingRetention = retention }
     }
 
     func syncOnboarding(_ complete: Bool) {
@@ -158,7 +164,7 @@ final class SyncManager: ObservableObject {
     }
 
     private var hasPending: Bool {
-        pendingProgress != nil || pendingDaily != nil || pendingOnboarding != nil
+        pendingProgress != nil || pendingDaily != nil || pendingRetention != nil || pendingOnboarding != nil
     }
 
     private func flushSync() async {
@@ -168,13 +174,15 @@ final class SyncManager: ObservableObject {
         //   되며, in-flight write 의 완료 처리가 그 새 값을 덮어쓰지 않는다 (데이터 유실 방지).
         let sentProgress = pendingProgress
         let sentDaily = pendingDaily
+        let sentRetention = pendingRetention
         let sentOnboarding = pendingOnboarding
-        guard sentProgress != nil || sentDaily != nil || sentOnboarding != nil else {
+        guard sentProgress != nil || sentDaily != nil || sentRetention != nil || sentOnboarding != nil else {
             hasLocalPendingWrite = false
             return
         }
         pendingProgress = nil
         pendingDaily = nil
+        pendingRetention = nil
         pendingOnboarding = nil
         status = .syncing
 
@@ -190,6 +198,9 @@ final class SyncManager: ObservableObject {
             }
             if let d = sentDaily {
                 payload["daily"] = try Firestore.Encoder().encode(d)
+            }
+            if let r = sentRetention {
+                payload["retention"] = try Firestore.Encoder().encode(r)
             }
             if let o = sentOnboarding {
                 payload["onboardingComplete"] = o
@@ -215,6 +226,7 @@ final class SyncManager: ObservableObject {
             //   그 값이 더 최신이므로 덮어쓰지 않는다.
             if pendingProgress == nil { pendingProgress = sentProgress }
             if pendingDaily == nil { pendingDaily = sentDaily }
+            if pendingRetention == nil { pendingRetention = sentRetention }
             if pendingOnboarding == nil { pendingOnboarding = sentOnboarding }
             hasLocalPendingWrite = true
             scheduleRetry()
@@ -249,7 +261,7 @@ final class SyncManager: ObservableObject {
     // MARK: - 초기 업로드 / 조회 / 삭제
 
     /// 로컬 데이터를 클라우드에 최초 업로드 (웹 uploadLocalData). 디바운스 우회.
-    func uploadLocalData(uid: String, progress: UserProgress, daily: DailyState) async {
+    func uploadLocalData(uid: String, progress: UserProgress, daily: DailyState, retention: RetentionState) async {
         hasLocalPendingWrite = true
         status = .syncing
         let docRef = Firestore.firestore().collection(usersCollection).document(uid)
@@ -257,6 +269,7 @@ final class SyncManager: ObservableObject {
             let payload: [String: Any] = [
                 "progress": try Firestore.Encoder().encode(progress),
                 "daily": try Firestore.Encoder().encode(FirestoreSchema.dehydrateDaily(daily)),
+                "retention": try Firestore.Encoder().encode(retention),
                 "onboardingComplete": true,
                 "meta": [
                     "createdAt": FieldValue.serverTimestamp(),
@@ -293,7 +306,7 @@ final class SyncManager: ObservableObject {
             let daily = FirestoreSchema.hydrateDaily(
                 userDoc.daily ?? emptyDailyDoc(),
                 catalog: { CardCatalog.card(id: $0) })
-            return .loaded(progress: progress, daily: daily)
+            return .loaded(progress: progress, daily: daily, retention: userDoc.retention)
         } catch {
             return .failed   // 손상 문서 — 신규 취급해 덮어쓰면 기존 데이터 유실
         }

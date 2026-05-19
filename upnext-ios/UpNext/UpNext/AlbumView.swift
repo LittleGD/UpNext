@@ -23,6 +23,12 @@ struct AlbumView: View {
     private let columns = Array(
         repeating: GridItem(.flexible(), spacing: 8), count: 3)
 
+    private struct PhotoSection: Identifiable {
+        var id: String
+        var title: String
+        var items: [PhotoMeta]
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -30,9 +36,16 @@ struct AlbumView: View {
                 if growth.photoMetas.isEmpty {
                     emptyState
                 } else {
-                    LazyVGrid(columns: columns, spacing: 8) {
-                        ForEach(growth.photoMetas) { meta in
-                            photoCell(meta)
+                    ForEach(photoSections) { section in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(section.title)
+                                .typography(.caption)
+                                .foregroundStyle(Color.textTertiary)
+                            LazyVGrid(columns: columns, spacing: 8) {
+                                ForEach(section.items) { meta in
+                                    photoCell(meta)
+                                }
+                            }
                         }
                     }
                 }
@@ -79,11 +92,28 @@ struct AlbumView: View {
     }
 
     private var emptyState: some View {
-        Text("아직 사진이 없어요.\n성장의 순간을 사진으로 남겨 보세요.")
+        Text("아직 사진이 없어요.\n챌린지 완료 후 2초 로그를 남기면 카드와 함께 모여요.")
             .typography(.caption)
             .foregroundStyle(Color.textTertiary)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.top, 20)
+    }
+
+    private var photoSections: [PhotoSection] {
+        let grouped = Dictionary(grouping: growth.photoMetas) { meta in
+            meta.weekId ?? meta.date
+        }
+        return grouped.keys.sorted(by: >).compactMap { key in
+            guard let items = grouped[key]?.sorted(by: { $0.timestamp > $1.timestamp }) else { return nil }
+            return PhotoSection(id: key, title: sectionTitle(key), items: items)
+        }
+    }
+
+    private func sectionTitle(_ key: String) -> String {
+        if key.count == 10 {
+            return "\(key) 주간"
+        }
+        return key
     }
 
     /// 사진 셀 — 정사각 썸네일. 탭하면 부적 만들기/삭제 시트.
@@ -105,7 +135,42 @@ struct AlbumView: View {
             .aspectRatio(1, contentMode: .fit)
             .background(Color.bgSurface)
             .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(alignment: .topLeading) {
+                if meta.kind == .challengeLog {
+                    HStack(spacing: 4) {
+                        Image(systemName: meta.category?.icon ?? "checkmark.seal.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(meta.category?.label ?? "챌린지")
+                            .typography(.micro)
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(Color.bgPrimary)
+                    .padding(.horizontal, 6)
+                    .frame(height: 20)
+                    .background(Color.accentPrimary, in: Capsule())
+                    .padding(6)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("challengeLogBadge")
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if meta.kind == .challengeLog, let title = meta.challengeTitle {
+                    Text(title)
+                        .typography(.micro)
+                        .foregroundStyle(Color.bgPrimary)
+                        .lineLimit(2)
+                        .padding(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            LinearGradient(
+                                colors: [.black.opacity(0.0), .black.opacity(0.58)],
+                                startPoint: .top,
+                                endPoint: .bottom)
+                        )
+                }
+            }
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(meta.kind == .challengeLog ? "challengeLogBadge" : "photoCard")
     }
 }
