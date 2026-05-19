@@ -19,21 +19,44 @@
 
 import Foundation
 import WidgetKit
-#if canImport(ActivityKit)
 import ActivityKit
-#endif
 
+@MainActor
 enum WidgetSync {
 
-    // MARK: - 위젯 상태 publish
+    // MARK: - 위젯 상태 publish (runloop tick 단위로 코얼레스)
 
-    /// progress + daily + upHero 의 현재 스냅샷을 WidgetState JSON 으로 직렬화해
-    /// App Group UserDefaults 에 저장하고 위젯 타임라인을 즉시 재로드한다.
+    /// 직전 publish 호출에서 받은 최신 스냅샷 — async 디스패치가 fire 될 때 읽는다.
+    /// 같은 runloop 의 다중 publish (progress = p; daily = d 연쇄) 가 들어와도
+    /// 마지막 값만 살아남아 디스크·위젯 reload 가 1회로 합쳐진다.
+    private static var pendingProgress: UserProgress?
+    private static var pendingDaily: DailyState?
+    private static var publishScheduled = false
+
+    /// progress + daily 의 현재 스냅샷을 위젯에 publish 한다. 같은 runloop tick 안에서
+    /// 여러 번 불러도 마지막 값으로 1회만 실제 발행 — completeChallenge 처럼
+    /// progress·daily 가 연쇄로 바뀌는 액션에서 reload 가 2회 도는 비용을 제거.
     ///
-    /// GameStore.mutateProgress / mutateDaily 가 매 변경마다 호출 — 매 호출이
-    /// 디스크 + 위젯 reload 두 작업을 동반하지만 액션 빈도가 낮고(드로우·완료 등)
-    /// 위젯이 즉시 갱신되는 게 사용자 신호로 더 가치 있어 디바운스 생략.
+    /// GameStore.progress / daily 의 didSet 에서 자동 호출되며, 어떤 액션이든
+    /// 위젯 타임라인이 자동 갱신된다.
     static func publish(progress: UserProgress?, daily: DailyState?) {
+        pendingProgress = progress
+        pendingDaily = daily
+        guard !publishScheduled else { return }
+        publishScheduled = true
+        // 다음 runloop tick — 같은 tick 의 연쇄 호출은 모두 합쳐진 뒤 1회만 실행.
+        DispatchQueue.main.async {
+            publishScheduled = false
+            let snapProgress = pendingProgress
+            let snapDaily = pendingDaily
+            pendingProgress = nil
+            pendingDaily = nil
+            publishNow(progress: snapProgress, daily: snapDaily)
+        }
+    }
+
+    /// 실제 디스크·위젯 reload 수행부 — publish 의 코얼레서가 1회만 호출.
+    private static func publishNow(progress: UserProgress?, daily: DailyState?) {
         guard let p = progress else {
             // 로그아웃 등 — 위젯도 비워서 이전 사용자 데이터가 잠금화면에 남지 않게 한다.
             AppConfig.sharedDefaults?.removeObject(forKey: "widgetState")
@@ -51,9 +74,18 @@ enum WidgetSync {
             "mainChallengeTitle": mainChallengeTitle(daily),
             "updatedAt":          Date().timeIntervalSince1970
         ]
-        guard let data = try? JSONSerialization.data(withJSONObject: snapshot),
-              let defaults = AppConfig.sharedDefaults
-        else { return }
+        let data: Data
+        do {
+            data = try JSONSerialization.data(withJSONObject: snapshot)
+        } catch {
+            // 9개 키 모두 primitive 라 실패할 일은 없지만, 미래 필드 추가 시
+            // 디버그 빌드에서 즉시 잡히도록 로그를 남긴다.
+            #if DEBUG
+            print("[WidgetSync] JSON encode failed: \(error)")
+            #endif
+            return
+        }
+        guard let defaults = AppConfig.sharedDefaults else { return }
         defaults.set(data, forKey: "widgetState")
         WidgetCenter.shared.reloadAllTimelines()
     }

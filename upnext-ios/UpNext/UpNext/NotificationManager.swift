@@ -30,6 +30,7 @@ enum NotificationManager {
     ///  - enabled=false → 예약 취소.
     ///  - enabled=true  → notificationTime("HH:mm")에 매일 반복 알림 등록.
     /// 항상 기존 예약을 먼저 제거하므로 시각 변경 시 재호출하면 갱신된다.
+    /// 등록은 비동기지만 caller 가 결과를 기다릴 필요가 없어 Task 로 wrap (best-effort).
     static func syncDailyReminder(enabled: Bool, time: String) {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [dailyReminderID])
@@ -46,7 +47,16 @@ enum NotificationManager {
         let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: true)
         let request = UNNotificationRequest(
             identifier: dailyReminderID, content: content, trigger: trigger)
-        center.add(request)
+        // 권한 없음·시스템 거절 같은 실패를 catch 해 디버그 빌드에서 즉시 보이게.
+        Task {
+            do {
+                try await center.add(request)
+            } catch {
+                #if DEBUG
+                print("[NotificationManager] add(request) failed: \(error)")
+                #endif
+            }
+        }
     }
 
     /// "HH:mm" → (시, 분). 형식이 어긋나면 nil.
