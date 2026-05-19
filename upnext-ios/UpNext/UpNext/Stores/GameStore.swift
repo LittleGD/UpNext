@@ -42,7 +42,11 @@ final class GameStore: ObservableObject {
     /// Growth(인증 사진) 스토어 — 함께 소유하고 환경 객체로 노출 (Phase 4.5).
     let growth = GrowthStore()
 
-    @Published private(set) var progress: UserProgress?
+    @Published private(set) var progress: UserProgress? {
+        // 설정의 hapticEnabled 를 Haptics 헬퍼에 동기 — progress 가 바뀌는 모든
+        // 경로(bootstrap·applyCloudUpdate·mutateProgress·onboarding)에서 자동 반영.
+        didSet { Haptics.enabled = progress?.hapticEnabled ?? true }
+    }
     @Published private(set) var daily: DailyState?
     @Published private(set) var phase: BootPhase = .launching
 
@@ -256,6 +260,7 @@ final class GameStore: ObservableObject {
         guard current.selectedCards.count < p.mode.cardCount,
               !current.selectedCards.contains(where: { $0.id == card.id }) else { return }
         mutateDaily { $0.selectedCards.append(card) }
+        Haptics.play(.selection)
     }
 
     /// 카드 선택 취소 — 패널티 카드·확정 후엔 불가. 웹 deselectCard.
@@ -270,6 +275,7 @@ final class GameStore: ObservableObject {
         guard let p = progress, let current = daily else { return }
         guard current.selectedCards.count == p.mode.cardCount else { return }
         mutateDaily { $0.isSelectionComplete = true }
+        Haptics.play(.medium)
     }
 
     /// 챌린지 완료 — 웹 completeChallenge. XP·카테고리/카드 완료수·신규 해금·
@@ -300,12 +306,15 @@ final class GameStore: ObservableObject {
         // 레벨업 — XP/레벨 정규화로 level 재계산 + 상승분만큼 pendingPacks 적립.
         //   웹 completeChallenge 의 getLevelFromXP 기반 레벨업과 동치
         //   (normalizeProgressXpLevel 이 같은 getLevelFromXP + pendingPacks 로직).
-        p = GameRules.normalizeXpLevel(p).progress
+        let normalized = GameRules.normalizeXpLevel(p)
+        p = normalized.progress
 
         progress = p
         daily = d
         sync.syncProgress(p)
         sync.syncDaily(d)
+        // 완료 햅틱 — 레벨업이면 celebration(컴파운드), 아니면 success.
+        Haptics.play(normalized.levelsGained > 0 ? .celebration : .success)
     }
 
     /// daily 를 변경 → 발행 → 클라우드 동기화 (디바운스). mutateProgress 의 daily 판.
@@ -517,6 +526,8 @@ final class GameStore: ObservableObject {
         progress = p
         sync.syncProgress(p)
         if justCompleted { collectionCelebration = true }
+        // 개봉 햅틱 — 컬렉션 첫 완성이면 celebration, 아니면 success.
+        Haptics.play(justCompleted ? .celebration : .success)
         return (newCards, tier)
     }
 
