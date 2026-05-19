@@ -200,11 +200,48 @@ final class UpHeroStore: ObservableObject {
         }
     }
 
-    /// 탐험 종료/포기 — 현재 세션을 버린다. 웹 abandonSession / acknowledgeSessionEnd.
-    /// 결산·보상 지급(XP·코인·장비·층 기록)은 세션 결과 슬라이스에서 — 지금은 세션만 비운다.
-    /// currentSession 은 영속 대상이 아니라 persist 불필요 (mutate 아님).
+    /// 탐험 포기 — 세션을 .completed(heroAbandoned)로 종료시킨다. 웹 abandonSession.
+    /// 즉시 비우지 않고 정상 종료 처리 → 결산 화면을 거쳐 그때까지 모은 보상을
+    /// acknowledgeSessionEnd 에서 지급한다 (포기해도 번 건 챙긴다).
     func abandonSession() {
-        state.currentSession = nil
+        guard let session = state.currentSession else { return }
+        state.currentSession = UpHeroSession.abandonSession(session)
+    }
+
+    /// 완료된 세션 결산 — 보상을 반영하고 세션을 비운다. 웹 acknowledgeSessionEnd.
+    /// 코인·장비(사망 시 절반)·던전 진행·코덱스·NG+ 는 여기서 반영하고, XP 는
+    /// GameStore.progress 소관이라 지급량만 반환한다 (호출부가 progress 에 적용).
+    /// 반환: 지급할 XP (세션 없음/미완료면 0).
+    @discardableResult
+    func acknowledgeSessionEnd() -> Int {
+        guard let session = state.currentSession,
+              session.status == .completed else { return 0 }
+        var rng = SystemRandom()
+
+        // 보상 계산 — sessionReward.ts 의 순수 helper (state-in → 값-out).
+        let keptDrops = SessionReward.calculateKeptDrops(session, rng: &rng)
+        let prevProgress = state.dungeons[session.dungeonId]
+        let prevBosses = prevProgress?.bossesDefeated ?? []
+        let newBosses = SessionReward.calculateBossesDefeated(
+            log: session.log, existing: prevBosses)
+        let newDungeonProgress = SessionReward.calculateDungeonProgress(
+            session: session, existing: prevProgress, newBossesDefeated: newBosses)
+        let newCodex = SessionReward.calculateCodexDelta(
+            log: session.log, current: state.codex)
+        // NG+ — F30 보스를 이번 세션에 처음 처치 시 +1 (weekly variant 제외).
+        let clearedF30Newly = newBosses.contains(30) && !prevBosses.contains(30)
+
+        mutate { s in
+            s.coins += session.rewards.coins
+            s.inventory.append(contentsOf: keptDrops)
+            s.dungeons[session.dungeonId] = newDungeonProgress
+            s.codex = newCodex
+            if clearedF30Newly, session.isWeeklyVariant != true {
+                s.ngPlusLevel = (s.ngPlusLevel ?? 0) + 1
+            }
+            s.currentSession = nil
+        }
+        return session.rewards.xp
     }
 
     // MARK: - 전투 진행 (웹 tickSession / resolveChoice / resolveMinigame)

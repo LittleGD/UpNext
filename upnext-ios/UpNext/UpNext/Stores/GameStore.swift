@@ -545,6 +545,18 @@ final class GameStore: ObservableObject {
         }
     }
 
+    /// Up Hero 전투 세션 결산 — UpHeroStore 가 자기 보상(코인·장비·던전·코덱스·NG+)을
+    /// 반영하고 세션을 비운 뒤, 반환한 세션 XP 를 progress 에 적용한다.
+    /// 웹 acknowledgeSessionEnd 의 cross-store XP 반영부. (idle XP 와 동일 경로.)
+    func finishUpHeroSession() {
+        let sessionXP = upHero.acknowledgeSessionEnd()
+        guard sessionXP > 0 else { return }
+        mutateProgress {
+            $0.xp += sessionXP
+            $0.level = GameRules.normalizeXpLevel($0).progress.level
+        }
+    }
+
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
 
     static func makeDefaultProgress() -> UserProgress {

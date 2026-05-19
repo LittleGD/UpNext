@@ -6,9 +6,9 @@
 //  가 아지트 대신 이 화면을 보여준다. 타이머가 advanceCombat 을 반복 호출해 전투가
 //  자동 진행되고, 전투 로그가 실시간으로 쌓인다.
 //
-//  슬라이스 22~23 — 자동 진행 전투 + 로그 + 이벤트 선택지 + 종료 화면. condensed:
+//  슬라이스 22~24 — 자동 진행 전투 + 로그 + 이벤트 선택지 + 결산(보상 지급). condensed:
 //   - 미니게임은 자동 처리 (플레이는 Phase 4.6)
-//   - 보스 등장 연출·속도 조절은 이후, 보상 지급은 세션 결과 슬라이스
+//   - 보스 등장 연출·전투 속도 조절은 이후 슬라이스
 //
 
 import SwiftUI
@@ -16,6 +16,7 @@ import Combine  // Timer.publish().autoconnect()
 
 struct DungeonView: View {
     @EnvironmentObject private var upHero: UpHeroStore
+    @EnvironmentObject private var store: GameStore
 
     /// 전투 tick 타이머 — 0.7초마다 한 스텝. 화면이 살아있는 동안만 발화.
     /// @State 로 1회만 생성 — let 이면 struct 재생성마다 새 publisher 가 나와
@@ -173,14 +174,14 @@ struct DungeonView: View {
             Text(endReasonText(session))
                 .typography(.heading)
                 .foregroundStyle(Color.textPrimary)
-            Text(rewardSummary(session))
+            // XP·코인은 항상 정확. 장비는 사망 시 절반만 보존돼 개수 표기가 어긋날 수
+            // 있어 결산 화면엔 안 넣는다 — 획득 장비는 인벤토리에서 확인.
+            Text("XP +\(session.rewards.xp) · 코인 +\(session.rewards.coins)")
                 .typography(.caption)
                 .foregroundStyle(Color.textSecondary)
-            Text("보상 지급·층 기록은 다음 슬라이스에서 반영됩니다")
-                .typography(.micro)
-                .foregroundStyle(Color.textTertiary)
                 .padding(.bottom, 4)
-            Button { upHero.abandonSession() } label: {
+            // 돌아가기 → 보상 지급(코인·장비·던전·코덱스 + XP) 후 아지트 복귀.
+            Button { store.finishUpHeroSession() } label: {
                 Text("돌아가기")
                     .typography(.body)
                     .frame(maxWidth: .infinity)
@@ -204,13 +205,6 @@ struct DungeonView: View {
             }
         }
         return "탐험 종료"
-    }
-
-    private func rewardSummary(_ session: CombatSession) -> String {
-        let r = session.rewards
-        var parts = ["XP +\(r.xp)", "코인 +\(r.coins)"]
-        if !r.drops.isEmpty { parts.append("장비 \(r.drops.count)개") }
-        return parts.joined(separator: " · ")
     }
 
     // MARK: - 로그 엔트리 렌더 (웹 LogEntry 13-case)
