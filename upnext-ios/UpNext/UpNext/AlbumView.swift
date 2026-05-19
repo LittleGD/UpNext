@@ -100,20 +100,17 @@ struct AlbumView: View {
     }
 
     private var photoSections: [PhotoSection] {
+        // 모든 사진을 주 단위로 그룹 — 챌린지로그(weekId 존재)는 그대로, 자유 사진은
+        // date 에서 주 시작일을 계산해 같은 주 안에 합친다. 이전 구현은 weekId vs date
+        // 둘 다 10자라 sectionTitle 휴리스틱이 깨져 자유 사진의 date 가 "주간" 레이블로
+        // 잘못 표시됐었다.
         let grouped = Dictionary(grouping: growth.photoMetas) { meta in
-            meta.weekId ?? meta.date
+            meta.weekId ?? RetentionEngine.weekId(for: meta.date)
         }
         return grouped.keys.sorted(by: >).compactMap { key in
             guard let items = grouped[key]?.sorted(by: { $0.timestamp > $1.timestamp }) else { return nil }
-            return PhotoSection(id: key, title: sectionTitle(key), items: items)
+            return PhotoSection(id: key, title: "\(key) 주간", items: items)
         }
-    }
-
-    private func sectionTitle(_ key: String) -> String {
-        if key.count == 10 {
-            return "\(key) 주간"
-        }
-        return key
     }
 
     /// 사진 셀 — 정사각 썸네일. 탭하면 부적 만들기/삭제 시트.

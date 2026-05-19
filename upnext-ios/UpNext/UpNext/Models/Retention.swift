@@ -150,36 +150,55 @@ enum RetentionEngine {
         return state
     }
 
+    /// 직전 주들의 리포트를 생성·백필. 결주 후 복귀(2주+ 결주) 시 자리비운 모든
+    /// 주의 회고를 한 번에 만든다 — 이전 구현은 *가장 직전 1주* 만 채우고 끝나
+    /// 2주 이상 자리비웠을 때 중간 주(들) 리포트가 영원히 사라졌다.
+    ///
+    /// 범위: 오늘이 속한 주의 직전 maxWeeklyReports 주까지 검사. 이미 존재하는
+    /// 주는 skip. 활동(완료/체크인/챌린지로그)이 0 인 주도 skip — "사용 0일" 리포트는
+    /// 사용자에게 의미 없고 모달만 늘림.
     static func generatePreviousWeekReport(
         retention input: RetentionState,
         progress: UserProgress,
         photos: [PhotoMeta],
         today: String = AppClock.todayString()
     ) -> RetentionState {
-        guard let todayDate = AppClock.date(from: today),
-              let previousWeekStart = Calendar.retentionCalendar.date(
-                byAdding: .day,
-                value: -7,
-                to: weekStartDate(for: todayDate)
-              ) else { return input }
+        guard let todayDate = AppClock.date(from: today) else { return input }
+        let thisWeekStart = weekStartDate(for: todayDate)
+        let existingWeeks = Set(input.weeklyReports.map(\.weekStart))
+        var newReports: [WeeklyReportSummary] = []
 
-        let start = AppClock.dayString(previousWeekStart)
-        if input.weeklyReports.contains(where: { $0.weekStart == start }) {
-            return input
+        for offset in 1...maxWeeklyReports {
+            guard let weekStartDate = Calendar.retentionCalendar.date(
+                byAdding: .day, value: -7 * offset, to: thisWeekStart
+            ) else { continue }
+            let weekStart = AppClock.dayString(weekStartDate)
+            if existingWeeks.contains(weekStart) { continue }
+            guard let weekEndDate = Calendar.retentionCalendar.date(
+                byAdding: .day, value: 6, to: weekStartDate
+            ) else { continue }
+            let weekEnd = AppClock.dayString(weekEndDate)
+            let inRange: (String) -> Bool = { day in
+                isDay(day, inClosedRangeFrom: weekStart, to: weekEnd)
+            }
+            let hasActivity = progress.completionHistory.contains { inRange($0.date) }
+                || input.checkInDates.contains(where: inRange)
+                || photos.contains { $0.kind == .challengeLog && inRange($0.date) }
+            guard hasActivity else { continue }
+            newReports.append(buildReport(
+                weekStart: weekStart,
+                weekEnd: weekEnd,
+                progress: progress,
+                retention: input,
+                photos: photos
+            ))
         }
-        guard let endDate = Calendar.retentionCalendar.date(byAdding: .day, value: 6, to: previousWeekStart) else {
-            return input
-        }
-        let end = AppClock.dayString(endDate)
-        let report = buildReport(
-            weekStart: start,
-            weekEnd: end,
-            progress: progress,
-            retention: input,
-            photos: photos
-        )
+
+        guard !newReports.isEmpty else { return input }
         var state = input
-        state.weeklyReports.insert(report, at: 0)
+        // 최신주가 앞에 오도록 정렬 + maxWeeklyReports cap.
+        state.weeklyReports = (newReports + state.weeklyReports)
+            .sorted { $0.weekStart > $1.weekStart }
         if state.weeklyReports.count > maxWeeklyReports {
             state.weeklyReports = Array(state.weeklyReports.prefix(maxWeeklyReports))
         }

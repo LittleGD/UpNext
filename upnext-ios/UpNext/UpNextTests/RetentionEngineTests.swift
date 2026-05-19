@@ -97,4 +97,42 @@ final class RetentionEngineTests: XCTestCase {
         XCTAssertEqual(report.photoLogCount, 1)
         XCTAssertTrue(report.usedSaver)
     }
+
+    /// 2주+ 결주 후 복귀 시 자리비운 모든 *활동 있는* 주의 리포트가 한 번에 생성돼야.
+    /// 이전 구현은 직전 1주만 채우고 끝나 중간 주의 리포트가 영원히 사라졌다.
+    func testBackfillsMultipleMissedWeeksAndSkipsEmptyWeeks() throws {
+        let card = try XCTUnwrap(CardCatalog.allCards.first)
+        var progress = GameStore.makeDefaultProgress()
+        // 4주 전(활동 있음) + 2주 전(활동 있음). 3주 전은 빈 주.
+        progress.completionHistory = [
+            DayRecord(
+                date: "2026-04-14",  // 4월 4주차(2026-04-13~04-19)
+                selectedCardIds: [card.id],
+                completedCardIds: [card.id],
+                wasFullClear: true,
+                mode: .normal
+            ),
+            DayRecord(
+                date: "2026-04-28",  // 4월 5주차(2026-04-27~05-03)
+                selectedCardIds: [card.id],
+                completedCardIds: [card.id],
+                wasFullClear: true,
+                mode: .normal
+            ),
+        ]
+        let retention = RetentionState.fresh(today: "2026-05-11")
+
+        let updated = RetentionEngine.generatePreviousWeekReport(
+            retention: retention,
+            progress: progress,
+            photos: [],
+            today: "2026-05-11"
+        )
+
+        // 두 활동 주 모두 백필, 빈 주(2026-04-20)는 skip.
+        let starts = updated.weeklyReports.map(\.weekStart)
+        XCTAssertEqual(starts, ["2026-04-27", "2026-04-13"])
+        XCTAssertFalse(starts.contains("2026-04-20"))
+        XCTAssertFalse(starts.contains("2026-05-04"))  // 활동 없으므로 skip
+    }
 }

@@ -48,9 +48,10 @@ final class DuoStore: ObservableObject {
 
     func start(uid: String, displayName: String?) {
         self.uid = uid
-        self.displayName = (displayName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
-            ? displayName!
-            : "UpNext"
+        // 양 끝 공백/줄바꿈 제거 + 40자 cap — rules 의 memberNames[uid].size() <= 40
+        // 검증과 일치시켜 createInvite/join 이 long name 으로 silent 거절되는 일을 막는다.
+        let trimmed = (displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        self.displayName = trimmed.isEmpty ? "UpNext" : String(trimmed.prefix(40))
         observeActiveDuo()
     }
 
@@ -177,17 +178,17 @@ final class DuoStore: ObservableObject {
     func leaveDuo() {
         guard let uid, let activeDuo, !isWorking else { return }
         isWorking = true
-        let remainingIds = activeDuo.memberIds.filter { $0 != uid }
-        var names = activeDuo.memberNames
-        names.removeValue(forKey: uid)
-        var checkIns = activeDuo.checkIns
-        checkIns.removeValue(forKey: uid)
-        db.collection("duos").document(activeDuo.id).setData([
-            "memberIds": remainingIds,
-            "memberNames": names,
-            "checkIns": checkIns,
+        // 본인만 atomic 으로 빠진다 — 두 명이 동시에 leave 해도 부분 결과 race 없음.
+        // 이전 setData(merge:) 패턴은 인메모리 snapshot 의 memberIds 를 통째로 덮어쓰다
+        // 보니 동시 leave 시 "각자 자기만 제외한 다른 멤버 명단" 두 개가 race 로 덮어써져
+        // 한 사람이 살아남아 보이는 결과가 가능. arrayRemove + FieldValue.delete 는
+        // 서버측 atomic 이라 순서·동시성과 무관하게 최종 상태가 정확하다.
+        db.collection("duos").document(activeDuo.id).updateData([
+            "memberIds": FieldValue.arrayRemove([uid]),
+            "memberNames.\(uid)": FieldValue.delete(),
+            "checkIns.\(uid)": FieldValue.delete(),
             "updatedAt": UpHeroStore.nowMillis(),
-        ], merge: true) { [weak self] _ in
+        ]) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.isWorking = false
                 self?.activeDuo = nil
