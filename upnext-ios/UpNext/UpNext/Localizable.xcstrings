@@ -1,344 +1,1078 @@
 {
   "sourceLanguage" : "ko",
-  "version" : "1.0",
   "strings" : {
+    "" : {
 
+    },
+    "'%@' 을(를) 완료로 표시할까요?" : {
+
+    },
+    "(%@%lld)" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "(%1$@%2$lld)"
+          }
+        }
+      }
+    },
+    "%@ - %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ - %2$@"
+          }
+        }
+      }
+    },
+    "%@ — 카드 고르기" : {
+
+    },
+    "%@ 모드는 내일부터 적용됩니다." : {
+
+    },
+    "%@ 완료!" : {
+
+    },
+    "%@ 특화" : {
+
+    },
+    "%@ 팩" : {
+
+    },
+    "%lld" : {
+
+    },
+    "%lld / %lld" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "%lld / %lld XP" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld XP"
+          }
+        }
+      }
+    },
+    "%lld / 7" : {
+
+    },
+    "%lld/%lld" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "%lld%@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld%2$@"
+          }
+        }
+      }
+    },
+    "%lld%%" : {
+
+    },
+    "%lld일 체크인 · 카드 %lld장 · 로그 %lld개" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld일 체크인 · 카드 %2$lld장 · 로그 %3$lld개"
+          }
+        }
+      }
+    },
+    "%lld일째 · 세이버 %lld개" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld일째 · 세이버 %2$lld개"
+          }
+        }
+      }
+    },
+    "%lld장" : {
+
+    },
+    "%lld장 로드 · 스타터 %lld" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld장 로드 · 스타터 %2$lld"
+          }
+        }
+      }
+    },
+    "%lld장/일" : {
+
+    },
+    "%lld장의 카드를 모두 모았어요.\n진정한 갓생러의 길에 한 발 더 다가섰습니다." : {
+
+    },
+    "%lld종" : {
+
+    },
+    "%lld층" : {
+
+    },
+    "+%lld" : {
+
+    },
+    "+%lld XP" : {
+
+    },
+    "2인 불꽃" : {
+
+    },
+    "2초 로그 남기기" : {
+
+    },
+    "Body — 매일 6장의 카드를 뽑아 2개를 수행하세요" : {
+
+    },
+    "Caption — 연속 7일 달성 중" : {
+
+    },
+    "Cards.json 디코드 실패" : {
+
+    },
+    "Display — 갓생 시작" : {
+
+    },
+    "Heading — 카드 컬렉션" : {
+
+    },
+    "HP %lld / %lld" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "HP %1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "LEVEL 1" : {
+
+    },
+    "Lv.%lld" : {
+
+    },
+    "Lv.%lld · %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Lv.%1$lld · %2$@"
+          }
+        }
+      }
+    },
+    "Lv.%lld · HP %lld / %lld" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Lv.%1$lld · HP %2$lld / %3$lld"
+          }
+        }
+      }
+    },
+    "Micro — 2026.05.15 업데이트" : {
+
+    },
+    "normal %lld · rare %lld · unique %lld · legend %lld" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "normal %1$lld · rare %2$lld · unique %3$lld · legend %4$lld"
+          }
+        }
+      }
+    },
+    "Phase 1 — 색상 46 · 타이포 6단계 · 아이콘 34" : {
+
+    },
+    "Title — 오늘의 챌린지" : {
+
+    },
+    "UpNext" : {
+
+    },
+    "UpNext v0.1.0" : {
+
+    },
+    "XP +%lld · 코인 +%lld" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "XP +%1$lld · 코인 +%2$lld"
+          }
+        }
+      }
+    },
     "갓생" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hardcore" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hardcore"
+          }
+        }
+      }
+    },
+    "같은 그림 두 장을 찾으세요" : {
+
+    },
+    "개인정보 처리방침" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy Policy"
+          }
+        }
       }
     },
     "건강" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Wellness" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wellness"
+          }
+        }
       }
     },
     "건너뛰기" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Skip" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip"
+          }
+        }
       }
+    },
+    "경험치 +%lld" : {
+
+    },
+    "경험치 +30" : {
+
     },
     "기본" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Default" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default"
+          }
+        }
+      }
+    },
+    "나가기" : {
+
+    },
+    "나중에" : {
+
+    },
+    "난이도를 골라주세요" : {
+
+    },
+    "내일 적용" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply Tomorrow"
+          }
+        }
       }
     },
     "노멀" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Normal" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normal"
+          }
+        }
       }
     },
     "다시 뽑기" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Redraw" } }
-      }
-    },
-    "다음" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Next" } }
-      }
-    },
-    "던전" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Dungeon" } }
-      }
-    },
-    "도감" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Codex" } }
-      }
-    },
-    "돌아가기" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Back" } }
-      }
-    },
-    "닫기" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close" } }
-      }
-    },
-    "디자인 시스템" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Design System" } }
-      }
-    },
-    "레어" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rare" } }
-      }
-    },
-    "레전드" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Legendary" } }
-      }
-    },
-    "마음챙김" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Mindfulness" } }
-      }
-    },
-    "명상" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Meditation" } }
-      }
-    },
-    "모드 변경" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change Mode" } }
-      }
-    },
-    "몬스터" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Monster" } }
-      }
-    },
-    "무기" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Weapon" } }
-      }
-    },
-    "미니게임" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Minigame" } }
-      }
-    },
-    "미보유" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Locked" } }
-      }
-    },
-    "미탐험" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unexplored" } }
-      }
-    },
-    "받기" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Claim" } }
-      }
-    },
-    "방어구" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Armor" } }
-      }
-    },
-    "배경" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Background" } }
-      }
-    },
-    "버리기" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Discard" } }
-      }
-    },
-    "변경" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change" } }
-      }
-    },
-    "보유" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Owned" } }
-      }
-    },
-    "보스" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Boss" } }
-      }
-    },
-    "부적" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Talisman" } }
-      }
-    },
-    "부적으로 만들기" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Make Talisman" } }
-      }
-    },
-    "비어 있음" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Empty" } }
-      }
-    },
-    "사운드 효과" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sound Effects" } }
-      }
-    },
-    "사진" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Photos" } }
-      }
-    },
-    "사진 추가" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add Photo" } }
-      }
-    },
-    "삭제" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } }
-      }
-    },
-    "상점" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shop" } }
-      }
-    },
-    "생산성" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Productivity" } }
-      }
-    },
-    "설정" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } }
-      }
-    },
-    "성공!" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Success!" } }
-      }
-    },
-    "소통" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Connection" } }
-      }
-    },
-    "시작하기" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Get Started" } }
-      }
-    },
-    "식단" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Diet" } }
-      }
-    },
-    "취소" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } }
-      }
-    },
-    "컬렉션" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Collection" } }
-      }
-    },
-    "탐험 시작" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start Expedition" } }
-      }
-    },
-    "플레이" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Playground" } }
-      }
-    },
-    "확인" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirm" } }
-      }
-    },
-    "챌린지" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Challenge" } }
-      }
-    },
-    "완료" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Done" } }
-      }
-    },
-    "운동" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Exercise" } }
-      }
-    },
-    "오늘의 챌린지" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Today's Challenge" } }
-      }
-    },
-    "내일 적용" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Apply Tomorrow" } }
-      }
-    },
-    "개인정보 처리방침" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Privacy Policy" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redraw"
+          }
+        }
       }
     },
     "다시 시도" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Try Again" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        }
+      }
+    },
+    "다음" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
+          }
+        }
+      }
+    },
+    "닫기" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "던전" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dungeon"
+          }
+        }
+      }
+    },
+    "던전 선택" : {
+
+    },
+    "던전에서 만난 몬스터·보스와 얻은 장비가 도감에 기록됩니다." : {
+
+    },
+    "덱에서 카드 6장을 펼쳐\n실천할 %lld장을 골라요" : {
+
+    },
+    "덱이 만들어졌어요.\n이제 매일 카드를 뽑아 갓생을 시작할 차례예요." : {
+
+    },
+    "도감" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex"
+          }
+        }
       }
     },
     "도감 완성!" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Codex Complete!" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex Complete!"
+          }
+        }
+      }
+    },
+    "도감 완성자" : {
+
+    },
+    "돌아가기" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        }
+      }
+    },
+    "드래그해서 카드를 기울여 보세요" : {
+
+    },
+    "디자인 시스템" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Design System"
+          }
+        }
+      }
+    },
+    "레벨업·챌린지 보상으로 받은 카드팩이에요.\n열어서 새 카드를 덱에 추가하세요." : {
+
+    },
+    "레어" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rare"
+          }
+        }
+      }
+    },
+    "레전드" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legendary"
+          }
+        }
+      }
+    },
+    "로그라이크 챌린지 카드로\n매일 갓생을 시작하세요" : {
+
+    },
+    "로그인하면 진행 상황이 클라우드에 저장되어\n기기를 바꿔도 이어집니다" : {
+
+    },
+    "마음챙김" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mindfulness"
+          }
+        }
+      }
+    },
+    "명상" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meditation"
+          }
+        }
+      }
+    },
+    "모드 변경" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Mode"
+          }
+        }
+      }
+    },
+    "몬스터" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monster"
+          }
+        }
+      }
+    },
+    "무기" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weapon"
+          }
+        }
+      }
+    },
+    "미니게임" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minigame"
+          }
+        }
+      }
+    },
+    "미보유" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locked"
+          }
+        }
+      }
+    },
+    "미탐험" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unexplored"
+          }
+        }
+      }
+    },
+    "받기" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claim"
+          }
+        }
+      }
+    },
+    "방어구" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Armor"
+          }
+        }
+      }
+    },
+    "배경" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Background"
+          }
+        }
+      }
+    },
+    "버리기" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard"
+          }
+        }
+      }
+    },
+    "버프 슬롯 %lld개 — 카드를 골라 영웅을 강화하세요" : {
+
+    },
+    "버프 카드 선택 (%lld/%lld)" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "버프 카드 선택 (%1$lld/%2$lld)"
+          }
+        }
+      }
+    },
+    "변경" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
+          }
+        }
+      }
+    },
+    "보스" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boss"
+          }
+        }
+      }
+    },
+    "보유" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Owned"
+          }
+        }
+      }
+    },
+    "보유 장비 (%lld)" : {
+
+    },
+    "보유한 장비가 없어요.\n던전을 탐험하면 장비를 얻을 수 있어요." : {
+
+    },
+    "부적" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talisman"
+          }
+        }
+      }
+    },
+    "부적으로 만들기" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make Talisman"
+          }
+        }
+      }
+    },
+    "비어 있음" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty"
+          }
+        }
+      }
+    },
+    "사운드 효과" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound Effects"
+          }
+        }
+      }
+    },
+    "사진" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos"
+          }
+        }
+      }
+    },
+    "사진 1장 선택" : {
+
+    },
+    "사진 추가" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Photo"
+          }
+        }
+      }
+    },
+    "삭제" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "상점" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shop"
+          }
+        }
+      }
+    },
+    "새 카드 %lld장 해금!" : {
+
+    },
+    "새로 해금할 카드가 없어요" : {
+
+    },
+    "생산성" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Productivity"
+          }
+        }
+      }
+    },
+    "설정" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "성공!" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Success!"
+          }
+        }
+      }
+    },
+    "소통" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection"
+          }
+        }
+      }
+    },
+    "스타터 팩을 골라주세요" : {
+
+    },
+    "스탯" : {
+
+    },
+    "시작" : {
+
+    },
+    "시작하기" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Started"
+          }
+        }
+      }
+    },
+    "식단" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diet"
+          }
+        }
+      }
+    },
+    "실천할 %lld장을 선택하세요" : {
+
+    },
+    "아지트" : {
+
+    },
+    "아직 사진이 없어요.\n챌린지 완료 후 2초 로그를 남기면 카드와 함께 모여요." : {
+
+    },
+    "앨범" : {
+
+    },
+    "영웅 정보" : {
+
+    },
+    "영웅의 수련 성과" : {
+
+    },
+    "영웅이 %@ 동안 수련했어요" : {
+
+    },
+    "영웅이 Lv.30에 도달했어요.\n걸어온 길에 맞는 전문 클래스를 고르세요." : {
+
+    },
+    "오늘 불꽃 켜기" : {
+
+    },
+    "오늘 불꽃이 켜졌어요" : {
+
+    },
+    "오늘의 챌린지" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's Challenge"
+          }
+        }
+      }
+    },
+    "오늘의 챌린지를 모두 끝냈어요.\n추가 챌린지(카드 2장)에 도전할까요?" : {
+
+    },
+    "완료" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "운동" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exercise"
+          }
+        }
+      }
+    },
+    "이 카드들로 시작해요" : {
+
+    },
+    "이전" : {
+
+    },
+    "잠긴 카드" : {
+
+    },
+    "장비" : {
+
+    },
+    "장착" : {
+
+    },
+    "장착 중" : {
+
+    },
+    "전직" : {
+
+    },
+    "준비 완료!" : {
+
+    },
+    "지난주 리포트" : {
+
+    },
+    "참여" : {
+
+    },
+    "챌린지" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Challenge"
+          }
+        }
+      }
+    },
+    "챌린지 완료" : {
+
+    },
+    "챌린지 추가" : {
+
+    },
+    "처음 시작할 카드 묶음이에요" : {
+
+    },
+    "체크인" : {
+
+    },
+    "초대코드" : {
+
+    },
+    "초대코드 %@" : {
+
+    },
+    "초대코드 만들기" : {
+
+    },
+    "최고 F%lld" : {
+
+    },
+    "추가 챌린지 완료!\n슈퍼 챌린지(카드 3장)에 도전할까요?" : {
+
+    },
+    "추천" : {
+
+    },
+    "취소" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "칭호 획득" : {
+
+    },
+    "카드" : {
+
+    },
+    "카드 맞추기" : {
+
+    },
+    "카드 카탈로그" : {
+
+    },
+    "카드팩 %lld개" : {
+
+    },
+    "컬렉션" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collection"
+          }
+        }
+      }
+    },
+    "코인 %lld" : {
+
+    },
+    "코인 +%lld" : {
+
+    },
+    "타이포그래피" : {
+
+    },
+    "탐험 시작" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Expedition"
+          }
+        }
+      }
+    },
+    "탐험 포기" : {
+
+    },
+    "탭하여 완료" : {
+
+    },
+    "티켓 %lld장 — 카드 맞추기" : {
+
+    },
+    "판매 (+%lld 코인)" : {
+
+    },
+    "플레이" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playground"
+          }
+        }
+      }
+    },
+    "픽셀 아이콘 (%lld)" : {
+
+    },
+    "하루에 수행할 카드 수예요 — 설정에서 언제든 바꿀 수 있어요" : {
+
+    },
+    "한 줄 캡션" : {
+
+    },
+    "해제" : {
+
+    },
+    "확인" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm"
+          }
+        }
       }
     }
-
-  }
+  },
+  "version" : "1.0"
 }
