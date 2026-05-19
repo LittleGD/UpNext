@@ -557,6 +557,18 @@ final class GameStore: ObservableObject {
         }
     }
 
+    /// Up Hero 코인으로 카드팩 구매 — 코인 차감(upHero) + 팩 적립(progress).
+    /// full=true 면 레벨업 팩(pendingPacks), false 면 보너스 카드 1장(pendingBonusCards).
+    /// 적립되면 MainTabView 의 syncPackOpener 가 팩 오프너를 띄운다 (기존 배선 재사용).
+    /// 웹 useUpHeroStore.purchaseCardPack.
+    func buyCardPack(full: Bool) {
+        let price = full ? ShopPrices.cardPackFull : ShopPrices.cardPackSmall
+        guard upHero.spendCoins(price) else { return }
+        mutateProgress {
+            if full { $0.pendingPacks += 1 } else { $0.pendingBonusCards += 1 }
+        }
+    }
+
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
 
     static func makeDefaultProgress() -> UserProgress {

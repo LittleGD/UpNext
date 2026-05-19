@@ -38,7 +38,7 @@ private struct CampView: View {
     @State private var screen: CampScreen = .home
 
     /// 아지트 내부 화면 — 웹 CampPlaceholder 의 `view` 상태(home/dungeons/…) 대응.
-    private enum CampScreen { case home, dungeons, equipment }
+    private enum CampScreen { case home, dungeons, equipment, shop }
 
     var body: some View {
         Group {
@@ -54,6 +54,8 @@ private struct CampView: View {
                     DungeonSelectView(onBack: { screen = .home })
                 case .equipment:
                     EquipmentInventoryView(onBack: { screen = .home })
+                case .shop:
+                    ShopView(onBack: { screen = .home })
                 }
             }
         }
@@ -186,8 +188,11 @@ private struct CampView: View {
                         icon: "shield", active: true)
             }
             .buttonStyle(.plain)
-            menuRow(title: "상점", subtitle: "갓생 상점 — 이후 슬라이스",
-                    icon: "bag", active: false)
+            Button { screen = .shop } label: {
+                menuRow(title: "상점", subtitle: "코인으로 카드팩 구매",
+                        icon: "bag", active: true)
+            }
+            .buttonStyle(.plain)
         }
     }
 

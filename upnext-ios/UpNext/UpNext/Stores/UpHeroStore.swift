@@ -282,6 +282,17 @@ final class UpHeroStore: ObservableObject {
             session, optionIndex: optionIndex, rng: &rng)
     }
 
+    // MARK: - 상점 (웹 purchase* 의 코인 차감부)
+
+    /// 코인 차감 — 잔액이 충분하면 차감 후 true, 부족하면 false. 웹 purchase* 공통.
+    /// 구매 품목 지급은 호출부(GameStore.buyCardPack 등)가 담당 — 코인만 여기서.
+    @discardableResult
+    func spendCoins(_ amount: Int) -> Bool {
+        guard state.coins >= amount else { return false }
+        mutate { $0.coins -= amount }
+        return true
+    }
+
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
 
     /// 현재 상태를 디스크에 저장. 상태를 바꾸는 액션이 호출한다 (best-effort).
