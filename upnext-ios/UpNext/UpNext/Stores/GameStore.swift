@@ -43,14 +43,23 @@ final class GameStore: ObservableObject {
     let growth = GrowthStore()
 
     @Published private(set) var progress: UserProgress? {
-        // 설정의 haptic/sound 토글을 헬퍼에 동기 — progress 가 바뀌는 모든
-        // 경로(bootstrap·applyCloudUpdate·mutateProgress·onboarding)에서 자동 반영.
+        // 설정의 haptic/sound 토글을 헬퍼에 동기 + 위젯 상태 publish.
+        // progress 가 바뀌는 모든 경로(bootstrap·applyCloudUpdate·mutateProgress·
+        // onboarding)에서 자동으로 위젯 타임라인이 갱신된다.
         didSet {
             Haptics.enabled = progress?.hapticEnabled ?? true
             SoundPlayer.enabled = progress?.soundEnabled ?? true
+            WidgetSync.publish(progress: progress, daily: daily)
         }
     }
-    @Published private(set) var daily: DailyState?
+    @Published private(set) var daily: DailyState? {
+        // daily 변경 — 위젯 데이터 publish + Live Activity 재조정 (둘 다 idempotent).
+        // 선택 미확정/풀클리어면 활동 종료, 진행 중이면 시작·갱신 — daily 한 곳만 보면 됨.
+        didSet {
+            WidgetSync.publish(progress: progress, daily: daily)
+            WidgetSync.reconcileChallengeActivity(daily: daily)
+        }
+    }
     @Published private(set) var phase: BootPhase = .launching
 
     /// 컬렉션 100% 최초 달성 축하 모달 트리거. openCardPack 에서 켜지고
@@ -84,6 +93,8 @@ final class GameStore: ObservableObject {
             upHero.resetForSignOut()
             sync.setSyncReady(false)
             sync.stopListener()
+            // 위젯·Live Activity 잔여 청소 — 잠금화면에 이전 사용자 데이터가 남지 않게.
+            WidgetSync.endAllActivities()
             phase = .needsSignIn
 
         case let .signedIn(uid, _, _):

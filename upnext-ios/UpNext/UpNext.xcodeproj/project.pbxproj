@@ -21,6 +21,8 @@
 		DD0000000000000000000007 /* Color+Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000005 /* Color+Tokens.swift */; };
 		DD0000000000000000000009 /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000008 /* Typography.swift */; };
 		DD000000000000000000000A /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000008 /* Typography.swift */; };
+		DD000000000000000000000C /* ChallengeActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD000000000000000000000B /* ChallengeActivityAttributes.swift */; };
+		DD000000000000000000000D /* ChallengeActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD000000000000000000000B /* ChallengeActivityAttributes.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,6 +56,7 @@
 		DD0000000000000000000001 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		DD0000000000000000000005 /* Color+Tokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Tokens.swift"; sourceTree = "<group>"; };
 		DD0000000000000000000008 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
+		DD000000000000000000000B /* ChallengeActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeActivityAttributes.swift; sourceTree = "<group>"; };
 		E6B6A0952FB6DEB800E7EA09 /* UpNext.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UpNext.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -121,6 +124,7 @@
 			isa = PBXGroup;
 			children = (
 				DD0000000000000000000001 /* AppConfig.swift */,
+				DD000000000000000000000B /* ChallengeActivityAttributes.swift */,
 				DD0000000000000000000005 /* Color+Tokens.swift */,
 				DD0000000000000000000008 /* Typography.swift */,
 			);
@@ -220,10 +224,13 @@
 				};
 			};
 			buildConfigurationList = E6B6A0902FB6DEB800E7EA09 /* Build configuration list for PBXProject "UpNext" */;
-			developmentRegion = en;
+			developmentRegion = ko;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				ko,
 				en,
+				ja,
+				"zh-Hans",
 				Base,
 			);
 			mainGroup = E6B6A08C2FB6DEB800E7EA09;
@@ -266,6 +273,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DD0000000000000000000003 /* AppConfig.swift in Sources */,
+				DD000000000000000000000D /* ChallengeActivityAttributes.swift in Sources */,
 				DD0000000000000000000007 /* Color+Tokens.swift in Sources */,
 				DD000000000000000000000A /* Typography.swift in Sources */,
 			);
@@ -276,6 +284,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DD0000000000000000000002 /* AppConfig.swift in Sources */,
+				DD000000000000000000000C /* ChallengeActivityAttributes.swift in Sources */,
 				DD0000000000000000000006 /* Color+Tokens.swift in Sources */,
 				DD0000000000000000000009 /* Typography.swift in Sources */,
 			);
@@ -502,6 +511,7 @@
 				DEVELOPMENT_TEAM = L3RY7X2WBC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -536,6 +546,7 @@
 				DEVELOPMENT_TEAM = L3RY7X2WBC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
