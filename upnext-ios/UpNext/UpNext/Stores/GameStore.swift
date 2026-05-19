@@ -108,6 +108,10 @@ final class GameStore: ObservableObject {
             startLiveSync(uid: uid)
             phase = .ready
             bootstrapUpHero()  // 앱 진입 시점에 idle accrual — 웹 useUpHeroStore.initialize
+            // 알림 설정이 켜져 있던 유저면 매일 리마인더를 다시 보장 (재설치·재로그인 대비).
+            NotificationManager.syncDailyReminder(
+                enabled: progress?.notificationsEnabled ?? false,
+                time: progress?.notificationTime ?? "09:00")
 
         case .notFound:
             // 신규 계정 — 온보딩 진입. 기본 상태는 메모리에만 두고, 클라우드 업로드는
@@ -164,8 +168,28 @@ final class GameStore: ObservableObject {
     func setLanguage(_ lang: Language) { mutateProgress { $0.language = lang } }
     func toggleSound() { mutateProgress { $0.soundEnabled.toggle() } }
     func toggleHaptic() { mutateProgress { $0.hapticEnabled.toggle() } }
-    func setNotificationsEnabled(_ enabled: Bool) { mutateProgress { $0.notificationsEnabled = enabled } }
-    func setNotificationTime(_ time: String) { mutateProgress { $0.notificationTime = time } }
+    /// 알림 켜기/끄기. 켤 때는 권한을 요청하고 — 거부되면 토글을 실제 허용 상태로
+    /// 되돌린다 (설정이 OS 권한과 어긋나지 않게). 매일 리마인더도 함께 갱신.
+    func setNotificationsEnabled(_ enabled: Bool) {
+        guard enabled else {
+            mutateProgress { $0.notificationsEnabled = false }
+            NotificationManager.syncDailyReminder(enabled: false, time: "")
+            return
+        }
+        Task {
+            let granted = await NotificationManager.requestAuthorization()
+            mutateProgress { $0.notificationsEnabled = granted }
+            NotificationManager.syncDailyReminder(
+                enabled: granted, time: progress?.notificationTime ?? "09:00")
+        }
+    }
+
+    /// 알림 시각 변경 — 리마인더를 새 시각으로 재예약.
+    func setNotificationTime(_ time: String) {
+        mutateProgress { $0.notificationTime = time }
+        NotificationManager.syncDailyReminder(
+            enabled: progress?.notificationsEnabled ?? false, time: time)
+    }
 
     /// 챌린지 모드 변경 — pendingMode 에 예약 (다음 날부터 적용). 웹 setMode.
     func setMode(_ mode: GameMode) { mutateProgress { $0.pendingMode = mode } }
