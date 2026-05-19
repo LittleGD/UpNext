@@ -12,14 +12,17 @@
 import SwiftUI
 
 struct UpHeroGameView: View {
+    @EnvironmentObject private var upHero: UpHeroStore
+
     var body: some View {
-        // 웹 UpHeroGame 의 currentSession.status 분기 자리.
-        // 슬라이스 19 까지는 세션 진입 경로가 없으므로 항상 아지트.
-        // 던전 뷰(전투)는 전투 슬라이스에서 이 분기에 추가된다.
-        //
+        // 웹 UpHeroGame 의 currentSession 분기 — 세션이 있으면 던전(전투), 없으면 아지트.
         // UpHeroStore 초기화·idle accrual 은 GameStore.bootstrapUpHero 가 앱 부팅
         // 시점(.ready)에 처리한다 — 이 화면 진입과 무관 (idle 은 "앱 닫은 사이" 기준).
-        CampView()
+        if upHero.state.currentSession != nil {
+            DungeonView()
+        } else {
+            CampView()
+        }
     }
 }
 

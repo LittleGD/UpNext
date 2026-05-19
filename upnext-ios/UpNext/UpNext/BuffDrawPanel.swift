@@ -5,8 +5,8 @@
 //  웹 components/uphero/BuffDrawPanel.tsx 포팅. 던전을 고르면 보유 카드에서 6장이
 //  뽑히고(같은 카테고리 2배 가중), 영웅의 버프 슬롯 수만큼 골라 전투를 강화한다.
 //
-//  슬라이스 20 은 드로우 + 선택 UI 까지 — "탐험 시작"(세션 생성·전투)은 다음 슬라이스.
-//  카드 → 버프 효과 변환(getCardBuff / cardBuffs.ts)과 createSession 이 그때 붙는다.
+//  "탐험 시작" → confirmDungeon — 선택 카드를 CardBuffs.getCardBuff 로 버프 변환 후
+//  createSession 으로 전투 세션 생성. 전투 진행(tick·로그)은 다음 슬라이스.
 //
 
 import SwiftUI
@@ -135,18 +135,19 @@ struct BuffDrawPanel: View {
                     .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)
-            // "탐험 시작"(세션 생성 + 전투)은 다음 슬라이스 — 비활성 표기.
-            VStack(spacing: 1) {
+            Button {
+                upHero.confirmDungeon(
+                    selectedCardIds: Array(selectedIds),
+                    gameLevel: store.progress?.level ?? 1)
+            } label: {
                 Text("탐험 시작")
                     .typography(.body)
-                Text("전투 — 다음 슬라이스")
-                    .typography(.micro)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .foregroundStyle(Color.bgPrimary)
+                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .foregroundStyle(Color.textTertiary)
-            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-            .opacity(0.55)
+            .buttonStyle(.plain)
         }
         .padding(16)
     }

@@ -165,6 +165,47 @@ final class UpHeroStore: ObservableObject {
         mutate { $0.pendingDungeon = nil }
     }
 
+    // MARK: - 전투 세션 (웹 confirmDungeon / abandonSession)
+
+    /// 버프 선택 확정 → 전투 세션 생성. 웹 confirmDungeon.
+    /// gameLevel 은 영웅 effective 레벨 산출용 (GameStore.progress.level — 호출부 전달).
+    /// 탐험권(passes) 소비는 패스 경제 슬라이스에서.
+    func confirmDungeon(selectedCardIds: [String], gameLevel: Int) {
+        guard let prep = state.pendingDungeon else { return }
+        let dungeonId = prep.dungeonId
+
+        // 선택 카드 → 버프 (CardBuffs.getCardBuff)
+        let buffs: [CardBuff] = selectedCardIds
+            .compactMap { id in CardCatalog.allCards.first { $0.id == id } }
+            .map(CardBuffs.getCardBuff)
+
+        // 영웅 레벨 성장 반영 + 시작 층 (재진입 체크포인트 +1)
+        let heroLevel = UpHeroRules.getEffectiveHeroLevel(
+            gameLevel: gameLevel, heroStartLevel: state.heroStartLevel)
+        let leveledHero = UpHeroRules.computeHeroForLevel(state.hero, level: heroLevel)
+        let startFloor = (state.dungeons[dungeonId]?.floorReached ?? 0) + 1
+
+        var rng = SystemRandom()
+        let session = UpHeroSession.createSession(
+            dungeonId: dungeonId, hero: leveledHero, startFloor: startFloor,
+            activeBuffs: buffs,
+            options: CreateSessionOptions(
+                ngPlusLevel: state.ngPlusLevel, isWeeklyVariant: nil,
+                weeklyAffixId: nil, heroLevel: heroLevel),
+            rng: &rng)
+
+        mutate {
+            $0.currentSession = session
+            $0.pendingDungeon = nil
+        }
+    }
+
+    /// 탐험 포기 — 현재 세션을 버린다. 웹 abandonSession.
+    /// 결산·층 기록(floorReached 갱신)은 세션 결과 슬라이스에서 — 지금은 세션만 비운다.
+    func abandonSession() {
+        mutate { $0.currentSession = nil }
+    }
+
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
 
     /// 현재 상태를 디스크에 저장. 상태를 바꾸는 액션이 호출한다 (best-effort).
