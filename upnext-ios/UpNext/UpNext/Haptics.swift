@@ -27,7 +27,8 @@ enum Haptics {
 
     /// 설정의 hapticEnabled 와 동기 — GameStore.progress 의 didSet 이 갱신한다.
     /// 기본 true (설정 로드 전에도 무음으로 죽지 않게).
-    static var enabled = true
+    /// @MainActor — UIFeedbackGenerator 가 메인 스레드 전용이라 토글도 메인에서만.
+    @MainActor static var enabled = true
 
     /// 햅틱 발생. enabled=false 면 무음. 메인 스레드 전용 (UIFeedbackGenerator 제약).
     @MainActor
@@ -49,11 +50,14 @@ enum Haptics {
         case .celebration:
             // 상승 3박 — medium → heavy → success. 단발 충격보다 "차오르는" 보상감
             // (Duolingo 식 큰-보상 시퀀스). 웹 celebration(heavy+success)을 강화.
+            // 후속 박자는 enabled 재확인 — 220ms 사이 사용자가 햅틱을 꺼도 즉시 멎게.
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+                guard Haptics.enabled else { return }
                 UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                guard Haptics.enabled else { return }
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
         }

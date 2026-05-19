@@ -109,6 +109,16 @@ enum WidgetSync {
         return "오늘의 도전 완료!"
     }
 
+    /// 일자 키 — 로컬 시간대 기준 "yyyy-MM-dd" (KST 사용자의 자정~오전 9시에 UTC 가
+    /// 전날인 경계 버그 방지). DateFormatter 는 호출마다 만들면 비싸서 캐시.
+    private static let dayKeyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = .current
+        f.locale = Locale(identifier: "en_US_POSIX")  // 형식 안정 (사용자 로케일 무관)
+        return f
+    }()
+
     // MARK: - Live Activity 재조정 (daily 상태 기준 idempotent 동기화)
 
     /// 현재 daily 상태에 맞춰 Live Activity 를 시작·갱신·종료한다 (idempotent).
@@ -142,12 +152,13 @@ enum WidgetSync {
         let next = selected.first(where: { !completedSet.contains($0.id) })
         // 선택 미확정 또는 페이즈 풀클리어 → 종료.
         guard selectionDone, let card = next else { endChallengeActivity(); return }
-        // 페이즈 단위 ID — 페이즈 전환 시 새 활동으로 시작.
-        let dayKey = ISO8601DateFormatter().string(from: Date()).prefix(10)
+        // 페이즈 단위 ID — 페이즈 전환 시 새 활동으로 시작. 로컬 시간대 기준이라
+        // KST 사용자의 자정~09시에도 같은 "오늘"로 유지된다 (UTC 기준이면 mid-day 점프).
+        let dayKey = dayKeyFormatter.string(from: Date())
         let challengeId = "daily-\(dayKey)-\(d.challengePhase.rawValue)"
         let existing = AppConfig.sharedDefaults?.string(forKey: existingChallengeIdKey)
         if existing == challengeId {
-            updateChallengeActivity(title: card.title)
+            updateChallengeActivity(challengeId: challengeId, title: card.title)
         } else {
             startChallengeActivity(challengeId: challengeId, title: card.title)
         }
@@ -186,14 +197,22 @@ enum WidgetSync {
         }
     }
 
-    /// 진행 중인 활동의 제목·만료를 갱신 (예: 다음 챌린지로 포커스 이동).
-    /// 활동이 없으면 no-op.
-    static func updateChallengeActivity(title: String, hoursUntilExpiry: Double = 4) {
+    /// 진행 중인 활동의 제목·만료를 갱신. 시스템이 활동을 이미 종료했으면 (8시간
+    /// 만료·메모리 압박) UserDefaults 의 활동 ID 가 stale — 그땐 새로 시작한다.
+    /// challengeId 인자가 필요한 이유: 재시작 fallback 시 attributes 가 필요해서.
+    static func updateChallengeActivity(challengeId: String, title: String,
+                                        hoursUntilExpiry: Double = 4) {
         guard #available(iOS 16.1, *) else { return }
-        guard let id = AppConfig.sharedDefaults?.string(forKey: activityIdKey),
-              let activity = Activity<ChallengeActivityAttributes>.activities
-                .first(where: { $0.id == id })
-        else { return }
+        let live = AppConfig.sharedDefaults?.string(forKey: activityIdKey)
+            .flatMap { id in
+                Activity<ChallengeActivityAttributes>.activities.first { $0.id == id }
+            }
+        guard let activity = live else {
+            // 활동이 죽었음 — 새로 시작 (잠금화면에 다시 보이게).
+            startChallengeActivity(challengeId: challengeId, title: title,
+                                   hoursUntilExpiry: hoursUntilExpiry)
+            return
+        }
         let newState = ChallengeActivityAttributes.ContentState(
             title: title,
             expiresAt: Date().addingTimeInterval(hoursUntilExpiry * 3600))

@@ -39,7 +39,8 @@ final class SoundPlayer {
     static let shared = SoundPlayer()
 
     /// 설정의 soundEnabled 와 동기 — GameStore.progress 의 didSet 이 갱신.
-    static var enabled = true
+    /// @MainActor — AVAudioEngine 호출이 메인 스레드 가정이라 토글도 메인에서만.
+    @MainActor static var enabled = true
 
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
