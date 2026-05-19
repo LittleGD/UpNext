@@ -229,6 +229,7 @@ final class GameStore: ObservableObject {
             applyDraw(&d, drawn: drawn)
             d.isDrawComplete = true
         }
+        Haptics.play(.light)
     }
 
     /// 리롤 — 하루 1회, 선택 미확정 시. 웹 rerollCards.
@@ -241,6 +242,7 @@ final class GameStore: ObservableObject {
             applyDraw(&d, drawn: drawn)
             d.rerollUsed = true
         }
+        Haptics.play(.medium)
     }
 
     /// 드로우 결과 반영 — 패널티 시 6장 중 1장 랜덤 잠금 + 자동 선택. drawDailyCards/rerollCards 공통.
@@ -268,6 +270,7 @@ final class GameStore: ObservableObject {
         guard let current = daily else { return }
         guard !current.isSelectionComplete, current.penaltyCardId != cardId else { return }
         mutateDaily { $0.selectedCards.removeAll { $0.id == cardId } }
+        Haptics.play(.selection)
     }
 
     /// 선택 확정 — mode 장수와 정확히 일치할 때만. 웹 confirmSelection.
@@ -352,6 +355,7 @@ final class GameStore: ObservableObject {
         guard let d = daily, !d.selectedCards.isEmpty,
               d.completedIds.count >= d.selectedCards.count else { return }
         mutateDaily { $0.challengePhase = .extra }
+        Haptics.play(.medium)
     }
 
     /// 슈퍼 챌린지 시작 — extra 풀클리어 후. 웹 startSuperChallenge.
@@ -359,6 +363,7 @@ final class GameStore: ObservableObject {
         guard let d = daily, !d.extraSelectedCards.isEmpty,
               d.extraCompletedIds.count >= d.extraSelectedCards.count else { return }
         mutateDaily { $0.challengePhase = .`super` }
+        Haptics.play(.medium)
     }
 
     /// 현재 페이즈에 6장 드로우. daily 면 drawDailyCards 로 위임. 웹 drawPhaseCards.
@@ -386,6 +391,7 @@ final class GameStore: ObservableObject {
                     dd.superDrawComplete = true
                 }
             }
+            Haptics.play(.light)
         }
     }
 
@@ -399,10 +405,12 @@ final class GameStore: ObservableObject {
             guard d.extraSelectedCards.count < ChallengePhase.extra.cardCount,
                   !d.extraSelectedCards.contains(where: { $0.id == card.id }) else { return }
             mutateDaily { $0.extraSelectedCards.append(card) }
+            Haptics.play(.selection)
         case .`super`:
             guard d.superSelectedCards.count < ChallengePhase.`super`.cardCount,
                   !d.superSelectedCards.contains(where: { $0.id == card.id }) else { return }
             mutateDaily { $0.superSelectedCards.append(card) }
+            Haptics.play(.selection)
         }
     }
 
@@ -415,9 +423,11 @@ final class GameStore: ObservableObject {
         case .extra:
             guard !d.extraSelectionComplete else { return }
             mutateDaily { $0.extraSelectedCards.removeAll { $0.id == cardId } }
+            Haptics.play(.selection)
         case .`super`:
             guard !d.superSelectionComplete else { return }
             mutateDaily { $0.superSelectedCards.removeAll { $0.id == cardId } }
+            Haptics.play(.selection)
         }
     }
 
@@ -430,9 +440,11 @@ final class GameStore: ObservableObject {
         case .extra:
             guard d.extraSelectedCards.count >= ChallengePhase.extra.cardCount else { return }
             mutateDaily { $0.extraSelectionComplete = true }
+            Haptics.play(.medium)
         case .`super`:
             guard d.superSelectedCards.count >= ChallengePhase.`super`.cardCount else { return }
             mutateDaily { $0.superSelectionComplete = true }
+            Haptics.play(.medium)
         }
     }
 
@@ -469,12 +481,14 @@ final class GameStore: ObservableObject {
             p.pendingBonusCards += 1
             p.tickets = min(GameConstants.minigameTicketCap, p.tickets + 1)
         }
-        p = GameRules.normalizeXpLevel(p).progress
+        let normalized = GameRules.normalizeXpLevel(p)
+        p = normalized.progress
 
         progress = p
         daily = d
         sync.syncProgress(p)
         sync.syncDaily(d)
+        Haptics.play(normalized.levelsGained > 0 ? .celebration : .success)
     }
 
     // MARK: - 카드팩 개봉 (웹 useGameStore openCardPack)
@@ -581,6 +595,7 @@ final class GameStore: ObservableObject {
         mutateProgress {
             if full { $0.pendingPacks += 1 } else { $0.pendingBonusCards += 1 }
         }
+        Haptics.play(.success)
     }
 
     // MARK: - 미니게임 (웹 useMinigameStore — 티켓 소비 / 보상)
@@ -590,6 +605,7 @@ final class GameStore: ObservableObject {
     func startMinigame() -> Bool {
         guard (progress?.tickets ?? 0) > 0 else { return false }
         mutateProgress { $0.tickets -= 1 }
+        Haptics.play(.light)
         return true
     }
 
@@ -600,6 +616,7 @@ final class GameStore: ObservableObject {
             $0.xp += 30
             $0.level = GameRules.normalizeXpLevel($0).progress.level
         }
+        Haptics.play(.celebration)
     }
 
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)

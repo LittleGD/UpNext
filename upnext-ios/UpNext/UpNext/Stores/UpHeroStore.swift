@@ -106,6 +106,7 @@ final class UpHeroStore: ObservableObject {
             }
             s.hero.equipped[item.type] = item
         }
+        Haptics.play(.selection)
     }
 
     /// 슬롯의 장비를 해제해 인벤토리로 되돌린다. 웹 unequipItem.
@@ -115,6 +116,7 @@ final class UpHeroStore: ObservableObject {
             s.hero.equipped[slot] = nil
             s.inventory.append(item)
         }
+        Haptics.play(.selection)
     }
 
     /// 인벤토리 장비 판매 — 등급별 코인 환급. 반환: 환급액(없으면 0). 웹 sellItem.
@@ -126,6 +128,7 @@ final class UpHeroStore: ObservableObject {
             s.inventory.removeAll { $0.id == itemId }
             s.coins += refund
         }
+        Haptics.play(.light)
         return refund
     }
 
@@ -134,6 +137,7 @@ final class UpHeroStore: ObservableObject {
         mutate { s in
             s.inventory.removeAll { $0.id == itemId }
         }
+        Haptics.play(.light)
     }
 
     /// 상태 변경 + 발행 + 로컬 영속화 — 상태를 바꾸는 Up Hero 액션의 공통 경로.
@@ -198,6 +202,7 @@ final class UpHeroStore: ObservableObject {
             $0.currentSession = session
             $0.pendingDungeon = nil
         }
+        Haptics.play(.medium)  // 탐험 출발
     }
 
     /// 탐험 포기 — 세션을 .completed(heroAbandoned)로 종료시킨다. 웹 abandonSession.
@@ -252,6 +257,7 @@ final class UpHeroStore: ObservableObject {
     /// 건너뛴다 — 매 tick 파일 쓰기 방지.
     func advanceCombat() {
         guard var session = state.currentSession else { return }
+        let wasOngoing = session.status != .completed
         var rng = SystemRandom()
         switch session.status {
         case .active:
@@ -268,6 +274,10 @@ final class UpHeroStore: ObservableObject {
             session = UpHeroSession.resolveMinigame(session, success: true, rng: &rng)
         case .completed:
             return
+        }
+        // 이번 스텝에 탐험이 끝났으면 결산 햅틱 (매 tick 이 아니라 종료 1회).
+        if wasOngoing, session.status == .completed {
+            Haptics.play(.success)
         }
         state.currentSession = session
     }
@@ -305,6 +315,7 @@ final class UpHeroStore: ObservableObject {
             s.hero.classType = classType
             s.currentSession?.hero.classType = classType
         }
+        Haptics.play(.celebration)  // 전직 — 큰 분기 순간
     }
 
     // MARK: - 사진 부적 (웹 PhotoTalisman)
@@ -322,6 +333,7 @@ final class UpHeroStore: ObservableObject {
             enhanceLevel: nil, enhanceFailStreak: nil,
             affix: nil, affixes: nil, talismanSkills: nil)
         mutate { $0.inventory.append(talisman) }
+        Haptics.play(.success)
     }
 
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])

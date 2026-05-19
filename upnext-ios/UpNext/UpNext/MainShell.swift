@@ -168,6 +168,7 @@ struct BottomNav: View {
         HStack(spacing: 4) {
             ForEach(MainTab.allCases, id: \.self) { tab in
                 Button {
+                    if selected != tab { Haptics.play(.selection) }
                     selected = tab
                 } label: {
                     HStack(spacing: 6) {

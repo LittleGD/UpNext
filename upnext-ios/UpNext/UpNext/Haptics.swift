@@ -9,7 +9,11 @@
 //   - selection   : UISelectionFeedbackGenerator — 가벼운 선택/탐색
 //   - light/medium/heavy : UIImpactFeedbackGenerator — 물리 이벤트 (강도 3단)
 //   - success/warning    : UINotificationFeedbackGenerator — 완료 / 부정 이벤트
-//   - celebration : Heavy 충격 + 110ms 후 Success — 레벨업 등 "큰 보상" 컴파운드
+//   - celebration : medium→heavy→success 상승 3박 컴파운드 — 레벨업 등 "큰 보상"
+//
+//  설계 참고 — Duolingo: 햅틱을 거의 모든 의미있는 인터랙션에 촘촘히 깔고(선택·
+//  확정·완료), 큰 보상은 단발이 아닌 상승형 시퀀스로 준다. 그 결을 따라 카드 선택·
+//  취소·리롤·전직·구매·미니게임 매치·탭 전환까지 폭넓게 배선한다.
 //
 
 import UIKit
@@ -43,9 +47,13 @@ enum Haptics {
         case .warning:
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
         case .celebration:
-            // Heavy 충격 → 110ms 후 Success. "꽝!" 다음 "팡팡" 패턴. 웹 celebration.
-            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.11) {
+            // 상승 3박 — medium → heavy → success. 단발 충격보다 "차오르는" 보상감
+            // (Duolingo 식 큰-보상 시퀀스). 웹 celebration(heavy+success)을 강화.
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
         }
