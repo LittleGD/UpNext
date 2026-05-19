@@ -39,6 +39,9 @@ final class GameStore: ObservableObject {
     /// Up Hero RPG 스토어 — 함께 소유하고 환경 객체로 노출 (Phase 4.4).
     let upHero = UpHeroStore()
 
+    /// Growth(인증 사진) 스토어 — 함께 소유하고 환경 객체로 노출 (Phase 4.5).
+    let growth = GrowthStore()
+
     @Published private(set) var progress: UserProgress?
     @Published private(set) var daily: DailyState?
     @Published private(set) var phase: BootPhase = .launching

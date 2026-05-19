@@ -16,6 +16,10 @@ struct CollectionView: View {
     @State private var filter: CardFilter = .all
     /// 탭한 해금 카드 — 값이 있으면 상세 모달이 sheet 로 뜬다.
     @State private var selectedCard: ChallengeCard?
+    /// 카드 도감 / 인증 사진 앨범 탭.
+    @State private var tab: CollectionTab = .cards
+
+    enum CollectionTab { case cards, album }
 
     enum CardFilter: CaseIterable {
         case all, owned, unowned
@@ -29,8 +33,47 @@ struct CollectionView: View {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+            tabSwitcher
+            if tab == .cards {
+                cardCollection
+            } else {
+                AlbumView()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.bgPrimary)
+        .sheet(item: $selectedCard) { card in
+            CardDetailModal(card: card)
+        }
+    }
+
+    /// 카드 도감 / 앨범 탭 전환.
+    private var tabSwitcher: some View {
+        HStack(spacing: 8) {
+            ForEach([CollectionTab.cards, .album], id: \.self) { t in
+                Button { tab = t } label: {
+                    Text(t == .cards ? "카드" : "앨범")
+                        .typography(.caption)
+                        .foregroundStyle(tab == t ? Color.bgPrimary : Color.textTertiary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 7)
+                        .background(tab == t ? Color.textPrimary : Color.bgSurface,
+                                    in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+    /// 카드 도감 (기존 컬렉션 그리드).
+    private var cardCollection: some View {
         let unlocked = Set(store.progress?.unlockedCardIds ?? [])
-        ScrollView {
+        return ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 statsHeader(unlocked)
                 filterRow
@@ -40,11 +83,6 @@ struct CollectionView: View {
             }
             .padding(16)
             .padding(.bottom, 88)  // 하단 플로팅 네비 여유
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
-        .sheet(item: $selectedCard) { card in
-            CardDetailModal(card: card)
         }
     }
 
