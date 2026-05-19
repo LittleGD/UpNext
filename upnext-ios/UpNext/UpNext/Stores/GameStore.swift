@@ -572,6 +572,25 @@ final class GameStore: ObservableObject {
         }
     }
 
+    // MARK: - 미니게임 (웹 useMinigameStore — 티켓 소비 / 보상)
+
+    /// 미니게임 시작 — 티켓 1장 소비. 티켓이 없으면 false. 웹 미니게임 진입.
+    @discardableResult
+    func startMinigame() -> Bool {
+        guard (progress?.tickets ?? 0) > 0 else { return false }
+        mutateProgress { $0.tickets -= 1 }
+        return true
+    }
+
+    /// 미니게임 성공 보상 — XP. 웹은 카드 드래프트 보상이나 condensed:
+    /// XP 로 단순화 (보너스 카드면 팩 오프너가 미니게임 시트 위로 중첩되는 문제 회피).
+    func awardMinigameWin() {
+        mutateProgress {
+            $0.xp += 30
+            $0.level = GameRules.normalizeXpLevel($0).progress.level
+        }
+    }
+
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
 
     static func makeDefaultProgress() -> UserProgress {

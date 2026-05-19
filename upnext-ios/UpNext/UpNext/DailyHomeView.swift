@@ -19,6 +19,8 @@ struct DailyHomeView: View {
     @EnvironmentObject private var store: GameStore
     @State private var confirmCard: ChallengeCard?
     @State private var confirmStartPhase: ChallengePhase?
+    /// 미니게임 시트 — startMinigame() 으로 티켓 소비 성공 시 true.
+    @State private var showMinigame = false
 
     var body: some View {
         Group {
@@ -56,6 +58,9 @@ struct DailyHomeView: View {
             Text(phase == .extra
                  ? "오늘의 챌린지를 모두 끝냈어요.\n추가 챌린지(카드 2장)에 도전할까요?"
                  : "추가 챌린지 완료!\n슈퍼 챌린지(카드 3장)에 도전할까요?")
+        }
+        .sheet(isPresented: $showMinigame) {
+            MinigameView()
         }
     }
 
@@ -240,9 +245,44 @@ struct DailyHomeView: View {
                         boardCard(card, completed: s.completedIds.contains(card.id))
                     }
                 }
+                minigameEntry
             }
             .padding(20)
             .padding(.bottom, 88)
+        }
+    }
+
+    /// 미니게임 진입 — 티켓 보유 시에만 노출. 탭 → 티켓 소비 후 시트.
+    @ViewBuilder
+    private var minigameEntry: some View {
+        let tickets = store.progress?.tickets ?? 0
+        if tickets > 0 {
+            Button {
+                if store.startMinigame() { showMinigame = true }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "gamecontroller")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color.accentPrimary)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("미니게임")
+                            .typography(.body)
+                            .foregroundStyle(Color.textPrimary)
+                        Text("티켓 \(tickets)장 — 카드 맞추기")
+                            .typography(.micro)
+                            .foregroundStyle(Color.textTertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.textTertiary)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity)
+                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
         }
     }
 
