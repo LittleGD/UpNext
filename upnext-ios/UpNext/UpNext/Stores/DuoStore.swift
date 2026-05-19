@@ -198,17 +198,18 @@ final class DuoStore: ObservableObject {
 
     func publishCheckIn(date: String) {
         guard let uid, let duo = activeDuo else { return }
-        var checkIns = duo.checkIns
-        var days = checkIns[uid, default: []]
-        if !days.contains(date) {
-            days.append(date)
-            days = Array(days.sorted().suffix(60))
-            checkIns[uid] = days
-            db.collection("duos").document(duo.id).setData([
-                "checkIns": checkIns,
-                "updatedAt": UpHeroStore.nowMillis(),
-            ], merge: true)
-        }
+        // dot-path 업데이트 + arrayUnion — 본인 키만 atomic 으로 변경.
+        // 이전 read-modify-write 패턴은 인메모리 snapshot 을 베이스로 setData(merge:)
+        // 하다 보니 파트너가 같은 순간에 체크인하면 (리스너 콜백이 read 와 write 사이
+        // fire) 파트너 체크인이 sliced suffix 에서 사라지는 race 가 있었음. arrayUnion
+        // 은 Firestore 서버측에서 중복 제거 + 원자 병합을 보장하므로 race 발생 안 함.
+        //
+        // 60일 cap 은 여기서 강제하지 않음 — 한 op 안에 trim 까지 넣으면 다시 race.
+        // 듀오 실험 수명상 array 가 폭주할 가능성 낮고, 필요 시 별도 정리 path 로 분리.
+        db.collection("duos").document(duo.id).updateData([
+            "checkIns.\(uid)": FieldValue.arrayUnion([date]),
+            "updatedAt": UpHeroStore.nowMillis(),
+        ])
     }
 
     private func observeActiveDuo() {

@@ -34,21 +34,56 @@ service cloud.firestore {
         && request.resource.data.createdAt is int
         && request.resource.data.updatedAt is int;
 
+      // update 는 3개 분기로 한정 — 그 외 모두 거부.
+      //
+      //   A) 솔로(size 1) → 듀오(size 2) join: 기존 멤버 보존 + 자신 추가만.
+      //      → 임의 사용자가 duoId 만 알고 솔로를 강탈하는 케이스 차단.
+      //   B) 기존 멤버 update: memberIds 불변 + checkIns/memberNames 의 *본인 키만* mutate.
+      //      → 파트너의 checkIns/displayName 위조 차단 (diff().affectedKeys() 로).
+      //   C) self leave: 본인을 memberIds 에서 제외 + 본인 키 정리. 나머지 멤버 데이터 보존.
+      //
+      //   공통: createdAt 불변, updatedAt 은 int, checkIns/memberNames 는 map 이고
+      //   size <= 2, 허용 키만 (hasOnly).
       allow update: if signedIn()
-        && (
-          request.auth.uid in resource.data.memberIds
-          || (
-            resource.data.memberIds.size() == 1
-            && request.resource.data.memberIds.size() == 2
-            && request.auth.uid in request.resource.data.memberIds
-          )
-        )
         && request.resource.data.keys().hasOnly(['memberIds', 'memberNames', 'checkIns', 'createdAt', 'updatedAt'])
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt is int
         && request.resource.data.memberIds is list
         && request.resource.data.memberIds.size() <= 2
         && request.resource.data.memberNames is map
+        && request.resource.data.memberNames.size() <= 2
         && request.resource.data.checkIns is map
-        && request.resource.data.updatedAt is int;
+        && request.resource.data.checkIns.size() <= 2
+        && (
+          // A) join — 기존 솔로 멤버 보존 + 신규 멤버 자신만 추가.
+          (
+            resource.data.memberIds.size() == 1
+            && request.resource.data.memberIds.size() == 2
+            && resource.data.memberIds[0] in request.resource.data.memberIds
+            && request.auth.uid in request.resource.data.memberIds
+            && request.auth.uid != resource.data.memberIds[0]
+            && request.resource.data.memberNames[request.auth.uid] is string
+            && request.resource.data.memberNames[request.auth.uid].size() > 0
+            && request.resource.data.memberNames[request.auth.uid].size() <= 40
+            && request.resource.data.checkIns.diff(resource.data.checkIns).affectedKeys().hasOnly([request.auth.uid])
+            && request.resource.data.memberNames.diff(resource.data.memberNames).affectedKeys().hasOnly([request.auth.uid])
+          )
+          // B) 기존 멤버 — memberIds 불변, 본인 키만 변경.
+          || (
+            request.auth.uid in resource.data.memberIds
+            && request.resource.data.memberIds == resource.data.memberIds
+            && request.resource.data.checkIns.diff(resource.data.checkIns).affectedKeys().hasOnly([request.auth.uid])
+            && request.resource.data.memberNames.diff(resource.data.memberNames).affectedKeys().hasOnly([request.auth.uid])
+          )
+          // C) self leave — 본인 제거 + 본인 키 청소. 다른 멤버 데이터 그대로.
+          || (
+            request.auth.uid in resource.data.memberIds
+            && !(request.auth.uid in request.resource.data.memberIds)
+            && request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1
+            && request.resource.data.checkIns.diff(resource.data.checkIns).affectedKeys().hasOnly([request.auth.uid])
+            && request.resource.data.memberNames.diff(resource.data.memberNames).affectedKeys().hasOnly([request.auth.uid])
+          )
+        );
 
       allow delete: if false;
     }
@@ -67,6 +102,11 @@ service cloud.firestore {
         && request.resource.data.expiresAt > request.resource.data.createdAt
         && request.resource.data.status == 'open';
 
+      // update 는 2개 분기로 한정 — 그 외 모두 거부.
+      //   - createdBy: 자기 invite 를 자유롭게 close/joined 마킹.
+      //   - 비-createdBy(코드로 join 하는 사용자): open → joined 전환만.
+      //   → 임의 사용자가 다른 사람 invite 를 closed 로 만드는 griefing 차단.
+      //   공통: 모든 불변 필드 보존, status 는 알려진 enum 만.
       allow update: if signedIn()
         && resource.data.status == 'open'
         && request.resource.data.keys().hasOnly(['code', 'duoId', 'createdBy', 'createdAt', 'expiresAt', 'status'])
@@ -75,7 +115,14 @@ service cloud.firestore {
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.expiresAt == resource.data.expiresAt
-        && request.resource.data.status in ['open', 'joined', 'closed'];
+        && request.resource.data.status in ['open', 'joined', 'closed']
+        && (
+          request.auth.uid == resource.data.createdBy
+          || (
+            request.auth.uid != resource.data.createdBy
+            && request.resource.data.status == 'joined'
+          )
+        );
 
       allow delete: if false;
     }
