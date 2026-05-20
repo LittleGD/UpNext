@@ -1,7 +1,11 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# docs (local Obsidian notes)
-/docs
+# docs — 기본 ignored (Obsidian 로컬 노트). 회복 인프라(fidelity)는 화이트리스트로 commit.
+/docs/*
+!/docs/fidelity-grid.md
+!/docs/fidelity/
+# 캡처 결과는 CI 산출물이라 commit 안 함 (artifacts 로 업로드)
+/docs/fidelity/[0-9]*/
 
 # Claude Code local workspace (launch configs, permissions, worktrees)
 /.claude/

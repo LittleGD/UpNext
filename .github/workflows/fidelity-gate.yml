@@ -1,0 +1,165 @@
+name: Fidelity Gate
+
+# R7 (회귀 차단 CI 게이트) — PR 이 영향 주는 fidelity-grid 행 의 score 가 baseline 보다
+# 떨어지면 머지 차단. main 머지 시 새 score 가 baseline 으로 lock.
+#
+# 풀 캡처 (24행) 는 nightly 만 — PR 은 변경 파일에서 영향 받는 행만 재캡처.
+# 시각/모션 비교는 macOS runner 필요 (Xcode + 시뮬레이터). 사운드 diff 는 ubuntu 가능.
+
+on:
+  pull_request:
+    paths:
+      - "upnext-ios/**"
+      - "src/**"
+      - "scripts/fidelity/**"
+      - "docs/fidelity-grid.md"
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 18 * * *"  # daily 03:00 KST 풀 캡처
+
+jobs:
+  icon-audit:
+    name: SF Symbol allowlist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run icon audit
+        run: ./scripts/fidelity/icon-audit.sh
+
+  fidelity-pr:
+    name: Fidelity diff (PR-scope)
+    runs-on: macos-14
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Detect affected rows
+        id: affected
+        run: |
+          # 변경 파일 → 영향 받는 fidelity-grid 행 ID 매핑.
+          # 매핑 규칙은 scripts/fidelity/affected-rows.sh 에 있음 (TODO: 작성).
+          # 우선 placeholder — 모든 PR 이 1~5번 행 (auth/onboarding) 대상.
+          echo "rows=01 02 03 04 05" >> $GITHUB_OUTPUT
+
+      - name: Setup deps
+        run: |
+          brew install ffmpeg jq
+          pip3 install pixelmatch Pillow librosa numpy
+          npm i -g playwright
+          playwright install chromium
+
+      - name: Build iOS
+        run: |
+          cd upnext-ios/UpNext
+          xcodebuild -project UpNext.xcodeproj -scheme UpNext \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -derivedDataPath /tmp/upnext-build build
+
+      - name: Start web
+        run: |
+          npm ci
+          npm run dev &
+          sleep 8
+
+      - name: Boot simulator + install
+        run: |
+          xcrun simctl boot "iPhone 17" || true
+          xcrun simctl install booted \
+            /tmp/upnext-build/Build/Products/Debug-iphonesimulator/UpNext.app
+
+      - name: Capture affected rows
+        run: |
+          for row in ${{ steps.affected.outputs.rows }}; do
+            ./scripts/fidelity/snapshot-pair.sh "$row" || echo "row $row capture failed"
+          done
+
+      - name: Compute fidelity diff
+        id: diff
+        run: |
+          set +e
+          OUTPUT=$(python3 scripts/fidelity/fidelity-diff.py --all)
+          EXIT=$?
+          echo "$OUTPUT" | tee /tmp/fidelity-report.md
+          echo "exit=$EXIT" >> $GITHUB_OUTPUT
+          # PR comment 본문
+          {
+            echo 'comment<<EOF'
+            echo '### Fidelity Gate'
+            echo ''
+            echo '```'
+            cat /tmp/fidelity-report.md
+            echo '```'
+            echo ''
+            if [ "$EXIT" -eq 0 ]; then
+              echo '✓ 모든 영향 행 score ≥ 8.0 — 머지 가능'
+            else
+              echo '✗ 일부 행 score < 8.0 — **머지 차단**. fidelity-grid 행 확인.'
+            fi
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+          exit $EXIT
+
+      - name: Post PR comment
+        if: always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: ${{ steps.diff.outputs.comment }}
+
+      - name: Upload captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fidelity-captures
+          path: docs/fidelity/
+
+  fidelity-nightly:
+    name: Fidelity nightly (full 24 rows)
+    runs-on: macos-14
+    if: github.event_name == 'schedule' || github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup deps
+        run: |
+          brew install ffmpeg jq
+          pip3 install pixelmatch Pillow librosa numpy
+          npm i -g playwright
+          playwright install chromium
+
+      - name: Build iOS
+        run: |
+          cd upnext-ios/UpNext
+          xcodebuild -project UpNext.xcodeproj -scheme UpNext \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -derivedDataPath /tmp/upnext-build build
+
+      - name: Start web
+        run: |
+          npm ci
+          npm run dev &
+          sleep 8
+
+      - name: Boot + install
+        run: |
+          xcrun simctl boot "iPhone 17" || true
+          xcrun simctl install booted \
+            /tmp/upnext-build/Build/Products/Debug-iphonesimulator/UpNext.app
+
+      - name: Capture 24 rows
+        run: |
+          for i in $(seq -w 1 24); do
+            ./scripts/fidelity/snapshot-pair.sh "$i" || true
+          done
+
+      - name: Update baseline (main only)
+        if: github.event_name == 'push'
+        run: |
+          python3 scripts/fidelity/fidelity-diff.py --all > /tmp/baseline.txt
+          # TODO: fidelity-grid.md 의 score 컬럼 자동 갱신 (별도 스크립트 작성 필요)
+
+      - name: Upload nightly captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: fidelity-nightly-${{ github.run_id }}
+          path: docs/fidelity/
