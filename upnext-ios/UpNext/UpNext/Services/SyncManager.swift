@@ -152,14 +152,14 @@ final class SyncManager: ObservableObject {
     }
 
     private func enqueue(_ mutate: () -> Void) {
-        guard currentUid != nil, !isUpdatingFromCloud, isSyncReady else { return }
+        guard let queuedUid = currentUid, !isUpdatingFromCloud, isSyncReady else { return }
         mutate()
         hasLocalPendingWrite = true
         debounceTask?.cancel()
         debounceTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 300_000_000)  // 300ms 디바운스
             guard !Task.isCancelled else { return }
-            await self?.flushSync()
+            await self?.flushSync(expectedUid: queuedUid)
         }
     }
 
@@ -167,8 +167,22 @@ final class SyncManager: ObservableObject {
         pendingProgress != nil || pendingDaily != nil || pendingRetention != nil || pendingOnboarding != nil
     }
 
-    private func flushSync() async {
+    /// `expectedUid` 는 enqueue 시점의 uid — 디바운스 300ms 동안 로그아웃→재로그인이
+    /// 발생하면 `currentUid` 가 새 사용자 uid 로 바뀐다. 이 경우 *이전 사용자의 pending
+    /// write 가 새 사용자 문서에 기록되는 cross-account corruption* 을 방지하기 위해
+    /// uid 가 바뀌었으면 pending 을 통째로 폐기. retry/scheduleRetry 경로는 currentUid
+    /// 그대로 사용 (이전 사용자가 다시 로그인해 재시도하는 의미 있는 케이스).
+    private func flushSync(expectedUid: String? = nil) async {
         guard let uid = currentUid else { hasLocalPendingWrite = false; return }
+        if let expectedUid, expectedUid != uid {
+            // 계정 전환 — 이전 사용자 pending 폐기.
+            pendingProgress = nil
+            pendingDaily = nil
+            pendingRetention = nil
+            pendingOnboarding = nil
+            hasLocalPendingWrite = false
+            return
+        }
         // 전송분을 스냅샷으로 떠내고 pending 슬롯을 await 전에 즉시 비운다.
         //   await(setData) 중 도착하는 새 enqueue 는 비워진 슬롯에 쌓여 다음 flush 대상이
         //   되며, in-flight write 의 완료 처리가 그 새 값을 덮어쓰지 않는다 (데이터 유실 방지).
@@ -277,7 +291,10 @@ final class SyncManager: ObservableObject {
                     "lastDeviceId": Self.deviceId(),
                 ],
             ]
-            try await docRef.setData(payload)
+            // merge: true — `notFound` 경로(신규 계정) 에선 효과 동일하나, 다른 기기가
+            // getCloudData ↔ setData 사이에 fields 를 써넣은 경우 그 fields 를 보존한다
+            // (no-merge 면 통째 덮어쓰기 = 데이터 손실).
+            try await docRef.setData(payload, merge: true)
             status = .synced
         } catch {
             status = .error("업로드 실패: \(error.localizedDescription)")

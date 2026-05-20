@@ -14,10 +14,21 @@ enum GameRules {
 
     // MARK: - XP 커브
 
+    /// XP / 레벨 상한 — Int 오버플로 방어선.
+    ///  - `totalXPForLevel(level)` 가 `level * (80 + 20·level)` 라 level² 스케일.
+    ///  - Int 64bit 에선 level ≈ 3.27e9 부터 오버플로 — Swift 는 trap → 앱 크래시.
+    ///  - 실용적 게임 한도(Lv 100)의 1000배인 9999 를 상한으로 잡고, 손상 Firestore
+    ///    데이터(과거 버그/악성 클라이언트)가 이 경로를 타도 크래시 대신 cap 으로 종료.
+    static let maxLevel = 9999
+    /// `totalXPForLevel(maxLevel)` = 9999 * (80 + 199_980) = ~2_000_000_000 (Int32 한도 근처).
+    /// XP 도 같은 상한 — UserProgress.xp 가 손상 데이터로 Int.max 가 들어와도 안전.
+    static let maxTotalXP = maxLevel * (80 + 20 * maxLevel)
+
     /// 특정 레벨까지 필요한 총 누적 XP. 웹 `totalXPForLevel`.
     /// 공식: level * (80 + 20 * level)
     static func totalXPForLevel(_ level: Int) -> Int {
-        level * (80 + 20 * level)
+        let capped = max(0, min(maxLevel, level))
+        return capped * (80 + 20 * capped)
     }
 
     /// 레벨업에 필요한 XP. 웹 `xpToNextLevel`.
@@ -27,9 +38,11 @@ enum GameRules {
     }
 
     /// 누적 XP에서 레벨 계산. 웹 `getLevelFromXP`.
+    /// 손상 데이터로 거대 xp(Int.max 근처)가 들어와도 maxLevel 에서 종료해 무한 루프 방지.
     static func levelFromXP(_ totalXP: Int) -> Int {
+        let capped = max(0, min(maxTotalXP, totalXP))
         var level = 0
-        while totalXPForLevel(level + 1) <= totalXP {
+        while level < maxLevel, totalXPForLevel(level + 1) <= capped {
             level += 1
         }
         return level
@@ -51,8 +64,9 @@ enum GameRules {
     ///  2) Level 승급 — xp가 다음 임계치 이상이면 승급 + pendingPacks 적립.
     ///  3) 음수 클램프 — xp < 0 은 0으로.
     static func normalizeXpLevel(_ progress: UserProgress) -> (progress: UserProgress, levelsGained: Int) {
-        var level = max(0, progress.level)
-        var xp = max(0, progress.xp)
+        // 손상 데이터 방어 — level/xp 상한 클램프 (H4).
+        var level = max(0, min(maxLevel, progress.level))
+        var xp = max(0, min(maxTotalXP, progress.xp))
 
         // 1) grandfather: 현재 레벨 floor보다 xp가 낮으면 floor로 보정
         let floor = totalXPForLevel(level)

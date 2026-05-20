@@ -73,6 +73,16 @@ enum Deck {
             usedCategories.insert(selected.category)
         }
 
+        // 부족분 fallback — 100회 시도로 다양성/등급 제약이 안 풀린 경우(작은 unlocked 풀
+        // 의 신규 유저, 카테고리 편향) 미사용 카드에서 무제약으로 채워 *반드시 drawCount
+        // 장* 보장한다. 안 채우면 보드가 5장 이하로 나와 게임 플로우가 깨진다.
+        if drawn.count < GameConstants.drawCount {
+            let remaining = unlocked.filter { !usedIds.contains($0.id) }.shuffled()
+            let need = GameConstants.drawCount - drawn.count
+            drawn.append(contentsOf: remaining.prefix(need))
+            for card in remaining.prefix(need) { usedIds.insert(card.id) }
+        }
+
         // 피티 시스템 — 전부 normal이면 마지막 1장 교체
         // (웹은 빈 배열에 drawn[-1] 할당 시 무해하지만 Swift는 크래시 → isEmpty 가드)
         if !drawn.isEmpty && !drawn.contains(where: { $0.rarity != .normal }) {
@@ -105,6 +115,14 @@ enum Deck {
             let selected = candidates[Int.random(in: 0..<candidates.count)]
             result.append(selected)
             usedIds.insert(selected.id)
+        }
+
+        // 부족분 fallback — drawCards 와 동일 사유. 풀 크기가 count 이상이면 N장 보장.
+        if result.count < count {
+            let remaining = pool.filter { !usedIds.contains($0.id) }.shuffled()
+            let need = count - result.count
+            result.append(contentsOf: remaining.prefix(need))
+            for card in remaining.prefix(need) { usedIds.insert(card.id) }
         }
 
         // 피티 — 전부 normal이면 마지막 1장 교체

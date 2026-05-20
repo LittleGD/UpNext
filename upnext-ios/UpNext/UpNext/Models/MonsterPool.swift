@@ -252,7 +252,8 @@ enum MonsterPool {
             (2 + Double(floor) * 0.5) * Double(t.power) * ngMult * earlyNerf)
 
         return Monster(
-            id: "\(t.id)_f\(floor)_\(Int(Date().timeIntervalSince1970 * 1000) % 10000)",
+            // UUID — ms%1e4 충돌(같은 tick 다중 spawn) 회피, 로그 트래킹·디버깅 안정.
+            id: "\(t.id)_f\(floor)_\(UUID().uuidString)",
             name: t.name,
             templateId: t.id,
             kind: t.kind,

@@ -194,25 +194,32 @@ final class AuthService: NSObject, ObservableObject {
 // MARK: - Apple Sign-In 델리게이트
 
 extension AuthService: ASAuthorizationControllerDelegate {
-    func authorizationController(
+    /// AuthorizationServices 콜백은 main thread 보장이나 *nonisolated* 호출이라
+    /// MainActor 격리된 stored property(appleContinuation·currentNonce) 직접 mutate 는
+    /// Swift 6 strict concurrency 에서 data race 위반(또는 iOS 18 isolation check crash).
+    /// 본문을 `Task { @MainActor in ... }` 로 감싸 격리 위반 차단.
+    nonisolated func authorizationController(
         controller: ASAuthorizationController,
         didCompleteWithAuthorization authorization: ASAuthorization
     ) {
-        let continuation = appleContinuation
-        appleContinuation = nil
-        guard
-            let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
-            let nonce = currentNonce,
-            let tokenData = appleCredential.identityToken,
-            let idToken = String(data: tokenData, encoding: .utf8)
-        else {
-            continuation?.resume(throwing: AuthServiceError.appleTokenMissing)
-            return
-        }
-        // FirebaseAuth 10.12+ — Apple credential 직접 생성 (rawNonce 로 replay 검증).
-        let credential = OAuthProvider.appleCredential(
-            withIDToken: idToken, rawNonce: nonce, fullName: appleCredential.fullName)
-        Task {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let continuation = self.appleContinuation
+            self.appleContinuation = nil
+            let savedNonce = self.currentNonce
+            self.currentNonce = nil  // nonce 재사용 방지 — 매 시도마다 새로 생성됨.
+            guard
+                let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                let nonce = savedNonce,
+                let tokenData = appleCredential.identityToken,
+                let idToken = String(data: tokenData, encoding: .utf8)
+            else {
+                continuation?.resume(throwing: AuthServiceError.appleTokenMissing)
+                return
+            }
+            // FirebaseAuth 10.12+ — Apple credential 직접 생성 (rawNonce 로 replay 검증).
+            let credential = OAuthProvider.appleCredential(
+                withIDToken: idToken, rawNonce: nonce, fullName: appleCredential.fullName)
             do {
                 try await Auth.auth().signIn(with: credential)
                 continuation?.resume()
@@ -222,12 +229,15 @@ extension AuthService: ASAuthorizationControllerDelegate {
         }
     }
 
-    func authorizationController(
+    nonisolated func authorizationController(
         controller: ASAuthorizationController,
         didCompleteWithError error: Error
     ) {
-        appleContinuation?.resume(throwing: error)
-        appleContinuation = nil
+        Task { @MainActor [weak self] in
+            self?.appleContinuation?.resume(throwing: error)
+            self?.appleContinuation = nil
+            self?.currentNonce = nil
+        }
     }
 }
 

@@ -182,12 +182,19 @@ enum UpHeroSession {
         // in-memory log trim — 활성 encounter 이후 구간은 보존.
         if session.log.count > UpHeroCombat.sessionLogRuntimeCap {
             let encIdx = UpHeroCombat.findLastEncounterIndex(session.log)
+            let preserveFrom: Int
             if encIdx >= 0 {
-                let preserveFrom = min(encIdx,
+                preserveFrom = min(encIdx,
                     max(0, session.log.count - UpHeroCombat.sessionLogRuntimeCap))
                 s.log = Array(session.log[preserveFrom...])
             } else {
+                preserveFrom = max(0, session.log.count - UpHeroCombat.sessionLogRuntimeCap)
                 s.log = Array(session.log.suffix(UpHeroCombat.sessionLogRuntimeCap))
+            }
+            // pendingChoiceIndex 는 *절대* 인덱스라 trim 후 stale 됨 — 같이 시프트.
+            //   choice 엔트리가 trim 으로 사라지면 nil (resolveChoice 가 recover).
+            if let idx = s.pendingChoiceIndex {
+                s.pendingChoiceIndex = idx >= preserveFrom ? idx - preserveFrom : nil
             }
         }
 
@@ -682,16 +689,21 @@ enum UpHeroSession {
     // MARK: - resolveChoice / applyChoiceEffect
 
     /// 사용자 choice 선택 처리. 웹 `resolveChoice`.
+    /// 인덱스/타입/optionIndex 부정합 시 *unchanged session 반환 X* — status 가 `.awaitingChoice`
+    /// 로 남아 UI 가 영구 데드락. 대신 active 로 복원하고 pendingChoiceIndex 를 비운다
+    /// (선택은 silently 스킵 — 사용자는 다시 전투를 진행할 수 있게).
     static func resolveChoice<R: RandomSource>(
         _ session: CombatSession, optionIndex: Int, rng: inout R
     ) -> CombatSession {
-        guard session.status == .awaitingChoice, let choiceIdx = session.pendingChoiceIndex else {
-            return session
-        }
+        guard session.status == .awaitingChoice,
+              let choiceIdx = session.pendingChoiceIndex,
+              choiceIdx >= 0, choiceIdx < session.log.count
+        else { return recoverFromInvalidChoice(session) }
         var s = session
         guard case let .choice(prompt, promptKey, promptParams, options, _, variant,
                                timeoutMs, defaultOptionIndex, isMystery, ts) = s.log[choiceIdx],
-              optionIndex >= 0, optionIndex < options.count else { return s }
+              optionIndex >= 0, optionIndex < options.count
+        else { return recoverFromInvalidChoice(s) }
         let option = options[optionIndex]
         // choice 엔트리에 선택 표시
         s.log[choiceIdx] = .choice(
@@ -723,6 +735,14 @@ enum UpHeroSession {
         if s.status == .completed { return s }
         if consumeTime(&s, delta: -UpHeroCombat.TimeCost.choice) { return s }
         gainClassResource(&s, event: .choice)
+        s.status = .active
+        s.pendingChoiceIndex = nil
+        return s
+    }
+
+    /// stale/부정합 pendingChoiceIndex 로부터 데드락 회피 — 상태 `.active` 복원.
+    private static func recoverFromInvalidChoice(_ session: CombatSession) -> CombatSession {
+        var s = session
         s.status = .active
         s.pendingChoiceIndex = nil
         return s

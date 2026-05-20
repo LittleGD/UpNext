@@ -187,8 +187,9 @@ enum EquipmentPool {
             : " of " + affixList.map { affixStatLabel[$0] ?? "" }.joined(separator: ", ")
 
         let strippedName = template.baseName.replacingOccurrences(of: " ", with: "")
-        let id = "eq_\(strippedName)_\(rarity.rawValue)"
-            + "_\(Int(Date().timeIntervalSince1970 * 1000) % 100000)_\(rng.int(below: 1000))"
+        // UUID — 같은 ms 내 다중 드롭 시 id 충돌(`dedupeDrops`·prefix-기반 절반 키핑 등)
+        // 회피. 이전 ms%1e5 + rng%1e3 조합은 충돌 가능성 실제 측정 사례 존재.
+        let id = "eq_\(strippedName)_\(rarity.rawValue)_\(UUID().uuidString)"
 
         return Equipment(
             id: id,

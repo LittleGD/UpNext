@@ -15,17 +15,18 @@ import Foundation
 
 extension Category {
 
-    /// 카테고리 한국어 라벨 — 메인 게임용. 웹 i18n `category.*`.
+    /// 카테고리 라벨 — 메인 게임용. 웹 i18n `category.*` 대응.
+    /// String(localized:) 로 Localizable.xcstrings 경유 다국어 자동 치환.
     var label: String {
         switch self {
-        case .fitness:      return "운동"
-        case .nutrition:    return "식단"
-        case .mindfulness:  return "마음챙김"
-        case .learning:     return "학습"
-        case .social:       return "소통"
-        case .productivity: return "생산성"
-        case .wellness:     return "건강"
-        case .trending:     return "트렌드"
+        case .fitness:      return String(localized: "운동")
+        case .nutrition:    return String(localized: "식단")
+        case .mindfulness:  return String(localized: "마음챙김")
+        case .learning:     return String(localized: "학습")
+        case .social:       return String(localized: "소통")
+        case .productivity: return String(localized: "생산성")
+        case .wellness:     return String(localized: "건강")
+        case .trending:     return String(localized: "트렌드")
         }
     }
 
@@ -46,7 +47,7 @@ extension Category {
 
 extension StatKey {
 
-    /// 스탯 표시 라벨 (STR/INT/… · slotBonus 는 한국어 "슬롯").
+    /// 스탯 표시 라벨 (STR/INT/… 는 약어 그대로, slotBonus 는 카탈로그 경유).
     var label: String {
         switch self {
         case .str:       return "STR"
@@ -55,7 +56,7 @@ extension StatKey {
         case .dex:       return "DEX"
         case .agi:       return "AGI"
         case .crit:      return "CRIT"
-        case .slotBonus: return "슬롯"
+        case .slotBonus: return String(localized: "슬롯")
         }
     }
 }
