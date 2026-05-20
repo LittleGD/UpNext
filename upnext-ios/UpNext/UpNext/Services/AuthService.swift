@@ -92,19 +92,19 @@ final class AuthService: NSObject, ObservableObject {
         defer { isWorking = false }
 
         guard let clientID = FirebaseApp.app()?.options.clientID else {
-            lastError = "Google: clientID 없음 — GoogleService-Info.plist 확인"
+            lastError = String(localized: "구글 설정을 불러올 수 없어요")
             return
         }
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
 
         guard let presenter = Self.topViewController() else {
-            lastError = "Google: 표시할 뷰 컨트롤러 없음"
+            lastError = String(localized: "잠시 후 다시 시도해주세요")
             return
         }
         do {
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenter)
             guard let idToken = result.user.idToken?.tokenString else {
-                lastError = "Google: idToken 없음"
+                lastError = String(localized: "구글 인증 정보를 받지 못했어요")
                 return
             }
             let credential = GoogleAuthProvider.credential(
@@ -113,7 +113,7 @@ final class AuthService: NSObject, ObservableObject {
             try await Auth.auth().signIn(with: credential)
             // state 갱신은 addStateDidChangeListener 가 담당.
         } catch {
-            lastError = "Google 로그인 실패: \(error.localizedDescription)"
+            lastError = Self.friendlyGoogleError(error)
         }
     }
 
@@ -143,7 +143,10 @@ final class AuthService: NSObject, ObservableObject {
                 controller.performRequests()
             }
         } catch {
-            lastError = "Apple 로그인 실패: \(error.localizedDescription)"
+            // 사용자 취소(.canceled) 는 에러로 노출 안 함 — 자연스러운 흐름.
+            if let msg = Self.friendlyAppleError(error) {
+                lastError = msg
+            }
         }
         appleController = nil
     }
@@ -251,4 +254,44 @@ extension AuthService: ASAuthorizationControllerPresentationContextProviding {
 
 enum AuthServiceError: Error {
     case appleTokenMissing
+}
+
+// MARK: - 친절 에러 메시지 (Localizable.xcstrings 경유 다국어)
+
+extension AuthService {
+    /// Apple Sign-In 에러를 사용자 친화 메시지로 변환. 취소(.canceled)는 nil 반환 —
+    /// 호출부에서 lastError 를 그대로 두면 토스트/배너 미노출. 시스템 영어 메시지
+    /// 그대로 노출하던 이전 동작을 폐기.
+    static func friendlyAppleError(_ error: Error) -> String? {
+        let ns = error as NSError
+        // ASAuthorizationError 도메인 — code 1000~1005.
+        if ns.domain == ASAuthorizationError.errorDomain {
+            switch ns.code {
+            case ASAuthorizationError.canceled.rawValue:
+                return nil  // 사용자 취소 — 조용히.
+            case ASAuthorizationError.notHandled.rawValue:
+                return String(localized: "Apple 로그인을 처리할 수 없어요 — 잠시 후 다시 시도해주세요")
+            case ASAuthorizationError.invalidResponse.rawValue:
+                return String(localized: "Apple ID 응답을 확인할 수 없어요")
+            case ASAuthorizationError.notInteractive.rawValue:
+                return String(localized: "Apple ID 로그인이 필요해요")
+            case ASAuthorizationError.failed.rawValue:
+                return String(localized: "Apple 로그인이 실패했어요 — 다시 시도해주세요")
+            default:
+                return String(localized: "Apple 로그인 중 오류가 발생했어요")
+            }
+        }
+        // FirebaseAuth / 기타 — 일반 메시지.
+        return String(localized: "Apple 로그인 중 오류가 발생했어요")
+    }
+
+    /// Google Sign-In 에러를 사용자 친화 메시지로 변환. 취소 케이스 silent.
+    static func friendlyGoogleError(_ error: Error) -> String? {
+        let ns = error as NSError
+        // GIDSignInError 도메인 — code -5 가 cancel.
+        if ns.domain == "com.google.GIDSignIn", ns.code == -5 {
+            return nil  // 사용자 취소 — 조용히.
+        }
+        return String(localized: "구글 로그인 중 오류가 발생했어요 — 다시 시도해주세요")
+    }
 }
