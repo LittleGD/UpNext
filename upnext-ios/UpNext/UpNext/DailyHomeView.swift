@@ -733,6 +733,14 @@ struct DailyHomeView: View {
 
 /// 드로우된 카드의 staggered 3D 플립-인 등장 — 웹 CardDrawScreen 리빌 연출의 압축 포팅.
 /// 각 카드가 모서리(-82°)에서 정면(0°)으로 회전하며 index 순으로 차례차례 등장한다.
+/// 드로우 카드 등장 — 웹 CardDrawScreen.tsx L:1059-1067 의 카드 reveal 모션 동치:
+///   initial={{ y: 200, opacity: 0 }} → animate={{ y: 0, opacity: 1 }}
+///   transition={{ ...springBouncy, delay: index * 0.08 }}
+/// springBouncy (stiffness 300, damping 15) → SwiftUI .spring(response:0.36,
+/// dampingFraction:0.43) (ω₀=√300=17.3 → response 2π/ω₀=0.36, ζ=15/(2√300)=0.43).
+///
+/// 이전 iOS 는 3D Y-flip (-82°→0) — 웹에 없는 연출이라 슬라이드업으로 교체.
+/// y 오프셋은 웹 200px → 그리드 셀 맥락상 44px 로 축소 (셀 겹침 방지, 곡선·stagger 동일).
 private struct FlipInCard<Content: View>: View {
     let index: Int
     @ViewBuilder var content: Content
@@ -741,10 +749,10 @@ private struct FlipInCard<Content: View>: View {
     var body: some View {
         content
             .opacity(shown ? 1 : 0)
-            .scaleEffect(shown ? 1 : 0.86)
-            .rotation3DEffect(.degrees(shown ? 0 : -82), axis: (x: 0, y: 1, z: 0))
+            .offset(y: shown ? 0 : 44)
+            .scaleEffect(shown ? 1 : 0.96)
             .onAppear {
-                withAnimation(.spring(response: 0.46, dampingFraction: 0.72)
+                withAnimation(.spring(response: 0.36, dampingFraction: 0.43)
                     .delay(Double(index) * 0.08)) {
                     shown = true
                 }
