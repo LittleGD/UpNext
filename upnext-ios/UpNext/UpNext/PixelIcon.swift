@@ -61,6 +61,8 @@ enum PixelIconName: String, CaseIterable {
     case reload         = "Reload"
     case search         = "Search"
     case send           = "Send"
+    case shield         = "Shield"       // R5 신규 — 아지트 장비 CTA (shield.svg)
+    case shoppingBag    = "ShoppingBag"  // R5 신규 — 아지트 상점 CTA (shopping-bag.svg)
     case sparkle        = "Sparkle"
     case star           = "Star"         // pixelarticons에 star 없음 → sparkle.svg 대체
     case sword          = "Sword"        // R4 신규 — 카드 아이콘 (sword.svg)
