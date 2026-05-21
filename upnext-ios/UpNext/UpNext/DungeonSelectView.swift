@@ -1,12 +1,16 @@
 //
 //  DungeonSelectView.swift
-//  UpNext — Up Hero 던전 선택 (Phase 4 슬라이스 17).
+//  UpNext — Up Hero 던전 선택 (R5 — Up Hero camp 충실 회복).
 //
-//  웹 components/uphero/CampPlaceholder.tsx 의 DungeonsView 포팅. 아지트에서
-//  "탐험 시작" → 8개 던전 그리드. 각 카드는 던전 이름 + 최고 도달 층을 보여준다.
+//  웹 components/uphero/CampPlaceholder.tsx DungeonsView (L:545-660) 충실 포팅.
+//  아지트 "탐험 시작" → 8개 던전 2열 그리드. 각 카드: 카테고리 아이콘(던전 테마색) +
+//  던전 이름 + 최고 도달 층. 상단에 총 탐험권 배지.
 //
-//  카드 탭 → prepareBuffDraw → 버프 드로우 패널(슬라이스 20). 세션 생성·전투와
-//  탐험권(passes) 게이팅은 이후 슬라이스에서 붙는다.
+//  ⚠️ 디자인 규칙(카드/버튼 보더 금지) — 웹은 카드에 themeColor 보더를 쓰지만 iOS 는
+//  보더 대신 *themeColor 틴트 배경 + themeColor 아이콘* 으로 던전별 색 구분을 재현.
+//  ⚠️ 패스 하드 게이팅(passes==0 시 disable)은 미적용 — iOS 패스 경제가 아직 진입을
+//  소비/게이팅하지 않아(웹 confirmDungeon 주석: "패스 경제 슬라이스에서"), 하드 게이팅을
+//  넣으면 작동 중인 던전 진입을 깨뜨림. 총 탐험권은 정보용 배지로만 표기.
 //
 
 import SwiftUI
@@ -17,9 +21,17 @@ struct DungeonSelectView: View {
     /// 아지트 홈으로 복귀.
     let onBack: () -> Void
 
+    // GB 팔레트 (웹 upHeroPalette.ts) — 캠프는 의도적으로 GB 게임보이 팔레트 테마.
+    private static let gbDark = Color(red: 0.173, green: 0.290, blue: 0.173)
+    private static let gbLight = Color(red: 0.529, green: 0.722, blue: 0.478)
+    private static let gbLightest = Color(red: 0.804, green: 0.961, blue: 0.392)
+
+    private var totalPasses: Int { upHero.state.passes.values.reduce(0, +) }
+
     var body: some View {
         VStack(spacing: 0) {
             header
+            passBadgeRow
             ScrollView {
                 LazyVGrid(
                     columns: [GridItem(.flexible(), spacing: 10),
@@ -43,7 +55,7 @@ struct DungeonSelectView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Button(action: onBack) {
-                PixelIcon(.chevronLeft, size: 16, color: Color.textSecondary)
+                PixelIcon(.chevronLeft, size: 16, color: Self.gbLight)
                     .frame(width: 40, height: 40)
             }
             .buttonStyle(.plain)
@@ -56,35 +68,87 @@ struct DungeonSelectView: View {
         .padding(.vertical, 6)
     }
 
+    // MARK: - 총 탐험권 배지 (웹 L:594-611)
+
+    private var passBadgeRow: some View {
+        HStack {
+            Text("보유 탐험권")
+                .typography(.caption)
+                .foregroundStyle(Self.gbLight)
+            Spacer()
+            Text("×\(totalPasses)")
+                .typography(.caption)
+                .monospacedDigit()
+                .foregroundStyle(totalPasses > 0 ? Self.gbLightest : Self.gbLight)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(totalPasses > 0 ? Self.gbLight.opacity(0.13) : Color.clear, in: Capsule())
+        }
+        .padding(.horizontal, 17)
+        .padding(.bottom, 2)
+    }
+
     // MARK: - 던전 카드
 
     private func dungeonCard(_ dungeon: Dungeon) -> some View {
         let progress = upHero.state.dungeons[dungeon.id]
         // 표기는 역대 최고 도달 (사망/체크포인트와 무관). 웹 DungeonsView 와 동일.
         let best = progress?.bestFloorReached ?? progress?.floorReached ?? 0
+        let dColor = Color(hexString: dungeon.themeColor)
         return Button {
+            SoundPlayer.shared.play(.select)
             // 던전 선택 → 버프 카드 드로우. 해금 카드는 GameStore.progress 소관.
             upHero.prepareBuffDraw(
                 dungeonId: dungeon.id,
                 ownedCardIds: store.progress?.unlockedCardIds ?? [])
         } label: {
             VStack(alignment: .leading, spacing: 8) {
-                // 던전 테마색 — 웹은 카드 테두리, 우리는 보더 금지라 색 점으로.
-                Circle()
-                    .fill(Color(hexString: dungeon.themeColor))
-                    .frame(width: 14, height: 14)
+                // 카테고리 아이콘 — 던전 테마색 (웹 CATEGORY_ICON, 보더 대신 색 신호).
+                PixelIcon(Self.dungeonIcon(dungeon.id), size: 22, color: dColor)
+                Spacer(minLength: 0)
                 Text(dungeon.name)
-                    .typography(.body)
-                    .foregroundStyle(Color.textPrimary)
+                    .typography(.caption)
+                    .foregroundStyle(Self.gbLightest)
                     .lineLimit(1)
                 Text(best > 0 ? "최고 F\(best)" : "미탐험")
                     .typography(.micro)
-                    .foregroundStyle(Color.textTertiary)
+                    .monospacedDigit()
+                    .foregroundStyle(Self.gbLight)
+                    .opacity(0.75)
             }
-            .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
-            .padding(14)
-            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+            .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 14)
+            // themeColor 틴트 배경 (보더 금지 규칙 — 보더 대신 옅은 색 wash).
+            .background {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.bgSurface)
+                    .overlay(RoundedRectangle(cornerRadius: 12).fill(dColor.opacity(0.10)))
+            }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DungeonPressStyle())
+    }
+
+    /// 던전(=카테고리)별 PixelIcon — 웹 CATEGORY_ICON 맵 1:1.
+    private static func dungeonIcon(_ id: DungeonId) -> PixelIconName {
+        switch id {
+        case .fitness:      return .human
+        case .learning:     return .bookOpen
+        case .mindfulness:  return .moon
+        case .nutrition:    return .coffee
+        case .social:       return .message
+        case .productivity: return .clock
+        case .wellness:     return .heart
+        case .trending:     return .sparkle
+        }
+    }
+}
+
+/// 던전 카드 프레스 — 웹 uphero-press-btn (scale 0.97, 120ms cubic-bezier(0.23,1,0.32,1)).
+private struct DungeonPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.timingCurve(0.23, 1, 0.32, 1, duration: 0.12), value: configuration.isPressed)
     }
 }

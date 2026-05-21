@@ -46,6 +46,7 @@ enum PixelIconName: String, CaseIterable {
     case gift           = "Gift"
     case globe          = "Globe"        // R4 신규 — 카드 아이콘 (globe.svg)
     case heart          = "Heart"
+    case human          = "Human"        // R5 신규 — fitness 던전 아이콘 (human.svg)
     case image          = "Image"
     case languages      = "Languages"
     case lightbulb      = "Lightbulb"    // R4 신규 — 카드 아이콘 (lightbulb.svg)
