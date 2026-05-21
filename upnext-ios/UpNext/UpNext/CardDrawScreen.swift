@@ -413,9 +413,14 @@ struct CardSelectScreen: View {
                         .padding(.horizontal, 16).padding(.vertical, 8)
                         .background(Color(red: 1, green: 0.27, blue: 0.2).opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
                     }
-                    Text("실천할 \(maxCards)장을 골라요")
-                        .typography(.heading)
-                        .foregroundStyle(Color.textPrimary)
+                    // 슈퍼 챌린지는 글자별 wiggle (웹 L:805-826), 그 외 정적 heading.
+                    if phase == .`super` {
+                        WiggleText(text: "실천할 \(maxCards)장을 골라요")
+                    } else {
+                        Text("실천할 \(maxCards)장을 골라요")
+                            .typography(.heading)
+                            .foregroundStyle(Color.textPrimary)
+                    }
                     Text("카드를 탭하거나 위로 밀어 선택")
                         .typography(.caption)
                         .foregroundStyle(Color.textTertiary)
@@ -775,6 +780,30 @@ private struct CardPreviewOverlay: View {
         case .up:   return 0.92
         case .down: return 0.88
         case nil:   return entered ? 1 : 0.95
+        }
+    }
+}
+
+// MARK: - 슈퍼 챌린지 글자 wiggle (웹 L:807-825)
+
+/// 글자별로 흔들리는 heading — 슈퍼 챌린지의 긴장감. 웹 per-char y/x/rotate 진동 동치.
+/// y±1.5 x±0.8 rotate±2°, 0.5s 주기, 글자마다 stagger (delay i*0.04 ≈ 위상차).
+private struct WiggleText: View {
+    let text: String
+
+    var body: some View {
+        TimelineView(.animation) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            HStack(spacing: 0) {
+                ForEach(Array(text.enumerated()), id: \.offset) { i, ch in
+                    let p = t * 4 + Double(i) * 0.5   // 글자별 위상차 (웹 delay i*0.04)
+                    Text(String(ch))
+                        .typography(.heading)
+                        .foregroundStyle(Color.textPrimary)
+                        .offset(x: sin(p * 1.3) * 0.8, y: sin(p) * 1.5)
+                        .rotationEffect(.degrees(sin(p * 1.1) * 2))
+                }
+            }
         }
     }
 }

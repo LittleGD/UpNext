@@ -52,9 +52,13 @@ struct ShopView: View {
                 .typography(.title)
                 .foregroundStyle(Color.textPrimary)
             Spacer()
-            Text("코인 \(upHero.state.coins)")
-                .typography(.body)
-                .foregroundStyle(Color.accentPrimary)
+            HStack(spacing: 4) {
+                PixelIcon(.coins, size: 14, color: Color.accentPrimary)
+                Text("\(upHero.state.coins)")
+                    .typography(.body)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.accentPrimary)
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
@@ -66,6 +70,8 @@ struct ShopView: View {
                           buy: @escaping () -> Void) -> some View {
         let affordable = upHero.state.coins >= price
         return HStack(spacing: 12) {
+            PixelIcon(.gift, size: 20, color: Color.accentPrimary)
+                .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
                     .typography(.body)
@@ -76,13 +82,18 @@ struct ShopView: View {
             }
             Spacer(minLength: 0)
             Button(action: buy) {
-                Text("\(price)")
-                    .typography(.caption)
-                    .foregroundStyle(affordable ? Color.bgPrimary : Color.textTertiary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(affordable ? Color.accentPrimary : Color.bgElevated,
-                                in: Capsule())
+                HStack(spacing: 4) {
+                    PixelIcon(.coins, size: 12,
+                              color: affordable ? Color.bgPrimary : Color.textTertiary)
+                    Text("\(price)")
+                        .typography(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(affordable ? Color.bgPrimary : Color.textTertiary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(affordable ? Color.accentPrimary : Color.bgElevated,
+                            in: Capsule())
             }
             .buttonStyle(.plain)
             .disabled(!affordable)

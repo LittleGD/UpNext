@@ -63,7 +63,11 @@ struct HeroStatPanel: View {
 
     private func heroSummary(hero: Hero, leveled: Hero, level: Int) -> some View {
         VStack(spacing: 8) {
-            PixelIcon(.user, size: 56, color: Color.accentPrimary)
+            // R5 마감 — PixelIcon(.user) stand-in 폐기, 캠프와 동일한 실제 HeroSprite.
+            HeroSprite(variant: UpHeroRules.getHeroAppearanceVariant(level: level),
+                       classType: hero.classType,
+                       size: 72,
+                       color: HeroSprite.themeColor(hero.classType))
             Text(hero.name)
                 .typography(.heading)
                 .foregroundStyle(Color.textPrimary)
