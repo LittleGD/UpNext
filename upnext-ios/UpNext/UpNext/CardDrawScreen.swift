@@ -82,9 +82,10 @@ struct DeckHoldDraw: View {
                     .multilineTextAlignment(.center)
             }
 
-            // 덱 영역 — 빛줄기 atmosphere + ambient glow + 덱 스택
+            // 덱 영역 — 빛줄기 atmosphere + 부유 모트 + ambient glow + 덱 스택
             ZStack {
                 DeckAtmosphere()
+                DeckMotes()
                 ambientGlow
                 DeckStack(isHolding: isHolding, holdProgress: holdProgress)
                     .offset(x: shakeX)
@@ -265,6 +266,33 @@ private struct DeckAtmosphere: View {
             LightBeam(dx: 95,  width: 30, height: 127, color: Color.accentPrimary.opacity(0.12), blur: 8,  rotate: 11, pulse: 0.2...0.4, dur: 8,   delay: 4.5)
         }
         .frame(width: 280, height: 320, alignment: .bottom)
+        .allowsHitTesting(false)
+    }
+}
+
+/// 부유 모트 — 덱 주위를 도는 작은 입자 8개 (웹 L:398-439 idle 궤도).
+/// 웹은 hold 시 중앙 수렴 — iOS 는 idle 궤도만 (대부분의 시간 상태). accent/cyan/white.
+private struct DeckMotes: View {
+    private let cyan = Color(red: 0.61, green: 0.94, blue: 0.88)
+    var body: some View {
+        TimelineView(.animation) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            ZStack {
+                ForEach(0..<8, id: \.self) { i in
+                    let base = Double(i) / 8 * 2 * .pi
+                    let r = 50 + Double(i % 3) * 20
+                    let speed = 0.3 + Double(i % 3) * 0.1
+                    let angle = base + t * speed
+                    let color: Color = i % 3 == 0 ? Color.accentPrimary : i % 3 == 1 ? cyan : .white
+                    Circle()
+                        .fill(color)
+                        .frame(width: 3, height: 3)
+                        .blur(radius: 0.5)
+                        .opacity(0.18 + sin(t * 1.5 + base) * 0.1)
+                        .offset(x: cos(angle) * r, y: sin(angle) * r * 0.8)
+                }
+            }
+        }
         .allowsHitTesting(false)
     }
 }
