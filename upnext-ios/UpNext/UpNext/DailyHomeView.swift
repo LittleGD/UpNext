@@ -413,6 +413,8 @@ struct DailyHomeView: View {
 
     private var homeRetentionStack: some View {
         VStack(spacing: 10) {
+            // R1 — 익명 모드 백업 권유 (3일+ 진행 + dismiss 후 7일+ 트리거).
+            BackupReminderBannerView()
             retentionCard
             if let report = store.retention?.weeklyReports.first {
                 weeklyReportCard(report)

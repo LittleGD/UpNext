@@ -158,34 +158,37 @@ final class GameStore: ObservableObject {
             collectionCelebration = false
             sync.setSyncReady(false)
             sync.stopListener()
-            // R1 — 익명 모드 진입.
-            //   • LocalProgressCache 존재: 이전 익명 진행 복원 → `.ready`.
-            //   • 없음 + loginPromptSeen=true (사용자가 이전에 skip): 기본 progress 로
-            //     `.onboarding` 진입 (새 익명 사용자).
-            //   • 없음 + loginPromptSeen=false (앱 첫 실행): 온보딩 → 끝나면 LoginOverlay
-            //     자동 표시. progress 는 우선 default 로 만들어 둠.
-            if let cache = LocalProgressCacheStore.load() {
+            // R1 — 익명 모드 진입. 우선순위:
+            //   1. *메모리에 진척 있음* (logged-in → sign-out 직후): 그 데이터를
+            //      LocalProgressCache 로 저장해 익명 모드로 *그대로 유지*. 사용자가 sign
+            //      out 했다고 모든 진행을 잃지 않는다 (Critical #1 픽스).
+            //   2. *캐시 존재* (재시작·앱 종료 후 복귀): 이전 익명 진행 복원.
+            //   3. *둘 다 없음* (앱 첫 실행): 기본 progress 로 .onboarding 진입.
+            if let p = progress, let d = daily, let r = retention,
+               p.totalDaysCompleted > 0 || (p.unlockedCardIds.count > 0 && p.xp > 0) {
+                // 1: logged-in 상태에서 메모리에 데이터 살아있음 — 익명 캐시로 옮긴다.
+                LocalProgressCacheStore.save(progress: p, daily: d, retention: r)
+                phase = .ready
+                if !loginPromptSeen { showLoginOverlay = true }
+            } else if let cache = LocalProgressCacheStore.load() {
+                // 2: 캐시 복원.
                 progress = cache.progress
                 daily = cache.daily
                 retention = cache.retention
                 phase = .ready
-                // 익명 사용자가 첫 카드 드로 직전이면 LoginOverlay 권유 (웹과 동일).
-                if !loginPromptSeen {
-                    showLoginOverlay = true
-                }
+                if !loginPromptSeen { showLoginOverlay = true }
             } else {
+                // 3: 진짜 fresh — 익명 신규 사용자.
                 progress = nil
                 daily = nil
                 retention = nil
                 upHero.resetForSignOut()
                 duo.reset()
                 WidgetSync.endAllActivities()
-                // 신규 익명 사용자 — 온보딩이 첫 화면. 온보딩 끝나면 finishOnboardingAnonymous
-                // 에서 LocalProgressCache 저장 + LoginOverlay 권유.
-                phase = .onboarding
                 progress = Self.makeDefaultProgress()
                 daily = Self.makeDefaultDaily()
                 retention = RetentionState.fresh(today: Self.todayString())
+                phase = .onboarding
             }
 
         case let .signedIn(uid, _, displayName):
@@ -268,17 +271,28 @@ final class GameStore: ObservableObject {
 
         switch result {
         case let .loaded(cloudProgress, cloudDaily, cloudRetention):
-            // R1 — 익명 진행 + 클라우드 진행이 둘 다 있는 경우: 사용자에게 선택 위임.
-            //   동일 / cloud-ahead 자동 가능 케이스도 있지만, MVP 는 *항상 다이얼로그*
-            //   (사용자 명시 선택이 가장 안전 — 자동 결정의 silent 데이터 손실 방지).
-            //   양쪽 둘 다 0일이면 자동 cloud 채택 (이번 케이스는 충돌 의미 없음).
+            // R1 — 머지 분기 (High #2 픽스: AND 로 *진짜 충돌* 만 다이얼로그).
+            //   양쪽 모두 진척 있을 때만 사용자에게 위임. 한쪽이 비어있으면 자동 결정.
+            //   한쪽만 진척 있는 케이스:
+            //   - local 진척 + cloud 비어있음 → uploadLocalData (local 채택, cloud 덮어쓰기 안전)
+            //   - local 비어있음 + cloud 진척 → cloud 채택 (default path)
             if hadLocalProgress, let lp = localProgress, let ld = localDaily,
-               lp.totalDaysCompleted > 0 || cloudProgress.totalDaysCompleted > 0 {
+               lp.totalDaysCompleted > 0 && cloudProgress.totalDaysCompleted > 0 {
                 mergeConflict = MergeConflictData(
                     uid: uid,
                     localProgress: lp, localDaily: ld, localRetention: localRetention,
                     cloudProgress: cloudProgress, cloudDaily: cloudDaily, cloudRetention: cloudRetention)
                 // 결정 대기 — phase 는 그대로 .loading. 사용자 응답이 phase 를 .ready 로 옮김.
+                return
+            }
+            // 자동 분기 — local 만 진척 있으면 upload, 그 외엔 cloud 채택.
+            if hadLocalProgress, let lp = localProgress, let ld = localDaily,
+               lp.totalDaysCompleted > cloudProgress.totalDaysCompleted {
+                let lr = localRetention ?? RetentionState.fresh(today: Self.todayString())
+                await sync.uploadLocalData(uid: uid, progress: lp, daily: ld, retention: lr)
+                LocalProgressCacheStore.clear()
+                startLiveSync(uid: uid)
+                phase = .ready
                 return
             }
 
