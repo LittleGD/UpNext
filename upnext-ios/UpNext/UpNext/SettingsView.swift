@@ -143,9 +143,9 @@ struct SettingsView: View {
             }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: isActive ? "largecircle.fill.circle"
-                      : isPending ? "circle.lefthalf.filled" : "circle")
-                    .foregroundStyle(isActive || isPending ? Color.accentPrimary : Color.textTertiary)
+                // R3 마감 — 모드 라디오: 선택=.check, 변경예정=.clock, 비선택=.circle.
+                PixelIcon(isActive ? .check : isPending ? .clock : .circle, size: 20,
+                          color: isActive || isPending ? Color.accentPrimary : Color.textTertiary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(modeLabel(mode))
                         .typography(.body)

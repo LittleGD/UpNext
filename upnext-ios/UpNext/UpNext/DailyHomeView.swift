@@ -287,9 +287,10 @@ struct DailyHomeView: View {
                         .background(card.rarity.color, in: Capsule())
                     Spacer()
                     if completed {
-                        Label("완료", systemImage: "checkmark.circle.fill")
-                            .typography(.caption)
-                            .foregroundStyle(Color.accentPrimary)
+                        HStack(spacing: 4) {
+                            PixelIcon(.check, size: 12, color: Color.accentPrimary)
+                            Text("완료").typography(.caption).foregroundStyle(Color.accentPrimary)
+                        }
                     } else {
                         Text("+\(GameConstants.xpPerRarity[card.rarity] ?? 10) XP")
                             .typography(.caption)
@@ -345,9 +346,8 @@ struct DailyHomeView: View {
                 Circle()
                     .fill(checked ? Color.accentPrimary : Color.bgElevated)
                     .frame(width: 44, height: 44)
-                Image(systemName: checked ? "flame.fill" : "flame")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(checked ? Color.bgPrimary : Color.accentPrimary)
+                PixelIcon(.flame, size: 22,
+                          color: checked ? Color.bgPrimary : Color.accentPrimary)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(checked ? "오늘 불꽃이 켜졌어요" : "오늘 불꽃 켜기")
@@ -404,9 +404,10 @@ struct DailyHomeView: View {
     private var duoCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("2인 불꽃", systemImage: "person.2.fill")
-                    .typography(.body)
-                    .foregroundStyle(Color.textPrimary)
+                HStack(spacing: 6) {
+                    PixelIcon(.users, size: 16, color: Color.textPrimary)
+                    Text("2인 불꽃").typography(.body).foregroundStyle(Color.textPrimary)
+                }
                 Spacer()
                 if duo.isWorking {
                     ProgressView()
@@ -492,11 +493,12 @@ struct DailyHomeView: View {
             Button {
                 duo.createInvite()
             } label: {
-                Label("초대코드 만들기", systemImage: "link")
-                    .typography(.caption)
+                HStack(spacing: 6) {
+                    PixelIcon(.link, size: 14, color: Color.accentPrimary)
+                    Text("초대코드 만들기").typography(.caption).foregroundStyle(Color.accentPrimary)
+                }
                     .frame(maxWidth: .infinity)
                     .frame(height: 38)
-                    .foregroundStyle(Color.accentPrimary)
                     .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)
@@ -552,11 +554,12 @@ struct DailyHomeView: View {
                 .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
                 .accessibilityIdentifier("challengeLogCaption")
             PhotosPicker(selection: $logPickerItem, matching: .images) {
-                Label("사진 1장 선택", systemImage: "camera.fill")
-                    .typography(.body)
+                HStack(spacing: 6) {
+                    PixelIcon(.camera, size: 18, color: Color.bgPrimary)
+                    Text("사진 1장 선택").typography(.body).foregroundStyle(Color.bgPrimary)
+                }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .foregroundStyle(Color.bgPrimary)
                     .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
             }
             .accessibilityIdentifier("challengeLogPicker")
@@ -583,16 +586,16 @@ struct DailyHomeView: View {
                     .typography(.caption)
                     .foregroundStyle(Color.textTertiary)
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    reportMetric("체크인", "\(report.checkInCount)일", "flame.fill")
-                    reportMetric("완료 카드", "\(report.completedCardCount)장", "checkmark.seal.fill")
-                    reportMetric("사진 로그", "\(report.photoLogCount)개", "photo.fill")
-                    reportMetric("세이버", report.usedSaver ? "사용" : "미사용", "shield.fill")
+                    reportMetric("체크인", "\(report.checkInCount)일", .flame)
+                    reportMetric("완료 카드", "\(report.completedCardCount)장", .check)
+                    reportMetric("사진 로그", "\(report.photoLogCount)개", .image)
+                    reportMetric("세이버", report.usedSaver ? "사용" : "미사용", .shield)
                 }
                 if let category = report.topCategory {
-                    reportRow(icon: category.icon, title: "가장 많이 한 카테고리", value: category.label)
+                    reportRow(icon: category.pixelIcon, title: "가장 많이 한 카테고리", value: category.label)
                 }
                 if let title = report.highlightCardTitle {
-                    reportRow(icon: "sparkles", title: "인상적인 카드", value: title)
+                    reportRow(icon: .sparkle, title: "인상적인 카드", value: title)
                 }
             }
             .padding(20)
@@ -600,11 +603,9 @@ struct DailyHomeView: View {
         .background(Color.bgPrimary)
     }
 
-    private func reportMetric(_ title: String, _ value: String, _ icon: String) -> some View {
+    private func reportMetric(_ title: String, _ value: String, _ icon: PixelIconName) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.accentPrimary)
+            PixelIcon(icon, size: 16, color: Color.accentPrimary)
             Text(value)
                 .typography(.heading)
                 .foregroundStyle(Color.textPrimary)
@@ -617,10 +618,9 @@ struct DailyHomeView: View {
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private func reportRow(icon: String, title: String, value: String) -> some View {
+    private func reportRow(icon: PixelIconName, title: String, value: String) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundStyle(Color.accentPrimary)
+            PixelIcon(icon, size: 18, color: Color.accentPrimary)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)

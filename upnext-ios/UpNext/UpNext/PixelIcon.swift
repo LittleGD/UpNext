@@ -26,6 +26,7 @@ import SwiftUI
 
 /// 앱에서 사용하는 픽셀 아이콘 — Assets.xcassets/Icons/{rawValue}.imageset 와 1:1.
 enum PixelIconName: String, CaseIterable {
+    case archive        = "Archive"      // R3 마감 — 컬렉션 탭 (NAV_ICONS.collection)
     case arrowUp        = "ArrowUp"
     case bookOpen       = "BookOpen"     // R4 신규 — 카드 아이콘 (book-open.svg)
     case camera         = "Camera"
@@ -36,6 +37,8 @@ enum PixelIconName: String, CaseIterable {
     case chevronDown    = "ChevronDown"
     case chevronLeft    = "ChevronLeft"
     case chevronRight   = "ChevronRight"
+    case circle         = "Circle"       // R3 마감 — 설정 모드 라디오 (비선택)
+    case clipboard      = "Clipboard"    // R3 마감 — productivity 카테고리 (CATEGORY_ICONS)
     case clock          = "Clock"        // R4 신규 — 카드 아이콘 (clock.svg)
     case coffee         = "Coffee"       // R4 신규 — 카드 아이콘 (coffee.svg)
     case coins          = "Coins"
@@ -49,9 +52,12 @@ enum PixelIconName: String, CaseIterable {
     case human          = "Human"        // R5 신규 — fitness 던전 아이콘 (human.svg)
     case image          = "Image"
     case languages      = "Languages"
+    case leaf           = "Leaf"         // R3 마감 — nutrition 카테고리 (CATEGORY_ICONS)
     case lightbulb      = "Lightbulb"    // R4 신규 — 카드 아이콘 (lightbulb.svg)
+    case link           = "Link"         // R3 마감 — 듀오 초대코드 만들기
     case lock           = "Lock"
     case message        = "Message"      // R4 신규 — 카드 아이콘 (message.svg)
+    case messageText    = "MessageText"  // R3 마감 — social 카테고리 (CATEGORY_ICONS)
     case monitor        = "Monitor"
     case moon           = "Moon"
     case moreHorizontal = "MoreHorizontal" // R3 신규 — more-horizontal.svg
@@ -69,9 +75,12 @@ enum PixelIconName: String, CaseIterable {
     case sword          = "Sword"        // R4 신규 — 카드 아이콘 (sword.svg)
     case target         = "Target"
     case trash          = "Trash"        // pixelarticons에 trash 없음 → delete.svg 대체
+    case treePine       = "TreePine"     // R3 마감 — 플레이 탭 (NAV_ICONS.playground)
     case trophy         = "Trophy"
     case user           = "User"
+    case users          = "Users"        // R3 마감 — 듀오 2인 불꽃 (person.2 대체)
     case warningDiamond = "WarningDiamond"
+    case wind           = "Wind"         // R3 마감 — mindfulness 카테고리 (CATEGORY_ICONS)
     case zap            = "Zap"
 
     /// 카드 데이터의 `icon` 문자열(웹 PixelIcon name)을 안전하게 케이스로 변환.

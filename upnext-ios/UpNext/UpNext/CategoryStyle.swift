@@ -11,7 +11,7 @@
 //  변형(명상·트렌딩)을 써 의도적으로 다른 라벨 셋이므로 통합 대상이 아니다.
 //
 
-import Foundation
+import SwiftUI
 
 extension Category {
 
@@ -30,17 +30,18 @@ extension Category {
         }
     }
 
-    /// 카테고리 SF Symbol 아이콘.
-    var icon: String {
+    /// 카테고리 PixelIcon — 웹 `CATEGORY_ICONS` (components/icons/index.ts) 1:1.
+    /// R3 마감 — SF Symbol(figure.run/fork.knife/…) 폐기, pixelarticons 표준화.
+    var pixelIcon: PixelIconName {
         switch self {
-        case .fitness:      return "figure.run"
-        case .nutrition:    return "fork.knife"
-        case .mindfulness:  return "leaf.fill"
-        case .learning:     return "book.fill"
-        case .social:       return "person.2.fill"
-        case .productivity: return "checklist"
-        case .wellness:     return "heart.fill"
-        case .trending:     return "flame.fill"
+        case .fitness:      return .human
+        case .nutrition:    return .leaf
+        case .mindfulness:  return .wind
+        case .learning:     return .bookOpen
+        case .social:       return .messageText
+        case .productivity: return .clipboard
+        case .wellness:     return .heart
+        case .trending:     return .globe
         }
     }
 }

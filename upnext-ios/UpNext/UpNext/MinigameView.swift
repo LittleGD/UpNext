@@ -26,13 +26,13 @@ struct MinigameView: View {
 
     struct MGCard: Identifiable {
         let id = UUID()
-        let symbol: String
+        let symbol: PixelIconName
     }
 
-    /// 8쌍(16장) — SF Symbol 8종을 두 장씩 섞는다.
+    /// 8쌍(16장) — 8개 카테고리 PixelIcon 을 두 장씩 섞는다.
+    /// R3 마감 — SF Symbol 폐기. 웹 minigame CardBack 도 카테고리 아이콘 사용.
     static func makeCards() -> [MGCard] {
-        let symbols = ["star.fill", "heart.fill", "bolt.fill", "leaf.fill",
-                       "flame.fill", "drop.fill", "moon.fill", "sun.max.fill"]
+        let symbols = Category.allCases.map { $0.pixelIcon }
         return (symbols + symbols).shuffled().map { MGCard(symbol: $0) }
     }
 
@@ -80,10 +80,9 @@ struct MinigameView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(faceUp ? Color.bgElevated : Color.bgSurface)
                 if faceUp {
-                    Image(systemName: card.symbol)
-                        .font(.system(size: 26))
-                        .foregroundStyle(matched.contains(idx)
-                                         ? Color.accentPrimary : Color.textPrimary)
+                    PixelIcon(card.symbol, size: 26,
+                              color: matched.contains(idx)
+                                  ? Color.accentPrimary : Color.textPrimary)
                 }
             }
             .aspectRatio(1, contentMode: .fit)

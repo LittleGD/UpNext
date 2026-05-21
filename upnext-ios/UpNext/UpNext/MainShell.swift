@@ -26,12 +26,14 @@ enum MainTab: CaseIterable {
         }
     }
 
-    var icon: String {
+    /// 탭 PixelIcon — 웹 `NAV_ICONS` (components/icons/index.ts) 1:1.
+    /// R3 마감 — SF Symbol(checklist/rectangle.stack/…) 폐기.
+    var pixelIcon: PixelIconName {
         switch self {
-        case .challenge:  return "checklist"
-        case .collection: return "rectangle.stack"
-        case .playground: return "gamecontroller"
-        case .settings:   return "gearshape"
+        case .challenge:  return .card           // NAV_ICONS.today = "Card"
+        case .collection: return .archive         // NAV_ICONS.collection = "Archive"
+        case .playground: return .treePine        // NAV_ICONS.playground = "TreePine"
+        case .settings:   return .moreHorizontal  // NAV_ICONS.settings = "MoreHorizontal"
         }
     }
 }
@@ -172,8 +174,8 @@ struct BottomNav: View {
                     selected = tab
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 18))
+                        PixelIcon(tab.pixelIcon, size: 18,
+                                  color: selected == tab ? Color.bgPrimary : Color.textTertiary)
                         if selected == tab {
                             Text(tab.label).typography(.caption)
                         }

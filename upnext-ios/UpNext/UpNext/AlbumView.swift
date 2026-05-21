@@ -132,8 +132,7 @@ struct AlbumView: View {
             .overlay(alignment: .topLeading) {
                 if meta.kind == .challengeLog {
                     HStack(spacing: 4) {
-                        Image(systemName: meta.category?.icon ?? "checkmark.seal.fill")
-                            .font(.system(size: 9, weight: .semibold))
+                        PixelIcon(meta.category?.pixelIcon ?? .check, size: 9, color: Color.bgPrimary)
                         Text(meta.category?.label ?? "챌린지")
                             .typography(.micro)
                             .lineLimit(1)

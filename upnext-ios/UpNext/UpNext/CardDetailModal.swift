@@ -86,9 +86,7 @@ struct Card3DView: View {
     private var cardFace: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Image(systemName: card.category.icon)
-                    .font(.system(size: 30))
-                    .foregroundStyle(card.rarity.color)
+                PixelIcon(card.category.pixelIcon, size: 30, color: card.rarity.color)
                 Spacer()
                 Text(card.rarity.displayName)
                     .typography(.micro)
