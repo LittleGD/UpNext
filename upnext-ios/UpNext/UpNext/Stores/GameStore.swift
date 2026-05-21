@@ -19,16 +19,49 @@
 import Foundation
 import Combine
 
+/// 익명 → 로그인 시 *둘 다 진척이 있고 strictly-ahead 판정이 conflict* 인 케이스의
+/// MergeConflictDialog 표시 데이터. 사용자가 어느 쪽을 선택하느냐에 따라
+/// 후속 upload (local 선택) 또는 cloud-take (cloud 선택) 가 갈린다.
+struct MergeConflictData: Equatable {
+    let uid: String
+    let localProgress: UserProgress
+    let localDaily: DailyState
+    let localRetention: RetentionState?
+    let cloudProgress: UserProgress
+    let cloudDaily: DailyState
+    let cloudRetention: RetentionState?
+
+    /// 추천 분기 — 웹 MergeConflictDialog: `cloudDays >= localDays` 면 "cloud" 추천.
+    /// 동률 시 cloud 우선 (백업의 신뢰성).
+    var recommend: Recommendation {
+        cloudProgress.totalDaysCompleted >= localProgress.totalDaysCompleted ? .cloud : .local
+    }
+
+    enum Recommendation: String { case local, cloud }
+
+    /// Equatable — UserProgress/DailyState/RetentionState 가 Codable 만이라 자동 합성 X.
+    /// 다이얼로그 표시·해제 트리거에는 uid + summary level/days 비교로 충분 (id 키 역할).
+    static func == (lhs: MergeConflictData, rhs: MergeConflictData) -> Bool {
+        lhs.uid == rhs.uid
+            && lhs.localProgress.level == rhs.localProgress.level
+            && lhs.localProgress.totalDaysCompleted == rhs.localProgress.totalDaysCompleted
+            && lhs.cloudProgress.level == rhs.cloudProgress.level
+            && lhs.cloudProgress.totalDaysCompleted == rhs.cloudProgress.totalDaysCompleted
+    }
+}
+
 @MainActor
 final class GameStore: ObservableObject {
 
     /// 앱 부팅 단계 — 루트 뷰가 이걸로 화면을 분기한다.
+    /// R1 (UI 충실도 회복) 부터 *익명 모드 우선*. 로그인은 옵션이라 별도 phase 없음 —
+    /// 익명/로그인 둘 다 `.ready` 로 수렴하고, *로그인 상태* 는 `auth.uid != nil` 로 판단.
+    /// LoginOverlay 는 phase 가 아닌 `showLoginOverlay` 플래그로 표시.
     enum BootPhase: Equatable {
-        case launching      // Auth 상태 확인 중
-        case needsSignIn    // 로그아웃 — 로그인 화면 필요
-        case loading        // 로그인됨, 클라우드 데이터 로드 중
-        case onboarding     // 신규 계정 — 온보딩 진행 중
-        case ready          // progress/daily 준비 완료
+        case launching      // Auth 상태 확인 중 (Firebase listener 첫 emit 전)
+        case loading        // 로그인됨 — 클라우드 데이터 로드 중
+        case onboarding     // 신규 사용자 (익명 또는 로그인 직후 .notFound) — 온보딩 진행 중
+        case ready          // progress/daily 준비 완료 (익명·로그인 공통)
         case failed(String) // 클라우드 로드 실패 — 재시도 필요
     }
 
@@ -46,29 +79,55 @@ final class GameStore: ObservableObject {
     let duo = DuoStore()
 
     @Published private(set) var progress: UserProgress? {
-        // 설정의 haptic/sound 토글을 헬퍼에 동기 + 위젯 상태 publish.
-        // progress 가 바뀌는 모든 경로(bootstrap·applyCloudUpdate·mutateProgress·
-        // onboarding)에서 자동으로 위젯 타임라인이 갱신된다.
+        // 설정의 haptic/sound 토글을 헬퍼에 동기 + 위젯 상태 publish + 익명 시 로컬 저장.
+        // progress 가 바뀌는 모든 경로에서 자동 반영. 익명 (uid 없음) 일 때만 캐시 — 로그인
+        // 상태에선 SyncManager 가 Firestore 가 진실의 원천 (캐시 우회).
         didSet {
             Haptics.enabled = progress?.hapticEnabled ?? true
             SoundPlayer.enabled = progress?.soundEnabled ?? true
             WidgetSync.publish(progress: progress, daily: daily)
+            persistLocalIfAnonymous()
         }
     }
     @Published private(set) var daily: DailyState? {
         // daily 변경 — 위젯 데이터 publish + Live Activity 재조정 (둘 다 idempotent).
-        // 선택 미확정/풀클리어면 활동 종료, 진행 중이면 시작·갱신 — daily 한 곳만 보면 됨.
+        // 익명 모드 시 로컬 캐시도 갱신.
         didSet {
             WidgetSync.publish(progress: progress, daily: daily)
             WidgetSync.reconcileChallengeActivity(daily: daily)
+            persistLocalIfAnonymous()
         }
     }
-    @Published private(set) var retention: RetentionState?
+    @Published private(set) var retention: RetentionState? {
+        didSet { persistLocalIfAnonymous() }
+    }
     @Published private(set) var phase: BootPhase = .launching
 
     /// 컬렉션 100% 최초 달성 축하 모달 트리거. openCardPack 에서 켜지고
     /// 사용자가 확인하면 dismissCollectionCelebration 으로 꺼진다 (웹 collectionCelebration).
     @Published private(set) var collectionCelebration = false
+
+    /// LoginOverlay 표시 여부. 익명 모드 + 첫 카드 드로 후 1회 권유 (웹 login_prompt_seen).
+    /// `dismissLoginPrompt()` 또는 성공 로그인 시 false. 별도 phase 아닌 *overlay 플래그*.
+    @Published var showLoginOverlay: Bool = false
+
+    /// MergeConflictDialog 표시 데이터. 익명 → 로그인 시 둘 다 진척이 있고 strictly-ahead
+    /// 판정이 conflict 인 경우만 셋. nil = 다이얼로그 미표시.
+    @Published var mergeConflict: MergeConflictData? = nil
+
+    /// 익명 모드 여부 — auth.uid 미존재 + progress 가 LocalProgressCache 에서 복원됨.
+    /// 뷰가 LoginOverlay·BackupReminderBanner 표시 조건으로 사용.
+    var isAnonymous: Bool {
+        auth.uid == nil && progress != nil
+    }
+
+    /// LoginOverlay 가 이미 한 번 보였는지 — 웹 localStorage["login_prompt_seen"].
+    /// UserDefaults 라 앱 재설치 외엔 보존.
+    private static let loginPromptSeenKey = "login_prompt_seen"
+    var loginPromptSeen: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.loginPromptSeenKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.loginPromptSeenKey) }
+    }
 
     private var cancellables = Set<AnyCancellable>()
     private var bootstrappedUid: String?
@@ -96,55 +155,156 @@ final class GameStore: ObservableObject {
 
         case .signedOut:
             bootstrappedUid = nil
-            progress = nil
-            daily = nil
-            retention = nil
             collectionCelebration = false
-            upHero.resetForSignOut()
-            duo.reset()
             sync.setSyncReady(false)
             sync.stopListener()
-            // 위젯·Live Activity 잔여 청소 — 잠금화면에 이전 사용자 데이터가 남지 않게.
-            WidgetSync.endAllActivities()
-            phase = .needsSignIn
+            // R1 — 익명 모드 진입.
+            //   • LocalProgressCache 존재: 이전 익명 진행 복원 → `.ready`.
+            //   • 없음 + loginPromptSeen=true (사용자가 이전에 skip): 기본 progress 로
+            //     `.onboarding` 진입 (새 익명 사용자).
+            //   • 없음 + loginPromptSeen=false (앱 첫 실행): 온보딩 → 끝나면 LoginOverlay
+            //     자동 표시. progress 는 우선 default 로 만들어 둠.
+            if let cache = LocalProgressCacheStore.load() {
+                progress = cache.progress
+                daily = cache.daily
+                retention = cache.retention
+                phase = .ready
+                // 익명 사용자가 첫 카드 드로 직전이면 LoginOverlay 권유 (웹과 동일).
+                if !loginPromptSeen {
+                    showLoginOverlay = true
+                }
+            } else {
+                progress = nil
+                daily = nil
+                retention = nil
+                upHero.resetForSignOut()
+                duo.reset()
+                WidgetSync.endAllActivities()
+                // 신규 익명 사용자 — 온보딩이 첫 화면. 온보딩 끝나면 finishOnboardingAnonymous
+                // 에서 LocalProgressCache 저장 + LoginOverlay 권유.
+                phase = .onboarding
+                progress = Self.makeDefaultProgress()
+                daily = Self.makeDefaultDaily()
+                retention = RetentionState.fresh(today: Self.todayString())
+            }
 
         case let .signedIn(uid, _, displayName):
             guard uid != bootstrappedUid else { return }  // 동일 유저 중복 부트스트랩 방지
             bootstrappedUid = uid
             duo.start(uid: uid, displayName: displayName)
+            showLoginOverlay = false  // 로그인 성공 = overlay 자동 dismiss
+            loginPromptSeen = true
             Task { await bootstrap(uid: uid) }
         }
     }
 
-    /// 로그인 직후 1회 — 클라우드 데이터를 로드하거나 신규 계정 기본 상태를 만든다.
+    /// 사용자가 LoginOverlay 에서 "건너뛰기" 또는 BackupReminderBanner 의 "나중에"
+    /// 를 눌렀을 때 호출. 웹 saveToStorage("login_prompt_seen", true) 와 동치.
+    /// 익명 진행은 그대로 유지 — 다음 트리거 (예: 7일 후) 까지 LoginOverlay 안 뜸.
+    func dismissLoginPrompt() {
+        loginPromptSeen = true
+        showLoginOverlay = false
+    }
+
+    /// 익명 사용자가 첫 카드 드로 직전 또는 BackupReminderBanner 가 "지금 백업" 을
+    /// 눌렀을 때 호출. LoginOverlay 를 다시 표시.
+    func promptLogin() {
+        showLoginOverlay = true
+    }
+
+    /// 익명 → 로그인 머지 다이얼로그 응답: 로컬 선택. 로컬 데이터를 클라우드에 업로드.
+    func resolveMergeUsingLocal() {
+        guard let conflict = mergeConflict else { return }
+        mergeConflict = nil
+        Task {
+            await sync.uploadLocalData(
+                uid: conflict.uid,
+                progress: conflict.localProgress,
+                daily: conflict.localDaily,
+                retention: conflict.localRetention ?? RetentionState.fresh(today: Self.todayString()))
+            // 로컬을 유지하므로 progress/daily/retention 은 이미 셋. 캐시는 더이상
+            // 익명 모드 아니므로 비운다 (이젠 Firestore 가 진실).
+            LocalProgressCacheStore.clear()
+            startLiveSync(uid: conflict.uid)
+            phase = .ready
+        }
+    }
+
+    /// 익명 → 로그인 머지 다이얼로그 응답: 클라우드 선택. 클라우드 데이터로 로컬 교체.
+    func resolveMergeUsingCloud() {
+        guard let conflict = mergeConflict else { return }
+        mergeConflict = nil
+        progress = GameRules.normalizeXpLevel(conflict.cloudProgress).progress
+        daily = conflict.cloudDaily
+        retention = conflict.cloudRetention ?? RetentionState.fresh(today: Self.todayString())
+        LocalProgressCacheStore.clear()
+        startLiveSync(uid: conflict.uid)
+        phase = .ready
+    }
+
+    /// 매 progress/daily/retention 변경 시 호출. 익명일 때만 LocalProgressCache 갱신.
+    /// 로그인 상태에선 SyncManager 가 Firestore 로 동기화 → 캐시는 stale 위험만 만들어 우회.
+    private func persistLocalIfAnonymous() {
+        guard auth.uid == nil,
+              let p = progress, let d = daily, let r = retention
+        else { return }
+        LocalProgressCacheStore.save(progress: p, daily: d, retention: r)
+    }
+
+    /// 로그인 직후 1회 — 클라우드 데이터를 로드하고, 익명 진행이 있으면 머지 결정.
+    /// R1: LocalProgressCache 가 있으면 *익명 → 로그인* 전환 케이스이므로 머지 분기.
     private func bootstrap(uid: String) async {
         phase = .loading
         sync.setSyncReady(false)  // 부트스트랩 동안 로컬 write 차단 (race 방지)
 
+        // 익명 진행 캡처 — handleAuthState 가 이미 progress/daily/retention 에 로드해뒀음.
+        let localProgress = progress
+        let localDaily = daily
+        let localRetention = retention
+        let hadLocalProgress = LocalProgressCacheStore.exists()
+
         let result = await sync.getCloudData(uid: uid)
-        // await(네트워크) 중 로그아웃·계정 전환이 일어났으면 이 결과를 폐기한다.
-        //   안 그러면 로그아웃된 유저에게 .ready/.onboarding 화면이 노출된다.
         guard bootstrappedUid == uid else { return }
 
         switch result {
         case let .loaded(cloudProgress, cloudDaily, cloudRetention):
-            // 기존 유저 — XP/레벨 정규화 적용 (구 XP 커브 마이그레이션, 음수 XP 방어).
+            // R1 — 익명 진행 + 클라우드 진행이 둘 다 있는 경우: 사용자에게 선택 위임.
+            //   동일 / cloud-ahead 자동 가능 케이스도 있지만, MVP 는 *항상 다이얼로그*
+            //   (사용자 명시 선택이 가장 안전 — 자동 결정의 silent 데이터 손실 방지).
+            //   양쪽 둘 다 0일이면 자동 cloud 채택 (이번 케이스는 충돌 의미 없음).
+            if hadLocalProgress, let lp = localProgress, let ld = localDaily,
+               lp.totalDaysCompleted > 0 || cloudProgress.totalDaysCompleted > 0 {
+                mergeConflict = MergeConflictData(
+                    uid: uid,
+                    localProgress: lp, localDaily: ld, localRetention: localRetention,
+                    cloudProgress: cloudProgress, cloudDaily: cloudDaily, cloudRetention: cloudRetention)
+                // 결정 대기 — phase 는 그대로 .loading. 사용자 응답이 phase 를 .ready 로 옮김.
+                return
+            }
+
             progress = GameRules.normalizeXpLevel(cloudProgress).progress
             daily = cloudDaily
             retention = cloudRetention ?? RetentionState.fresh(today: Self.todayString())
+            LocalProgressCacheStore.clear()  // 이젠 Firestore 가 진실 — 캐시 제거
             reconcileForToday(syncChanges: false)
             startLiveSync(uid: uid)
             phase = .ready
-            bootstrapUpHero()  // 앱 진입 시점에 idle accrual — 웹 useUpHeroStore.initialize
-            // 알림 설정이 켜져 있던 유저면 매일 리마인더를 다시 보장 (재설치·재로그인 대비).
+            bootstrapUpHero()
             NotificationManager.syncDailyReminder(
                 enabled: progress?.notificationsEnabled ?? false,
                 time: progress?.notificationTime ?? "09:00")
 
         case .notFound:
-            // 신규 계정 — 온보딩 진입. 기본 상태는 메모리에만 두고, 클라우드 업로드는
-            //   온보딩 완료(finishOnboarding) 후로 미룬다 — 온보딩 중단 시 빈 문서가
-            //   남지 않아, 재로그인하면 온보딩이 깨끗하게 다시 시작된다.
+            // 클라우드 비어있고 익명 진행 있음 → 익명 데이터를 클라우드에 업로드 (충돌 없음).
+            if hadLocalProgress, let lp = localProgress, let ld = localDaily {
+                let lr = localRetention ?? RetentionState.fresh(today: Self.todayString())
+                await sync.uploadLocalData(uid: uid, progress: lp, daily: ld, retention: lr)
+                LocalProgressCacheStore.clear()
+                startLiveSync(uid: uid)
+                phase = .ready
+                return
+            }
+            // 신규 계정 — 온보딩 진입.
             progress = Self.makeDefaultProgress()
             daily = Self.makeDefaultDaily()
             retention = RetentionState.fresh(today: Self.todayString())
@@ -152,7 +312,6 @@ final class GameStore: ObservableObject {
 
         case .failed:
             // 조회 실패 — 기본 상태로 덮어쓰지 않는다 (기존 클라우드 데이터 보호).
-            //   bootstrappedUid 를 비워 재시도(retry()) 를 허용.
             bootstrappedUid = nil
             phase = .failed("클라우드 데이터를 불러오지 못했습니다 — 네트워크 확인 후 다시 시도")
         }

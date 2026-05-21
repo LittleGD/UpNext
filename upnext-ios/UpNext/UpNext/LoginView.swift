@@ -1,82 +1,96 @@
 //
 //  LoginView.swift
-//  UpNext — 로그인 화면 (Phase 4 슬라이스 3).
+//  UpNext — 로그인 오버레이 (R1 — UI/인터랙션 회복).
 //
-//  웹 src/components/auth/LoginOverlay.tsx 를 네이티브 화면으로 포팅.
-//  store.phase == .needsSignIn 일 때 ContentView 라우터가 이 화면을 띄운다.
-//  로그인 성공 → AuthService 상태 변화 → GameStore 부트스트랩 → phase 전환으로
-//  ContentView 가 자동으로 MainTabView 로 넘어간다 (이 화면이 직접 dismiss 안 함).
+//  웹 src/components/auth/LoginOverlay.tsx 충실 포팅:
+//   - line 42-46  "건너뛰기" — saveToStorage("login_prompt_seen", true) + dismiss
+//   - line 60-67  fixed inset-0 z-50 + bg-black/70 + backdrop-blur-sm
+//   - line 62-67  spring(y:40→0, opacity:0→1, scale:0.95→1)
 //
-//  네이티브는 클라우드 백업 상태가 단일 진실의 원천 — 로컬 캐시 슬라이스 전까지
-//  로그인은 필수 게이트다 (웹의 "건너뛰기" 미포팅).
+//  R1 부터 *익명 모드 우선* — 이 화면은 별도 phase 가 아니라 ContentView 의
+//  ZStack overlay 로 표시. store.showLoginOverlay 가 true 일 때만 등장.
+//  사용자가 "건너뛰기" → store.dismissLoginPrompt() → 익명 모드 유지.
 //
 
 import SwiftUI
 
 struct LoginView: View {
     @EnvironmentObject private var auth: AuthService
+    @EnvironmentObject private var store: GameStore
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        ZStack {
+            // 백드롭 — bg-black/70 + backdrop-blur-sm
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+                .background(.ultraThinMaterial)
+                .onTapGesture { store.dismissLoginPrompt() }   // 백드롭 탭 = skip
 
-            // 브랜딩 — 워드마크 SVG (텍스트 렌더 대신 정식 로고 자산).
-            VStack(spacing: 14) {
-                Image("Wordmark")
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 56)
-                    .foregroundStyle(Color.accentPrimary)
-                Text("로그라이크 챌린지 카드로\n매일 갓생을 시작하세요")
-                    .typography(.body)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            Spacer()
-
-            // 로그인 — Apple/Google 두 버튼은 *동등한 옵션*. 색 차이가 위계를 만들지
-            //   않도록 둘 다 Color.bgSurface (다크) + 흰 텍스트로 통일하고, 브랜드
-            //   identity 는 아이콘만 차별화 (Apple 흰 로고 · Google 4색 G).
-            //   Apple SIWA 가이드: 검정 배경 + 흰 텍스트 + apple.logo 조합은 compliant.
-            //   Google 가이드: 다크 테마 G 로고 사용 허용.
-            VStack(spacing: 12) {
-                providerButton(
-                    title: "Apple로 계속하기",
-                    icon: Image(systemName: "apple.logo"),
-                    iconIsTemplate: true
-                ) { Task { await auth.signInWithApple() } }
-
-                providerButton(
-                    title: "Google로 계속하기",
-                    icon: Image("GoogleG"),
-                    iconIsTemplate: false
-                ) { Task { await auth.signInWithGoogle() } }
-
-                if auth.isWorking {
-                    ProgressView()
-                        .tint(Color.accentPrimary)
-                        .padding(.top, 4)
-                }
-                if let error = auth.lastError {
-                    Text(error)
-                        .typography(.caption)
-                        .foregroundStyle(Color.colorError)
+            VStack(spacing: 20) {
+                // 브랜딩 — 워드마크 SVG.
+                VStack(spacing: 14) {
+                    Image("Wordmark")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 48)
+                        .foregroundStyle(Color.accentPrimary)
+                    Text("다른 기기에서도 이어하기")
+                        .typography(.heading)
+                        .foregroundStyle(Color.textPrimary)
+                    Text("로그인하면 진행 상황이\n모든 기기에서 실시간으로 동기화돼요")
+                        .typography(.body)
+                        .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
                 }
 
-                Text("로그인하면 진행 상황이 클라우드에 저장되어\n기기를 바꿔도 이어집니다")
-                    .typography(.micro)
-                    .foregroundStyle(Color.textTertiary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 6)
+                // 로그인 — Apple/Google 동등 옵션 (커밋 2d1a76b 의 디자인 유지).
+                VStack(spacing: 10) {
+                    providerButton(
+                        title: "Apple로 계속하기",
+                        icon: Image(systemName: "apple.logo"),
+                        iconIsTemplate: true
+                    ) { Task { await auth.signInWithApple() } }
+
+                    providerButton(
+                        title: "Google로 계속하기",
+                        icon: Image("GoogleG"),
+                        iconIsTemplate: false
+                    ) { Task { await auth.signInWithGoogle() } }
+
+                    if auth.isWorking {
+                        ProgressView()
+                            .tint(Color.accentPrimary)
+                            .padding(.top, 4)
+                    }
+                    if let error = auth.lastError {
+                        Text(error)
+                            .typography(.caption)
+                            .foregroundStyle(Color.colorError)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+
+                // 건너뛰기 — 웹 LoginOverlay L:129-135.
+                Button {
+                    store.dismissLoginPrompt()
+                } label: {
+                    Text("나중에 할게요")
+                        .typography(.caption)
+                        .foregroundStyle(Color.textTertiary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("loginOverlaySkipButton")
             }
-            .padding(.bottom, 48)
+            .padding(.horizontal, 24)
+            .padding(.top, 32)
+            .padding(.bottom, 24)
+            .frame(maxWidth: 380)
+            .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 16)
         }
-        .padding(.horizontal, 32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
     }
 
     /// 공급자 버튼 골격 — Apple/Google 동등 옵션으로 *완전 동일* 외형. 색·크기·padding 모두

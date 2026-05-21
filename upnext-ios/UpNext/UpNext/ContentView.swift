@@ -1,12 +1,15 @@
 //
 //  ContentView.swift
-//  UpNext — 앱 루트 뷰 (단계 기반 라우터, Phase 4 슬라이스 3).
+//  UpNext — 앱 루트 뷰 (R1 — UI/인터랙션 회복).
 //
-//  GameStore.phase 로 화면을 분기한다:
-//   .launching/.loading → 로딩  ·  .needsSignIn → 로그인  ·  .ready → 메인  ·  .failed → 에러
+//  GameStore.phase 로 화면을 분기한다 (R1 부터 익명 모드 우선):
+//   .launching/.loading → 로딩
+//   .onboarding         → 온보딩 (익명·로그인 공통)
+//   .ready              → 메인 (익명·로그인 공통, LoginOverlay 는 별도 overlay)
+//   .failed             → 에러
 //
-//  Phase 4 가 진행되며 MainTabView 의 탭이 실제 게임 화면(Daily Home / Collection /
-//  Camp …)으로 채워진다. 현재는 디자인 갤러리(Phase 1 참조) + 설정.
+//  로그인 화면은 *별도 phase 가 아닌 LoginOverlayView (overlay)* — `.ready` 위에
+//  표시·해제. 익명 사용을 가로막지 않음.
 //
 
 import SwiftUI
@@ -15,18 +18,35 @@ struct ContentView: View {
     @EnvironmentObject private var store: GameStore
 
     var body: some View {
-        switch store.phase {
-        case .launching, .loading:
-            BootLoadingView()
-        case .needsSignIn:
-            LoginView()
-        case .onboarding:
-            OnboardingView()
-        case .ready:
-            MainTabView()
-        case let .failed(message):
-            BootErrorView(message: message)
+        ZStack {
+            switch store.phase {
+            case .launching, .loading:
+                BootLoadingView()
+            case .onboarding:
+                OnboardingView()
+            case .ready:
+                MainTabView()
+            case let .failed(message):
+                BootErrorView(message: message)
+            }
+
+            // LoginOverlay — 익명 모드에서 사용자가 백업 권유받을 때만 표시.
+            // 로그인 성공 또는 "건너뛰기" → showLoginOverlay = false 로 자동 해제.
+            if store.showLoginOverlay {
+                LoginView()
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .zIndex(1)
+            }
+
+            // MergeConflictDialog — 익명 → 로그인 시 양쪽 데이터 충돌 한정.
+            if let conflict = store.mergeConflict {
+                MergeConflictDialogView(conflict: conflict)
+                    .transition(.opacity)
+                    .zIndex(2)
+            }
         }
+        .animation(.easeOut(duration: 0.25), value: store.showLoginOverlay)
+        .animation(.easeOut(duration: 0.25), value: store.mergeConflict)
     }
 }
 
