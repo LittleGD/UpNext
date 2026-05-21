@@ -20,11 +20,12 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            // 백드롭 — bg-black/70 + backdrop-blur-sm
+            // 백드롭 — bg-black/70 + backdrop-blur-sm.
+            // 웹 LoginOverlay (L:60-67) 는 백드롭 탭 dismiss *없음* — 사용자는 "건너뛰기"
+            // 버튼이나 로그인 성공으로만 닫을 수 있다. iOS 도 동일 (web fidelity 강제).
             Color.black.opacity(0.7)
                 .ignoresSafeArea()
                 .background(.ultraThinMaterial)
-                .onTapGesture { store.dismissLoginPrompt() }   // 백드롭 탭 = skip
 
             VStack(spacing: 20) {
                 // 브랜딩 — 워드마크 SVG.
@@ -50,13 +51,19 @@ struct LoginView: View {
                         title: "Apple로 계속하기",
                         icon: Image(systemName: "apple.logo"),
                         iconIsTemplate: true
-                    ) { Task { await auth.signInWithApple() } }
+                    ) {
+                        AuthFunnel.log(.loginAttempt, ["provider": "apple"])
+                        Task { await auth.signInWithApple() }
+                    }
 
                     providerButton(
                         title: "Google로 계속하기",
                         icon: Image("GoogleG"),
                         iconIsTemplate: false
-                    ) { Task { await auth.signInWithGoogle() } }
+                    ) {
+                        AuthFunnel.log(.loginAttempt, ["provider": "google"])
+                        Task { await auth.signInWithGoogle() }
+                    }
 
                     if auth.isWorking {
                         ProgressView()

@@ -40,6 +40,10 @@ struct BackupReminderBannerView: View {
 
     var body: some View {
         if isVisible {
+            // 배너 노출 1회 분석 발화. .onAppear 가 SwiftUI 재구성마다 fire 할 수 있어
+            // *최초 노출* 만 잡으려면 별도 dedup 이 필요하지만, 분석 차원에선 conservative
+            // 카운트가 더 가치 있어 그대로 둔다 (impression).
+            let _ = onceLog
             HStack(alignment: .top, spacing: 12) {
                 // 경고 아이콘 — 웹 PixelIcon WarningDiamond + color #E88B7A.
                 Image(systemName: "exclamationmark.triangle.fill")  // R3 에서 PixelIcon 으로 교체
@@ -58,6 +62,7 @@ struct BackupReminderBannerView: View {
                         .lineSpacing(2)
                     HStack(spacing: 8) {
                         Button {
+                            AuthFunnel.log(.backupBannerCtaTapped)
                             store.promptLogin()
                         } label: {
                             Text("지금 백업")
@@ -73,6 +78,7 @@ struct BackupReminderBannerView: View {
 
                         Button {
                             dismiss()
+                            AuthFunnel.log(.backupBannerDismissed)
                         } label: {
                             Text("나중에")
                                 .typography(.caption)
@@ -106,5 +112,13 @@ struct BackupReminderBannerView: View {
     private func dismiss() {
         let now = Date().timeIntervalSince1970 * 1000
         UserDefaults.standard.set(now, forKey: Self.dismissedAtKey)
+    }
+
+    /// 배너 노출 1회 로그 — body 렌더 시 1회만 실행하는 트릭. 매 재구성마다 fire 되나
+    /// 분석 차원에선 impression 카운트로 의미 있음 (사용자 노출 빈도 측정).
+    private var onceLog: Void {
+        AuthFunnel.log(.backupBannerShown, [
+            "days": "\(store.progress?.totalDaysCompleted ?? 0)",
+        ])
     }
 }

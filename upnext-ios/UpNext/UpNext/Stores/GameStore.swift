@@ -169,14 +169,22 @@ final class GameStore: ObservableObject {
                 // 1: logged-in 상태에서 메모리에 데이터 살아있음 — 익명 캐시로 옮긴다.
                 LocalProgressCacheStore.save(progress: p, daily: d, retention: r)
                 phase = .ready
-                if !loginPromptSeen { showLoginOverlay = true }
+                AuthFunnel.log(.signOutToAnonymous, ["days": "\(p.totalDaysCompleted)"])
+                if !loginPromptSeen, !d.isDrawComplete {
+                    showLoginOverlay = true
+                    AuthFunnel.log(.loginPromptShown, ["trigger": "signout_to_anonymous"])
+                }
             } else if let cache = LocalProgressCacheStore.load() {
                 // 2: 캐시 복원.
                 progress = cache.progress
                 daily = cache.daily
                 retention = cache.retention
                 phase = .ready
-                if !loginPromptSeen { showLoginOverlay = true }
+                AuthFunnel.log(.anonymousResume, ["days": "\(cache.progress.totalDaysCompleted)"])
+                if !loginPromptSeen, !cache.daily.isDrawComplete {
+                    showLoginOverlay = true
+                    AuthFunnel.log(.loginPromptShown, ["trigger": "anonymous_resume"])
+                }
             } else {
                 // 3: 진짜 fresh — 익명 신규 사용자.
                 progress = nil
@@ -189,14 +197,16 @@ final class GameStore: ObservableObject {
                 daily = Self.makeDefaultDaily()
                 retention = RetentionState.fresh(today: Self.todayString())
                 phase = .onboarding
+                AuthFunnel.log(.anonymousStart)
             }
 
-        case let .signedIn(uid, _, displayName):
+        case let .signedIn(uid, provider, displayName):
             guard uid != bootstrappedUid else { return }  // 동일 유저 중복 부트스트랩 방지
             bootstrappedUid = uid
             duo.start(uid: uid, displayName: displayName)
             showLoginOverlay = false  // 로그인 성공 = overlay 자동 dismiss
             loginPromptSeen = true
+            AuthFunnel.log(.loginSuccess, ["provider": provider])
             Task { await bootstrap(uid: uid) }
         }
     }
@@ -207,18 +217,24 @@ final class GameStore: ObservableObject {
     func dismissLoginPrompt() {
         loginPromptSeen = true
         showLoginOverlay = false
+        AuthFunnel.log(.loginSkipped)
     }
 
     /// 익명 사용자가 첫 카드 드로 직전 또는 BackupReminderBanner 가 "지금 백업" 을
     /// 눌렀을 때 호출. LoginOverlay 를 다시 표시.
     func promptLogin() {
         showLoginOverlay = true
+        AuthFunnel.log(.loginPromptShown, ["trigger": "manual"])
     }
 
     /// 익명 → 로그인 머지 다이얼로그 응답: 로컬 선택. 로컬 데이터를 클라우드에 업로드.
     func resolveMergeUsingLocal() {
         guard let conflict = mergeConflict else { return }
         mergeConflict = nil
+        AuthFunnel.log(.mergeResolvedLocal, [
+            "local_days": "\(conflict.localProgress.totalDaysCompleted)",
+            "cloud_days": "\(conflict.cloudProgress.totalDaysCompleted)",
+        ])
         Task {
             await sync.uploadLocalData(
                 uid: conflict.uid,
@@ -237,6 +253,10 @@ final class GameStore: ObservableObject {
     func resolveMergeUsingCloud() {
         guard let conflict = mergeConflict else { return }
         mergeConflict = nil
+        AuthFunnel.log(.mergeResolvedCloud, [
+            "local_days": "\(conflict.localProgress.totalDaysCompleted)",
+            "cloud_days": "\(conflict.cloudProgress.totalDaysCompleted)",
+        ])
         progress = GameRules.normalizeXpLevel(conflict.cloudProgress).progress
         daily = conflict.cloudDaily
         retention = conflict.cloudRetention ?? RetentionState.fresh(today: Self.todayString())
@@ -282,6 +302,10 @@ final class GameStore: ObservableObject {
                     uid: uid,
                     localProgress: lp, localDaily: ld, localRetention: localRetention,
                     cloudProgress: cloudProgress, cloudDaily: cloudDaily, cloudRetention: cloudRetention)
+                AuthFunnel.log(.mergeShown, [
+                    "local_days": "\(lp.totalDaysCompleted)",
+                    "cloud_days": "\(cloudProgress.totalDaysCompleted)",
+                ])
                 // 결정 대기 — phase 는 그대로 .loading. 사용자 응답이 phase 를 .ready 로 옮김.
                 return
             }
@@ -529,9 +553,14 @@ final class GameStore: ObservableObject {
     }
 
     /// 온보딩 마지막 단계 — 웹 completeOnboarding. 레벨 0→1, 카드팩·체험 티켓 적립,
-    /// pendingMode 즉시 반영 후 클라우드 최초 업로드 → 라이브 동기화 시작 → .ready.
+    /// pendingMode 즉시 반영. 로그인 사용자는 클라우드 업로드 → 라이브 동기화 → .ready.
+    /// 익명 사용자는 LocalProgressCache 만 (didSet 자동) + LoginOverlay 권유 → .ready.
+    ///
+    /// 웹 useGameStore.completeOnboarding (L:678-696) 와 1:1 — 차이점은 *uid 의존* 만:
+    /// 웹은 localStorage 가 진실의 원천이라 uid 무관, iOS 도 LocalProgressCache 가
+    /// 익명의 진실의 원천이라 uid 무관해야 함 (Critical 픽스).
     func finishOnboarding() {
-        guard var p = progress, let d = daily, let uid = auth.uid else { return }
+        guard var p = progress, let d = daily else { return }
         p.level = 1
         p.xp = GameRules.totalXPForLevel(1)
         p.pendingPacks += 1
@@ -541,15 +570,30 @@ final class GameStore: ObservableObject {
             p.pendingMode = nil
         }
         progress = p
-        phase = .loading
         let r = retention ?? RetentionState.fresh(today: Self.todayString())
         retention = r
-        Task {
-            await sync.uploadLocalData(uid: uid, progress: p, daily: d, retention: r)
-            guard bootstrappedUid == uid else { return }  // 업로드 중 로그아웃 — 폐기
-            startLiveSync(uid: uid)
+        AuthFunnel.log(.onboardingComplete, ["anonymous": auth.uid == nil ? "1" : "0"])
+
+        if let uid = auth.uid {
+            // 로그인 사용자 — 클라우드 업로드 + 라이브 동기화.
+            phase = .loading
+            Task {
+                await sync.uploadLocalData(uid: uid, progress: p, daily: d, retention: r)
+                guard bootstrappedUid == uid else { return }  // 업로드 중 로그아웃 — 폐기
+                startLiveSync(uid: uid)
+                phase = .ready
+                bootstrapUpHero()
+            }
+        } else {
+            // 익명 사용자 — progress/daily/retention 의 didSet 이 이미 LocalProgressCache
+            // 저장. 클라우드 우회. *첫 카드 드로 직전* LoginOverlay 권유 (웹 page.tsx
+            // L:82-85: !daily.isDrawComplete + !loginPromptSeen).
             phase = .ready
-            bootstrapUpHero()  // 신규 유저도 동일 — heroStartLevel seed
+            bootstrapUpHero()
+            if !loginPromptSeen, !d.isDrawComplete {
+                showLoginOverlay = true
+                AuthFunnel.log(.loginPromptShown, ["trigger": "onboarding_complete"])
+            }
         }
     }
 
