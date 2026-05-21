@@ -82,13 +82,14 @@ struct DeckHoldDraw: View {
                     .multilineTextAlignment(.center)
             }
 
-            // 덱 영역
+            // 덱 영역 — 빛줄기 atmosphere + ambient glow + 덱 스택
             ZStack {
+                DeckAtmosphere()
                 ambientGlow
                 DeckStack(isHolding: isHolding, holdProgress: holdProgress)
                     .offset(x: shakeX)
             }
-            .frame(width: 150, height: 230)
+            .frame(width: 280, height: 320)
             .contentShape(Rectangle())
             .onLongPressGesture(minimumDuration: 10, maximumDistance: 60) {
                 // perform — 10s 라 일반 홀드 내 발화 안 함 (타이머가 권위).
@@ -232,6 +233,68 @@ private struct DeckStack: View {
         .shadow(color: isHolding ? Color.accentPrimary.opacity(holdProgress * 0.3) : .black.opacity(0.25),
                 radius: isHolding ? 6 + holdProgress * 12 : CGFloat(3 + layer * 2),
                 y: CGFloat(2 + layer))
+    }
+}
+
+/// 성스러운 빛줄기 — 덱 뒤로 바닥에서 솟는 6줄 + 바닥 수렴 글로우 (웹 L:246-362).
+/// 웹은 viewport fixed inset-0 — iOS 는 리텐션 스택 보존 위해 덱 zone(280×320)에 스코프.
+private struct DeckAtmosphere: View {
+    // 웹 색: accent rgba(205,245,100), beige rgba(255,245,220), white, cyan rgba(155,240,225),
+    //        beige2 rgba(245,230,190). 각 줄의 base alpha·blur·rotate·opacity 펄스·duration·delay 동치.
+    private let beige  = Color(red: 1.0, green: 0.96, blue: 0.86)
+    private let white  = Color.white
+    private let cyan   = Color(red: 0.61, green: 0.94, blue: 0.88)
+    private let beige2 = Color(red: 0.96, green: 0.90, blue: 0.74)
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            // 바닥 수렴 글로우 (웹 L:351-362)
+            Ellipse()
+                .fill(RadialGradient(
+                    colors: [beige.opacity(0.15), Color.accentPrimary.opacity(0.08), .clear],
+                    center: .center, startRadius: 0, endRadius: 175))
+                .frame(width: 350, height: 100)
+                .blur(radius: 20)
+                .offset(y: 20)
+            // 6줄 (웹 L:248-349) — dx·width·height·color@base·blur·rotate·pulse·dur·delay 정합.
+            LightBeam(dx: -60, width: 80, height: 190, color: Color.accentPrimary.opacity(0.22), blur: 12, rotate: -4, pulse: 0.5...0.8, dur: 5,   delay: 0)
+            LightBeam(dx: -30, width: 70, height: 184, color: beige.opacity(0.20),               blur: 14, rotate: 1,  pulse: 0.4...0.7, dur: 6,   delay: 0.8)
+            LightBeam(dx: 10,  width: 60, height: 174, color: white.opacity(0.18),               blur: 14, rotate: 5,  pulse: 0.35...0.65, dur: 6.5, delay: 1.5)
+            LightBeam(dx: 55,  width: 45, height: 152, color: cyan.opacity(0.15),                blur: 10, rotate: 8,  pulse: 0.3...0.5, dur: 7.5, delay: 2.5)
+            LightBeam(dx: -110, width: 55, height: 142, color: beige2.opacity(0.18),             blur: 10, rotate: -8, pulse: 0.25...0.5, dur: 7,   delay: 3.5)
+            LightBeam(dx: 95,  width: 30, height: 127, color: Color.accentPrimary.opacity(0.12), blur: 8,  rotate: 11, pulse: 0.2...0.4, dur: 8,   delay: 4.5)
+        }
+        .frame(width: 280, height: 320, alignment: .bottom)
+        .allowsHitTesting(false)
+    }
+}
+
+/// 빛줄기 1줄 — 바닥 기준 위로 솟는 블러 그라디언트, opacity 펄스 (autoreverses repeatForever).
+private struct LightBeam: View {
+    let dx: CGFloat
+    let width: CGFloat
+    let height: CGFloat
+    let color: Color
+    let blur: CGFloat
+    let rotate: Double
+    let pulse: ClosedRange<Double>
+    let dur: Double
+    let delay: Double
+    @State private var on = false
+
+    var body: some View {
+        Rectangle()
+            .fill(LinearGradient(colors: [color, color.opacity(0)], startPoint: .bottom, endPoint: .top))
+            .frame(width: width, height: height)
+            .blur(radius: blur)
+            .rotationEffect(.degrees(rotate), anchor: .bottom)
+            .offset(x: dx)
+            .opacity(on ? pulse.upperBound : pulse.lowerBound)
+            .onAppear {
+                withAnimation(.easeInOut(duration: dur).repeatForever(autoreverses: true).delay(delay)) {
+                    on = true
+                }
+            }
     }
 }
 
