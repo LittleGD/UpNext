@@ -141,22 +141,15 @@ struct DailyHomeView: View {
         }
     }
 
-    // MARK: - 상태 1 — 미드로우
+    // MARK: - 상태 1 — 미드로우 (웹 CardDrawScreen state 1 · 덱 홀드)
 
+    /// R4 — "카드 뽑기" 버튼 대신 웹의 덱 홀드 드로우 (DeckHoldDraw) 복원.
+    /// 리텐션 스택(체크인/듀오 — iOS 전용)은 보존하여 덱 위에 둔다.
     private func drawPrompt(_ daily: DailyState, _ s: PhaseSlice) -> some View {
         ScrollView {
             VStack(spacing: 24) {
                 homeRetentionStack
-                VStack(spacing: 8) {
-                    Text(heading(daily.challengePhase))
-                        .typography(.title)
-                        .foregroundStyle(Color.textPrimary)
-                    Text("덱에서 카드 6장을 펼쳐\n실천할 \(s.maxCards)장을 골라요")
-                        .typography(.body)
-                        .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                primaryButton("카드 뽑기") { store.drawPhaseCards() }
+                DeckHoldDraw(heading: heading(daily.challengePhase))
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 24)
@@ -164,88 +157,19 @@ struct DailyHomeView: View {
         }
     }
 
-    // MARK: - 상태 2 — 드로우 완료, 선택 중
+    // MARK: - 상태 2 — 드로우 완료, 선택 중 (웹 CardDrawScreen state 3+2)
 
+    /// R4 — 2열 그리드+탭 토글을 웹의 부채꼴 핸드+3D 프리뷰+리뷰 캐러셀로 전면 교체.
+    /// 웹 fixed inset-0 처럼 풀블리드 포커스 (리텐션 미표시 — 웹 동치).
     private func selectView(_ daily: DailyState, _ s: PhaseSlice) -> some View {
-        let selectedIds = Set(s.selected.map(\.id))
-        return ScrollView {
-            VStack(spacing: 16) {
-                homeRetentionStack
-                VStack(spacing: 4) {
-                    Text("\(heading(daily.challengePhase)) — 카드 고르기")
-                        .typography(.title)
-                        .foregroundStyle(Color.textPrimary)
-                    Text("실천할 \(s.maxCards)장을 선택하세요")
-                        .typography(.caption)
-                        .foregroundStyle(Color.textTertiary)
-                }
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
-                                    GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    ForEach(Array(s.drawn.enumerated()), id: \.element.id) { index, card in
-                        FlipInCard(index: index) {
-                            drawnCard(card,
-                                      selected: selectedIds.contains(card.id),
-                                      isPenalty: s.penaltyCardId == card.id)
-                        }
-                    }
-                }
-                if daily.challengePhase == .daily && !daily.rerollUsed {
-                    Button { store.rerollCards() } label: {
-                        Label("다시 뽑기", systemImage: "arrow.clockwise")
-                            .typography(.caption)
-                            .foregroundStyle(Color.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-                primaryButton("\(s.selected.count) / \(s.maxCards) 선택 — 확정",
-                              enabled: s.selected.count == s.maxCards) {
-                    store.confirmPhaseSelection()
-                }
-            }
-            .padding(20)
-            .padding(.bottom, 88)
-        }
-    }
-
-    private func drawnCard(_ card: ChallengeCard, selected: Bool, isPenalty: Bool) -> some View {
-        let highlighted = selected || isPenalty
-        return Button {
-            guard !isPenalty else { return }
-            if selected { store.deselectPhaseCard(card.id) } else { store.selectPhaseCard(card) }
-        } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(card.rarity.displayName)
-                        .typography(.micro)
-                        .foregroundStyle(Color.bgPrimary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(card.rarity.color, in: Capsule())
-                    Spacer()
-                    if isPenalty {
-                        PixelIcon(.lock, size: 11, color: Color.bgPrimary)
-                    } else if selected {
-                        PixelIcon(.check, size: 12, color: Color.bgPrimary)
-                    }
-                }
-                Text(card.title)
-                    .typography(.caption)
-                    .foregroundStyle(highlighted ? Color.bgPrimary : Color.textPrimary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                Text(card.description)
-                    .typography(.micro)
-                    .foregroundStyle(highlighted ? Color.bgPrimary.opacity(0.7) : Color.textTertiary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
-            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
-            .padding(12)
-            .background(highlighted ? Color.accentPrimary : Color.bgSurface,
-                        in: RoundedRectangle(cornerRadius: 12))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        CardSelectScreen(
+            phase: daily.challengePhase,
+            drawn: s.drawn,
+            selected: s.selected,
+            maxCards: s.maxCards,
+            penaltyCardId: s.penaltyCardId,
+            hasPenalty: daily.hasPenalty,
+            rerollUsed: daily.rerollUsed)
     }
 
     // MARK: - 상태 3 — 선택 확정, 보드
@@ -726,36 +650,5 @@ struct DailyHomeView: View {
                 .opacity(enabled ? 1 : 0.3)
         }
         .disabled(!enabled)
-    }
-}
-
-// MARK: - 카드 플립-인 (슬라이스 11)
-
-/// 드로우된 카드의 staggered 3D 플립-인 등장 — 웹 CardDrawScreen 리빌 연출의 압축 포팅.
-/// 각 카드가 모서리(-82°)에서 정면(0°)으로 회전하며 index 순으로 차례차례 등장한다.
-/// 드로우 카드 등장 — 웹 CardDrawScreen.tsx L:1059-1067 의 카드 reveal 모션 동치:
-///   initial={{ y: 200, opacity: 0 }} → animate={{ y: 0, opacity: 1 }}
-///   transition={{ ...springBouncy, delay: index * 0.08 }}
-/// springBouncy (stiffness 300, damping 15) → SwiftUI .spring(response:0.36,
-/// dampingFraction:0.43) (ω₀=√300=17.3 → response 2π/ω₀=0.36, ζ=15/(2√300)=0.43).
-///
-/// 이전 iOS 는 3D Y-flip (-82°→0) — 웹에 없는 연출이라 슬라이드업으로 교체.
-/// y 오프셋은 웹 200px → 그리드 셀 맥락상 44px 로 축소 (셀 겹침 방지, 곡선·stagger 동일).
-private struct FlipInCard<Content: View>: View {
-    let index: Int
-    @ViewBuilder var content: Content
-    @State private var shown = false
-
-    var body: some View {
-        content
-            .opacity(shown ? 1 : 0)
-            .offset(y: shown ? 0 : 44)
-            .scaleEffect(shown ? 1 : 0.96)
-            .onAppear {
-                withAnimation(.spring(response: 0.36, dampingFraction: 0.43)
-                    .delay(Double(index) * 0.08)) {
-                    shown = true
-                }
-            }
     }
 }

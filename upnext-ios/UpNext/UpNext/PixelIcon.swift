@@ -27,6 +27,7 @@ import SwiftUI
 /// 앱에서 사용하는 픽셀 아이콘 — Assets.xcassets/Icons/{rawValue}.imageset 와 1:1.
 enum PixelIconName: String, CaseIterable {
     case arrowUp        = "ArrowUp"
+    case bookOpen       = "BookOpen"     // R4 신규 — 카드 아이콘 (book-open.svg)
     case camera         = "Camera"
     case cancel         = "Cancel"
     case card           = "Card"
@@ -35,16 +36,21 @@ enum PixelIconName: String, CaseIterable {
     case chevronDown    = "ChevronDown"
     case chevronLeft    = "ChevronLeft"
     case chevronRight   = "ChevronRight"
+    case clock          = "Clock"        // R4 신규 — 카드 아이콘 (clock.svg)
+    case coffee         = "Coffee"       // R4 신규 — 카드 아이콘 (coffee.svg)
     case coins          = "Coins"
     case fire           = "Fire"
     case flag           = "Flag"
     case flame          = "Flame"        // pixelarticons에 flame 없음 → fire.svg 대체
     case gamepad        = "Gamepad"      // R3 신규 — gamepad.svg
     case gift           = "Gift"
+    case globe          = "Globe"        // R4 신규 — 카드 아이콘 (globe.svg)
     case heart          = "Heart"
     case image          = "Image"
     case languages      = "Languages"
+    case lightbulb      = "Lightbulb"    // R4 신규 — 카드 아이콘 (lightbulb.svg)
     case lock           = "Lock"
+    case message        = "Message"      // R4 신규 — 카드 아이콘 (message.svg)
     case monitor        = "Monitor"
     case moon           = "Moon"
     case moreHorizontal = "MoreHorizontal" // R3 신규 — more-horizontal.svg
@@ -57,12 +63,20 @@ enum PixelIconName: String, CaseIterable {
     case send           = "Send"
     case sparkle        = "Sparkle"
     case star           = "Star"         // pixelarticons에 star 없음 → sparkle.svg 대체
+    case sword          = "Sword"        // R4 신규 — 카드 아이콘 (sword.svg)
     case target         = "Target"
     case trash          = "Trash"        // pixelarticons에 trash 없음 → delete.svg 대체
     case trophy         = "Trophy"
     case user           = "User"
     case warningDiamond = "WarningDiamond"
     case zap            = "Zap"
+
+    /// 카드 데이터의 `icon` 문자열(웹 PixelIcon name)을 안전하게 케이스로 변환.
+    /// 웹은 동적 string 로드 — iOS 는 enum 이므로 미지의 이름은 `.card` 로 폴백.
+    /// 웹 CardDrawScreen / HandCard 의 `<PixelIcon name={card.icon} />` 동치.
+    static func resolve(_ name: String) -> PixelIconName {
+        PixelIconName(rawValue: name) ?? .card
+    }
 }
 
 /// 픽셀아트 아이콘 뷰. 템플릿 렌더링이라 color로 자유롭게 틴팅.
