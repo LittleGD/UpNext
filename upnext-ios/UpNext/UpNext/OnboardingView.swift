@@ -366,9 +366,7 @@ private struct OnboardingBottomBar: View {
         HStack(spacing: 12) {
             if let onBack {
                 Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Color.textSecondary)
+                    PixelIcon(.chevronLeft, size: 17, color: Color.textSecondary)
                         .frame(width: 52, height: 52)
                         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
                 }

@@ -69,9 +69,7 @@ struct CollectionCelebrationView: View {
 
     private var card: some View {
         VStack(spacing: 16) {
-            Image(systemName: "trophy.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(Color.accentPrimary)
+            PixelIcon(.trophy, size: 64, color: Color.accentPrimary)
                 .scaleEffect(trophyPulse ? 1.08 : 1)
 
             Text("도감 완성!")
@@ -110,9 +108,7 @@ struct CollectionCelebrationView: View {
     /// 칭호 획득 안내 — "도감 완성자" 칭호.
     private var titleAward: some View {
         HStack(spacing: 10) {
-            Image(systemName: "trophy.fill")
-                .font(.system(size: 16))
-                .foregroundStyle(Color.accentPrimary)
+            PixelIcon(.trophy, size: 16, color: Color.accentPrimary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("칭호 획득")
                     .typography(.caption)

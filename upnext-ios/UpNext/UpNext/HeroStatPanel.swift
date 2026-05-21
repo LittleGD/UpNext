@@ -63,9 +63,7 @@ struct HeroStatPanel: View {
 
     private func heroSummary(hero: Hero, leveled: Hero, level: Int) -> some View {
         VStack(spacing: 8) {
-            Image(systemName: "figure.stand")
-                .font(.system(size: 56))
-                .foregroundStyle(Color.accentPrimary)
+            PixelIcon(.user, size: 56, color: Color.accentPrimary)
             Text(hero.name)
                 .typography(.heading)
                 .foregroundStyle(Color.textPrimary)

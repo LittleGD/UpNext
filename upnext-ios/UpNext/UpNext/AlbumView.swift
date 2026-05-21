@@ -79,12 +79,11 @@ struct AlbumView: View {
     private var addButton: some View {
         PhotosPicker(selection: $pickerItem, matching: .images) {
             HStack(spacing: 8) {
-                Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .semibold))
+                PixelIcon(.plus, size: 14, color: Color.bgPrimary)
                 Text("사진 추가")
                     .typography(.caption)
+                    .foregroundStyle(Color.bgPrimary)
             }
-            .foregroundStyle(Color.bgPrimary)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(Color.accentPrimary, in: Capsule())
@@ -122,9 +121,7 @@ struct AlbumView: View {
                         .resizable()
                         .scaledToFill()
                 } else {
-                    Image(systemName: "photo")
-                        .font(.system(size: 22))
-                        .foregroundStyle(Color.textTertiary)
+                    PixelIcon(.image, size: 22, color: Color.textTertiary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }

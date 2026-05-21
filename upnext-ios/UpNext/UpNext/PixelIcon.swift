@@ -9,7 +9,17 @@
 //  사용: PixelIcon(.camera, size: 18, color: .accentPrimary)
 //
 //  Target: UpNext (App). Widget은 SF Symbols 사용 — 아이콘 에셋이 App 번들에만 있음.
-//  Phase 1.4 (디자인 시스템 Swift 포팅) 산출물.
+//
+//  ════════════════════════════════════════════════════════════════════════════
+//  SF Symbol 화이트리스트 (R3 — PixelIcon 표준화)
+//  ════════════════════════════════════════════════════════════════════════════
+//
+//  *PixelIcon 우선 사용*. SF Symbol 은 다음 경우만 허용:
+//
+//   - `apple.logo` — Apple SIWA 가이드 강제 (커스텀 글리프 불가). LoginView 전용.
+//
+//  그 외 모든 아이콘은 이 enum 의 케이스 + Assets.xcassets/Icons/ 자산 사용.
+//  CI 검증: `scripts/fidelity/icon-audit.sh` 가 PR 마다 차단. 위반 1건이라도 fail.
 //
 
 import SwiftUI
@@ -20,6 +30,7 @@ enum PixelIconName: String, CaseIterable {
     case camera         = "Camera"
     case cancel         = "Cancel"
     case card           = "Card"
+    case chart          = "Chart"        // R3 신규 — chart.svg
     case check          = "Check"
     case chevronDown    = "ChevronDown"
     case chevronLeft    = "ChevronLeft"
@@ -28,6 +39,7 @@ enum PixelIconName: String, CaseIterable {
     case fire           = "Fire"
     case flag           = "Flag"
     case flame          = "Flame"        // pixelarticons에 flame 없음 → fire.svg 대체
+    case gamepad        = "Gamepad"      // R3 신규 — gamepad.svg
     case gift           = "Gift"
     case heart          = "Heart"
     case image          = "Image"
@@ -35,6 +47,7 @@ enum PixelIconName: String, CaseIterable {
     case lock           = "Lock"
     case monitor        = "Monitor"
     case moon           = "Moon"
+    case moreHorizontal = "MoreHorizontal" // R3 신규 — more-horizontal.svg
     case penSquare      = "PenSquare"
     case play           = "Play"
     case plus           = "Plus"

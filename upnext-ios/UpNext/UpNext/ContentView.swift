@@ -77,9 +77,7 @@ private struct BootErrorView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "xmark.octagon.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(Color.colorError)
+            PixelIcon(.cancel, size: 36, color: Color.colorError)
             Text(message)
                 .typography(.body)
                 .foregroundStyle(Color.textSecondary)

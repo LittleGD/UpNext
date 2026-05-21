@@ -49,9 +49,7 @@ struct CardPackOpenerView: View {
 
     private var prompt: some View {
         VStack(spacing: 12) {
-            Image(systemName: "gift.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.accentPrimary)
+            PixelIcon(.gift, size: 48, color: Color.accentPrimary)
             Text("카드팩 \(pendingCount)개")
                 .typography(.title)
                 .foregroundStyle(Color.textPrimary)

@@ -46,9 +46,8 @@ struct BackupReminderBannerView: View {
             let _ = onceLog
             HStack(alignment: .top, spacing: 12) {
                 // 경고 아이콘 — 웹 PixelIcon WarningDiamond + color #E88B7A.
-                Image(systemName: "exclamationmark.triangle.fill")  // R3 에서 PixelIcon 으로 교체
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color(red: 232/255, green: 139/255, blue: 122/255))
+                PixelIcon(.warningDiamond, size: 18,
+                          color: Color(red: 232/255, green: 139/255, blue: 122/255))
                     .padding(.top, 2)
 
                 VStack(alignment: .leading, spacing: 4) {

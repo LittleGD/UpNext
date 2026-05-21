@@ -55,9 +55,7 @@ struct EquipmentInventoryView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.textSecondary)
+                PixelIcon(.chevronLeft, size: 16, color: Color.textSecondary)
                     .frame(width: 40, height: 40)
             }
             .buttonStyle(.plain)
@@ -133,9 +131,7 @@ struct EquipmentInventoryView: View {
                         HStack(spacing: 10) {
                             itemSummary(item)
                             Spacer(minLength: 0)
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.textTertiary)
+                            PixelIcon(.moreHorizontal, size: 14, color: Color.textTertiary)
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity)

@@ -223,13 +223,9 @@ struct DailyHomeView: View {
                         .background(card.rarity.color, in: Capsule())
                     Spacer()
                     if isPenalty {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color.bgPrimary)
+                        PixelIcon(.lock, size: 11, color: Color.bgPrimary)
                     } else if selected {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Color.bgPrimary)
+                        PixelIcon(.check, size: 12, color: Color.bgPrimary)
                     }
                 }
                 Text(card.title)
@@ -295,9 +291,7 @@ struct DailyHomeView: View {
                 if store.startMinigame() { showMinigame = true }
             } label: {
                 HStack(spacing: 10) {
-                    Image(systemName: "gamecontroller")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Color.accentPrimary)
+                    PixelIcon(.gamepad, size: 18, color: Color.accentPrimary)
                         .frame(width: 24)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("미니게임")
@@ -308,9 +302,7 @@ struct DailyHomeView: View {
                             .foregroundStyle(Color.textTertiary)
                     }
                     Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color.textTertiary)
+                    PixelIcon(.chevronRight, size: 13, color: Color.textTertiary)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity)
@@ -322,9 +314,7 @@ struct DailyHomeView: View {
 
     private func completionBanner(_ phase: ChallengePhase) -> some View {
         VStack(spacing: 6) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 32))
-                .foregroundStyle(Color.bgPrimary)
+            PixelIcon(.check, size: 32, color: Color.bgPrimary)
             Text("\(heading(phase)) 완료!")
                 .typography(.heading)
                 .foregroundStyle(Color.bgPrimary)
@@ -466,9 +456,7 @@ struct DailyHomeView: View {
     private func weeklyReportCard(_ report: WeeklyReportSummary) -> some View {
         Button { shownReport = report } label: {
             HStack(spacing: 12) {
-                Image(systemName: "chart.bar.doc.horizontal")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.accentPrimary)
+                PixelIcon(.chart, size: 18, color: Color.accentPrimary)
                     .frame(width: 28)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("지난주 리포트")
@@ -480,9 +468,7 @@ struct DailyHomeView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.textTertiary)
+                PixelIcon(.chevronRight, size: 12, color: Color.textTertiary)
             }
             .padding(14)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 14))

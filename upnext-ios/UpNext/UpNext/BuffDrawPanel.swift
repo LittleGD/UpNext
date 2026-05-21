@@ -103,9 +103,7 @@ struct BuffDrawPanel: View {
                         .background(card.rarity.color, in: Capsule())
                     Spacer()
                     if selected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Color.accentPrimary)
+                        PixelIcon(.check, size: 16, color: Color.accentPrimary)
                     }
                 }
                 Text(card.title)

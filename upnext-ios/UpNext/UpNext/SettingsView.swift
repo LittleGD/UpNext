@@ -213,9 +213,7 @@ struct SettingsView: View {
                         .typography(.body)
                         .foregroundStyle(Color.textPrimary)
                     Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(Color.textTertiary)
+                    PixelIcon(.chevronRight, size: 12, color: Color.textTertiary)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)

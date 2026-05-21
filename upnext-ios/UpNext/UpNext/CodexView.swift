@@ -49,9 +49,7 @@ struct CodexView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.textSecondary)
+                PixelIcon(.chevronLeft, size: 16, color: Color.textSecondary)
                     .frame(width: 40, height: 40)
             }
             .buttonStyle(.plain)

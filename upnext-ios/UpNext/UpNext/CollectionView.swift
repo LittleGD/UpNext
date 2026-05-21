@@ -189,9 +189,7 @@ struct CollectionView: View {
                     .typography(.micro)
                     .foregroundStyle(Color.textTertiary)
             } else {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 16))
-                    .foregroundStyle(Color.textTertiary)
+                PixelIcon(.lock, size: 16, color: Color.textTertiary)
                 Text("잠긴 카드")
                     .typography(.caption)
                     .foregroundStyle(Color.textTertiary)

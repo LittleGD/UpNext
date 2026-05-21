@@ -130,9 +130,7 @@ struct MinigameView: View {
     private var winView: some View {
         VStack(spacing: 12) {
             Spacer()
-            Image(systemName: "trophy.fill")
-                .font(.system(size: 44))
-                .foregroundStyle(Color.accentPrimary)
+            PixelIcon(.trophy, size: 44, color: Color.accentPrimary)
             Text("성공!")
                 .typography(.title)
                 .foregroundStyle(Color.textPrimary)

@@ -62,9 +62,7 @@ struct ClassChoiceView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.textSecondary)
+                PixelIcon(.chevronLeft, size: 16, color: Color.textSecondary)
                     .frame(width: 40, height: 40)
             }
             .buttonStyle(.plain)
@@ -103,9 +101,7 @@ struct ClassChoiceView: View {
                         .foregroundStyle(Color.textTertiary)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.textTertiary)
+                PixelIcon(.chevronRight, size: 13, color: Color.textTertiary)
             }
             .padding(14)
             .frame(maxWidth: .infinity)

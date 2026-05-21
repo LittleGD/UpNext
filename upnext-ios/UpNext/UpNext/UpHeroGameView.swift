@@ -151,9 +151,7 @@ private struct CampView: View {
             statsOpen = true
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "figure.stand")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Color.accentPrimary)
+                PixelIcon(.user, size: 40, color: Color.accentPrimary)
                     .frame(width: 56)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(hero.name)
@@ -167,9 +165,7 @@ private struct CampView: View {
                         .foregroundStyle(Color.textSecondary)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.textTertiary)
+                PixelIcon(.chevronRight, size: 13, color: Color.textTertiary)
             }
             .padding(16)
             .frame(maxWidth: .infinity)
@@ -234,9 +230,7 @@ private struct CampView: View {
             }
             Spacer(minLength: 0)
             if active {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.textTertiary)
+                PixelIcon(.chevronRight, size: 13, color: Color.textTertiary)
             }
         }
         .padding(14)
