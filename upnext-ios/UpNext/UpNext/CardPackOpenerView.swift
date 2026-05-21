@@ -79,32 +79,53 @@ struct CardPackOpenerView: View {
                     columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
                     spacing: 10
                 ) {
-                    ForEach(r.cards) { card in
-                        revealCard(card)
+                    ForEach(Array(r.cards.enumerated()), id: \.element.id) { idx, card in
+                        RevealCard(card: card, index: idx)
                     }
                 }
             }
         }
     }
 
-    private func revealCard(_ card: ChallengeCard) -> some View {
-        VStack(spacing: 6) {
-            Text(card.rarity.displayName)
-                .typography(.micro)
-                .foregroundStyle(Color.bgPrimary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(card.rarity.color, in: Capsule())
-            Text(card.title)
-                .typography(.micro)
-                .foregroundStyle(Color.textPrimary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+    /// 카드 한 장 — 등장 시 스태거 스프링 reveal (웹 CardPackOpener 의 카드별 0.08s
+    /// stagger + scale(1.2)→1 + opacity 0→1). ForEach id 가 card.id 라 새 reveal 마다
+    /// 뷰가 재생성되며 onAppear 가 다시 fire → 매 개봉 애니메이션 재생.
+    private struct RevealCard: View {
+        let card: ChallengeCard
+        let index: Int
+        @State private var shown = false
+
+        var body: some View {
+            VStack(spacing: 6) {
+                Text(card.rarity.displayName)
+                    .typography(.micro)
+                    .foregroundStyle(Color.bgPrimary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(card.rarity.color, in: Capsule())
+                Text(card.title)
+                    .typography(.micro)
+                    .foregroundStyle(Color.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, minHeight: 72)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 6)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+            .opacity(shown ? 1 : 0)
+            .scaleEffect(shown ? 1 : 1.2)
+            .onAppear {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.65)
+                    .delay(Double(index) * 0.08)) {
+                    shown = true
+                }
+                // 카드별 reveal 음 — 스태거에 맞춰 (웹 cardFlip).
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.08) {
+                    SoundPlayer.shared.play(.cardFlip)
+                }
+            }
         }
-        .frame(maxWidth: .infinity, minHeight: 72)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 6)
-        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - 하단 버튼
