@@ -51,14 +51,25 @@ jobs:
       - name: Build
         run: |
           cd upnext-ios/UpNext
+          # device-agnostic 빌드 — 특정 시뮬레이터 이름 불필요 (Codex review P1).
           xcodebuild -project UpNext.xcodeproj -scheme UpNext \
-            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath /tmp/upnext-build build
+      - name: Resolve simulator
+        id: sim
+        run: |
+          # 러너 Xcode 에 실제 존재하는 iPhone 시뮬레이터를 동적 선택. iPhone 17 등
+          # 특정 이름 하드코딩은 Xcode/러너 이미지 버전마다 깨짐 (Codex review P1).
+          UDID=$(xcrun simctl list devices available -j \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((v['udid'] for rt,ds in d['devices'].items() if 'iOS' in rt for v in ds if v.get('isAvailable') and 'iPhone' in v['name']), ''))")
+          if [ -z "$UDID" ]; then echo "::error::no available iOS simulator on runner"; exit 1; fi
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "Resolved simulator UDID: $UDID"
       - name: Test (unit + UI)
         run: |
           cd upnext-ios/UpNext
           xcodebuild test -project UpNext.xcodeproj -scheme UpNext \
-            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath /tmp/upnext-build
 
   # ═════════════════════════════ INFORMATIONAL ═════════════════════════════
@@ -87,12 +98,14 @@ jobs:
         run: |
           cd upnext-ios/UpNext
           xcodebuild -project UpNext.xcodeproj -scheme UpNext \
-            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath /tmp/upnext-build build
           cd "${GITHUB_WORKSPACE}"
           npm ci && (npm run dev &) && sleep 8
-          xcrun simctl boot "iPhone 17" || true
-          xcrun simctl install booted \
+          # 가용 시뮬레이터 동적 부팅 (특정 이름 하드코딩 회피 — Codex review P1).
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((v['udid'] for rt,ds in d['devices'].items() if 'iOS' in rt for v in ds if v.get('isAvailable') and 'iPhone' in v['name']), ''))")
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl install "$UDID" \
             /tmp/upnext-build/Build/Products/Debug-iphonesimulator/UpNext.app
 
       - name: Capture affected rows
@@ -147,12 +160,14 @@ jobs:
         run: |
           cd upnext-ios/UpNext
           xcodebuild -project UpNext.xcodeproj -scheme UpNext \
-            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath /tmp/upnext-build build
           cd "${GITHUB_WORKSPACE}"
           npm ci && (npm run dev &) && sleep 8
-          xcrun simctl boot "iPhone 17" || true
-          xcrun simctl install booted \
+          # 가용 시뮬레이터 동적 부팅 (특정 이름 하드코딩 회피 — Codex review P1).
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((v['udid'] for rt,ds in d['devices'].items() if 'iOS' in rt for v in ds if v.get('isAvailable') and 'iPhone' in v['name']), ''))")
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl install "$UDID" \
             /tmp/upnext-build/Build/Products/Debug-iphonesimulator/UpNext.app
       - name: Capture 24 rows
         run: for i in $(seq -w 1 24); do ./scripts/fidelity/snapshot-pair.sh "$i" || true; done
