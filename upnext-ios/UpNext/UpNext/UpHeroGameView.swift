@@ -267,14 +267,16 @@ private struct CampView: View {
     // MARK: 헤더 — 제목 + 코인
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack {
             Text("아지트")
                 .typography(.title)
                 .foregroundStyle(Color.textPrimary)
             Spacer()
-            Text("코인 \(upHero.state.coins)")
-                .typography(.body)
-                .foregroundStyle(Color.accentPrimary)
+            HStack(spacing: 4) {
+                PixelIcon(.coins, size: 14, color: Color.accentPrimary)
+                NumberRollView(value: upHero.state.coins, baseColor: Color.accentPrimary)
+                    .typography(.body)
+            }
         }
     }
 

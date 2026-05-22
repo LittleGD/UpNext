@@ -54,10 +54,8 @@ struct ShopView: View {
             Spacer()
             HStack(spacing: 4) {
                 PixelIcon(.coins, size: 14, color: Color.accentPrimary)
-                Text("\(upHero.state.coins)")
+                NumberRollView(value: upHero.state.coins, baseColor: Color.accentPrimary)
                     .typography(.body)
-                    .monospacedDigit()
-                    .foregroundStyle(Color.accentPrimary)
             }
         }
         .padding(.horizontal, 8)

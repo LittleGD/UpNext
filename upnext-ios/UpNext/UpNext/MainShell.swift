@@ -115,14 +115,21 @@ struct AppHeader: View {
         let xp = store.progress?.xp ?? 0
         VStack(spacing: 6) {
             HStack {
-                Text("Lv.\(level)")
-                    .typography(.heading)
-                    .foregroundStyle(Color.accentPrimary)
+                HStack(spacing: 0) {
+                    Text("Lv.")
+                        .typography(.heading)
+                        .foregroundStyle(Color.accentPrimary)
+                    NumberRollView(value: level, baseColor: Color.accentPrimary)
+                        .typography(.heading)
+                }
                 Spacer()
                 if showXP {
-                    Text("\(xpCurrent(level, xp)) / \(xpNeeded(level)) XP")
-                        .typography(.micro)
-                        .foregroundStyle(Color.textTertiary)
+                    HStack(spacing: 0) {
+                        NumberRollView(value: xpCurrent(level, xp), baseColor: Color.textTertiary)
+                        Text(" / \(xpNeeded(level)) XP")
+                            .foregroundStyle(Color.textTertiary)
+                    }
+                    .typography(.micro)
                 }
             }
             if showXP {
