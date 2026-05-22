@@ -45,8 +45,11 @@ enum AuthFunnelEvent: String {
     case backupBannerDismissed = "auth_backup_banner_dismissed"
     /// BackupReminderBanner "지금 백업" — LoginOverlay 로 이동.
     case backupBannerCtaTapped = "auth_backup_banner_cta_tapped"
-    /// 로그아웃 — 메모리 진척이 LocalProgressCache 로 자동 이전.
+    /// 로그아웃 — 메모리 진척이 LocalProgressCache 로 자동 이전. (deprecated: signOutReset 로 대체)
     case signOutToAnonymous = "auth_signout_to_anonymous"
+    /// 명시적 sign-out → 계정 경계 리셋 (Codex adversarial #1). 클라우드 데이터를
+    /// 로컬에 남기지 않고 온보딩으로 — 공유 기기에서 이전 계정 노출 차단.
+    case signOutReset = "auth_signout_reset"
 }
 
 enum AuthFunnel {

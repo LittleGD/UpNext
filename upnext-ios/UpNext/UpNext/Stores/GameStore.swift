@@ -154,28 +154,34 @@ final class GameStore: ObservableObject {
             phase = .launching
 
         case .signedOut:
+            // *명시적 sign-out 인지* 를 bootstrappedUid 로 판정 (nil 로 덮기 전 캡처).
+            // 로그인 세션이 있었다면 = 계정 경계 이벤트. 비로그인(콜드런치) = 익명 진입.
+            let wasLoggedIn = (bootstrappedUid != nil)
             bootstrappedUid = nil
             collectionCelebration = false
             sync.setSyncReady(false)
             sync.stopListener()
-            // R1 — 익명 모드 진입. 우선순위:
-            //   1. *메모리에 진척 있음* (logged-in → sign-out 직후): 그 데이터를
-            //      LocalProgressCache 로 저장해 익명 모드로 *그대로 유지*. 사용자가 sign
-            //      out 했다고 모든 진행을 잃지 않는다 (Critical #1 픽스).
-            //   2. *캐시 존재* (재시작·앱 종료 후 복귀): 이전 익명 진행 복원.
-            //   3. *둘 다 없음* (앱 첫 실행): 기본 progress 로 .onboarding 진입.
-            if let p = progress, let d = daily, let r = retention,
-               hasMeaningfulProgress(p) {
-                // 1: logged-in 상태에서 메모리에 데이터 살아있음 — 익명 캐시로 옮긴다.
-                LocalProgressCacheStore.save(progress: p, daily: d, retention: r)
-                phase = .ready
-                AuthFunnel.log(.signOutToAnonymous, ["days": "\(p.totalDaysCompleted)"])
-                if !loginPromptSeen, !d.isDrawComplete {
-                    showLoginOverlay = true
-                    AuthFunnel.log(.loginPromptShown, ["trigger": "signout_to_anonymous"])
-                }
+
+            if wasLoggedIn {
+                // Codex adversarial #1 — 명시적 sign-out 은 *계정 경계 리셋*.
+                // 이전: 메모리의 클라우드 데이터를 익명 캐시로 보존(.signOutToAnonymous) →
+                // 공유 기기에서 다음 익명 세션에 이전 계정 진행이 노출/변조되는 신뢰 경계
+                // 위반. 클라우드 데이터는 Firestore 에 안전하므로 *로컬을 비우고 온보딩*
+                // 으로 보내도 손실 없음 (재로그인 시 클라우드 복원). 익명 캐시도 제거.
+                LocalProgressCacheStore.clear()
+                upHero.resetForSignOut()
+                duo.reset()
+                WidgetSync.endAllActivities()
+                progress = nil
+                daily = nil
+                retention = nil
+                progress = Self.makeDefaultProgress()
+                daily = Self.makeDefaultDaily()
+                retention = RetentionState.fresh(today: Self.todayString())
+                phase = .onboarding
+                AuthFunnel.log(.signOutReset)
             } else if let cache = LocalProgressCacheStore.load() {
-                // 2: 캐시 복원.
+                // 비로그인 진입 (콜드런치 / 익명 resume) — 이전 익명 진행 복원.
                 progress = cache.progress
                 daily = cache.daily
                 retention = cache.retention
@@ -186,7 +192,7 @@ final class GameStore: ObservableObject {
                     AuthFunnel.log(.loginPromptShown, ["trigger": "anonymous_resume"])
                 }
             } else {
-                // 3: 진짜 fresh — 익명 신규 사용자.
+                // 진짜 fresh — 익명 신규 사용자.
                 progress = nil
                 daily = nil
                 retention = nil
@@ -241,6 +247,10 @@ final class GameStore: ObservableObject {
                 progress: conflict.localProgress,
                 daily: conflict.localDaily,
                 retention: conflict.localRetention ?? RetentionState.fresh(today: Self.todayString()))
+            // Codex adversarial #2 — await 동안 로그아웃/계정전환 시 stale task.
+            // 현재 부트스트랩된 계정이 여전히 이 conflict 의 uid 일 때만 live sync·ready 부착.
+            // (bootstrap L306 의 동일 가드 패턴. 어긋나면 폐기.)
+            guard bootstrappedUid == conflict.uid else { return }
             // 로컬을 유지하므로 progress/daily/retention 은 이미 셋. 캐시는 더이상
             // 익명 모드 아니므로 비운다 (이젠 Firestore 가 진실).
             LocalProgressCacheStore.clear()
