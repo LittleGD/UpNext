@@ -390,8 +390,12 @@ struct CardSelectScreen: View {
             }
 
             if showRerollConfirm {
-                rerollConfirm
-                    .transition(.opacity)
+                OverlayContainer(onBackdropTap: {
+                    withAnimation(Anim.cardOverlayExit) { showRerollConfirm = false }
+                }) {
+                    rerollConfirmCard
+                }
+                .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: 0.22), value: previewId)
@@ -543,52 +547,49 @@ struct CardSelectScreen: View {
 
     // MARK: 리롤 확인 모달 (웹 L:916-975)
 
-    private var rerollConfirm: some View {
-        ZStack {
-            Color.black.opacity(0.6).ignoresSafeArea()
-                .onTapGesture { showRerollConfirm = false }
-            VStack(spacing: 16) {
-                HStack(spacing: 8) {
-                    PixelIcon(.reload, size: 24, color: Color.accentPrimary)
-                    Text("다시 뽑기").typography(.heading).foregroundStyle(Color.textPrimary)
-                }
-                Text("카드를 다시 뽑으면 현재 6장이 새 카드로 교체돼요.\n다시 뽑기는 하루 한 번만 가능해요.")
-                    .typography(.body)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-                HStack(spacing: 12) {
-                    Button {
-                        SoundPlayer.shared.play(.select)
-                        showRerollConfirm = false
-                    } label: {
-                        Text("취소").typography(.body).foregroundStyle(Color.textSecondary)
-                            .padding(.horizontal, 24).frame(height: 48)
-                            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
-                    }.buttonStyle(.plain)
-                    Button {
-                        SoundPlayer.shared.play(.packOpen)
-                        previewExiting = false
-                        previewExitDir = nil
-                        previewId = nil
-                        store.rerollCards()
-                        showRerollConfirm = false
-                        for i in 0..<6 {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.08) {
-                                SoundPlayer.shared.play(.cardFlip)
-                            }
-                        }
-                    } label: {
-                        Text("다시 뽑기").typography(.body).foregroundStyle(Color.bgPrimary)
-                            .padding(.horizontal, 24).frame(height: 48)
-                            .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
-                    }.buttonStyle(.plain)
-                }
+    // 리롤 확인 카드 — backdrop/진입 모션은 OverlayContainer 가 담당 (R6).
+    private var rerollConfirmCard: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 8) {
+                PixelIcon(.reload, size: 24, color: Color.accentPrimary)
+                Text("다시 뽑기").typography(.heading).foregroundStyle(Color.textPrimary)
             }
-            .padding(24)
-            .frame(maxWidth: 360)
-            .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 20))
-            .padding(.horizontal, 24)
+            Text("카드를 다시 뽑으면 현재 6장이 새 카드로 교체돼요.\n다시 뽑기는 하루 한 번만 가능해요.")
+                .typography(.body)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+            HStack(spacing: 12) {
+                Button {
+                    SoundPlayer.shared.play(.select)
+                    withAnimation(Anim.cardOverlayExit) { showRerollConfirm = false }
+                } label: {
+                    Text("취소").typography(.body).foregroundStyle(Color.textSecondary)
+                        .padding(.horizontal, 24).frame(height: 48)
+                        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+                }.buttonStyle(.plain)
+                Button {
+                    SoundPlayer.shared.play(.packOpen)
+                    previewExiting = false
+                    previewExitDir = nil
+                    previewId = nil
+                    store.rerollCards()
+                    withAnimation(Anim.cardOverlayExit) { showRerollConfirm = false }
+                    for i in 0..<6 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.08) {
+                            SoundPlayer.shared.play(.cardFlip)
+                        }
+                    }
+                } label: {
+                    Text("다시 뽑기").typography(.body).foregroundStyle(Color.bgPrimary)
+                        .padding(.horizontal, 24).frame(height: 48)
+                        .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
+                }.buttonStyle(.plain)
+            }
         }
+        .padding(24)
+        .frame(maxWidth: 360)
+        .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 20))
+        .padding(.horizontal, 24)
     }
 }
 
