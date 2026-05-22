@@ -165,7 +165,7 @@ final class GameStore: ObservableObject {
             //   2. *캐시 존재* (재시작·앱 종료 후 복귀): 이전 익명 진행 복원.
             //   3. *둘 다 없음* (앱 첫 실행): 기본 progress 로 .onboarding 진입.
             if let p = progress, let d = daily, let r = retention,
-               p.totalDaysCompleted > 0 || (p.unlockedCardIds.count > 0 && p.xp > 0) {
+               hasMeaningfulProgress(p) {
                 // 1: logged-in 상태에서 메모리에 데이터 살아있음 — 익명 캐시로 옮긴다.
                 LocalProgressCacheStore.save(progress: p, daily: d, retention: r)
                 phase = .ready
@@ -265,13 +265,29 @@ final class GameStore: ObservableObject {
         phase = .ready
     }
 
+    /// 익명 사용자에게 "의미 있는 진척"이 있는지 — sign-out 보존·머지 게이트가 *동일* 판정.
+    /// 리뷰 #1: 분기마다 다르게 판정(한쪽 days만, 다른쪽 days+cards+xp)하면 익명 진행이
+    /// 조용히 폐기됨. 단일 헬퍼로 통일해 데이터 손실 차단.
+    private func hasMeaningfulProgress(_ p: UserProgress) -> Bool {
+        p.totalDaysCompleted > 0 || (p.unlockedCardIds.count > 0 && p.xp > 0)
+    }
+
+    private var persistScheduled = false
     /// 매 progress/daily/retention 변경 시 호출. 익명일 때만 LocalProgressCache 갱신.
     /// 로그인 상태에선 SyncManager 가 Firestore 로 동기화 → 캐시는 stale 위험만 만들어 우회.
+    /// 리뷰 #2: 한 runloop tick 내 다중 didSet (예: 3필드 동시 설정) 을 1회 write 로
+    /// coalesce — 중복 디스크 IO 제거. 같은 tick async 라 hard-kill 손실 위험 없음.
     private func persistLocalIfAnonymous() {
-        guard auth.uid == nil,
-              let p = progress, let d = daily, let r = retention
-        else { return }
-        LocalProgressCacheStore.save(progress: p, daily: d, retention: r)
+        guard auth.uid == nil, !persistScheduled else { return }
+        persistScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.persistScheduled = false
+            guard self.auth.uid == nil,
+                  let p = self.progress, let d = self.daily, let r = self.retention
+            else { return }
+            LocalProgressCacheStore.save(progress: p, daily: d, retention: r)
+        }
     }
 
     /// 로그인 직후 1회 — 클라우드 데이터를 로드하고, 익명 진행이 있으면 머지 결정.
@@ -297,7 +313,7 @@ final class GameStore: ObservableObject {
             //   - local 진척 + cloud 비어있음 → uploadLocalData (local 채택, cloud 덮어쓰기 안전)
             //   - local 비어있음 + cloud 진척 → cloud 채택 (default path)
             if hadLocalProgress, let lp = localProgress, let ld = localDaily,
-               lp.totalDaysCompleted > 0 && cloudProgress.totalDaysCompleted > 0 {
+               hasMeaningfulProgress(lp) && hasMeaningfulProgress(cloudProgress) {
                 mergeConflict = MergeConflictData(
                     uid: uid,
                     localProgress: lp, localDaily: ld, localRetention: localRetention,
@@ -310,8 +326,9 @@ final class GameStore: ObservableObject {
                 return
             }
             // 자동 분기 — local 만 진척 있으면 upload, 그 외엔 cloud 채택.
+            // (양쪽 모두 진척 = 위에서 다이얼로그로 분기됨. 여기는 최대 한쪽만 진척.)
             if hadLocalProgress, let lp = localProgress, let ld = localDaily,
-               lp.totalDaysCompleted > cloudProgress.totalDaysCompleted {
+               hasMeaningfulProgress(lp) && !hasMeaningfulProgress(cloudProgress) {
                 let lr = localRetention ?? RetentionState.fresh(today: Self.todayString())
                 await sync.uploadLocalData(uid: uid, progress: lp, daily: ld, retention: lr)
                 LocalProgressCacheStore.clear()

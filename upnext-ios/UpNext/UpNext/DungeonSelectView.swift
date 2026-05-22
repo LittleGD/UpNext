@@ -21,11 +21,7 @@ struct DungeonSelectView: View {
     /// 아지트 홈으로 복귀.
     let onBack: () -> Void
 
-    // GB 팔레트 (웹 upHeroPalette.ts) — 캠프는 의도적으로 GB 게임보이 팔레트 테마.
-    private static let gbDark = Color(red: 0.173, green: 0.290, blue: 0.173)
-    private static let gbLight = Color(red: 0.529, green: 0.722, blue: 0.478)
-    private static let gbLightest = Color(red: 0.804, green: 0.961, blue: 0.392)
-
+    // GB 팔레트는 GBPalette (단일 출처) 참조 — 캠프는 의도적으로 GB 게임보이 테마.
     private var totalPasses: Int { upHero.state.passes.values.reduce(0, +) }
 
     var body: some View {
@@ -55,7 +51,7 @@ struct DungeonSelectView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Button(action: onBack) {
-                PixelIcon(.chevronLeft, size: 16, color: Self.gbLight)
+                PixelIcon(.chevronLeft, size: 16, color: GBPalette.light)
                     .frame(width: 40, height: 40)
             }
             .buttonStyle(.plain)
@@ -74,15 +70,15 @@ struct DungeonSelectView: View {
         HStack {
             Text("보유 탐험권")
                 .typography(.caption)
-                .foregroundStyle(Self.gbLight)
+                .foregroundStyle(GBPalette.light)
             Spacer()
             Text("×\(totalPasses)")
                 .typography(.caption)
                 .monospacedDigit()
-                .foregroundStyle(totalPasses > 0 ? Self.gbLightest : Self.gbLight)
+                .foregroundStyle(totalPasses > 0 ? GBPalette.lightest : GBPalette.light)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 2)
-                .background(totalPasses > 0 ? Self.gbLight.opacity(0.13) : Color.clear, in: Capsule())
+                .background(totalPasses > 0 ? GBPalette.light.opacity(0.13) : Color.clear, in: Capsule())
         }
         .padding(.horizontal, 17)
         .padding(.bottom, 2)
@@ -108,12 +104,12 @@ struct DungeonSelectView: View {
                 Spacer(minLength: 0)
                 Text(dungeon.name)
                     .typography(.caption)
-                    .foregroundStyle(Self.gbLightest)
+                    .foregroundStyle(GBPalette.lightest)
                     .lineLimit(1)
                 Text(best > 0 ? "최고 F\(best)" : "미탐험")
                     .typography(.micro)
                     .monospacedDigit()
-                    .foregroundStyle(Self.gbLight)
+                    .foregroundStyle(GBPalette.light)
                     .opacity(0.75)
             }
             .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)

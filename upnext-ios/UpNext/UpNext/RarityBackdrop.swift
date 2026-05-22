@@ -24,14 +24,23 @@ import SwiftUI
 
 struct RarityBackdrop: View {
     let rarity: Rarity
+    // 리뷰 #6 — reduce-motion 시 연속 회전/호흡/반짝임 중단, 정적 등급색 glow 만.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
-            switch rarity {
-            case .normal: NormalBackdrop()
-            case .rare:   RareBackdrop(color: rarity.color)
-            case .unique: UniqueBackdrop(color: rarity.color)
-            case .legend: LegendBackdrop(color: rarity.color)
+            if reduceMotion {
+                RadialGradient(
+                    colors: [rarity.color.opacity(rarity == .normal ? 0.12 : 0.18),
+                             rarity.color.opacity(0.05), .clear],
+                    center: .center, startRadius: 0, endRadius: 280)
+            } else {
+                switch rarity {
+                case .normal: NormalBackdrop()
+                case .rare:   RareBackdrop(color: rarity.color)
+                case .unique: UniqueBackdrop(color: rarity.color)
+                case .legend: LegendBackdrop(color: rarity.color)
+                }
             }
         }
         .allowsHitTesting(false)

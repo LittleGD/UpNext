@@ -65,7 +65,8 @@ struct DeckHoldDraw: View {
     @State private var shakeX: CGFloat = 0
 
     private let holdDuration: Double = 0.8   // 웹 HOLD_DURATION 800ms
-    private let tick = Timer.publish(every: 0.016, on: .main, in: .common).autoconnect()
+    // 리뷰 #3 — 홀드 중에만 도는 on-demand 타이머 (이전: 60fps 상시 발화 + idle no-op).
+    @State private var holdTimer: AnyCancellable?
 
     var body: some View {
         VStack(spacing: 36) {
@@ -113,8 +114,10 @@ struct DeckHoldDraw: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
-        .onReceive(tick) { _ in advanceHold() }
-        .onDisappear { isHolding = false; holdProgress = 0; didDraw = false; shakeX = 0 }
+        .onDisappear {
+            holdTimer?.cancel(); holdTimer = nil
+            isHolding = false; holdProgress = 0; didDraw = false; shakeX = 0
+        }
     }
 
     // 덱 뒤 ambient radial glow — 홀드 중 성장 (웹 L:378-395)
@@ -142,10 +145,13 @@ struct DeckHoldDraw: View {
         holdStart = Date()
         holdProgress = 0
         SoundPlayer.shared.play(.chargeUp)
+        holdTimer = Timer.publish(every: 0.016, on: .main, in: .common).autoconnect()
+            .sink { _ in advanceHold() }
     }
 
     private func cancelHold() {
         guard !didDraw else { return }
+        holdTimer?.cancel(); holdTimer = nil
         isHolding = false
         holdProgress = 0
         shakeX = 0
@@ -162,6 +168,7 @@ struct DeckHoldDraw: View {
             didDraw = true
             isHolding = false
             shakeX = 0
+            holdTimer?.cancel(); holdTimer = nil
             store.drawPhaseCards()
             // 6장 cardFlip 80ms 스태거 (웹 L:179-181).
             for i in 0..<6 {
@@ -246,10 +253,12 @@ private struct DeckAtmosphere: View {
     private let white  = Color.white
     private let cyan   = Color(red: 0.61, green: 0.94, blue: 0.88)
     private let beige2 = Color(red: 0.96, green: 0.90, blue: 0.74)
+    // 리뷰 #6 — reduce-motion 시 빛줄기(연속 펄스) 숨김. 웹도 reducedMotion 시 display:none.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // 바닥 수렴 글로우 (웹 L:351-362)
+            // 바닥 수렴 글로우 (웹 L:351-362) — 정적, 항상 표시.
             Ellipse()
                 .fill(RadialGradient(
                     colors: [beige.opacity(0.15), Color.accentPrimary.opacity(0.08), .clear],
@@ -257,13 +266,15 @@ private struct DeckAtmosphere: View {
                 .frame(width: 350, height: 100)
                 .blur(radius: 20)
                 .offset(y: 20)
-            // 6줄 (웹 L:248-349) — dx·width·height·color@base·blur·rotate·pulse·dur·delay 정합.
-            LightBeam(dx: -60, width: 80, height: 190, color: Color.accentPrimary.opacity(0.22), blur: 12, rotate: -4, pulse: 0.5...0.8, dur: 5,   delay: 0)
-            LightBeam(dx: -30, width: 70, height: 184, color: beige.opacity(0.20),               blur: 14, rotate: 1,  pulse: 0.4...0.7, dur: 6,   delay: 0.8)
-            LightBeam(dx: 10,  width: 60, height: 174, color: white.opacity(0.18),               blur: 14, rotate: 5,  pulse: 0.35...0.65, dur: 6.5, delay: 1.5)
-            LightBeam(dx: 55,  width: 45, height: 152, color: cyan.opacity(0.15),                blur: 10, rotate: 8,  pulse: 0.3...0.5, dur: 7.5, delay: 2.5)
-            LightBeam(dx: -110, width: 55, height: 142, color: beige2.opacity(0.18),             blur: 10, rotate: -8, pulse: 0.25...0.5, dur: 7,   delay: 3.5)
-            LightBeam(dx: 95,  width: 30, height: 127, color: Color.accentPrimary.opacity(0.12), blur: 8,  rotate: 11, pulse: 0.2...0.4, dur: 8,   delay: 4.5)
+            // 6줄 (웹 L:248-349) — reduce-motion 아닐 때만.
+            if !reduceMotion {
+                LightBeam(dx: -60, width: 80, height: 190, color: Color.accentPrimary.opacity(0.22), blur: 12, rotate: -4, pulse: 0.5...0.8, dur: 5,   delay: 0)
+                LightBeam(dx: -30, width: 70, height: 184, color: beige.opacity(0.20),               blur: 14, rotate: 1,  pulse: 0.4...0.7, dur: 6,   delay: 0.8)
+                LightBeam(dx: 10,  width: 60, height: 174, color: white.opacity(0.18),               blur: 14, rotate: 5,  pulse: 0.35...0.65, dur: 6.5, delay: 1.5)
+                LightBeam(dx: 55,  width: 45, height: 152, color: cyan.opacity(0.15),                blur: 10, rotate: 8,  pulse: 0.3...0.5, dur: 7.5, delay: 2.5)
+                LightBeam(dx: -110, width: 55, height: 142, color: beige2.opacity(0.18),             blur: 10, rotate: -8, pulse: 0.25...0.5, dur: 7,   delay: 3.5)
+                LightBeam(dx: 95,  width: 30, height: 127, color: Color.accentPrimary.opacity(0.12), blur: 8,  rotate: 11, pulse: 0.2...0.4, dur: 8,   delay: 4.5)
+            }
         }
         .frame(width: 280, height: 320, alignment: .bottom)
         .allowsHitTesting(false)
@@ -273,8 +284,16 @@ private struct DeckAtmosphere: View {
 /// 부유 모트 — 덱 주위를 도는 작은 입자 8개 (웹 L:398-439 idle 궤도).
 /// 웹은 hold 시 중앙 수렴 — iOS 는 idle 궤도만 (대부분의 시간 상태). accent/cyan/white.
 private struct DeckMotes: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let cyan = Color(red: 0.61, green: 0.94, blue: 0.88)
     var body: some View {
+        if reduceMotion {
+            EmptyView()   // 웹도 reducedMotion 시 모트 숨김
+        } else {
+            motes
+        }
+    }
+    private var motes: some View {
         TimelineView(.animation) { tl in
             let t = tl.date.timeIntervalSinceReferenceDate
             ZStack {
@@ -345,6 +364,8 @@ struct CardSelectScreen: View {
     @State private var previewExitDir: ExitDir?
     @State private var previewExiting = false
     @State private var showRerollConfirm = false
+    // 리뷰 #7 — 확정 320ms 타이머 무효화 토큰. 리롤/취소가 증가시켜 in-flight 확정을 폐기.
+    @State private var actionToken = 0
 
     enum ExitDir { case up, down }
     private let previewExitMs: Double = 0.32   // 웹 PREVIEW_EXIT_MS 320ms
@@ -537,7 +558,10 @@ struct CardSelectScreen: View {
         previewExiting = true
         SoundPlayer.shared.play(.cardSelect)
         previewExitDir = .up
+        let token = actionToken
         DispatchQueue.main.asyncAfter(deadline: .now() + previewExitMs) {
+            // 리뷰 #7 — 그 사이 리롤/취소로 무효화됐으면 stale 카드 선택 skip.
+            guard token == actionToken else { return }
             store.selectPhaseCard(card)
             previewId = nil
             previewExitDir = nil
@@ -569,6 +593,7 @@ struct CardSelectScreen: View {
                 }.buttonStyle(.plain)
                 Button {
                     SoundPlayer.shared.play(.packOpen)
+                    actionToken += 1   // 리뷰 #7 — in-flight 확정 타이머 무효화
                     previewExiting = false
                     previewExitDir = nil
                     previewId = nil
@@ -819,18 +844,24 @@ private struct CardPreviewOverlay: View {
 /// y±1.5 x±0.8 rotate±2°, 0.5s 주기, 글자마다 stagger (delay i*0.04 ≈ 위상차).
 private struct WiggleText: View {
     let text: String
+    // 리뷰 #6 — reduce-motion 시 정적 heading (글자 진동 중단).
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation) { tl in
-            let t = tl.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 0) {
-                ForEach(Array(text.enumerated()), id: \.offset) { i, ch in
-                    let p = t * 4 + Double(i) * 0.5   // 글자별 위상차 (웹 delay i*0.04)
-                    Text(String(ch))
-                        .typography(.heading)
-                        .foregroundStyle(Color.textPrimary)
-                        .offset(x: sin(p * 1.3) * 0.8, y: sin(p) * 1.5)
-                        .rotationEffect(.degrees(sin(p * 1.1) * 2))
+        if reduceMotion {
+            Text(text).typography(.heading).foregroundStyle(Color.textPrimary)
+        } else {
+            TimelineView(.animation) { tl in
+                let t = tl.date.timeIntervalSinceReferenceDate
+                HStack(spacing: 0) {
+                    ForEach(Array(text.enumerated()), id: \.offset) { i, ch in
+                        let p = t * 4 + Double(i) * 0.5   // 글자별 위상차 (웹 delay i*0.04)
+                        Text(String(ch))
+                            .typography(.heading)
+                            .foregroundStyle(Color.textPrimary)
+                            .offset(x: sin(p * 1.3) * 0.8, y: sin(p) * 1.5)
+                            .rotationEffect(.degrees(sin(p * 1.1) * 2))
+                    }
                 }
             }
         }

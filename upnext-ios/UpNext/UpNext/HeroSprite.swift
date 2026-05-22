@@ -21,13 +21,10 @@ struct HeroSprite: View {
     let variant: Int
     let classType: ClassType?
     var size: CGFloat = 80
-    var color: Color = HeroSprite.gbLightest
+    var color: Color = GBPalette.lightest
     var animationMs: Double = 900
 
     @State private var frame = 0
-
-    /// GB 팔레트 (웹 upHeroPalette.ts) — 미전직 영웅 기본색.
-    static let gbLightest = Color(red: 0.804, green: 0.961, blue: 0.392)  // #cdf564 = accent
 
     private var frames: [[String]] {
         if let c = classType { return Self.classVariants[c] ?? Self.levelVariants[0]! }
@@ -64,8 +61,8 @@ struct HeroSprite: View {
         case .bard:         return Color(red: 0.910, green: 0.659, blue: 0.659)  // #e8a8a8
         case .chronomancer: return Color(red: 0.737, green: 0.659, blue: 0.545)  // #bca88b
         case .priest:       return Color(red: 0.545, green: 0.788, blue: 0.788)  // #8bc9c9
-        case .illusionist:  return Color(red: 0.804, green: 0.961, blue: 0.392)  // #cdf564
-        case nil:           return gbLightest
+        case .illusionist:  return GBPalette.lightest                            // #cdf564
+        case nil:           return GBPalette.lightest
         }
     }
 

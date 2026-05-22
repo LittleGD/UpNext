@@ -68,11 +68,7 @@ private struct CampView: View {
     }
 
     // MARK: 아지트 홈 (웹 CampPlaceholder HomeView — 중앙 hero 공간 + 하단 CTA 스택)
-
-    /// GB 팔레트 (웹 upHeroPalette.ts) — Up Hero 전용 sage/lime/accent.
-    static let gbDark = Color(red: 0.173, green: 0.290, blue: 0.173)     // #2c4a2c
-    static let gbLight = Color(red: 0.529, green: 0.722, blue: 0.478)    // #87b87a
-    static let gbLightest = Color(red: 0.804, green: 0.961, blue: 0.392) // #cdf564
+    //  GB 팔레트는 GBPalette (단일 출처) 참조.
 
     private var campHome: some View {
         VStack(spacing: 0) {
@@ -91,7 +87,7 @@ private struct CampView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 90)   // 하단 플로팅 네비 여유
                 .overlay(alignment: .top) {
-                    Rectangle().fill(Self.gbDark).frame(height: 1)
+                    Rectangle().fill(GBPalette.dark).frame(height: 1)
                 }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -106,7 +102,7 @@ private struct CampView: View {
         let spriteColor = HeroSprite.themeColor(hero.classType)
         return ZStack {
             // 배경 별/이펙트 — radial(GB.dark @ 50%/70%, opacity 30%) (웹 L:367-372)
-            RadialGradient(colors: [Self.gbDark.opacity(0.4), .clear],
+            RadialGradient(colors: [GBPalette.dark.opacity(0.4), .clear],
                            center: UnitPoint(x: 0.5, y: 0.7), startRadius: 0, endRadius: 240)
                 .opacity(0.3)
                 .allowsHitTesting(false)
@@ -120,7 +116,7 @@ private struct CampView: View {
                         HeroSprite(variant: variant, classType: hero.classType,
                                    size: 80, color: spriteColor)
                         // 발 밑 그림자 타원 (웹 L:402-410)
-                        Ellipse().fill(Self.gbDark).frame(width: 40, height: 4)
+                        Ellipse().fill(GBPalette.dark).frame(width: 40, height: 4)
                             .opacity(0.6).offset(y: 5)
                     }
                 }
@@ -131,16 +127,16 @@ private struct CampView: View {
                     statsOpen = true
                 } label: {
                     HStack(spacing: 4) {
-                        PixelIcon(.user, size: 10, color: Self.gbLightest)
+                        PixelIcon(.user, size: 10, color: GBPalette.lightest)
                         Text(hero.classType != nil ? "스탯 · 스킬" : "영웅 정보")
                             .typography(.micro)
-                            .foregroundStyle(Self.gbLightest)
+                            .foregroundStyle(GBPalette.lightest)
                             .tracking(0.5)
                     }
                     .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(Self.gbDark.opacity(0.67), in: RoundedRectangle(cornerRadius: 6))
+                    .background(GBPalette.dark.opacity(0.67), in: RoundedRectangle(cornerRadius: 6))
                     .overlay(RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(Self.gbLight.opacity(0.4), lineWidth: 1))
+                        .strokeBorder(GBPalette.light.opacity(0.4), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 10)
@@ -187,7 +183,7 @@ private struct CampView: View {
                          action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                PixelIcon(icon, size: 16, color: primary ? Color.bgPrimary : Self.gbLight)
+                PixelIcon(icon, size: 16, color: primary ? Color.bgPrimary : GBPalette.light)
                     .frame(width: 22)
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 6) {
@@ -311,34 +307,44 @@ private struct AmbientFlickerText: View {
         "밤이 한 겹 더 깊어졌다", "발자국 소리가 멀어진다", "무기의 날을 한 번 갈아둔다",
         "오늘의 피로가 천천히 가신다", "모닥불 그림자가 길게 늘어진다", "여행자의 일기에 한 줄을 적는다",
     ]
-    private static let gbLight = Color(red: 0.529, green: 0.722, blue: 0.478)
     private static let warm = Color(red: 0.910, green: 0.722, blue: 0.529)  // rgb(232,184,135)
 
     @State private var index = 0
     @State private var shown = true
     private let rotate = Timer.publish(every: 20, on: .main, in: .common).autoconnect()
+    // 리뷰 #6 — reduce-motion 시 fire-flicker/crossfade 중단, 20s 텍스트만 즉시 교체.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation) { tl in
-            let phase = tl.date.timeIntervalSinceReferenceDate
-                .truncatingRemainder(dividingBy: 4.2) / 4.2
-            let f = Self.fireFlicker(phase)
-            Text("— \(Self.lines[index]) —")
-                .typography(.caption)
-                .foregroundStyle(Self.gbLight)
-                // inner fire-flicker: opacity + warm text-shadow
-                .opacity(f.opacity)
-                .shadow(color: Self.warm.opacity(f.shadowOpacity), radius: f.shadowRadius)
-                // outer ambience-in: blur + translateY + opacity (key 교체 시 1회 재생)
-                .opacity(shown ? 1 : 0)
-                .blur(radius: shown ? 0 : 2.5)
-                .offset(y: shown ? 0 : -3)
+        Group {
+            if reduceMotion {
+                Text("— \(Self.lines[index]) —")
+                    .typography(.caption)
+                    .foregroundStyle(GBPalette.light)
+            } else {
+                TimelineView(.animation) { tl in
+                    let phase = tl.date.timeIntervalSinceReferenceDate
+                        .truncatingRemainder(dividingBy: 4.2) / 4.2
+                    let f = Self.fireFlicker(phase)
+                    Text("— \(Self.lines[index]) —")
+                        .typography(.caption)
+                        .foregroundStyle(GBPalette.light)
+                        // inner fire-flicker: opacity + warm text-shadow
+                        .opacity(f.opacity)
+                        .shadow(color: Self.warm.opacity(f.shadowOpacity), radius: f.shadowRadius)
+                        // outer ambience-in: blur + translateY + opacity (key 교체 시 1회 재생)
+                        .opacity(shown ? 1 : 0)
+                        .blur(radius: shown ? 0 : 2.5)
+                        .offset(y: shown ? 0 : -3)
+                }
+            }
         }
         .onAppear { index = Int.random(in: 0..<Self.lines.count) }
         .onReceive(rotate) { _ in
             var n = Int.random(in: 0..<Self.lines.count)
             if n == index { n = (n + 1) % Self.lines.count }
             index = n
+            guard !reduceMotion else { return }
             shown = false
             DispatchQueue.main.async {
                 withAnimation(.timingCurve(0.23, 1, 0.32, 1, duration: 0.52)) { shown = true }
