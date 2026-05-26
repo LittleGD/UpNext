@@ -39,7 +39,8 @@ private struct CampView: View {
     @State private var screen: CampScreen = .home
 
     /// 아지트 내부 화면 — 웹 CampPlaceholder 의 `view` 상태(home/dungeons/…) 대응.
-    private enum CampScreen { case home, dungeons, equipment, shop, classChoice, codex }
+    /// P0-3 — `.weekly` 추가 (WeeklyLeaderboardView 진입 경로 회복).
+    private enum CampScreen { case home, dungeons, equipment, shop, classChoice, codex, weekly }
 
     var body: some View {
         Group {
@@ -61,6 +62,16 @@ private struct CampView: View {
                     ClassChoiceView(onBack: { screen = .home })
                 case .codex:
                     CodexView(onBack: { screen = .home })
+                case .weekly:
+                    // P0-3 — 데이터는 후속 슬라이스에서 Firestore 연동. 현재 mock + affix.
+                    // 주간 affix 는 오늘 날짜 weekId 기반 결정론.
+                    WeeklyLeaderboardView(
+                        onBack: { screen = .home },
+                        entries: WeeklyLeaderboardView.mockEntries,
+                        affixName: WeeklyAffixes.pickWeeklyAffix(
+                            weekId: RetentionEngine.weekId(for: AppClock.todayString())
+                        ).name
+                    )
                 }
             }
         }
@@ -175,6 +186,10 @@ private struct CampView: View {
             campCTA(icon: .bookOpen, label: "도감", hint: "몬스터·보스·장비 발견 현황") {
                 SoundPlayer.shared.play(.select); screen = .codex
             }
+            // P0-3 — 주간 리더보드 진입 (이전엔 enum 케이스 없어 절대 접근 불가).
+            campCTA(icon: .trophy, label: "주간 순위", hint: "이번 주 변종 던전 상위") {
+                SoundPlayer.shared.play(.select); screen = .weekly
+            }
         }
     }
 
@@ -260,18 +275,43 @@ private struct CampView: View {
             heroStartLevel: upHero.state.heroStartLevel)
     }
 
-    // MARK: 헤더 — 제목 + 코인
+    // MARK: 헤더 — 제목 + Lv·XP + NG+ 배지 + 코인 (P0 보너스)
 
     private var header: some View {
-        HStack {
-            Text("아지트")
-                .typography(.title)
-                .foregroundStyle(Color.textPrimary)
-            Spacer()
+        let level = store.progress?.level ?? 0
+        let xp = store.progress?.xp ?? 0
+        let curXp = max(0, xp - GameRules.totalXPForLevel(level))
+        let needXp = GameRules.totalXPForLevel(level + 1) - GameRules.totalXPForLevel(level)
+        let ngPlus = upHero.state.ngPlusLevel ?? 0
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("아지트")
+                    .typography(.title)
+                    .foregroundStyle(Color.textPrimary)
+                if ngPlus > 0 {
+                    // NG+ 배지 — F30 클리어 후 ngPlusLevel 누적. 디자인 룰: 보더 금지.
+                    Text("NG+\(ngPlus)")
+                        .typography(.micro)
+                        .foregroundStyle(Color.bgPrimary)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.rarityLegend, in: Capsule())
+                }
+                Spacer()
+                HStack(spacing: 4) {
+                    PixelIcon(.coins, size: 14, color: Color.accentPrimary)
+                    NumberRollView(value: upHero.state.coins, baseColor: Color.accentPrimary)
+                        .typography(.body)
+                }
+            }
+            // Lv·XP progress (디자인 룰: 아이콘 박스 금지, 보더 금지)
             HStack(spacing: 4) {
-                PixelIcon(.coins, size: 14, color: Color.accentPrimary)
-                NumberRollView(value: upHero.state.coins, baseColor: Color.accentPrimary)
-                    .typography(.body)
+                Text("Lv.\(level)")
+                    .typography(.micro)
+                    .foregroundStyle(Color.accentPrimary)
+                Text("\(curXp) / \(needXp) XP")
+                    .typography(.micro)
+                    .foregroundStyle(Color.textTertiary)
+                    .monospacedDigit()
             }
         }
     }

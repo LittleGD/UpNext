@@ -1,12 +1,11 @@
 //
 //  CardPackOpenerView.swift
-//  UpNext — 카드팩 개봉 화면 (Phase 4 슬라이스 10 · Phase 4.3 시작).
+//  UpNext — 카드팩 개봉 화면.
 //
-//  웹 components/cards/CardPackOpener.tsx 포팅. 레벨업·챌린지 보상으로 쌓인
-//  pendingPacks / pendingBonusCards 를 열어 새 카드를 해금한다.
-//
-//  pendingPacks 가 0 이상이면 MainTabView 가 이 화면을 fullScreenCover 로 띄운다.
-//  웹의 팩 개봉 3D 연출은 Phase 4.3 후속 — 여기선 기능적 reveal(등급별 카드 그리드).
+//  웹 src/components/cards/CardPackOpener.tsx 충실 회복:
+//   - tier 별 pre-open 시퀀스: shake 320ms → flash 200ms → 3-halo ring expand 600ms → reveal
+//   - reveal cards 스태거 spring (0.08s delay)
+//   - tier=legend 일수록 강한 효과 (shake 진폭·flash 강도·halo 색)
 //
 
 import SwiftUI
@@ -16,51 +15,111 @@ struct CardPackOpenerView: View {
     let onComplete: () -> Void
 
     @State private var revealed: Reveal?
+    @State private var phase: OpeningPhase = .idle
+    @State private var shakeOffset: CGSize = .zero
+    @State private var flashOpacity: Double = 0
+    @State private var haloProgress: Double = 0
+    @State private var packScale: Double = 1
+
+    private enum OpeningPhase { case idle, shaking, flashing, halo, revealed }
 
     private struct Reveal {
         let cards: [ChallengeCard]
         let tier: Rarity
     }
 
-    /// 아직 열지 않은 팩 수 (레벨업 팩 + 보너스 카드).
     private var pendingCount: Int {
         (store.progress?.pendingPacks ?? 0) + (store.progress?.pendingBonusCards ?? 0)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            if let revealed {
-                revealView(revealed)
-            } else {
-                prompt
+        ZStack {
+            Color.bgPrimary.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Spacer()
+                if let revealed, phase == .revealed {
+                    revealView(revealed)
+                } else {
+                    promptOrOpening
+                }
+                Spacer()
+                bottomButton
             }
-            Spacer()
-            bottomButton
+            .padding(.horizontal, 32)
+            .padding(.bottom, 40)
+            .padding(.top, 32)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Halo rings (tier 색 기반)
+            if phase == .halo, let tier = revealed?.tier {
+                haloRings(tier: tier)
+                    .allowsHitTesting(false)
+            }
+
+            // 풀스크린 플래시
+            Color.white.opacity(flashOpacity)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
         }
-        .padding(.horizontal, 32)
-        .padding(.bottom, 40)
-        .padding(.top, 32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
     }
 
-    // MARK: - 개봉 전
+    // MARK: - 개봉 전 / 진행 중 prompt
 
-    private var prompt: some View {
+    @ViewBuilder
+    private var promptOrOpening: some View {
         VStack(spacing: 12) {
-            PixelIcon(.gift, size: 48, color: Color.accentPrimary)
+            ZStack {
+                if phase == .halo, let tier = revealed?.tier {
+                    // Halo 중심 — 팩이 사라지는 단계
+                    Circle()
+                        .fill(tier.color.opacity(0.30))
+                        .frame(width: 80, height: 80)
+                        .scaleEffect(packScale)
+                        .opacity(1 - haloProgress)
+                }
+                PixelIcon(.gift, size: 48, color: revealed?.tier.color ?? Color.accentPrimary)
+                    .scaleEffect(packScale)
+                    .offset(shakeOffset)
+                    .opacity(phase == .halo ? max(0, 1 - haloProgress * 1.5) : 1)
+            }
+
             Text("카드팩 \(pendingCount)개")
                 .typography(.title)
                 .foregroundStyle(Color.textPrimary)
-            Text("레벨업·챌린지 보상으로 받은 카드팩이에요.\n열어서 새 카드를 덱에 추가하세요.")
+            Text(phaseSubtitle)
                 .typography(.caption)
                 .foregroundStyle(Color.textTertiary)
                 .multilineTextAlignment(.center)
         }
     }
 
-    // MARK: - 개봉 후 reveal
+    private var phaseSubtitle: String {
+        switch phase {
+        case .idle:     return "레벨업·챌린지 보상으로 받은 카드팩이에요.\n열어서 새 카드를 덱에 추가하세요."
+        case .shaking:  return "팩이 흔들리는 중…"
+        case .flashing: return ""
+        case .halo:     return ""
+        case .revealed: return ""
+        }
+    }
+
+    // MARK: - Halo rings (3-ring expanding)
+
+    private func haloRings(tier: Rarity) -> some View {
+        ZStack {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .stroke(tier.color.opacity(0.7), lineWidth: 3)
+                    .scaleEffect(60 + CGFloat(haloProgress) * 800 + CGFloat(i) * 30)
+                    .opacity(max(0, 1 - haloProgress * 1.1))
+                    .blur(radius: tier == .legend ? 2 : 0)
+                    .animation(.easeOut(duration: 0.6).delay(Double(i) * 0.10), value: haloProgress)
+            }
+        }
+    }
+
+    // MARK: - Reveal 그리드
 
     private func revealView(_ r: Reveal) -> some View {
         VStack(spacing: 16) {
@@ -87,9 +146,7 @@ struct CardPackOpenerView: View {
         }
     }
 
-    /// 카드 한 장 — 등장 시 스태거 스프링 reveal (웹 CardPackOpener 의 카드별 0.08s
-    /// stagger + scale(1.2)→1 + opacity 0→1). ForEach id 가 card.id 라 새 reveal 마다
-    /// 뷰가 재생성되며 onAppear 가 다시 fire → 매 개봉 애니메이션 재생.
+    /// 카드 한 장 — 스태거 spring reveal.
     private struct RevealCard: View {
         let card: ChallengeCard
         let index: Int
@@ -113,6 +170,12 @@ struct CardPackOpenerView: View {
             .padding(.vertical, 10)
             .padding(.horizontal, 6)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(card.rarity.color.opacity(card.rarity == .legend ? 0.6 : 0.2), lineWidth: 1)
+            )
+            .shadow(color: card.rarity.color.opacity(card.rarity == .legend ? 0.4 : 0.1),
+                    radius: card.rarity == .legend ? 8 : 0)
             .opacity(shown ? 1 : 0)
             .scaleEffect(shown ? 1 : 1.2)
             .onAppear {
@@ -120,7 +183,6 @@ struct CardPackOpenerView: View {
                     .delay(Double(index) * 0.08)) {
                     shown = true
                 }
-                // 카드별 reveal 음 — 스태거에 맞춰 (웹 cardFlip).
                 DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.08) {
                     SoundPlayer.shared.play(.cardFlip)
                 }
@@ -131,21 +193,80 @@ struct CardPackOpenerView: View {
     // MARK: - 하단 버튼
 
     @ViewBuilder private var bottomButton: some View {
-        if revealed == nil {
-            button("팩 열기") { open() }
-        } else if pendingCount > 0 {
-            button("다음 팩 열기 (\(pendingCount))") { open() }
+        if phase == .revealed || phase == .idle {
+            if revealed == nil {
+                button("팩 열기") { startOpen() }
+            } else if pendingCount > 0 {
+                button("다음 팩 열기 (\(pendingCount))") { startOpen() }
+            } else {
+                button("완료", action: onComplete)
+            }
         } else {
-            button("완료", action: onComplete)
+            // 시퀀스 진행 중 — 빈 자리만 유지
+            Color.clear.frame(height: 52)
         }
     }
 
-    private func open() {
-        if let result = store.openCardPack() {
-            revealed = Reveal(cards: result.cards, tier: result.tier)
-        } else {
-            // 열 팩 없음 / 컬렉션 100% — 닫는다.
+    private func startOpen() {
+        // 1) 미리 카드 목록 결정 (open 시 tier 알아야 halo 색이 결정됨)
+        guard let result = store.openCardPack() else {
             onComplete()
+            return
+        }
+        revealed = Reveal(cards: result.cards, tier: result.tier)
+
+        // tier 별 진폭
+        let shakeMagnitude: CGFloat = result.tier == .legend ? 8 : result.tier == .unique ? 5 : 3
+
+        // 2) Shake 320ms
+        phase = .shaking
+        SoundPlayer.shared.play(.packOpen)
+        Haptics.play(.medium)
+        runShake(magnitude: shakeMagnitude, duration: 0.32)
+
+        // 3) Flash 200ms (320~520ms)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+            phase = .flashing
+            Haptics.play(.heavy)
+            withAnimation(.easeOut(duration: 0.08)) { flashOpacity = result.tier == .legend ? 1.0 : 0.7 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                withAnimation(.easeIn(duration: 0.12)) { flashOpacity = 0 }
+            }
+        }
+
+        // 4) Halo expand 600ms (520~1120ms)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.52) {
+            phase = .halo
+            withAnimation(.easeOut(duration: 0.4)) {
+                packScale = 1.4
+            }
+            withAnimation(.easeOut(duration: 0.6)) {
+                haloProgress = 1
+            }
+        }
+
+        // 5) Reveal 1120ms
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.12) {
+            phase = .revealed
+            haloProgress = 0
+            packScale = 1
+        }
+    }
+
+    /// 32-step shake (~10ms each).
+    private func runShake(magnitude: CGFloat, duration: TimeInterval) {
+        let steps = Int(duration / 0.01)
+        for i in 0..<steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.01) {
+                let damp = 1.0 - Double(i) / Double(steps)
+                shakeOffset = CGSize(
+                    width: CGFloat.random(in: -magnitude...magnitude) * damp,
+                    height: CGFloat.random(in: -magnitude...magnitude) * damp
+                )
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            shakeOffset = .zero
         }
     }
 

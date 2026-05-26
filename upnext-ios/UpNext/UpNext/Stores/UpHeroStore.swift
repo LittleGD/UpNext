@@ -275,8 +275,9 @@ final class UpHeroStore: ObservableObject {
             // 사용자가 선택지를 고를 때까지 대기 — resolveChoice 가 전투를 재개시킨다.
             return
         case .awaitingMinigame:
-            // 미니게임은 Phase 4.6 — 자동 성공 처리 (미구현 기능으로 벌점 X).
-            session = UpHeroSession.resolveMinigame(session, success: true, rng: &rng)
+            // R8 — 미니게임은 UI 가 resolveMinigameResult(success:) 로 처리.
+            // 여기선 자동 진행하지 않고 대기 — DungeonView 가 MinigameRouter 오버레이를 띄움.
+            return
         case .completed:
             return
         }
@@ -297,6 +298,54 @@ final class UpHeroStore: ObservableObject {
         var rng = SystemRandom()
         state.currentSession = UpHeroSession.resolveChoice(
             session, optionIndex: optionIndex, rng: &rng)
+    }
+
+    /// R8 — 모든 영웅 데이터 리셋. 로컬 캐시 삭제 + 메모리 상태 초기.
+    func resetAllData() {
+        state = Self.makeDefaultState()
+        try? FileManager.default.removeItem(at: Self.persistenceURL)
+    }
+
+    /// R8 — 장비 강화. 100 코인 소모. 70% success / 20% keep / 10% destroyed.
+    /// 결과는 caller 가 EnhanceRitualOverlay 로 표시. 실제 변경은 outcome 에 따라.
+    @discardableResult
+    func enhanceItem(_ itemId: String) -> EnhanceRitualOutcome {
+        guard let idx = state.inventory.firstIndex(where: { $0.id == itemId }) else {
+            return .keep
+        }
+        guard state.coins >= 100 else { return .keep }
+        mutate { $0.coins -= 100 }
+        let roll = Double.random(in: 0..<1)
+        if roll < 0.10 {
+            // destroyed
+            mutate { $0.inventory.removeAll(where: { $0.id == itemId }) }
+            return .destroyed
+        } else if roll < 0.30 {
+            return .keep
+        } else {
+            // success — enhanceLevel +1
+            mutate {
+                var item = $0.inventory[idx]
+                item.enhanceLevel = (item.enhanceLevel ?? 0) + 1
+                $0.inventory[idx] = item
+            }
+            return .success
+        }
+    }
+
+    /// R8 — 미니게임 결과 해소. UI 가 호출 — success/fail 에 따라 successEffects/failEffects 적용.
+    func resolveMinigameResult(success: Bool) {
+        guard let session = state.currentSession,
+              session.status == .awaitingMinigame else { return }
+        var rng = SystemRandom()
+        state.currentSession = UpHeroSession.resolveMinigame(
+            session, success: success, rng: &rng)
+        if success {
+            Haptics.play(.success)
+            SoundPlayer.shared.play(.matchPair)
+        } else {
+            Haptics.play(.warning)
+        }
     }
 
     // MARK: - 상점 (웹 purchase* 의 코인 차감부)
@@ -328,10 +377,11 @@ final class UpHeroStore: ObservableObject {
 
     // MARK: - 사진 부적 (웹 PhotoTalisman)
 
-    /// 인증 사진을 부적 장비로 만들어 인벤토리에 추가. 웹 사진 부적 시스템.
+    /// P0-3 — ritual UI 가 끝났을 때 호출할 부적 생성 본체. 외부 호출 금지 (private).
+    /// 부적 inventory 추가 + 햅틱/사운드 + (호출자 책임 외) 영속화는 mutate 가 처리.
     /// condensed — 부적은 사진 id 참조 + 기본 스탯만 (passive talismanSkills 는
     /// 웹 매핑이 복잡해 이후 슬라이스로 유보). 장착하면 스탯이 전투에 반영된다.
-    func createPhotoTalisman(photoId: String) {
+    private func performPhotoTalismanCreation(photoId: String) {
         let talisman = Equipment(
             id: "talisman_photo_\(Self.nowMillis())",
             name: "추억의 부적", baseId: nil, type: .talisman,
@@ -343,6 +393,33 @@ final class UpHeroStore: ObservableObject {
         mutate { $0.inventory.append(talisman) }
         Haptics.play(.success)
         SoundPlayer.shared.play(.complete)
+    }
+
+    /// P0-3 — 3초 의식 진행 중인 사진 id. AlbumView 가 이걸 구독해 PhotoTalismanRitual
+    /// 오버레이를 띄운다. 부적 생성 자체는 의식이 끝난 뒤 completePhotoTalismanRitual()
+    /// 가 호출. transient — 영속 대상 아님 (앱 재기동 시 의식은 사라지는 게 맞음).
+    @Published var pendingTalismanPhotoId: String?
+
+    /// P0-3 — 부적 의식 시작. AlbumView 의 "부적으로 만들기" 액션이 호출.
+    /// 호출 즉시 부적이 생기지 않고, ritual 종료 후 completePhotoTalismanRitual 가 실행.
+    /// 이미 의식 진행 중이면 no-op (중복 의식 방지).
+    func beginPhotoTalismanRitual(photoId: String) {
+        guard pendingTalismanPhotoId == nil else { return }
+        pendingTalismanPhotoId = photoId
+    }
+
+    /// P0-3 — ritual 종료 시 호출. 부적을 inventory 에 추가하고 pending 클리어.
+    /// pending 이 없으면 (의식 취소·중복 호출) 부적 생성 생략.
+    func completePhotoTalismanRitual() {
+        guard let photoId = pendingTalismanPhotoId else { return }
+        pendingTalismanPhotoId = nil
+        performPhotoTalismanCreation(photoId: photoId)
+    }
+
+    /// P0-3 — 외부 호환 — 즉시 부적 생성. ritual 우회 (테스트·내부 호출용).
+    /// 새 코드는 beginPhotoTalismanRitual → completePhotoTalismanRitual 를 쓸 것.
+    func createPhotoTalisman(photoId: String) {
+        performPhotoTalismanCreation(photoId: photoId)
     }
 
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])

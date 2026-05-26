@@ -124,6 +124,42 @@ enum EquipmentPool {
         return eq.name
     }
 
+    /// 도감 표시용 — 저장된 식별자(현재 codex.equipment 는 한글 baseName, 미래 호환 위해
+    /// baseId 도 함께 매칭)로 friendly 이름 반환. 웹 `equipmentNameById` 의 iOS 판.
+    /// 다국어 사전이 아직 없어 한국어 baseName 으로 fallback (그게 templates 의 진실).
+    static func displayName(forBaseIdOrName id: String, language: Language = .ko) -> String {
+        // 1) baseId 매칭
+        if let t = templates.first(where: { $0.baseId == id }) {
+            return t.baseName
+        }
+        // 2) 한글 baseName 매칭 (현재 codex.equipment 가 저장하는 값)
+        if let t = templates.first(where: { $0.baseName == id }) {
+            return t.baseName
+        }
+        // 3) 매칭 실패 — 원본 그대로 (debug 시 식별 가능)
+        return id
+    }
+
+    /// 도감 표시용 — 슬롯 타입 라벨 (무기/방어구/장신구/부적). 매칭 실패 시 nil.
+    static func slotLabel(forBaseIdOrName id: String, language: Language = .ko) -> String? {
+        let template = templates.first(where: { $0.baseId == id })
+            ?? templates.first(where: { $0.baseName == id })
+        guard let template else { return nil }
+        switch template.type {
+        case .weapon:    return "무기"
+        case .armor:     return "방어구"
+        case .accessory: return "장신구"
+        case .talisman:  return "부적"
+        }
+    }
+
+    /// 도감 표시용 — 템플릿의 iconName 반환 (PixelIcon 매핑 가능). 매칭 실패 시 nil.
+    static func iconName(forBaseIdOrName id: String) -> String? {
+        let template = templates.first(where: { $0.baseId == id })
+            ?? templates.first(where: { $0.baseName == id })
+        return template?.iconName
+    }
+
     // MARK: - affix 시스템
 
     /// 등급별 affix 값. 웹 `AFFIX_VALUE`.

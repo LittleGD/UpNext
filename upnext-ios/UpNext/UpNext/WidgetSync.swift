@@ -122,8 +122,11 @@ enum WidgetSync {
 
     /// 위젯에 표시할 메인 챌린지 — 아직 안 끝낸 카드 우선, 아무것도 없으면 안내.
     /// 풀클리어 후엔 격려 문구 (위젯이 비어 보이지 않게).
+    /// 다국어: 메인 앱 번들의 String Catalog 에서 사용자 시스템 언어로 해석된 문자열을
+    /// JSON 으로 직렬화 → 위젯 extension 은 그대로 표시 (위젯이 자체 해석 불필요).
     private static func mainChallengeTitle(_ d: DailyState?) -> String {
-        guard let d = d else { return "오늘의 카드를 뽑아보세요" }
+        let emptyText = String(localized: "widget.daily.empty", bundle: .main)
+        guard let d = d else { return emptyText }
         let (selected, completed): ([ChallengeCard], [String])
         switch d.challengePhase {
         case .daily:
@@ -133,12 +136,12 @@ enum WidgetSync {
         case .`super`:
             selected = d.superSelectedCards; completed = d.superCompletedIds
         }
-        if selected.isEmpty { return "오늘의 카드를 뽑아보세요" }
+        if selected.isEmpty { return emptyText }
         let completedSet = Set(completed)
         if let next = selected.first(where: { !completedSet.contains($0.id) }) {
             return next.title
         }
-        return "오늘의 도전 완료!"
+        return String(localized: "widget.daily.complete", bundle: .main)
     }
 
     /// 일자 키 — 로컬 시간대 기준 "yyyy-MM-dd" (KST 사용자의 자정~오전 9시에 UTC 가
@@ -204,6 +207,17 @@ enum WidgetSync {
     /// 동시 N개 가능하지만 daily 챌린지는 단일 흐름이라 1개로 충분.
     private static let activityIdKey = "challengeActivityId"
 
+    /// staleDate 에 적용하는 grace period — 만료시각 정각에 stale 로 표시되면
+    /// 음수 카운트다운("-00:01..") 이 잠금화면에 남는 시각적 결함. 5분 여유를 줘서
+    /// 그 사이 expiry-watchdog 가 자동 dismiss 를 호출하게 한다.
+    private static let staleGraceSeconds: TimeInterval = 5 * 60
+
+    /// expiresAt 시각에 자동 dismiss 를 트리거하는 watchdog Task — 앱이 살아있을 동안만
+    /// 작동하며 (BGTaskScheduler 와 달리 시스템 허락 없이 동작), background→active
+    /// 복귀 후의 reconcile 에서도 한 번 더 dismiss 시도가 들어가므로 두 layer 로 안전.
+    /// 새 활동이 시작되거나 명시 dismiss 가 호출되면 이전 watchdog 는 취소.
+    private static var expiryWatchdog: Task<Void, Never>?
+
     /// 챌린지 선택 확정 시 호출 → 잠금화면 + 다이나믹 아일랜드에 카운트다운.
     /// expiresAt 은 만료 시각 (Date). 4시간 데드라인은 웹의 startChallengeActivity
     /// 와 동일 (당일 자정이 아니라 "지금부터 4시간" — 늦은 밤 시작도 4시간 유지).
@@ -216,14 +230,19 @@ enum WidgetSync {
         endChallengeActivity()
 
         let attrs = ChallengeActivityAttributes(challengeId: challengeId)
+        let expiresAt = Date().addingTimeInterval(hoursUntilExpiry * 3600)
         let state = ChallengeActivityAttributes.ContentState(
             title: title,
-            expiresAt: Date().addingTimeInterval(hoursUntilExpiry * 3600))
-        let content = ActivityContent(state: state, staleDate: state.expiresAt)
+            expiresAt: expiresAt)
+        // staleDate 에 grace period 를 더해서 만료 정각에 즉시 stale 처리되어
+        // 음수 카운트다운이 보이는 결함을 막는다.
+        let content = ActivityContent(state: state,
+                                      staleDate: expiresAt.addingTimeInterval(staleGraceSeconds))
         do {
             let activity = try Activity.request(attributes: attrs, content: content)
             AppConfig.sharedDefaults?.set(activity.id, forKey: activityIdKey)
             AppConfig.sharedDefaults?.set(challengeId, forKey: existingChallengeIdKey)
+            scheduleExpiryWatchdog(expiresAt: expiresAt)
         } catch {
             // Live Activity 실패는 silent — 사용자가 시스템 설정에서 끄거나 한도 초과
         }
@@ -245,16 +264,21 @@ enum WidgetSync {
                                    hoursUntilExpiry: hoursUntilExpiry)
             return
         }
+        let expiresAt = Date().addingTimeInterval(hoursUntilExpiry * 3600)
         let newState = ChallengeActivityAttributes.ContentState(
             title: title,
-            expiresAt: Date().addingTimeInterval(hoursUntilExpiry * 3600))
-        let content = ActivityContent(state: newState, staleDate: newState.expiresAt)
+            expiresAt: expiresAt)
+        let content = ActivityContent(state: newState,
+                                      staleDate: expiresAt.addingTimeInterval(staleGraceSeconds))
         Task { await activity.update(content) }
+        scheduleExpiryWatchdog(expiresAt: expiresAt)
     }
 
     /// 현재 활동 종료 (챌린지 완료·만료·로그아웃 등).
+    /// dismissalPolicy: .immediate — 잠금화면에서 즉시 사라짐.
     static func endChallengeActivity() {
         guard #available(iOS 16.1, *) else { return }
+        cancelExpiryWatchdog()
         guard let id = AppConfig.sharedDefaults?.string(forKey: activityIdKey) else { return }
         AppConfig.sharedDefaults?.removeObject(forKey: activityIdKey)
         AppConfig.sharedDefaults?.removeObject(forKey: existingChallengeIdKey)
@@ -265,12 +289,41 @@ enum WidgetSync {
     }
 
     /// 모든 활동 종료 (앱 리셋·로그아웃 등 — 잔여 활동 청소).
+    /// 자정 reconcile 에서도 호출되어 어제 활동을 청소한다 (reconcileChallengeActivity
+    /// 가 daily=nil 분기로 endChallengeActivity 까지 결국 도달).
     static func endAllActivities() {
         guard #available(iOS 16.1, *) else { return }
+        cancelExpiryWatchdog()
         AppConfig.sharedDefaults?.removeObject(forKey: activityIdKey)
         AppConfig.sharedDefaults?.removeObject(forKey: existingChallengeIdKey)
         for activity in Activity<ChallengeActivityAttributes>.activities {
             Task { await activity.end(nil, dismissalPolicy: .immediate) }
         }
+    }
+
+    // MARK: - Expiry watchdog (앱이 켜져있을 동안 자동 dismiss)
+
+    /// expiresAt 시각이 되면 endChallengeActivity 를 자동 호출하는 Task 예약.
+    /// 동일 활동의 update 가 들어오면 기존 watchdog 는 취소되고 새 시간으로 재예약.
+    /// 백그라운드에선 Task 가 정지되므로 BGTaskScheduler 가 진짜 백그라운드 dismiss 를
+    /// 보장 — 여긴 앱이 active 인 경우의 best-effort.
+    private static func scheduleExpiryWatchdog(expiresAt: Date) {
+        cancelExpiryWatchdog()
+        let interval = expiresAt.timeIntervalSinceNow
+        guard interval > 0 else {
+            // 이미 지난 만료 → 즉시 종료.
+            endChallengeActivity()
+            return
+        }
+        expiryWatchdog = Task { [interval] in
+            try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await MainActor.run { endChallengeActivity() }
+        }
+    }
+
+    private static func cancelExpiryWatchdog() {
+        expiryWatchdog?.cancel()
+        expiryWatchdog = nil
     }
 }

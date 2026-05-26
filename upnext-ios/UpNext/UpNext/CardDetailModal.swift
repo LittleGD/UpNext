@@ -84,35 +84,63 @@ struct Card3DView: View {
     }
 
     private var cardFace: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                PixelIcon(card.category.pixelIcon, size: 30, color: card.rarity.color)
+        // R8 — 콘텐츠 3-zone 패럴럭스: 제목 = 깊이 8 (가장 가까움) / 설명 = 4 / 보더 = 0.
+        //   tilt 각도에 따라 inner zone 이 약간씩 다르게 움직여 z-depth 입체감을 만든다.
+        let depthMul: Double = 0.6
+        let titleOffsetX = Double(drag.width) / rotationDivisor * depthMul * 0.8
+        let titleOffsetY = Double(-drag.height) / rotationDivisor * depthMul * 0.8
+        let descOffsetX = Double(drag.width) / rotationDivisor * depthMul * 0.4
+        let descOffsetY = Double(-drag.height) / rotationDivisor * depthMul * 0.4
+
+        return ZStack(alignment: .topLeading) {
+            // 카드 베이스
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    PixelIcon(card.category.pixelIcon, size: 30, color: card.rarity.color)
+                    Spacer()
+                    Text(card.rarity.displayName)
+                        .typography(.micro)
+                        .foregroundStyle(Color.bgPrimary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(card.rarity.color, in: Capsule())
+                }
+
+                Text(card.title)
+                    .typography(.heading)
+                    .foregroundStyle(Color.textPrimary)
+                    .padding(.top, 24)
+                    .offset(x: titleOffsetX, y: titleOffsetY)
+                Text(card.category.label)
+                    .typography(.caption)
+                    .foregroundStyle(Color.textTertiary)
+                    .padding(.top, 6)
+                    .offset(x: descOffsetX, y: descOffsetY)
+                Text(card.description)
+                    .typography(.body)
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.top, 12)
+                    .offset(x: descOffsetX, y: descOffsetY)
+
                 Spacer()
-                Text(card.rarity.displayName)
-                    .typography(.micro)
-                    .foregroundStyle(Color.bgPrimary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(card.rarity.color, in: Capsule())
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
 
-            Text(card.title)
-                .typography(.heading)
-                .foregroundStyle(Color.textPrimary)
-                .padding(.top, 24)
-            Text(card.category.label)
-                .typography(.caption)
-                .foregroundStyle(Color.textTertiary)
-                .padding(.top, 6)
-            Text(card.description)
-                .typography(.body)
-                .foregroundStyle(Color.textSecondary)
-                .padding(.top, 12)
+            // RarityTexture 표면 (등급 패턴)
+            RarityTexture(rarity: card.rarity, cornerRadius: 16)
+                .allowsHitTesting(false)
 
-            Spacer()
+            // 홀로그래픽 글레어 (legend/unique 만 — common/rare 는 sheen 만)
+            if card.rarity == .legend || card.rarity == .unique {
+                HolographicGlare(
+                    rotateX: Double(-drag.height) / rotationDivisor + (dragging ? 0 : gyro.tiltX),
+                    rotateY: Double(drag.width) / rotationDivisor + (dragging ? 0 : gyro.tiltY),
+                    cornerRadius: 16
+                )
+                .allowsHitTesting(false)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(24)
         .frame(width: 280, height: 392)  // TCG 5:7 비율
         .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 16))
         .shadow(color: card.rarity.color.opacity(0.35), radius: 22, y: 10)
@@ -128,10 +156,14 @@ struct CardDetailModal: View {
 
     var body: some View {
         ZStack {
-            Color.bgPrimary.ignoresSafeArea()
-            // 등급 분위기 — 카드 뒤 (웹 RarityBackdrop). 카드보다 z 아래.
+            // R8 — 백드롭 블러 (.ultraThinMaterial) 추가.
+            Color.bgPrimary.opacity(0.95).ignoresSafeArea()
+                .background(.ultraThinMaterial)
+
+            // 등급 분위기 — 카드 뒤.
             RarityBackdrop(rarity: card.rarity)
                 .ignoresSafeArea()
+
             VStack(spacing: 20) {
                 Spacer()
                 Card3DView(card: card)

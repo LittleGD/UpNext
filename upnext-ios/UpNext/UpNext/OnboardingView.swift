@@ -43,7 +43,7 @@ struct OnboardingView: View {
                         goTo(.levelUp)
                     }
                 case .levelUp:
-                    OnboardingLevelUp(onBack: { goTo(.starterPack) }) {
+                    LevelUpBurstScreen(nextLevel: 1) {
                         store.finishOnboarding()
                     }
                 }
@@ -104,7 +104,7 @@ private struct OnboardingIntro: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func point(_ title: String, _ desc: String) -> some View {
+    private func point(_ title: LocalizedStringKey, _ desc: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).typography(.body).foregroundStyle(Color.textPrimary)
             Text(desc).typography(.caption).foregroundStyle(Color.textTertiary)
@@ -180,7 +180,7 @@ private struct OnboardingDifficulty: View {
         .buttonStyle(.plain)
     }
 
-    private func label(_ m: GameMode) -> String {
+    private func label(_ m: GameMode) -> LocalizedStringKey {
         switch m {
         case .normal:  return "일반"
         case .godlife: return "갓생"
@@ -188,7 +188,7 @@ private struct OnboardingDifficulty: View {
         }
     }
 
-    private func desc(_ m: GameMode) -> String {
+    private func desc(_ m: GameMode) -> LocalizedStringKey {
         switch m {
         case .normal:  return "가볍게 시작 — 하루 카드 1장"
         case .godlife: return "꾸준한 갓생 — 하루 카드 2장"
@@ -358,7 +358,7 @@ private struct OnboardingLevelUp: View {
 
 private struct OnboardingBottomBar: View {
     var onBack: (() -> Void)? = nil
-    let title: String
+    let title: LocalizedStringKey
     var enabled: Bool = true
     let action: () -> Void
 
@@ -371,7 +371,7 @@ private struct OnboardingBottomBar: View {
                         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("이전")
+                .accessibilityLabel(Text("이전"))
             }
             OnboardingPrimaryButton(title: title, enabled: enabled, action: action)
         }
@@ -379,7 +379,7 @@ private struct OnboardingBottomBar: View {
 }
 
 private struct OnboardingPrimaryButton: View {
-    let title: String
+    let title: LocalizedStringKey
     var enabled: Bool = true
     let action: () -> Void
 

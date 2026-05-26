@@ -50,6 +50,21 @@ struct MergeConflictData: Equatable {
     }
 }
 
+/// P0-1 — 챌린지 레벨업 1회성 이벤트.
+/// 다중 레벨업도 한 이벤트로 묶어 표시(예: 2→4 면 old=2, new=4).
+/// timestamp 는 Equatable id 역할 — 같은 oldLevel→newLevel 이라도 다른 instance 면 별개 이벤트.
+struct LevelUpEvent: Equatable {
+    let oldLevel: Int
+    let newLevel: Int
+    let timestamp: Date
+
+    init(oldLevel: Int, newLevel: Int) {
+        self.oldLevel = oldLevel
+        self.newLevel = newLevel
+        self.timestamp = Date()
+    }
+}
+
 @MainActor
 final class GameStore: ObservableObject {
 
@@ -82,11 +97,19 @@ final class GameStore: ObservableObject {
         // 설정의 haptic/sound 토글을 헬퍼에 동기 + 위젯 상태 publish + 익명 시 로컬 저장.
         // progress 가 바뀌는 모든 경로에서 자동 반영. 익명 (uid 없음) 일 때만 캐시 — 로그인
         // 상태에선 SyncManager 가 Firestore 가 진실의 원천 (캐시 우회).
+        //
+        // P0-1 — 챌린지 레벨업 시 UpHeroLevelUpOverlay 트리거. MainShell 이
+        // `pendingLevelUp` 을 구독해 overlay 를 띄우고, dismiss 시 acknowledgeLevelUp()
+        // 으로 nil 처리. AppHeader 의 lv-pulse(이미 존재)에 더해 *명시적 풀스크린 축하*
+        // 를 보장 — 무성 레벨업(웹: HeroLevelUpOverlay) 회복.
+        // 부트스트랩 시 cloud snapshot 이 큰 level 로 들어오면 origin=cloud 일 때만
+        // suppress (라이브 sync 의 다기기 단계적 변화는 호스트가 명시적으로 mute).
         didSet {
             Haptics.enabled = progress?.hapticEnabled ?? true
             SoundPlayer.enabled = progress?.soundEnabled ?? true
             WidgetSync.publish(progress: progress, daily: daily)
             persistLocalIfAnonymous()
+            detectLevelUp(old: oldValue, new: progress)
         }
     }
     @Published private(set) var daily: DailyState? {
@@ -115,10 +138,55 @@ final class GameStore: ObservableObject {
     /// 판정이 conflict 인 경우만 셋. nil = 다이얼로그 미표시.
     @Published var mergeConflict: MergeConflictData? = nil
 
+    /// P0-1 — 챌린지 레벨업 1회성 이벤트. progress.level 이 단조 증가했을 때 set.
+    /// MainShell 이 구독해 UpHeroLevelUpOverlay 를 띄우고, dismiss 시 acknowledgeLevelUp()
+    /// 으로 nil 처리. 다중 레벨업(예: 2→4)도 한 이벤트로 묶어 표시.
+    ///
+    /// 사용 예시 (E agent 가 MainShell 에서 적용):
+    /// ```swift
+    /// .overlay {
+    ///     if let event = store.pendingLevelUp {
+    ///         UpHeroLevelUpOverlay(
+    ///             oldLevel: event.oldLevel,
+    ///             newLevel: event.newLevel,
+    ///             onDismiss: { store.acknowledgeLevelUp() }
+    ///         )
+    ///         .transition(.opacity)
+    ///         .zIndex(2)
+    ///     }
+    /// }
+    /// ```
+    @Published var pendingLevelUp: LevelUpEvent?
+
+    /// 부트스트랩 / 클라우드 라이브 sync 가 level 을 점프시킬 때 overlay 가 거짓 트리거
+    /// 되지 않도록 일시 suppress. 사용자가 *현재 기기에서 챌린지를 완료해 레벨업한 케이스*
+    /// 만 진짜 축하 대상. 다기기 sync 는 침묵.
+    private var suppressNextLevelUp = false
+
     /// 익명 모드 여부 — auth.uid 미존재 + progress 가 LocalProgressCache 에서 복원됨.
     /// 뷰가 LoginOverlay·BackupReminderBanner 표시 조건으로 사용.
     var isAnonymous: Bool {
         auth.uid == nil && progress != nil
+    }
+
+    /// R8 — 모든 데이터 리셋. 로컬 캐시 + upHero + growth + duo + Firestore(클라우드).
+    /// 사용자는 onboarding 부터 다시 시작.
+    func resetAllData() {
+        LocalProgressCacheStore.clear()
+        upHero.resetAllData()
+        duo.reset()
+        WidgetSync.endAllActivities()
+        progress = nil
+        daily = nil
+        retention = nil
+        // 리셋은 level→0 으로 떨어뜨릴 뿐이지만 *기존 pending overlay 가 살아있을 수* 있어
+        // 명시적으로 비움 (defensive).
+        pendingLevelUp = nil
+        progress = Self.makeDefaultProgress()
+        daily = Self.makeDefaultDaily()
+        retention = RetentionState.fresh(today: Self.todayString())
+        phase = .onboarding
+        if auth.uid != nil { auth.signOut() }
     }
 
     /// LoginOverlay 가 이미 한 번 보였는지 — 웹 localStorage["login_prompt_seen"].
@@ -217,6 +285,32 @@ final class GameStore: ObservableObject {
         }
     }
 
+    /// P0-1 — 사용자가 UpHeroLevelUpOverlay 를 닫을 때 호출. pendingLevelUp = nil.
+    /// 자동 dismiss(1.6s 후) 도 같은 경로를 탄다.
+    func acknowledgeLevelUp() {
+        pendingLevelUp = nil
+    }
+
+    /// progress.didSet 의 레벨업 감지. cloud/bootstrap origin 점프는 suppressNextLevelUp
+    /// 로 mute. 동일 oldLevel 이라도 새 instance 면 별개 이벤트 (timestamp).
+    private func detectLevelUp(old: UserProgress?, new: UserProgress?) {
+        guard let new else { return }
+        guard let old else {
+            // 부팅 첫 진입 — nil→snapshot 은 영구히 침묵 (cold start).
+            return
+        }
+        guard new.level > old.level else { return }
+        if suppressNextLevelUp {
+            suppressNextLevelUp = false
+            return
+        }
+        // 중복 트리거 가드 — 같은 oldLevel/newLevel 페어면 누적하지 않음
+        // (한 이벤트 안에 다중 레벨업 묶임).
+        if let existing = pendingLevelUp,
+           existing.oldLevel == old.level && existing.newLevel == new.level { return }
+        pendingLevelUp = LevelUpEvent(oldLevel: old.level, newLevel: new.level)
+    }
+
     /// 사용자가 LoginOverlay 에서 "건너뛰기" 또는 BackupReminderBanner 의 "나중에"
     /// 를 눌렀을 때 호출. 웹 saveToStorage("login_prompt_seen", true) 와 동치.
     /// 익명 진행은 그대로 유지 — 다음 트리거 (예: 7일 후) 까지 LoginOverlay 안 뜸.
@@ -267,6 +361,8 @@ final class GameStore: ObservableObject {
             "local_days": "\(conflict.localProgress.totalDaysCompleted)",
             "cloud_days": "\(conflict.cloudProgress.totalDaysCompleted)",
         ])
+        // 머지 = level 점프 가능. overlay 침묵.
+        suppressNextLevelUp = true
         progress = GameRules.normalizeXpLevel(conflict.cloudProgress).progress
         daily = conflict.cloudDaily
         retention = conflict.cloudRetention ?? RetentionState.fresh(today: Self.todayString())
@@ -347,6 +443,8 @@ final class GameStore: ObservableObject {
                 return
             }
 
+            // 부트스트랩 = level 점프 가능 (cloud snapshot). overlay 침묵.
+            suppressNextLevelUp = true
             progress = GameRules.normalizeXpLevel(cloudProgress).progress
             daily = cloudDaily
             retention = cloudRetention ?? RetentionState.fresh(today: Self.todayString())
@@ -397,6 +495,8 @@ final class GameStore: ObservableObject {
     /// hasLocalPendingWrite)를 통과시킨 변경만 전달한다.
     /// (웹 _setFromCloud 의 dailyProgressScore 단조 stale 가드는 다음 슬라이스에서 보강.)
     private func applyCloudUpdate(_ cloudProgress: UserProgress, _ cloudDaily: DailyState, _ cloudRetention: RetentionState?) {
+        // 다기기 sync 의 level 점프는 풀스크린 축하 대상 아님 — 한 step 만 mute.
+        suppressNextLevelUp = true
         progress = GameRules.normalizeXpLevel(cloudProgress).progress
         retention = cloudRetention ?? retention ?? RetentionState.fresh(today: Self.todayString())
         // stale 가드 — 같은 날짜인데 클라우드 daily 의 진행 점수가 로컬보다 낮으면

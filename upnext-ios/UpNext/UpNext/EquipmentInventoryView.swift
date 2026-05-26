@@ -1,52 +1,72 @@
 //
 //  EquipmentInventoryView.swift
-//  UpNext — Up Hero 장비 인벤토리 (Phase 4 슬라이스 19).
+//  UpNext — Up Hero 장비 인벤토리 (R8 격상).
 //
-//  웹 components/uphero/EquipmentInventory.tsx 포팅. 아지트 "장비" 메뉴 →
-//  장착 중인 4슬롯 + 보유 장비 목록. 인벤토리 항목을 탭하면 장착/판매/버리기.
-//
-//  웹 인벤토리의 강화(enhance)·사진 부적·정렬/필터·상세 모달은 condensed —
-//  각각 이후 슬라이스/Phase 4.5(사진)로 분리. 슬라이스 19 는 장착·판매·버리기만.
-//  장비는 던전 전투 드롭으로 채워지므로 전투 슬라이스 전엔 인벤토리가 비어 있다.
+//  웹 components/uphero/EquipmentInventory.tsx (1079 LOC) 비주얼 회복:
+//   - 4 슬롯 카드 그리드 (weapon/armor/accessory/talisman)
+//   - 등급별 외곽 글로우 (common 무 / rare 청 / unique 자홍 / legend 라임)
+//   - 슬롯 미장착 시 placeholder + PixelIcon
+//   - 보유 장비 그리드 — 등급 글로우 카드
+//   - 탭 → 액션 (장착/판매/강화/버리기)
+//   - 강화 → EnhanceRitualOverlay (2s) + 결과 후 모달
 //
 
 import SwiftUI
 
 struct EquipmentInventoryView: View {
     @EnvironmentObject private var upHero: UpHeroStore
-    /// 아지트 홈으로 복귀.
     let onBack: () -> Void
 
-    /// 인벤토리 항목 탭 → 장착/판매/버리기 액션 시트.
     @State private var actionItem: Equipment?
+    @State private var enhancingItem: Equipment?
+    @State private var enhanceOutcome: EnhanceRitualOutcome?
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    equippedSection
-                    inventorySection
+        ZStack {
+            VStack(spacing: 0) {
+                header
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        equippedGrid
+                        inventoryGrid
+                    }
+                    .padding(16)
+                    .padding(.bottom, 100)
                 }
-                .padding(16)
-                .padding(.bottom, 88)  // 하단 플로팅 네비 여유
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.bgPrimary)
+
+            // 강화 의식 오버레이
+            if let item = enhancingItem, let outcome = enhanceOutcome {
+                EnhanceRitualOverlay(equipment: item, outcome: outcome) {
+                    enhancingItem = nil
+                    enhanceOutcome = nil
+                }
+                .transition(.opacity)
+                .zIndex(50)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
         .confirmationDialog(
             actionItem?.name ?? "",
-            isPresented: Binding(
-                get: { actionItem != nil },
-                set: { if !$0 { actionItem = nil } }),
+            isPresented: Binding(get: { actionItem != nil }, set: { if !$0 { actionItem = nil } }),
             presenting: actionItem
         ) { item in
-            Button("장착") { upHero.equipItem(item.id) }
-            Button("판매 (+\(UpHeroRules.sellPrice[item.rarity] ?? 0) 코인)") {
-                upHero.sellItem(item.id)
+            Button("장착") { upHero.equipItem(item.id); actionItem = nil }
+            Button("강화 (-100 코인)") {
+                let outcome = upHero.enhanceItem(item.id)
+                enhancingItem = item
+                enhanceOutcome = outcome
+                actionItem = nil
             }
-            Button("버리기", role: .destructive) { upHero.discardItem(item.id) }
-            Button("취소", role: .cancel) {}
+            .disabled(upHero.state.coins < 100)
+            Button("판매 (+\(UpHeroRules.sellPrice[item.rarity] ?? 0) 코인)") {
+                upHero.sellItem(item.id); actionItem = nil
+            }
+            Button("버리기", role: .destructive) {
+                upHero.discardItem(item.id); actionItem = nil
+            }
+            Button("취소", role: .cancel) { actionItem = nil }
         }
     }
 
@@ -63,105 +83,85 @@ struct EquipmentInventoryView: View {
                 .typography(.title)
                 .foregroundStyle(Color.textPrimary)
             Spacer()
+            HStack(spacing: 4) {
+                PixelIcon(.coins, size: 14, color: Color.accentPrimary)
+                Text("\(upHero.state.coins)").typography(.caption).foregroundStyle(Color.textPrimary)
+                    .monospacedDigit()
+            }
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 12)
         .padding(.vertical, 6)
     }
 
-    // MARK: - 장착 중 (4 슬롯)
+    // MARK: - 4 슬롯 그리드
 
-    private var equippedSection: some View {
+    private var equippedGrid: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("장착 중")
-                .typography(.heading)
-                .foregroundStyle(Color.textPrimary)
-            ForEach(EquipSlot.allCases, id: \.self) { slot in
-                equippedSlotRow(slot)
+                .typography(.heading).foregroundStyle(Color.textPrimary)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                ForEach(EquipSlot.allCases, id: \.self) { slot in
+                    slotCard(slot)
+                }
             }
         }
     }
 
     @ViewBuilder
-    private func equippedSlotRow(_ slot: EquipSlot) -> some View {
+    private func slotCard(_ slot: EquipSlot) -> some View {
         if let item = upHero.state.hero.equipped[slot] {
-            Button { upHero.unequipItem(slot) } label: {
-                HStack(spacing: 10) {
-                    slotLabel(slot)
-                    itemSummary(item)
-                    Spacer(minLength: 0)
-                    Text("해제")
-                        .typography(.micro)
-                        .foregroundStyle(Color.textTertiary)
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity)
-                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+            EquipmentSlotCard(item: item, slot: slot) {
+                upHero.unequipItem(slot)
             }
-            .buttonStyle(.plain)
         } else {
-            HStack(spacing: 10) {
-                slotLabel(slot)
+            VStack(spacing: 6) {
+                PixelIcon(slotIcon(slot), size: 28, color: Color.textTertiary.opacity(0.4))
+                Text(slotName(slot))
+                    .typography(.micro).foregroundStyle(Color.textTertiary)
                 Text("비어 있음")
-                    .typography(.caption)
-                    .foregroundStyle(Color.textTertiary)
-                Spacer(minLength: 0)
+                    .typography(.micro).foregroundStyle(Color.textTertiary.opacity(0.5))
             }
-            .padding(12)
+            .frame(height: 120)
             .frame(maxWidth: .infinity)
-            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
-            .opacity(0.6)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.textTertiary.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            )
         }
     }
 
-    // MARK: - 보유 장비
+    // MARK: - 보유 장비 그리드
 
-    private var inventorySection: some View {
+    private var inventoryGrid: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("보유 장비 (\(upHero.state.inventory.count))")
-                .typography(.heading)
-                .foregroundStyle(Color.textPrimary)
+                .typography(.heading).foregroundStyle(Color.textPrimary)
             if upHero.state.inventory.isEmpty {
-                Text("보유한 장비가 없어요.\n던전을 탐험하면 장비를 얻을 수 있어요.")
-                    .typography(.caption)
-                    .foregroundStyle(Color.textTertiary)
+                Text("보유한 장비가 없어요.\n던전을 탐험하면 얻을 수 있어요.")
+                    .typography(.caption).foregroundStyle(Color.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                ForEach(upHero.state.inventory) { item in
-                    Button { actionItem = item } label: {
-                        HStack(spacing: 10) {
-                            itemSummary(item)
-                            Spacer(minLength: 0)
-                            PixelIcon(.moreHorizontal, size: 14, color: Color.textTertiary)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    ForEach(upHero.state.inventory) { item in
+                        Button { actionItem = item } label: {
+                            EquipmentSlotCard(item: item, slot: nil, onAction: nil)
                         }
-                        .padding(12)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
     }
 
-    // MARK: - 공용 조각
+    // MARK: - 헬퍼
 
-    private func slotLabel(_ slot: EquipSlot) -> some View {
-        Text(slotName(slot))
-            .typography(.micro)
-            .foregroundStyle(Color.textTertiary)
-            .frame(width: 48, alignment: .leading)
-    }
-
-    private func itemSummary(_ item: Equipment) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(item.name)
-                .typography(.caption)
-                .foregroundStyle(item.rarity.color)
-                .lineLimit(1)
-            Text(statSummary(item.stats))
-                .typography(.micro)
-                .foregroundStyle(Color.textTertiary)
-                .lineLimit(1)
+    private func slotIcon(_ slot: EquipSlot) -> PixelIconName {
+        switch slot {
+        case .weapon:    return .sword
+        case .armor:     return .shield
+        case .accessory: return .sparkle
+        case .talisman:  return .star
         }
     }
 
@@ -173,8 +173,97 @@ struct EquipmentInventoryView: View {
         case .talisman:  return "부적"
         }
     }
+}
 
-    /// stats 딕셔너리 → "STR+5 AGI+3" 요약. 0 인 스탯은 생략.
+// MARK: - 슬롯 카드 (rarity glow + stats summary)
+
+struct EquipmentSlotCard: View {
+    let item: Equipment
+    let slot: EquipSlot?
+    let onAction: (() -> Void)?
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            VStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    Text(item.rarity.displayName)
+                        .typography(.micro)
+                        .foregroundStyle(Color.bgPrimary)
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .background(item.rarity.color, in: Capsule())
+                    if let lvl = item.enhanceLevel, lvl > 0 {
+                        Text("+\(lvl)")
+                            .typography(.micro).monospacedDigit()
+                            .foregroundStyle(Color.accentPrimary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                PixelIcon(PixelIconName.resolve(item.iconName), size: 28, color: item.rarity.color)
+                Text(item.name)
+                    .typography(.micro)
+                    .foregroundStyle(Color.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                Text(statSummary(item.stats))
+                    .typography(.micro)
+                    .foregroundStyle(Color.textTertiary)
+                    .lineLimit(1)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 120)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(item.rarity.color.opacity(rarityBorderAlpha),
+                            lineWidth: item.rarity == .legend ? 2 : 1)
+            )
+            .shadow(color: item.rarity.color.opacity(rarityGlowAlpha),
+                    radius: rarityGlowRadius)
+
+            // 해제 버튼 (장착 슬롯 카드일 때만)
+            if let onAction {
+                Button(action: onAction) {
+                    Text("해제")
+                        .typography(.micro)
+                        .foregroundStyle(Color.textTertiary)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.bgElevated, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .topTrailing)
+                .padding(6)
+            }
+        }
+    }
+
+    private var rarityBorderAlpha: Double {
+        switch item.rarity {
+        case .normal: return 0.15
+        case .rare:   return 0.4
+        case .unique: return 0.5
+        case .legend: return 0.7
+        }
+    }
+
+    private var rarityGlowAlpha: Double {
+        switch item.rarity {
+        case .normal: return 0
+        case .rare:   return 0.28
+        case .unique: return 0.32
+        case .legend: return 0.42
+        }
+    }
+
+    private var rarityGlowRadius: CGFloat {
+        switch item.rarity {
+        case .normal: return 0
+        case .rare:   return 8
+        case .unique: return 10
+        case .legend: return 14
+        }
+    }
+
     private func statSummary(_ stats: [StatKey: Int]) -> String {
         let parts = StatKey.allCases.compactMap { key -> String? in
             guard let v = stats[key], v != 0 else { return nil }

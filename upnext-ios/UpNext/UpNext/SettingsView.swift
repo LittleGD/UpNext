@@ -14,6 +14,8 @@ struct SettingsView: View {
     @EnvironmentObject private var store: GameStore
     @State private var modeToConfirm: GameMode?
     @State private var showPrivacy = false
+    @State private var showResetConfirm = false
+    @State private var showSignOutConfirm = false
 
     var body: some View {
         ScrollView {
@@ -45,7 +47,10 @@ struct SettingsView: View {
 
             generalSection(progress)
             modeSection(progress)
+            titleSection(progress)
+            accountSection()
             statsSection(progress)
+            dataResetSection()
             infoSection()
 
             Text("UpNext v0.1.0")
@@ -198,6 +203,167 @@ struct SettingsView: View {
         .padding(14)
         .background(Color.bgSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - 칭호
+
+    private func titleSection(_ p: UserProgress) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("칭호")
+            VStack(spacing: 0) {
+                settingRow("현재 칭호") {
+                    Text(GameRules.titleForLevel(p.level, lang: p.language))
+                        .typography(.body)
+                        .foregroundStyle(Color.accentPrimary)
+                }
+                divider
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Lv 별 칭호")
+                        .typography(.micro)
+                        .foregroundStyle(Color.textTertiary)
+                    titleProgressList(progress: p)
+                }
+                .padding(16)
+            }
+            .background(Color.bgSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
+    private func titleProgressList(progress: UserProgress) -> some View {
+        let breakpoints: [(Int, String)] = [
+            (0, "입문자"), (1, "뉴비"), (2, "도전자"), (4, "실천가"),
+            (6, "갓생러"), (9, "마스터"), (13, "레전드")
+        ]
+        return VStack(alignment: .leading, spacing: 4) {
+            ForEach(0..<breakpoints.count, id: \.self) { i in
+                let bp = breakpoints[i]
+                let unlocked = progress.level >= bp.0
+                HStack(spacing: 8) {
+                    PixelIcon(unlocked ? .check : .lock,
+                              size: 11, color: unlocked ? Color.accentPrimary : Color.textTertiary)
+                    Text("Lv. \(bp.0)+ — \(bp.1)")
+                        .typography(.caption)
+                        .foregroundStyle(unlocked ? Color.textPrimary : Color.textTertiary)
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+    }
+
+    // MARK: - 계정 연결 / 로그아웃
+
+    private func accountSection() -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("계정")
+            VStack(spacing: 0) {
+                let uid = store.auth.uid
+                let isAnon = store.isAnonymous
+                settingRow("로그인 상태") {
+                    Text(uid == nil ? "비로그인" :
+                         isAnon ? "익명" : "연동됨")
+                        .typography(.caption)
+                        .foregroundStyle(uid == nil || isAnon ? Color.textSecondary : Color.accentPrimary)
+                }
+                if isAnon || uid == nil {
+                    divider
+                    HStack(spacing: 8) {
+                        Button {
+                            Task { await store.auth.signInWithApple() }
+                        } label: {
+                            Label("Apple", systemImage: "apple.logo")
+                                .typography(.caption)
+                                .foregroundStyle(Color.textPrimary)
+                                .frame(maxWidth: .infinity).frame(height: 40)
+                                .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                        Button {
+                            Task { await store.auth.signInWithGoogle() }
+                        } label: {
+                            Text("Google")
+                                .typography(.caption)
+                                .foregroundStyle(Color.textPrimary)
+                                .frame(maxWidth: .infinity).frame(height: 40)
+                                .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(16)
+                } else {
+                    divider
+                    Button {
+                        showSignOutConfirm = true
+                    } label: {
+                        HStack {
+                            Text("로그아웃")
+                                .typography(.body)
+                                .foregroundStyle(Color.colorError)
+                            Spacer()
+                            PixelIcon(.chevronRight, size: 12, color: Color.textTertiary)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(Color.bgSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .confirmationDialog("로그아웃 하시겠어요?", isPresented: $showSignOutConfirm) {
+            Button("로그아웃", role: .destructive) {
+                store.auth.signOut()
+            }
+            Button("취소", role: .cancel) {}
+        }
+    }
+
+    // MARK: - 데이터 리셋
+
+    private func dataResetSection() -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("데이터")
+            Button {
+                showResetConfirm = true
+            } label: {
+                HStack {
+                    Text("모든 데이터 리셋")
+                        .typography(.body)
+                        .foregroundStyle(Color.colorError)
+                    Spacer()
+                    PixelIcon(.trash, size: 14, color: Color.colorError)
+                }
+                .padding(.horizontal, 16).padding(.vertical, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .background(Color.bgSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .confirmationDialog("모든 데이터 리셋", isPresented: $showResetConfirm,
+                            titleVisibility: .visible) {
+            Button("리셋 (되돌릴 수 없음)", role: .destructive) {
+                performReset()
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("로컬·클라우드 데이터를 전부 초기화합니다. 카드·진행도·로그·부적·장비가 모두 사라집니다.")
+        }
+    }
+
+    /// 모든 데이터 리셋 — 로그인 사용자는 Firestore 클라우드 문서도 삭제 후 로컬 초기화.
+    /// 클라우드 삭제 누락 시 재로그인으로 진행도가 그대로 복구돼 "리셋" 약속이 깨진다.
+    /// 비로그인은 클라우드가 없으니 로컬만.
+    private func performReset() {
+        let uid = store.auth.uid
+        if let uid {
+            Task {
+                await store.sync.deleteCloudData(uid: uid)
+                store.resetAllData()
+            }
+        } else {
+            store.resetAllData()
+        }
     }
 
     // MARK: - 정보

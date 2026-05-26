@@ -26,6 +26,49 @@ final class GrowthStore: ObservableObject {
     /// (저장 공간·앨범 로딩 무한 증가 방지).
     private static let photoCap = 60
 
+    // MARK: - P0-2: 폴라로이드 캡처 플로우 (transient — 영속화 대상 아님)
+
+    /// 챌린지 완료 직후 인증 사진을 기다리는 카드 컨텍스트. `Identifiable` 이라
+    /// `fullScreenCover(item: $growth.pendingCapture)` 패턴에 그대로 결합.
+    /// transient — 디스크 저장하지 않는다 (앱 재기동 시 캡처 의도는 사라지는 게 맞음).
+    @Published var pendingCapture: PendingCaptureContext?
+
+    /// 챌린지 완료 후 인증 사진을 기다리는 카드 id. nil 이면 자유 캡처 또는 대기 없음.
+    /// `pendingCapture` 의 cardId alias — 일부 호출부가 단일 필드 binding 을 쓸 수 있어
+    /// 동일 의미를 두 형태로 노출.
+    var pendingCaptureCardId: String? {
+        get { pendingCapture?.cardId }
+        set {
+            if newValue == nil { pendingCapture = nil }
+            // setter 로 값을 주입하는 경로는 사용하지 않음 — beginCapture 만 set 한다.
+        }
+    }
+
+    /// `pendingCapture` 의 별칭 — MainShell 이 ctx 변수명을 쓸 때를 위한 호환 alias.
+    var pendingCaptureContext: PendingCaptureContext? { pendingCapture }
+
+    /// 현재 캡처 단계 — UI 가 진행도를 보여주거나 백버튼 동작을 분기.
+    @Published var capturePhase: CapturePhase = .idle
+
+    /// 캡처 플로우 외부 컨텍스트 — 챌린지 완료 직후 챌린지 메타 스냅샷을 묶어둔다.
+    /// `Identifiable` 로 SwiftUI `fullScreenCover(item:)` 에 그대로 결합.
+    struct PendingCaptureContext: Equatable, Identifiable {
+        /// id = cardId — fullScreenCover 가 변화 감지에 쓰는 키.
+        var id: String { cardId }
+        let cardId: String
+        let title: String
+        let category: Category
+    }
+
+    /// 캡처 모달의 단계 — 시각적 진행도와 모달 디스미스 안전성에 쓰임.
+    enum CapturePhase: Equatable {
+        case idle           // 모달이 떠 있지 않음
+        case camera         // 라이브 카메라 미리보기
+        case preview        // 촬영 직후 프리뷰 + 프레임 선택
+        case polaroid       // 폴라로이드 데코(스티커/서명/메모)
+        case ejecting       // 저장 직후 출력 애니메이션
+    }
+
     init() {
         photoMetas = Self.loadMetas()
     }
@@ -103,6 +146,117 @@ final class GrowthStore: ObservableObject {
         guard let img = UIImage(contentsOfFile: Self.imageURL(id).path) else { return nil }
         imageCache[id] = img
         return img
+    }
+
+    /// id 로 PhotoMeta 조회 — 부적 의식 등 외부 화면이 미리보기 사진을 가져갈 때.
+    /// 메타 목록은 작아서 (cap 60) 선형 탐색 안전.
+    func photoMeta(for id: String) -> PhotoMeta? {
+        photoMetas.first { $0.id == id }
+    }
+
+    // MARK: - P0-2: 캡처 플로우 액션
+
+    /// 챌린지 완료 직후 호출 — pendingCaptureCardId+context 를 set 해서 MainShell 이
+    /// 모달을 띄우게 한다. capturePhase 는 `.camera` 로 시작 (라이브 미리보기).
+    ///
+    /// MainShell wire 계약 (두 패턴 모두 호환):
+    ///
+    /// (A) `fullScreenCover(item:)` 형 — 권장:
+    /// ```swift
+    /// .fullScreenCover(item: $growth.pendingCapture) { item in
+    ///     PhotoCaptureModal(
+    ///         cardId: item.cardId, title: item.title, category: item.category,
+    ///         onSave: { image, signature, memo, stickers in
+    ///             growth.savePhoto(
+    ///                 image: image, signature: signature, memo: memo,
+    ///                 challengeCardId: item.cardId,
+    ///                 challengeTitle: item.title, category: item.category,
+    ///                 stickers: stickers)
+    ///         },
+    ///         onCancel: { growth.cancelCapture() })
+    /// }
+    /// ```
+    ///
+    /// (B) `fullScreenCover(isPresented:)` + ctx 조회 형:
+    /// ```swift
+    /// .fullScreenCover(isPresented: Binding(
+    ///     get: { growth.pendingCaptureCardId != nil },
+    ///     set: { if !$0 { growth.cancelCapture() } })) {
+    ///     if let ctx = growth.pendingCaptureContext,
+    ///        let card = CardCatalog.card(id: ctx.cardId) {
+    ///         PhotoCaptureModal(
+    ///             card: card,
+    ///             onClose: { growth.cancelCapture() },
+    ///             onSave: { image, memo, signature, stickers in
+    ///                 growth.savePhoto(
+    ///                     image: image, signature: signature, memo: memo,
+    ///                     challengeCardId: ctx.cardId,
+    ///                     challengeTitle: ctx.title, category: ctx.category,
+    ///                     stickers: stickers)
+    ///             })
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// 호출 예시 (GameStore — completeChallenge 직후):
+    /// ```swift
+    /// growth.beginCapture(cardId: card.id, title: card.title, category: card.category)
+    /// ```
+    func beginCapture(cardId: String, title: String, category: Category) {
+        pendingCapture = PendingCaptureContext(
+            cardId: cardId, title: title, category: category)
+        capturePhase = .camera
+    }
+
+    /// 모달 dismiss 시 호출 — pendingCapture·context·phase 클리어. 사진 저장
+    /// 안 하고 닫아도 챌린지 완료 자체는 유지 (인증 사진은 옵셔널).
+    func cancelCapture() {
+        pendingCapture = nil
+        capturePhase = .idle
+    }
+
+    /// 폴라로이드 합성본 + 메타데이터 저장. PhotoCaptureModal.onSave 콜백이 호출.
+    /// challengeCardId 가 nil 이면 자유 사진(.free), 있으면 챌린지 로그(.challengeLog).
+    /// 저장 후 캡처 플로우를 초기화 (cancelCapture 와 동일하게 pending 클리어).
+    /// 기존 addPhoto / addChallengeLog 와 다른 점:
+    ///   - 합성 완료된 이미지(폴라로이드 프레임 + 서명 + 스티커) 그대로 저장.
+    ///   - 서명·스티커 raw 데이터도 PhotoMeta 에 보존 — 추후 재편집/재합성 여지.
+    func savePhoto(
+        image: UIImage,
+        signature: Data?,
+        memo: String,
+        challengeCardId: String?,
+        challengeTitle: String?,
+        category: Category?,
+        stickers: [Sticker]
+    ) {
+        guard let jpeg = image.jpegData(compressionQuality: 0.9) else { return }
+        let kind: PhotoKind = challengeCardId == nil ? .free : .challengeLog
+        let prefix = kind == .free ? "vp" : "cl"
+        let id = "\(prefix)_\(UpHeroStore.nowMillis())"
+        guard Self.saveImage(jpeg, id: id) else { return }
+
+        let now = Date()
+        let day = GameStore.todayString()
+        let cleanMemo = String(memo.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200))
+        let meta = PhotoMeta(
+            id: id,
+            kind: kind,
+            challengeCardId: challengeCardId,
+            challengeTitle: challengeTitle,
+            category: category,
+            date: day,
+            timestamp: UpHeroStore.nowMillis(),
+            memo: cleanMemo,
+            timeSlot: Self.timeSlotFormatter.string(from: now),
+            caption: kind == .challengeLog ? cleanMemo : nil,
+            weekId: RetentionEngine.weekId(for: day),
+            signatureData: signature,
+            stickers: stickers
+        )
+        insert(meta: meta, image: image)
+        // 캡처 플로우 종료 — pending 정리.
+        cancelCapture()
     }
 
     #if DEBUG

@@ -1,18 +1,20 @@
 //
 //  Typography.swift
-//  UpNext 디자인 시스템 — 타이포그래피 6단계 스케일.
+//  UpNext 디자인 시스템 — 타이포그래피 6단계 + 다국어 폰트 오버라이드.
 //
-//  웹 src/app/globals.css의 .typo-* 클래스를 1:1 포팅.
-//  Target Membership: UpNext ✅ + UpNextWidgetExtension ✅
+//  웹 src/app/globals.css 의 .typo-* 클래스 + 언어별 폰트 오버라이드 1:1 포팅:
+//    - ko → April16th-Promise (기본)
+//    - en → 'slight-chance-mono' (Typekit) — bundle 미포함 시 monospaced fallback
+//    - ja → 'WDXL Lubrifont JP N' (Google Fonts) — bundle 미포함 시 system fallback
+//    - zh → 'ZCOOL QingKe HuangYou' (Google Fonts) — bundle 미포함 시 system fallback
 //
 //  6단계: display > title > heading > body > caption > micro
-//  웹은 mobile/tablet/desktop 3-breakpoint. iOS는 iPhone=phone, iPad=pad 2단계로 압축
-//  (desktop 사이즈는 iPad에 매핑). CJK 보정은 Phase 5.6 i18n에서 처리.
 //
-//  폰트: April16th-Promise.ttf (단일 weight 400, bold/semibold는 iOS가 synthesize —
-//  웹의 faux-bold 동작과 동일).
-//
-//  Phase 1.2 (디자인 시스템 Swift 포팅) 산출물.
+//  Bundle 에 추가할 TTF/OTF (선택):
+//    - SlightChanceMono-Regular.otf
+//    - WDXLLubrifontJPN-Regular.ttf
+//    - ZCOOLQingKeHuangYou-Regular.ttf
+//  파일이 없으면 자동으로 fallback 폰트가 적용됨.
 //
 
 import SwiftUI
@@ -21,26 +23,48 @@ import CoreText
 // MARK: - 폰트 등록
 
 enum AppFont {
-    static let family = "April16th Promise"  // ttf nameID 1 (family name)
+    static let family = "April16th Promise"
 
-    /// 번들에 포함된 커스텀 ttf를 런타임에 등록.
-    /// Info.plist UIAppFonts 대신 CTFontManager 사용 — 전 iOS 버전 호환, plist 불필요.
-    /// App과 Widget Extension 각각의 init에서 1회 호출.
-    static func register() {
-        guard let url = Bundle.main.url(forResource: "April16th-Promise", withExtension: "ttf") else {
-            return  // ttf 누락 — 시스템 폰트로 graceful fallback
+    /// 언어 코드 (ko/en/ja/zh) 로 폰트 family 결정. bundle 에 ttf 있으면 사용, 없으면 fallback.
+    static func family(forLangCode code: String) -> String {
+        switch code {
+        case "ko":
+            return AppFont.family
+        case "en":
+            return registered("slight-chance-mono") ?? "Menlo"
+        case "ja":
+            return registered("WDXL Lubrifont JP N") ?? AppFont.family
+        case "zh":
+            return registered("ZCOOL QingKe HuangYou") ?? AppFont.family
+        default:
+            return AppFont.family
         }
-        CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+    }
+
+    private static func registered(_ name: String) -> String? {
+        // UIFont 가 폰트를 알면 그 이름 반환.
+        return UIFont(name: name, size: 12) != nil ? name : nil
+    }
+
+    /// 번들에 포함된 ttf/otf 들을 런타임에 등록.
+    static func register() {
+        for (base, ext) in [
+            ("April16th-Promise", "ttf"),
+            ("SlightChanceMono-Regular", "otf"),
+            ("WDXLLubrifontJPN-Regular", "ttf"),
+            ("ZCOOLQingKeHuangYou-Regular", "ttf"),
+        ] {
+            guard let url = Bundle.main.url(forResource: base, withExtension: ext) else { continue }
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
     }
 }
 
 // MARK: - 타이포 스케일 정의
 
-/// 6단계 텍스트 스타일. 웹 .typo-display ~ .typo-micro 대응.
 enum TextStyle {
     case display, title, heading, body, caption, micro
 
-    /// iPhone(compact) 폰트 크기 — globals.css 기본(모바일) 값.
     var phoneSize: CGFloat {
         switch self {
         case .display: return 32
@@ -52,7 +76,6 @@ enum TextStyle {
         }
     }
 
-    /// iPad(regular) 폰트 크기 — globals.css desktop(≥1024px) 값.
     var padSize: CGFloat {
         switch self {
         case .display: return 48
@@ -64,19 +87,29 @@ enum TextStyle {
         }
     }
 
-    var weight: Font.Weight {
+    /// CJK 가독성 보정 — 한자 +1px (globals.css 의 lang=ja/zh 매핑).
+    func cjkSize(phone: CGFloat) -> CGFloat {
         switch self {
-        case .display: return .bold       // 700
-        case .title:   return .bold       // 700
-        case .heading: return .semibold   // 600
-        case .body:    return .medium     // 500
-        case .caption: return .regular    // 400
-        case .micro:   return .medium     // 500
+        case .display: return phone + 2
+        case .title:   return phone + 2
+        case .heading: return phone + 2
+        case .body:    return phone + 1
+        case .caption: return phone + 1
+        case .micro:   return phone + 1
         }
     }
 
-    /// CSS line-height 배수. SwiftUI는 lineSpacing(절대값)을 쓰므로
-    /// `(lineHeight - 1) * fontSize`로 환산해서 적용.
+    var weight: Font.Weight {
+        switch self {
+        case .display: return .bold
+        case .title:   return .bold
+        case .heading: return .semibold
+        case .body:    return .medium
+        case .caption: return .regular
+        case .micro:   return .medium
+        }
+    }
+
     var lineHeightMultiple: CGFloat {
         switch self {
         case .display: return 1.1
@@ -88,7 +121,6 @@ enum TextStyle {
         }
     }
 
-    /// CSS letter-spacing(em) → SwiftUI tracking(point). fontSize 곱해서 환산.
     var trackingEm: CGFloat {
         switch self {
         case .display: return -0.02
@@ -104,19 +136,22 @@ enum TextStyle {
 private struct TypographyModifier: ViewModifier {
     let style: TextStyle
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.locale) private var locale
 
     func body(content: Content) -> some View {
-        let size = sizeClass == .regular ? style.padSize : style.phoneSize
+        let code = locale.language.languageCode?.identifier ?? "ko"
+        let baseSize = sizeClass == .regular ? style.padSize : style.phoneSize
+        // CJK 보정 (ja/zh)
+        let size = (code == "ja" || code == "zh") ? style.cjkSize(phone: baseSize) : baseSize
+        let family = AppFont.family(forLangCode: code)
         content
-            .font(.custom(AppFont.family, size: size).weight(style.weight))
+            .font(.custom(family, size: size).weight(style.weight))
             .tracking(size * style.trackingEm)
             .lineSpacing(size * (style.lineHeightMultiple - 1))
     }
 }
 
 extension View {
-    /// 디자인 시스템 타이포 스타일 적용. 웹의 `className="typo-heading"`에 대응.
-    /// 예: `Text("제목").typography(.heading)`
     func typography(_ style: TextStyle) -> some View {
         modifier(TypographyModifier(style: style))
     }

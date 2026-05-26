@@ -70,10 +70,23 @@ struct AlbumView: View {
                 set: { if !$0 { actionTarget = nil } }),
             presenting: actionTarget
         ) { meta in
-            Button("부적으로 만들기") { upHero.createPhotoTalisman(photoId: meta.id) }
+            // P0-3 — 부적 의식 3초 진행 → completePhotoTalismanRitual 가 부적 생성.
+            // (이전엔 즉시 createPhotoTalisman 호출 → ritual 0초로 사라지던 버그.)
+            Button("부적으로 만들기") { upHero.beginPhotoTalismanRitual(photoId: meta.id) }
             Button("삭제", role: .destructive) { growth.deletePhoto(meta.id) }
             Button("취소", role: .cancel) {}
         }
+        // P0-3 — 의식 오버레이. 의식 중인 사진이 있을 때만 마운트, 종료 시 자동 dismiss.
+        .overlay {
+            if let pendingId = upHero.pendingTalismanPhotoId {
+                PhotoTalismanRitual(
+                    photoImage: growth.image(for: pendingId),
+                    onDone: { upHero.completePhotoTalismanRitual() }
+                )
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: upHero.pendingTalismanPhotoId)
     }
 
     private var addButton: some View {

@@ -56,17 +56,23 @@ struct DailyHomeView: View {
         } message: { card in
             Text("'\(card.title)' 을(를) 완료로 표시할까요?")
         }
-        .alert("챌린지 추가", isPresented: phaseConfirmBinding, presenting: confirmStartPhase) { phase in
-            Button("시작") {
-                if phase == .extra { store.startExtraChallenge() } else { store.startSuperChallenge() }
-                confirmStartPhase = nil
+        // ChallengeConfirmModal — 시스템 .alert 대체. 백드롭 + spring + 파티클 + gradient CTA.
+        .overlay {
+            if let phase = confirmStartPhase {
+                ChallengeConfirmModal(
+                    phase: phase == .extra ? .extra : .sup,
+                    onConfirm: {
+                        if phase == .extra { store.startExtraChallenge() }
+                        else { store.startSuperChallenge() }
+                        confirmStartPhase = nil
+                    },
+                    onCancel: { confirmStartPhase = nil }
+                )
+                .transition(.opacity)
+                .zIndex(100)
             }
-            Button("취소", role: .cancel) { confirmStartPhase = nil }
-        } message: { phase in
-            Text(phase == .extra
-                 ? "오늘의 챌린지를 모두 끝냈어요.\n추가 챌린지(카드 2장)에 도전할까요?"
-                 : "추가 챌린지 완료!\n슈퍼 챌린지(카드 3장)에 도전할까요?")
         }
+        .animation(.easeInOut(duration: 0.2), value: confirmStartPhase)
         .sheet(isPresented: $showMinigame) {
             MinigameView()
         }
@@ -248,14 +254,14 @@ struct DailyHomeView: View {
         .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 14))
     }
 
-    /// daily/extra 풀클리어 후 다음 페이즈 도전 버튼. super 면 없음.
+    /// daily/extra 풀클리어 후 다음 페이즈 도전 — hold-to-charge 배너. super 면 없음.
     @ViewBuilder
     private func nextChallengePrompt(_ phase: ChallengePhase) -> some View {
         switch phase {
         case .daily:
-            challengeButton("추가 챌린지 도전") { confirmStartPhase = .extra }
+            ChallengePhaseBanner(phase: .extra) { confirmStartPhase = .extra }
         case .extra:
-            challengeButton("슈퍼 챌린지 도전") { confirmStartPhase = .`super` }
+            ChallengePhaseBanner(phase: .sup) { confirmStartPhase = .`super` }
         case .`super`:
             EmptyView()
         }

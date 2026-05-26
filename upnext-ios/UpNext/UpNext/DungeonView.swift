@@ -1,48 +1,181 @@
 //
 //  DungeonView.swift
-//  UpNext — Up Hero 던전 전투 화면 (Phase 4 슬라이스 22).
+//  UpNext — Up Hero 던전 전투 화면.
 //
-//  웹 components/uphero/DungeonView.tsx 포팅. currentSession 이 있으면 UpHeroGameView
-//  가 아지트 대신 이 화면을 보여준다. 타이머가 advanceCombat 을 반복 호출해 전투가
-//  자동 진행되고, 전투 로그가 실시간으로 쌓인다.
+//  R8 — 충실 회복:
+//   - HeroSprite vs MonsterSprite 대치 UI (단순 텍스트 로그 격하 → 시각화)
+//   - BossBanner 보스 등장 연출 (2.4s)
+//   - FloatingNumberOverlay 14 keyframe (hp/xp/heal/coin/timeTag/start/dodge/crit)
+//   - Crit shake (uphero-crit-shake) + Attack flash (좌=영웅/우=적) + Floor sweep
+//   - SessionResultModal — 인라인 endResult 텍스트 격하 → 모달
 //
-//  슬라이스 22~24 — 자동 진행 전투 + 로그 + 이벤트 선택지 + 결산(보상 지급). condensed:
-//   - 미니게임은 자동 처리 (플레이는 Phase 4.6)
-//   - 보스 등장 연출·전투 속도 조절은 이후 슬라이스
+//  세션 로그 변화에 따라 위 효과 트리거. id 기반 dedup 으로 중복 발사 방지.
 //
 
 import SwiftUI
-import Combine  // Timer.publish().autoconnect()
+import Combine
 
 struct DungeonView: View {
     @EnvironmentObject private var upHero: UpHeroStore
     @EnvironmentObject private var store: GameStore
 
-    /// 전투 tick 타이머 — 0.7초마다 한 스텝. 화면이 살아있는 동안만 발화.
-    /// @State 로 1회만 생성 — let 이면 struct 재생성마다 새 publisher 가 나와
-    /// onReceive 가 매 tick 구독을 갈아끼운다 (render cadence 에 의존하는 fragile).
     @State private var tick = Timer.publish(every: 0.7, on: .main, in: .common).autoconnect()
+
+    // R8 — 효과 트리거 (값이 바뀔 때 1회 재생)
+    @State private var critShakeTrigger: Int = 0
+    @State private var attackFlashSide: AttackSide = .hero
+    @State private var attackFlashTrigger: Int = 0
+    @State private var floorSweepTrigger: Int = 0
+    @State private var bossBannerData: (monster: Monster, floor: Int)? = nil
+    @State private var lastProcessedLogCount: Int = 0
+    @State private var floatingItems: [FloatingNumberItem] = []
+    /// 보스 배너가 표시 중인 동안엔 tick 일시정지 — 등장 연출 중 다음 round 가 겹치지 않게.
+    @State private var pausedForBoss: Bool = false
 
     var body: some View {
         ZStack {
             Color.bgPrimary.ignoresSafeArea()
+            // R8 — DungeonAtmosphere 레이어 (themeColor + depth tint + boss pulse).
+            if let session = upHero.state.currentSession,
+               let dungeon = Dungeons.all[session.dungeonId] {
+                DungeonAtmosphere(
+                    dungeon: dungeon,
+                    floor: session.currentFloor,
+                    isBoss: [10, 20, 30].contains(session.currentFloor)
+                )
+            }
             if let session = upHero.state.currentSession {
                 content(session)
+                    .shake(critShakeTrigger)
+                    .attackFlash(attackFlashTrigger, side: attackFlashSide)
+                    .floorSweep(floorSweepTrigger)
+                    .onChange(of: session.log.count) { newCount in
+                        processNewLogs(session, oldCount: lastProcessedLogCount, newCount: newCount)
+                        lastProcessedLogCount = newCount
+                    }
+                    .onAppear { lastProcessedLogCount = session.log.count }
+
+                FloatingNumberOverlay(items: $floatingItems)
+
+                // 보스 배너 오버레이
+                if let bb = bossBannerData {
+                    BossBanner(monster: bb.monster, floor: bb.floor) {
+                        bossBannerData = nil
+                        pausedForBoss = false
+                    }
+                    .transition(.opacity)
+                    .zIndex(50)
+                }
+
+                // 세션 결산 모달
+                if session.status == .completed {
+                    SessionResultModal(session: session) {
+                        store.finishUpHeroSession()
+                    }
+                    .transition(.opacity)
+                    .zIndex(60)
+                }
+
+                // 미니게임 오버레이 — 자동 승리 격하 해소
+                if session.status == .awaitingMinigame, let pending = session.pendingMinigame {
+                    MinigameRouter(pending: pending) { success in
+                        upHero.resolveMinigameResult(success: success)
+                    }
+                    .transition(.opacity)
+                    .zIndex(55)
+                }
             }
         }
-        .onReceive(tick) { _ in upHero.advanceCombat() }
+        .animation(.easeInOut(duration: 0.2), value: bossBannerData != nil)
+        .onReceive(tick) { _ in
+            guard !pausedForBoss else { return }
+            upHero.advanceCombat()
+        }
     }
+
+    // MARK: - 콘텐츠
 
     private func content(_ session: CombatSession) -> some View {
         VStack(spacing: 0) {
             statusHeader(session)
+            spriteVsRow(session)
             logScroll(session)
             footer(session)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - 상태 헤더 (던전·층·HP·시간)
+    // MARK: - 스프라이트 대치 (HeroSprite vs MonsterSprite)
+
+    @ViewBuilder
+    private func spriteVsRow(_ session: CombatSession) -> some View {
+        let hero = session.hero
+        let enemy = currentEnemy(session)
+        HStack(alignment: .center) {
+            // Hero 좌
+            VStack(spacing: 4) {
+                HeroSprite(
+                    variant: hero.appearanceVariant,
+                    classType: hero.classType,
+                    size: 56,
+                    color: HeroSprite.themeColor(hero.classType)
+                )
+                Text(hero.name)
+                    .typography(.micro)
+                    .foregroundStyle(Color.textTertiary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Text("VS")
+                .typography(.caption)
+                .foregroundStyle(Color.textTertiary)
+                .tracking(2)
+            Spacer()
+            // Enemy 우
+            VStack(spacing: 4) {
+                if let enemy {
+                    MonsterSprite(
+                        kind: enemy.kind,
+                        size: 56,
+                        color: enemy.isBoss == true ? Color.accentSecondary : Color.textPrimary,
+                        glow: enemy.isBoss == true
+                    )
+                    Text(enemy.name)
+                        .typography(.micro)
+                        .foregroundStyle(Color.textTertiary)
+                        .lineLimit(1)
+                } else {
+                    // 탐험 중 (몬스터 없음)
+                    Color.clear.frame(width: 56, height: 56)
+                    Text("탐험 중...")
+                        .typography(.micro)
+                        .foregroundStyle(Color.textTertiary.opacity(0.5))
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .frame(minHeight: 88)
+    }
+
+    /// 현재 진행 중인 적 — 최근 encounter/boss 의 monster (victory/sessionEnd 이후엔 nil).
+    private func currentEnemy(_ session: CombatSession) -> Monster? {
+        for entry in session.log.reversed() {
+            switch entry {
+            case let .encounter(monster, _):
+                return monster
+            case let .boss(monster, _, _):
+                return monster
+            case .victory, .sessionEnd:
+                return nil
+            default:
+                continue
+            }
+        }
+        return nil
+    }
+
+    // MARK: - 상태 헤더
 
     private func statusHeader(_ session: CombatSession) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -66,9 +199,7 @@ struct DungeonView: View {
     private func statBar(_ label: String, _ value: Int, _ max: Int, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
-                Text(label)
-                    .typography(.micro)
-                    .foregroundStyle(Color.textTertiary)
+                Text(label).typography(.micro).foregroundStyle(Color.textTertiary)
                 Spacer()
                 Text("\(Swift.max(0, value)) / \(max)")
                     .typography(.micro)
@@ -90,25 +221,30 @@ struct DungeonView: View {
         return min(Swift.max(CGFloat(v) / CGFloat(m), 0), 1)
     }
 
-    // MARK: - 전투 로그 (자동 스크롤)
+    // MARK: - 로그 스크롤
 
     private func logScroll(_ session: CombatSession) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
                     ForEach(Array(session.log.enumerated()), id: \.offset) { idx, entry in
-                        Text(logText(entry))
-                            .typography(.caption)
-                            .foregroundStyle(logColor(entry))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .id(idx)
+                        // 최신 1줄만 typewriter, 나머지는 정적 (성능 보호).
+                        if idx == session.log.count - 1 {
+                            CombatLogText(fullText: logText(entry), color: logColor(entry))
+                                .id(idx)
+                        } else {
+                            Text(logText(entry))
+                                .typography(.caption)
+                                .foregroundStyle(logColor(entry))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .id(idx)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
             .onChange(of: session.log.count) { _ in
-                // 새 로그가 쌓이면 맨 아래로 — 전투 진행을 따라간다.
                 withAnimation(.easeOut(duration: 0.2)) {
                     proxy.scrollTo(session.log.count - 1, anchor: .bottom)
                 }
@@ -117,12 +253,13 @@ struct DungeonView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - 하단 (진행 중 = 포기 / 종료 = 결과)
+    // MARK: - 푸터
 
     @ViewBuilder
     private func footer(_ session: CombatSession) -> some View {
         if session.status == .completed {
-            endResult(session)
+            // SessionResultModal 이 처리 — 빈 footer.
+            EmptyView()
         } else if session.status == .awaitingChoice {
             choiceOptions(session)
         } else {
@@ -130,8 +267,6 @@ struct DungeonView: View {
         }
     }
 
-    /// awaitingChoice — 대기 중인 이벤트 선택지의 옵션을 버튼으로. 탭 → resolveChoice.
-    /// 선택지 프롬프트는 바로 위 전투 로그에 이미 떠 있어 여기선 옵션만 보여준다.
     @ViewBuilder
     private func choiceOptions(_ session: CombatSession) -> some View {
         if let idx = session.pendingChoiceIndex, session.log.indices.contains(idx),
@@ -151,7 +286,6 @@ struct DungeonView: View {
             }
             .padding(16)
         } else {
-            // 방어 — 선택지를 찾지 못하면(엔진 불변식 위반) 최소한 빠져나갈 길은 둔다.
             abandonButton
         }
     }
@@ -169,45 +303,7 @@ struct DungeonView: View {
         .padding(16)
     }
 
-    private func endResult(_ session: CombatSession) -> some View {
-        VStack(spacing: 8) {
-            Text(endReasonText(session))
-                .typography(.heading)
-                .foregroundStyle(Color.textPrimary)
-            // XP·코인은 항상 정확. 장비는 사망 시 절반만 보존돼 개수 표기가 어긋날 수
-            // 있어 결산 화면엔 안 넣는다 — 획득 장비는 인벤토리에서 확인.
-            Text("XP +\(session.rewards.xp) · 코인 +\(session.rewards.coins)")
-                .typography(.caption)
-                .foregroundStyle(Color.textSecondary)
-                .padding(.bottom, 4)
-            // 돌아가기 → 보상 지급(코인·장비·던전·코덱스 + XP) 후 아지트 복귀.
-            Button { store.finishUpHeroSession() } label: {
-                Text("돌아가기")
-                    .typography(.body)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .foregroundStyle(Color.bgPrimary)
-                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 16))
-        .padding(16)
-    }
-
-    /// 종료 사유 — 마지막 sessionEnd 로그에서 추출.
-    private func endReasonText(_ session: CombatSession) -> String {
-        for entry in session.log.reversed() {
-            if case let .sessionEnd(reason, detail, _, _, _, _, _) = entry {
-                return detail ?? sessionEndText(reason)
-            }
-        }
-        return "탐험 종료"
-    }
-
-    // MARK: - 로그 엔트리 렌더 (웹 LogEntry 13-case)
+    // MARK: - 로그 텍스트/색
 
     private func logText(_ entry: LogEntry) -> String {
         switch entry {
@@ -250,9 +346,9 @@ struct DungeonView: View {
     private func logColor(_ entry: LogEntry) -> Color {
         switch entry {
         case .victory, .drop, .treasure:
-            return Color.accentPrimary       // 좋은 일
+            return Color.accentPrimary
         case .encounter, .boss:
-            return Color.accentSecondary     // 위협 등장
+            return Color.accentSecondary
         case .sessionEnd:
             return Color.textPrimary
         default:
@@ -270,5 +366,86 @@ struct DungeonView: View {
         case .defeat:        return "탐험 실패"
         case .abandoned:     return "캠프로 복귀"
         }
+    }
+
+    // MARK: - 새 로그 처리 (효과 트리거)
+
+    /// session.log.count 가 바뀔 때 호출. old..<new 범위의 새 엔트리들을 보고 효과 발사.
+    private func processNewLogs(_ session: CombatSession, oldCount: Int, newCount: Int) {
+        guard newCount > oldCount else { return }
+        for i in oldCount..<newCount {
+            guard i >= 0 && i < session.log.count else { continue }
+            let entry = session.log[i]
+            handleLogEntry(entry)
+        }
+    }
+
+    private func handleLogEntry(_ entry: LogEntry) {
+        switch entry {
+        case let .boss(monster, floor, _):
+            bossBannerData = (monster: monster, floor: floor)
+            pausedForBoss = true
+        case let .combat(attacker, damage, outcome, _, _, _, _):
+            // 공격 플래시 (좌=영웅 공격, 우=적 공격)
+            attackFlashSide = attacker == .hero ? .hero : .enemy
+            attackFlashTrigger &+= 1
+            switch outcome {
+            case .crit:
+                critShakeTrigger &+= 1
+                emitFloat(text: "CRIT!", variant: .critPulse, position: enemyAnchor())
+                if damage > 0 {
+                    emitFloat(text: "-\(damage)", variant: .hpRegen,
+                              color: Color.accentSecondary,
+                              position: attacker == .hero ? enemyAnchor() : heroAnchor())
+                }
+            case .hit:
+                if damage > 0 {
+                    emitFloat(text: "-\(damage)", variant: .hpRegen,
+                              color: Color.accentSecondary,
+                              position: attacker == .hero ? enemyAnchor() : heroAnchor())
+                }
+            case .dodge:
+                emitFloat(text: "✦", variant: .dodgePulse,
+                          position: attacker == .hero ? enemyAnchor() : heroAnchor())
+            case .miss:
+                emitFloat(text: "MISS", variant: .timeTag,
+                          color: Color.textTertiary,
+                          position: attacker == .hero ? enemyAnchor() : heroAnchor())
+            }
+        case let .victory(_, xp, coins, _, _, _):
+            if xp > 0 {
+                emitFloat(text: "+\(xp) XP", variant: .xp, position: heroAnchor())
+            }
+            if coins > 0 {
+                emitFloat(text: "+\(coins)", variant: .coin, position: heroAnchor())
+            }
+        case .floor:
+            floorSweepTrigger &+= 1
+        case let .treasure(coins, _, _, _, _):
+            if coins > 0 {
+                emitFloat(text: "+\(coins)", variant: .coin, position: heroAnchor())
+            }
+        default:
+            break
+        }
+    }
+
+    private func emitFloat(text: String, variant: FloatVariant,
+                           color: Color? = nil, position: CGPoint) {
+        let item = FloatingNumberItem(
+            text: text, variant: variant,
+            color: color ?? variant.defaultColor,
+            position: position
+        )
+        floatingItems.append(item)
+    }
+
+    /// 영웅 sprite 위치 anchor (대략적). 실제 위치는 GeometryReader 로도 가능하나 단순화.
+    private func heroAnchor() -> CGPoint {
+        CGPoint(x: 70, y: 170)
+    }
+
+    private func enemyAnchor() -> CGPoint {
+        CGPoint(x: UIScreen.main.bounds.width - 70, y: 170)
     }
 }

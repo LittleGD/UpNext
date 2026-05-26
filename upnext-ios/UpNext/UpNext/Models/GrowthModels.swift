@@ -26,6 +26,12 @@ struct PhotoMeta: Codable, Identifiable, Equatable {
     var timeSlot: String? = nil     // "09:00" 등 2초 로그 타임슬롯
     var caption: String? = nil      // 짧은 로그 캡션
     var weekId: String? = nil       // 월요일 시작 주간 key
+
+    // P0-4 — 폴라로이드 데코 메타 (옵셔널). 이전 버전 PhotoMeta(JSON) 에는 이 필드가
+    // 없으므로 디코더가 nil/빈배열로 폴백 (커스텀 init(from:) 에서 처리). 기존 사진은
+    // 변환·삭제 없이 그대로 로드되므로 마이그레이션 안전.
+    var signatureData: Data? = nil  // PKDrawing.dataRepresentation() — 서명
+    var stickers: [Sticker] = []    // 폴라로이드 위 스티커 배치
 }
 
 extension PhotoMeta {
@@ -42,5 +48,8 @@ extension PhotoMeta {
         timeSlot = try? c.decode(String.self, forKey: .timeSlot)
         caption = try? c.decode(String.self, forKey: .caption)
         weekId = try? c.decode(String.self, forKey: .weekId)
+        // P0-4 — 신규 옵셔널 필드. 이전 버전 JSON 에는 없으므로 nil/빈배열 폴백.
+        signatureData = try? c.decode(Data.self, forKey: .signatureData)
+        stickers = (try? c.decode([Sticker].self, forKey: .stickers)) ?? []
     }
 }
