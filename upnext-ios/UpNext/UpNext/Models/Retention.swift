@@ -10,7 +10,13 @@ enum AppClock {
         if let override = uiTestTodayOverride() {
             return override
         }
-        return dayString(now)
+        return productDayString(now)
+    }
+
+    /// Product day boundary matches the original web app: the "today" key rolls
+    /// over at 01:00 local time, not exactly midnight.
+    static func productDayString(_ date: Date = Date()) -> String {
+        dayString(date.addingTimeInterval(-60 * 60))
     }
 
     static func dayString(_ date: Date) -> String {

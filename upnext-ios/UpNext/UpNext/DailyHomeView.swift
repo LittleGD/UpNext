@@ -49,7 +49,6 @@ struct DailyHomeView: View {
         .alert("챌린지 완료", isPresented: cardConfirmBinding, presenting: confirmCard) { card in
             Button("완료") {
                 store.completePhaseChallenge(card.id)
-                logPromptCard = card
                 confirmCard = nil
             }
             Button("취소", role: .cancel) { confirmCard = nil }

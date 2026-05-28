@@ -29,7 +29,7 @@ enum MainTab: CaseIterable {
         switch self {
         case .challenge:  return "챌린지"
         case .collection: return "컬렉션"
-        case .playground: return "플레이"
+        case .playground: return "아지트"
         case .settings:   return "설정"
         }
     }
@@ -152,6 +152,9 @@ struct MainTabView: View {
             }
             lastCompletedScore = newScore
         }
+        .onOpenURL { url in
+            handleDeepLink(url)
+        }
         .fullScreenCover(isPresented: $showPackOpener) {
             CardPackOpenerView { showPackOpener = false }
         }
@@ -222,6 +225,23 @@ struct MainTabView: View {
         if !d.superSelectedCards.isEmpty,
            d.superCompletedIds.count >= d.superSelectedCards.count { s += 10 }
         return s
+    }
+
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "upnext" else { return }
+        let target = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        switch target {
+        case "daily", "challenge", "":
+            tab = .challenge
+        case "collection", "album":
+            tab = .collection
+        case "playground", "hero", "agit":
+            tab = .playground
+        case "settings":
+            tab = .settings
+        default:
+            break
+        }
     }
 
     /// 현재 패치 노트 최신 버전. PatchNotesModal.notes 의 첫 항목(=가장 최근) 기준.

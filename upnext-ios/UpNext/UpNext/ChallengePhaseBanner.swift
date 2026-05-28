@@ -4,7 +4,7 @@
 //
 //  웹 components/daily/ExtraChallengeBanner.tsx + SuperChallengeBanner.tsx 포팅.
 //  유저가 버튼을 누르고 있는 동안 진행 ring 이 차오르고, 100% 도달 시 onConfirm.
-//   - 0.8s (extra) / 1.2s (super) hold 필요
+//   - 1.2s (extra) / 1.8s (super) hold 필요
 //   - 이내 release → 진행 ring 0 으로 복귀
 //   - 100% 도달 시 ChallengeConfirmModal 자동 트리거
 //   - 시각: BurningBorder 호흡 + 불씨 ember 라이즈 + diagonal shimmer sweep
@@ -33,7 +33,7 @@ struct ChallengePhaseBanner: View {
     }
 
     private var holdDuration: Double {
-        phase == .extra ? 0.8 : 1.2
+        phase == .extra ? 1.2 : 1.8
     }
 
     private var accentColor: Color {
@@ -102,6 +102,13 @@ struct ChallengePhaseBanner: View {
             } else {
                 embers.removeAll()
             }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(phase == .extra ? "추가 챌린지 도전" : "슈퍼 챌린지 도전")
+        .accessibilityHint("길게 누르면 시작합니다")
+        .accessibilityAction {
+            onConfirm()
         }
     }
 

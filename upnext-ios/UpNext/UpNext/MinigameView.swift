@@ -37,10 +37,8 @@ struct MinigameView: View {
     @State private var roundXp: Int = 0
     @State private var lastResult: RoundResult = .pending
     @State private var toastMessage: String?
-    /// P0-3 — 이번 미니게임 런에서 매치된 사용자 콜렉션 카드 ID. roundResult/runResult
-    /// 가 "이번 런에 X, Y 카드 콜렉션 보강" 으로 표시. D agent 가 GameStore 측에
-    /// `recordChallengeCardWin(cardIds:)` 같은 메서드를 추가하면 awardMinigameWin 와
-    /// 함께 전달 — 그 전까지는 결과 화면에만 노출.
+    /// 이번 미니게임 런에서 매치된 카드 ID. 결과 수령 시 GameStore 로 전달해 웹
+    /// grantMinigameRewards 처럼 카드 언락/중복 XP 를 반영한다.
     @State private var matchedCardIds: Set<String> = []
 
     private enum Phase { case categoryFlash, peek, playing, roundResult, runResult }
@@ -256,9 +254,7 @@ struct MinigameView: View {
         switch tile.kind {
         case .challenge:
             roundXp += 30
-            // P0-3 — 실제 콜렉션 카드라면 ID 기록. 결과 화면에서 노출하고,
-            // (D agent 가 GameStore.recordChallengeCardWin 을 추가하면) 그쪽으로
-            // 보너스 처리. 풀 폴백(cardId nil)인 경우 카드 보강은 없음.
+            // 실제 컬렉션 카드라면 결과 수령 시 카드 언락/중복 XP 보상으로 연결한다.
             if let cardId = tile.cardId {
                 matchedCardIds.insert(cardId)
             }
@@ -340,17 +336,13 @@ struct MinigameView: View {
                 Text("총 XP: \(totalXp)")
                     .typography(.heading).foregroundStyle(Color.accentPrimary).monospacedDigit()
             }
-            // P0-3 — 이번 런에 매치된 콜렉션 카드 노출. 풀 폴백(unlockedCardIds 부재)
-            // 인 경우엔 비어있어 섹션 자체가 숨김. 카드 한 장당 작은 아이콘 + 제목.
+            // 이번 런에 매치된 컬렉션 카드 보상을 카드 한 장당 작은 아이콘 + 제목으로 표시.
             matchedCardsSection
             Spacer()
             Button {
-                if totalXp > 0 { store.awardMinigameWin() }
-                // P0-3 D agent 작업 필요 — GameStore 에 다음 둘 중 하나 추가:
-                //   1) `func recordChallengeCardWin(cardIds: Set<String>)`
-                //   2) 또는 `awardMinigameWin(matchedCardIds: [String])` 으로 확장
-                // 추가되면 여기서 `store.recordChallengeCardWin(cardIds: matchedCardIds)`
-                // 호출. 그전까지는 결과 화면 표시만으로 사용자 인지.
+                if totalXp > 0 || !matchedCardIds.isEmpty {
+                    store.awardMinigameWin(matchedCardIds: matchedCardIds, totalXp: totalXp)
+                }
                 dismiss()
             } label: {
                 Text("받기")
@@ -405,30 +397,10 @@ struct MinigameView: View {
         let skillTiles = r.skills * 2
         let challengeTiles = totalCells - curseTiles - skillTiles
         var tiles: [MGTile] = []
-        // P0-3 — 챌린지 타일은 사용자가 해금한 콜렉션 카드 풀에서 페어 생성.
-        // unlockedCardIds 가 비어있거나 페어를 다 못 채우면 카테고리 폴백 (legacy
-        // 동작 보전 — 신규 사용자도 미니게임이 깨지지 않게).
-        let unlockedIds = store.progress?.unlockedCardIds ?? []
-        let pool: [ChallengeCard] = CardCatalog.allCards
-            .filter { unlockedIds.contains($0.id) }
-            .shuffled()
         let pairCount = challengeTiles / 2     // 한 쌍 = 두 장
-        var cardIdx = 0
-        while tiles.count < challengeTiles {
-            if cardIdx < min(pairCount, pool.count) {
-                let card = pool[cardIdx]
-                tiles.append(MGTile(kind: .challenge, symbol: card.id, icon: PixelIconName.resolve(card.icon), cardId: card.id))
-                tiles.append(MGTile(kind: .challenge, symbol: card.id, icon: PixelIconName.resolve(card.icon), cardId: card.id))
-                cardIdx += 1
-            } else {
-                // 풀 소진 — 카테고리 폴백 (cardId nil).
-                let cats = Category.allCases
-                let cat = cats[(cardIdx) % cats.count]
-                let sym = "cat_\(cat.rawValue)_\(cardIdx)"
-                tiles.append(MGTile(kind: .challenge, symbol: sym, icon: cat.pixelIcon, cardId: nil))
-                tiles.append(MGTile(kind: .challenge, symbol: sym, icon: cat.pixelIcon, cardId: nil))
-                cardIdx += 1
-            }
+        for card in drawChallengePairs(count: pairCount) {
+            tiles.append(MGTile(kind: .challenge, symbol: card.id, icon: PixelIconName.resolve(card.icon), cardId: card.id))
+            tiles.append(MGTile(kind: .challenge, symbol: card.id, icon: PixelIconName.resolve(card.icon), cardId: card.id))
         }
         // 스킬 — heart + reload
         for j in 0..<r.skills {
@@ -446,6 +418,46 @@ struct MinigameView: View {
         matched = []
         phase = .categoryFlash
         lastResult = .pending
+    }
+
+    private func drawChallengePairs(count: Int) -> [ChallengeCard] {
+        let unlockedIds = Set(store.progress?.unlockedCardIds ?? [])
+        let unlocked = CardCatalog.allCards.filter { unlockedIds.contains($0.id) }
+        let locked = CardCatalog.allCards.filter { !unlockedIds.contains($0.id) }
+        if unlocked.count >= count {
+            return weightedSample(unlocked, count: count)
+        }
+        return unlocked.shuffled() + weightedSample(locked, count: count - unlocked.count)
+    }
+
+    private func weightedSample(_ pool: [ChallengeCard], count: Int) -> [ChallengeCard] {
+        var available = pool
+        var picked: [ChallengeCard] = []
+        let target = min(count, available.count)
+        for _ in 0..<target {
+            let weights = available.map { rarityWeight($0.rarity) }
+            let total = weights.reduce(0, +)
+            var roll = Int.random(in: 0..<max(total, 1))
+            var index = 0
+            for i in available.indices {
+                roll -= weights[i]
+                if roll < 0 {
+                    index = i
+                    break
+                }
+            }
+            picked.append(available.remove(at: index))
+        }
+        return picked
+    }
+
+    private func rarityWeight(_ rarity: Rarity) -> Int {
+        switch rarity {
+        case .normal: return 18
+        case .rare: return 5
+        case .unique: return 2
+        case .legend: return 1
+        }
     }
 }
 

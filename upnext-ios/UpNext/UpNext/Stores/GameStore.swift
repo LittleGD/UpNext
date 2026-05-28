@@ -174,6 +174,7 @@ final class GameStore: ObservableObject {
     func resetAllData() {
         LocalProgressCacheStore.clear()
         upHero.resetAllData()
+        growth.reset()   // 사진/폴라로이드 메타·캐시·디스크 이미지 정리 (이전엔 잔존했음)
         duo.reset()
         WidgetSync.endAllActivities()
         progress = nil
@@ -294,16 +295,16 @@ final class GameStore: ObservableObject {
     /// progress.didSet 의 레벨업 감지. cloud/bootstrap origin 점프는 suppressNextLevelUp
     /// 로 mute. 동일 oldLevel 이라도 새 instance 면 별개 이벤트 (timestamp).
     private func detectLevelUp(old: UserProgress?, new: UserProgress?) {
-        guard let new else { return }
-        guard let old else {
-            // 부팅 첫 진입 — nil→snapshot 은 영구히 침묵 (cold start).
-            return
-        }
+        // suppress 는 "이번 progress 할당이 cloud/bootstrap origin" 신호다. level 변화
+        // 유무와 무관하게 이번 set 에서 *무조건 1회* 소비해야 한다 — 소비를 아래 level
+        // guard 뒤에 두면 cloud sync 가 level 을 안 바꾼 경우 flag 가 잔존해 다음 *진짜*
+        // 로컬 레벨업을 잘못 mute 한다 (applyCloudUpdate 가 매 sync 마다 true 설정하므로 빈번).
+        let wasSuppressed = suppressNextLevelUp
+        suppressNextLevelUp = false
+        // 부팅 첫 진입 (old=nil, cold start) 은 영구 침묵.
+        guard let new, let old else { return }
         guard new.level > old.level else { return }
-        if suppressNextLevelUp {
-            suppressNextLevelUp = false
-            return
-        }
+        if wasSuppressed { return }
         // 중복 트리거 가드 — 같은 oldLevel/newLevel 페어면 누적하지 않음
         // (한 이벤트 안에 다중 레벨업 묶임).
         if let existing = pendingLevelUp,
@@ -559,11 +560,22 @@ final class GameStore: ObservableObject {
                 if p.completionHistory.count > GameConstants.completionHistoryCap {
                     p.completionHistory = Array(p.completionHistory.suffix(GameConstants.completionHistoryCap))
                 }
-                if wasFullClear { p.totalDaysCompleted += 1 }
+                if wasFullClear {
+                    p.currentStreak += 1
+                    p.totalDaysCompleted += 1
+                    p.longestStreak = max(p.longestStreak, p.currentStreak)
+                } else {
+                    p.currentStreak = 0
+                    p.hasPendingPenalty = true
+                }
                 if extraDone { p.extraChallengesCompleted += 1 }
                 if superDone { p.superChallengesCompleted += 1 }
                 changedProgress = true
             }
+
+            let applyPenalty = p.hasPendingPenalty
+            p.hasPendingPenalty = false
+            if applyPenalty { changedProgress = true }
 
             if let pending = p.pendingMode {
                 p.mode = pending
@@ -573,6 +585,7 @@ final class GameStore: ObservableObject {
 
             d = Self.makeDefaultDaily()
             d.date = today
+            d.hasPenalty = applyPenalty
             changedDaily = true
         }
 
@@ -628,6 +641,20 @@ final class GameStore: ObservableObject {
     func setLanguage(_ lang: Language) { mutateProgress { $0.language = lang } }
     func toggleSound() { mutateProgress { $0.soundEnabled.toggle() } }
     func toggleHaptic() { mutateProgress { $0.hapticEnabled.toggle() } }
+    func equipTitle(_ titleId: String?) { mutateProgress { $0.equippedTitleId = titleId } }
+    func markTitlesSeen(_ titleIds: [String]) {
+        guard var p = progress else { return }
+        var seen = p.seenTitleIds
+        var changed = false
+        for id in titleIds where !seen.contains(id) {
+            seen.append(id)
+            changed = true
+        }
+        guard changed else { return }
+        p.seenTitleIds = seen
+        progress = p
+        sync.syncProgress(p)
+    }
     /// 알림 켜기/끄기. 켤 때는 권한을 요청하고 — 거부되면 토글을 실제 허용 상태로
     /// 되돌린다 (설정이 OS 권한과 어긋나지 않게). 매일 리마인더도 함께 갱신.
     func setNotificationsEnabled(_ enabled: Bool) {
@@ -662,6 +689,39 @@ final class GameStore: ObservableObject {
         change(&p)
         progress = p
         sync.syncProgress(p)
+    }
+
+    private func hasCompletedCollection(_ progress: UserProgress) -> Bool {
+        progress.unlockedCardIds.count >= CardCatalog.allCards.count
+    }
+
+    private func normalizeAfterChallengeXP(_ progress: UserProgress) -> (progress: UserProgress, levelsGained: Int) {
+        let previousLevel = progress.level
+        let previousPendingPacks = progress.pendingPacks
+        let normalized = GameRules.normalizeXpLevel(progress)
+        var updated = normalized.progress
+
+        if normalized.levelsGained > 0, hasCompletedCollection(updated) {
+            updated.pendingPacks = previousPendingPacks
+            let compensation = PackTier.rollCompensationForLevels(normalized.levelsGained)
+            updated.xp += compensation.xp
+            upHero.addCoins(compensation.coins)
+        }
+
+        applyLevelMilestones(previousLevel: previousLevel, newLevel: updated.level)
+        return (updated, normalized.levelsGained)
+    }
+
+    private func applyLevelMilestones(previousLevel: Int, newLevel: Int) {
+        guard newLevel > previousLevel else { return }
+        if newLevel > 30 {
+            let points = previousLevel < 30 ? newLevel - 30 : newLevel - previousLevel
+            upHero.grantSkillPoints(points)
+        }
+        upHero.grantNoviceSkills(newLevel)
+        if previousLevel < 30, newLevel >= 30 {
+            upHero.proposeClassChoice()
+        }
     }
 
     // MARK: - 온보딩 (웹 useGameStore selectStarterPack / completeOnboarding)
@@ -699,6 +759,7 @@ final class GameStore: ObservableObject {
         progress = p
         let r = retention ?? RetentionState.fresh(today: Self.todayString())
         retention = r
+        upHero.grantNoviceSkills(1)
         AuthFunnel.log(.onboardingComplete, ["anonymous": auth.uid == nil ? "1" : "0"])
 
         if let uid = auth.uid {
@@ -820,13 +881,15 @@ final class GameStore: ObservableObject {
         // 레벨업 — XP/레벨 정규화로 level 재계산 + 상승분만큼 pendingPacks 적립.
         //   웹 completeChallenge 의 getLevelFromXP 기반 레벨업과 동치
         //   (normalizeProgressXpLevel 이 같은 getLevelFromXP + pendingPacks 로직).
-        let normalized = GameRules.normalizeXpLevel(p)
+        let normalized = normalizeAfterChallengeXP(p)
         p = normalized.progress
 
         progress = p
         daily = d
         sync.syncProgress(p)
         sync.syncDaily(d)
+        upHero.grantExpeditionPass(card.category, card.rarity)
+        growth.beginCapture(cardId: card.id, title: card.title, category: card.category)
         // 완료 햅틱·사운드 — 레벨업이면 celebration/levelUp, 아니면 success/complete.
         Haptics.play(normalized.levelsGained > 0 ? .celebration : .success)
         SoundPlayer.shared.play(normalized.levelsGained > 0 ? .levelUp : .complete)
@@ -996,19 +1059,27 @@ final class GameStore: ObservableObject {
         }
         p.unlockedCardIds.append(contentsOf: newUnlocks.map(\.id))
 
-        // 페이즈 풀클리어 — 보너스 카드 1장 + 미니게임 티켓 1장
+        // 페이즈 풀클리어 — 보너스 카드 1장 + 미니게임 티켓 1장.
+        // 컬렉션 완료자는 보너스 카드를 즉시 XP/영웅 코인으로 환산한다.
         let nowCompleted = isExtra ? d.extraCompletedIds : d.superCompletedIds
         if nowCompleted.count >= selected.count {
-            p.pendingBonusCards += 1
+            if hasCompletedCollection(p) {
+                p.xp += PackTier.compensationBonus.xp
+                upHero.addCoins(PackTier.compensationBonus.coins)
+            } else {
+                p.pendingBonusCards += 1
+            }
             p.tickets = min(GameConstants.minigameTicketCap, p.tickets + 1)
         }
-        let normalized = GameRules.normalizeXpLevel(p)
+        let normalized = normalizeAfterChallengeXP(p)
         p = normalized.progress
 
         progress = p
         daily = d
         sync.syncProgress(p)
         sync.syncDaily(d)
+        upHero.grantExpeditionPass(card.category, card.rarity)
+        growth.beginCapture(cardId: card.id, title: card.title, category: card.category)
         Haptics.play(normalized.levelsGained > 0 ? .celebration : .success)
         SoundPlayer.shared.play(normalized.levelsGained > 0 ? .levelUp : .complete)
     }
@@ -1026,12 +1097,24 @@ final class GameStore: ObservableObject {
 
         let locked = CardCatalog.allCards.filter { !p.unlockedCardIds.contains($0.id) }
         guard !locked.isEmpty else {
-            // 컬렉션 100% — 환산 보상은 Phase 4.4(영웅 코인). 우선 큐만 소진.
-            //   웹과 동일하게 이 분기(이미 완료)에선 첫 완료 보너스를 부여하지 않는다.
+            // 컬렉션 100% — 남은 팩/보너스 카드는 웹처럼 XP + 영웅 코인으로 환산.
+            var xpGain = 0
+            var coinGain = 0
+            for _ in 0..<p.pendingBonusCards {
+                xpGain += PackTier.compensationBonus.xp
+                coinGain += PackTier.compensationBonus.coins
+            }
+            for _ in 0..<p.pendingPacks {
+                let reward = PackTier.compensation(for: PackTier.rollPackTier())
+                xpGain += reward.xp
+                coinGain += reward.coins
+            }
             p.pendingPacks = 0
             p.pendingBonusCards = 0
+            p.xp += xpGain
             progress = p
             sync.syncProgress(p)
+            upHero.addCoins(coinGain)
             return nil
         }
 
@@ -1051,12 +1134,13 @@ final class GameStore: ObservableObject {
         // 첫 컬렉션 완료 감지 — 이번 개봉으로 풀 100% 채워졌고, 달성 이력이 없을 때.
         //   웹 openCardPack 의 justCompleted. firstClearBonus.xp 만 직접 가산하고
         //   레벨 재계산은 하지 않는다 (웹과 동일 — 다음 로드의 normalizeXpLevel 가 보정).
-        //   영웅 코인(firstClearBonus.coins) 지급은 Up Hero 의존 → Phase 4.4 stub.
+        //   영웅 코인은 Up Hero 스토어에 즉시 지급한다.
         let justCompleted = p.collectionCompletedAt == nil
             && p.unlockedCardIds.count >= CardCatalog.allCards.count
         if justCompleted {
             p.collectionCompletedAt = ISO8601DateFormatter().string(from: Date())
             p.xp += PackTier.firstClearBonus.xp
+            upHero.addCoins(PackTier.firstClearBonus.coins)
         }
 
         progress = p
@@ -1134,13 +1218,27 @@ final class GameStore: ObservableObject {
         return true
     }
 
-    /// 미니게임 성공 보상 — XP. 웹은 카드 드래프트 보상이나 condensed:
-    /// XP 로 단순화 (보너스 카드면 팩 오프너가 미니게임 시트 위로 중첩되는 문제 회피).
-    func awardMinigameWin() {
-        mutateProgress {
-            $0.xp += 30
-            $0.level = GameRules.normalizeXpLevel($0).progress.level
+    /// 미니게임 성공 보상 — 매치한 챌린지 카드별 XP/언락을 반영한다. 웹
+    /// `grantMinigameRewards` 의 condensed native path.
+    func awardMinigameWin(matchedCardIds: Set<String>, totalXp fallbackXp: Int) {
+        guard var p = progress else { return }
+        var xpGain = 0
+        for id in matchedCardIds {
+            guard let card = CardCatalog.allCards.first(where: { $0.id == id }) else { continue }
+            if p.unlockedCardIds.contains(id) {
+                xpGain += GameConstants.xpPerRarity[card.rarity] ?? 10
+            } else {
+                p.unlockedCardIds.append(id)
+            }
         }
+        p.minigameRunsPlayed += 1
+        p.minigameBestMatches = max(p.minigameBestMatches, matchedCardIds.count)
+        p.xp += xpGain > 0 ? xpGain : fallbackXp
+        let normalized = normalizeAfterChallengeXP(p)
+        p = normalized.progress
+
+        progress = p
+        sync.syncProgress(p)
         Haptics.play(.celebration)
         SoundPlayer.shared.play(.levelUp)
     }

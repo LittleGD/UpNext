@@ -21,7 +21,7 @@ struct CardPackOpenerView: View {
     @State private var haloProgress: Double = 0
     @State private var packScale: Double = 1
 
-    private enum OpeningPhase { case idle, shaking, flashing, halo, revealed }
+    private enum OpeningPhase { case idle, shaking, flashing, halo, revealed, absorbing }
 
     private struct Reveal {
         let cards: [ChallengeCard]
@@ -38,7 +38,7 @@ struct CardPackOpenerView: View {
 
             VStack(spacing: 0) {
                 Spacer()
-                if let revealed, phase == .revealed {
+                if let revealed, phase == .revealed || phase == .absorbing {
                     revealView(revealed)
                 } else {
                     promptOrOpening
@@ -101,6 +101,7 @@ struct CardPackOpenerView: View {
         case .flashing: return ""
         case .halo:     return ""
         case .revealed: return ""
+        case .absorbing: return ""
         }
     }
 
@@ -144,6 +145,10 @@ struct CardPackOpenerView: View {
                 }
             }
         }
+        .scaleEffect(phase == .absorbing ? 0.72 : 1)
+        .opacity(phase == .absorbing ? 0 : 1)
+        .offset(y: phase == .absorbing ? 220 : 0)
+        .animation(.easeInOut(duration: 0.45), value: phase)
     }
 
     /// 카드 한 장 — 스태거 spring reveal.
@@ -197,9 +202,9 @@ struct CardPackOpenerView: View {
             if revealed == nil {
                 button("팩 열기") { startOpen() }
             } else if pendingCount > 0 {
-                button("다음 팩 열기 (\(pendingCount))") { startOpen() }
+                button("다음 팩 열기 (\(pendingCount))") { absorbThen { startOpen() } }
             } else {
-                button("완료", action: onComplete)
+                button("완료") { absorbThen(onComplete) }
             }
         } else {
             // 시퀀스 진행 중 — 빈 자리만 유지
@@ -250,6 +255,17 @@ struct CardPackOpenerView: View {
             phase = .revealed
             haloProgress = 0
             packScale = 1
+        }
+    }
+
+    private func absorbThen(_ completion: @escaping () -> Void) {
+        phase = .absorbing
+        Haptics.play(.light)
+        SoundPlayer.shared.play(.collect)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            revealed = nil
+            phase = .idle
+            completion()
         }
     }
 

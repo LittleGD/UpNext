@@ -64,6 +64,7 @@ enum WidgetSync {
             return
         }
         let snapshot: [String: Any] = [
+            "date":               AppClock.todayString(),
             "streak":             p.currentStreak,
             "todayCount":         todayCount(daily),
             "todayDone":          todayDone(daily),
@@ -144,16 +145,6 @@ enum WidgetSync {
         return String(localized: "widget.daily.complete", bundle: .main)
     }
 
-    /// 일자 키 — 로컬 시간대 기준 "yyyy-MM-dd" (KST 사용자의 자정~오전 9시에 UTC 가
-    /// 전날인 경계 버그 방지). DateFormatter 는 호출마다 만들면 비싸서 캐시.
-    private static let dayKeyFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = .current
-        f.locale = Locale(identifier: "en_US_POSIX")  // 형식 안정 (사용자 로케일 무관)
-        return f
-    }()
-
     // MARK: - Live Activity 재조정 (daily 상태 기준 idempotent 동기화)
 
     /// 현재 daily 상태에 맞춰 Live Activity 를 시작·갱신·종료한다 (idempotent).
@@ -187,9 +178,9 @@ enum WidgetSync {
         let next = selected.first(where: { !completedSet.contains($0.id) })
         // 선택 미확정 또는 페이즈 풀클리어 → 종료.
         guard selectionDone, let card = next else { endChallengeActivity(); return }
-        // 페이즈 단위 ID — 페이즈 전환 시 새 활동으로 시작. 로컬 시간대 기준이라
-        // KST 사용자의 자정~09시에도 같은 "오늘"로 유지된다 (UTC 기준이면 mid-day 점프).
-        let dayKey = dayKeyFormatter.string(from: Date())
+        // 페이즈 단위 ID — 페이즈 전환 시 새 활동으로 시작. 날짜 기준은 웹
+        // getTodayString 과 같은 01:00 로컬 롤오버를 쓴다.
+        let dayKey = AppClock.todayString()
         let challengeId = "daily-\(dayKey)-\(d.challengePhase.rawValue)"
         let existing = AppConfig.sharedDefaults?.string(forKey: existingChallengeIdKey)
         if existing == challengeId {

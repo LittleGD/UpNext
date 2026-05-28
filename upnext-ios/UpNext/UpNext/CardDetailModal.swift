@@ -47,6 +47,7 @@ final class CardGyro: ObservableObject {
 /// TCG 비율(5:7) 카드. 드래그/자이로로 3D 기울고, 놓으면 스프링 복귀.
 struct Card3DView: View {
     let card: ChallengeCard
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var gyro = CardGyro()
     @State private var drag: CGSize = .zero
     @State private var dragging = false
@@ -57,16 +58,21 @@ struct Card3DView: View {
 
     var body: some View {
         // 합성 — 웹 combinedX/Y (L:114-127): 드래그 중엔 자이로 0, 아니면 자이로 tilt 가산.
-        let rotY = Double(drag.width) / rotationDivisor + (dragging ? 0 : gyro.tiltY)
-        let rotX = Double(-drag.height) / rotationDivisor + (dragging ? 0 : gyro.tiltX)
+        let dragY = reduceMotion ? 0 : Double(drag.width) / rotationDivisor
+        let dragX = reduceMotion ? 0 : Double(-drag.height) / rotationDivisor
+        let gyroY = reduceMotion || dragging ? 0 : gyro.tiltY
+        let gyroX = reduceMotion || dragging ? 0 : gyro.tiltX
+        let rotY = dragY + gyroY
+        let rotX = dragX + gyroX
         cardFace
             .rotation3DEffect(.degrees(rotY), axis: (x: 0, y: 1, z: 0))
             .rotation3DEffect(.degrees(rotX), axis: (x: 1, y: 0, z: 0))
-            .animation(.easeOut(duration: 0.18), value: gyro.tiltY)
-            .animation(.easeOut(duration: 0.18), value: gyro.tiltX)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: gyro.tiltY)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: gyro.tiltX)
             .gesture(
                 DragGesture()
                     .onChanged { value in
+                        guard !reduceMotion else { return }
                         dragging = true
                         drag = CGSize(
                             width: value.translation.width.clamped(to: -dragClamp...dragClamp),
@@ -79,7 +85,7 @@ struct Card3DView: View {
                         dragging = false
                     }
             )
-            .onAppear { gyro.start() }
+            .onAppear { if !reduceMotion { gyro.start() } }
             .onDisappear { gyro.stop() }
     }
 
@@ -87,10 +93,10 @@ struct Card3DView: View {
         // R8 — 콘텐츠 3-zone 패럴럭스: 제목 = 깊이 8 (가장 가까움) / 설명 = 4 / 보더 = 0.
         //   tilt 각도에 따라 inner zone 이 약간씩 다르게 움직여 z-depth 입체감을 만든다.
         let depthMul: Double = 0.6
-        let titleOffsetX = Double(drag.width) / rotationDivisor * depthMul * 0.8
-        let titleOffsetY = Double(-drag.height) / rotationDivisor * depthMul * 0.8
-        let descOffsetX = Double(drag.width) / rotationDivisor * depthMul * 0.4
-        let descOffsetY = Double(-drag.height) / rotationDivisor * depthMul * 0.4
+        let titleOffsetX = reduceMotion ? 0 : Double(drag.width) / rotationDivisor * depthMul * 0.8
+        let titleOffsetY = reduceMotion ? 0 : Double(-drag.height) / rotationDivisor * depthMul * 0.8
+        let descOffsetX = reduceMotion ? 0 : Double(drag.width) / rotationDivisor * depthMul * 0.4
+        let descOffsetY = reduceMotion ? 0 : Double(-drag.height) / rotationDivisor * depthMul * 0.4
 
         return ZStack(alignment: .topLeading) {
             // 카드 베이스
@@ -134,8 +140,8 @@ struct Card3DView: View {
             // 홀로그래픽 글레어 (legend/unique 만 — common/rare 는 sheen 만)
             if card.rarity == .legend || card.rarity == .unique {
                 HolographicGlare(
-                    rotateX: Double(-drag.height) / rotationDivisor + (dragging ? 0 : gyro.tiltX),
-                    rotateY: Double(drag.width) / rotationDivisor + (dragging ? 0 : gyro.tiltY),
+                    rotateX: reduceMotion ? 0 : Double(-drag.height) / rotationDivisor + (dragging ? 0 : gyro.tiltX),
+                    rotateY: reduceMotion ? 0 : Double(drag.width) / rotationDivisor + (dragging ? 0 : gyro.tiltY),
                     cornerRadius: 16
                 )
                 .allowsHitTesting(false)

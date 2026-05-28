@@ -80,8 +80,7 @@ struct PolaroidFrame<Caption: View>: View {
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                     } else {
-                        Image(systemName: "photo")
-                            .foregroundStyle(Color.textTertiary)
+                        PixelIcon(.image, size: 28, color: Color.textTertiary)
                     }
                     // 비네팅
                     RadialGradient(

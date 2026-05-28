@@ -24,7 +24,7 @@ final class GrowthStore: ObservableObject {
 
     /// 사진 보관 상한 — 초과 시 가장 오래된 것부터 정리. 웹 useGrowthStore 의 cap 대응
     /// (저장 공간·앨범 로딩 무한 증가 방지).
-    private static let photoCap = 60
+    private static let photoCap = 500
 
     // MARK: - P0-2: 폴라로이드 캡처 플로우 (transient — 영속화 대상 아님)
 
@@ -138,6 +138,18 @@ final class GrowthStore: ObservableObject {
         imageCache[id] = nil
         Self.deleteImage(id: id)
         Self.saveMetas(photoMetas)
+    }
+
+    /// R8 — 전체 사진 데이터 리셋. GameStore.resetAllData 가 호출한다.
+    /// 모든 메타·메모리 캐시·디스크 이미지 + 진행 중 캡처 상태까지 제거.
+    /// (이전엔 resetAllData 가 growth 를 안 건드려 리셋 후 사진이 잔존했음.)
+    func reset() {
+        for meta in photoMetas { Self.deleteImage(id: meta.id) }
+        photoMetas = []
+        imageCache.removeAll()
+        Self.saveMetas([])
+        pendingCapture = nil
+        capturePhase = .idle
     }
 
     /// 사진 이미지 로드 (메모리 캐시). 파일이 없으면 nil.

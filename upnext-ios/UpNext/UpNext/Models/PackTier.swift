@@ -13,8 +13,32 @@ import Foundation
 enum PackTier {
 
     /// 컬렉션 100% 최초 달성 보너스. 웹 COLLECTION_FIRST_CLEAR_BONUS.
-    /// coins(영웅 코인) 지급은 Up Hero 의존이라 Phase 4.4 — 현재는 안내 표기만(stub).
     static let firstClearBonus = (xp: 500, coins: 2000)
+
+    /// 컬렉션 완료 후 보너스 카드 1장 대신 받는 환산 보상.
+    static let compensationBonus = (xp: 25, coins: 50)
+
+    /// 컬렉션 완료 후 레벨업 팩 대신 받는 등급별 환산 보상.
+    static func compensation(for tier: Rarity) -> (xp: Int, coins: Int) {
+        switch tier {
+        case .normal: return (50, 100)
+        case .rare:   return (100, 200)
+        case .unique: return (200, 400)
+        case .legend: return (500, 1000)
+        }
+    }
+
+    static func rollCompensationForLevels(_ levelsGained: Int) -> (xp: Int, coins: Int) {
+        guard levelsGained > 0 else { return (0, 0) }
+        var xp = 0
+        var coins = 0
+        for _ in 0..<levelsGained {
+            let reward = compensation(for: rollPackTier())
+            xp += reward.xp
+            coins += reward.coins
+        }
+        return (xp, coins)
+    }
 
     /// 등급별 팩 굴림 가중치. 웹 PACK_TIER_WEIGHT (50:30:15:5).
     static func weight(_ tier: Rarity) -> Int {

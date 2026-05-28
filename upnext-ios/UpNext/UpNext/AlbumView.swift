@@ -125,40 +125,60 @@ struct AlbumView: View {
         }
     }
 
-    /// 사진 셀 — 정사각 썸네일. 탭하면 부적 만들기/삭제 시트.
+    /// 사진 셀 — 웹 앨범의 mini-polaroid 정체성을 유지한다. 탭하면 부적 만들기/삭제 시트.
     private func photoCell(_ meta: PhotoMeta) -> some View {
         Button { actionTarget = meta } label: {
-            Group {
-                if let img = growth.image(for: meta.id) {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    PixelIcon(.image, size: 22, color: Color.textTertiary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .background(Color.bgSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(alignment: .topLeading) {
-                if meta.kind == .challengeLog {
-                    HStack(spacing: 4) {
-                        PixelIcon(meta.category?.pixelIcon ?? .check, size: 9, color: Color.bgPrimary)
-                        Text(meta.category?.label ?? "챌린지")
-                            .typography(.micro)
-                            .lineLimit(1)
+            VStack(spacing: 0) {
+                ZStack {
+                    Color.black
+                    if let img = growth.image(for: meta.id) {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        PixelIcon(.image, size: 22, color: Color.paperPlaceholder)
                     }
-                    .foregroundStyle(Color.bgPrimary)
-                    .padding(.horizontal, 6)
-                    .frame(height: 20)
-                    .background(Color.accentPrimary, in: Capsule())
-                    .padding(6)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("challengeLogBadge")
                 }
+                .aspectRatio(1, contentMode: .fit)
+                .clipped()
+                .padding(.horizontal, 7)
+                .padding(.top, 7)
+                .overlay(alignment: .topLeading) {
+                    if meta.kind == .challengeLog {
+                        HStack(spacing: 4) {
+                            PixelIcon(meta.category?.pixelIcon ?? .check, size: 9, color: Color.bgPrimary)
+                            Text(meta.category?.label ?? "챌린지")
+                                .typography(.micro)
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(Color.bgPrimary)
+                        .padding(.horizontal, 6)
+                        .frame(height: 20)
+                        .background(Color.accentPrimary, in: Capsule())
+                        .padding(11)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("challengeLogBadge")
+                    }
+                }
+
+                Text(polaroidCaption(meta))
+                    .typography(.micro)
+                    .foregroundStyle(Color.inkWarmText)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, minHeight: 31, alignment: .topLeading)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 5)
+                    .padding(.bottom, 7)
             }
+            .aspectRatio(184.0 / 223.0, contentMode: .fit)
+            .background(Color.paperCream)
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+            .overlay {
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.18), radius: 5, y: 3)
             .overlay(alignment: .bottomLeading) {
                 if meta.kind == .challengeLog, let title = meta.challengeTitle {
                     Text(title)
@@ -178,5 +198,18 @@ struct AlbumView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(meta.kind == .challengeLog ? "challengeLogBadge" : "photoCard")
+    }
+
+    private func polaroidCaption(_ meta: PhotoMeta) -> String {
+        if let memo = meta.memo.nonEmpty { return memo }
+        if let title = meta.challengeTitle { return title }
+        return meta.date
+    }
+}
+
+private extension String {
+    var nonEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

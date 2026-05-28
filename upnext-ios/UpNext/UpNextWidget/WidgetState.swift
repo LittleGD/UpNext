@@ -14,6 +14,7 @@ import Foundation
 import SwiftUI  // LocalizedStringKey
 
 struct WidgetState: Codable, Equatable {
+    let date: String
     let streak: Int
     let todayCount: Int
     let todayDone: Int
@@ -27,6 +28,7 @@ struct WidgetState: Codable, Equatable {
     /// 데이터 없을 때 placeholder/snapshot 에 쓰는 기본값. levelTitle/title 은 빈 문자열로
     /// 두고 위젯 측에서 displayChallengeTitle / displayLevelTitle 로 다국어 fallback.
     static let placeholder = WidgetState(
+        date: Self.widgetTodayString(),
         streak: 7,
         todayCount: 6,
         todayDone: 2,
@@ -39,6 +41,7 @@ struct WidgetState: Codable, Equatable {
     )
 
     static let empty = WidgetState(
+        date: Self.widgetTodayString(),
         streak: 0,
         todayCount: 0,
         todayDone: 0,
@@ -56,7 +59,13 @@ struct WidgetState: Codable, Equatable {
             return .empty
         }
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let date = (json["date"] as? String) ?? ""
+            let updatedAt = (json["updatedAt"] as? NSNumber)?.doubleValue
+                ?? (json["updatedAt"] as? TimeInterval)
+                ?? 0
+            guard isFreshPayload(date: date, updatedAt: updatedAt) else { return .empty }
             return WidgetState(
+                date: date,
                 streak: (json["streak"] as? Int) ?? 0,
                 todayCount: (json["todayCount"] as? Int) ?? 0,
                 todayDone: (json["todayDone"] as? Int) ?? 0,
@@ -65,7 +74,7 @@ struct WidgetState: Codable, Equatable {
                 level: (json["level"] as? Int) ?? 1,
                 levelTitle: (json["levelTitle"] as? String) ?? "",
                 mainChallengeTitle: (json["mainChallengeTitle"] as? String) ?? "",
-                updatedAt: (json["updatedAt"] as? TimeInterval) ?? 0
+                updatedAt: updatedAt
             )
         }
         return .empty
@@ -88,5 +97,19 @@ struct WidgetState: Codable, Equatable {
         mainChallengeTitle.isEmpty
             ? LocalizedStringKey("widget.daily.start_prompt")
             : LocalizedStringKey(mainChallengeTitle)
+    }
+
+    private static func isFreshPayload(date: String, updatedAt: TimeInterval) -> Bool {
+        guard date == widgetTodayString() else { return false }
+        guard updatedAt > 0 else { return false }
+        return Date().timeIntervalSince1970 - updatedAt < 30 * 60 * 60
+    }
+
+    /// Mirrors the web app's `getTodayString`: roll the product day at 01:00
+    /// local time so midnight widget snapshots do not drift from the app.
+    private static func widgetTodayString(now: Date = Date()) -> String {
+        let shifted = now.addingTimeInterval(-60 * 60)
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: shifted)
+        return String(format: "%04d-%02d-%02d", c.year ?? 1970, c.month ?? 1, c.day ?? 1)
     }
 }

@@ -271,8 +271,12 @@ struct SettingsView: View {
                         Button {
                             Task { await store.auth.signInWithApple() }
                         } label: {
-                            Label("Apple", systemImage: "apple.logo")
-                                .typography(.caption)
+                            HStack(spacing: 6) {
+                                Image(systemName: "apple.logo")
+                                    .font(.system(size: 13, weight: .semibold))
+                                Text("Apple")
+                                    .typography(.caption)
+                            }
                                 .foregroundStyle(Color.textPrimary)
                                 .frame(maxWidth: .infinity).frame(height: 40)
                                 .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 8))

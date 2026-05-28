@@ -359,6 +359,63 @@ final class UpHeroStore: ObservableObject {
         return true
     }
 
+    /// 코인 적립 — 컬렉션 완료/팩 환산/미니게임 보상에서 GameStore 가 호출.
+    func addCoins(_ amount: Int) {
+        guard amount > 0 else { return }
+        mutate { $0.coins += amount }
+    }
+
+    /// 챌린지 완료 보상 탐험권. 웹 `grantExpeditionPass`.
+    func grantExpeditionPass(_ category: Category, _ rarity: Rarity) {
+        let gain = UpHeroRules.passGrantByRarity[rarity] ?? 1
+        mutate { s in
+            let current = s.passes[category] ?? 0
+            s.passes[category] = min(UpHeroRules.passCapPerCategory, current + gain)
+        }
+    }
+
+    func grantSkillPoints(_ points: Int) {
+        guard points > 0 else { return }
+        mutate { $0.hero.skillPoints = ($0.hero.skillPoints ?? 0) + points }
+    }
+
+    /// 전직 전 튜토리얼 스킬 자동 해금. 웹 `grantNoviceSkills`.
+    func grantNoviceSkills(_ level: Int) {
+        let unlocks: [String]
+        switch level {
+        case 15...:
+            unlocks = ClassSkills.noviceSkills.map(\.id)
+        case 5...:
+            unlocks = Array(ClassSkills.noviceSkills.prefix(2)).map(\.id)
+        case 1...:
+            unlocks = Array(ClassSkills.noviceSkills.prefix(1)).map(\.id)
+        default:
+            unlocks = []
+        }
+        guard !unlocks.isEmpty else { return }
+        mutate { s in
+            var learned = s.hero.learnedSkills ?? []
+            for id in unlocks where !learned.contains(id) {
+                learned.append(id)
+            }
+            s.hero.learnedSkills = learned
+        }
+    }
+
+    /// Lv30 도달 시 클래스 선택 모달을 준비. 이미 전직했거나 대기 중이면 no-op.
+    func proposeClassChoice() {
+        guard state.hero.classType == nil, state.pendingClassChoice == nil else { return }
+        let recommendedDungeon = state.passes.max(by: { $0.value < $1.value })?.key
+        let recommended: ClassType
+        if let recommendedDungeon,
+           let classType = UpHeroRules.classByDungeon[recommendedDungeon] {
+            recommended = classType
+        } else {
+            recommended = .warrior
+        }
+        mutate { $0.pendingClassChoice = PendingClassChoice(recommended: recommended) }
+    }
+
     // MARK: - 전직 (웹 assignClass / confirmClassChoice)
 
     /// 영웅 전직 — classType 을 확정한다. 이미 전직했으면 no-op. 웹 assignClass.

@@ -173,9 +173,7 @@ struct MonsterCodexCard: View {
             if discovered {
                 HStack(spacing: 2) {
                     ForEach(0..<template.power, id: \.self) { _ in
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 7))
-                            .foregroundStyle(Color.accentPrimary)
+                        PixelIcon(.star, size: 7, color: Color.accentPrimary)
                     }
                 }
             }

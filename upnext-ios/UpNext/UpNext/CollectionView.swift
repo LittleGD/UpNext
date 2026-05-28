@@ -16,10 +16,10 @@ struct CollectionView: View {
     @State private var filter: CardFilter = .all
     /// 탭한 해금 카드 — 값이 있으면 상세 모달이 sheet 로 뜬다.
     @State private var selectedCard: ChallengeCard?
-    /// 카드 도감 / 인증 사진 앨범 탭.
+    /// 카드 도감 / 칭호 / 인증 사진 앨범 탭.
     @State private var tab: CollectionTab = .cards
 
-    enum CollectionTab { case cards, album }
+    enum CollectionTab { case cards, titles, album }
 
     enum CardFilter: CaseIterable {
         case all, owned, unowned
@@ -37,6 +37,8 @@ struct CollectionView: View {
             tabSwitcher
             if tab == .cards {
                 cardCollection
+            } else if tab == .titles {
+                titleCollection
             } else {
                 AlbumView()
             }
@@ -51,9 +53,9 @@ struct CollectionView: View {
     /// 카드 도감 / 앨범 탭 전환.
     private var tabSwitcher: some View {
         HStack(spacing: 8) {
-            ForEach([CollectionTab.cards, .album], id: \.self) { t in
+            ForEach([CollectionTab.cards, .titles, .album], id: \.self) { t in
                 Button { tab = t } label: {
-                    Text(t == .cards ? "카드" : "앨범")
+                    Text(tabLabel(t))
                         .typography(.caption)
                         .foregroundStyle(tab == t ? Color.bgPrimary : Color.textTertiary)
                         .padding(.horizontal, 16)
@@ -62,13 +64,29 @@ struct CollectionView: View {
                                     in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier(t == .cards ? "cardsTabButton" : "albumTabButton")
+                .accessibilityIdentifier(tabAccessibilityId(t))
             }
             Spacer()
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .padding(.bottom, 4)
+    }
+
+    private func tabLabel(_ tab: CollectionTab) -> String {
+        switch tab {
+        case .cards: return "카드"
+        case .titles: return "칭호"
+        case .album: return "앨범"
+        }
+    }
+
+    private func tabAccessibilityId(_ tab: CollectionTab) -> String {
+        switch tab {
+        case .cards: return "cardsTabButton"
+        case .titles: return "titlesTabButton"
+        case .album: return "albumTabButton"
+        }
     }
 
     /// 카드 도감 (기존 컬렉션 그리드).
@@ -118,6 +136,150 @@ struct CollectionView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    // MARK: - 칭호
+
+    private struct NativeTitle: Identifiable {
+        var id: String
+        var name: String
+        var description: String
+        var earned: Bool
+        var progress: String
+    }
+
+    private var titleCollection: some View {
+        let progress = store.progress
+        let titles = nativeTitles(progress)
+        let earnedIds = titles.filter(\.earned).map(\.id)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("칭호")
+                        .typography(.title)
+                        .foregroundStyle(Color.textPrimary)
+                    Spacer()
+                    Text("\(earnedIds.count) / \(titles.count)")
+                        .typography(.body)
+                        .foregroundStyle(Color.accentPrimary)
+                }
+                if let equipped = progress?.equippedTitleId,
+                   let title = titles.first(where: { $0.id == equipped }) {
+                    equippedTitle(title)
+                }
+                VStack(spacing: 10) {
+                    ForEach(titles) { title in
+                        titleRow(title, equipped: progress?.equippedTitleId == title.id)
+                    }
+                }
+            }
+            .padding(16)
+            .padding(.bottom, 88)
+        }
+        .onAppear { store.markTitlesSeen(earnedIds) }
+    }
+
+    private func equippedTitle(_ title: NativeTitle) -> some View {
+        HStack(spacing: 10) {
+            PixelIcon(.star, size: 16, color: Color.bgPrimary)
+            Text(title.name)
+                .typography(.body)
+                .foregroundStyle(Color.bgPrimary)
+            Spacer()
+            Text("장착 중")
+                .typography(.micro)
+                .foregroundStyle(Color.bgPrimary.opacity(0.72))
+        }
+        .padding(14)
+        .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func titleRow(_ title: NativeTitle, equipped: Bool) -> some View {
+        Button {
+            guard title.earned else { return }
+            store.equipTitle(equipped ? nil : title.id)
+        } label: {
+            HStack(spacing: 12) {
+                PixelIcon(title.earned ? .trophy : .lock,
+                          size: 18,
+                          color: title.earned ? Color.accentPrimary : Color.textTertiary)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title.name)
+                        .typography(.body)
+                        .foregroundStyle(title.earned ? Color.textPrimary : Color.textTertiary)
+                    Text(title.description)
+                        .typography(.micro)
+                        .foregroundStyle(Color.textTertiary)
+                    Text(title.progress)
+                        .typography(.micro)
+                        .foregroundStyle(title.earned ? Color.accentPrimary : Color.textTertiary)
+                }
+                Spacer(minLength: 0)
+                if equipped {
+                    PixelIcon(.check, size: 14, color: Color.accentPrimary)
+                }
+            }
+            .padding(14)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .disabled(!title.earned)
+    }
+
+    private func nativeTitles(_ progress: UserProgress?) -> [NativeTitle] {
+        guard let p = progress else { return [] }
+        var titles: [NativeTitle] = [
+            NativeTitle(
+                id: "level-\(p.level)",
+                name: GameRules.titleForLevel(p.level, lang: p.language),
+                description: "현재 레벨 칭호",
+                earned: p.level >= 1,
+                progress: "Lv \(p.level)"
+            ),
+            NativeTitle(
+                id: "collection-complete",
+                name: "컬렉션 마스터",
+                description: "모든 카드를 수집",
+                earned: p.unlockedCardIds.count >= CardCatalog.allCards.count,
+                progress: "\(p.unlockedCardIds.count)/\(CardCatalog.allCards.count)"
+            ),
+        ]
+
+        for days in [3, 7, 14, 30] {
+            titles.append(NativeTitle(
+                id: "streak-\(days)",
+                name: "\(days)일 연속 실천가",
+                description: "최장 스트릭 \(days)일 달성",
+                earned: p.longestStreak >= days,
+                progress: "\(min(p.longestStreak, days))/\(days)"
+            ))
+        }
+        for category in Category.allCases {
+            let count = p.categoryCompletions[category.rawValue, default: 0]
+            titles.append(NativeTitle(
+                id: "category-\(category.rawValue)-5",
+                name: "\(category.label) 루키",
+                description: "\(category.label) 카드 5회 완료",
+                earned: count >= 5,
+                progress: "\(min(count, 5))/5"
+            ))
+        }
+        titles.append(NativeTitle(
+            id: "extra-1",
+            name: "추가 도전자",
+            description: "추가 챌린지 완료",
+            earned: p.extraChallengesCompleted >= 1,
+            progress: "\(min(p.extraChallengesCompleted, 1))/1"
+        ))
+        titles.append(NativeTitle(
+            id: "super-1",
+            name: "슈퍼 루틴러",
+            description: "슈퍼 챌린지 완료",
+            earned: p.superChallengesCompleted >= 1,
+            progress: "\(min(p.superChallengesCompleted, 1))/1"
+        ))
+        return titles
     }
 
     // MARK: - 카테고리 섹션
