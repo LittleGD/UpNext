@@ -300,7 +300,11 @@ struct DungeonView: View {
                     .typography(.caption)
                     .foregroundStyle(Color.accentPrimary)
             }
-            statBar("HP", session.hero.hp, session.hero.maxHp, Color.accentPrimary)
+            // HP 위기 색 (웹 패리티) — 50%↑ 정상, 20~50% 경고(앰버), 20%↓ 위험(적).
+            let hpPct = Double(session.hero.hp) / Double(Swift.max(1, session.hero.maxHp))
+            let hpColor = hpPct > 0.5 ? Color.accentPrimary
+                : hpPct > 0.2 ? Color(hexString: "#e8c76b") : Color.accentSecondary
+            statBar("HP", session.hero.hp, session.hero.maxHp, hpColor)
             statBar("탐험 시간", session.time, session.maxTime, Color.accentCyan)
             // 클래스 자원 게이지(분노/마나/기 등) — 전직 영웅만. 웹 ClassResourceBar.
             // 스킬 발동에 쓰이는 자원이 보이지 않던 갭(rpg 리뷰) 해소. 표시 전용.
