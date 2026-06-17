@@ -15,13 +15,18 @@ import SwiftUI
 struct CombatLogText: View {
     let fullText: String
     var color: Color = Color.textSecondary
-    var charDelay: Double = 0.018
     var showCaret: Bool = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var revealed: String = ""
     @State private var caretOn: Bool = true
     @State private var doneTyping: Bool = false
+    // Timer 참조 보관 — 뷰가 사라질 때 invalidate 해 좀비 timer 누수 차단(V4 리뷰).
+    @State private var typeTimer: Timer?
+    @State private var caretTimer: Timer?
+
+    /// 웹 useTypewriter — 긴 문장(≥40자)은 12ms 로 빠르게(scan 가능), 그 외 18ms.
+    private var charDelay: Double { fullText.count >= 40 ? 0.012 : 0.018 }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 0) {
@@ -45,15 +50,23 @@ struct CombatLogText: View {
                 startCaret()
             }
         }
+        .onDisappear {
+            typeTimer?.invalidate(); typeTimer = nil
+            caretTimer?.invalidate(); caretTimer = nil
+        }
     }
 
     private func startTyping() {
         let chars = Array(fullText)
         var i = 0
-        Timer.scheduledTimer(withTimeInterval: charDelay, repeats: true) { timer in
+        typeTimer?.invalidate()
+        typeTimer = Timer.scheduledTimer(withTimeInterval: charDelay, repeats: true) { timer in
             guard i < chars.count else {
                 timer.invalidate()
+                typeTimer = nil
                 doneTyping = true
+                // 타이핑 끝 → caret 정지 + timer 해제 (기존엔 doneTyping 만 보고 계속 돌아 누수).
+                caretTimer?.invalidate(); caretTimer = nil
                 return
             }
             revealed.append(chars[i])
@@ -62,8 +75,12 @@ struct CombatLogText: View {
     }
 
     private func startCaret() {
-        Timer.scheduledTimer(withTimeInterval: 0.41, repeats: true) { _ in
-            if doneTyping { return }
+        caretTimer?.invalidate()
+        caretTimer = Timer.scheduledTimer(withTimeInterval: 0.41, repeats: true) { _ in
+            if doneTyping {
+                caretTimer?.invalidate(); caretTimer = nil
+                return
+            }
             caretOn.toggle()
         }
     }
