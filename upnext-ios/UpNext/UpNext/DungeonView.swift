@@ -31,6 +31,10 @@ struct DungeonView: View {
     @State private var floatingItems: [FloatingNumberItem] = []
     /// 보스 배너가 표시 중인 동안엔 tick 일시정지 — 등장 연출 중 다음 round 가 겹치지 않게.
     @State private var pausedForBoss: Bool = false
+    /// 선택지 결과 모달 (웹 ChoiceResultModal) — 표시 중 tick pause. 로그 한 줄로
+    /// 흘러가던 이벤트 결과를 모달로 보여줘 읽을 시간 보장(rpg 리뷰 P0).
+    @State private var choiceResultText: String?
+    @State private var choiceResultSummary: String?
 
     var body: some View {
         ZStack {
@@ -67,6 +71,13 @@ struct DungeonView: View {
                     .zIndex(50)
                 }
 
+                // 선택지 결과 모달 — 결과 텍스트 + 효과 요약 + 계속(2.6s 자동 닫힘).
+                if let text = choiceResultText {
+                    choiceResultModal(text: text, summary: choiceResultSummary)
+                        .transition(.opacity)
+                        .zIndex(58)
+                }
+
                 // 세션 결산 모달
                 if session.status == .completed {
                     SessionResultModal(session: session) {
@@ -87,10 +98,51 @@ struct DungeonView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: bossBannerData != nil)
+        .animation(.easeInOut(duration: 0.2), value: choiceResultText != nil)
         .onReceive(tick) { _ in
-            guard !pausedForBoss else { return }
+            // 보스 배너·선택지 결과 모달 표시 중엔 tick 정지 (읽을 시간 보장).
+            guard !pausedForBoss, choiceResultText == nil else { return }
             upHero.advanceCombat()
         }
+    }
+
+    /// 선택지 결과 모달 (웹 ChoiceResultModal) — 백드롭 + 결과 텍스트 + 효과 요약 + 계속.
+    private func choiceResultModal(text: String, summary: String?) -> some View {
+        ZStack {
+            Color.black.opacity(0.55).ignoresSafeArea()
+                .onTapGesture { dismissChoiceResult() }
+            VStack(spacing: 14) {
+                PixelIcon(.zap, size: 28, color: Color.accentPrimary)
+                Text(text)
+                    .typography(.body)
+                    .foregroundStyle(Color.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let summary, !summary.isEmpty {
+                    Text(summary)
+                        .typography(.caption)
+                        .foregroundStyle(Color.accentPrimary)
+                        .multilineTextAlignment(.center)
+                }
+                Button { dismissChoiceResult() } label: {
+                    Text("계속")
+                        .typography(.body)
+                        .foregroundStyle(Color.bgPrimary)
+                        .frame(maxWidth: .infinity).frame(height: 48)
+                        .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(22)
+            .frame(maxWidth: 320)
+            .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 18))
+            .padding(.horizontal, 32)
+        }
+    }
+
+    private func dismissChoiceResult() {
+        choiceResultText = nil
+        choiceResultSummary = nil
     }
 
     // MARK: - 콘텐츠
@@ -468,6 +520,14 @@ struct DungeonView: View {
         case let .treasure(coins, _, _, _, _):
             if coins > 0 {
                 emitFloat(text: "+\(coins)", variant: .coin, position: heroAnchor())
+            }
+        case let .choiceResult(text, effectSummary, _, _, _, _, _, _):
+            // 선택지 결과 — 모달로 표시(tick pause). 2.6s 후 자동 닫힘(웹 autoMs).
+            choiceResultText = text
+            choiceResultSummary = effectSummary
+            SoundPlayer.shared.play(.select)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+                if choiceResultText == text { dismissChoiceResult() }
             }
         default:
             break
