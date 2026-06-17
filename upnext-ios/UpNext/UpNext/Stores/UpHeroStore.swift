@@ -440,6 +440,20 @@ final class UpHeroStore: ObservableObject {
         mutate { $0.pendingClassChoice = nil }
     }
 
+    // MARK: - 영웅 이름 / 자동 스킬 (웹 renameHero / toggleAutoSkill — HeroStatPanel)
+
+    /// 영웅 이름 변경 — 16자 cap + 공백 trim. 웹 renameHero.
+    func renameHero(_ name: String) {
+        let trimmed = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(16))
+        guard !trimmed.isEmpty, trimmed != state.hero.name else { return }
+        mutate { $0.hero.name = trimmed }
+    }
+
+    /// 액티브 스킬 자동 발동 on/off 토글. 웹 toggleAutoSkill.
+    func toggleAutoSkill() {
+        mutate { $0.hero.autoSkillEnabled = !($0.hero.autoSkillEnabled ?? true) }
+    }
+
     // MARK: - 사진 부적 (웹 PhotoTalisman)
 
     /// P0-3 — ritual UI 가 끝났을 때 호출할 부적 생성 본체. 외부 호출 금지 (private).
