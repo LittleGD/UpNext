@@ -227,6 +227,20 @@ struct CollectionView: View {
         .disabled(!title.earned)
     }
 
+    /// 웹 ALL_TITLES 의 카테고리 완료수 티어 (normal/rare/unique/legend).
+    private static let categoryTierCounts = [7, 15, 30, 50]
+    /// 웹 categoryTitleNames(ko) — 카테고리별 4티어 칭호명.
+    private static let categoryTitleNames: [String: [String]] = [
+        "fitness":      ["운동 입문자", "운동 실천가", "운동 마스터", "운동 레전드"],
+        "nutrition":    ["식단 입문자", "식단 실천가", "식단 마스터", "식단 레전드"],
+        "mindfulness":  ["마음 수련생", "마음 탐험가", "마음 마스터", "마음 레전드"],
+        "learning":     ["학습 입문자", "학습 실천가", "학습 마스터", "학습 레전드"],
+        "social":       ["소통 입문자", "소통 실천가", "소통 마스터", "소통 레전드"],
+        "productivity": ["정리 입문자", "정리 실천가", "정리 마스터", "정리 레전드"],
+        "wellness":     ["건강 입문자", "건강 실천가", "건강 마스터", "건강 레전드"],
+        "trending":     ["트렌드 워처", "글로벌 시그널러", "컬처 라이더", "Z게이지 아이콘"],
+    ]
+
     private func nativeTitles(_ progress: UserProgress?) -> [NativeTitle] {
         guard let p = progress else { return [] }
         var titles: [NativeTitle] = [
@@ -255,15 +269,22 @@ struct CollectionView: View {
                 progress: "\(min(p.longestStreak, days))/\(days)"
             ))
         }
+        // 카테고리 4티어 칭호 — 웹 ALL_TITLES 의 categoryTitleNames + 완료수 7/15/30/50.
+        // (기존 단일 '루키' 티어 → 웹 입문자/실천가/마스터/레전드 4티어로 확장.)
         for category in Category.allCases {
             let count = p.categoryCompletions[category.rawValue, default: 0]
-            titles.append(NativeTitle(
-                id: "category-\(category.rawValue)-5",
-                name: "\(category.label) 루키",
-                description: "\(category.label) 카드 5회 완료",
-                earned: count >= 5,
-                progress: "\(min(count, 5))/5"
-            ))
+            let names = Self.categoryTitleNames[category.rawValue]
+                ?? ["\(category.label) 입문자", "\(category.label) 실천가",
+                    "\(category.label) 마스터", "\(category.label) 레전드"]
+            for (tier, need) in Self.categoryTierCounts.enumerated() {
+                titles.append(NativeTitle(
+                    id: "category-\(category.rawValue)-\(need)",
+                    name: names[tier],
+                    description: "\(category.label) 카드 \(need)회 완료",
+                    earned: count >= need,
+                    progress: "\(min(count, need))/\(need)"
+                ))
+            }
         }
         titles.append(NativeTitle(
             id: "extra-1",
