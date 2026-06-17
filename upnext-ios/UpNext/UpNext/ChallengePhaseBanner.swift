@@ -22,8 +22,10 @@ struct ChallengePhaseBanner: View {
     @State private var charging: Bool = false
     @State private var progress: Double = 0
     @State private var holdStarted: Date?
-    @State private var shimmerPhase: Double = 0
     @State private var embers: [Ember] = []
+
+    /// shimmer sweep 주기(초). 웹 super-shimmer 의 linear infinite 와 동일 체감.
+    private let shimmerPeriod: Double = 1.8
 
     private struct Ember: Identifiable {
         let id = UUID()
@@ -85,8 +87,8 @@ struct ChallengePhaseBanner: View {
             }
         }
         .onReceive(Timer.publish(every: 1.0/30, on: .main, in: .common).autoconnect()) { _ in
-            shimmerPhase = (shimmerPhase + 0.02).truncatingRemainder(dividingBy: 1.0)
-            // ember 갱신 (charging 중일 때 가속)
+            // ember 갱신 (charging 중일 때 가속). shimmer 는 TimelineView(.animation) 가
+            // vsync 로 그리므로 여기서 phase 를 증가시키지 않는다(30fps 스테핑 → 끊김 제거).
             if charging && !reduceMotion {
                 if Double.random(in: 0..<1) < 0.15 {
                     embers.append(Ember(x: Double.random(in: 0.1...0.9),
@@ -122,19 +124,23 @@ struct ChallengePhaseBanner: View {
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             // shimmer sweep — 웹 super-shimmer(translateX -100%→200% linear infinite) 패리티.
-            // 끊김 방지: sweep 위치를 -0.45→1.45 범위로 매핑해 래핑 순간 band(±0.25)가
-            // 화면 밖(x<0 / x>1)에 완전히 나가 있게 한다. (기존 0→1 매핑은 band 가 양 끝에
-            // 걸친 채 점프해 seam 이 보였음.)
+            // TimelineView(.animation) 로 디스플레이 리프레시(60/120fps)에 맞춰 연속 렌더 →
+            // 30fps 타이머 스테핑이 만들던 끊김 제거. sweep 위치를 -0.45→1.45 로 매핑해
+            // 래핑 순간 band(±0.25)가 화면 밖에 완전히 나가 seam 도 안 보인다.
             if !reduceMotion {
-                let sweep = shimmerPhase * 1.9 - 0.45
-                LinearGradient(
-                    colors: [.clear,
-                             Color.white.opacity(0.12 + progress * 0.20),
-                             .clear],
-                    startPoint: UnitPoint(x: sweep - 0.25, y: 0),
-                    endPoint: UnitPoint(x: sweep + 0.25, y: 1)
-                )
-                .blendMode(.screen)
+                TimelineView(.animation) { timeline in
+                    let t = timeline.date.timeIntervalSinceReferenceDate
+                    let phase = (t.truncatingRemainder(dividingBy: shimmerPeriod)) / shimmerPeriod
+                    let sweep = phase * 1.9 - 0.45
+                    LinearGradient(
+                        colors: [.clear,
+                                 Color.white.opacity(0.12 + progress * 0.20),
+                                 .clear],
+                        startPoint: UnitPoint(x: sweep - 0.25, y: 0),
+                        endPoint: UnitPoint(x: sweep + 0.25, y: 1)
+                    )
+                    .blendMode(.screen)
+                }
             }
             // embers
             GeometryReader { geo in

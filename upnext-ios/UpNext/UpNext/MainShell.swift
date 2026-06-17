@@ -143,6 +143,10 @@ struct MainTabView: View {
         .animation(.easeOut(duration: 0.25), value: store.pendingLevelUp != nil)
         .animation(.easeOut(duration: 0.25), value: showPatchNotes)
         .onAppear {
+            // UITest — 아지트 탭으로 바로 진입(캠프 IA 검증용).
+            if ProcessInfo.processInfo.arguments.contains("UITestTabPlayground") {
+                tab = .playground
+            }
             syncPackOpener()
             evaluatePatchNotes()
             lastCompletedScore = currentCompletedScore

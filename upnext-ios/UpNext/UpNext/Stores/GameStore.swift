@@ -1290,6 +1290,16 @@ final class GameStore: ObservableObject {
             store.upHero.prepareBuffDraw(dungeonId: .fitness, ownedCardIds: p.unlockedCardIds)
             store.upHero.confirmDungeon(selectedCardIds: [], gameLevel: 35)
         }
+        // 캠프(아지트) IA 검증용 — 레벨/전직/스킬은 있으되 진행 중 세션은 없음.
+        if args.contains("UITestSeedCamp") {
+            p.level = 35
+            p.xp = GameRules.totalXPForLevel(35)
+            p.unlockedCardIds = CardCatalog.allCards.map(\.id)
+            store.upHero.assignClass(.warrior)
+            store.upHero.grantNoviceSkills(35)
+            store.upHero.grantSkillPoints(3)   // 스킬트리 진입 가능하도록
+            store.upHero.addCoins(2400)
+        }
         store.progress = p
         store.daily = d
         store.retention = r
