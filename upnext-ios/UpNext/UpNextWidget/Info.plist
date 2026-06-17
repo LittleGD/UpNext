@@ -7,5 +7,12 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<!-- 위젯 번들 폰트 등록 — 메인 앱과 동일 April16th-Promise 브랜드 폰트.
+	     위젯 extension 은 별도 프로세스/번들이라 앱 폰트를 공유 못해 폰트를
+	     위젯 폴더에 복사(자동 동기화 번들) + UIAppFonts 로 등록한다. -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>April16th-Promise.ttf</string>
+	</array>
 </dict>
 </plist>

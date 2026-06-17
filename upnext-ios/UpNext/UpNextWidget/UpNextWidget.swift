@@ -25,6 +25,17 @@ import WidgetKit
 import SwiftUI
 import ActivityKit
 
+// MARK: - 위젯 브랜드 폰트 (메인 앱과 동일 April16th Promise — 번들 등록)
+
+private extension Font {
+    /// 위젯 브랜드 텍스트 폰트. 폰트는 UpNextWidget/April16th-Promise.ttf (번들 복사) +
+    /// Info.plist UIAppFonts 로 등록. family명 "April16th Promise" (메인 앱 동일).
+    /// 숫자/데이터 라벨은 정렬 위해 system monospaced/rounded 유지.
+    static func up(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .custom("April16th Promise", size: size).weight(weight)
+    }
+}
+
 // MARK: - 위젯 컨테이너 배경 호환 헬퍼
 
 extension View {
@@ -89,11 +100,11 @@ struct HomeSmallView: View {
                     .font(.system(size: 44, weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
                 Text("widget.label.day_unit")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.up(16, .medium))
                     .foregroundColor(.textSecondary)
             }
             Text("widget.label.streak_achieved")
-                .font(.system(size: 11, weight: .medium))
+                .font(.up(11, .medium))
                 .foregroundColor(.textTertiary)
 
             Spacer(minLength: 0)
@@ -126,7 +137,7 @@ struct HomeMediumView: View {
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
                 Text("widget.label.streak")
-                    .font(.system(size: 11))
+                    .font(.up(11))
                     .foregroundColor(.textSecondary)
             }
             .frame(width: 80)
@@ -149,7 +160,7 @@ struct HomeMediumView: View {
                 }
 
                 Text(state.displayChallengeTitle)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.up(14, .semibold))
                     .foregroundColor(.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
@@ -200,7 +211,7 @@ struct HomeLargeView: View {
                     .font(.system(size: 56, weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
                 Text("widget.label.day_streak")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.up(16, .medium))
                     .foregroundColor(.textSecondary)
                 Spacer()
             }
@@ -214,7 +225,7 @@ struct HomeLargeView: View {
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
                     .foregroundColor(.textTertiary)
                 Text(state.displayChallengeTitle)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.up(17, .semibold))
                     .foregroundColor(.textPrimary)
                     .lineLimit(2)
             }
@@ -307,7 +318,7 @@ struct LockCircularView: View {
             Text("\(state.streak)")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
             Text("widget.label.streak")
-                .font(.system(size: 9, weight: .semibold))
+                .font(.up(9, .semibold))
         }
     }
 }
@@ -325,7 +336,7 @@ struct LockRectangularView: View {
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
             }
             Text(state.displayChallengeTitle)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.up(13, .semibold))
                 .lineLimit(2)
         }
     }
@@ -417,7 +428,7 @@ struct ChallengeLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.center) { EmptyView() }
                 DynamicIslandExpandedRegion(.bottom) {
                     Text(context.state.title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.up(15, .semibold))
                         .foregroundColor(.textPrimary)
                         .lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -451,7 +462,7 @@ struct ChallengeLockScreenView: View {
                     .frame(width: 44, height: 44)
                 // SF Symbol 폴백 — PixelIcon 자산이 widget 번들에 미포함이라 잠정 유지.
                 Image(systemName: "target")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.up(22, .semibold))
                     .foregroundColor(.accentPrimary)
             }
 
@@ -460,7 +471,7 @@ struct ChallengeLockScreenView: View {
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
                     .foregroundColor(.textTertiary)
                 Text(context.state.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.up(15, .semibold))
                     .foregroundColor(.textPrimary)
                     .lineLimit(2)
             }
