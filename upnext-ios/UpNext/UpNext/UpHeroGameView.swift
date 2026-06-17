@@ -151,14 +151,7 @@ private struct CampView: View {
                 heroCampSpace
                     .frame(height: 260)
                 ctaStack
-                // 일일 리텐션 — 영웅 RPG 와 성격이 다른 매일-반복 행동이라 하단에 분리.
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("오늘의 기록")
-                        .typography(.caption)
-                        .foregroundStyle(Color.textTertiary)
-                    RetentionSectionView()
-                }
-                .padding(.top, 6)
+                // 리텐션(불꽃/리포트/2인불꽃)은 전용 '불꽃' 탭으로 분리됨 — 아지트는 순수 RPG 허브.
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
@@ -271,10 +264,8 @@ private struct CampView: View {
                             .foregroundStyle(GBPalette.lightest)
                             .tracking(0.5)
                     }
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(GBPalette.dark.opacity(0.67), in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(GBPalette.light.opacity(0.4), lineWidth: 1))
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(GBPalette.dark.opacity(0.75), in: Capsule())  // 보더 금지 — 채움만
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 10)
@@ -290,12 +281,12 @@ private struct CampView: View {
     private var totalPasses: Int { upHero.state.passes.values.reduce(0, +) }
 
     private var ctaStack: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             if classEligible {
                 campCTA(icon: .sparkle, label: "전직", hint: "Lv.30 — 전문 클래스 선택",
                         primary: true) { screen = .classChoice }
             }
-            // PrimaryCTA — 탐험 시작 (탐험권 0 이면 상점으로) (웹 L:481-499)
+            // PrimaryCTA — 탐험 시작 (탐험권 0 이면 상점으로). 유일한 강조 CTA(위계 단일화).
             campCTA(icon: .target,
                     label: totalPasses > 0 ? "탐험 시작" : "탐험권 구매",
                     hint: totalPasses > 0 ? "던전을 골라 출발" : "상점에서 구매",
@@ -304,20 +295,36 @@ private struct CampView: View {
                 SoundPlayer.shared.play(.select)
                 if totalPasses > 0 { screen = .dungeons } else { screen = .shop }
             }
-            campCTA(icon: .shoppingBag, label: "상점", hint: "코인으로 카드팩·탐험권") {
-                SoundPlayer.shared.play(.select); screen = .shop
-            }
-            campCTA(icon: .shield, label: "장비", hint: "장착·판매·정리") {
-                SoundPlayer.shared.play(.select); screen = .equipment
-            }
-            campCTA(icon: .bookOpen, label: "도감", hint: "몬스터·보스·장비 발견 현황") {
-                SoundPlayer.shared.play(.select); screen = .codex
-            }
-            // P0-3 — 주간 리더보드 진입 (이전엔 enum 케이스 없어 절대 접근 불가).
-            campCTA(icon: .trophy, label: "주간 순위", hint: "이번 주 변종 던전 상위") {
-                SoundPlayer.shared.play(.select); screen = .weekly
+            // 보조 액션 — 2열 그리드(부제목 제거)로 압축해 한 페이지 위계를 줄인다.
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                campTile(.shoppingBag, "상점") { screen = .shop }
+                campTile(.shield, "장비") { screen = .equipment }
+                campTile(.bookOpen, "도감") { screen = .codex }
+                campTile(.trophy, "주간 순위") { screen = .weekly }
             }
         }
+    }
+
+    /// 보조 CTA 컴팩트 타일 — 아이콘 + 라벨(부제목 없음). 디자인 룰: 보더·아이콘 박스 금지.
+    private func campTile(_ icon: PixelIconName, _ label: String,
+                         action: @escaping () -> Void) -> some View {
+        Button {
+            SoundPlayer.shared.play(.select); action()
+        } label: {
+            HStack(spacing: 8) {
+                PixelIcon(icon, size: 16, color: GBPalette.light)
+                Text(label)
+                    .typography(.body)
+                    .foregroundStyle(Color.textPrimary)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 52)
+            .frame(maxWidth: .infinity)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 
     private func campCTA(icon: PixelIconName, label: String, hint: String,

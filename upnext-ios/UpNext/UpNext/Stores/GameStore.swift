@@ -1304,6 +1304,7 @@ final class GameStore: ObservableObject {
             store.upHero.assignClass(.warrior)   // T1(warrior_smash_t1) 자동 해금
             store.upHero.grantSkillPoints(3)     // 스킬트리에서 T2 해금 가능
             store.upHero.addCoins(2400)
+            store.upHero.markCampTutorialSeen()  // 캠프 홈 IA 검증 — 튜토리얼 가림 방지
         }
         store.progress = p
         store.daily = d

@@ -23,11 +23,13 @@ import SwiftUI
 // MARK: - 탭 정의
 
 enum MainTab: CaseIterable {
-    case challenge, collection, playground, settings
+    // 순서 = 하단 네비 노출 순서. 데일리 루프(챌린지·불꽃) → RPG(아지트) → 컬렉션 → 설정.
+    case challenge, record, playground, collection, settings
 
     var label: String {
         switch self {
         case .challenge:  return "챌린지"
+        case .record:     return "불꽃"
         case .collection: return "컬렉션"
         case .playground: return "아지트"
         case .settings:   return "설정"
@@ -39,6 +41,7 @@ enum MainTab: CaseIterable {
     var pixelIcon: PixelIconName {
         switch self {
         case .challenge:  return .card           // NAV_ICONS.today = "Card"
+        case .record:     return .flame           // 일일 불꽃/리텐션 허브
         case .collection: return .archive         // NAV_ICONS.collection = "Archive"
         case .playground: return .treePine        // NAV_ICONS.playground = "TreePine"
         case .settings:   return .moreHorizontal  // NAV_ICONS.settings = "MoreHorizontal"
@@ -150,9 +153,12 @@ struct MainTabView: View {
         .animation(.easeOut(duration: 0.25), value: store.pendingLevelUp != nil)
         .animation(.easeOut(duration: 0.25), value: showPatchNotes)
         .onAppear {
-            // UITest — 아지트 탭으로 바로 진입(캠프 IA 검증용).
+            // UITest — 특정 탭으로 바로 진입(IA 검증용).
             if ProcessInfo.processInfo.arguments.contains("UITestTabPlayground") {
                 tab = .playground
+            }
+            if ProcessInfo.processInfo.arguments.contains("UITestTabRecord") {
+                tab = .record
             }
             syncPackOpener()
             evaluatePatchNotes()
@@ -298,6 +304,8 @@ struct MainTabView: View {
         switch tab {
         case .challenge:
             DailyHomeView()
+        case .record:
+            RecordTabView()
         case .collection:
             CollectionView()
         case .playground:
@@ -495,6 +503,7 @@ private extension MainTab {
     var accessibilityKey: String {
         switch self {
         case .challenge: return "challenge"
+        case .record: return "record"
         case .collection: return "collection"
         case .playground: return "playground"
         case .settings: return "settings"
