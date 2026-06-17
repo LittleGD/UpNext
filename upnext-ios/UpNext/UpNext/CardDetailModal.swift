@@ -48,6 +48,7 @@ final class CardGyro: ObservableObject {
 struct Card3DView: View {
     let card: ChallengeCard
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.locale) private var locale
     @StateObject private var gyro = CardGyro()
     @State private var drag: CGSize = .zero
     @State private var dragging = false
@@ -128,7 +129,16 @@ struct Card3DView: View {
                     .padding(.top, 12)
                     .offset(x: descOffsetX, y: descOffsetY)
 
-                Spacer()
+                Spacer(minLength: 12)
+
+                // 인용문 zone (웹 getCardQuote footer) — 카테고리별 명언, italic + opacity 60.
+                // 더 깊은 패럴럭스(quoteZ) — desc 보다 약간 더 이동해 3-zone 깊이감.
+                Text(QuotePool.quote(for: card, lang: locale.language.languageCode?.identifier ?? "ko"))
+                    .typography(.caption)
+                    .italic()
+                    .foregroundStyle(Color.textTertiary.opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .offset(x: descOffsetX * 1.4, y: descOffsetY * 1.4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
