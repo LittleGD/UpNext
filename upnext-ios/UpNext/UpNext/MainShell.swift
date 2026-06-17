@@ -138,6 +138,13 @@ struct MainTabView: View {
                 .zIndex(110)
                 .transition(.opacity)
             }
+
+            // UITest — 시드된 사진으로 PhotoDetailModal 자동 표시(검증용).
+            if ProcessInfo.processInfo.arguments.contains("UITestOpenPhotoDetail"),
+               let meta = growth.photoMetas.first {
+                PhotoDetailModal(meta: meta, onClose: {})
+                    .zIndex(120)
+            }
         }
         .animation(.easeInOut(duration: 0.3), value: showCelebration)
         .animation(.easeOut(duration: 0.25), value: store.pendingLevelUp != nil)

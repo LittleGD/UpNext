@@ -140,6 +140,16 @@ final class GrowthStore: ObservableObject {
         Self.saveMetas(photoMetas)
     }
 
+    /// 메모만 갱신 — PhotoDetailModal 뒷면에서 자동 저장(debounce). 웹 updatePhotoMemo.
+    /// 최대 200자, 앞뒤 공백 트림. 값이 같으면 no-op(불필요 persist 방지).
+    func updatePhotoMemo(_ id: String, _ memo: String) {
+        guard let idx = photoMetas.firstIndex(where: { $0.id == id }) else { return }
+        let clean = String(memo.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200))
+        guard photoMetas[idx].memo != clean else { return }
+        photoMetas[idx].memo = clean
+        Self.saveMetas(photoMetas)
+    }
+
     /// R8 — 전체 사진 데이터 리셋. GameStore.resetAllData 가 호출한다.
     /// 모든 메타·메모리 캐시·디스크 이미지 + 진행 중 캡처 상태까지 제거.
     /// (이전엔 resetAllData 가 growth 를 안 건드려 리셋 후 사진이 잔존했음.)
@@ -272,6 +282,30 @@ final class GrowthStore: ObservableObject {
     }
 
     #if DEBUG
+    /// UI 테스트용 — 실제 이미지가 있는 사진 1장 시드. PhotoDetailModal 검증용
+    /// (탭→상세→틸트/플립/메모/공유/삭제). 폴라로이드 합성 느낌의 그라데이션 생성.
+    func seedPhotoWithImageForUITests(card: ChallengeCard) {
+        let size = CGSize(width: 600, height: 727)
+        let img = UIGraphicsImageRenderer(size: size).image { ctx in
+            let c = ctx.cgContext
+            UIColor(white: 0.96, alpha: 1).setFill()
+            c.fill(CGRect(origin: .zero, size: size))
+            let photo = CGRect(x: 40, y: 40, width: 520, height: 520)
+            let colors = [UIColor(red: 0.55, green: 0.76, blue: 0.45, alpha: 1).cgColor,
+                          UIColor(red: 0.16, green: 0.32, blue: 0.28, alpha: 1).cgColor]
+            if let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                     colors: colors as CFArray, locations: [0, 1]) {
+                c.saveGState(); c.addRect(photo); c.clip()
+                c.drawLinearGradient(grad, start: CGPoint(x: 40, y: 40),
+                                     end: CGPoint(x: 560, y: 560), options: [])
+                c.restoreGState()
+            }
+        }
+        savePhoto(image: img, signature: nil, memo: "오늘도 한 걸음 — 시드 메모",
+                  challengeCardId: card.id, challengeTitle: card.title,
+                  category: card.category, stickers: [])
+    }
+
     /// UI 테스트용 — 사진 라이브러리 권한 없이 챌린지 로그 badge 렌더링만 검증한다.
     func seedChallengeLogForUITests(card: ChallengeCard) {
         let day = GameStore.todayString()

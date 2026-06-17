@@ -17,8 +17,8 @@ struct AlbumView: View {
     @EnvironmentObject private var upHero: UpHeroStore
     /// PhotosPicker 선택 항목 — 선택되면 onChange 가 GrowthStore 에 추가.
     @State private var pickerItem: PhotosPickerItem?
-    /// 항목 액션(부적 만들기/삭제) 대상.
-    @State private var actionTarget: PhotoMeta?
+    /// 사진 상세(PhotoDetailModal) 대상 — 셀 탭 시 set.
+    @State private var detailTarget: PhotoMeta?
 
     private let columns = Array(
         repeating: GridItem(.flexible(), spacing: 8), count: 3)
@@ -63,19 +63,14 @@ struct AlbumView: View {
                 pickerItem = nil
             }
         }
-        .confirmationDialog(
-            "사진",
-            isPresented: Binding(
-                get: { actionTarget != nil },
-                set: { if !$0 { actionTarget = nil } }),
-            presenting: actionTarget
-        ) { meta in
-            // P0-3 — 부적 의식 3초 진행 → completePhotoTalismanRitual 가 부적 생성.
-            // (이전엔 즉시 createPhotoTalisman 호출 → ritual 0초로 사라지던 버그.)
-            Button("부적으로 만들기") { upHero.beginPhotoTalismanRitual(photoId: meta.id) }
-            Button("삭제", role: .destructive) { growth.deletePhoto(meta.id) }
-            Button("취소", role: .cancel) {}
+        // 사진 탭 → 상세 모달(폴라로이드 크게 보기 + 메모/공유/부적/삭제).
+        .overlay {
+            if let meta = detailTarget {
+                PhotoDetailModal(meta: meta, onClose: { detailTarget = nil })
+                    .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: detailTarget?.id)
         // P0-3 — 의식 오버레이. 의식 중인 사진이 있을 때만 마운트, 종료 시 자동 dismiss.
         .overlay {
             if let pendingId = upHero.pendingTalismanPhotoId {
@@ -125,9 +120,9 @@ struct AlbumView: View {
         }
     }
 
-    /// 사진 셀 — 웹 앨범의 mini-polaroid 정체성을 유지한다. 탭하면 부적 만들기/삭제 시트.
+    /// 사진 셀 — 웹 앨범의 mini-polaroid 정체성을 유지한다. 탭하면 사진 상세 모달.
     private func photoCell(_ meta: PhotoMeta) -> some View {
-        Button { actionTarget = meta } label: {
+        Button { detailTarget = meta } label: {
             VStack(spacing: 0) {
                 ZStack {
                     Color.black
