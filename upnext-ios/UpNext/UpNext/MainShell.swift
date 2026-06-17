@@ -148,6 +148,13 @@ struct MainTabView: View {
                 PhotoDetailModal(meta: meta, onClose: {})
                     .zIndex(120)
             }
+
+            // UITest — MonsterCodexDetailModal 자동 표시(검증용, 실 데이터 fit_wolf).
+            if ProcessInfo.processInfo.arguments.contains("UITestOpenMonsterDetail"),
+               let m = MonsterPool.allTemplates.first(where: { $0.id == "fit_wolf" }) {
+                MonsterCodexDetailModal(template: m, onClose: {})
+                    .zIndex(120)
+            }
         }
         .animation(.easeInOut(duration: 0.3), value: showCelebration)
         .animation(.easeOut(duration: 0.25), value: store.pendingLevelUp != nil)

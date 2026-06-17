@@ -15,6 +15,8 @@ struct CodexView: View {
     let onBack: () -> Void
 
     @State private var tab: CodexTab = .monsters
+    /// 발견 몬스터 탭 시 상세 모달 대상.
+    @State private var selectedMonster: MonsterTemplate?
 
     private enum CodexTab: String, CaseIterable {
         case monsters = "몬스터"
@@ -40,6 +42,13 @@ struct CodexView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgPrimary)
+        .overlay {
+            if let m = selectedMonster {
+                MonsterCodexDetailModal(template: m, onClose: { selectedMonster = nil })
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: selectedMonster?.id)
     }
 
     private var header: some View {
@@ -85,7 +94,14 @@ struct CodexView: View {
                 .typography(.caption).foregroundStyle(Color.textSecondary)
             LazyVGrid(columns: gridColumns, spacing: 12) {
                 ForEach(templates, id: \.id) { template in
-                    MonsterCodexCard(template: template, discovered: discovered.contains(template.id))
+                    let isDiscovered = discovered.contains(template.id)
+                    Button {
+                        if isDiscovered { SoundPlayer.shared.play(.select); selectedMonster = template }
+                    } label: {
+                        MonsterCodexCard(template: template, discovered: isDiscovered)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!isDiscovered)
                 }
             }
         }
@@ -110,7 +126,14 @@ struct CodexView: View {
                         .typography(.heading).foregroundStyle(Color.accentPrimary)
                     LazyVGrid(columns: gridColumns, spacing: 12) {
                         ForEach(bossGroups[dungeonKey]!, id: \.id) { boss in
-                            MonsterCodexCard(template: boss, discovered: discovered.contains(boss.id))
+                            let isDiscovered = discovered.contains(boss.id)
+                            Button {
+                                if isDiscovered { SoundPlayer.shared.play(.select); selectedMonster = boss }
+                            } label: {
+                                MonsterCodexCard(template: boss, discovered: isDiscovered)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(!isDiscovered)
                         }
                     }
                 }
