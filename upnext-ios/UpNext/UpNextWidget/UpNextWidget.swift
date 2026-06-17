@@ -15,10 +15,8 @@
 //  오버로드 + UpNextWidget/Localizable.xcstrings (Bundle.main) 로 4언어 해석.
 //
 //  ── 아이콘 정책 ──
-//  Image(systemName: "target") 같은 SF Symbol 은 widget extension 의 Assets 분리 제약
-//  때문에 잠정 유지 (PixelIcon 자산이 위젯 번들에 있지 않음). PixelIcon 자산을 widget
-//  번들로 옮기는 작업은 별도 메모리 + Build Phases 변경이 필요 — Phase 추가 시 PixelIcon
-//  화이트리스트 위반은 위젯 한정으로 명시적 폴백.
+//  PixelIcon 브랜드 아이콘 사용 — Target.imageset 을 UpNextWidget/Assets.xcassets 에
+//  복사(동기화 그룹 자동 번들)해 widgetTargetIcon() 으로 template 렌더. SF Symbol 폐기.
 //
 
 import WidgetKit
@@ -34,6 +32,19 @@ private extension Font {
     static func up(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .custom("April16th Promise", size: size).weight(weight)
     }
+}
+
+// MARK: - 위젯 픽셀 아이콘 (브랜드 PixelIcon — 위젯 번들 Assets.xcassets)
+
+/// SF Symbol "target" 폴백 폐기 — 메인 앱과 동일 픽셀아트 Target 아이콘.
+/// Target.imageset 을 UpNextWidget/Assets.xcassets 에 복사(동기화 번들), template 렌더.
+private func widgetTargetIcon(_ size: CGFloat) -> some View {
+    Image("Target")
+        .renderingMode(.template)
+        .resizable()
+        .scaledToFit()
+        .frame(width: size, height: size)
+        .foregroundColor(.accentPrimary)
 }
 
 // MARK: - 위젯 컨테이너 배경 호환 헬퍼
@@ -411,9 +422,7 @@ struct ChallengeLiveActivity: Widget {
                 // Expanded — 다이나믹 아일랜드 펼친 상태 (longPress 시)
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 4) {
-                        // SF Symbol 폴백 — PixelIcon 자산이 widget 번들에 미포함이라 잠정 유지.
-                        Image(systemName: "target")
-                            .foregroundColor(.accentPrimary)
+                        widgetTargetIcon(14)
                         Text("widget.activity.challenge")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
                             .foregroundColor(.textSecondary)
@@ -434,16 +443,14 @@ struct ChallengeLiveActivity: Widget {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
-                Image(systemName: "target")
-                    .foregroundColor(.accentPrimary)
+                widgetTargetIcon(14)
             } compactTrailing: {
                 Text(context.state.expiresAt, style: .timer)
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundColor(.accentPrimary)
                     .frame(maxWidth: 56)
             } minimal: {
-                Image(systemName: "target")
-                    .foregroundColor(.accentPrimary)
+                widgetTargetIcon(14)
             }
             .keylineTint(.accentPrimary)
         }
@@ -460,10 +467,7 @@ struct ChallengeLockScreenView: View {
                 Circle()
                     .fill(Color.accentPrimary.opacity(0.15))
                     .frame(width: 44, height: 44)
-                // SF Symbol 폴백 — PixelIcon 자산이 widget 번들에 미포함이라 잠정 유지.
-                Image(systemName: "target")
-                    .font(.up(22, .semibold))
-                    .foregroundColor(.accentPrimary)
+                widgetTargetIcon(22)
             }
 
             VStack(alignment: .leading, spacing: 2) {
