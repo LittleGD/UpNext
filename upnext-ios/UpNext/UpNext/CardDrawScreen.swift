@@ -679,7 +679,7 @@ private struct HandCard: View {
             PixelIcon(PixelIconName.resolve(card.icon), size: 30, color: card.rarity.color)
             Spacer(minLength: 0)
             Text(card.title)
-                .typography(.micro)
+                .typography(.caption)
                 .foregroundStyle(Color.textTertiary)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
@@ -713,7 +713,7 @@ private struct SelectedMiniCard: View {
                     PixelIcon(PixelIconName.resolve(card.icon), size: 20,
                               color: locked ? Color(red: 1, green: 0.27, blue: 0.2) : card.rarity.color)
                     Text(card.title)
-                        .typography(.micro)
+                        .typography(.caption)
                         .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)
                         .padding(.horizontal, 2)

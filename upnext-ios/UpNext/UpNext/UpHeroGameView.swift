@@ -37,10 +37,16 @@ private struct CampView: View {
     @EnvironmentObject private var store: GameStore
     @State private var statsOpen = false
     @State private var screen: CampScreen = .home
+    /// 웹 playground 의 두 탭 [영웅 / 카드매치] — 아지트 홈 상단 세그먼트.
+    @State private var campTab: CampTab = .hero
+    /// 카드매치 런 시트 — startMinigame() 으로 티켓 소비 성공 시 true.
+    @State private var showMinigame = false
 
     /// 아지트 내부 화면 — 웹 CampPlaceholder 의 `view` 상태(home/dungeons/…) 대응.
     /// P0-3 — `.weekly` 추가 (WeeklyLeaderboardView 진입 경로 회복).
     private enum CampScreen { case home, dungeons, equipment, shop, classChoice, codex, weekly }
+    /// 웹 src/app/playground/page.tsx TABS=[uphero, game] 이식.
+    private enum CampTab { case hero, game }
 
     var body: some View {
         Group {
@@ -59,7 +65,10 @@ private struct CampView: View {
                 case .shop:
                     ShopView(onBack: { screen = .home })
                 case .classChoice:
-                    ClassChoiceView(onBack: { screen = .home })
+                    ClassChoiceView(onBack: {
+                        upHero.acknowledgeClassChoice()  // 전직 안 하고 닫음 → 제안 소비
+                        screen = .home
+                    })
                 case .codex:
                     CodexView(onBack: { screen = .home })
                 case .weekly:
@@ -76,33 +85,130 @@ private struct CampView: View {
             }
         }
         .sheet(isPresented: $statsOpen) { HeroStatPanel() }
+        // Lv.30 자동 전직 제안 — pendingClassChoice 가 set 되면 전직 화면으로 자동 진입.
+        // (웹 ClassChoiceModal 자동 트리거 패리티. 이전엔 set 만 되고 아무도 안 읽던 dead write.)
+        .onChange(of: upHero.state.pendingClassChoice != nil) { pending in
+            if pending, screen != .classChoice { screen = .classChoice }
+        }
+        .onAppear {
+            if upHero.state.pendingClassChoice != nil { screen = .classChoice }
+        }
     }
 
     // MARK: 아지트 홈 (웹 CampPlaceholder HomeView — 중앙 hero 공간 + 하단 CTA 스택)
     //  GB 팔레트는 GBPalette (단일 출처) 참조.
 
     private var campHome: some View {
+        // 웹 playground IA: [영웅/카드매치] 탭이 페이지 최상단(헤더 위). 영웅 헤더(nameplate)는
+        // 영웅 탭 안에서만 — 카드매치 탭 위에 영웅 Lv/코인이 안 뜨도록 (맥락 충돌 해소).
         VStack(spacing: 0) {
-            header
+            campTabBar
                 .padding(.horizontal, 16)
                 .padding(.top, 14)
-            if upHero.state.idleReward != nil {
-                idleRewardBanner
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+            if campTab == .hero {
+                heroTab
+            } else {
+                gameTab
             }
-            heroCampSpace
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            ctaStack
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-                .padding(.bottom, 90)   // 하단 플로팅 네비 여유
-                .overlay(alignment: .top) {
-                    Rectangle().fill(GBPalette.dark).frame(height: 1)
-                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgPrimary)
+        .sheet(isPresented: $showMinigame) { MinigameView() }
+    }
+
+    // MARK: 영웅 탭 — nameplate → 중앙 hero+분위기 → CTA → (하단) 일일 리텐션.
+    //  웹 CampPlaceholder hierarchy(영웅 헤더 → flex-1 중앙 hero → CTA) 복원.
+    //  리텐션(불꽃/리포트/듀오)은 RPG 동선을 막지 않게 최하단 별도 섹션으로 분리.
+
+    private var heroTab: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                header
+                if upHero.state.idleReward != nil {
+                    idleRewardBanner
+                }
+                heroCampSpace
+                    .frame(height: 260)
+                ctaStack
+                // 일일 리텐션 — 영웅 RPG 와 성격이 다른 매일-반복 행동이라 하단에 분리.
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("오늘의 기록")
+                        .typography(.caption)
+                        .foregroundStyle(Color.textTertiary)
+                    RetentionSectionView()
+                }
+                .padding(.top, 6)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 96)   // 하단 플로팅 네비 여유
+        }
+    }
+
+    // MARK: 카드매치 탭 — 웹 MinigameHome(idle) 패리티. 티켓 보유 시 시작, 런은 시트.
+
+    private var gameTab: some View {
+        let tickets = store.progress?.tickets ?? 0
+        return VStack(spacing: 18) {
+            Spacer(minLength: 0)
+            PixelIcon(.gamepad, size: 56,
+                      color: tickets > 0 ? Color.accentPrimary : Color.textTertiary)
+            VStack(spacing: 6) {
+                Text("카드 맞추기")
+                    .typography(.title)
+                    .foregroundStyle(Color.textPrimary)
+                Text(tickets > 0
+                     ? "티켓 \(tickets)장 · 3라운드 메모리 매치로 카드를 모아요"
+                     : "티켓이 없어요 · 챌린지를 완료하면 받아요")
+                    .typography(.caption)
+                    .foregroundStyle(Color.textTertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
+            Button {
+                if store.startMinigame() { showMinigame = true }
+            } label: {
+                Text("시작하기")
+                    .typography(.body)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .foregroundStyle(Color.bgPrimary)
+                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
+                    .opacity(tickets > 0 ? 1 : 0.3)
+            }
+            .buttonStyle(.plain)
+            .disabled(tickets == 0)
+            .padding(.horizontal, 32)
+            Spacer(minLength: 0)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.bottom, 90)
+    }
+
+    // MARK: 아지트 탭 세그먼트 [영웅 / 카드매치] (디자인 룰: 보더·아이콘 박스 금지)
+
+    private var campTabBar: some View {
+        HStack(spacing: 8) {
+            campTabButton("영웅", tab: .hero)
+            campTabButton("카드매치", tab: .game)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func campTabButton(_ label: String, tab: CampTab) -> some View {
+        Button {
+            SoundPlayer.shared.play(.select)
+            campTab = tab
+        } label: {
+            Text(label)
+                .typography(.caption)
+                .foregroundStyle(campTab == tab ? Color.bgPrimary : Color.textTertiary)
+                .padding(.horizontal, 16)
+                .frame(height: 34)
+                .background(campTab == tab ? Color.accentPrimary : Color.bgSurface, in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: 영웅 캠프 공간 — sprite + 그림자 + 분위기 텍스트 (웹 HomeView <section flex-1>)
@@ -215,7 +321,7 @@ private struct CampView: View {
                         }
                     }
                     Text(hint)
-                        .typography(.micro)
+                        .typography(.caption)
                         .foregroundStyle(primary ? Color.bgPrimary.opacity(0.7) : Color.textTertiary)
                 }
                 Spacer(minLength: 0)
@@ -275,41 +381,58 @@ private struct CampView: View {
             heroStartLevel: upHero.state.heroStartLevel)
     }
 
-    // MARK: 헤더 — 제목 + Lv·XP + NG+ 배지 + 코인 (P0 보너스)
+    // MARK: 헤더 — 영웅 nameplate (웹 CampPlaceholder 헤더: 영웅 이름 + 영웅 Lv + XP + NG+ + 코인)
 
+    /// 글로벌 AppHeader 가 아지트 탭에서 숨겨졌으므로(MainShell), 이 헤더가 아지트의 유일한
+    /// Lv 표기다. 따라서 **영웅 레벨(heroLevel)**을 보여 게임 레벨과 의미적으로 구분한다.
+    /// 단 XP 진행률(curXp/needXp)은 게임 레벨 기준으로 계산해야 진행바가 정확하다
+    /// (영웅 Lv 진행률 % == 게임 Lv 진행률 %, 웹 CampPlaceholder 와 동일 로직).
     private var header: some View {
-        let level = store.progress?.level ?? 0
+        let hero = upHero.state.hero
+        let heroName = hero.name.isEmpty ? "갓생 영웅" : hero.name
+        let gameLevel = store.progress?.level ?? 0
         let xp = store.progress?.xp ?? 0
-        let curXp = max(0, xp - GameRules.totalXPForLevel(level))
-        let needXp = GameRules.totalXPForLevel(level + 1) - GameRules.totalXPForLevel(level)
+        let curXp = max(0, xp - GameRules.totalXPForLevel(gameLevel))
+        let needXp = max(1, GameRules.totalXPForLevel(gameLevel + 1) - GameRules.totalXPForLevel(gameLevel))
         let ngPlus = upHero.state.ngPlusLevel ?? 0
-        return VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("아지트")
-                    .typography(.title)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // 영웅 정체성 (이름) — 핵심 정보라 heading 급.
+                Text(heroName)
+                    .typography(.heading)
                     .foregroundStyle(Color.textPrimary)
+                    .lineLimit(1)
+                // 영웅 레벨 — 'Lv'만이 아니라 '영웅 Lv'로 명시해 게임 레벨과 구분.
+                Text("영웅 Lv.\(heroLevel)")
+                    .typography(.caption)
+                    .foregroundStyle(Color.accentPrimary)
                 if ngPlus > 0 {
-                    // NG+ 배지 — F30 클리어 후 ngPlusLevel 누적. 디자인 룰: 보더 금지.
+                    // NG+ 배지 — micro 는 배지 전용(타이포 규칙). 보더 금지.
                     Text("NG+\(ngPlus)")
                         .typography(.micro)
                         .foregroundStyle(Color.bgPrimary)
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(Color.rarityLegend, in: Capsule())
                 }
-                Spacer()
+                Spacer(minLength: 0)
                 HStack(spacing: 4) {
-                    PixelIcon(.coins, size: 14, color: Color.accentPrimary)
+                    PixelIcon(.coins, size: 15, color: Color.accentPrimary)
                     NumberRollView(value: upHero.state.coins, baseColor: Color.accentPrimary)
                         .typography(.body)
                 }
             }
-            // Lv·XP progress (디자인 룰: 아이콘 박스 금지, 보더 금지)
-            HStack(spacing: 4) {
-                Text("Lv.\(level)")
-                    .typography(.micro)
-                    .foregroundStyle(Color.accentPrimary)
-                Text("\(curXp) / \(needXp) XP")
-                    .typography(.micro)
+            // XP 진행 바 + 수치 (게임레벨 기준 · 디자인 룰: 보더 금지)
+            HStack(spacing: 8) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.bgElevated)
+                        Capsule().fill(Color.accentPrimary)
+                            .frame(width: geo.size.width * min(1, Double(curXp) / Double(needXp)))
+                    }
+                }
+                .frame(height: 5)
+                Text("\(curXp)/\(needXp) XP")
+                    .typography(.caption)
                     .foregroundStyle(Color.textTertiary)
                     .monospacedDigit()
             }

@@ -19,6 +19,7 @@
 
 import SwiftUI
 import CoreText
+import UIKit
 
 // MARK: - 폰트 등록
 
@@ -71,8 +72,8 @@ enum TextStyle {
         case .title:   return 24
         case .heading: return 19
         case .body:    return 16
-        case .caption: return 14
-        case .micro:   return 11
+        case .caption: return 15   // 웹 14 대비 +1 — OLED/고DPI 에서 '작다' 증상 보정
+        case .micro:   return 12   // 웹 11 대비 +1 — 본문/라벨에 쓰일 때 가독성 하한 확보
         }
     }
 
@@ -144,10 +145,16 @@ private struct TypographyModifier: ViewModifier {
         // CJK 보정 (ja/zh)
         let size = (code == "ja" || code == "zh") ? style.cjkSize(phone: baseSize) : baseSize
         let family = AppFont.family(forLangCode: code)
+        // 줄간 보정 — SwiftUI .lineSpacing 은 폰트 intrinsic line height '위에 더해지는'
+        // 추가 간격이라, 웹 CSS line-height(em 배수로 줄상자 치환)와 의미가 다르다.
+        // 기존 size*(mult-1) 은 intrinsic 을 무시해 이중 계산(다중 줄이 들쭉날쭉)됐다.
+        // 실제 폰트 행높이(intrinsic)를 빼고 목표 행높이(size*mult)와의 차이만 추가한다.
+        let intrinsic = UIFont(name: family, size: size)?.lineHeight ?? size * 1.2
+        let target = size * style.lineHeightMultiple
         content
             .font(.custom(family, size: size).weight(style.weight))
             .tracking(size * style.trackingEm)
-            .lineSpacing(size * (style.lineHeightMultiple - 1))
+            .lineSpacing(max(0, target - intrinsic))
     }
 }
 

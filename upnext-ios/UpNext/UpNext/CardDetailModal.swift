@@ -137,11 +137,13 @@ struct Card3DView: View {
             RarityTexture(rarity: card.rarity, cornerRadius: 16)
                 .allowsHitTesting(false)
 
-            // 홀로그래픽 글레어 (legend/unique 만 — common/rare 는 sheen 만)
-            if card.rarity == .legend || card.rarity == .unique {
+            // 홀로그래픽 글레어 — 웹 Card3DViewer 처럼 normal 외 모든 등급(rare/unique/legend).
+            // conic 색은 등급색 단일 hue (HolographicGlare 가 rarityColor 로 생성).
+            if card.rarity != .normal {
                 HolographicGlare(
                     rotateX: reduceMotion ? 0 : Double(-drag.height) / rotationDivisor + (dragging ? 0 : gyro.tiltX),
                     rotateY: reduceMotion ? 0 : Double(drag.width) / rotationDivisor + (dragging ? 0 : gyro.tiltY),
+                    rarityColor: card.rarity.color,
                     cornerRadius: 16
                 )
                 .allowsHitTesting(false)

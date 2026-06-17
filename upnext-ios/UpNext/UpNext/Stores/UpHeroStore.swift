@@ -427,9 +427,17 @@ final class UpHeroStore: ObservableObject {
         mutate { s in
             s.hero.classType = classType
             s.currentSession?.hero.classType = classType
+            s.pendingClassChoice = nil   // 전직 확정 → 자동 제안 소비
         }
         Haptics.play(.celebration)  // 전직 — 큰 분기 순간
         SoundPlayer.shared.play(.levelUp)
+    }
+
+    /// Lv.30 자동 전직 제안을 사용자가 닫았을 때(전직 안 하고 나감) — 제안 소비.
+    /// 다시 보려면 아지트 '전직' CTA(classEligible) 로 진입.
+    func acknowledgeClassChoice() {
+        guard state.pendingClassChoice != nil else { return }
+        mutate { $0.pendingClassChoice = nil }
     }
 
     // MARK: - 사진 부적 (웹 PhotoTalisman)

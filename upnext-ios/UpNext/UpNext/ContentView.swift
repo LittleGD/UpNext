@@ -47,6 +47,11 @@ struct ContentView: View {
         }
         .animation(.easeOut(duration: 0.25), value: store.showLoginOverlay)
         .animation(.easeOut(duration: 0.25), value: store.mergeConflict)
+        // 폰트/로케일 단일 출처 — 기기 로케일이 아닌 *앱 내 언어*(progress.language)를
+        // 환경 locale 로 주입한다. Typography 가 @Environment(\.locale) 로 폰트 family 를
+        // 고르는데(ko→April16th Promise), 기기 로케일이 en 이면 본문이 Menlo 로 폴백되고
+        // 한글이 시스템 고딕으로 깨지던 버그를 차단. 웹의 lang 속성=앱 언어 동작과 일치.
+        .environment(\.locale, Locale(identifier: (store.progress?.language ?? .ko).rawValue))
     }
 }
 

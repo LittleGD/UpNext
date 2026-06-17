@@ -175,12 +175,14 @@ struct CardPackOpenerView: View {
             .padding(.vertical, 10)
             .padding(.horizontal, 6)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+            // 웹 CardPackOpener(L271) 패리티 — reveal 카드에 등급 표면 텍스처 + 글로우.
+            // 기존 stroke 보더는 디자인 룰(카드 보더 금지) 위반이라 제거하고 텍스처로 대체.
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(card.rarity.color.opacity(card.rarity == .legend ? 0.6 : 0.2), lineWidth: 1)
+                RarityTexture(rarity: card.rarity, cornerRadius: 10)
+                    .allowsHitTesting(false)
             )
-            .shadow(color: card.rarity.color.opacity(card.rarity == .legend ? 0.4 : 0.1),
-                    radius: card.rarity == .legend ? 8 : 0)
+            .shadow(color: card.rarity.color.opacity(Self.glowOpacity(card.rarity)),
+                    radius: Self.glowRadius(card.rarity))
             .opacity(shown ? 1 : 0)
             .scaleEffect(shown ? 1 : 1.2)
             .onAppear {
@@ -191,6 +193,24 @@ struct CardPackOpenerView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.08) {
                     SoundPlayer.shared.play(.cardFlip)
                 }
+            }
+        }
+
+        /// 등급별 글로우 — 웹 rarityGlow 대응. normal 은 글로우 없음.
+        static func glowOpacity(_ r: Rarity) -> Double {
+            switch r {
+            case .normal: return 0
+            case .rare:   return 0.25
+            case .unique: return 0.4
+            case .legend: return 0.55
+            }
+        }
+        static func glowRadius(_ r: Rarity) -> CGFloat {
+            switch r {
+            case .normal: return 0
+            case .rare:   return 6
+            case .unique: return 10
+            case .legend: return 14
             }
         }
     }

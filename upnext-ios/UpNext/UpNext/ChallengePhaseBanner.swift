@@ -121,14 +121,18 @@ struct ChallengePhaseBanner: View {
                 ],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
-            // shimmer sweep
+            // shimmer sweep — 웹 super-shimmer(translateX -100%→200% linear infinite) 패리티.
+            // 끊김 방지: sweep 위치를 -0.45→1.45 범위로 매핑해 래핑 순간 band(±0.25)가
+            // 화면 밖(x<0 / x>1)에 완전히 나가 있게 한다. (기존 0→1 매핑은 band 가 양 끝에
+            // 걸친 채 점프해 seam 이 보였음.)
             if !reduceMotion {
+                let sweep = shimmerPhase * 1.9 - 0.45
                 LinearGradient(
                     colors: [.clear,
                              Color.white.opacity(0.12 + progress * 0.20),
                              .clear],
-                    startPoint: UnitPoint(x: shimmerPhase - 0.2, y: 0),
-                    endPoint: UnitPoint(x: shimmerPhase + 0.2, y: 1)
+                    startPoint: UnitPoint(x: sweep - 0.25, y: 0),
+                    endPoint: UnitPoint(x: sweep + 0.25, y: 1)
                 )
                 .blendMode(.screen)
             }

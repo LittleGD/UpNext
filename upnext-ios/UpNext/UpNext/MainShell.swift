@@ -74,7 +74,12 @@ struct MainTabView: View {
             PixelStars()
 
             VStack(spacing: 0) {
-                AppHeader(showXP: tab == .challenge)
+                // 아지트(영웅 RPG)는 자체 hero nameplate 헤더가 있어 글로벌 게임-Lv 헤더를
+                // 숨긴다 — 사용자 제보: "글로벌 레벨과 아지트 레벨이 겹쳐 혼동". 아지트=영웅 Lv,
+                // 나머지 탭=게임 Lv 로 정보 출처를 분리.
+                if tab != .playground {
+                    AppHeader(showXP: tab == .challenge)
+                }
                 screen
             }
 

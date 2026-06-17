@@ -118,16 +118,20 @@ struct RarityTexture: View {
                 }
             }
 
-            // shimmer sweep — 대각선 밝은 띠가 좌→우 이동
+            // shimmer sweep — 대각선 밝은 띠가 좌→우 이동.
+            // 끊김 방지(웹 super-shimmer translateX -100%→200% 패리티): 띠 중심을
+            // -0.5→1.5 로 이동시켜 래핑 순간(phase 1→0)에 띠(±0.3)가 화면 밖에 완전히
+            // 나가 있게 한다. (기존 phase-0.2~+0.2 매핑은 우측 끝↔좌측 끝 가시 점프 seam.)
             TimelineView(.animation) { context in
                 let t = context.date.timeIntervalSinceReferenceDate
                 let phase = (t.truncatingRemainder(dividingBy: 3.0)) / 3.0
+                let center = -0.5 + phase * 2.0   // -0.5 → 1.5
                 LinearGradient(
                     colors: [.clear,
                              Color.rarityLegend.opacity(0.30),
                              .clear],
-                    startPoint: UnitPoint(x: phase - 0.2, y: 0),
-                    endPoint: UnitPoint(x: phase + 0.2, y: 1)
+                    startPoint: UnitPoint(x: center - 0.3, y: 0),
+                    endPoint: UnitPoint(x: center + 0.3, y: 1)
                 )
                 .blendMode(.screen)
             }
@@ -154,41 +158,38 @@ private struct Diamond: Shape {
 // MARK: - 홀로그래픽 글레어 (tilt 추종)
 
 /// 카드 위에 얹는 conic-gradient 글레어. tilt 각도에 따라 회전.
-/// rotateX/Y 가 ±15° 범위 입력 — 각도 합으로 conic phase 결정.
+/// 웹 Card3DViewer holo(L303): `conic(from a°, ${rarity.color}18 0°, transparent 60°, … 360°)`
+/// + mix-blend-mode:screen + holoIntensity=min(0.12, 0.03+(|rx|+|ry|)*0.004).
+/// 핵심 — conic 색은 *등급색 단일 hue*(legend/cyan/fushia 고정 아님). 등급마다 다른 시머.
 struct HolographicGlare: View {
     let rotateX: Double  // -15...15
     let rotateY: Double
+    /// 등급색 — 웹 rarity.color. 이 hue 로 conic 6밴드를 만든다.
+    var rarityColor: Color = .rarityLegend
     var cornerRadius: CGFloat = 10
 
     var body: some View {
-        let phase = (rotateY + 15) / 30  // 0...1
-        let intensity = sqrt(rotateX * rotateX + rotateY * rotateY) / 21  // 0~1
-        ZStack {
-            // 홀로 글레어 — conic gradient 회전.
-            AngularGradient(
-                gradient: Gradient(colors: [
-                    Color.rarityLegend.opacity(0.35),
-                    Color.accentCyan.opacity(0.25),
-                    Color.accentFushia.opacity(0.30),
-                    Color.rarityLegend.opacity(0.35),
-                    Color.accentCyan.opacity(0.20),
-                ]),
-                center: .center,
-                angle: .degrees(phase * 360)
-            )
-            .blendMode(.screen)
-            .opacity(intensity * 0.6 + 0.1)
-
-            // 좁은 화이트 sheen
-            LinearGradient(
-                colors: [.clear,
-                         Color.white.opacity(0.20 * intensity),
-                         .clear],
-                startPoint: UnitPoint(x: phase, y: 0),
-                endPoint: UnitPoint(x: 1 - phase, y: 1)
-            )
-            .blendMode(.screen)
-        }
+        // 웹 holoAngle = combinedY*8 (rotateY 기반 회전).
+        let angle = rotateY * 8
+        // 웹 holoIntensity = min(0.12, 0.03 + (|rx|+|ry|)*0.004) → 0~1 정규화.
+        let intensity = min(0.12, 0.03 + (abs(rotateX) + abs(rotateY)) * 0.004) / 0.12
+        // 등급색 6밴드 conic — transparent 갭(웹 0/60/120/180/240/300°).
+        let band = rarityColor.opacity(0.5)
+        AngularGradient(
+            gradient: Gradient(stops: [
+                .init(color: band, location: 0.0),
+                .init(color: .clear, location: 1.0 / 6),
+                .init(color: band, location: 2.0 / 6),
+                .init(color: .clear, location: 3.0 / 6),
+                .init(color: band, location: 4.0 / 6),
+                .init(color: .clear, location: 5.0 / 6),
+                .init(color: band, location: 1.0),
+            ]),
+            center: .center,
+            angle: .degrees(angle)
+        )
+        .blendMode(.screen)
+        .opacity(0.25 + intensity * 0.55)   // rest 0.25 → tilt 시 0.8
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .allowsHitTesting(false)
     }

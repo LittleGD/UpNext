@@ -121,8 +121,8 @@ struct DungeonView: View {
                     color: HeroSprite.themeColor(hero.classType)
                 )
                 Text(hero.name)
-                    .typography(.micro)
-                    .foregroundStyle(Color.textTertiary)
+                    .typography(.caption)
+                    .foregroundStyle(Color.textSecondary)
                     .lineLimit(1)
             }
             Spacer()
@@ -141,14 +141,19 @@ struct DungeonView: View {
                         glow: enemy.isBoss == true
                     )
                     Text(enemy.name)
-                        .typography(.micro)
-                        .foregroundStyle(Color.textTertiary)
+                        .typography(.caption)
+                        .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)
+                    // 적 HP 바 — 웹 enemyHpPct 패리티. 로그 replay 로 현재 HP 계산해
+                    // "적이 죽어가는지" 시각화 (전투 가독성 핵심, rpg 리뷰 P0).
+                    if let hp = enemyHpInfo(session) {
+                        enemyHpBar(cur: hp.cur, max: hp.max)
+                    }
                 } else {
                     // 탐험 중 (몬스터 없음)
                     Color.clear.frame(width: 56, height: 56)
                     Text("탐험 중...")
-                        .typography(.micro)
+                        .typography(.caption)
                         .foregroundStyle(Color.textTertiary.opacity(0.5))
                 }
             }
@@ -156,6 +161,34 @@ struct DungeonView: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 12)
         .frame(minHeight: 88)
+    }
+
+    /// 현재 적의 HP (현재/최대) — 로그 replay 로 계산. 일반 encounter 만 (보스는 자체 배너).
+    /// nil 이면 HP 바 미표시 (탐험 중·보스·전투 종료).
+    private func enemyHpInfo(_ session: CombatSession) -> (cur: Int, max: Int)? {
+        let idx = UpHeroCombat.findLastEncounterIndex(session.log)
+        guard idx >= 0, case let .encounter(monster, _) = session.log[idx] else { return nil }
+        let cur = UpHeroCombat.computeMonsterHp(log: session.log, encounterIdx: idx, monster: monster)
+        let maxHp = monster.maxHp ?? monster.hp
+        return (Swift.max(0, cur), Swift.max(1, maxHp))
+    }
+
+    /// 적 HP 바 — 적 스프라이트 폭(56)에 맞춘 얇은 바 + 수치.
+    private func enemyHpBar(cur: Int, max: Int) -> some View {
+        VStack(spacing: 2) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.bgElevated)
+                    Capsule().fill(Color.accentSecondary)
+                        .frame(width: geo.size.width * min(1, Double(cur) / Double(max)))
+                }
+            }
+            .frame(width: 56, height: 4)
+            Text("\(cur)/\(max)")
+                .typography(.micro)
+                .monospacedDigit()
+                .foregroundStyle(Color.textTertiary)
+        }
     }
 
     /// 현재 진행 중인 적 — 최근 encounter/boss 의 monster (victory/sessionEnd 이후엔 nil).
