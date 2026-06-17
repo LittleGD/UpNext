@@ -36,6 +36,7 @@ private struct CampView: View {
     @EnvironmentObject private var upHero: UpHeroStore
     @EnvironmentObject private var store: GameStore
     @State private var statsOpen = false
+    @State private var showTutorial = false
     @State private var screen: CampScreen = .home
     /// 웹 playground 의 두 탭 [영웅 / 카드매치] — 아지트 홈 상단 세그먼트.
     @State private var campTab: CampTab = .hero
@@ -85,10 +86,24 @@ private struct CampView: View {
             }
         }
         .sheet(isPresented: $statsOpen) { HeroStatPanel() }
+        // 아지트 첫 진입 튜토리얼 — hasSeenCampTutorial=false 일 때 1회 노출(웹 패리티).
+        .overlay {
+            if showTutorial {
+                CampTutorialOverlay(onClose: { showTutorial = false })
+                    .transition(.opacity)
+                    .zIndex(50)
+            }
+        }
         .onAppear {
             // UITest — 스탯/스킬트리 패널 자동 오픈(검증용).
             if ProcessInfo.processInfo.arguments.contains("UITestOpenStats") {
                 statsOpen = true
+            }
+            // 첫 진입 온보딩 — 아직 안 본 경우에만. 사진/UITestOpenStats 검증 충돌 방지로
+            // 스탯 자동 오픈 인자가 있으면 튜토리얼은 건너뛴다.
+            if !(upHero.state.hasSeenCampTutorial ?? false),
+               !ProcessInfo.processInfo.arguments.contains("UITestOpenStats") {
+                showTutorial = true
             }
         }
         // Lv.30 자동 전직 제안 — pendingClassChoice 가 set 되면 전직 화면으로 자동 진입.

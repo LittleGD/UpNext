@@ -481,6 +481,12 @@ final class UpHeroStore: ObservableObject {
         mutate { $0.hero.name = trimmed }
     }
 
+    /// 아지트 첫 진입 튜토리얼을 읽음으로 기록(persist). 재호출은 no-op. 웹 markCampTutorialSeen.
+    func markCampTutorialSeen() {
+        guard state.hasSeenCampTutorial != true else { return }
+        mutate { $0.hasSeenCampTutorial = true }
+    }
+
     /// 액티브 스킬 자동 발동 on/off 토글. 웹 toggleAutoSkill.
     func toggleAutoSkill() {
         mutate { $0.hero.autoSkillEnabled = !($0.hero.autoSkillEnabled ?? true) }
