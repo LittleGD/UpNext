@@ -1279,6 +1279,16 @@ final class GameStore: ObservableObject {
            let card = CardCatalog.allCards.first {
             store.growth.seedChallengeLogForUITests(card: card)
         }
+        // 던전 전투 화면 시드 — 분위기·적HP·스프라이트반응·클래스 자원바·HP색·로그를
+        // 한 번에 확인하기 위한 결정론 세션. Lv35 전사로 전직 상태(자원바/클래스 포함).
+        if args.contains("UITestSeedDungeon") {
+            p.level = 35
+            p.xp = GameRules.totalXPForLevel(35)
+            p.unlockedCardIds = CardCatalog.allCards.map(\.id)
+            store.upHero.assignClass(.warrior)
+            store.upHero.prepareBuffDraw(dungeonId: .fitness, ownedCardIds: p.unlockedCardIds)
+            store.upHero.confirmDungeon(selectedCardIds: [], gameLevel: 35)
+        }
         store.progress = p
         store.daily = d
         store.retention = r
