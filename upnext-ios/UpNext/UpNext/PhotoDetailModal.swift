@@ -267,8 +267,10 @@ struct PhotoDetailModal: View {
     private func makeTalisman() {
         SoundPlayer.shared.play(.select)
         flushMemo()
-        upHero.beginPhotoTalismanRitual(photoId: meta.id)
-        onClose()   // 의식 오버레이(AlbumView)가 이어받음
+        // 코인 부족·이미 바인딩이면 의식이 시작되지 않음(실패 결과). 성공 시 닫고
+        // 앨범의 의식 오버레이가 이어받는다.
+        let result = upHero.beginPhotoTalismanRitual(photo: meta)
+        if result.ok { onClose() }
     }
 
     private func flushMemo() {

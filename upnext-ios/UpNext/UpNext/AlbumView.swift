@@ -73,15 +73,15 @@ struct AlbumView: View {
         .animation(.easeInOut(duration: 0.2), value: detailTarget?.id)
         // P0-3 — 의식 오버레이. 의식 중인 사진이 있을 때만 마운트, 종료 시 자동 dismiss.
         .overlay {
-            if let pendingId = upHero.pendingTalismanPhotoId {
+            if let pending = upHero.pendingTalismanPhoto {
                 PhotoTalismanRitual(
-                    photoImage: growth.image(for: pendingId),
+                    photoImage: growth.image(for: pending.id),
                     onDone: { upHero.completePhotoTalismanRitual() }
                 )
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: upHero.pendingTalismanPhotoId)
+        .animation(.easeInOut(duration: 0.25), value: upHero.pendingTalismanPhoto?.id)
     }
 
     private var addButton: some View {

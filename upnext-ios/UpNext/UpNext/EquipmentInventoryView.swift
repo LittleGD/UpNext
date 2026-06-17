@@ -20,6 +20,7 @@ struct EquipmentInventoryView: View {
     @State private var actionItem: Equipment?
     @State private var enhancingItem: Equipment?
     @State private var enhanceOutcome: EnhanceRitualOutcome?
+    @State private var showTalismanPicker = false
 
     var body: some View {
         ZStack {
@@ -27,6 +28,7 @@ struct EquipmentInventoryView: View {
                 header
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
+                        photoTalismanCTA
                         equippedGrid
                         inventoryGrid
                     }
@@ -36,6 +38,9 @@ struct EquipmentInventoryView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.bgPrimary)
+            .fullScreenCover(isPresented: $showTalismanPicker) {
+                PhotoTalismanPicker(onClose: { showTalismanPicker = false })
+            }
 
             // 강화 의식 오버레이
             if let item = enhancingItem, let outcome = enhanceOutcome {
@@ -91,6 +96,28 @@ struct EquipmentInventoryView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+    }
+
+    // MARK: - 사진 부적 만들기 CTA (웹 EquipmentInventory → PhotoTalismanPicker)
+
+    private var photoTalismanCTA: some View {
+        Button { showTalismanPicker = true } label: {
+            HStack(spacing: 12) {
+                PixelIcon(.image, size: 18, color: Color.accentPrimary).frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("사진 부적 만들기")
+                        .typography(.body).foregroundStyle(Color.textPrimary)
+                    Text("성장의 순간을 부적으로 — 코인 \(PhotoTalisman.ritualCost)")
+                        .typography(.caption).foregroundStyle(Color.textTertiary)
+                }
+                Spacer(minLength: 0)
+                PixelIcon(.chevronRight, size: 13, color: Color.textTertiary)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - 4 슬롯 그리드

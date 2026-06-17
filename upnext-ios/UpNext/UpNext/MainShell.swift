@@ -155,6 +155,12 @@ struct MainTabView: View {
                 MonsterCodexDetailModal(template: m, onClose: {})
                     .zIndex(120)
             }
+
+            // UITest — PhotoTalismanPicker 자동 표시(검증용; UITestSeedAlbum+Camp 와 함께).
+            if ProcessInfo.processInfo.arguments.contains("UITestOpenTalismanPicker") {
+                PhotoTalismanPicker(onClose: {})
+                    .zIndex(120)
+            }
         }
         .animation(.easeInOut(duration: 0.3), value: showCelebration)
         .animation(.easeOut(duration: 0.25), value: store.pendingLevelUp != nil)

@@ -505,51 +505,100 @@ final class UpHeroStore: ObservableObject {
         mutate { $0.currentSession = s }
     }
 
-    // MARK: - 사진 부적 (웹 PhotoTalisman)
+    // MARK: - 사진 부적 (웹 PhotoTalisman — 풀 시스템: rarity roll·코인·재의식·스킬)
 
-    /// P0-3 — ritual UI 가 끝났을 때 호출할 부적 생성 본체. 외부 호출 금지 (private).
-    /// 부적 inventory 추가 + 햅틱/사운드 + (호출자 책임 외) 영속화는 mutate 가 처리.
-    /// condensed — 부적은 사진 id 참조 + 기본 스탯만 (passive talismanSkills 는
-    /// 웹 매핑이 복잡해 이후 슬라이스로 유보). 장착하면 스탯이 전투에 반영된다.
-    private func performPhotoTalismanCreation(photoId: String) {
-        let talisman = Equipment(
-            id: "talisman_photo_\(Self.nowMillis())",
-            name: "추억의 부적", baseId: nil, type: .talisman,
-            rarity: .rare, category: .wellness, iconName: "photo",
-            stats: [.vit: 3, .agi: 2], effects: nil,
-            flavor: "성장의 순간을 담은 부적.", photoId: photoId,
-            enhanceLevel: nil, enhanceFailStreak: nil,
-            affix: nil, affixes: nil, talismanSkills: nil)
-        mutate { $0.inventory.append(talisman) }
+    struct PhotoTalismanResult { let ok: Bool; let item: Equipment?; let error: String? }
+    private func talismanFail(_ msg: String) -> PhotoTalismanResult {
+        SoundPlayer.shared.play(.cancel)
+        return PhotoTalismanResult(ok: false, item: nil, error: msg)
+    }
+
+    /// 사진 → 부적 최초 바인딩. 코인(80) 소모 + 랜덤 rarity roll + category 스탯.
+    /// 웹 bindPhotoAsTalisman 동치. 사진 메타는 호출부(뷰)가 GrowthStore 에서 주입.
+    @discardableResult
+    func bindPhotoAsTalisman(photo: PhotoMeta) -> PhotoTalismanResult {
+        guard !PhotoTalisman.isBound(photo.id, inventory: state.inventory,
+                                     equipped: state.hero.equipped) else {
+            return talismanFail("이미 부적으로 만든 사진이에요")
+        }
+        guard state.coins >= PhotoTalisman.ritualCost else {
+            return talismanFail("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)")
+        }
+        var rng = SystemRandom()
+        let rarity = PhotoTalisman.rollRarity(&rng)
+        let item = PhotoTalisman.build(photo: photo, rarity: rarity)
+        mutate {
+            $0.inventory.append(item)
+            $0.coins -= PhotoTalisman.ritualCost
+        }
         Haptics.play(.success)
         SoundPlayer.shared.play(.complete)
+        return PhotoTalismanResult(ok: true, item: item, error: nil)
     }
 
-    /// P0-3 — 3초 의식 진행 중인 사진 id. AlbumView 가 이걸 구독해 PhotoTalismanRitual
-    /// 오버레이를 띄운다. 부적 생성 자체는 의식이 끝난 뒤 completePhotoTalismanRitual()
-    /// 가 호출. transient — 영속 대상 아님 (앱 재기동 시 의식은 사라지는 게 맞음).
-    @Published var pendingTalismanPhotoId: String?
-
-    /// P0-3 — 부적 의식 시작. AlbumView 의 "부적으로 만들기" 액션이 호출.
-    /// 호출 즉시 부적이 생기지 않고, ritual 종료 후 completePhotoTalismanRitual 가 실행.
-    /// 이미 의식 진행 중이면 no-op (중복 의식 방지).
-    func beginPhotoTalismanRitual(photoId: String) {
-        guard pendingTalismanPhotoId == nil else { return }
-        pendingTalismanPhotoId = photoId
+    /// 재의식 — 바인딩된 부적 enhanceLevel +1 (rarity 유지, 스탯 미미 상승, +5/+10 스킬).
+    /// 코인은 현재 레벨 스케일. 웹 rebindPhotoTalisman 동치. 장착 중인 부적도 in-place 교체.
+    @discardableResult
+    func rebindPhotoTalisman(photoId: String) -> PhotoTalismanResult {
+        guard let found = PhotoTalisman.findBound(photoId, inventory: state.inventory,
+                                                  equipped: state.hero.equipped) else {
+            return talismanFail("바인딩된 부적이 아니에요")
+        }
+        let cur = found.item.enhanceLevel ?? 0
+        guard cur < PhotoTalisman.maxEnhanceLevel else {
+            return talismanFail("이미 최대 강화(+\(PhotoTalisman.maxEnhanceLevel))예요")
+        }
+        let cost = PhotoTalisman.rebindCost(currentLevel: cur)
+        guard state.coins >= cost else {
+            return talismanFail("코인이 부족해요 (\(cost) 필요)")
+        }
+        let newItem = PhotoTalisman.rebuild(current: found.item, newLevel: cur + 1)
+        mutate { s in
+            s.coins -= cost
+            switch found.location {
+            case .inventory:
+                if let idx = s.inventory.firstIndex(where: { $0.id == found.item.id }) {
+                    s.inventory[idx] = newItem
+                }
+            case .equipped:
+                for (slot, eq) in s.hero.equipped where eq.id == found.item.id {
+                    s.hero.equipped[slot] = newItem
+                }
+            }
+        }
+        Haptics.play(.success)
+        SoundPlayer.shared.play(.complete)
+        return PhotoTalismanResult(ok: true, item: newItem, error: nil)
     }
 
-    /// P0-3 — ritual 종료 시 호출. 부적을 inventory 에 추가하고 pending 클리어.
-    /// pending 이 없으면 (의식 취소·중복 호출) 부적 생성 생략.
+    /// 3초 의식 진행 중인 사진. AlbumView 가 구독해 PhotoTalismanRitual 오버레이를 띄운다.
+    /// transient — 영속 대상 아님. 부적 생성은 의식 종료 시 completePhotoTalismanRitual().
+    @Published var pendingTalismanPhoto: PhotoMeta?
+    /// 의식 결과 부적 — 종료 후 reveal 용(있으면 AlbumView/picker 가 표시).
+    @Published var lastTalismanReveal: Equipment?
+
+    /// 부적 의식 시작. 코인 부족·이미 바인딩이면 시작하지 않고 실패 반환.
+    @discardableResult
+    func beginPhotoTalismanRitual(photo: PhotoMeta) -> PhotoTalismanResult {
+        guard pendingTalismanPhoto == nil else {
+            return PhotoTalismanResult(ok: false, item: nil, error: nil)
+        }
+        if PhotoTalisman.isBound(photo.id, inventory: state.inventory, equipped: state.hero.equipped) {
+            return talismanFail("이미 부적으로 만든 사진이에요")
+        }
+        if state.coins < PhotoTalisman.ritualCost {
+            return talismanFail("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)")
+        }
+        pendingTalismanPhoto = photo
+        return PhotoTalismanResult(ok: true, item: nil, error: nil)
+    }
+
+    /// ritual 종료 시 호출. 부적을 실제 생성(bindPhotoAsTalisman)하고 pending 클리어.
     func completePhotoTalismanRitual() {
-        guard let photoId = pendingTalismanPhotoId else { return }
-        pendingTalismanPhotoId = nil
-        performPhotoTalismanCreation(photoId: photoId)
-    }
-
-    /// P0-3 — 외부 호환 — 즉시 부적 생성. ritual 우회 (테스트·내부 호출용).
-    /// 새 코드는 beginPhotoTalismanRitual → completePhotoTalismanRitual 를 쓸 것.
-    func createPhotoTalisman(photoId: String) {
-        performPhotoTalismanCreation(photoId: photoId)
+        guard let photo = pendingTalismanPhoto else { return }
+        pendingTalismanPhoto = nil
+        let result = bindPhotoAsTalisman(photo: photo)
+        lastTalismanReveal = result.item
     }
 
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
