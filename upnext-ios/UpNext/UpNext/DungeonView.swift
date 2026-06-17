@@ -35,6 +35,10 @@ struct DungeonView: View {
     /// 흘러가던 이벤트 결과를 모달로 보여줘 읽을 시간 보장(rpg 리뷰 P0).
     @State private var choiceResultText: String?
     @State private var choiceResultSummary: String?
+    /// 스프라이트 전투 반응 — 공격 시 lunge(중앙 쪽), 피격 시 recoil(바깥쪽). x offset.
+    /// 웹은 attack/hurt 포즈 프레임이 있으나 iOS 는 신규 프레임 없이 transform 으로 반응 재현.
+    @State private var heroReact: CGFloat = 0
+    @State private var enemyReact: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -145,6 +149,27 @@ struct DungeonView: View {
         choiceResultSummary = nil
     }
 
+    /// 전투 반응 — 공격자는 중앙 쪽으로 lunge(영웅 +, 적 −), 명중 시 피격자는 바깥으로
+    /// recoil. 짧은 spring 후 0 으로 복귀. reduce-motion 가드는 호출부 모션 일관성상 생략
+    /// (offset 만이라 멀미 영향 미미).
+    private func reactCombat(heroIsAttacker: Bool, didHit: Bool) {
+        withAnimation(.spring(response: 0.16, dampingFraction: 0.5)) {
+            if heroIsAttacker {
+                heroReact = 14
+                if didHit { enemyReact = 10 }
+            } else {
+                enemyReact = -14
+                if didHit { heroReact = -10 }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.6)) {
+                heroReact = 0
+                enemyReact = 0
+            }
+        }
+    }
+
     // MARK: - 콘텐츠
 
     private func content(_ session: CombatSession) -> some View {
@@ -172,6 +197,7 @@ struct DungeonView: View {
                     size: 56,
                     color: HeroSprite.themeColor(hero.classType)
                 )
+                .offset(x: heroReact)
                 Text(hero.name)
                     .typography(.caption)
                     .foregroundStyle(Color.textSecondary)
@@ -192,6 +218,7 @@ struct DungeonView: View {
                         color: enemy.isBoss == true ? Color.accentSecondary : Color.textPrimary,
                         glow: enemy.isBoss == true
                     )
+                    .offset(x: enemyReact)
                     Text(enemy.name)
                         .typography(.caption)
                         .foregroundStyle(Color.textSecondary)
@@ -477,6 +504,10 @@ struct DungeonView: View {
             // 공격 플래시 (좌=영웅 공격, 우=적 공격)
             attackFlashSide = attacker == .hero ? .hero : .enemy
             attackFlashTrigger &+= 1
+            // 스프라이트 반응 — 공격자 lunge + (명중 시) 피격자 recoil.
+            let heroAtk = (attacker == .hero)
+            let didHit = (outcome == .hit || outcome == .crit) && damage > 0
+            reactCombat(heroIsAttacker: heroAtk, didHit: didHit)
             // 전투 사운드는 매 틱(0.7s) 발화하면 소음이라 crit 에만. 햅틱은 타격 차등.
             switch outcome {
             case .crit:
