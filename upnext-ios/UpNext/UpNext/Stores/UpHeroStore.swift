@@ -379,6 +379,31 @@ final class UpHeroStore: ObservableObject {
         mutate { $0.hero.skillPoints = ($0.hero.skillPoints ?? 0) + points }
     }
 
+    enum LearnSkillResult { case ok, already, notFound, noClass, needLevel, noPoints }
+
+    /// Phase 12d — 스킬트리에서 스킬 포인트로 클래스 스킬 해금. 웹 `learnSkill` 동치.
+    /// gameLevel 은 호출부(뷰)가 store.progress.level 로 주입(confirmDungeon 패턴).
+    @discardableResult
+    func learnSkill(_ skillId: String, gameLevel: Int) -> LearnSkillResult {
+        guard let cls = state.hero.classType else { return .noClass }
+        guard let skill = ClassSkills.findSkillById(skillId) else { return .notFound }
+        guard skill.skillClass.rawValue == cls.rawValue else { return .noClass }
+        let heroLevel = UpHeroRules.getEffectiveHeroLevel(
+            gameLevel: gameLevel, heroStartLevel: state.heroStartLevel)
+        guard heroLevel >= skill.requiredLevel else { return .needLevel }
+        let learned = state.hero.learnedSkills ?? []
+        guard !learned.contains(skillId) else { return .already }
+        let points = state.hero.skillPoints ?? 0
+        guard points >= skill.pointCost else { return .noPoints }
+        mutate { s in
+            s.hero.learnedSkills = learned + [skillId]
+            s.hero.skillPoints = points - skill.pointCost
+        }
+        Haptics.play(.celebration)   // 스킬 해금 — 성장 순간
+        SoundPlayer.shared.play(.levelUp)
+        return .ok
+    }
+
     /// 전직 전 튜토리얼 스킬 자동 해금. 웹 `grantNoviceSkills`.
     func grantNoviceSkills(_ level: Int) {
         let unlocks: [String]
@@ -424,9 +449,16 @@ final class UpHeroStore: ObservableObject {
     /// (전투 엔진은 classType 기반 스탯·자원만 적용, 클래스 액티브 스킬은 이후).
     func assignClass(_ classType: ClassType) {
         guard state.hero.classType == nil else { return }
+        // Phase 12d / Bug 2026-04 — 전직 시 해당 클래스 T1 스킬 자동 해금 +
+        // learnedSkills 를 [T1] 로 완전 초기화(novice 스킬 제거 — 전직 후엔 클래스
+        // 스킬트리로 성장). 진행 중 세션 hero snapshot 도 동기화해 회귀 방지.
+        let t1 = ClassSkills.classSkillTrees[classType]?.first { $0.tier == 1 }
+        let learned = t1.map { [$0.id] } ?? []
         mutate { s in
             s.hero.classType = classType
+            s.hero.learnedSkills = learned
             s.currentSession?.hero.classType = classType
+            s.currentSession?.hero.learnedSkills = learned
             s.pendingClassChoice = nil   // 전직 확정 → 자동 제안 소비
         }
         Haptics.play(.celebration)  // 전직 — 큰 분기 순간

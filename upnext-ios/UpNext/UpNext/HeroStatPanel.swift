@@ -39,6 +39,9 @@ struct HeroStatPanel: View {
                         classSection(cls, hero: hero)
                     }
                     skillsSection(hero: hero)
+                    if let cls = hero.classType {
+                        skillTreeSection(cls, hero: hero, level: level)
+                    }
                     statsSection(base: leveled.baseStats, effective: effective,
                                  level: level, classType: hero.classType)
                     equippedSection(hero: hero)
@@ -189,6 +192,132 @@ struct HeroStatPanel: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - 스킬트리 섹션 (웹 SkillTreePanel — tier 1-4, 스킬 포인트로 해금)
+
+    private enum LearnStatus { case ok, learned, needLevel, needPoints }
+
+    private func learnStatus(_ skill: ClassSkill, learned: [String],
+                             points: Int, level: Int) -> LearnStatus {
+        if learned.contains(skill.id) { return .learned }
+        if level < skill.requiredLevel { return .needLevel }
+        if points < skill.pointCost { return .needPoints }
+        return .ok
+    }
+
+    @ViewBuilder
+    private func skillTreeSection(_ cls: ClassType, hero: Hero, level: Int) -> some View {
+        let tree = ClassSkills.classSkillTrees[cls] ?? []
+        if !tree.isEmpty {
+            let learned = hero.learnedSkills ?? []
+            let points = hero.skillPoints ?? 0
+            let resourceSpec = UpHeroRules.classResource[cls]
+            let resColor = resourceSpec.map { Color(hexString: $0.color) } ?? Color.accentPrimary
+            VStack(alignment: .leading, spacing: 12) {
+                // 헤더 — 타이틀 + 남은 SP
+                HStack {
+                    sectionTitle("스킬트리")
+                    Spacer(minLength: 0)
+                    HStack(spacing: 4) {
+                        PixelIcon(.star, size: 12, color: Color.textPrimary)
+                        Text("\(points)").typography(.caption).monospacedDigit()
+                            .foregroundStyle(Color.textPrimary)
+                        Text("SP").typography(.micro).foregroundStyle(Color.textTertiary)
+                    }
+                }
+                if let resourceSpec {
+                    Text("자원 \(resourceSpec.name) · 레벨업마다 SP 획득")
+                        .typography(.micro)
+                        .foregroundStyle(Color.textTertiary)
+                }
+                ForEach(1...4, id: \.self) { tier in
+                    let skills = tree.filter { $0.tier == tier }
+                    if !skills.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(tierLabel(tier, skills: skills))
+                                .typography(.micro)
+                                .tracking(1)
+                                .foregroundStyle(Color.textTertiary)
+                            ForEach(skills, id: \.id) { skill in
+                                skillTreeRow(skill, learned: learned, points: points,
+                                             level: level, resColor: resColor,
+                                             resShort: resourceSpec?.short ?? "")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func tierLabel(_ tier: Int, skills: [ClassSkill]) -> String {
+        guard tier > 1, let first = skills.first else { return "\(tier)단계" }
+        return "\(tier)단계 · Lv.\(first.requiredLevel) · SP \(first.pointCost)"
+    }
+
+    private func skillTreeRow(_ skill: ClassSkill, learned: [String], points: Int,
+                              level: Int, resColor: Color, resShort: String) -> some View {
+        let status = learnStatus(skill, learned: learned, points: points, level: level)
+        let isLearned = status == .learned
+        let dimmed = !(status == .ok || isLearned)
+        return HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(skill.name)
+                        .typography(.caption)
+                        .foregroundStyle(Color.textPrimary)
+                    if isLearned {
+                        Text("✓")
+                            .typography(.micro)
+                            .foregroundStyle(Color.bgPrimary)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Color.accentPrimary, in: Capsule())
+                    }
+                }
+                Text(skill.description)
+                    .typography(.micro)
+                    .foregroundStyle(Color.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    Text("\(skill.resourceCost) \(resShort)")
+                        .typography(.micro).monospacedDigit()
+                        .foregroundStyle(resColor)
+                    Text("·").typography(.micro).foregroundStyle(Color.textTertiary)
+                    Text("CD \(skill.cooldown)")
+                        .typography(.micro).monospacedDigit()
+                        .foregroundStyle(Color.textTertiary)
+                }
+            }
+            Spacer(minLength: 0)
+            if !isLearned {
+                Button {
+                    upHero.learnSkill(skill.id, gameLevel: store.progress?.level ?? 1)
+                } label: {
+                    Text(learnButtonLabel(status, skill: skill))
+                        .typography(.micro)
+                        .foregroundStyle(status == .ok ? Color.bgPrimary : Color.textTertiary)
+                        .padding(.horizontal, 10)
+                        .frame(minHeight: 32)
+                        .background(status == .ok ? Color.accentPrimary : Color.bgElevated,
+                                    in: RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .disabled(status != .ok)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+        .opacity(dimmed ? 0.55 : 1)
+    }
+
+    private func learnButtonLabel(_ status: LearnStatus, skill: ClassSkill) -> String {
+        switch status {
+        case .needLevel:  return "Lv.\(skill.requiredLevel)"
+        case .needPoints: return "SP \(skill.pointCost)"
+        default:          return "해금"
         }
     }
 

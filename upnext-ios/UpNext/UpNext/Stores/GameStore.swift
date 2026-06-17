@@ -1290,14 +1290,14 @@ final class GameStore: ObservableObject {
             store.upHero.prepareBuffDraw(dungeonId: .fitness, ownedCardIds: p.unlockedCardIds)
             store.upHero.confirmDungeon(selectedCardIds: [], gameLevel: 35)
         }
-        // 캠프(아지트) IA 검증용 — 레벨/전직/스킬은 있으되 진행 중 세션은 없음.
+        // 캠프(아지트) IA + 스킬트리 검증용 — 전직(T1 자동 해금)·SP·코인은 있으되
+        // 진행 중 세션은 없음. Lv35 → T2 해금 가능, T3/T4 는 레벨 잠금 상태 노출.
         if args.contains("UITestSeedCamp") {
             p.level = 35
             p.xp = GameRules.totalXPForLevel(35)
             p.unlockedCardIds = CardCatalog.allCards.map(\.id)
-            store.upHero.assignClass(.warrior)
-            store.upHero.grantNoviceSkills(35)
-            store.upHero.grantSkillPoints(3)   // 스킬트리 진입 가능하도록
+            store.upHero.assignClass(.warrior)   // T1(warrior_smash_t1) 자동 해금
+            store.upHero.grantSkillPoints(3)     // 스킬트리에서 T2 해금 가능
             store.upHero.addCoins(2400)
         }
         store.progress = p

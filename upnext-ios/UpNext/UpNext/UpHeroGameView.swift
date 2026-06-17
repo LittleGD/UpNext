@@ -85,6 +85,12 @@ private struct CampView: View {
             }
         }
         .sheet(isPresented: $statsOpen) { HeroStatPanel() }
+        .onAppear {
+            // UITest — 스탯/스킬트리 패널 자동 오픈(검증용).
+            if ProcessInfo.processInfo.arguments.contains("UITestOpenStats") {
+                statsOpen = true
+            }
+        }
         // Lv.30 자동 전직 제안 — pendingClassChoice 가 set 되면 전직 화면으로 자동 진입.
         // (웹 ClassChoiceModal 자동 트리거 패리티. 이전엔 set 만 되고 아무도 안 읽던 dead write.)
         .onChange(of: upHero.state.pendingClassChoice != nil) { pending in
