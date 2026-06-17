@@ -174,7 +174,7 @@ struct HeroStatPanel: View {
                                     .typography(.caption)
                                     .foregroundStyle(Color.textPrimary)
                                 Text(skill.description)
-                                    .typography(.micro)
+                                    .typography(.caption)   // 본문 설명 — micro(12) 너무 작아 caption(15)
                                     .foregroundStyle(Color.textTertiary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -277,7 +277,7 @@ struct HeroStatPanel: View {
                     }
                 }
                 Text(skill.description)
-                    .typography(.micro)
+                    .typography(.caption)   // 본문 설명 — micro(12) 너무 작아 caption(15)
                     .foregroundStyle(Color.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {

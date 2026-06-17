@@ -75,7 +75,7 @@ struct ShopView: View {
                     .typography(.body)
                     .foregroundStyle(Color.textPrimary)
                 Text(desc)
-                    .typography(.micro)
+                    .typography(.caption)   // 상품 설명 본문 — micro(12)→caption(15)
                     .foregroundStyle(Color.textTertiary)
             }
             Spacer(minLength: 0)

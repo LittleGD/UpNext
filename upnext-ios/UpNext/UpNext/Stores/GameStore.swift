@@ -1260,6 +1260,15 @@ final class GameStore: ObservableObject {
             d.isDrawComplete = true
             d.isSelectionComplete = true
         }
+        // 데일리 풀클리어 상태 — 추가챌린지(ChallengePhaseBanner) shimmer 검증용.
+        if args.contains("UITestSeedExtraBanner"),
+           let card = CardCatalog.allCards.first {
+            d.drawnCards = Array(CardCatalog.allCards.prefix(6))
+            d.selectedCards = [card]
+            d.completedIds = [card.id]
+            d.isDrawComplete = true
+            d.isSelectionComplete = true
+        }
         var r = RetentionState.fresh(today: todayString())
         if args.contains("UITestSeedReport") {
             let report = WeeklyReportSummary(
