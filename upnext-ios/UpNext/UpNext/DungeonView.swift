@@ -302,6 +302,13 @@ struct DungeonView: View {
             }
             statBar("HP", session.hero.hp, session.hero.maxHp, Color.accentPrimary)
             statBar("탐험 시간", session.time, session.maxTime, Color.accentCyan)
+            // 클래스 자원 게이지(분노/마나/기 등) — 전직 영웅만. 웹 ClassResourceBar.
+            // 스킬 발동에 쓰이는 자원이 보이지 않던 갭(rpg 리뷰) 해소. 표시 전용.
+            if let cls = session.hero.classType,
+               let spec = UpHeroRules.classResource[cls] {
+                statBar(spec.name, session.classResource ?? 0,
+                        UpHeroRules.classResourceMax, Color(hexString: spec.color))
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
