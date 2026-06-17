@@ -1286,6 +1286,7 @@ final class GameStore: ObservableObject {
             p.xp = GameRules.totalXPForLevel(35)
             p.unlockedCardIds = CardCatalog.allCards.map(\.id)
             store.upHero.assignClass(.warrior)
+            store.upHero.grantNoviceSkills(35)   // SkillBar 검증용 — 보유 스킬 표시
             store.upHero.prepareBuffDraw(dungeonId: .fitness, ownedCardIds: p.unlockedCardIds)
             store.upHero.confirmDungeon(selectedCardIds: [], gameLevel: 35)
         }

@@ -177,9 +177,61 @@ struct DungeonView: View {
             statusHeader(session)
             spriteVsRow(session)
             logScroll(session)
+            skillBar(session)
             footer(session)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - 스킬 바 (웹 SkillBar — 보유 스킬 + 쿨다운/자원 상태 + 탭 발동)
+
+    @ViewBuilder
+    private func skillBar(_ session: CombatSession) -> some View {
+        let learned = (session.hero.learnedSkills ?? []).compactMap { ClassSkills.findSkillById($0) }
+        if !learned.isEmpty && session.status == .active {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(learned, id: \.id) { skill in
+                        skillChip(skill, session: session)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+        }
+    }
+
+    private func skillChip(_ skill: ClassSkill, session: CombatSession) -> some View {
+        let cd = (session.skillCooldowns ?? [:])[skill.id] ?? 0
+        let check = ClassSkills.canFireSkill(session, skillId: skill.id)
+        let stateLabel = cd > 0 ? "CD \(cd)"
+            : check.reason == .resource ? "자원 부족"
+            : "준비"
+        return Button {
+            upHero.fireSkillManual(skill.id)
+        } label: {
+            VStack(spacing: 3) {
+                Text(skill.name)
+                    .typography(.caption)
+                    .foregroundStyle(check.ok ? Color.textPrimary : Color.textTertiary)
+                    .lineLimit(1)
+                Text(stateLabel)
+                    .typography(.micro)
+                    .monospacedDigit()
+                    .foregroundStyle(check.ok ? Color.accentPrimary : Color.textTertiary)
+                if skill.resourceCost > 0 {
+                    Text("−\(skill.resourceCost)")
+                        .typography(.micro)
+                        .foregroundStyle(Color.textTertiary)
+                }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(check.ok ? Color.bgElevated : Color.bgSurface,
+                        in: RoundedRectangle(cornerRadius: 10))
+            .opacity(check.ok ? 1 : 0.55)
+        }
+        .buttonStyle(.plain)
+        .disabled(!check.ok)
     }
 
     // MARK: - 스프라이트 대치 (HeroSprite vs MonsterSprite)

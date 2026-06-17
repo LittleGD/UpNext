@@ -454,6 +454,19 @@ final class UpHeroStore: ObservableObject {
         mutate { $0.hero.autoSkillEnabled = !($0.hero.autoSkillEnabled ?? true) }
     }
 
+    /// 전투 중 스킬 수동 발동 (웹 SkillBar 탭). canFireSkill 통과 시 fireSkill 적용 →
+    /// 자원 차감·쿨다운·효과. 결과(몬스터 사망 등)는 다음 tick 의 advanceCombat 가 처리.
+    func fireSkillManual(_ skillId: String) {
+        guard var s = state.currentSession, s.status == .active else { return }
+        let idx = UpHeroCombat.findLastEncounterIndex(s.log)
+        var monster: Monster?
+        if idx >= 0, case let .encounter(m, _) = s.log[idx] { monster = m }
+        guard ClassSkills.fireSkill(&s, skillId: skillId, monster: monster) else { return }
+        Haptics.play(.heavy)
+        SoundPlayer.shared.play(.impactShake)
+        mutate { $0.currentSession = s }
+    }
+
     // MARK: - 사진 부적 (웹 PhotoTalisman)
 
     /// P0-3 — ritual UI 가 끝났을 때 호출할 부적 생성 본체. 외부 호출 금지 (private).

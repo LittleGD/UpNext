@@ -256,6 +256,8 @@ struct MainTabView: View {
 
     /// onAppear 시 새 패치 노트 노출 평가 — 한번도 본 적이 없거나 새 버전이 있으면 1회 표시.
     private func evaluatePatchNotes() {
+        // UITest 런치(UITest* 인자)에서는 패치 노트 자동 표시를 건너뛴다 — 화면 검증 차단 방지.
+        if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("UITest") }) { return }
         let current = currentPatchVersion
         guard !current.isEmpty else { return }
         if lastSeenPatchVersion != current {

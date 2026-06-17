@@ -119,10 +119,10 @@ struct PatchNotesModal: View {
 
     private func entryRow(_ entry: PatchNoteEntry) -> some View {
         HStack(alignment: .top, spacing: 10) {
+            // 디자인 규칙 — 아이콘 박스 금지. 픽셀 아이콘만 인라인으로 정렬(배경/보더 없음).
             if let icon = entry.icon {
-                PixelIcon(icon, size: 14, color: Color.accentPrimary)
-                    .frame(width: 22, height: 22)
-                    .background(Color.bgPrimary, in: RoundedRectangle(cornerRadius: 6))
+                PixelIcon(icon, size: 16, color: Color.accentPrimary)
+                    .frame(width: 22, height: 22, alignment: .center)
             } else {
                 Color.clear.frame(width: 22, height: 22)
             }
