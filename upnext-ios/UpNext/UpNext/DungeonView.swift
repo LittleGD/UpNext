@@ -31,6 +31,8 @@ struct DungeonView: View {
     @State private var floatingItems: [FloatingNumberItem] = []
     /// 보스 배너가 표시 중인 동안엔 tick 일시정지 — 등장 연출 중 다음 round 가 겹치지 않게.
     @State private var pausedForBoss: Bool = false
+    /// 탐험 인터랙션 도움말 오버레이 (웹 DungeonHelpModal).
+    @State private var helpOpen: Bool = false
     /// 선택지 결과 모달 (웹 ChoiceResultModal) — 표시 중 tick pause. 로그 한 줄로
     /// 흘러가던 이벤트 결과를 모달로 보여줘 읽을 시간 보장(rpg 리뷰 P0).
     @State private var choiceResultText: String?
@@ -99,8 +101,16 @@ struct DungeonView: View {
                     .transition(.opacity)
                     .zIndex(55)
                 }
+
+                // 탐험 도움말 오버레이 (웹 DungeonHelpModal)
+                if helpOpen {
+                    DungeonHelpModal(onClose: { helpOpen = false })
+                        .transition(.opacity)
+                        .zIndex(62)
+                }
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: helpOpen)
         .animation(.easeInOut(duration: 0.2), value: bossBannerData != nil)
         .animation(.easeInOut(duration: 0.2), value: choiceResultText != nil)
         .onReceive(tick) { _ in
@@ -343,7 +353,7 @@ struct DungeonView: View {
 
     private func statusHeader(_ session: CombatSession) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .center) {
                 Text(Dungeons.all[session.dungeonId]?.name ?? "던전")
                     .typography(.heading)
                     .foregroundStyle(Color.textPrimary)
@@ -351,6 +361,16 @@ struct DungeonView: View {
                 Text("\(session.currentFloor)층")
                     .typography(.caption)
                     .foregroundStyle(Color.accentPrimary)
+                // 탐험 도움말 — HP·시간/자원/스킬/속도/포기 안내(웹 DungeonHelpModal).
+                Button { helpOpen = true } label: {
+                    Text("?")
+                        .typography(.caption)
+                        .foregroundStyle(Color.textSecondary)
+                        .frame(width: 26, height: 26)
+                        .background(Color.bgElevated, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("탐험 도움말")
             }
             // HP 위기 색 (웹 패리티) — 50%↑ 정상, 20~50% 경고(앰버), 20%↓ 위험(적).
             let hpPct = Double(session.hero.hp) / Double(Swift.max(1, session.hero.maxHp))
