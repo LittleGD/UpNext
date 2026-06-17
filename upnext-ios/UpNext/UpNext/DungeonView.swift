@@ -418,13 +418,19 @@ struct DungeonView: View {
         case let .boss(monster, floor, _):
             bossBannerData = (monster: monster, floor: floor)
             pausedForBoss = true
+            // 보스 등장 — 임팩트 사운드 + 강한 햅틱 (웹 play("impactShake") 패리티).
+            SoundPlayer.shared.play(.impactShake)
+            Haptics.play(.heavy)
         case let .combat(attacker, damage, outcome, _, _, _, _):
             // 공격 플래시 (좌=영웅 공격, 우=적 공격)
             attackFlashSide = attacker == .hero ? .hero : .enemy
             attackFlashTrigger &+= 1
+            // 전투 사운드는 매 틱(0.7s) 발화하면 소음이라 crit 에만. 햅틱은 타격 차등.
             switch outcome {
             case .crit:
                 critShakeTrigger &+= 1
+                SoundPlayer.shared.play(.impactShake)
+                Haptics.play(.heavy)
                 emitFloat(text: "CRIT!", variant: .critPulse, position: enemyAnchor())
                 if damage > 0 {
                     emitFloat(text: "-\(damage)", variant: .hpRegen,
@@ -433,11 +439,13 @@ struct DungeonView: View {
                 }
             case .hit:
                 if damage > 0 {
+                    Haptics.play(.light)
                     emitFloat(text: "-\(damage)", variant: .hpRegen,
                               color: Color.accentSecondary,
                               position: attacker == .hero ? enemyAnchor() : heroAnchor())
                 }
             case .dodge:
+                Haptics.play(.selection)
                 emitFloat(text: "✦", variant: .dodgePulse,
                           position: attacker == .hero ? enemyAnchor() : heroAnchor())
             case .miss:
@@ -446,6 +454,9 @@ struct DungeonView: View {
                           position: attacker == .hero ? enemyAnchor() : heroAnchor())
             }
         case let .victory(_, xp, coins, _, _, _):
+            // 전투 승리 — 완료 사운드 + 성공 햅틱.
+            SoundPlayer.shared.play(.complete)
+            Haptics.play(.success)
             if xp > 0 {
                 emitFloat(text: "+\(xp) XP", variant: .xp, position: heroAnchor())
             }
