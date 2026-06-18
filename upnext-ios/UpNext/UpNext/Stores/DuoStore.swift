@@ -18,10 +18,17 @@ struct DuoSnapshot: Identifiable, Equatable {
     var memberIds: [String]
     var memberNames: [String: String]
     var checkIns: [String: [String]]
+    var nudges: [String: [String]]
     var createdAt: Int
 
     func checkedIn(uid: String, on day: String) -> Bool {
         checkIns[uid, default: []].contains(day)
+    }
+
+    /// uid 가 day 에 콕 찌르기를 보냈는지. 쿨다운/배너 판정의 단일 근거 —
+    /// 로컬 플래그가 아니라 서버 nudges 배열을 보므로 앱 재시작에도 일관.
+    func poked(uid: String, on day: String) -> Bool {
+        nudges[uid, default: []].contains(day)
     }
 
     func sharedDays(currentUid: String) -> [String] {
@@ -39,10 +46,15 @@ final class DuoStore: ObservableObject {
     @Published private(set) var inviteCode: String?
     @Published private(set) var isWorking = false
     @Published private(set) var message: String?
+    /// 친구가 오늘 나를 콕 찔렀을 때 1회 true — 받는 쪽 로컬 배너 트리거.
+    @Published private(set) var friendNudgedMe = false
 
     private var uid: String?
     private var displayName: String = "UpNext"
     private var listener: ListenerRegistration?
+    /// 리스너 첫 스냅샷 워밍업 플래그. 앱 시작/리스너 재부착 직후 첫 콜백은 배너를
+    /// 띄우지 않게 한다 — 안 그러면 친구가 이전에 찌른 상태가 재시작마다 배너로 뜬다.
+    private var duoWarmedUp = false
 
     private let db = Firestore.firestore()
 
@@ -63,6 +75,8 @@ final class DuoStore: ObservableObject {
         inviteCode = nil
         isWorking = false
         message = nil
+        friendNudgedMe = false
+        duoWarmedUp = false
     }
 
     func createInvite() {
@@ -187,6 +201,7 @@ final class DuoStore: ObservableObject {
             "memberIds": FieldValue.arrayRemove([uid]),
             "memberNames.\(uid)": FieldValue.delete(),
             "checkIns.\(uid)": FieldValue.delete(),
+            "nudges.\(uid)": FieldValue.delete(),
             "updatedAt": UpHeroStore.nowMillis(),
         ]) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -213,21 +228,61 @@ final class DuoStore: ObservableObject {
         ])
     }
 
+    /// 친구를 콕 찌른다 — 내가 켰지만 친구가 아직일 때의 CTA.
+    /// publishCheckIn 과 동일한 race-free dot-path + arrayUnion 으로 본인 nudges 키만
+    /// atomic 병합 (파트너가 동시에 무엇을 하든 충돌·유실 없음). 하루 1회 쿨다운은
+    /// 로컬 상태가 아니라 nudges[uid] 에 오늘 날짜가 있는지로 판정 — 앱 재시작 일관.
+    func nudge() {
+        guard let uid, let duo = activeDuo, duo.memberIds.count == 2 else { return }
+        let today = GameStore.todayString()
+        guard !duo.poked(uid: uid, on: today) else { return }
+        db.collection("duos").document(duo.id).updateData([
+            "nudges.\(uid)": FieldValue.arrayUnion([today]),
+            "updatedAt": UpHeroStore.nowMillis(),
+        ])
+    }
+
+    /// 받는 쪽 배너 확인(닫기). 다시 false 로 — 같은 찌르기로 재노출되지 않게.
+    func acknowledgeNudge() {
+        friendNudgedMe = false
+    }
+
     private func observeActiveDuo() {
         guard let uid else { return }
         listener?.remove()
+        duoWarmedUp = false
         listener = db.collection("duos")
             .whereField("memberIds", arrayContains: uid)
             .limit(to: 1)
             .addSnapshotListener { [weak self] snapshot, _ in
                 Task { @MainActor [weak self] in
+                    guard let self else { return }
                     guard let doc = snapshot?.documents.first else {
-                        self?.activeDuo = nil
+                        self.activeDuo = nil
                         return
                     }
-                    self?.activeDuo = Self.decodeDuo(doc)
+                    let next = Self.decodeDuo(doc)
+                    self.detectIncomingNudge(previous: self.activeDuo, next: next)
+                    self.activeDuo = next
                 }
             }
+    }
+
+    /// 친구가 나를 콕 찔렀는지 — nudges[friend] 에 오늘 날짜가 false→true 로 바뀐
+    /// 전이일 때만 배너 1회. 첫 스냅샷(duoWarmedUp == false)은 무시해 재시작마다 뜨지 않게.
+    private func detectIncomingNudge(previous: DuoSnapshot?, next: DuoSnapshot) {
+        defer { duoWarmedUp = true }
+        guard duoWarmedUp,
+              let uid,
+              next.memberIds.count == 2,
+              let friend = next.memberIds.first(where: { $0 != uid }) else { return }
+        let today = GameStore.todayString()
+        let was = previous?.poked(uid: friend, on: today) ?? false
+        let now = next.poked(uid: friend, on: today)
+        if now && !was {
+            friendNudgedMe = true
+            Haptics.play(.medium)
+        }
     }
 
     private static func decodeDuo(_ doc: QueryDocumentSnapshot) -> DuoSnapshot {
@@ -237,6 +292,7 @@ final class DuoStore: ObservableObject {
             memberIds: data["memberIds"] as? [String] ?? [],
             memberNames: data["memberNames"] as? [String: String] ?? [:],
             checkIns: data["checkIns"] as? [String: [String]] ?? [:],
+            nudges: data["nudges"] as? [String: [String]] ?? [:],
             createdAt: millisValue(data["createdAt"]) ?? 0
         )
     }

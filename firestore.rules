@@ -45,7 +45,7 @@ service cloud.firestore {
       //   공통: createdAt 불변, updatedAt 은 int, checkIns/memberNames 는 map 이고
       //   size <= 2, 허용 키만 (hasOnly).
       allow update: if signedIn()
-        && request.resource.data.keys().hasOnly(['memberIds', 'memberNames', 'checkIns', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['memberIds', 'memberNames', 'checkIns', 'nudges', 'createdAt', 'updatedAt'])
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.updatedAt is int
         && request.resource.data.memberIds is list
@@ -54,6 +54,18 @@ service cloud.firestore {
         && request.resource.data.memberNames.size() <= 2
         && request.resource.data.checkIns is map
         && request.resource.data.checkIns.size() <= 2
+        // nudges(콕 찌르기) — optional map. 기존 doc 엔 없을 수 있어 get(,{}) 로 안전 접근.
+        //   세 분기(A join · B 멤버 update · C leave) 공통 제약: 본인 nudges.{uid} 키만
+        //   변경 가능. checkIns 와 동일하게 affectedKeys().hasOnly([uid]) 로 파트너 nudge
+        //   위조를 차단한다. join/leave 분기에선 nudges 를 건드리지 않으므로 diff 가 비어
+        //   ({} vs {}) hasOnly 가 자동 통과, nudge update 에서만 [uid] 로 통과한다.
+        && (
+          !('nudges' in request.resource.data)
+          || (request.resource.data.nudges is map && request.resource.data.nudges.size() <= 2)
+        )
+        && request.resource.data.get('nudges', {})
+             .diff(resource.data.get('nudges', {}))
+             .affectedKeys().hasOnly([request.auth.uid])
         && (
           // A) join — 기존 솔로 멤버 보존 + 신규 멤버 자신만 추가.
           (

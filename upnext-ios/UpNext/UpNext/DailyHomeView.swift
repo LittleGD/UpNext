@@ -285,8 +285,8 @@ struct DailyHomeView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
-            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 14))
-            .opacity(completed ? 0.6 : 1)
+            // 완료 카드: 배경만 죽이고(웹 DailyBoard 패리티) 완료 배지/내용은 풀불투명 유지.
+            .background(Color.bgSurface.opacity(completed ? 0.55 : 1), in: RoundedRectangle(cornerRadius: 14))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

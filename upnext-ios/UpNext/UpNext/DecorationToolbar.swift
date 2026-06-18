@@ -33,7 +33,7 @@ struct DecorationToolbar: View {
             case .pen:
                 penSubpanel
             case .eraser:
-                Text("드래그하여 지워요").typography(.micro).foregroundStyle(Color.textTertiary)
+                Text("드래그하여 지워요").typography(.caption).foregroundStyle(Color.textTertiary)
                     .padding(.vertical, 8)
             case .sticker:
                 stickerSubpanel

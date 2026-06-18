@@ -335,6 +335,7 @@ private struct DuoFlameCard: View {
                     ProgressView().scaleEffect(0.7).tint(Color.accentPrimary)
                 }
             }
+            if duo.friendNudgedMe { nudgeBanner }
             if let a = duo.activeDuo, let uid = store.auth.uid {
                 if a.memberIds.count == 2 { activeBody(a, uid: uid) }
                 else { waitingBody(a) }
@@ -383,11 +384,16 @@ private struct DuoFlameCard: View {
                     Text("함께 \(joint)일째").typography(.caption).foregroundStyle(Color.accentCyan)
                         .frame(maxWidth: .infinity)
                 }
-                Text(statusCopy(mine: mine, theirs: theirs))
-                    .typography(.caption)
-                    .foregroundStyle(theirs && !mine ? Color.textSecondary : Color.textTertiary)
-                    .frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
+                if mine && !theirs {
+                    // 내가 켰고 친구는 아직 — 기다림 카피 대신 친구를 깨우는 CTA.
+                    nudgeButton(uid: uid, friendName: friendName)
+                } else {
+                    Text(statusCopy(mine: mine, theirs: theirs))
+                        .typography(.caption)
+                        .foregroundStyle(theirs && !mine ? Color.textSecondary : Color.textTertiary)
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                }
             }
             // 최근 7일 듀오 dot (보조)
             HStack(spacing: 8) {
@@ -485,6 +491,50 @@ private struct DuoFlameCard: View {
             Text(name).typography(.micro)
                 .foregroundStyle(on ? Color.textPrimary : Color.textTertiary).lineLimit(1)
         }
+    }
+
+    // 콕 찌르기 CTA — 내가 켰고 친구는 아직일 때. 이미 오늘 찔렀으면 비활성.
+    // 색은 듀오 카드 톤(accentCyan)으로 통일 — 솔로=라임/듀오=시안 분리 유지.
+    private func nudgeButton(uid: String, friendName: String) -> some View {
+        let pokedToday = duo.activeDuo?.poked(uid: uid, on: GameStore.todayString()) ?? false
+        return VStack(spacing: 8) {
+            Text("\(friendName)님은 아직이에요")
+                .typography(.caption).foregroundStyle(Color.textTertiary)
+                .frame(maxWidth: .infinity)
+            Button {
+                duo.nudge()
+                Haptics.play(.medium)
+            } label: {
+                HStack(spacing: 6) {
+                    PixelIcon(.zap, size: 14, color: pokedToday ? Color.textTertiary : Color.bgPrimary)
+                    Text(pokedToday ? "콕 찔렀어요" : "콕 찌르기")
+                        .typography(.body)
+                        .foregroundStyle(pokedToday ? Color.textTertiary : Color.bgPrimary)
+                }
+                .frame(maxWidth: .infinity).frame(height: 44)
+                .background(pokedToday ? Color.bgElevated : Color.accentCyan, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(pokedToday)
+            .accessibilityIdentifier("duoNudgeButton")
+        }
+    }
+
+    // 받는 쪽 배너 — 친구가 나를 찌르면 카드 상단에 1회. 탭하면 닫힘.
+    private var nudgeBanner: some View {
+        Button { duo.acknowledgeNudge() } label: {
+            HStack(spacing: 8) {
+                PixelIcon(.zap, size: 14, color: Color.accentCyan)
+                Text("친구가 콕 찔렀어요 — 오늘 불꽃을 켜볼까요?")
+                    .typography(.caption).foregroundStyle(Color.accentCyan)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 12).frame(minHeight: 38)
+            .frame(maxWidth: .infinity)
+            .background(Color.accentCyan.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("duoNudgeBanner")
     }
 
     private var emptyFriendSlot: some View {

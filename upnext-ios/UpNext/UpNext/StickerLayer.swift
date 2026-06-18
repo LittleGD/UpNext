@@ -117,11 +117,11 @@ private struct StickerView: View {
                            height: baseSize * 1.3 * sticker.scale * gestureScale)
             }
 
-            // 롱프레스 진행 링
+            // 롱프레스 진행 링 (디자인 규칙·웹 충실도: 라임 accentPrimary. accentSecondary=에러RED 금지)
             if longPressActive {
                 Circle()
                     .trim(from: 0, to: longPressProgress)
-                    .stroke(Color.accentSecondary, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .stroke(Color.accentPrimary, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                     .frame(width: baseSize * 1.5, height: baseSize * 1.5)
                     .rotationEffect(.degrees(-90))
             }

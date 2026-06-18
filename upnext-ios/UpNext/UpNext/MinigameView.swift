@@ -7,8 +7,11 @@
 //   2. peek (2s 전체 뒤집힘 보기)
 //   3. playing (라운드 진행)
 //   4. roundResult (라운드 결과)
-//   5. rewardDraft (보상 카드 선택 — condensed: 자동 진행)
-//   6. runResult (전체 결과)
+//   5. runResult (전체 결과)
+//
+//  미이식(계획): 웹 R8 의 rewardDraft 메타레이어(라운드 사이 3택1 버프 드래프트 +
+//  REWARD_POOL 10종 round/run scope 적용)는 아직 포팅 전 — roundResult 에서 다음
+//  라운드/결과로 직진한다. 코어(라운드·하트·매칭·XP·카드언락)는 완결 동작.
 //
 //  타일 종류:
 //   - challenge : 같은 카테고리 두 장 짝 → XP
