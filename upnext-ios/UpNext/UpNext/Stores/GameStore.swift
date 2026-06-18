@@ -1260,6 +1260,13 @@ final class GameStore: ObservableObject {
             d.isDrawComplete = true
             d.isSelectionComplete = true
         }
+        // 카드 선택 상태 — 6장 드로우 완료, 선택 미완(부채꼴 핸드 검증/잘림 진단용).
+        if args.contains("UITestSeedSelect") {
+            d.drawnCards = Array(CardCatalog.allCards.prefix(6))
+            d.selectedCards = []
+            d.isDrawComplete = true
+            d.isSelectionComplete = false
+        }
         // 데일리 풀클리어 상태 — 추가챌린지(ChallengePhaseBanner) shimmer 검증용.
         if args.contains("UITestSeedExtraBanner"),
            let card = CardCatalog.allCards.first {

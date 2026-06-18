@@ -22,6 +22,14 @@
 import SwiftUI
 import Combine
 
+extension View {
+    /// iOS17+ 에서 ScrollView 가 내용을 bounds 로 클립하지 않게 한다(글로우·오버슈트
+    /// 잘림 방지). iOS16 은 no-op — 호출부가 진입 오프셋을 bounds 안으로 줄여 대응.
+    @ViewBuilder func disableScrollClipIfAvailable() -> some View {
+        if #available(iOS 17.0, *) { self.scrollClipDisabled() } else { self }
+    }
+}
+
 // MARK: - 등급 외곽 글로우 (웹 RarityTexture.tsx rarityGlow)
 
 extension View {
@@ -520,9 +528,13 @@ struct CardSelectScreen: View {
                 }
             }
             .padding(.horizontal, 24)
+            .padding(.vertical, 6)   // 글로우/리프트가 클립되지 않게 여유
             .frame(maxWidth: .infinity)
         }
-        .frame(height: 250)
+        // 카드(168) + 진입 상승/글로우 여유. iOS17+ 는 scrollClipDisabled 로 어떤
+        // 오버슈트/글로우도 클립되지 않게(잘림 제보 대응). iOS16 은 줄인 진입 오프셋으로 대응.
+        .frame(height: 200)
+        .disableScrollClipIfAvailable()
     }
 
     private func onCardActivate(_ card: ChallengeCard) {
@@ -635,8 +647,10 @@ private struct HandCard: View {
 
     var body: some View {
         cardFace
-            // 등장 (y 200→0, opacity 0→1) + 드래그 + 프리뷰 리프트 합성
-            .offset(y: (shown ? 0 : 200) + dragY + (isPreview ? -20 : 0))
+            // 등장 (y 40→0, opacity 0→1) + 드래그 + 프리뷰 리프트 합성.
+            // 진입 오프셋을 200→40 으로 줄여 핸드 ScrollView(200) 안에서 상승 →
+            // 진입 애니 도중 카드가 잘려 보이던 현상 제거(사용자 제보).
+            .offset(y: (shown ? 0 : 40) + dragY + (isPreview ? -20 : 0))
             .scaleEffect(isPreview ? 1.05 : 1 + min(max(-dragY, 0), 80) / 80 * 0.02)
             .opacity(isPreview ? 0 : (shown ? 1 : 0))
             .rarityGlow(card.rarity)
