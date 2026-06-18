@@ -11,6 +11,7 @@ final class RetentionFlowUITests: XCTestCase {
 
     func testFirstEntryCheckInUpdatesStreak() {
         launch()
+        goToRecordTab()
 
         let button = app.buttons["todayFlameButton"]
         XCTAssertTrue(button.waitForExistence(timeout: 6))
@@ -32,6 +33,7 @@ final class RetentionFlowUITests: XCTestCase {
 
     func testWeekBoundaryShowsWeeklyReportCard() {
         launch(["UITestSeedReport", "UITestNow=2026-05-11"])
+        goToRecordTab()
 
         XCTAssertTrue(app.buttons["weeklyReportCard"].waitForExistence(timeout: 6))
         app.buttons["weeklyReportCard"].tap()
@@ -49,10 +51,17 @@ final class RetentionFlowUITests: XCTestCase {
 
     func testDuoInviteAndJoinSmoke() {
         launch()
+        goToRecordTab()
 
         XCTAssertTrue(app.buttons["duoCreateInviteButton"].waitForExistence(timeout: 6))
         XCTAssertTrue(app.textFields["duoJoinCodeField"].exists)
         XCTAssertTrue(app.buttons["duoJoinButton"].exists)
+    }
+
+    /// 리텐션(불꽃·리포트·듀오) UI 는 '불꽃' 탭으로 이전됨 — 테스트도 해당 탭으로 이동.
+    private func goToRecordTab() {
+        let tab = app.buttons["recordTabButton"]
+        if tab.waitForExistence(timeout: 6) { tab.tap() }
     }
 
     private func launch(_ extraArguments: [String] = []) {

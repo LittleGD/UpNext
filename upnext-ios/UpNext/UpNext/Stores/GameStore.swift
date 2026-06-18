@@ -1277,6 +1277,23 @@ final class GameStore: ObservableObject {
             d.isSelectionComplete = true
         }
         var r = RetentionState.fresh(today: todayString())
+        // 불꽃 페이지 재설계 검증 — 스트릭/최고기록/세이버/히트맵(checkInDates)/리포트 채움.
+        if args.contains("UITestSeedFlame") {
+            r.currentLightStreak = 12
+            r.bestLightStreak = 20
+            r.streakSavers = 1
+            r.lastCheckInDate = RetentionEngine.addDays(todayString(), -1)   // 오늘 미체크 상태
+            // 최근 14일 중 12일 체크인(이틀 빔) — 히트맵 흐름 + 세이버 사용 날 1개.
+            r.checkInDates = (1...14).compactMap { RetentionEngine.addDays(todayString(), -$0) }
+                .enumerated().filter { $0.offset != 3 && $0.offset != 9 }.map { $0.element }
+            r.usedSaverDates = [RetentionEngine.addDays(todayString(), -4) ?? todayString()]
+            r.weeklyReports = [WeeklyReportSummary(
+                weekStart: RetentionEngine.addDays(todayString(), -7) ?? todayString(),
+                weekEnd: RetentionEngine.addDays(todayString(), -1) ?? todayString(),
+                generatedAt: UpHeroStore.nowMillis(),
+                checkInCount: 6, completedCardCount: 9, topCategory: .fitness,
+                highlightCardTitle: "1000보 걷기", photoLogCount: 3, usedSaver: true)]
+        }
         if args.contains("UITestSeedReport") {
             let report = WeeklyReportSummary(
                 weekStart: RetentionEngine.addDays(todayString(), -7) ?? todayString(),
