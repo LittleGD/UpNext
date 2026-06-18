@@ -23,7 +23,7 @@ struct CollectionView: View {
 
     enum CardFilter: CaseIterable {
         case all, owned, unowned
-        var label: String {
+        var label: LocalizedStringKey {
             switch self {
             case .all:     return "전체"
             case .owned:   return "보유"
@@ -73,7 +73,7 @@ struct CollectionView: View {
         .padding(.bottom, 4)
     }
 
-    private func tabLabel(_ tab: CollectionTab) -> String {
+    private func tabLabel(_ tab: CollectionTab) -> LocalizedStringKey {
         switch tab {
         case .cards: return "카드"
         case .titles: return "칭호"
@@ -363,7 +363,7 @@ struct CollectionView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(card.rarity.color, in: Capsule())
-                Text(card.title)
+                Text(card.localizedTitle(.current))
                     .typography(.caption)
                     .foregroundStyle(Color.textPrimary)
                     .multilineTextAlignment(.leading)

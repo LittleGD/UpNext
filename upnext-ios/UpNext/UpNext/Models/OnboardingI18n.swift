@@ -31,6 +31,14 @@ enum OnboardingI18n {
     static func desc2Accent(_ l: Language) -> String { pick(l, ko: "도전하세요", en: "best life challenge", ja: "チャレンジしよう", zh: "发起挑战") }
     static func desc2Body(_ l: Language) -> String { pick(l, ko: "모드를 선택해 난이도를 고르고, 완료하여 레벨업해보세요!", en: "Pick a difficulty, complete challenges, and level up!", ja: "モードを選んで難易度を決めて、クリアしてレベルアップ!", zh: "选择难度，完成挑战，提升等级！") }
 
+    // 인트로 3 — 아지트 영웅 성장 + 불꽃(연속 기록)
+    static func desc3Title(_ l: Language) -> String { pick(l, ko: "영웅을 키우고", en: "Grow your hero,", ja: "ヒーローを育て", zh: "培养你的勇者") }
+    static func desc3Accent(_ l: Language) -> String { pick(l, ko: "불꽃을 이어가세요", en: "keep the flame alive", ja: "炎を燃やし続けよう", zh: "让火苗不灭") }
+    static func desc3Body(_ l: Language) -> String { pick(l, ko: "아지트에서 영웅이 자라고, 매일 챌린지를 이어가면 불꽃이 더 크게 타올라요!", en: "Level up your hero in the Hideout, and keep your daily flame growing with every streak!", ja: "アジトでヒーローが成長し、毎日続けるほど炎が大きく燃え上がる!", zh: "在据点培养勇者，每日坚持挑战，火苗会越燃越旺！") }
+    static func streakDays(_ l: Language, _ n: Int) -> String {
+        pick(l, ko: "\(n)일 연속", en: "\(n)-day streak", ja: "\(n)日連続", zh: "连续\(n)天")
+    }
+
     // 난이도
     static func diffHeading(_ l: Language) -> String { pick(l, ko: "난이도를 선택하세요", en: "Choose your difficulty", ja: "難易度を選んでください", zh: "选择难度") }
     static func diffSub(_ l: Language) -> String { pick(l, ko: "매일 선택할 챌린지 카드 수를 정해요", en: "Set how many challenge cards you pick each day", ja: "毎日選ぶチャレンジカードの枚数を決めます", zh: "决定每天要选择的挑战卡牌数量") }

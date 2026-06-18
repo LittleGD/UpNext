@@ -159,7 +159,7 @@ struct PhotoTalismanPicker: View {
         return HStack(spacing: 10) {
             PixelIcon(.image, size: 16, color: item.rarity.color).frame(width: 22)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name).typography(.caption).foregroundStyle(Color.textPrimary).lineLimit(1)
+                Text(item.localizedDisplayName).typography(.caption).foregroundStyle(Color.textPrimary).lineLimit(1)
                 Text("+\(level) → +\(min(PhotoTalisman.maxEnhanceLevel, level + 1))")
                     .typography(.micro).monospacedDigit().foregroundStyle(Color.textTertiary)
             }
@@ -273,7 +273,7 @@ struct PhotoTalismanPicker: View {
                 VStack(spacing: 6) {
                     Text(item.rarity.displayName).typography(.caption).tracking(1)
                         .foregroundStyle(item.rarity.color)
-                    Text(item.name).typography(.heading).foregroundStyle(Color.textPrimary)
+                    Text(item.localizedDisplayName).typography(.heading).foregroundStyle(Color.textPrimary)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 18)
                 .background(LinearGradient(colors: [item.rarity.color.opacity(0.18), .clear],

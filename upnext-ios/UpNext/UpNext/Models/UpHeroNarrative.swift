@@ -24,6 +24,29 @@ enum UpHeroNarrative {
         pool[rng.int(below: pool.count)]
     }
 
+    /// narrativeKey + params 를 인앱 언어로 해석 — 전투 로그 현지화 chokepoint.
+    /// 카탈로그의 `{param}` 토큰을 값으로 치환(언어별 어순 무관). monster·dungeon·
+    /// description·equipment·who 등 콘텐츠 파라미터는 카탈로그 경유 재현지화(locRuntime).
+    /// 키가 카탈로그에 없으면 한국어 fallback 반환(안전).
+    static func resolveLog(_ key: String, _ params: NarrativeParams?, fallback: String) -> String {
+        let template = AppConfig.loc(String.LocalizationValue(key))
+        if template == key { return fallback }   // 미등록 키 → 한국어 fallback
+        guard let params, !params.isEmpty else { return template }
+        var s = template
+        let contentParams: Set<String> = ["monster", "dungeon", "description", "equipment", "who"]
+        for (name, val) in params {
+            let rep: String
+            switch val {
+            case .text(let t):
+                rep = contentParams.contains(name) ? AppConfig.locRuntime(t) : t
+            case .number(let n):
+                rep = String(Int(n.rounded()))
+            }
+            s = s.replacingOccurrences(of: "{\(name)}", with: rep)
+        }
+        return s
+    }
+
     /// 몬스터 이름/templateId params.
     private static func monsterParams(_ m: Monster) -> NarrativeParams {
         ["monster": .text(m.name), "monsterTemplateId": .text(m.templateId ?? "")]

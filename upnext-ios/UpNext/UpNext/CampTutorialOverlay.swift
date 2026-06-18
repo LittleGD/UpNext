@@ -27,8 +27,8 @@ struct CampTutorialOverlay: View {
     private struct Step {
         let kind: Kind
         let icon: PixelIconName
-        let title: String
-        let body: String
+        let title: LocalizedStringKey
+        let body: LocalizedStringKey
         enum Kind { case info, name }
     }
 

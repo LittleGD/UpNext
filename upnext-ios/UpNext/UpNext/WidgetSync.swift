@@ -123,10 +123,11 @@ enum WidgetSync {
 
     /// 위젯에 표시할 메인 챌린지 — 아직 안 끝낸 카드 우선, 아무것도 없으면 안내.
     /// 풀클리어 후엔 격려 문구 (위젯이 비어 보이지 않게).
-    /// 다국어: 메인 앱 번들의 String Catalog 에서 사용자 시스템 언어로 해석된 문자열을
-    /// JSON 으로 직렬화 → 위젯 extension 은 그대로 표시 (위젯이 자체 해석 불필요).
+    /// 다국어: 메인 앱 번들의 String Catalog 에서 *인앱 언어*(AppConfig.currentLocale)로
+    /// 해석된 문자열을 JSON 으로 직렬화 → 위젯 extension 은 그대로 표시. 기기 로케일이
+    /// 아닌 설정 언어를 따르도록 AppConfig.loc 사용(위젯이 자체 해석 불필요).
     private static func mainChallengeTitle(_ d: DailyState?) -> String {
-        let emptyText = String(localized: "widget.daily.empty", bundle: .main)
+        let emptyText = AppConfig.loc("widget.daily.empty")
         guard let d = d else { return emptyText }
         let (selected, completed): ([ChallengeCard], [String])
         switch d.challengePhase {
@@ -142,7 +143,7 @@ enum WidgetSync {
         if let next = selected.first(where: { !completedSet.contains($0.id) }) {
             return next.title
         }
-        return String(localized: "widget.daily.complete", bundle: .main)
+        return AppConfig.loc("widget.daily.complete")
     }
 
     // MARK: - Live Activity 재조정 (daily 상태 기준 idempotent 동기화)

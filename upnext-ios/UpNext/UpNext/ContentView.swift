@@ -51,7 +51,8 @@ struct ContentView: View {
         // 환경 locale 로 주입한다. Typography 가 @Environment(\.locale) 로 폰트 family 를
         // 고르는데(ko→April16th Promise), 기기 로케일이 en 이면 본문이 Menlo 로 폴백되고
         // 한글이 시스템 고딕으로 깨지던 버그를 차단. 웹의 lang 속성=앱 언어 동작과 일치.
-        .environment(\.locale, Locale(identifier: (store.progress?.language ?? .ko).rawValue))
+        // `.locale` 은 중국어 zh→zh-Hans 로 매핑(카탈로그 코드)해 Text 카탈로그 해석을 보장.
+        .environment(\.locale, (store.progress?.language ?? .ko).locale)
     }
 }
 
@@ -83,7 +84,9 @@ private struct BootErrorView: View {
     var body: some View {
         VStack(spacing: 16) {
             PixelIcon(.cancel, size: 36, color: Color.colorError)
-            Text(message)
+            // message 는 런타임 String 이지만 고정된 에러 키 집합이라 LocalizedStringKey 로
+            // 감싸 카탈로그 lookup → 인앱 언어로 해석(verbatim 회피).
+            Text(LocalizedStringKey(message))
                 .typography(.body)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)

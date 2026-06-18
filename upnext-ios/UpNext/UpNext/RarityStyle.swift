@@ -10,14 +10,14 @@ import SwiftUI
 
 extension Rarity {
     /// 등급 라벨 — Localizable.xcstrings 경유로 다국어 자동 대응.
-    /// String(localized:) 가 iOS 16+ 의 카탈로그 lookup. EN/JA/ZH 로 디바이스가 설정되면
-    /// Xcode 카탈로그의 해당 번역으로 치환된다 (없으면 ko 소스 그대로).
+    /// AppConfig.loc 으로 *인앱 언어*(설정에서 고른 값)에 맞춰 해석한다. 기기 로케일을
+    /// 쓰는 String(localized:) 는 인앱 언어 전환을 무시하므로 사용 금지.
     var displayName: String {
         switch self {
-        case .normal: return String(localized: "노멀")
-        case .rare:   return String(localized: "레어")
-        case .unique: return String(localized: "유니크")
-        case .legend: return String(localized: "레전드")
+        case .normal: return AppConfig.loc("노멀")
+        case .rare:   return AppConfig.loc("레어")
+        case .unique: return AppConfig.loc("유니크")
+        case .legend: return AppConfig.loc("레전드")
         }
     }
 

@@ -15,6 +15,20 @@ import Foundation
 /// 지원 언어. 웹 `Language` union.
 enum Language: String, Codable, CaseIterable {
     case ko, en, ja, zh
+
+    /// 카탈로그 로케일 식별자 — 중국어는 카탈로그가 "zh-Hans" 로 저장하므로 매핑.
+    /// AppConfig.catalogLocaleIdentifier 와 동일 규칙(단일 진실의 원천).
+    var localeIdentifier: String { AppConfig.catalogLocaleIdentifier(rawValue) }
+
+    /// SwiftUI `.environment(\.locale)` 주입 및 `String(localized:locale:)` 용 Locale.
+    var locale: Locale { Locale(identifier: localeIdentifier) }
+
+    /// 저장된 인앱 언어 — 뷰 store 플러밍 없이 접근(카드 `localizedTitle` 등 데이터
+    /// 필드 다국어 선택에 사용). AppConfig.currentLocale 과 동일 소스(App Group).
+    /// 뷰는 store.progress 변경 시 재렌더되므로 언어 전환이 자연히 반영된다.
+    static var current: Language {
+        Language(rawValue: AppConfig.sharedDefaults?.string(forKey: AppConfig.languageKey) ?? "ko") ?? .ko
+    }
 }
 
 /// 게임 모드 — 하루 선택 카드 수 결정. 웹 `GameMode` union.

@@ -26,7 +26,10 @@ enum MainTab: CaseIterable {
     // 순서 = 하단 네비 노출 순서. 데일리 루프(챌린지·불꽃) → RPG(아지트) → 컬렉션 → 설정.
     case challenge, record, playground, collection, settings
 
-    var label: String {
+    /// LocalizedStringKey 라야 Text(tab.label)/accessibilityLabel(tab.label) 가
+    /// 카탈로그를 lookup 한다. String 이면 Text(_:String) verbatim 오버로드라
+    /// 카탈로그를 우회해 모든 언어에서 한국어가 그대로 노출됐다(P0).
+    var label: LocalizedStringKey {
         switch self {
         case .challenge:  return "챌린지"
         case .record:     return "불꽃"

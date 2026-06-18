@@ -2,7 +2,7 @@
 //  OnboardingView.swift
 //  UpNext — 온보딩 (웹 components/onboarding/OnboardingFlow.tsx 1:1 격상).
 //
-//  4단계: intro(2-page 캐러셀 — 카드팬 / 에너지펄스 + 언어선택) → difficulty(난이도)
+//  4단계: intro(3-page 캐러셀 — 카드팬 / 에너지펄스 / 영웅·불꽃 + 언어선택) → difficulty(난이도)
 //        → starterPack(스타터팩) → levelUp(레벨 1).
 //
 //  모든 문구는 OnboardingI18n(웹 i18n 4개국어) + 데이터(StarterPack.localizedName)로
@@ -91,7 +91,54 @@ private struct OnboardingIntro: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var lang: Language { store.progress?.language ?? .ko }
-    private let pageCount = 2
+    private let pageCount = 3
+
+    /// 페이지별 헤드라인(본문 상단) — 1행 textPrimary + 2행 accentPrimary.
+    private func titleAccent(_ p: Int) -> (String, String) {
+        switch p {
+        case 0:  return (OnboardingI18n.desc1Title(lang), OnboardingI18n.desc1Accent(lang))
+        case 1:  return (OnboardingI18n.desc2Title(lang), OnboardingI18n.desc2Accent(lang))
+        default: return (OnboardingI18n.desc3Title(lang), OnboardingI18n.desc3Accent(lang))
+        }
+    }
+    private func bodyCopy(_ p: Int) -> String {
+        switch p {
+        case 0:  return OnboardingI18n.desc1Body(lang)
+        case 1:  return OnboardingI18n.desc2Body(lang)
+        default: return OnboardingI18n.desc3Body(lang)
+        }
+    }
+
+    /// 한 페이지(그래픽 + 카피) — TabView 각 탭에 들어가는 본문. maxHeight 로 세로 중앙 정렬.
+    @ViewBuilder
+    private func pageContent(_ p: Int) -> some View {
+        VStack(spacing: 32) {
+            ZStack {
+                switch p {
+                case 0:  CardFanGraphic()
+                case 1:  EnergyPulseGraphic(lang: lang)
+                default: HeroFlameGraphic(lang: lang)
+                }
+            }
+            .frame(height: 200)
+
+            VStack(spacing: 12) {
+                // Text 연결의 색은 iOS16 호환 위해 .foregroundColor 사용(Text 한정, iOS13+).
+                (Text(titleAccent(p).0)
+                    .foregroundColor(Color.textPrimary)
+                 + Text("\n")
+                 + Text(titleAccent(p).1)
+                    .foregroundColor(Color.accentPrimary))
+                    .typography(.title)
+                    .multilineTextAlignment(.center)
+                Text(bodyCopy(p))
+                    .typography(.body)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -106,41 +153,17 @@ private struct OnboardingIntro: View {
             }
             .padding(.top, 24)
 
-            Spacer()
-
-            // 콘텐츠 (그래픽 + 카피)
-            VStack(spacing: 32) {
-                ZStack {
-                    if page == 0 { CardFanGraphic() }
-                    else { EnergyPulseGraphic(lang: lang) }
+            // 좌우 스와이프 페이지 — 커스텀 인디케이터를 쓰므로 내장 점은 숨김.
+            // 다음 버튼/스와이프 모두 동일한 page 바인딩을 갱신 → 인디케이터·CTA 동기화.
+            TabView(selection: $page) {
+                ForEach(0..<pageCount, id: \.self) { p in
+                    pageContent(p)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, 32)
+                        .tag(p)
                 }
-                .frame(height: 200)
-                .id(page)
-                .transition(reduceMotion ? .opacity
-                            : .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
-                                          removal: .move(edge: .leading).combined(with: .opacity)))
-
-                VStack(spacing: 12) {
-                    // Text 연결의 색은 iOS16 호환 위해 .foregroundColor 사용(Text 한정, iOS13+).
-                    (Text(page == 0 ? OnboardingI18n.desc1Title(lang) : OnboardingI18n.desc2Title(lang))
-                        .foregroundColor(Color.textPrimary)
-                     + Text("\n")
-                     + Text(page == 0 ? OnboardingI18n.desc1Accent(lang) : OnboardingI18n.desc2Accent(lang))
-                        .foregroundColor(Color.accentPrimary))
-                        .typography(.title)
-                        .multilineTextAlignment(.center)
-                    Text(page == 0 ? OnboardingI18n.desc1Body(lang) : OnboardingI18n.desc2Body(lang))
-                        .typography(.body)
-                        .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .id("copy\(page)")
-                .transition(.opacity)
             }
-            .padding(.horizontal, 32)
-
-            Spacer()
+            .tabViewStyle(.page(indexDisplayMode: .never))
 
             // 언어 선택 + 진행 버튼
             VStack(spacing: 12) {
@@ -149,13 +172,24 @@ private struct OnboardingIntro: View {
                     title: page == pageCount - 1 ? OnboardingI18n.start(lang) : OnboardingI18n.next(lang)
                 ) {
                     if page == pageCount - 1 { onNext() }
-                    else { withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { page += 1 } }
+                    else { withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) { page += 1 } }
                 }
             }
             .padding(.horizontal, 32)
             .padding(.bottom, 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            #if DEBUG
+            // UITest 전용 — 특정 인트로 페이지로 바로 진입(검증용).
+            if let raw = ProcessInfo.processInfo.arguments
+                .first(where: { $0.hasPrefix("UITestIntroPage=") })?
+                .replacingOccurrences(of: "UITestIntroPage=", with: ""),
+               let p = Int(raw), (0..<pageCount).contains(p) {
+                page = p
+            }
+            #endif
+        }
     }
 }
 
@@ -287,6 +321,53 @@ private struct EnergyPulseGraphic: View {
             pulse = true
             withAnimation(reduceMotion ? nil : .easeOut(duration: 1.4).delay(0.3)) { xpFill = true }
         }
+    }
+}
+
+// MARK: - 영웅 + 불꽃 그래픽 (인트로 3 — 아지트 영웅 성장 + 연속 불꽃)
+
+private struct HeroFlameGraphic: View {
+    let lang: Language
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var flameGrow = false
+    @State private var heroBob = false
+
+    var body: some View {
+        ZStack {
+            // 따뜻한 글로우 (불꽃 = accentPrimary, 실제 불꽃 탭과 동일 색)
+            Circle().fill(Color.accentPrimary.opacity(0.12))
+                .frame(width: 210, height: 170).blur(radius: 44)
+
+            VStack(spacing: 4) {
+                // 불꽃 — 연속 기록이 쌓일수록 커지는 불꽃
+                PixelIcon(.flame, size: 38, color: Color.accentPrimary)
+                    .scaleEffect((flameGrow && !reduceMotion) ? 1.12 : 0.9, anchor: .bottom)
+                    .shadow(color: Color.accentPrimary.opacity(0.55),
+                            radius: (flameGrow && !reduceMotion) ? 16 : 7)
+                    .animation(reduceMotion ? nil
+                        : .easeInOut(duration: 1.3).repeatForever(autoreverses: true), value: flameGrow)
+
+                // 영웅 — 아지트에서 자라는 영웅 (Lv30+ 갑옷 variant)
+                HeroSprite(variant: 2, classType: nil, size: 74, color: Color.accentPrimary)
+                    .offset(y: (heroBob && !reduceMotion) ? -3 : 0)
+                    .animation(reduceMotion ? nil
+                        : .easeInOut(duration: 2.2).repeatForever(autoreverses: true), value: heroBob)
+            }
+            .offset(y: -6)
+
+            // 연속 불꽃 배지 (카운터 = micro)
+            HStack(spacing: 4) {
+                PixelIcon(.flame, size: 11, color: Color.accentPrimary)
+                Text(OnboardingI18n.streakDays(lang, 7))
+                    .typography(.micro)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color.bgElevated, in: Capsule())
+            .offset(y: 84)
+        }
+        .onAppear { flameGrow = true; heroBob = true }
     }
 }
 
@@ -494,7 +575,7 @@ private struct OnboardingStarterPack: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(card.rarity.color, in: Capsule())
-            Text(card.title)
+            Text(card.localizedTitle(.current))
                 .typography(.micro)
                 .foregroundStyle(Color.textPrimary)
                 .multilineTextAlignment(.center)

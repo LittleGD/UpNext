@@ -229,7 +229,7 @@ struct DungeonView: View {
             upHero.fireSkillManual(skill.id)
         } label: {
             VStack(spacing: 3) {
-                Text(skill.name)
+                Text(LocalizedStringKey(skill.name))
                     .typography(.caption)
                     .foregroundStyle(check.ok ? Color.textPrimary : Color.textTertiary)
                     .lineLimit(1)
@@ -289,7 +289,7 @@ struct DungeonView: View {
                         glow: enemy.isBoss == true
                     )
                     .offset(x: enemyReact)
-                    Text(enemy.name)
+                    Text(LocalizedStringKey(enemy.name))
                         .typography(.caption)
                         .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)
@@ -362,7 +362,7 @@ struct DungeonView: View {
     private func statusHeader(_ session: CombatSession) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center) {
-                Text(Dungeons.all[session.dungeonId]?.name ?? "던전")
+                Text(LocalizedStringKey(Dungeons.all[session.dungeonId]?.name ?? "던전"))
                     .typography(.heading)
                     .foregroundStyle(Color.textPrimary)
                 Spacer()
@@ -509,40 +509,59 @@ struct DungeonView: View {
     // MARK: - 로그 텍스트/색
 
     private func logText(_ entry: LogEntry) -> String {
+        // narrativeKey 가 있으면 인앱 언어로 해석(UpHeroNarrative.resolveLog), 없으면
+        // iOS 전용 로그 키로 해석하고 최후엔 한국어 fallback. 몬스터·장비명은 콘텐츠
+        // 키라 resolveLog 내부에서 locRuntime 으로 재현지화된다.
+        func R(_ key: String, _ params: NarrativeParams?, _ fallback: String) -> String {
+            UpHeroNarrative.resolveLog(key, params, fallback: fallback)
+        }
         switch entry {
-        case let .narrative(text, _, _, _):
-            return text
+        case let .narrative(text, key, params, _):
+            return key.map { R($0, params, text) } ?? text
         case let .encounter(monster, _):
-            return "\(monster.name) 출현!"
-        case let .combat(attacker, damage, outcome, narrative, _, _, _):
+            return R("ios.log.encounter", ["monster": .text(monster.name)], "\(monster.name) 출현!")
+        case let .combat(attacker, damage, outcome, narrative, key, params, _):
+            if let key { return R(key, params, narrative ?? "") }
             if let narrative, !narrative.isEmpty { return narrative }
-            let who = attacker == .hero ? "영웅" : "적"
+            let who: NarrativeValue = .text(attacker == .hero ? "영웅" : "적")
+            let dmg: NarrativeValue = .number(Double(damage))
             switch outcome {
-            case .hit:   return "\(who)의 공격 — \(damage) 피해"
-            case .crit:  return "\(who)의 치명타! — \(damage) 피해"
-            case .dodge: return "\(attacker == .hero ? "적" : "영웅")이 회피"
-            case .miss:  return "\(who)의 공격이 빗나갔다"
+            case .hit:   return R("ios.log.combatHit", ["who": who, "damage": dmg], "")
+            case .crit:  return R("ios.log.combatCrit", ["who": who, "damage": dmg], "")
+            case .dodge: return R("ios.log.combatDodge", ["who": .text(attacker == .hero ? "적" : "영웅")], "")
+            case .miss:  return R("ios.log.combatMiss", ["who": who], "")
             }
-        case let .victory(monster, xp, coins, _, _, _):
-            return "\(monster.name) 처치 — XP +\(xp), 코인 +\(coins)"
+        case let .victory(monster, xp, coins, key, params, _):
+            if let key { return R(key, params, "\(monster.name) 처치") }
+            return R("ios.log.victory",
+                     ["monster": .text(monster.name), "xp": .number(Double(xp)), "coins": .number(Double(coins))],
+                     "\(monster.name) 처치 — XP +\(xp), 코인 +\(coins)")
         case let .drop(equipment, _):
-            return "\(equipment.name) 획득!"
-        case let .treasure(coins, description, _, _, _):
-            return description.isEmpty ? "보물 발견 — 코인 +\(coins)" : description
+            return R("ios.log.drop", ["equipment": .text(EquipmentPool.equipmentBaseName(equipment))], "\(equipment.name) 획득!")
+        case let .treasure(coins, description, key, params, _):
+            if let key { return R(key, params, description) }
+            return description.isEmpty
+                ? R("ios.log.treasureFallback", ["coins": .number(Double(coins))], "보물 발견 — 코인 +\(coins)")
+                : AppConfig.locRuntime(description)
         case let .floor(_, to, _):
-            return "\(to)층 진입"
+            return R("ios.log.floorEnter", ["floor": .number(Double(to))], "\(to)층 진입")
         case let .boss(monster, floor, _):
-            return "보스 \(monster.name) 등장! (\(floor)층)"
-        case let .choice(prompt, _, _, _, _, _, _, _, _, _):
-            return prompt
-        case let .sessionEnd(reason, detail, _, _, _, _, _):
+            return R("ios.log.boss",
+                     ["monster": .text(monster.name), "floor": .number(Double(floor))],
+                     "보스 \(monster.name) 등장! (\(floor)층)")
+        case let .choice(prompt, promptKey, promptParams, _, _, _, _, _, _, _):
+            return promptKey.map { R($0, promptParams, prompt) } ?? prompt
+        case let .sessionEnd(reason, detail, detailKey, _, _, _, _):
+            if let detailKey { return R(detailKey, nil, detail ?? sessionEndText(reason)) }
             return detail ?? sessionEndText(reason)
-        case let .skill(_, _, skillName, narrative, _, _, _):
-            return narrative.isEmpty ? skillName : narrative
-        case let .monsterEffect(_, _, narrative, _, _, _):
-            return narrative ?? "몬스터 효과 발동"
-        case let .choiceResult(text, _, _, _, _, _, _, _):
-            return text
+        case let .skill(_, _, skillName, narrative, key, params, _):
+            if let key { return R(key, params, narrative.isEmpty ? skillName : narrative) }
+            return narrative.isEmpty ? AppConfig.locRuntime(skillName) : narrative
+        case let .monsterEffect(_, _, narrative, key, params, _):
+            if let key { return R(key, params, narrative ?? "") }
+            return narrative ?? R("ios.log.monsterEffect", nil, "몬스터 효과 발동")
+        case let .choiceResult(text, _, _, _, _, resultTextKey, resultTextFallback, _):
+            return resultTextKey.map { R($0, nil, resultTextFallback ?? text) } ?? text
         }
     }
 
@@ -561,13 +580,13 @@ struct DungeonView: View {
 
     private func sessionEndText(_ reason: SessionEndReason) -> String {
         switch reason {
-        case .bossDefeated:  return "보스 격파 — 탐험 성공"
-        case .heroDied:      return "영웅이 쓰러졌다 — 탐험 실패"
-        case .timeExpired:   return "탐험 시간 소진"
-        case .heroAbandoned: return "캠프로 복귀"
-        case .victory:       return "탐험 성공"
-        case .defeat:        return "탐험 실패"
-        case .abandoned:     return "캠프로 복귀"
+        case .bossDefeated:  return AppConfig.loc("보스 격파 — 탐험 성공")
+        case .heroDied:      return AppConfig.loc("영웅이 쓰러졌다 — 탐험 실패")
+        case .timeExpired:   return AppConfig.loc("탐험 시간 소진")
+        case .heroAbandoned: return AppConfig.loc("캠프로 복귀")
+        case .victory:       return AppConfig.loc("탐험 성공")
+        case .defeat:        return AppConfig.loc("탐험 실패")
+        case .abandoned:     return AppConfig.loc("캠프로 복귀")
         }
     }
 

@@ -14,7 +14,7 @@ struct DungeonHelpModal: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var entered = false
 
-    private struct HelpItem { let icon: PixelIconName; let title: String; let desc: String }
+    private struct HelpItem { let icon: PixelIconName; let title: LocalizedStringKey; let desc: LocalizedStringKey }
 
     private let items: [HelpItem] = [
         .init(icon: .heart, title: "HP · 시간",

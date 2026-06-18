@@ -48,7 +48,7 @@ struct BossBanner: View {
                               color: Color.accentSecondary, glow: true)
                     .offset(tremor)
 
-                Text(monster.name)
+                Text(LocalizedStringKey(monster.name))
                     .typography(.title)
                     .tracking(1.5)
                     .foregroundStyle(GBPalette.lightest)

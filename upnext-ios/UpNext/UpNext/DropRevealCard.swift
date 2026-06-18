@@ -105,7 +105,7 @@ struct DropRevealCard: View {
 
             PixelIcon(PixelIconName.resolve(equipment.iconName), size: 28, color: rarityColor)
 
-            Text(equipment.name)
+            Text(equipment.localizedDisplayName)
                 .typography(.micro)
                 .foregroundStyle(Color.textPrimary)
                 .multilineTextAlignment(.center)

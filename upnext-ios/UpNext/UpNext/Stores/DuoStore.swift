@@ -236,10 +236,40 @@ final class DuoStore: ObservableObject {
         guard let uid, let duo = activeDuo, duo.memberIds.count == 2 else { return }
         let today = GameStore.todayString()
         guard !duo.poked(uid: uid, on: today) else { return }
+        // 낙관적 로컬 반영 — 서버 왕복을 기다리지 않고 버튼이 즉시 "콕 찔렀어요"로.
+        // 성공 시 리스너가 동일 값(arrayUnion)을 echo 하므로 깜빡임/불일치 없음.
+        applyLocalNudge(uid: uid, day: today, add: true)
+        // completion handler — 실패(예: rules 미배포 → PERMISSION_DENIED)를 표면화한다.
+        // 이전엔 fire-and-forget 이라 거절이 조용히 삼켜져 "무반응"으로 보였음.
         db.collection("duos").document(duo.id).updateData([
             "nudges.\(uid)": FieldValue.arrayUnion([today]),
             "updatedAt": UpHeroStore.nowMillis(),
-        ])
+        ]) { [weak self] error in
+            guard let error else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                #if DEBUG
+                print("[DuoStore] nudge write failed: \(error.localizedDescription)")
+                #endif
+                self.message = "콕 찌르기를 보내지 못했어요"
+                self.applyLocalNudge(uid: uid, day: today, add: false)  // 낙관값 롤백
+            }
+        }
+    }
+
+    /// activeDuo.nudges[uid] 에 day 를 더하거나(add) 빼서(rollback) 로컬 즉시 반영.
+    /// 본인 키만 건드리므로 detectIncomingNudge(친구 키 감시)와 간섭 없음.
+    private func applyLocalNudge(uid: String, day: String, add: Bool) {
+        guard var snap = activeDuo else { return }
+        var arr = snap.nudges[uid, default: []]
+        if add {
+            guard !arr.contains(day) else { return }
+            arr.append(day)
+        } else {
+            arr.removeAll { $0 == day }
+        }
+        snap.nudges[uid] = arr
+        activeDuo = snap
     }
 
     /// 받는 쪽 배너 확인(닫기). 다시 false 로 — 같은 찌르기로 재노출되지 않게.

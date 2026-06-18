@@ -52,7 +52,7 @@ struct MonsterCodexDetailModal: View {
                     .frame(height: 132)
                     .background(spriteBackdrop, in: RoundedRectangle(cornerRadius: 14))
 
-                Text(template.name)
+                Text(LocalizedStringKey(template.name))
                     .typography(.heading)
                     .foregroundStyle(Color.textPrimary)
                     .padding(.top, 14)
@@ -63,7 +63,7 @@ struct MonsterCodexDetailModal: View {
                         HStack(spacing: 6) {
                             Circle().fill(Color(hexString: d.themeColor))
                                 .frame(width: 10, height: 10)
-                            Text(d.name)
+                            Text(LocalizedStringKey(d.name))
                                 .typography(.caption)
                                 .foregroundStyle(Color.textSecondary)
                         }

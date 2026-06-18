@@ -189,7 +189,7 @@ struct MonsterCodexCard: View {
                     : Color.textTertiary.opacity(0.3),
                 glow: discovered && template.isBoss
             )
-            Text(discovered ? template.name : "???")
+            Text(discovered ? LocalizedStringKey(template.name) : "???")
                 .typography(.micro)
                 .foregroundStyle(discovered ? Color.textPrimary : Color.textTertiary)
                 .lineLimit(1)

@@ -2,18 +2,17 @@
 //  Typography.swift
 //  UpNext 디자인 시스템 — 타이포그래피 6단계 + 다국어 폰트 오버라이드.
 //
-//  웹 src/app/globals.css 의 .typo-* 클래스 + 언어별 폰트 오버라이드 1:1 포팅:
+//  웹 src/app/globals.css 의 .typo-* 클래스 + 언어별 폰트 오버라이드 포팅:
 //    - ko → April16th-Promise (기본)
-//    - en → 'slight-chance-mono' (Typekit) — bundle 미포함 시 monospaced fallback
-//    - ja → 'WDXL Lubrifont JP N' (Google Fonts) — bundle 미포함 시 system fallback
-//    - zh → 'ZCOOL QingKe HuangYou' (Google Fonts) — bundle 미포함 시 system fallback
+//    - en → April16th-Promise (사용자 결정: KO와 동일 브랜드 폰트. 라틴 글리프 포함)
+//    - ja → 'WDXL Lubrifont JP N' (Google Fonts, OFL)
+//    - zh → 'ZCOOL QingKe HuangYou' (Google Fonts, OFL)
 //
 //  6단계: display > title > heading > body > caption > micro
 //
-//  Bundle 에 추가할 TTF/OTF (선택):
-//    - SlightChanceMono-Regular.otf
-//    - WDXLLubrifontJPN-Regular.ttf
-//    - ZCOOLQingKeHuangYou-Regular.ttf
+//  번들 TTF (UpNext/ 동기화 폴더 → 자동 번들, register() 가 런타임 등록):
+//    - April16th-Promise.ttf (ko·en)
+//    - WDXLLubrifontJPN-Regular.ttf (ja) / ZCOOLQingKeHuangYou-Regular.ttf (zh)
 //  파일이 없으면 자동으로 fallback 폰트가 적용됨.
 //
 
@@ -32,7 +31,7 @@ enum AppFont {
         case "ko":
             return AppFont.family
         case "en":
-            return registered("slight-chance-mono") ?? "Menlo"
+            return AppFont.family   // 사용자 결정: EN = KO 동일 브랜드 폰트(April16th, 라틴 글리프 포함)
         case "ja":
             return registered("WDXL Lubrifont JP N") ?? AppFont.family
         case "zh":
@@ -51,7 +50,6 @@ enum AppFont {
     static func register() {
         for (base, ext) in [
             ("April16th-Promise", "ttf"),
-            ("SlightChanceMono-Regular", "otf"),
             ("WDXLLubrifontJPN-Regular", "ttf"),
             ("ZCOOLQingKeHuangYou-Regular", "ttf"),
         ] {

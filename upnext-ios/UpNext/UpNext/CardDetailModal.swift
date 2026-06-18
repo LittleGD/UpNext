@@ -113,7 +113,7 @@ struct Card3DView: View {
                         .background(card.rarity.color, in: Capsule())
                 }
 
-                Text(card.title)
+                Text(card.localizedTitle(.current))
                     .typography(.heading)
                     .foregroundStyle(Color.textPrimary)
                     .padding(.top, 24)
@@ -123,7 +123,7 @@ struct Card3DView: View {
                     .foregroundStyle(Color.textTertiary)
                     .padding(.top, 6)
                     .offset(x: descOffsetX, y: descOffsetY)
-                Text(card.description)
+                Text(card.localizedDescription(.current))
                     .typography(.body)
                     .foregroundStyle(Color.textSecondary)
                     .padding(.top, 12)

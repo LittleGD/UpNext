@@ -102,7 +102,7 @@ struct DungeonSelectView: View {
                 // 카테고리 아이콘 — 던전 테마색 (웹 CATEGORY_ICON, 보더 대신 색 신호).
                 PixelIcon(Self.dungeonIcon(dungeon.id), size: 22, color: dColor)
                 Spacer(minLength: 0)
-                Text(dungeon.name)
+                Text(LocalizedStringKey(dungeon.name))
                     .typography(.caption)
                     .foregroundStyle(GBPalette.lightest)
                     .lineLimit(1)

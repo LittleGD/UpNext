@@ -179,19 +179,19 @@ struct ChallengeConfirmModal: View {
         }
     }
 
-    private var titleText: String {
+    private var titleText: LocalizedStringKey {
         phase == .extra ? "추가 챌린지 시작" : "슈퍼 챌린지 시작"
     }
-    private var warningText: String {
+    private var warningText: LocalizedStringKey {
         phase == .extra
         ? "오늘의 챌린지를 모두 완료해야 시작할 수 있어요.\n실패해도 페널티는 없어요."
         : "최강의 도전이에요. 일단 시작하면 끝까지 가야 해요."
     }
-    private var ruleText: String {
+    private var ruleText: LocalizedStringKey {
         phase == .extra ? "+2장 도전 · 보너스 XP" : "+3장 도전 · 칭호 보상"
     }
-    private var goText: String { phase == .extra ? "도전 시작" : "끝까지 간다" }
-    private var restText: String { "오늘은 여기까지" }
+    private var goText: LocalizedStringKey { phase == .extra ? "도전 시작" : "끝까지 간다" }
+    private var restText: LocalizedStringKey { "오늘은 여기까지" }
 
     // MARK: - enter / exit
 

@@ -8,7 +8,8 @@
 //
 
 enum MonsterLore {
-    static func lore(for templateId: String) -> String? { table[templateId] }
+    /// 한국어 lore 를 카탈로그 키로 인앱 언어 해석(미등록 시 한국어 폴백).
+    static func lore(for templateId: String) -> String? { table[templateId].map(AppConfig.locRuntime) }
 
     static let table: [String: String] = [
         "fit_wolf": "산악의 험준한 길을 순찰하는 회색 사냥꾼. 달이 뜨면 무리가 불어난다.",

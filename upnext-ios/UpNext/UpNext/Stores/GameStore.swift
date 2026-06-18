@@ -107,6 +107,9 @@ final class GameStore: ObservableObject {
         didSet {
             Haptics.enabled = progress?.hapticEnabled ?? true
             SoundPlayer.enabled = progress?.soundEnabled ?? true
+            // 인앱 언어를 App Group 에 반영 — 알림/위젯/서비스(뷰 밖)가 기기 로케일이
+            // 아닌 *고른 언어*로 카탈로그를 해석하도록 AppConfig.currentLocale 의 소스.
+            AppConfig.persistLanguage((progress?.language ?? .ko).rawValue)
             WidgetSync.publish(progress: progress, daily: daily)
             persistLocalIfAnonymous()
             detectLevelUp(old: oldValue, new: progress)

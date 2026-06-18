@@ -105,7 +105,7 @@ struct RetentionSectionView: View {
         .background(Color.bgPrimary)
     }
 
-    private func reportMetric(_ title: String, _ value: String, _ icon: PixelIconName) -> some View {
+    private func reportMetric(_ title: LocalizedStringKey, _ value: LocalizedStringKey, _ icon: PixelIconName) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             PixelIcon(icon, size: 16, color: Color.accentPrimary)
             Text(value).typography(.heading).foregroundStyle(Color.textPrimary)
@@ -116,7 +116,7 @@ struct RetentionSectionView: View {
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private func reportRow(icon: PixelIconName, title: String, value: String) -> some View {
+    private func reportRow(icon: PixelIconName, title: LocalizedStringKey, value: String) -> some View {
         HStack(spacing: 12) {
             PixelIcon(icon, size: 18, color: Color.accentPrimary).frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
@@ -375,7 +375,7 @@ private struct DuoFlameCard: View {
             } else {
                 HStack(spacing: 24) {
                     Spacer(minLength: 0)
-                    flameSpark("나", on: mine)
+                    flameSpark(AppConfig.loc("나"), on: mine)
                     flameSpark(friendName, on: theirs)
                     Spacer(minLength: 0)
                 }
@@ -418,7 +418,7 @@ private struct DuoFlameCard: View {
         VStack(spacing: 12) {
             HStack(spacing: 24) {
                 Spacer(minLength: 0)
-                flameSpark("나", on: store.auth.uid.map { a.checkedIn(uid: $0, on: GameStore.todayString()) } ?? false)
+                flameSpark(AppConfig.loc("나"), on: store.auth.uid.map { a.checkedIn(uid: $0, on: GameStore.todayString()) } ?? false)
                 emptyFriendSlot
                 Spacer(minLength: 0)
             }
@@ -439,7 +439,7 @@ private struct DuoFlameCard: View {
         VStack(spacing: 12) {
             HStack(spacing: 18) {
                 Spacer(minLength: 0)
-                flameSpark("나", on: false)
+                flameSpark(AppConfig.loc("나"), on: false)
                 PixelIcon(.plus, size: 14, color: Color.textTertiary)
                 emptyFriendSlot
                 Spacer(minLength: 0)
@@ -547,7 +547,7 @@ private struct DuoFlameCard: View {
         }
     }
 
-    private func statusCopy(mine: Bool, theirs: Bool) -> String {
+    private func statusCopy(mine: Bool, theirs: Bool) -> LocalizedStringKey {
         if theirs && !mine { return "친구가 먼저 켰어요 — 같이 이어가요" }
         if mine && !theirs { return "친구의 불꽃을 기다리는 중" }
         return "오늘은 둘 다 아직이에요 — 천천히 켜요"

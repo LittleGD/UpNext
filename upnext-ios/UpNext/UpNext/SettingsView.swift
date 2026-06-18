@@ -397,7 +397,7 @@ struct SettingsView: View {
 
     // MARK: - 공통 행 / 헬퍼
 
-    private func sectionHeader(_ text: String) -> some View {
+    private func sectionHeader(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .typography(.caption)
             .foregroundStyle(Color.textTertiary)
@@ -405,7 +405,7 @@ struct SettingsView: View {
     }
 
     private func settingRow<Control: View>(
-        _ label: String,
+        _ label: LocalizedStringKey,
         @ViewBuilder control: () -> Control
     ) -> some View {
         HStack {
@@ -419,7 +419,7 @@ struct SettingsView: View {
         .padding(.vertical, 12)
     }
 
-    private func toggleRow(_ label: String, isOn: Binding<Bool>) -> some View {
+    private func toggleRow(_ label: LocalizedStringKey, isOn: Binding<Bool>) -> some View {
         settingRow(label) {
             Toggle("", isOn: isOn)
                 .labelsHidden()
@@ -442,15 +442,18 @@ struct SettingsView: View {
         }
     }
 
+    /// 모드 라벨 — Text 와 "%@ 모드는…" 보간 양쪽에서 쓰이므로 인앱 언어로 해석된
+    /// String 을 반환(일반/갓생/초갓생은 카탈로그 키). LocalizedStringKey 로는 보간 arg 가
+    /// 한국어로 남기 때문에 AppConfig.loc 로 미리 해석.
     private func modeLabel(_ m: GameMode) -> String {
         switch m {
-        case .normal:  return "일반"
-        case .godlife: return "갓생"
-        case .ultra:   return "초갓생"
+        case .normal:  return AppConfig.loc("일반")
+        case .godlife: return AppConfig.loc("갓생")
+        case .ultra:   return AppConfig.loc("초갓생")
         }
     }
 
-    private func modeDesc(_ m: GameMode) -> String {
+    private func modeDesc(_ m: GameMode) -> LocalizedStringKey {
         switch m {
         case .normal:  return "하루에 카드 1장 — 가볍게"
         case .godlife: return "하루에 카드 2장 — 갓생 모드"

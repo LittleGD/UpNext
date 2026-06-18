@@ -36,9 +36,11 @@ enum NotificationManager {
         center.removePendingNotificationRequests(withIdentifiers: [dailyReminderID])
         guard enabled, let (hour, minute) = parseTime(time) else { return }
 
+        // 알림은 시스템이 SwiftUI 환경 밖에서 표시하므로 `.environment(\.locale)` 가
+        // 닿지 않는다. 인앱 언어(AppConfig.currentLocale)로 명시 해석해 설정 언어와 일치.
         let content = UNMutableNotificationContent()
-        content.title = "오늘의 챌린지"
-        content.body = "오늘의 카드를 뽑고 갓생을 이어가세요."
+        content.title = AppConfig.loc("오늘의 챌린지")
+        content.body = AppConfig.loc("오늘의 카드를 뽑고 갓생을 이어가세요.")
         content.sound = .default
 
         var when = DateComponents()

@@ -226,7 +226,7 @@ struct EquipmentSlotCard: View {
                     Spacer(minLength: 0)
                 }
                 PixelIcon(PixelIconName.resolve(item.iconName), size: 28, color: item.rarity.color)
-                Text(item.name)
+                Text(item.localizedDisplayName)
                     .typography(.micro)
                     .foregroundStyle(Color.textPrimary)
                     .multilineTextAlignment(.center)

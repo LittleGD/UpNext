@@ -170,10 +170,10 @@ struct HeroStatPanel: View {
                             PixelIcon(.sparkle, size: 14, color: Color.accentPrimary)
                                 .frame(width: 20)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(skill.name)
+                                Text(LocalizedStringKey(skill.name))
                                     .typography(.caption)
                                     .foregroundStyle(Color.textPrimary)
-                                Text(skill.description)
+                                Text(LocalizedStringKey(skill.description))
                                     .typography(.caption)   // 본문 설명 — micro(12) 너무 작아 caption(15)
                                     .foregroundStyle(Color.textTertiary)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -265,7 +265,7 @@ struct HeroStatPanel: View {
         return HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(skill.name)
+                    Text(LocalizedStringKey(skill.name))
                         .typography(.caption)
                         .foregroundStyle(Color.textPrimary)
                     if isLearned {
@@ -276,7 +276,7 @@ struct HeroStatPanel: View {
                             .background(Color.accentPrimary, in: Capsule())
                     }
                 }
-                Text(skill.description)
+                Text(LocalizedStringKey(skill.description))
                     .typography(.caption)   // 본문 설명 — micro(12) 너무 작아 caption(15)
                     .foregroundStyle(Color.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -346,7 +346,7 @@ struct HeroStatPanel: View {
                     .foregroundStyle(Color.textTertiary)
                 if let item {
                     HStack(spacing: 6) {
-                        Text(item.name)
+                        Text(item.localizedDisplayName)
                             .typography(.caption)
                             .foregroundStyle(Color.textPrimary)
                             .lineLimit(1)

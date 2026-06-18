@@ -247,7 +247,7 @@ struct LevelUpBurstScreen: View {
         }
     }
 
-    private func titleFor(level: Int) -> String {
+    private func titleFor(level: Int) -> LocalizedStringKey {
         level <= 0 ? "초보 도전자" : "갓생 견습생"
     }
 

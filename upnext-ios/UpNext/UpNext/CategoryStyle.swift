@@ -16,17 +16,17 @@ import SwiftUI
 extension Category {
 
     /// 카테고리 라벨 — 메인 게임용. 웹 i18n `category.*` 대응.
-    /// String(localized:) 로 Localizable.xcstrings 경유 다국어 자동 치환.
+    /// AppConfig.loc 으로 *인앱 언어*에 맞춰 카탈로그 해석(기기 로케일 무시 버그 차단).
     var label: String {
         switch self {
-        case .fitness:      return String(localized: "운동")
-        case .nutrition:    return String(localized: "식단")
-        case .mindfulness:  return String(localized: "마음챙김")
-        case .learning:     return String(localized: "학습")
-        case .social:       return String(localized: "소통")
-        case .productivity: return String(localized: "생산성")
-        case .wellness:     return String(localized: "건강")
-        case .trending:     return String(localized: "트렌드")
+        case .fitness:      return AppConfig.loc("운동")
+        case .nutrition:    return AppConfig.loc("식단")
+        case .mindfulness:  return AppConfig.loc("마음챙김")
+        case .learning:     return AppConfig.loc("학습")
+        case .social:       return AppConfig.loc("소통")
+        case .productivity: return AppConfig.loc("생산성")
+        case .wellness:     return AppConfig.loc("건강")
+        case .trending:     return AppConfig.loc("트렌드")
         }
     }
 
@@ -57,7 +57,7 @@ extension StatKey {
         case .dex:       return "DEX"
         case .agi:       return "AGI"
         case .crit:      return "CRIT"
-        case .slotBonus: return String(localized: "슬롯")
+        case .slotBonus: return AppConfig.loc("슬롯")
         }
     }
 }

@@ -692,7 +692,7 @@ private struct HandCard: View {
             Spacer(minLength: 0)
             PixelIcon(PixelIconName.resolve(card.icon), size: 30, color: card.rarity.color)
             Spacer(minLength: 0)
-            Text(card.title)
+            Text(card.localizedTitle(.current))
                 .typography(.caption)
                 .foregroundStyle(Color.textTertiary)
                 .lineLimit(1)
@@ -726,7 +726,7 @@ private struct SelectedMiniCard: View {
                 VStack(spacing: 2) {
                     PixelIcon(PixelIconName.resolve(card.icon), size: 20,
                               color: locked ? Color(red: 1, green: 0.27, blue: 0.2) : card.rarity.color)
-                    Text(card.title)
+                    Text(card.localizedTitle(.current))
                         .typography(.caption)
                         .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)
@@ -972,8 +972,8 @@ private struct ReviewCard: View {
                 .frame(maxWidth: .infinity)
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 4) {
-                Text(card.title).typography(.heading).foregroundStyle(Color.textPrimary).lineLimit(2)
-                Text(card.description).typography(.body).foregroundStyle(Color.textSecondary).lineLimit(2)
+                Text(card.localizedTitle(.current)).typography(.heading).foregroundStyle(Color.textPrimary).lineLimit(2)
+                Text(card.localizedDescription(.current)).typography(.body).foregroundStyle(Color.textSecondary).lineLimit(2)
             }
             if locked {
                 HStack(spacing: 6) {

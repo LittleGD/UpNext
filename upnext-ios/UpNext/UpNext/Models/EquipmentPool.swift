@@ -128,13 +128,15 @@ enum EquipmentPool {
     /// baseId 도 함께 매칭)로 friendly 이름 반환. 웹 `equipmentNameById` 의 iOS 판.
     /// 다국어 사전이 아직 없어 한국어 baseName 으로 fallback (그게 templates 의 진실).
     static func displayName(forBaseIdOrName id: String, language: Language = .ko) -> String {
+        // baseName(한국어 원문)을 카탈로그 키로 인앱 언어 해석. language 인자는 호환 위해
+        // 유지하되 실제 해석은 AppConfig.currentLocale(인앱 언어 단일 출처)이 담당.
         // 1) baseId 매칭
         if let t = templates.first(where: { $0.baseId == id }) {
-            return t.baseName
+            return AppConfig.locRuntime(t.baseName)
         }
         // 2) 한글 baseName 매칭 (현재 codex.equipment 가 저장하는 값)
         if let t = templates.first(where: { $0.baseName == id }) {
-            return t.baseName
+            return AppConfig.locRuntime(t.baseName)
         }
         // 3) 매칭 실패 — 원본 그대로 (debug 시 식별 가능)
         return id
@@ -146,10 +148,10 @@ enum EquipmentPool {
             ?? templates.first(where: { $0.baseName == id })
         guard let template else { return nil }
         switch template.type {
-        case .weapon:    return "무기"
-        case .armor:     return "방어구"
-        case .accessory: return "장신구"
-        case .talisman:  return "부적"
+        case .weapon:    return AppConfig.loc("무기")
+        case .armor:     return AppConfig.loc("방어구")
+        case .accessory: return AppConfig.loc("장신구")
+        case .talisman:  return AppConfig.loc("부적")
         }
     }
 
@@ -283,5 +285,15 @@ enum EquipmentPool {
         if r < 0.05 { return .unique }
         if r < 0.3 { return .rare }
         return .normal
+    }
+}
+
+extension Equipment {
+    /// 인앱 언어로 현지화된 표시 이름 — 희귀도 접두사 + baseName(둘 다 카탈로그 경유).
+    /// baseId 로 원본 baseName 을 복원해 재현지화한다. affix 는 stats 로 별도 표시되므로
+    /// 이름에선 생략(저장된 name 의 한국어 접미사 " of …" 회피). 저장 name 은 불변.
+    var localizedDisplayName: String {
+        let prefix = AppConfig.locRuntime(EquipmentPool.rarityPrefix[rarity] ?? "")
+        return prefix + EquipmentPool.displayName(forBaseIdOrName: baseId ?? name)
     }
 }

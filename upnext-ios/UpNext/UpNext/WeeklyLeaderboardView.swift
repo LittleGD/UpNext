@@ -71,7 +71,7 @@ struct WeeklyLeaderboardView: View {
                 Text("이번 주 변종")
                     .typography(.micro).foregroundStyle(Color.textTertiary)
             }
-            Text(affixName)
+            Text(LocalizedStringKey(affixName))
                 .typography(.heading).foregroundStyle(Color.rarityLegend)
         }
         .padding(14)

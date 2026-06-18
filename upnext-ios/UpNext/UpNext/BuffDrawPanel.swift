@@ -36,7 +36,7 @@ struct BuffDrawPanel: View {
     }
 
     private var dungeonName: String {
-        Dungeons.all[prep.dungeonId]?.name ?? ""
+        AppConfig.locRuntime(Dungeons.all[prep.dungeonId]?.name ?? "")
     }
 
     var body: some View {
@@ -106,7 +106,7 @@ struct BuffDrawPanel: View {
                         PixelIcon(.check, size: 16, color: Color.accentPrimary)
                     }
                 }
-                Text(card.title)
+                Text(card.localizedTitle(.current))
                     .typography(.caption)
                     .foregroundStyle(Color.textPrimary)
                     .multilineTextAlignment(.leading)

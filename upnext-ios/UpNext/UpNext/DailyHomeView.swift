@@ -266,10 +266,10 @@ struct DailyHomeView: View {
                             .foregroundStyle(Color.accentPrimary)
                     }
                 }
-                Text(card.title)
+                Text(card.localizedTitle(.current))
                     .typography(.heading)
                     .foregroundStyle(completed ? Color.textTertiary : Color.textPrimary)
-                Text(card.description)
+                Text(card.localizedDescription(.current))
                     .typography(.caption)
                     .foregroundStyle(Color.textTertiary)
                     .multilineTextAlignment(.leading)
@@ -303,7 +303,7 @@ struct DailyHomeView: View {
                 Text("2초 로그 남기기")
                     .typography(.title)
                     .foregroundStyle(Color.textPrimary)
-                Text(card.title)
+                Text(card.localizedTitle(.current))
                     .typography(.body)
                     .foregroundStyle(Color.accentPrimary)
             }

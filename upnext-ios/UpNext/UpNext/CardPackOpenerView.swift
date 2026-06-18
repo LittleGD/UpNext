@@ -165,7 +165,7 @@ struct CardPackOpenerView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(card.rarity.color, in: Capsule())
-                Text(card.title)
+                Text(card.localizedTitle(.current))
                     .typography(.micro)
                     .foregroundStyle(Color.textPrimary)
                     .multilineTextAlignment(.center)
