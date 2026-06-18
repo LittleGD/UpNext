@@ -1248,7 +1248,22 @@ final class GameStore: ObservableObject {
     private static func applyUITestSeedIfNeeded(to store: GameStore) -> Bool {
         let args = ProcessInfo.processInfo.arguments
         guard args.contains("UITestBypassAuth") else { return false }
+        // 언어 오버라이드(UITestLang=ko|en|ja|zh) — 온보딩/로컬라이즈 검증용.
+        let langArg = args.first { $0.hasPrefix("UITestLang=") }?
+            .replacingOccurrences(of: "UITestLang=", with: "")
+        let forcedLang = langArg.flatMap { Language(rawValue: $0) }
+        // 온보딩 화면 검증 — 기본 진행상황 + (옵션)언어로 온보딩 단계 진입.
+        if args.contains("UITestOnboarding") {
+            var op = makeDefaultProgress()
+            if let forcedLang { op.language = forcedLang }
+            store.progress = op
+            store.daily = makeDefaultDaily()
+            store.retention = RetentionState.fresh(today: todayString())
+            store.phase = .onboarding
+            return true
+        }
         var p = makeDefaultProgress()
+        if let forcedLang { p.language = forcedLang }
         p.level = 1
         p.xp = GameRules.totalXPForLevel(1)
         p.unlockedCardIds = CardCatalog.starterCardIds
@@ -1349,6 +1364,18 @@ final class GameStore: ObservableObject {
 
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
 
+    /// 기기 선호 언어 → 지원 4개국어 매핑. 미지원 로케일은 en. 웹 navigator.language
+    /// 자동 감지 패리티 — 신규 유저가 기기 언어로 시작(영어 기본 + 한국어 데이터 불일치 해소).
+    static func deviceDefaultLanguage() -> Language {
+        let code = String((Locale.preferredLanguages.first ?? "en").prefix(2)).lowercased()
+        switch code {
+        case "ko": return .ko
+        case "ja": return .ja
+        case "zh": return .zh
+        default:   return .en
+        }
+    }
+
     static func makeDefaultProgress() -> UserProgress {
         UserProgress(
             currentStreak: 0,
@@ -1371,7 +1398,7 @@ final class GameStore: ObservableObject {
             seenTitleIds: [],
             pendingMode: nil,
             hasPendingPenalty: false,
-            language: .en,
+            language: deviceDefaultLanguage(),
             soundEnabled: true,
             hapticEnabled: true,
             notificationsEnabled: false,

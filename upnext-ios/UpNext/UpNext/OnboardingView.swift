@@ -1,17 +1,12 @@
 //
 //  OnboardingView.swift
-//  UpNext — 신규 유저 온보딩 흐름 (Phase 4 슬라이스 5).
+//  UpNext — 온보딩 (웹 components/onboarding/OnboardingFlow.tsx 1:1 격상).
 //
-//  웹 components/onboarding/OnboardingFlow.tsx 의 4단계 흐름을 SwiftUI 로 포팅:
-//   intro(앱 소개) → difficulty(난이도) → starterPack(스타터 팩) → levelUp(레벨 1)
+//  4단계: intro(2-page 캐러셀 — 카드팬 / 에너지펄스 + 언어선택) → difficulty(난이도)
+//        → starterPack(스타터팩) → levelUp(레벨 1).
 //
-//  store.phase == .onboarding 일 때 ContentView 라우터가 띄운다. 마지막 단계의
-//  finishOnboarding() 이 progress 를 확정하고 클라우드 업로드 → phase 가 .ready 로
-//  바뀌면 라우터가 자동으로 메인 앱으로 넘어간다.
-//
-//  하단 바: 좌측 아이콘 백버튼 + 우측 진행 버튼 (intro 는 첫 단계라 백버튼 없음).
-//  웹 SplashScreen 미포팅(iOS 런치 스크린이 대체), AppDescription(405줄)은 핵심
-//  메시지로 압축, LevelUpScreen 파티클 연출 단순화 — 흐름 완결, 연출은 디자인 패스.
+//  모든 문구는 OnboardingI18n(웹 i18n 4개국어) + 데이터(StarterPack.localizedName)로
+//  현재 앱 언어(progress.language)에 맞춰 렌더. 인트로의 LanguageToggle 로 언어 즉시 전환.
 //
 
 import SwiftUI
@@ -19,6 +14,7 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject private var store: GameStore
     @State private var step: Step = .intro
+    private var lang: Language { store.progress?.language ?? .ko }
 
     private enum Step: Int, CaseIterable {
         case intro, difficulty, starterPack, levelUp
@@ -53,6 +49,21 @@ struct OnboardingView: View {
                 stepIndicator
             }
         }
+        .onAppear {
+            #if DEBUG
+            // UITest 전용 — 특정 온보딩 단계로 바로 진입(검증용).
+            if let raw = ProcessInfo.processInfo.arguments
+                .first(where: { $0.hasPrefix("UITestOnboardingStep=") })?
+                .replacingOccurrences(of: "UITestOnboardingStep=", with: "") {
+                switch raw {
+                case "difficulty": step = .difficulty
+                case "starterPack": step = .starterPack
+                case "levelUp": step = .levelUp
+                default: break
+                }
+            }
+            #endif
+        }
     }
 
     private func goTo(_ next: Step) {
@@ -71,62 +82,230 @@ struct OnboardingView: View {
     }
 }
 
-// MARK: - 1. 앱 소개
+// MARK: - 1. 앱 소개 (2-page 캐러셀 + 언어 선택)
 
 private struct OnboardingIntro: View {
+    @EnvironmentObject private var store: GameStore
     let onNext: () -> Void
+    @State private var page = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var lang: Language { store.progress?.language ?? .ko }
+    private let pageCount = 2
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer()
-            VStack(spacing: 28) {
-                Image("Wordmark")
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 56)
-                    .foregroundStyle(Color.accentPrimary)
-                VStack(alignment: .leading, spacing: 18) {
-                    point("매일 챌린지 카드를 뽑아요",
-                          "덱에서 카드 6장이 펼쳐지면, 오늘 실천할 카드를 골라요")
-                    point("작은 습관이 쌓여요",
-                          "운동·학습·마음챙김 — 카드 한 장이 하루의 작은 목표")
-                    point("갓생이 게임이 돼요",
-                          "스트릭·레벨·카드 수집으로 꾸준함에 보상이 따라와요")
+            // 페이지 인디케이터
+            HStack(spacing: 8) {
+                ForEach(0..<pageCount, id: \.self) { i in
+                    Capsule()
+                        .fill(i == page ? Color.accentPrimary : Color.bgElevated)
+                        .frame(width: i == page ? 24 : 6, height: 6)
+                        .animation(.easeOut(duration: 0.25), value: page)
                 }
             }
+            .padding(.top, 24)
+
             Spacer()
-            // 첫 단계 — 백버튼 없음
-            OnboardingBottomBar(title: "시작하기", action: onNext)
+
+            // 콘텐츠 (그래픽 + 카피)
+            VStack(spacing: 32) {
+                ZStack {
+                    if page == 0 { CardFanGraphic() }
+                    else { EnergyPulseGraphic(lang: lang) }
+                }
+                .frame(height: 200)
+                .id(page)
+                .transition(reduceMotion ? .opacity
+                            : .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                          removal: .move(edge: .leading).combined(with: .opacity)))
+
+                VStack(spacing: 12) {
+                    // Text 연결의 색은 iOS16 호환 위해 .foregroundColor 사용(Text 한정, iOS13+).
+                    (Text(page == 0 ? OnboardingI18n.desc1Title(lang) : OnboardingI18n.desc2Title(lang))
+                        .foregroundColor(Color.textPrimary)
+                     + Text("\n")
+                     + Text(page == 0 ? OnboardingI18n.desc1Accent(lang) : OnboardingI18n.desc2Accent(lang))
+                        .foregroundColor(Color.accentPrimary))
+                        .typography(.title)
+                        .multilineTextAlignment(.center)
+                    Text(page == 0 ? OnboardingI18n.desc1Body(lang) : OnboardingI18n.desc2Body(lang))
+                        .typography(.body)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .id("copy\(page)")
+                .transition(.opacity)
+            }
+            .padding(.horizontal, 32)
+
+            Spacer()
+
+            // 언어 선택 + 진행 버튼
+            VStack(spacing: 12) {
+                LanguageToggle(current: lang) { store.setLanguage($0) }
+                OnboardingPrimaryButton(
+                    title: page == pageCount - 1 ? OnboardingI18n.start(lang) : OnboardingI18n.next(lang)
+                ) {
+                    if page == pageCount - 1 { onNext() }
+                    else { withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { page += 1 } }
+                }
+            }
+            .padding(.horizontal, 32)
+            .padding(.bottom, 40)
         }
-        .padding(.horizontal, 32)
-        .padding(.bottom, 40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
 
-    private func point(_ title: LocalizedStringKey, _ desc: LocalizedStringKey) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).typography(.body).foregroundStyle(Color.textPrimary)
-            Text(desc).typography(.caption).foregroundStyle(Color.textTertiary)
+// MARK: - 언어 토글 (한국어 / English / 日本語 / 中文)
+
+private struct LanguageToggle: View {
+    let current: Language
+    let onSelect: (Language) -> Void
+
+    private func label(_ l: Language) -> String {
+        switch l { case .ko: return "한국어"; case .en: return "EN"; case .ja: return "日本語"; case .zh: return "中文" }
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(Language.allCases, id: \.self) { l in
+                let sel = l == current
+                Button { onSelect(l) } label: {
+                    Text(label(l))
+                        .typography(.caption)
+                        .foregroundStyle(sel ? Color.bgPrimary : Color.textTertiary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(sel ? Color.accentPrimary : Color.bgSurface, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - 카드 팬 그래픽 (인트로 1)
+
+private struct CardFanGraphic: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var floatPhase = false
+
+    private struct Fan { let icon: PixelIconName; let rarity: Rarity; let rotate: Double; let x: CGFloat }
+    private let cards: [Fan] = [
+        .init(icon: .human, rarity: .normal, rotate: -18, x: -52),
+        .init(icon: .heart, rarity: .rare, rotate: -8, x: -26),
+        .init(icon: .sparkle, rarity: .unique, rotate: 2, x: 0),
+        .init(icon: .bookOpen, rarity: .rare, rotate: 12, x: 26),
+        .init(icon: .trophy, rarity: .legend, rotate: 22, x: 52),
+    ]
+
+    var body: some View {
+        ZStack {
+            Circle().fill(Color.accentPrimary.opacity(0.1))
+                .frame(width: 220, height: 150).blur(radius: 40)
+            ForEach(Array(cards.enumerated()), id: \.offset) { i, c in
+                miniCard(c)
+                    .rotationEffect(.degrees(c.rotate))
+                    .offset(x: c.x, y: (floatPhase && !reduceMotion) ? -4 : 0)
+                    .animation(reduceMotion ? nil
+                        : .easeInOut(duration: 3 + Double(i) * 0.3).repeatForever(autoreverses: true)
+                            .delay(Double(i) * 0.2), value: floatPhase)
+            }
+        }
+        .onAppear { floatPhase = true }
+    }
+
+    private func miniCard(_ c: Fan) -> some View {
+        VStack(spacing: 6) {
+            PixelIcon(c.icon, size: 22, color: c.rarity.color)
+            VStack(spacing: 2) {
+                Capsule().fill(c.rarity.color.opacity(0.4)).frame(width: 24, height: 2)
+                Capsule().fill(c.rarity.color.opacity(0.2)).frame(width: 16, height: 2)
+            }
+        }
+        .frame(width: 56, height: 78)
+        .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(alignment: .top) {
+            Rectangle().fill(c.rarity.color).frame(height: 2)
+                .clipShape(RoundedRectangle(cornerRadius: 2))
+        }
+        .shadow(color: c.rarity.color.opacity(0.12), radius: 10)
+    }
+}
+
+// MARK: - 에너지 펄스 그래픽 (인트로 2 — Lv.1 → Lv.2)
+
+private struct EnergyPulseGraphic: View {
+    let lang: Language
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulse = false
+    @State private var xpFill = false
+
+    var body: some View {
+        ZStack {
+            Circle().fill(Color.accentCyan.opacity(0.1)).frame(width: 200, height: 200).blur(radius: 45)
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .stroke(Color.accentCyan.opacity(0.3), lineWidth: 1)
+                    .frame(width: 120, height: 120)
+                    .scaleEffect((pulse && !reduceMotion) ? 1.4 : 0.4)
+                    .opacity((pulse && !reduceMotion) ? 0 : 0.3)
+                    .animation(reduceMotion ? nil
+                        : .easeOut(duration: 2.4).repeatForever(autoreverses: false).delay(Double(i) * 0.8),
+                        value: pulse)
+            }
+            PixelIcon(.zap, size: 56, color: Color.accentCyan)
+                .scaleEffect((pulse && !reduceMotion) ? 1.06 : 1)
+                .shadow(color: Color.accentCyan.opacity(0.6), radius: (pulse && !reduceMotion) ? 18 : 8)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 2).repeatForever(autoreverses: true), value: pulse)
+
+            // 하단 XP 바 Lv.1 → Lv.2
+            VStack(spacing: 4) {
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.bgElevated)
+                        Capsule()
+                            .fill(LinearGradient(colors: [Color.accentCyan, Color.accentPrimary],
+                                                 startPoint: .leading, endPoint: .trailing))
+                            .frame(width: g.size.width * (xpFill ? 0.75 : 0))
+                    }
+                }
+                .frame(width: 160, height: 4)
+                HStack {
+                    Text(OnboardingI18n.levelShort(lang, 1)).typography(.micro).foregroundStyle(Color.textTertiary)
+                    Spacer()
+                    Text(OnboardingI18n.levelShort(lang, 2)).typography(.micro).foregroundStyle(Color.accentCyan)
+                }
+                .frame(width: 160)
+            }
+            .offset(y: 78)
+        }
+        .onAppear {
+            pulse = true
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 1.4).delay(0.3)) { xpFill = true }
+        }
     }
 }
 
 // MARK: - 2. 난이도 선택
 
 private struct OnboardingDifficulty: View {
+    @EnvironmentObject private var store: GameStore
     let onBack: () -> Void
     let onSelect: (GameMode) -> Void
     @State private var selected: GameMode?
+    private var lang: Language { store.progress?.language ?? .ko }
 
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("난이도를 골라주세요")
+                Text(OnboardingI18n.diffHeading(lang))
                     .typography(.title)
                     .foregroundStyle(Color.textPrimary)
-                Text("하루에 수행할 카드 수예요 — 설정에서 언제든 바꿀 수 있어요")
+                Text(OnboardingI18n.diffSub(lang))
                     .typography(.body)
                     .foregroundStyle(Color.textSecondary)
             }
@@ -143,7 +322,7 @@ private struct OnboardingDifficulty: View {
 
             Spacer()
 
-            OnboardingBottomBar(onBack: onBack, title: "다음", enabled: selected != nil) {
+            OnboardingBottomBar(onBack: onBack, title: OnboardingI18n.next(lang), enabled: selected != nil) {
                 if let selected { onSelect(selected) }
             }
         }
@@ -167,7 +346,7 @@ private struct OnboardingDifficulty: View {
                         .foregroundStyle(isSel ? Color.bgPrimary.opacity(0.7) : Color.textTertiary)
                 }
                 Spacer()
-                Text("\(mode.cardCount)장/일")
+                Text(OnboardingI18n.cardsPerDay(lang, mode.cardCount))
                     .typography(.caption)
                     .foregroundStyle(isSel ? Color.bgPrimary.opacity(0.7) : Color.textTertiary)
             }
@@ -180,19 +359,19 @@ private struct OnboardingDifficulty: View {
         .buttonStyle(.plain)
     }
 
-    private func label(_ m: GameMode) -> LocalizedStringKey {
+    private func label(_ m: GameMode) -> String {
         switch m {
-        case .normal:  return "일반"
-        case .godlife: return "갓생"
-        case .ultra:   return "초갓생"
+        case .normal:  return OnboardingI18n.diffNormal(lang)
+        case .godlife: return OnboardingI18n.diffGodlife(lang)
+        case .ultra:   return OnboardingI18n.diffUltra(lang)
         }
     }
 
-    private func desc(_ m: GameMode) -> LocalizedStringKey {
+    private func desc(_ m: GameMode) -> String {
         switch m {
-        case .normal:  return "가볍게 시작 — 하루 카드 1장"
-        case .godlife: return "꾸준한 갓생 — 하루 카드 2장"
-        case .ultra:   return "끝까지 간다 — 하루 카드 3장"
+        case .normal:  return OnboardingI18n.diffNormalDesc(lang)
+        case .godlife: return OnboardingI18n.diffGodlifeDesc(lang)
+        case .ultra:   return OnboardingI18n.diffUltraDesc(lang)
         }
     }
 }
@@ -200,10 +379,12 @@ private struct OnboardingDifficulty: View {
 // MARK: - 3. 스타터 팩 선택
 
 private struct OnboardingStarterPack: View {
+    @EnvironmentObject private var store: GameStore
     let onBack: () -> Void
     let onSelect: (String) -> Void
     @State private var selectedId: String?
     @State private var revealing = false
+    private var lang: Language { store.progress?.language ?? .ko }
 
     var body: some View {
         if revealing, let id = selectedId,
@@ -217,10 +398,10 @@ private struct OnboardingStarterPack: View {
     private var selectView: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("스타터 팩을 골라주세요")
+                Text(OnboardingI18n.starterHeading(lang))
                     .typography(.title)
                     .foregroundStyle(Color.textPrimary)
-                Text("처음 시작할 카드 묶음이에요")
+                Text(OnboardingI18n.starterSub(lang))
                     .typography(.body)
                     .foregroundStyle(Color.textSecondary)
             }
@@ -237,7 +418,8 @@ private struct OnboardingStarterPack: View {
 
             Spacer()
 
-            OnboardingBottomBar(onBack: onBack, title: "팩 열기", enabled: selectedId != nil) {
+            OnboardingBottomBar(onBack: onBack, title: OnboardingI18n.starterOpenPack(lang),
+                                enabled: selectedId != nil) {
                 withAnimation(.easeInOut(duration: 0.2)) { revealing = true }
             }
         }
@@ -252,12 +434,13 @@ private struct OnboardingStarterPack: View {
             selectedId = pack.id
         } label: {
             VStack(alignment: .leading, spacing: 3) {
-                Text(pack.name)
+                Text(pack.localizedName(lang))
                     .typography(.body)
                     .foregroundStyle(isSel ? Color.bgPrimary : Color.textPrimary)
-                Text(pack.description)
+                Text(pack.localizedDescription(lang))
                     .typography(.caption)
                     .foregroundStyle(isSel ? Color.bgPrimary.opacity(0.7) : Color.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
@@ -273,12 +456,13 @@ private struct OnboardingStarterPack: View {
         return VStack(spacing: 0) {
             Spacer()
             VStack(spacing: 4) {
-                Text(pack.name)
+                Text(pack.localizedName(lang))
                     .typography(.title)
                     .foregroundStyle(Color.accentPrimary)
-                Text("이 카드들로 시작해요")
+                Text(OnboardingI18n.starterReveal(lang))
                     .typography(.caption)
                     .foregroundStyle(Color.textTertiary)
+                    .multilineTextAlignment(.center)
             }
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
@@ -290,10 +474,9 @@ private struct OnboardingStarterPack: View {
             }
             .padding(.top, 24)
             Spacer()
-            // 백버튼 — 팩 선택 화면으로 되돌아가 다른 팩을 고를 수 있다
             OnboardingBottomBar(
                 onBack: { withAnimation(.easeInOut(duration: 0.2)) { revealing = false } },
-                title: "시작"
+                title: OnboardingI18n.start(lang)
             ) {
                 onSelect(pack.id)
             }
@@ -324,41 +507,11 @@ private struct OnboardingStarterPack: View {
     }
 }
 
-// MARK: - 4. 레벨 1 달성
-
-private struct OnboardingLevelUp: View {
-    let onBack: () -> Void
-    let onComplete: () -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            VStack(spacing: 12) {
-                Text("LEVEL 1")
-                    .typography(.display)
-                    .foregroundStyle(Color.accentPrimary)
-                Text("준비 완료!")
-                    .typography(.title)
-                    .foregroundStyle(Color.textPrimary)
-                Text("덱이 만들어졌어요.\n이제 매일 카드를 뽑아 갓생을 시작할 차례예요.")
-                    .typography(.body)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-            Spacer()
-            OnboardingBottomBar(onBack: onBack, title: "UpNext 시작하기", action: onComplete)
-        }
-        .padding(.horizontal, 32)
-        .padding(.bottom, 40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 // MARK: - 공통 하단 바 (좌: 아이콘 백버튼 · 우: 진행 버튼)
 
 private struct OnboardingBottomBar: View {
     var onBack: (() -> Void)? = nil
-    let title: LocalizedStringKey
+    let title: String
     var enabled: Bool = true
     let action: () -> Void
 
@@ -371,7 +524,7 @@ private struct OnboardingBottomBar: View {
                         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(Text("이전"))
+                .accessibilityLabel(Text("Back"))
             }
             OnboardingPrimaryButton(title: title, enabled: enabled, action: action)
         }
@@ -379,7 +532,7 @@ private struct OnboardingBottomBar: View {
 }
 
 private struct OnboardingPrimaryButton: View {
-    let title: LocalizedStringKey
+    let title: String
     var enabled: Bool = true
     let action: () -> Void
 
