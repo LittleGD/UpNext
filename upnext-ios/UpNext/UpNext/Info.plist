@@ -2,7 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- 기본 식별 — build setting 변수 치환 ($()) 으로 단일 진실의 원천 유지. -->
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>
@@ -17,16 +16,6 @@
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-
-	<!--
-	  Google OAuth 콜백 URL scheme — GIDSignIn SDK 가 부팅 시 CFBundleURLTypes 를
-	  스캔해 callback scheme 이 등록 안 됐으면 NSInvalidArgumentException 던지고
-	  SIGABRT. 값은 GoogleService-Info.plist 의 REVERSED_CLIENT_ID 와 정확 일치.
-	-->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -46,21 +35,16 @@
 			</array>
 		</dict>
 	</array>
-
-	<!-- Live Activity (Phase 5 슬라이스 6). -->
-	<key>NSSupportsLiveActivities</key>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSRequiresIPhoneOS</key>
 	<true/>
-
-	<!--
-	  카메라 권한 목적 문자열 — 챌린지 인증 사진 촬영(PhotoCaptureView →
-	  AVCaptureSession). iOS 는 이 키 없이 AVCaptureDevice 에 접근하면
-	  NSInvalidArgumentException 으로 즉시 크래시하므로 필수. 다국어는 추후
-	  InfoPlist.xcstrings 로 분리 권장 (현재 기본 언어 문자열).
-	-->
 	<key>NSCameraUsageDescription</key>
 	<string>챌린지 인증 사진을 촬영하기 위해 카메라를 사용합니다.</string>
-
-	<!-- 화면 구성 — 이전 INFOPLIST_KEY_* 값을 그대로 옮김. -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

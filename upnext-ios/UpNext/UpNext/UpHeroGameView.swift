@@ -95,14 +95,15 @@ private struct CampView: View {
             }
         }
         .onAppear {
-            // UITest — 스탯/스킬트리 패널 자동 오픈(검증용).
-            if ProcessInfo.processInfo.arguments.contains("UITestOpenStats") {
-                statsOpen = true
-            }
-            // 첫 진입 온보딩 — 아직 안 본 경우에만. 사진/UITestOpenStats 검증 충돌 방지로
-            // 스탯 자동 오픈 인자가 있으면 튜토리얼은 건너뛴다.
-            if !(upHero.state.hasSeenCampTutorial ?? false),
-               !ProcessInfo.processInfo.arguments.contains("UITestOpenStats") {
+            #if DEBUG
+            // UITest 전용 — 스탯/스킬트리 패널 자동 오픈(검증용, 출시 바이너리엔 비포함).
+            let uiTestOpenStats = ProcessInfo.processInfo.arguments.contains("UITestOpenStats")
+            if uiTestOpenStats { statsOpen = true }
+            #else
+            let uiTestOpenStats = false
+            #endif
+            // 첫 진입 온보딩 — 아직 안 본 경우에만. (DEBUG 스탯 검증 중엔 충돌 방지로 건너뜀)
+            if !(upHero.state.hasSeenCampTutorial ?? false), !uiTestOpenStats {
                 showTutorial = true
             }
         }

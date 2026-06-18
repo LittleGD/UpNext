@@ -114,13 +114,14 @@ struct DungeonView: View {
         .animation(.easeInOut(duration: 0.2), value: bossBannerData != nil)
         .animation(.easeInOut(duration: 0.2), value: choiceResultText != nil)
         .onReceive(tick) { _ in
-            // UITest — 자동 전투: 조우 선택지를 첫 옵션(싸운다)으로 자동 해소해
-            // 전투 tick(부유 데미지·스프라이트 반응)이 진행되도록(검증 전용).
+            #if DEBUG
+            // UITest 전용 — 자동 전투(조우 선택지 자동 해소). 출시 바이너리엔 비포함.
             if ProcessInfo.processInfo.arguments.contains("UITestAutoFight"),
                upHero.state.currentSession?.status == .awaitingChoice {
                 upHero.resolveChoice(0)
                 return
             }
+            #endif
             // 보스 배너·선택지 결과 모달 표시 중엔 tick 정지 (읽을 시간 보장).
             guard !pausedForBoss, choiceResultText == nil else { return }
             upHero.advanceCombat()

@@ -142,37 +142,37 @@ struct MainTabView: View {
                 .transition(.opacity)
             }
 
-            // UITest — 시드된 사진으로 PhotoDetailModal 자동 표시(검증용).
+            #if DEBUG
+            // UITest 전용 — 검증 화면 자동 표시(출시 바이너리엔 비포함).
             if ProcessInfo.processInfo.arguments.contains("UITestOpenPhotoDetail"),
                let meta = growth.photoMetas.first {
                 PhotoDetailModal(meta: meta, onClose: {})
                     .zIndex(120)
             }
-
-            // UITest — MonsterCodexDetailModal 자동 표시(검증용, 실 데이터 fit_wolf).
             if ProcessInfo.processInfo.arguments.contains("UITestOpenMonsterDetail"),
                let m = MonsterPool.allTemplates.first(where: { $0.id == "fit_wolf" }) {
                 MonsterCodexDetailModal(template: m, onClose: {})
                     .zIndex(120)
             }
-
-            // UITest — PhotoTalismanPicker 자동 표시(검증용; UITestSeedAlbum+Camp 와 함께).
             if ProcessInfo.processInfo.arguments.contains("UITestOpenTalismanPicker") {
                 PhotoTalismanPicker(onClose: {})
                     .zIndex(120)
             }
+            #endif
         }
         .animation(.easeInOut(duration: 0.3), value: showCelebration)
         .animation(.easeOut(duration: 0.25), value: store.pendingLevelUp != nil)
         .animation(.easeOut(duration: 0.25), value: showPatchNotes)
         .onAppear {
-            // UITest — 특정 탭으로 바로 진입(IA 검증용).
+            #if DEBUG
+            // UITest 전용 — 특정 탭 바로 진입(IA 검증용). 출시 바이너리엔 비포함.
             if ProcessInfo.processInfo.arguments.contains("UITestTabPlayground") {
                 tab = .playground
             }
             if ProcessInfo.processInfo.arguments.contains("UITestTabRecord") {
                 tab = .record
             }
+            #endif
             syncPackOpener()
             evaluatePatchNotes()
             lastCompletedScore = currentCompletedScore
