@@ -52,6 +52,19 @@ enum AppConfig {
         String(localized: key, locale: currentLocale)
     }
 
+    /// 인앱 언어의 .lproj 번들을 직접 로드해 키를 해석. `String(localized:locale:)` 는
+    /// 위젯 익스텐션 프로세스에서 테이블 언어를 바꾸지 못해(시스템 언어로 떨어짐) 위젯
+    /// chrome 이 데이터와 다른 언어로 나오는 문제가 있다. 번들 직접 조회는 확실히 동작.
+    /// 키 자체를 value 로 넘겨, 누락 시 키 대신 깨진 출력 대신 키문자열을 그대로 반환.
+    static func locBundled(_ key: String) -> String {
+        let id = catalogLocaleIdentifier(sharedDefaults?.string(forKey: languageKey) ?? "ko")
+        guard let path = Bundle.main.path(forResource: id, ofType: "lproj"),
+              let bundle = Bundle(path: path) else {
+            return Bundle.main.localizedString(forKey: key, value: key, table: nil)
+        }
+        return bundle.localizedString(forKey: key, value: key, table: nil)
+    }
+
     /// 런타임 한국어 콘텐츠 문자열(몬스터·장비·던전·스킬명 등 게임 데이터)을 카탈로그
     /// 키로 해석. 데이터가 한국어 원문을 그대로 보유하고 그 원문이 카탈로그 키로 등록된
     /// 경우 사용. 미등록 키는 원문(한국어)을 그대로 반환(안전 폴백).

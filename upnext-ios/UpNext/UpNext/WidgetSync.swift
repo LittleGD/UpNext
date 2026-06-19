@@ -72,7 +72,8 @@ enum WidgetSync {
             "xpForNext":          xpForNextLevel(p),
             "level":              p.level,
             "levelTitle":         GameRules.titleForLevel(p.level),
-            "mainChallengeTitle": mainChallengeTitle(daily),
+            "mainChallengeTitle": mainChallengeTitle(daily, lang: p.language),
+            "tasks":              tasksList(daily, lang: p.language),
             "updatedAt":          Date().timeIntervalSince1970
         ]
         let data: Data
@@ -126,7 +127,21 @@ enum WidgetSync {
     /// 다국어: 메인 앱 번들의 String Catalog 에서 *인앱 언어*(AppConfig.currentLocale)로
     /// 해석된 문자열을 JSON 으로 직렬화 → 위젯 extension 은 그대로 표시. 기기 로케일이
     /// 아닌 설정 언어를 따르도록 AppConfig.loc 사용(위젯이 자체 해석 불필요).
-    private static func mainChallengeTitle(_ d: DailyState?) -> String {
+    /// 오늘의 태스크 목록(현재 페이즈의 선택 카드) — 위젯(태스크 중심)이 체크리스트+도트로
+    /// 표시. 제목은 인앱 언어로 미리 해석(localizedTitle) — 위젯은 카드 데이터 접근 불가.
+    private static func tasksList(_ d: DailyState?, lang: Language) -> [[String: Any]] {
+        guard let d = d else { return [] }
+        let (selected, completed): ([ChallengeCard], [String])
+        switch d.challengePhase {
+        case .daily:  selected = d.selectedCards;      completed = d.completedIds
+        case .extra:  selected = d.extraSelectedCards; completed = d.extraCompletedIds
+        case .`super`: selected = d.superSelectedCards; completed = d.superCompletedIds
+        }
+        let done = Set(completed)
+        return selected.map { ["title": $0.localizedTitle(lang), "done": done.contains($0.id)] }
+    }
+
+    private static func mainChallengeTitle(_ d: DailyState?, lang: Language) -> String {
         let emptyText = AppConfig.loc("widget.daily.empty")
         guard let d = d else { return emptyText }
         let (selected, completed): ([ChallengeCard], [String])
@@ -141,7 +156,9 @@ enum WidgetSync {
         if selected.isEmpty { return emptyText }
         let completedSet = Set(completed)
         if let next = selected.first(where: { !completedSet.contains($0.id) }) {
-            return next.title
+            // 인앱 언어로 카드 제목을 해석해 publish — 위젯 chrome 과 같은 언어로 보이도록.
+            // (raw `next.title` 은 항상 한국어라 chrome(=인앱 언어)과 불일치를 만들었음.)
+            return next.localizedTitle(lang)
         }
         return AppConfig.loc("widget.daily.complete")
     }

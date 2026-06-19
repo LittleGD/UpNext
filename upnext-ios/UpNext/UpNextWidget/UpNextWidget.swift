@@ -47,6 +47,18 @@ private func widgetTargetIcon(_ size: CGFloat) -> some View {
         .foregroundColor(.accentPrimary)
 }
 
+/// 스트릭 칩용 브랜드 불꽃 아이콘 — Flame.imageset(fire.svg) 를 UpNextWidget/Assets.xcassets 에
+/// 복사(Target.imageset 패턴). 앱 불꽃 탭과 동일하게 accentPrimary(라임) 틴트.
+/// (디자인 토큰 규칙: accentSecondary 는 에러 전용 — 불꽃에 쓰지 않음.)
+private func widgetFlameIcon(_ size: CGFloat) -> some View {
+    Image("Flame")
+        .renderingMode(.template)
+        .resizable()
+        .scaledToFit()
+        .frame(width: size, height: size)
+        .foregroundColor(.accentPrimary)
+}
+
 // MARK: - 위젯 컨테이너 배경 호환 헬퍼
 
 extension View {
@@ -60,6 +72,7 @@ extension View {
         }
     }
 }
+
 
 // MARK: - Timeline Provider
 
@@ -92,209 +105,253 @@ struct UpNextProvider: TimelineProvider {
 // MARK: - Home Widget Views
 
 /// small (155×155pt @ iPhone 14 Pro): 연속일 강조
-struct HomeSmallView: View {
-    let state: WidgetState
+// MARK: 공용 — 레트로 픽셀 도트 진행 · 스트릭 칩 · 태스크 행
+
+/// 사각 픽셀 도트 진행 + "X/Y" (한 HStack 으로 묶어 게이지 오해 차단).
+/// done = 라임 채움 / todo = 외곽선. 총 1~6, small/medium 은 maxDots 로 압축.
+private struct DotProgress: View {
+    let done: Int
+    let total: Int
+    var dotSize: CGFloat = 9
+    var spacing: CGFloat = 4
+    var maxDots: Int = 5
+    var countFont: Font = .system(size: 15, weight: .bold, design: .rounded)
+    var countColor: Color = .textSecondary
+
+    private var shown: Int { max(0, min(total, maxDots)) }
+    private var filled: Int {
+        guard total > 0 else { return 0 }
+        return total <= maxDots
+            ? min(done, total)
+            : Int((Double(maxDots) * Double(done) / Double(total)).rounded())
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Text("UpNext")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.accentPrimary)
-                Spacer()
+        HStack(spacing: 8) {
+            HStack(spacing: spacing) {
+                ForEach(0..<shown, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(i < filled ? Color.accentPrimary : Color.clear)
+                        .frame(width: dotSize, height: dotSize)
+                        .overlay {
+                            if i >= filled {
+                                RoundedRectangle(cornerRadius: 1.5).stroke(Color.textTertiary, lineWidth: 1.5)
+                            }
+                        }
+                }
             }
+            Text("\(done)/\(total)")
+                .font(countFont).monospacedDigit()
+                .foregroundColor(done == total && total > 0 ? .accentPrimary : countColor)
+        }
+    }
+}
 
-            Spacer(minLength: 0)
+/// 보조 스트릭 칩 — 불꽃 아이콘 + 숫자(배경/보더 없음, 디자인 규칙). streak 0 이면 숨김.
+private struct StreakChip: View {
+    let streak: Int
+    var flameSize: CGFloat = 13
+    var numberSize: CGFloat = 14
 
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text("\(state.streak)")
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                Text("widget.label.day_unit")
-                    .font(.up(16, .medium))
+    var body: some View {
+        if streak > 0 {
+            HStack(spacing: 4) {
+                widgetFlameIcon(flameSize)
+                Text("\(streak)")
+                    .font(.system(size: numberSize, weight: .bold, design: .rounded))
+                    .monospacedDigit()
                     .foregroundColor(.textSecondary)
             }
-            Text("widget.label.streak_achieved")
-                .font(.up(11, .medium))
-                .foregroundColor(.textTertiary)
-
-            Spacer(minLength: 0)
-
-            // 오늘 진행률 미니 바
-            ProgressBar(ratio: state.progressRatio)
-                .frame(height: 4)
-            Text("\(state.todayDone)/\(state.todayCount)")
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                .foregroundColor(.textSecondary)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+/// medium 우측 미니 태스크 행 (7pt 상태 사각 + 제목).
+private struct TaskRowMini: View {
+    let task: WidgetTask
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(task.done ? Color.accentPrimary : Color.clear)
+                .frame(width: 7, height: 7)
+                .overlay {
+                    if !task.done {
+                        RoundedRectangle(cornerRadius: 1.5).stroke(Color.textTertiary, lineWidth: 1)
+                    }
+                }
+                .offset(y: -1)
+            Text(task.title)
+                .font(.up(13, .medium))
+                .foregroundColor(task.done ? .textTertiary : .textSecondary)
+                .strikethrough(task.done, color: .textTertiary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+    }
+}
+
+/// large 태스크 리스트 행 (16pt 상태 글리프 + 제목, '다음 할 일'은 라임 강조).
+private struct TaskRowLarge: View {
+    let task: WidgetTask
+    let isNextTodo: Bool
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(task.done ? Color.accentPrimary : Color.clear)
+                .frame(width: 16, height: 16)
+                .overlay {
+                    if !task.done {
+                        RoundedRectangle(cornerRadius: 3).stroke(Color.textTertiary, lineWidth: 1.5)
+                    }
+                }
+            Text(task.title)
+                .font(.up(16, task.done ? .regular : (isNextTodo ? .semibold : .medium)))
+                .foregroundColor(task.done ? .textTertiary : (isNextTodo ? .accentPrimary : .textPrimary))
+                .strikethrough(task.done, color: .textTertiary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.9)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+// MARK: - Home Widget Views (태스크 중심)
+
+/// small (155×155): 헤더 + 다음 태스크(히어로) + 도트 진행. 리스트 없음(공간 부족).
+struct HomeSmallView: View {
+    let state: WidgetState
+    private var allDone: Bool { state.todayCount > 0 && state.todayDone == state.todayCount }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                widgetTargetIcon(13)
+                Text(AppConfig.locBundled("widget.label.today_challenge"))
+                    .font(.up(13, .semibold)).foregroundColor(.textTertiary)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                Spacer(minLength: 4)
+                StreakChip(streak: state.streak)
+            }
+            Spacer(minLength: 6)
+            Text(state.displayChallengeTitle)
+                .font(.up(20, .semibold))
+                .foregroundColor(allDone ? .accentPrimary : .textPrimary)
+                .lineLimit(3).multilineTextAlignment(.leading).minimumScaleFactor(0.85)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 8)
+            if state.todayCount > 0 {
+                DotProgress(done: state.todayDone, total: state.todayCount)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
 /// medium (329×155pt): 메인 챌린지 + 진행률 + streak
+/// medium (329×155): 좌(헤더 + 다음 태스크 히어로 + 도트) · 우(오늘 태스크 미리보기 최대 3행).
 struct HomeMediumView: View {
     let state: WidgetState
+    private var allDone: Bool { state.todayCount > 0 && state.todayDone == state.todayCount }
+    /// 좌측 히어로(다음 할 일)와 중복되지 않도록, 우측 미리보기는 '히어로 태스크'를 제외한 나머지.
+    private var nextIdx: Int? { state.tasks.firstIndex(where: { !$0.done }) }
+    private var peekAll: [WidgetTask] {
+        guard let n = nextIdx else { return state.tasks }   // 전부 완료 → 전체 목록
+        return state.tasks.enumerated().filter { $0.offset != n }.map(\.element)
+    }
+    private var peek: [WidgetTask] { Array(peekAll.prefix(3)) }
+    private var peekOverflow: Int { max(0, peekAll.count - 3) }
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            // Left: streak block
-            VStack(alignment: .leading, spacing: 4) {
-                Text("UpNext")
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.accentPrimary)
-                Spacer(minLength: 0)
-                Text("\(state.streak)")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                Text("widget.label.streak")
-                    .font(.up(11))
-                    .foregroundColor(.textSecondary)
-            }
-            .frame(width: 80)
-
-            // Divider
-            Rectangle()
-                .fill(Color.white.opacity(0.08))
-                .frame(width: 1)
-
-            // Right: today main challenge + progress
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("widget.label.today_challenge")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.textTertiary)
-                    Spacer()
-                    Text("\(state.todayDone)/\(state.todayCount)")
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.accentPrimary)
+            // LEFT — 실행 존
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 6) {
+                    widgetTargetIcon(13)
+                    Text(AppConfig.locBundled("widget.label.today_challenge"))
+                        .font(.up(13, .semibold)).foregroundColor(.textTertiary).lineLimit(1)
+                    Spacer(minLength: 4)
+                    StreakChip(streak: state.streak)
                 }
-
+                Spacer(minLength: 6)
                 Text(state.displayChallengeTitle)
-                    .font(.up(14, .semibold))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+                    .font(.up(20, .semibold))
+                    .foregroundColor(allDone ? .accentPrimary : .textPrimary)
+                    .lineLimit(2).minimumScaleFactor(0.85)
                     .frame(maxWidth: .infinity, alignment: .leading)
-
-                Spacer(minLength: 0)
-
-                ProgressBar(ratio: state.progressRatio)
-                    .frame(height: 5)
-
-                // levelTitle 은 메인 앱이 publish 한 사용자 언어 문자열 — 빈 경우만 가림.
-                if !state.levelTitle.isEmpty {
-                    Text("Lv.\(state.level) \(state.levelTitle)")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundColor(.textSecondary)
-                } else {
-                    Text("Lv.\(state.level)")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundColor(.textSecondary)
+                Spacer(minLength: 8)
+                if state.todayCount > 0 {
+                    DotProgress(done: state.todayDone, total: state.todayCount)
                 }
+            }
+
+            // RIGHT — 태스크 미리보기 (데이터 있을 때만, 세로 중앙)
+            if state.todayCount > 0 && !peek.isEmpty {
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(Array(peek.enumerated()), id: \.offset) { _, t in
+                        TaskRowMini(task: t)
+                    }
+                    if peekOverflow > 0 {
+                        Text("+\(peekOverflow)")
+                            .font(.up(12, .medium)).foregroundColor(.textTertiary)
+                    }
+                }
+                .frame(width: 118)
+                .frame(maxHeight: .infinity, alignment: .leading)
             }
         }
-        .padding(14)
+        .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 
 /// large (329×345pt): 메인 챌린지 + XP 게이지 + CTA
+/// large (329×345): 헤더 + 도트 요약 + 실제 오늘의 태스크 체크리스트(최대 6).
 struct HomeLargeView: View {
     let state: WidgetState
+    private var list: [WidgetTask] { Array(state.tasks.prefix(6)) }
+    private var firstTodo: Int? { list.firstIndex(where: { !$0.done }) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
-                Text("UpNext")
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.accentPrimary)
-                Spacer()
-                Text("Lv.\(state.level)")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.textSecondary)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                widgetTargetIcon(16)
+                Text(AppConfig.locBundled("widget.label.today_challenge"))
+                    .font(.up(17, .semibold)).foregroundColor(.textPrimary).lineLimit(1)
+                Spacer(minLength: 4)
+                StreakChip(streak: state.streak, flameSize: 15, numberSize: 16)
             }
 
-            // Streak hero
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(state.streak)")
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
-                Text("widget.label.day_streak")
-                    .font(.up(16, .medium))
-                    .foregroundColor(.textSecondary)
-                Spacer()
+            if state.todayCount > 0 {
+                DotProgress(done: state.todayDone, total: state.todayCount,
+                            dotSize: 12, spacing: 5, maxDots: 6,
+                            countFont: .system(size: 18, weight: .bold, design: .rounded),
+                            countColor: .accentPrimary)
+                Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1).padding(.vertical, 2)
             }
 
-            // Divider
-            Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
-
-            // Main challenge
-            VStack(alignment: .leading, spacing: 6) {
-                Text("widget.label.main_challenge")
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.textTertiary)
+            if !list.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(Array(list.enumerated()), id: \.offset) { i, t in
+                        TaskRowLarge(task: t, isNextTodo: i == firstTodo)
+                    }
+                }
+            } else {
+                // tasks[] 부재(구버전) 또는 선택 전 — 다음 태스크/안내 문구를 히어로로.
                 Text(state.displayChallengeTitle)
-                    .font(.up(17, .semibold))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(2)
-            }
-
-            // Progress
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("widget.label.progress")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundColor(.textTertiary)
-                    Spacer()
-                    Text("\(state.todayDone)/\(state.todayCount)")
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.accentPrimary)
-                }
-                ProgressBar(ratio: state.progressRatio)
-                    .frame(height: 6)
-            }
-
-            // XP gauge — XP/언어 무관 단순 수치라 키 불필요
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("XP")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundColor(.textTertiary)
-                    Spacer()
-                    Text("\(state.xp) / \(state.xpForNext)")
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.textSecondary)
-                }
-                ProgressBar(ratio: state.xpRatio, tint: .textSecondary)
-                    .frame(height: 4)
+                    .font(.up(22, .semibold)).foregroundColor(.textPrimary)
+                    .lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(22)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 
-/// 공용 진행률 바
-struct ProgressBar: View {
-    let ratio: Double
-    var tint: Color = .accentPrimary
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.white.opacity(0.08))
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(tint)
-                    .frame(width: max(2, geo.size.width * CGFloat(ratio)))
-            }
-        }
-    }
-}
+// (ProgressBar 게이지 제거 — 진행은 DotProgress 픽셀 도트로 표기. XP 오해 차단.)
 
 // MARK: - Home Widget Entry View
 
@@ -328,7 +385,7 @@ struct LockCircularView: View {
         VStack(spacing: 0) {
             Text("\(state.streak)")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
-            Text("widget.label.streak")
+            Text(AppConfig.locBundled("widget.label.streak"))
                 .font(.up(9, .semibold))
         }
     }
@@ -357,10 +414,11 @@ struct LockInlineView: View {
     let state: WidgetState
 
     var body: some View {
-        // String Catalog "widget.lock.inline" 키 (값: "UpNext · %1$lld/%2$lld · %3$lld일 연속")
-        // 를 위젯 번들에서 해석. positional %1$lld 형식이라 언어별 어순 자유.
+        // "widget.lock.inline" (값: "UpNext · %1$lld/%2$lld · %3$lld일 연속").
+        // 인앱 언어 .lproj 를 직접 로드(AppConfig.locBundled)해 포맷 문자열을 얻는다 —
+        // String(localized:locale:)/NSLocalizedString 은 위젯에서 시스템 언어로 떨어짐.
         Text(String(
-            format: NSLocalizedString("widget.lock.inline", bundle: .main, comment: ""),
+            format: AppConfig.locBundled("widget.lock.inline"),
             state.todayDone, state.todayCount, state.streak))
     }
 }
@@ -391,6 +449,7 @@ struct HomeWidget: Widget {
         .configurationDisplayName("widget.display_name.home")
         .description("widget.description.home")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .contentMarginsDisabled()   // 시스템 기본 여백 제거 → 배경 엣지투엣지(액자감 제거). 위젯 타깃 iOS17.
     }
 }
 

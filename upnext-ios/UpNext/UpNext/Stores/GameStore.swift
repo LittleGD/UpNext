@@ -1294,6 +1294,16 @@ final class GameStore: ObservableObject {
             d.isDrawComplete = true
             d.isSelectionComplete = true
         }
+        // 위젯(태스크 중심) 멀티태스크 레이아웃 검증 — 3태스크(1완료) + 스트릭 12.
+        if args.contains("UITestSeedWidgetDemo") {
+            let cards = Array(CardCatalog.allCards.prefix(3))
+            p.currentStreak = 12
+            d.drawnCards = Array(CardCatalog.allCards.prefix(6))
+            d.selectedCards = cards
+            d.completedIds = cards.first.map { [$0.id] } ?? []
+            d.isDrawComplete = true
+            d.isSelectionComplete = true
+        }
         var r = RetentionState.fresh(today: todayString())
         // 불꽃 페이지 재설계 검증 — 스트릭/최고기록/세이버/히트맵(checkInDates)/리포트 채움.
         if args.contains("UITestSeedFlame") {

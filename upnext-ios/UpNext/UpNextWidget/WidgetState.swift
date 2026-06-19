@@ -13,6 +13,12 @@
 import Foundation
 import SwiftUI  // LocalizedStringKey
 
+/// 오늘의 태스크 한 줄(위젯 체크리스트). 제목은 앱이 인앱 언어로 해석해 publish.
+struct WidgetTask: Codable, Equatable {
+    let title: String
+    let done: Bool
+}
+
 struct WidgetState: Codable, Equatable {
     let date: String
     let streak: Int
@@ -23,22 +29,29 @@ struct WidgetState: Codable, Equatable {
     let level: Int
     let levelTitle: String
     let mainChallengeTitle: String
+    let tasks: [WidgetTask]
     let updatedAt: TimeInterval
 
-    /// 데이터 없을 때 placeholder/snapshot 에 쓰는 기본값. levelTitle/title 은 빈 문자열로
-    /// 두고 위젯 측에서 displayChallengeTitle / displayLevelTitle 로 다국어 fallback.
-    static let placeholder = WidgetState(
-        date: Self.widgetTodayString(),
-        streak: 7,
-        todayCount: 6,
-        todayDone: 2,
-        xp: 80,
-        xpForNext: 140,
-        level: 3,
-        levelTitle: "",
-        mainChallengeTitle: "",
-        updatedAt: 0
-    )
+    /// 갤러리 프리뷰용 기본값(태스크 중심 레이아웃이 보이도록 샘플 태스크 포함).
+    static var placeholder: WidgetState {
+        WidgetState(
+            date: Self.widgetTodayString(),
+            streak: 12,
+            todayCount: 3,
+            todayDone: 1,
+            xp: 80,
+            xpForNext: 140,
+            level: 3,
+            levelTitle: "",
+            mainChallengeTitle: AppConfig.locBundled("widget.sample.2"),
+            tasks: [
+                WidgetTask(title: AppConfig.locBundled("widget.sample.1"), done: true),
+                WidgetTask(title: AppConfig.locBundled("widget.sample.2"), done: false),
+                WidgetTask(title: AppConfig.locBundled("widget.sample.3"), done: false),
+            ],
+            updatedAt: 0
+        )
+    }
 
     static let empty = WidgetState(
         date: Self.widgetTodayString(),
@@ -50,6 +63,7 @@ struct WidgetState: Codable, Equatable {
         level: 1,
         levelTitle: "",
         mainChallengeTitle: "",
+        tasks: [],
         updatedAt: 0
     )
 
@@ -64,6 +78,10 @@ struct WidgetState: Codable, Equatable {
                 ?? (json["updatedAt"] as? TimeInterval)
                 ?? 0
             guard isFreshPayload(date: date, updatedAt: updatedAt) else { return .empty }
+            let rawTasks = (json["tasks"] as? [[String: Any]]) ?? []
+            let tasks = rawTasks.map {
+                WidgetTask(title: ($0["title"] as? String) ?? "", done: ($0["done"] as? Bool) ?? false)
+            }
             return WidgetState(
                 date: date,
                 streak: (json["streak"] as? Int) ?? 0,
@@ -74,6 +92,7 @@ struct WidgetState: Codable, Equatable {
                 level: (json["level"] as? Int) ?? 1,
                 levelTitle: (json["levelTitle"] as? String) ?? "",
                 mainChallengeTitle: (json["mainChallengeTitle"] as? String) ?? "",
+                tasks: tasks,
                 updatedAt: updatedAt
             )
         }
@@ -90,13 +109,14 @@ struct WidgetState: Codable, Equatable {
         return min(1.0, Double(xp) / Double(xpForNext))
     }
 
-    /// 메인 챌린지 제목 — payload 가 비어있으면 위젯 번들의 다국어 fallback 키를 반환.
-    /// SwiftUI Text(_:) 가 LocalizedStringKey 를 받아 위젯 extension 번들의
-    /// Localizable.xcstrings 에서 자동 해석.
-    var displayChallengeTitle: LocalizedStringKey {
+    /// 메인 챌린지 제목 — payload 가 비어있으면 fallback 안내 문구.
+    /// 위젯은 별도 프로세스라 Text(LocalizedStringKey)+ .environment(\.locale) 로는 인앱
+    /// 언어 해석이 안 된다(시스템 언어로 떨어짐). 그래서 fallback 도 AppConfig.loc 로
+    /// 인앱 언어 String 을 직접 구해 반환 → Text(String) 은 그대로 표시(검증됨).
+    var displayChallengeTitle: String {
         mainChallengeTitle.isEmpty
-            ? LocalizedStringKey("widget.daily.start_prompt")
-            : LocalizedStringKey(mainChallengeTitle)
+            ? AppConfig.locBundled("widget.daily.start_prompt")
+            : mainChallengeTitle
     }
 
     private static func isFreshPayload(date: String, updatedAt: TimeInterval) -> Bool {
