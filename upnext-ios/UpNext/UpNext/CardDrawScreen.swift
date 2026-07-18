@@ -80,12 +80,12 @@ struct DeckHoldDraw: View {
         VStack(spacing: 36) {
             // 안내 텍스트 (웹 L:225-244)
             VStack(spacing: 8) {
-                Text(isHolding ? "뽑는 중…" : heading)
+                Text(isHolding ? AppConfig.loc("뽑는 중…") : heading)
                     .typography(.title)
                     .foregroundStyle(Color.textPrimary)
                     .scaleEffect(isHolding ? 1.03 : 1)
                     .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isHolding)
-                Text(isHolding ? "그대로 유지하세요" : "덱을 길게 눌러\n카드 6장을 펼쳐요")
+                Text(isHolding ? AppConfig.loc("그대로 유지하세요") : AppConfig.loc("덱을 길게 눌러\n카드 6장을 펼쳐요"))
                     .typography(.caption)
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)
@@ -476,7 +476,7 @@ struct CardSelectScreen: View {
                     }
                     // 슈퍼 챌린지는 글자별 wiggle (웹 L:805-826), 그 외 정적 heading.
                     if phase == .`super` {
-                        WiggleText(text: "실천할 \(maxCards)장을 골라요")
+                        WiggleText(text: AppConfig.loc("실천할 \(maxCards)장을 골라요"))
                     } else {
                         Text("실천할 \(maxCards)장을 골라요")
                             .typography(.heading)

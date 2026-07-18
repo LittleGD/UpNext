@@ -265,11 +265,11 @@ struct MinigameView: View {
             SoundPlayer.shared.play(.matchPair)
         case .skill:
             hearts = min(3, hearts + 1)
-            showToast("스킬! 하트 +1")
+            showToast(AppConfig.loc("스킬! 하트 +1"))
             SoundPlayer.shared.play(.complete)
         case .curse:
             hearts = max(0, hearts - 1)
-            showToast("저주! 하트 -1")
+            showToast(AppConfig.loc("저주! 하트 -1"))
             SoundPlayer.shared.play(.curseTrigger)
             Haptics.play(.warning)
         }
@@ -298,7 +298,7 @@ struct MinigameView: View {
             Spacer()
             PixelIcon(lastResult == .success ? .trophy : .warningDiamond,
                       size: 48, color: lastResult == .success ? Color.accentPrimary : Color.colorError)
-            Text(lastResult == .success ? "라운드 \(roundIdx + 1) 클리어!" : "라운드 실패")
+            Text(lastResult == .success ? AppConfig.loc("라운드 \(roundIdx + 1) 클리어!") : AppConfig.loc("라운드 실패"))
                 .typography(.title).foregroundStyle(Color.textPrimary)
             Text("XP +\(roundXp) · 하트 \(hearts)")
                 .typography(.caption).foregroundStyle(Color.textSecondary)
@@ -313,7 +313,7 @@ struct MinigameView: View {
                     phase = .runResult
                 }
             } label: {
-                Text(lastResult == .success && roundIdx < 2 ? "다음 라운드" : "결과 보기")
+                Text(lastResult == .success && roundIdx < 2 ? AppConfig.loc("다음 라운드") : AppConfig.loc("결과 보기"))
                     .typography(.body).foregroundStyle(Color.bgPrimary)
                     .frame(maxWidth: .infinity).frame(height: 52)
                     .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
@@ -331,7 +331,7 @@ struct MinigameView: View {
             Spacer()
             PixelIcon(roundIdx >= 2 && lastResult == .success ? .trophy : .star,
                       size: 56, color: Color.accentPrimary)
-            Text(roundIdx >= 2 && lastResult == .success ? "전체 클리어!" : "수고하셨어요")
+            Text(roundIdx >= 2 && lastResult == .success ? AppConfig.loc("전체 클리어!") : AppConfig.loc("수고하셨어요"))
                 .typography(.title).foregroundStyle(Color.textPrimary)
             VStack(spacing: 6) {
                 Text("도달: 라운드 \(roundIdx + 1) / 3")

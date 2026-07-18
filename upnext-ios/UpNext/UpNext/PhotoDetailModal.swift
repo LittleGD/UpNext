@@ -165,7 +165,7 @@ struct PhotoDetailModal: View {
         } label: {
             HStack(spacing: 6) {
                 PixelIcon(.reload, size: 12, color: Color.textSecondary)
-                Text(flipped ? "사진 보기" : "메모 보기")
+                Text(flipped ? AppConfig.loc("사진 보기") : AppConfig.loc("메모 보기"))
                     .typography(.caption)
                     .foregroundStyle(Color.textSecondary)
             }
@@ -180,13 +180,13 @@ struct PhotoDetailModal: View {
 
     private var actionRow: some View {
         HStack(spacing: 8) {
-            actionButton(.send, "공유", tint: Color.textSecondary) { share() }
-            actionButton(.sparkle, "부적", tint: Color.textSecondary) { makeTalisman() }
-            actionButton(.trash, "삭제", tint: deleteTint) {
+            actionButton(.send, AppConfig.loc("공유"), tint: Color.textSecondary) { share() }
+            actionButton(.sparkle, AppConfig.loc("부적"), tint: Color.textSecondary) { makeTalisman() }
+            actionButton(.trash, AppConfig.loc("삭제"), tint: deleteTint) {
                 SoundPlayer.shared.play(.select)
                 showDeleteConfirm = true
             }
-            actionButton(.cancel, "닫기", tint: Color.textSecondary) { close() }
+            actionButton(.cancel, AppConfig.loc("닫기"), tint: Color.textSecondary) { close() }
         }
     }
 

@@ -48,7 +48,7 @@ struct LoginView: View {
                 // 로그인 — Apple/Google 동등 옵션 (커밋 2d1a76b 의 디자인 유지).
                 VStack(spacing: 10) {
                     providerButton(
-                        title: "Apple로 계속하기",
+                        title: AppConfig.loc("Apple로 계속하기"),
                         icon: Image(systemName: "apple.logo"),
                         iconIsTemplate: true
                     ) {
@@ -57,7 +57,7 @@ struct LoginView: View {
                     }
 
                     providerButton(
-                        title: "Google로 계속하기",
+                        title: AppConfig.loc("Google로 계속하기"),
                         icon: Image("GoogleG"),
                         iconIsTemplate: false
                     ) {

@@ -71,7 +71,7 @@ struct CodexView: View {
                     withAnimation(.easeInOut(duration: 0.15)) { tab = t }
                     Haptics.play(.selection)
                 } label: {
-                    Text(t.rawValue)
+                    Text(AppConfig.locRuntime(t.rawValue))
                         .typography(.caption)
                         .foregroundStyle(tab == t ? Color.bgPrimary : Color.textSecondary)
                         .padding(.horizontal, 14).padding(.vertical, 8)
@@ -232,10 +232,10 @@ struct EquipmentCodexCard: View {
 
     private var slotLabel: String {
         switch template.type {
-        case .weapon:    return "무기"
-        case .armor:     return "방어구"
-        case .accessory: return "장신구"
-        case .talisman:  return "부적"
+        case .weapon:    return AppConfig.loc("무기")
+        case .armor:     return AppConfig.loc("방어구")
+        case .accessory: return AppConfig.loc("장신구")
+        case .talisman:  return AppConfig.loc("부적")
         }
     }
 

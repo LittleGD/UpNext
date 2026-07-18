@@ -96,8 +96,8 @@ struct CardPackOpenerView: View {
 
     private var phaseSubtitle: String {
         switch phase {
-        case .idle:     return "레벨업·챌린지 보상으로 받은 카드팩이에요.\n열어서 새 카드를 덱에 추가하세요."
-        case .shaking:  return "팩이 흔들리는 중…"
+        case .idle:     return AppConfig.loc("레벨업·챌린지 보상으로 받은 카드팩이에요.\n열어서 새 카드를 덱에 추가하세요.")
+        case .shaking:  return AppConfig.loc("팩이 흔들리는 중…")
         case .flashing: return ""
         case .halo:     return ""
         case .revealed: return ""
@@ -220,11 +220,11 @@ struct CardPackOpenerView: View {
     @ViewBuilder private var bottomButton: some View {
         if phase == .revealed || phase == .idle {
             if revealed == nil {
-                button("팩 열기") { startOpen() }
+                button(AppConfig.loc("팩 열기")) { startOpen() }
             } else if pendingCount > 0 {
-                button("다음 팩 열기 (\(pendingCount))") { absorbThen { startOpen() } }
+                button(AppConfig.loc("다음 팩 열기 (\(pendingCount))")) { absorbThen { startOpen() } }
             } else {
-                button("완료") { absorbThen(onComplete) }
+                button(AppConfig.loc("완료")) { absorbThen(onComplete) }
             }
         } else {
             // 시퀀스 진행 중 — 빈 자리만 유지

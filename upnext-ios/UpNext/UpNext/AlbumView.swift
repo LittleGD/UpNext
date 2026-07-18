@@ -116,7 +116,7 @@ struct AlbumView: View {
         }
         return grouped.keys.sorted(by: >).compactMap { key in
             guard let items = grouped[key]?.sorted(by: { $0.timestamp > $1.timestamp }) else { return nil }
-            return PhotoSection(id: key, title: "\(key) 주간", items: items)
+            return PhotoSection(id: key, title: AppConfig.loc("\(key) 주간"), items: items)
         }
     }
 
@@ -142,7 +142,7 @@ struct AlbumView: View {
                     if meta.kind == .challengeLog {
                         HStack(spacing: 4) {
                             PixelIcon(meta.category?.pixelIcon ?? .check, size: 9, color: Color.bgPrimary)
-                            Text(meta.category?.label ?? "챌린지")
+                            Text(meta.category?.label ?? AppConfig.loc("챌린지"))
                                 .typography(.micro)
                                 .lineLimit(1)
                         }

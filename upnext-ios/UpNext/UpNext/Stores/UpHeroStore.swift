@@ -641,8 +641,12 @@ final class UpHeroStore: ObservableObject {
 
     static func makeDefaultState() -> UpHeroState {
         let now = nowMillis()
+        // 기본 영웅 이름을 인앱 언어 풀에서 뽑는다 — language 미전달 시 ko 풀로 고정돼
+        // 비한국어 사용자도 한국어 이름을 받던 버그 수정(heroNamePools 에 4개국어 존재).
+        let appLang = Language(rawValue:
+            AppConfig.sharedDefaults?.string(forKey: AppConfig.languageKey) ?? "ko") ?? .ko
         return UpHeroState(
-            hero: UpHeroRules.createDefaultHero(),
+            hero: UpHeroRules.createDefaultHero(language: appLang),
             inventory: [],
             coins: 0,
             passes: [:],

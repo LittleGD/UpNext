@@ -40,7 +40,14 @@ final class AuthService: NSObject, ObservableObject {
     private var currentNonce: String?
     // ASAuthorizationController 는 요청이 끝날 때까지 강한 참조가 유지돼야 함.
     private var appleController: ASAuthorizationController?
-    private var appleContinuation: CheckedContinuation<Void, Error>?
+    private var appleContinuation: CheckedContinuation<AppleCredentialResult, Error>?
+
+    /// Apple 자격증명 요청 결과 — 로그인/재인증/계정삭제 공용.
+    /// authorizationCode 는 계정 삭제 시 Apple 토큰 revoke 에 사용(로그인 경로에선 무시).
+    private struct AppleCredentialResult {
+        let credential: AuthCredential
+        let authorizationCode: String?
+    }
 
     /// 현재 로그인 uid (없으면 nil) — SyncManager 가 사용.
     var uid: String? {
@@ -90,31 +97,32 @@ final class AuthService: NSObject, ObservableObject {
         lastError = nil
         isWorking = true
         defer { isWorking = false }
-
-        guard let clientID = FirebaseApp.app()?.options.clientID else {
-            lastError = AppConfig.loc("구글 설정을 불러올 수 없어요")
-            return
-        }
-        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
-
-        guard let presenter = Self.topViewController() else {
-            lastError = AppConfig.loc("잠시 후 다시 시도해주세요")
-            return
-        }
         do {
-            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenter)
-            guard let idToken = result.user.idToken?.tokenString else {
-                lastError = AppConfig.loc("구글 인증 정보를 받지 못했어요")
-                return
-            }
-            let credential = GoogleAuthProvider.credential(
-                withIDToken: idToken,
-                accessToken: result.user.accessToken.tokenString)
+            let credential = try await requestGoogleCredential()
             try await Auth.auth().signIn(with: credential)
             // state 갱신은 addStateDidChangeListener 가 담당.
         } catch {
             lastError = Self.friendlyGoogleError(error)
         }
+    }
+
+    /// Google 자격증명 획득 — 로그인/재인증 공용. Firebase signIn/reauthenticate 직전 단계.
+    /// 호출부가 isWorking·lastError 를 관리하고, 여기서는 credential 만 반환하거나 throw.
+    private func requestGoogleCredential() async throws -> AuthCredential {
+        guard let clientID = FirebaseApp.app()?.options.clientID else {
+            throw AuthServiceError.googleConfigMissing
+        }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        guard let presenter = Self.topViewController() else {
+            throw AuthServiceError.noPresenter
+        }
+        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenter)
+        guard let idToken = result.user.idToken?.tokenString else {
+            throw AuthServiceError.googleTokenMissing
+        }
+        return GoogleAuthProvider.credential(
+            withIDToken: idToken,
+            accessToken: result.user.accessToken.tokenString)
     }
 
     // MARK: - Apple 로그인
@@ -124,7 +132,21 @@ final class AuthService: NSObject, ObservableObject {
         lastError = nil
         isWorking = true
         defer { isWorking = false }
+        do {
+            let result = try await requestAppleCredential()
+            try await Auth.auth().signIn(with: result.credential)
+            // state 갱신은 addStateDidChangeListener 가 담당.
+        } catch {
+            // 사용자 취소(.canceled) 는 에러로 노출 안 함 — 자연스러운 흐름.
+            if let msg = Self.friendlyAppleError(error) {
+                lastError = msg
+            }
+        }
+    }
 
+    /// Apple 자격증명 획득 — 로그인/재인증/계정삭제 공용. credential + revoke용 authorizationCode 반환.
+    /// 호출부가 isWorking·lastError 를 관리.
+    private func requestAppleCredential() async throws -> AppleCredentialResult {
         let nonce = Self.randomNonceString()
         currentNonce = nonce
 
@@ -136,19 +158,62 @@ final class AuthService: NSObject, ObservableObject {
         controller.delegate = self
         controller.presentationContextProvider = self
         appleController = controller
+        defer { appleController = nil }
 
-        do {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                appleContinuation = continuation
-                controller.performRequests()
-            }
-        } catch {
-            // 사용자 취소(.canceled) 는 에러로 노출 안 함 — 자연스러운 흐름.
-            if let msg = Self.friendlyAppleError(error) {
-                lastError = msg
-            }
+        return try await withCheckedThrowingContinuation { continuation in
+            appleContinuation = continuation
+            controller.performRequests()
         }
-        appleController = nil
+    }
+
+    // MARK: - 계정 삭제 (App Store Guideline 5.1.1(v))
+
+    /// 계정 영구 삭제 — 재인증 → cloudCleanup → Apple 토큰 revoke → Auth 레코드 삭제.
+    /// signOut 과 달리 Auth identity 자체를 제거하므로 동일 Apple/Google 계정으로 재로그인해도
+    /// 같은 uid 가 복원되지 않는다(5.1.1(v) 요건). `user.delete()` 는 최근 로그인을 요구하므로
+    /// 먼저 재인증한다. cloudCleanup 은 *재인증 직후·Auth 삭제 전*(= 아직 인증된 상태)에 실행돼
+    /// Firestore 문서·듀오 PII 를 Security Rules 권한이 살아있을 때 정리한다.
+    /// cloudCleanup 이 false 를 반환하면(클라우드 삭제 실패) Auth 삭제 전에 중단해
+    /// "Auth 만 지워지고 Firestore 문서가 남는" 부분삭제(고아 PII)를 방지한다.
+    /// 반환: 삭제 성공 여부. 실패/취소 시 lastError 에 사용자 메시지를 싣고 false.
+    func deleteAccount(cloudCleanup: () async -> Bool) async -> Bool {
+        guard !isWorking else { return false }
+        guard let user = Auth.auth().currentUser else { return false }
+        lastError = nil
+        isWorking = true
+        defer { isWorking = false }
+
+        let providerID = user.providerData.first?.providerID ?? ""
+        do {
+            var appleAuthCode: String?
+            switch providerID {
+            case "google.com":
+                let credential = try await requestGoogleCredential()
+                try await user.reauthenticate(with: credential)
+            case "apple.com":
+                let result = try await requestAppleCredential()
+                try await user.reauthenticate(with: result.credential)
+                appleAuthCode = result.authorizationCode
+            default:
+                break  // provider 불명 — 재인증 생략하고 바로 삭제 시도(실패 시 catch).
+            }
+            // 아직 인증된 상태에서 클라우드 정리 (Auth 삭제 후엔 rules 가 write/delete 거부).
+            // 실패하면 여기서 중단 — Auth 를 지우기 전이므로 재시도 가능한 상태가 유지된다.
+            guard await cloudCleanup() else {
+                lastError = AppConfig.loc("계정 데이터 삭제에 실패했어요 — 잠시 후 다시 시도해주세요")
+                return false
+            }
+            // Apple: 토큰 revoke 로 '설정 > Apple ID > Apple로 로그인' 목록에서도 앱 제거.
+            if let appleAuthCode {
+                try? await Auth.auth().revokeToken(withAuthorizationCode: appleAuthCode)
+            }
+            try await user.delete()
+            GIDSignIn.sharedInstance.signOut()
+            return true
+        } catch {
+            lastError = Self.friendlyDeletionError(error)
+            return false
+        }
     }
 
     // MARK: - 헬퍼
@@ -221,14 +286,14 @@ extension AuthService: ASAuthorizationControllerDelegate {
                 return
             }
             // FirebaseAuth 10.12+ — Apple credential 직접 생성 (rawNonce 로 replay 검증).
+            // signIn/reauthenticate 는 호출부(requestAppleCredential 소비처)가 수행한다.
             let credential = OAuthProvider.appleCredential(
                 withIDToken: idToken, rawNonce: nonce, fullName: appleCredential.fullName)
-            do {
-                try await Auth.auth().signIn(with: credential)
-                continuation?.resume()
-            } catch {
-                continuation?.resume(throwing: error)
-            }
+            // authorizationCode — 계정 삭제 시 Apple 토큰 revoke 에 사용(로그인 경로에선 미사용).
+            let authCode = appleCredential.authorizationCode
+                .flatMap { String(data: $0, encoding: .utf8) }
+            continuation?.resume(returning: AppleCredentialResult(
+                credential: credential, authorizationCode: authCode))
         }
     }
 
@@ -254,6 +319,9 @@ extension AuthService: ASAuthorizationControllerPresentationContextProviding {
 
 enum AuthServiceError: Error {
     case appleTokenMissing
+    case googleConfigMissing
+    case noPresenter
+    case googleTokenMissing
 }
 
 // MARK: - 친절 에러 메시지 (Localizable.xcstrings 경유 다국어)
@@ -293,5 +361,19 @@ extension AuthService {
             return nil  // 사용자 취소 — 조용히.
         }
         return AppConfig.loc("구글 로그인 중 오류가 발생했어요 — 다시 시도해주세요")
+    }
+
+    /// 계정 삭제 중 에러를 사용자 메시지로 변환. 재인증 시트 취소(Apple .canceled / Google -5)는
+    /// 실패가 아니라 사용자가 그만둔 것이므로 별도 안내 문구를 노출.
+    static func friendlyDeletionError(_ error: Error) -> String {
+        let ns = error as NSError
+        let isCancel =
+            (ns.domain == ASAuthorizationError.errorDomain
+                && ns.code == ASAuthorizationError.canceled.rawValue)
+            || (ns.domain == "com.google.GIDSignIn" && ns.code == -5)
+        if isCancel {
+            return AppConfig.loc("계정 삭제가 취소됐어요")
+        }
+        return AppConfig.loc("계정 삭제에 실패했어요 — 잠시 후 다시 시도해주세요")
     }
 }

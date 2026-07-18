@@ -22,11 +22,11 @@ struct ShopView: View {
             header
             ScrollView {
                 VStack(spacing: 10) {
-                    shopItem(name: "작은 카드팩", desc: "새 카드 1장",
+                    shopItem(name: AppConfig.loc("작은 카드팩"), desc: AppConfig.loc("새 카드 1장"),
                              price: ShopPrices.cardPackSmall) {
                         store.buyCardPack(full: false)
                     }
-                    shopItem(name: "카드팩", desc: "새 카드 5장",
+                    shopItem(name: AppConfig.loc("카드팩"), desc: AppConfig.loc("새 카드 5장"),
                              price: ShopPrices.cardPackFull) {
                         store.buyCardPack(full: true)
                     }

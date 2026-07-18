@@ -193,6 +193,35 @@ final class GameStore: ObservableObject {
         if auth.uid != nil { auth.signOut() }
     }
 
+    /// 계정 영구 삭제 (App Store Guideline 5.1.1(v)) — Auth 레코드까지 제거해 재로그인 시
+    /// 같은 uid 가 복원되지 않게 한다. 단순 '데이터 리셋'(resetAllData)은 signOut 만 하므로
+    /// Apple 이 인정하는 '계정 삭제'가 아니다. 순서:
+    ///   재인증 → (cloudCleanup: 활성 듀오 leave + Firestore users/{uid} 삭제) → Apple revoke
+    ///   → Auth.delete → 로컬 초기화.
+    /// 비로그인(익명) 사용자는 클라우드 계정이 없으니 로컬 리셋만. 반환: 성공 여부
+    /// (실패/취소 시 auth.lastError 에 사용자 메시지).
+    func deleteAccount() async -> Bool {
+        guard let uid = auth.uid else {
+            // 계정 없음 — 로컬만 초기화하고 성공 처리.
+            resetAllData()
+            return true
+        }
+        let ok = await auth.deleteAccount(cloudCleanup: { [weak self] in
+            guard let self else { return false }
+            // 아직 인증된 상태 — 파트너 문서 PII 제거(best-effort) 후 내 클라우드 문서 삭제.
+            // users/{uid} 삭제 실패는 false 로 전파 → Auth 삭제 전에 중단(고아 PII 방지).
+            if self.duo.activeDuo != nil {
+                await self.duo.leaveDuoAsync()
+            }
+            return await self.sync.deleteCloudData(uid: uid)
+        })
+        if ok {
+            // Auth 는 이미 삭제됨 — resetAllData 의 signOut 은 무해(currentUser nil).
+            resetAllData()
+        }
+        return ok
+    }
+
     /// LoginOverlay 가 이미 한 번 보였는지 — 웹 localStorage["login_prompt_seen"].
     /// UserDefaults 라 앱 재설치 외엔 보존.
     private static let loginPromptSeenKey = "login_prompt_seen"
@@ -1366,6 +1395,8 @@ final class GameStore: ObservableObject {
             store.upHero.grantSkillPoints(3)     // 스킬트리에서 T2 해금 가능
             store.upHero.addCoins(2400)
             store.upHero.markCampTutorialSeen()  // 캠프 홈 IA 검증 — 튜토리얼 가림 방지
+            // 캐시된 영웅 이름을 강제 언어 풀의 결정론 이름으로 — 스크린샷 언어 일관성.
+            store.upHero.renameHero(UpHeroRules.heroNamePools[forcedLang ?? .ko]?.first ?? "레오")
         }
         store.progress = p
         store.daily = d

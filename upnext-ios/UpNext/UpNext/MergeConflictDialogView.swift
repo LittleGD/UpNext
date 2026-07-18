@@ -63,7 +63,7 @@ struct MergeConflictDialogView: View {
     private func optionCard(_ side: Side) -> some View {
         let isRecommended = (side == .local && conflict.recommend == .local)
             || (side == .cloud && conflict.recommend == .cloud)
-        let title = side == .local ? "이 기기 데이터 사용" : "클라우드 데이터 사용"
+        let title = side == .local ? AppConfig.loc("이 기기 데이터 사용") : AppConfig.loc("클라우드 데이터 사용")
         let progress = side == .local ? conflict.localProgress : conflict.cloudProgress
         let days = progress.totalDaysCompleted
 

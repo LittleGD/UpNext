@@ -92,10 +92,10 @@ struct PhotoTalismanPicker: View {
 
     private var rarityTable: some View {
         HStack(spacing: 14) {
-            rarityProb(.normal, "일반", 50)
-            rarityProb(.rare, "레어", 35)
-            rarityProb(.unique, "유니크", 12)
-            rarityProb(.legend, "레전드", 3)
+            rarityProb(.normal, AppConfig.loc("일반"), 50)
+            rarityProb(.rare, AppConfig.loc("레어"), 35)
+            rarityProb(.unique, AppConfig.loc("유니크"), 12)
+            rarityProb(.legend, AppConfig.loc("레전드"), 3)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
@@ -165,7 +165,7 @@ struct PhotoTalismanPicker: View {
             }
             Spacer(minLength: 0)
             Button { if !isMax && canAfford { pendingRebind = (photo, item) } } label: {
-                Text(isMax ? "MAX" : "재의식 \(cost)")
+                Text(isMax ? "MAX" : AppConfig.loc("재의식 \(cost)"))
                     .typography(.micro).monospacedDigit()
                     .foregroundStyle((isMax || !canAfford) ? Color.textTertiary : Color.bgPrimary)
                     .padding(.horizontal, 12).frame(height: 36)
@@ -211,9 +211,9 @@ struct PhotoTalismanPicker: View {
     @ViewBuilder private var confirmOverlay: some View {
         if let p = pendingBind {
             confirmCard(
-                title: "사진 부적 만들기",
-                body: "\(PhotoTalisman.ritualCost) 코인을 써서 이 사진을 부적으로 만들어요. 등급은 무작위예요.",
-                confirm: "의식 시작",
+                title: AppConfig.loc("사진 부적 만들기"),
+                body: AppConfig.loc("\(PhotoTalisman.ritualCost) 코인을 써서 이 사진을 부적으로 만들어요. 등급은 무작위예요."),
+                confirm: AppConfig.loc("의식 시작"),
                 onConfirm: {
                     pendingBind = nil
                     let r = upHero.bindPhotoAsTalisman(photo: p)
@@ -223,9 +223,9 @@ struct PhotoTalismanPicker: View {
         } else if let rb = pendingRebind {
             let lvl = rb.item.enhanceLevel ?? 0
             confirmCard(
-                title: "재의식 — \(rb.item.name)",
-                body: "\(PhotoTalisman.rebindCost(currentLevel: lvl)) 코인으로 +\(lvl) → +\(lvl + 1) 강화해요. +5·+10 에서 부적 스킬을 얻어요.",
-                confirm: "재의식",
+                title: AppConfig.loc("재의식 — \(rb.item.name)"),
+                body: AppConfig.loc("\(PhotoTalisman.rebindCost(currentLevel: lvl)) 코인으로 +\(lvl) → +\(lvl + 1) 강화해요. +5·+10 에서 부적 스킬을 얻어요."),
+                confirm: AppConfig.loc("재의식"),
                 onConfirm: {
                     pendingRebind = nil
                     let r = upHero.rebindPhotoTalisman(photoId: rb.photo.id)
@@ -326,8 +326,8 @@ struct PhotoTalismanPicker: View {
 
     private func statLabel(_ k: StatKey) -> String {
         switch k {
-        case .slotBonus: return "슬롯"
-        case .crit:      return "크리"
+        case .slotBonus: return AppConfig.loc("슬롯")
+        case .crit:      return AppConfig.loc("크리")
         default:         return k.rawValue.uppercased()
         }
     }

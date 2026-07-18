@@ -137,11 +137,11 @@ struct CampTutorialOverlay: View {
     private var controls: some View {
         HStack(spacing: 8) {
             if isFirst {
-                tutorialButton("건너뛰기", filled: false) { finish() }
+                tutorialButton(AppConfig.loc("건너뛰기"), filled: false) { finish() }
             } else {
-                tutorialButton("이전", filled: false) { goTo(idx - 1) }
+                tutorialButton(AppConfig.loc("이전"), filled: false) { goTo(idx - 1) }
             }
-            tutorialButton(isLast ? "시작하기" : "다음", filled: true) { advance() }
+            tutorialButton(isLast ? AppConfig.loc("시작하기") : AppConfig.loc("다음"), filled: true) { advance() }
         }
     }
 

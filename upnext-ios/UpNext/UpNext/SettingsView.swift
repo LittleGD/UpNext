@@ -16,6 +16,9 @@ struct SettingsView: View {
     @State private var showPrivacy = false
     @State private var showResetConfirm = false
     @State private var showSignOutConfirm = false
+    @State private var showDeleteAccountConfirm = false
+    @State private var isDeletingAccount = false
+    @State private var deleteAccountError: String?
 
     var body: some View {
         ScrollView {
@@ -182,10 +185,10 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("내 기록")
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                statCard("현재 스트릭", "\(p.currentStreak)일")
-                statCard("최장 스트릭", "\(p.longestStreak)일")
-                statCard("총 XP", "\(p.xp) XP")
-                statCard("해금 카드", "\(p.unlockedCardIds.count)장")
+                statCard(AppConfig.loc("현재 스트릭"), AppConfig.loc("\(p.currentStreak)일"))
+                statCard(AppConfig.loc("최장 스트릭"), AppConfig.loc("\(p.longestStreak)일"))
+                statCard(AppConfig.loc("총 XP"), "\(p.xp) XP")
+                statCard(AppConfig.loc("해금 카드"), AppConfig.loc("\(p.unlockedCardIds.count)장"))
             }
         }
     }
@@ -232,8 +235,8 @@ struct SettingsView: View {
 
     private func titleProgressList(progress: UserProgress) -> some View {
         let breakpoints: [(Int, String)] = [
-            (0, "입문자"), (1, "뉴비"), (2, "도전자"), (4, "실천가"),
-            (6, "갓생러"), (9, "마스터"), (13, "레전드")
+            (0, AppConfig.loc("입문자")), (1, AppConfig.loc("뉴비")), (2, AppConfig.loc("도전자")), (4, AppConfig.loc("실천가")),
+            (6, AppConfig.loc("갓생러")), (9, AppConfig.loc("마스터")), (13, AppConfig.loc("레전드"))
         ]
         return VStack(alignment: .leading, spacing: 4) {
             ForEach(0..<breakpoints.count, id: \.self) { i in
@@ -260,8 +263,8 @@ struct SettingsView: View {
                 let uid = store.auth.uid
                 let isAnon = store.isAnonymous
                 settingRow("로그인 상태") {
-                    Text(uid == nil ? "비로그인" :
-                         isAnon ? "익명" : "연동됨")
+                    Text(uid == nil ? AppConfig.loc("비로그인") :
+                         isAnon ? AppConfig.loc("익명") : AppConfig.loc("연동됨"))
                         .typography(.caption)
                         .foregroundStyle(uid == nil || isAnon ? Color.textSecondary : Color.accentPrimary)
                 }
@@ -309,6 +312,26 @@ struct SettingsView: View {
                         .padding(.horizontal, 16).padding(.vertical, 12)
                     }
                     .buttonStyle(.plain)
+                    divider
+                    // App Store Guideline 5.1.1(v) — 계정 생성 앱은 앱 내 계정 삭제 경로 필수.
+                    Button {
+                        showDeleteAccountConfirm = true
+                    } label: {
+                        HStack {
+                            Text("계정 삭제")
+                                .typography(.body)
+                                .foregroundStyle(Color.colorError)
+                            Spacer()
+                            if isDeletingAccount {
+                                ProgressView().tint(Color.colorError)
+                            } else {
+                                PixelIcon(.chevronRight, size: 12, color: Color.textTertiary)
+                            }
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isDeletingAccount)
                 }
             }
             .background(Color.bgSurface)
@@ -319,6 +342,38 @@ struct SettingsView: View {
                 store.auth.signOut()
             }
             Button("취소", role: .cancel) {}
+        }
+        .confirmationDialog("계정을 삭제하시겠어요?", isPresented: $showDeleteAccountConfirm,
+                            titleVisibility: .visible) {
+            Button("계정 삭제 (되돌릴 수 없음)", role: .destructive) {
+                performAccountDeletion()
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("계정과 모든 데이터가 영구 삭제됩니다. 같은 계정으로 다시 로그인해도 복구되지 않습니다.")
+        }
+        .alert("계정 삭제", isPresented: Binding(
+            get: { deleteAccountError != nil },
+            set: { if !$0 { deleteAccountError = nil } })
+        ) {
+            Button("확인", role: .cancel) { deleteAccountError = nil }
+        } message: {
+            Text(deleteAccountError ?? "")
+        }
+    }
+
+    /// 계정 영구 삭제 실행 — 재인증 시트가 떠 사용자 확인 후 Auth/클라우드/로컬 전부 제거.
+    /// 성공 시 GameStore.resetAllData 가 phase=.onboarding 으로 전환해 이 화면이 사라진다.
+    /// 실패/취소 시 auth.lastError 메시지를 alert 로 노출.
+    private func performAccountDeletion() {
+        isDeletingAccount = true
+        Task {
+            let ok = await store.deleteAccount()
+            isDeletingAccount = false
+            if !ok {
+                deleteAccountError = store.auth.lastError
+                    ?? AppConfig.loc("계정 삭제에 실패했어요 — 잠시 후 다시 시도해주세요")
+            }
         }
     }
 

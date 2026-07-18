@@ -194,10 +194,10 @@ struct EquipmentInventoryView: View {
 
     private func slotName(_ slot: EquipSlot) -> String {
         switch slot {
-        case .weapon:    return "무기"
-        case .armor:     return "방어구"
-        case .accessory: return "장신구"
-        case .talisman:  return "부적"
+        case .weapon:    return AppConfig.loc("무기")
+        case .armor:     return AppConfig.loc("방어구")
+        case .accessory: return AppConfig.loc("장신구")
+        case .talisman:  return AppConfig.loc("부적")
         }
     }
 }
@@ -296,6 +296,6 @@ struct EquipmentSlotCard: View {
             guard let v = stats[key], v != 0 else { return nil }
             return "\(key.label)\(v > 0 ? "+" : "")\(v)"
         }
-        return parts.isEmpty ? "효과 없음" : parts.joined(separator: " ")
+        return parts.isEmpty ? AppConfig.loc("효과 없음") : parts.joined(separator: " ")
     }
 }

@@ -173,8 +173,8 @@ private struct CampView: View {
                     .typography(.title)
                     .foregroundStyle(Color.textPrimary)
                 Text(tickets > 0
-                     ? "티켓 \(tickets)장 · 3라운드 메모리 매치로 카드를 모아요"
-                     : "티켓이 없어요 · 챌린지를 완료하면 받아요")
+                     ? AppConfig.loc("티켓 \(tickets)장 · 3라운드 메모리 매치로 카드를 모아요")
+                     : AppConfig.loc("티켓이 없어요 · 챌린지를 완료하면 받아요"))
                     .typography(.caption)
                     .foregroundStyle(Color.textTertiary)
                     .multilineTextAlignment(.center)
@@ -205,8 +205,8 @@ private struct CampView: View {
 
     private var campTabBar: some View {
         HStack(spacing: 8) {
-            campTabButton("영웅", tab: .hero)
-            campTabButton("카드매치", tab: .game)
+            campTabButton(AppConfig.loc("영웅"), tab: .hero)
+            campTabButton(AppConfig.loc("카드매치"), tab: .game)
             Spacer(minLength: 0)
         }
     }
@@ -260,7 +260,7 @@ private struct CampView: View {
                 } label: {
                     HStack(spacing: 4) {
                         PixelIcon(.user, size: 10, color: GBPalette.lightest)
-                        Text(hero.classType != nil ? "스탯 · 스킬" : "영웅 정보")
+                        Text(hero.classType != nil ? AppConfig.loc("스탯 · 스킬") : AppConfig.loc("영웅 정보"))
                             .typography(.micro)
                             .foregroundStyle(GBPalette.lightest)
                             .tracking(0.5)
@@ -284,13 +284,13 @@ private struct CampView: View {
     private var ctaStack: some View {
         VStack(spacing: 10) {
             if classEligible {
-                campCTA(icon: .sparkle, label: "전직", hint: "Lv.30 — 전문 클래스 선택",
+                campCTA(icon: .sparkle, label: AppConfig.loc("전직"), hint: AppConfig.loc("Lv.30 — 전문 클래스 선택"),
                         primary: true) { screen = .classChoice }
             }
             // PrimaryCTA — 탐험 시작 (탐험권 0 이면 상점으로). 유일한 강조 CTA(위계 단일화).
             campCTA(icon: .target,
-                    label: totalPasses > 0 ? "탐험 시작" : "탐험권 구매",
-                    hint: totalPasses > 0 ? "던전을 골라 출발" : "상점에서 구매",
+                    label: totalPasses > 0 ? AppConfig.loc("탐험 시작") : AppConfig.loc("탐험권 구매"),
+                    hint: totalPasses > 0 ? AppConfig.loc("던전을 골라 출발") : AppConfig.loc("상점에서 구매"),
                     badge: totalPasses > 0 ? "×\(totalPasses)" : nil,
                     primary: true) {
                 SoundPlayer.shared.play(.select)
@@ -299,10 +299,10 @@ private struct CampView: View {
             // 보조 액션 — 2열 그리드(부제목 제거)로 압축해 한 페이지 위계를 줄인다.
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
                                 GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                campTile(.shoppingBag, "상점") { screen = .shop }
-                campTile(.shield, "장비") { screen = .equipment }
-                campTile(.bookOpen, "도감") { screen = .codex }
-                campTile(.trophy, "주간 순위") { screen = .weekly }
+                campTile(.shoppingBag, AppConfig.loc("상점")) { screen = .shop }
+                campTile(.shield, AppConfig.loc("장비")) { screen = .equipment }
+                campTile(.bookOpen, AppConfig.loc("도감")) { screen = .codex }
+                campTile(.trophy, AppConfig.loc("주간 순위")) { screen = .weekly }
             }
         }
     }
@@ -418,7 +418,7 @@ private struct CampView: View {
     /// (영웅 Lv 진행률 % == 게임 Lv 진행률 %, 웹 CampPlaceholder 와 동일 로직).
     private var header: some View {
         let hero = upHero.state.hero
-        let heroName = hero.name.isEmpty ? "갓생 영웅" : hero.name
+        let heroName = hero.name.isEmpty ? AppConfig.loc("갓생 영웅") : hero.name
         let gameLevel = store.progress?.level ?? 0
         let xp = store.progress?.xp ?? 0
         let curXp = max(0, xp - GameRules.totalXPForLevel(gameLevel))
@@ -493,11 +493,11 @@ private struct HeroTapStyle: ButtonStyle {
 private struct AmbientFlickerText: View {
     /// 웹 i18n ko `uphero.camp.ambience.1~15` 그대로 (디바이스 한국어 기준).
     private static let lines = [
-        "모닥불이 조용히 타오른다", "장작이 탁, 하고 튀었다", "재 속에서 붉은 숨이 깜빡인다",
-        "연기가 느리게 하늘로 번진다", "불씨 하나가 바람을 따라 올라갔다", "주전자가 나지막이 끓고 있다",
-        "지도를 다시 펼쳐본다", "천막 너머로 별이 번진다", "바람이 먼 곳에서 불어온다",
-        "밤이 한 겹 더 깊어졌다", "발자국 소리가 멀어진다", "무기의 날을 한 번 갈아둔다",
-        "오늘의 피로가 천천히 가신다", "모닥불 그림자가 길게 늘어진다", "여행자의 일기에 한 줄을 적는다",
+        AppConfig.locRuntime("모닥불이 조용히 타오른다"), AppConfig.locRuntime("장작이 탁, 하고 튀었다"), AppConfig.locRuntime("재 속에서 붉은 숨이 깜빡인다"),
+        AppConfig.locRuntime("연기가 느리게 하늘로 번진다"), AppConfig.locRuntime("불씨 하나가 바람을 따라 올라갔다"), AppConfig.locRuntime("주전자가 나지막이 끓고 있다"),
+        AppConfig.locRuntime("지도를 다시 펼쳐본다"), AppConfig.locRuntime("천막 너머로 별이 번진다"), AppConfig.locRuntime("바람이 먼 곳에서 불어온다"),
+        AppConfig.locRuntime("밤이 한 겹 더 깊어졌다"), AppConfig.locRuntime("발자국 소리가 멀어진다"), AppConfig.locRuntime("무기의 날을 한 번 갈아둔다"),
+        AppConfig.locRuntime("오늘의 피로가 천천히 가신다"), AppConfig.locRuntime("모닥불 그림자가 길게 늘어진다"), AppConfig.locRuntime("여행자의 일기에 한 줄을 적는다"),
     ]
     private static let warm = Color(red: 0.910, green: 0.722, blue: 0.529)  // rgb(232,184,135)
 

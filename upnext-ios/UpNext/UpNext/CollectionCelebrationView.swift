@@ -128,7 +128,7 @@ struct CollectionCelebrationView: View {
     private var rewardGrid: some View {
         HStack(spacing: 10) {
             rewardCell(label: "XP", amount: PackTier.firstClearBonus.xp)
-            rewardCell(label: "영웅 코인", amount: PackTier.firstClearBonus.coins)
+            rewardCell(label: AppConfig.loc("영웅 코인"), amount: PackTier.firstClearBonus.coins)
         }
     }
 

@@ -146,7 +146,7 @@ private struct PairMatchGame: View {
     }
 
     var body: some View {
-        MinigameShell(title: "짝 맞추기", difficulty: difficulty) {
+        MinigameShell(title: AppConfig.loc("짝 맞추기"), difficulty: difficulty) {
             VStack(spacing: 12) {
                 Text("\(timeRemaining)s 남음")
                     .typography(.caption)
@@ -242,7 +242,7 @@ private struct ReactionTapGame: View {
     }
 
     var body: some View {
-        MinigameShell(title: "반응 속도", difficulty: difficulty) {
+        MinigameShell(title: AppConfig.loc("반응 속도"), difficulty: difficulty) {
             VStack(spacing: 16) {
                 statusText
                 signalLight
@@ -262,10 +262,10 @@ private struct ReactionTapGame: View {
     }
 
     private var statusText: some View {
-        Text(phase == .waiting ? "준비..." :
-             phase == .ready  ? "기다려..." :
-             phase == .go     ? "지금 탭!" :
-             phase == .success ? "성공" : "실패")
+        Text(phase == .waiting ? AppConfig.loc("준비...") :
+             phase == .ready  ? AppConfig.loc("기다려...") :
+             phase == .go     ? AppConfig.loc("지금 탭!") :
+             phase == .success ? AppConfig.loc("성공") : AppConfig.loc("실패"))
             .typography(.heading)
             .foregroundStyle(Color.textPrimary)
     }
@@ -336,7 +336,7 @@ private struct TapBurstGame: View {
     }
 
     var body: some View {
-        MinigameShell(title: "연타!", difficulty: difficulty) {
+        MinigameShell(title: AppConfig.loc("연타!"), difficulty: difficulty) {
             VStack(spacing: 16) {
                 Text("\(count) / \(target)")
                     .typography(.display)

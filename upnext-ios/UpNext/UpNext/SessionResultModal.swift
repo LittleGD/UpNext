@@ -123,7 +123,7 @@ struct SessionResultModal: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     PixelIcon(.gift, size: 14, color: GBPalette.light)
-                    Text("획득 장비 \(kept.count)\(lost.isEmpty ? "" : " (잃음 \(lost.count))")")
+                    Text(lost.isEmpty ? AppConfig.loc("획득 장비 \(kept.count)") : AppConfig.loc("획득 장비 \(kept.count) (잃음 \(lost.count))"))
                         .typography(.caption)
                         .foregroundStyle(GBPalette.light)
                 }
@@ -240,20 +240,20 @@ struct SessionResultModal: View {
         }
         switch reason {
         case .bossDefeated, .victory:
-            return ReasonInfo(title: "보스 격파",
-                              detail: detailText ?? "탐험 성공",
+            return ReasonInfo(title: AppConfig.loc("보스 격파"),
+                              detail: detailText ?? AppConfig.loc("탐험 성공"),
                               icon: .trophy, color: GBPalette.lightest)
         case .heroDied, .defeat:
-            return ReasonInfo(title: "영웅이 쓰러졌다",
-                              detail: detailText ?? "장비 절반을 잃었다",
+            return ReasonInfo(title: AppConfig.loc("영웅이 쓰러졌다"),
+                              detail: detailText ?? AppConfig.loc("장비 절반을 잃었다"),
                               icon: .warningDiamond, color: Color.accentSecondary)
         case .timeExpired:
-            return ReasonInfo(title: "탐험 시간 소진",
-                              detail: detailText ?? "다음에 더 깊이 들어가자",
+            return ReasonInfo(title: AppConfig.loc("탐험 시간 소진"),
+                              detail: detailText ?? AppConfig.loc("다음에 더 깊이 들어가자"),
                               icon: .clock, color: GBPalette.light)
         case .heroAbandoned, .abandoned:
-            return ReasonInfo(title: "캠프로 복귀",
-                              detail: detailText ?? "안전한 휴식",
+            return ReasonInfo(title: AppConfig.loc("캠프로 복귀"),
+                              detail: detailText ?? AppConfig.loc("안전한 휴식"),
                               icon: .flag, color: GBPalette.light)
         }
     }

@@ -106,7 +106,7 @@ struct DungeonSelectView: View {
                     .typography(.caption)
                     .foregroundStyle(GBPalette.lightest)
                     .lineLimit(1)
-                Text(best > 0 ? "최고 F\(best)" : "미탐험")
+                Text(best > 0 ? AppConfig.loc("최고 F\(best)") : AppConfig.loc("미탐험"))
                     .typography(.micro)
                     .monospacedDigit()
                     .foregroundStyle(GBPalette.light)

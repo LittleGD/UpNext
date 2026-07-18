@@ -23,9 +23,9 @@ struct DecorationToolbar: View {
         VStack(spacing: 10) {
             // 도구 선택 (펜/지우개/스티커)
             HStack(spacing: 12) {
-                toolButton(.pen, icon: .penSquare, label: "펜")
-                toolButton(.eraser, icon: .trash, label: "지우개")
-                toolButton(.sticker, icon: .sparkle, label: "스티커")
+                toolButton(.pen, icon: .penSquare, label: AppConfig.loc("펜"))
+                toolButton(.eraser, icon: .trash, label: AppConfig.loc("지우개"))
+                toolButton(.sticker, icon: .sparkle, label: AppConfig.loc("스티커"))
             }
 
             // 도구별 보조 패널

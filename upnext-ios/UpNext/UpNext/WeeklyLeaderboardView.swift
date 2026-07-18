@@ -93,7 +93,7 @@ struct WeeklyLeaderboardView: View {
                 .fill(Color(hex: e.avatarHex))
                 .frame(width: 32, height: 32)
             VStack(alignment: .leading, spacing: 2) {
-                Text(e.name + (e.isMe ? " (나)" : ""))
+                Text(e.name + (e.isMe ? AppConfig.loc(" (나)") : ""))
                     .typography(.caption)
                     .foregroundStyle(e.isMe ? Color.bgPrimary : Color.textPrimary)
                 Text("F\(e.floor) · \(formatTime(e.timeSeconds))")

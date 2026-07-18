@@ -106,13 +106,13 @@ struct HeroStatPanel: View {
     private func classSection(_ cls: ClassType, hero: Hero) -> some View {
         let meta = UpHeroRules.classMeta[cls]
         return VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("클래스")
+            sectionTitle(AppConfig.loc("클래스"))
             HStack(spacing: 12) {
                 PixelIcon(PixelIconName.resolve(meta?.icon ?? "user"), size: 22,
                           color: Color.accentPrimary)
                     .frame(width: 30)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(meta?.name ?? "영웅")
+                    Text(meta?.name ?? AppConfig.loc("영웅"))
                         .typography(.body)
                         .foregroundStyle(Color.textPrimary)
                     Text(meta?.passive ?? "")
@@ -163,7 +163,7 @@ struct HeroStatPanel: View {
         let learned = (hero.learnedSkills ?? []).compactMap { ClassSkills.findSkillById($0) }
         if !learned.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                sectionTitle(hero.classType == nil ? "수련 스킬" : "보유 스킬")
+                sectionTitle(hero.classType == nil ? AppConfig.loc("수련 스킬") : AppConfig.loc("보유 스킬"))
                 VStack(spacing: 8) {
                     ForEach(learned, id: \.id) { skill in
                         HStack(alignment: .top, spacing: 10) {
@@ -218,7 +218,7 @@ struct HeroStatPanel: View {
             VStack(alignment: .leading, spacing: 12) {
                 // 헤더 — 타이틀 + 남은 SP
                 HStack {
-                    sectionTitle("스킬트리")
+                    sectionTitle(AppConfig.loc("스킬트리"))
                     Spacer(minLength: 0)
                     HStack(spacing: 4) {
                         PixelIcon(.star, size: 12, color: Color.textPrimary)
@@ -253,8 +253,8 @@ struct HeroStatPanel: View {
     }
 
     private func tierLabel(_ tier: Int, skills: [ClassSkill]) -> String {
-        guard tier > 1, let first = skills.first else { return "\(tier)단계" }
-        return "\(tier)단계 · Lv.\(first.requiredLevel) · SP \(first.pointCost)"
+        guard tier > 1, let first = skills.first else { return AppConfig.loc("\(tier)단계") }
+        return AppConfig.loc("\(tier)단계 · Lv.\(first.requiredLevel) · SP \(first.pointCost)")
     }
 
     private func skillTreeRow(_ skill: ClassSkill, learned: [String], points: Int,
@@ -317,7 +317,7 @@ struct HeroStatPanel: View {
         switch status {
         case .needLevel:  return "Lv.\(skill.requiredLevel)"
         case .needPoints: return "SP \(skill.pointCost)"
-        default:          return "해금"
+        default:          return AppConfig.loc("해금")
         }
     }
 
@@ -325,7 +325,7 @@ struct HeroStatPanel: View {
 
     private func equippedSection(hero: Hero) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("장착 장비")
+            sectionTitle(AppConfig.loc("장착 장비"))
             VStack(spacing: 8) {
                 ForEach(EquipSlot.allCases, id: \.self) { slot in
                     equipRow(slot: slot, item: hero.equipped[slot])
@@ -375,10 +375,10 @@ struct HeroStatPanel: View {
 
     private func slotLabel(_ slot: EquipSlot) -> String {
         switch slot {
-        case .weapon:    return "무기"
-        case .armor:     return "방어구"
-        case .accessory: return "장신구"
-        case .talisman:  return "부적"
+        case .weapon:    return AppConfig.loc("무기")
+        case .armor:     return AppConfig.loc("방어구")
+        case .accessory: return AppConfig.loc("장신구")
+        case .talisman:  return AppConfig.loc("부적")
         }
     }
 

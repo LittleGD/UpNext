@@ -189,6 +189,23 @@ final class DuoStore: ObservableObject {
         }
     }
 
+    /// leaveDuo 의 await 가능 버전 — 계정 삭제 플로우 전용.
+    /// Auth 레코드 삭제 *전*에 완료를 보장해야 파트너 문서에서 내 PII(표시이름·체크인·nudge)가
+    /// 확실히 제거된다(콜백형 leaveDuo 는 fire-and-forget 이라 삭제 레이스 위험). best-effort —
+    /// 실패해도 계정 삭제 자체는 진행한다(users/{uid} 문서는 별도로 삭제됨).
+    func leaveDuoAsync() async {
+        guard let uid, let activeDuo else { return }
+        try? await db.collection("duos").document(activeDuo.id).updateData([
+            "memberIds": FieldValue.arrayRemove([uid]),
+            "memberNames.\(uid)": FieldValue.delete(),
+            "checkIns.\(uid)": FieldValue.delete(),
+            "nudges.\(uid)": FieldValue.delete(),
+            "updatedAt": UpHeroStore.nowMillis(),
+        ])
+        self.activeDuo = nil
+        self.inviteCode = nil
+    }
+
     func leaveDuo() {
         guard let uid, let activeDuo, !isWorking else { return }
         isWorking = true

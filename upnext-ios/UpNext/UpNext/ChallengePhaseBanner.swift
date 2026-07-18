@@ -107,7 +107,7 @@ struct ChallengePhaseBanner: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(phase == .extra ? "추가 챌린지 도전" : "슈퍼 챌린지 도전")
+        .accessibilityLabel(phase == .extra ? AppConfig.loc("추가 챌린지 도전") : AppConfig.loc("슈퍼 챌린지 도전"))
         .accessibilityHint("길게 누르면 시작합니다")
         .accessibilityAction {
             onConfirm()
@@ -180,10 +180,10 @@ struct ChallengePhaseBanner: View {
                     .scaleEffect(1 + progress * 0.15)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(phase == .extra ? "추가 챌린지 도전" : "슈퍼 챌린지 도전")
+                Text(phase == .extra ? AppConfig.loc("추가 챌린지 도전") : AppConfig.loc("슈퍼 챌린지 도전"))
                     .typography(.body)
                     .foregroundStyle(Color.textPrimary)
-                Text(charging ? "꾹 누르고 있어요…" : "버튼을 꾹 눌러 시작")
+                Text(charging ? AppConfig.loc("꾹 누르고 있어요…") : AppConfig.loc("버튼을 꾹 눌러 시작"))
                     .typography(.micro)
                     .foregroundStyle(Color.textTertiary)
             }

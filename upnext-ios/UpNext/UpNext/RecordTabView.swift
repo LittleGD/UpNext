@@ -33,10 +33,10 @@ struct RitualGreetingHeader: View {
     private var phase: (icon: PixelIconName, hi: String, sub: String) {
         let h = Calendar.current.component(.hour, from: Date())
         switch h {
-        case 5..<11:  return (.flame, "좋은 아침이에요", "오늘의 불꽃을 천천히 켜볼까요")
-        case 11..<17: return (.flame, "한낮이에요", "잠깐 멈춰 오늘을 챙겨봐요")
-        case 17..<22: return (.moon, "저녁이에요", "오늘 하루, 어땠어요?")
-        default:      return (.moon, "늦은 밤이에요", "오늘도 여기 있어줘서 고마워요")
+        case 5..<11:  return (.flame, AppConfig.loc("좋은 아침이에요"), AppConfig.loc("오늘의 불꽃을 천천히 켜볼까요"))
+        case 11..<17: return (.flame, AppConfig.loc("한낮이에요"), AppConfig.loc("잠깐 멈춰 오늘을 챙겨봐요"))
+        case 17..<22: return (.moon, AppConfig.loc("저녁이에요"), AppConfig.loc("오늘 하루, 어땠어요?"))
+        default:      return (.moon, AppConfig.loc("늦은 밤이에요"), AppConfig.loc("오늘도 여기 있어줘서 고마워요"))
         }
     }
     var body: some View {

@@ -113,14 +113,14 @@ struct ClassChoiceView: View {
     /// 클래스의 출신 카테고리 한국어 라벨.
     private func categoryName(_ cls: ClassType) -> String {
         switch cls {
-        case .warrior:      return "운동"
-        case .mage:         return "학습"
-        case .monk:         return "명상"
-        case .druid:        return "식단"
-        case .bard:         return "소통"
-        case .chronomancer: return "생산성"
-        case .priest:       return "건강"
-        case .illusionist:  return "트렌드"
+        case .warrior:      return AppConfig.loc("운동")
+        case .mage:         return AppConfig.loc("학습")
+        case .monk:         return AppConfig.loc("명상")
+        case .druid:        return AppConfig.loc("식단")
+        case .bard:         return AppConfig.loc("소통")
+        case .chronomancer: return AppConfig.loc("생산성")
+        case .priest:       return AppConfig.loc("건강")
+        case .illusionist:  return AppConfig.loc("트렌드")
         }
     }
 }

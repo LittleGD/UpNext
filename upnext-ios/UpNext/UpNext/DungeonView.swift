@@ -223,8 +223,8 @@ struct DungeonView: View {
         let cd = (session.skillCooldowns ?? [:])[skill.id] ?? 0
         let check = ClassSkills.canFireSkill(session, skillId: skill.id)
         let stateLabel = cd > 0 ? "CD \(cd)"
-            : check.reason == .resource ? "자원 부족"
-            : "준비"
+            : check.reason == .resource ? AppConfig.loc("자원 부족")
+            : AppConfig.loc("준비")
         return Button {
             upHero.fireSkillManual(skill.id)
         } label: {
@@ -385,12 +385,12 @@ struct DungeonView: View {
             let hpColor = hpPct > 0.5 ? Color.accentPrimary
                 : hpPct > 0.2 ? Color(hexString: "#e8c76b") : Color.accentSecondary
             statBar("HP", session.hero.hp, session.hero.maxHp, hpColor)
-            statBar("탐험 시간", session.time, session.maxTime, Color.accentCyan)
+            statBar(AppConfig.loc("탐험 시간"), session.time, session.maxTime, Color.accentCyan)
             // 클래스 자원 게이지(분노/마나/기 등) — 전직 영웅만. 웹 ClassResourceBar.
             // 스킬 발동에 쓰이는 자원이 보이지 않던 갭(rpg 리뷰) 해소. 표시 전용.
             if let cls = session.hero.classType,
                let spec = UpHeroRules.classResource[cls] {
-                statBar(spec.name, session.classResource ?? 0,
+                statBar(AppConfig.locRuntime(spec.name), session.classResource ?? 0,
                         UpHeroRules.classResourceMax, Color(hexString: spec.color))
             }
         }
@@ -523,12 +523,12 @@ struct DungeonView: View {
         case let .combat(attacker, damage, outcome, narrative, key, params, _):
             if let key { return R(key, params, narrative ?? "") }
             if let narrative, !narrative.isEmpty { return narrative }
-            let who: NarrativeValue = .text(attacker == .hero ? "영웅" : "적")
+            let who: NarrativeValue = .text(attacker == .hero ? AppConfig.loc("영웅") : AppConfig.loc("적"))
             let dmg: NarrativeValue = .number(Double(damage))
             switch outcome {
             case .hit:   return R("ios.log.combatHit", ["who": who, "damage": dmg], "")
             case .crit:  return R("ios.log.combatCrit", ["who": who, "damage": dmg], "")
-            case .dodge: return R("ios.log.combatDodge", ["who": .text(attacker == .hero ? "적" : "영웅")], "")
+            case .dodge: return R("ios.log.combatDodge", ["who": .text(attacker == .hero ? AppConfig.loc("적") : AppConfig.loc("영웅"))], "")
             case .miss:  return R("ios.log.combatMiss", ["who": who], "")
             }
         case let .victory(monster, xp, coins, key, params, _):

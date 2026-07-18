@@ -128,10 +128,12 @@ struct DailyHomeView: View {
     }
 
     private func heading(_ phase: ChallengePhase) -> String {
+        // String 반환값이 Text(변수)로 렌더되므로 LocalizedStringKey 자동 현지화가 안 걸린다.
+        // AppConfig.loc 로 인앱 언어(currentLocale) 기준 해석해야 4개국어로 표시됨.
         switch phase {
-        case .daily:    return "오늘의 챌린지"
-        case .extra:    return "추가 챌린지"
-        case .`super`:  return "슈퍼 챌린지"
+        case .daily:    return AppConfig.loc("오늘의 챌린지")
+        case .extra:    return AppConfig.loc("추가 챌린지")
+        case .`super`:  return AppConfig.loc("슈퍼 챌린지")
         }
     }
 

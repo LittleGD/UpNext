@@ -329,9 +329,18 @@ final class SyncManager: ObservableObject {
         }
     }
 
-    func deleteCloudData(uid: String) async {
+    /// 성공 여부를 반환 — 계정 삭제 플로우는 이 결과로 Auth 삭제 진행/중단을 결정한다.
+    /// (try? 로 삼키면 PERMISSION_DENIED/오프라인 실패가 조용히 지나가 Auth 만 지워진
+    ///  "고아 PII" 부분삭제가 생긴다.) 데이터 리셋 플로우는 기존처럼 결과 무시 가능.
+    @discardableResult
+    func deleteCloudData(uid: String) async -> Bool {
         let docRef = Firestore.firestore().collection(usersCollection).document(uid)
-        try? await docRef.delete()
+        do {
+            try await docRef.delete()
+            return true
+        } catch {
+            return false
+        }
     }
 
     // MARK: - 헬퍼

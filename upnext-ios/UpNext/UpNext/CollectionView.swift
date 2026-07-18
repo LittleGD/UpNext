@@ -231,14 +231,14 @@ struct CollectionView: View {
     private static let categoryTierCounts = [7, 15, 30, 50]
     /// 웹 categoryTitleNames(ko) — 카테고리별 4티어 칭호명.
     private static let categoryTitleNames: [String: [String]] = [
-        "fitness":      ["운동 입문자", "운동 실천가", "운동 마스터", "운동 레전드"],
-        "nutrition":    ["식단 입문자", "식단 실천가", "식단 마스터", "식단 레전드"],
-        "mindfulness":  ["마음 수련생", "마음 탐험가", "마음 마스터", "마음 레전드"],
-        "learning":     ["학습 입문자", "학습 실천가", "학습 마스터", "학습 레전드"],
-        "social":       ["소통 입문자", "소통 실천가", "소통 마스터", "소통 레전드"],
-        "productivity": ["정리 입문자", "정리 실천가", "정리 마스터", "정리 레전드"],
-        "wellness":     ["건강 입문자", "건강 실천가", "건강 마스터", "건강 레전드"],
-        "trending":     ["트렌드 워처", "글로벌 시그널러", "컬처 라이더", "Z게이지 아이콘"],
+        "fitness":      [AppConfig.locRuntime("운동 입문자"), AppConfig.locRuntime("운동 실천가"), AppConfig.locRuntime("운동 마스터"), AppConfig.locRuntime("운동 레전드")],
+        "nutrition":    [AppConfig.locRuntime("식단 입문자"), AppConfig.locRuntime("식단 실천가"), AppConfig.locRuntime("식단 마스터"), AppConfig.locRuntime("식단 레전드")],
+        "mindfulness":  [AppConfig.locRuntime("마음 수련생"), AppConfig.locRuntime("마음 탐험가"), AppConfig.locRuntime("마음 마스터"), AppConfig.locRuntime("마음 레전드")],
+        "learning":     [AppConfig.locRuntime("학습 입문자"), AppConfig.locRuntime("학습 실천가"), AppConfig.locRuntime("학습 마스터"), AppConfig.locRuntime("학습 레전드")],
+        "social":       [AppConfig.locRuntime("소통 입문자"), AppConfig.locRuntime("소통 실천가"), AppConfig.locRuntime("소통 마스터"), AppConfig.locRuntime("소통 레전드")],
+        "productivity": [AppConfig.locRuntime("정리 입문자"), AppConfig.locRuntime("정리 실천가"), AppConfig.locRuntime("정리 마스터"), AppConfig.locRuntime("정리 레전드")],
+        "wellness":     [AppConfig.locRuntime("건강 입문자"), AppConfig.locRuntime("건강 실천가"), AppConfig.locRuntime("건강 마스터"), AppConfig.locRuntime("건강 레전드")],
+        "trending":     [AppConfig.locRuntime("트렌드 워처"), AppConfig.locRuntime("글로벌 시그널러"), AppConfig.locRuntime("컬처 라이더"), AppConfig.locRuntime("Z게이지 아이콘")],
     ]
 
     private func nativeTitles(_ progress: UserProgress?) -> [NativeTitle] {
@@ -247,14 +247,14 @@ struct CollectionView: View {
             NativeTitle(
                 id: "level-\(p.level)",
                 name: GameRules.titleForLevel(p.level, lang: p.language),
-                description: "현재 레벨 칭호",
+                description: AppConfig.loc("현재 레벨 칭호"),
                 earned: p.level >= 1,
                 progress: "Lv \(p.level)"
             ),
             NativeTitle(
                 id: "collection-complete",
-                name: "컬렉션 마스터",
-                description: "모든 카드를 수집",
+                name: AppConfig.loc("컬렉션 마스터"),
+                description: AppConfig.loc("모든 카드를 수집"),
                 earned: p.unlockedCardIds.count >= CardCatalog.allCards.count,
                 progress: "\(p.unlockedCardIds.count)/\(CardCatalog.allCards.count)"
             ),
@@ -263,8 +263,8 @@ struct CollectionView: View {
         for days in [3, 7, 14, 30] {
             titles.append(NativeTitle(
                 id: "streak-\(days)",
-                name: "\(days)일 연속 실천가",
-                description: "최장 스트릭 \(days)일 달성",
+                name: AppConfig.loc("\(days)일 연속 실천가"),
+                description: AppConfig.loc("최장 스트릭 \(days)일 달성"),
                 earned: p.longestStreak >= days,
                 progress: "\(min(p.longestStreak, days))/\(days)"
             ))
@@ -280,7 +280,7 @@ struct CollectionView: View {
                 titles.append(NativeTitle(
                     id: "category-\(category.rawValue)-\(need)",
                     name: names[tier],
-                    description: "\(category.label) 카드 \(need)회 완료",
+                    description: AppConfig.loc("\(category.label) 카드 \(need)회 완료"),
                     earned: count >= need,
                     progress: "\(min(count, need))/\(need)"
                 ))
@@ -288,15 +288,15 @@ struct CollectionView: View {
         }
         titles.append(NativeTitle(
             id: "extra-1",
-            name: "추가 도전자",
-            description: "추가 챌린지 완료",
+            name: AppConfig.loc("추가 도전자"),
+            description: AppConfig.loc("추가 챌린지 완료"),
             earned: p.extraChallengesCompleted >= 1,
             progress: "\(min(p.extraChallengesCompleted, 1))/1"
         ))
         titles.append(NativeTitle(
             id: "super-1",
-            name: "슈퍼 루틴러",
-            description: "슈퍼 챌린지 완료",
+            name: AppConfig.loc("슈퍼 루틴러"),
+            description: AppConfig.loc("슈퍼 챌린지 완료"),
             earned: p.superChallengesCompleted >= 1,
             progress: "\(min(p.superChallengesCompleted, 1))/1"
         ))

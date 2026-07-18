@@ -1,0 +1,35 @@
+{
+  "sourceLanguage" : "ko",
+  "strings" : {
+    "NSCameraUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "챌린지 인증 사진을 촬영하기 위해 카메라를 사용합니다."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UpNext uses the camera to take photos that record your challenge check-ins."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "チャレンジの達成を記録する写真を撮影するためにカメラを使用します。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用于拍摄记录挑战打卡的照片。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

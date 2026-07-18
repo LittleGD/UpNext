@@ -29,11 +29,17 @@ enum AppClock {
     }
 
     private static func uiTestTodayOverride() -> String? {
+        // 테스트 클럭 주입은 DEBUG 전용 — Release 바이너리에는 런치인자/환경변수 경로가
+        // 컴파일되지 않는다(다른 UITest 훅과 동일하게 #if DEBUG 격리).
+        #if DEBUG
         let args = ProcessInfo.processInfo.arguments
         if let hit = args.first(where: { $0.hasPrefix("UITestNow=") }) {
             return String(hit.dropFirst("UITestNow=".count))
         }
         return ProcessInfo.processInfo.environment["UITestNow"]
+        #else
+        return nil
+        #endif
     }
 
     private static let dayFormatter: DateFormatter = {

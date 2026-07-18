@@ -254,7 +254,7 @@ struct PhotoCaptureModal: View {
                 }
                 Spacer()
                 Button { flipped.toggle() } label: {
-                    Text(flipped ? "앞면" : "뒷면 메모")
+                    Text(flipped ? AppConfig.loc("앞면") : AppConfig.loc("뒷면 메모"))
                         .typography(.caption)
                         .foregroundStyle(Color.textSecondary)
                         .padding(.horizontal, 14).padding(.vertical, 6)

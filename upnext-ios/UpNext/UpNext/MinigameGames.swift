@@ -261,7 +261,7 @@ struct PipeConnectGame: View {
                 .typography(.caption).foregroundStyle(Color.textTertiary)
             gridView
             if let r = result {
-                Text(r ? "연결 성공!" : "실패")
+                Text(r ? AppConfig.loc("연결 성공!") : AppConfig.loc("실패"))
                     .typography(.body)
                     .foregroundStyle(r ? Color.accentPrimary : Color.colorError)
             }
@@ -399,8 +399,8 @@ struct SequenceMemoGame: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("순서 기억").typography(.title).foregroundStyle(Color.accentPrimary)
-            Text(phase == .show ? "점등 순서를 기억하세요"
-                 : phase == .input ? "순서대로 탭" : "")
+            Text(phase == .show ? AppConfig.loc("점등 순서를 기억하세요")
+                 : phase == .input ? AppConfig.loc("순서대로 탭") : "")
                 .typography(.caption).foregroundStyle(Color.textSecondary)
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)], spacing: 16) {
@@ -478,7 +478,7 @@ struct DodgeDropsGame: View {
     var body: some View {
         VStack {
             Text("낙하 회피").typography(.title).foregroundStyle(Color.accentPrimary)
-            Text(String(format: "%.1fs 남음", max(0, duration - elapsed)))
+            Text(String(format: AppConfig.loc("%.1fs 남음"), max(0, duration - elapsed)))
                 .typography(.caption).foregroundStyle(Color.textSecondary).monospacedDigit()
             GeometryReader { geo in
                 ZStack {
@@ -670,7 +670,7 @@ struct QuickSumGame: View {
                     .buttonStyle(.plain)
                 }
             }
-            Text(String(format: "남은 시간 %.0fs · 정답 %d개", max(0, timeRemaining), streak))
+            Text(String(format: AppConfig.loc("남은 시간 %.0fs · 정답 %d개"), max(0, timeRemaining), streak))
                 .typography(.micro).foregroundStyle(Color.textTertiary)
         }
         .padding(20)
@@ -830,7 +830,7 @@ struct BreathHoldGame: View {
                 .scaleEffect(holding ? 1.05 : 1.0)
                 .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: holding)
                 .overlay(
-                    Text(holding ? String(format: "%.1fs", elapsed) : "탭 후 홀드")
+                    Text(holding ? String(format: "%.1fs", elapsed) : AppConfig.loc("탭 후 홀드"))
                         .typography(.title)
                         .foregroundStyle(Color.bgPrimary)
                 )
@@ -858,7 +858,7 @@ struct BreathHoldGame: View {
                         }
                 )
             if phase == .done {
-                Text(String(format: "%.2fs (목표 %.1fs)", totalDuration, target))
+                Text(String(format: AppConfig.loc("%.2fs (목표 %.1fs)"), totalDuration, target))
                     .typography(.caption).foregroundStyle(Color.textPrimary)
             }
         }

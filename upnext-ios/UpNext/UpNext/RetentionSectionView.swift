@@ -355,7 +355,7 @@ private struct DuoFlameCard: View {
     private func activeBody(_ a: DuoSnapshot, uid: String) -> some View {
         let today = GameStore.todayString()
         let otherId = a.memberIds.first { $0 != uid }
-        let friendName = otherId.flatMap { a.memberNames[$0] } ?? "친구"
+        let friendName = otherId.flatMap { a.memberNames[$0] } ?? AppConfig.loc("친구")
         let mine = a.checkedIn(uid: uid, on: today)
         let theirs = otherId.map { a.checkedIn(uid: $0, on: today) } ?? false
         let fused = mine && theirs
