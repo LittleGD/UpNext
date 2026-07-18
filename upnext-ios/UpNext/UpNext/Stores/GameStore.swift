@@ -1451,6 +1451,27 @@ final class GameStore: ObservableObject {
 
     // MARK: - 기본 상태 팩토리 (웹 getInitialProgress / getInitialDailyState)
 
+    /// 19-i18n-mixed — 첫 렌더 *이전* 인앱 언어 확정값(진실원천 선반영용).
+    /// 우선순위: UITestLang 오버라이드 > 로컬 캐시 progress.language(재방문 확정값) >
+    /// 기기 기본. UpNextApp.init 에서 이 값으로 `AppConfig.persistLanguage` 를 1회 선반영해
+    /// progress.didSet(persistLanguage) 이 auth 확정 후에야 도는 사이의 stale 창을 없앤다
+    /// — 그 창에서 AppConfig(Path B: currentLocale/inAppBundle)가 기본값("ko")이나 이전
+    /// 세션 값을 읽어 카탈로그를 잘못된 언어로 해석하던 문제를 차단.
+    static func bootLanguage() -> Language {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        if let raw = args.first(where: { $0.hasPrefix("UITestLang=") })?
+            .replacingOccurrences(of: "UITestLang=", with: ""),
+           let lang = Language(rawValue: raw) {
+            return lang
+        }
+        #endif
+        if let cached = LocalProgressCacheStore.load()?.progress.language {
+            return cached
+        }
+        return deviceDefaultLanguage()
+    }
+
     /// 기기 선호 언어 → 지원 4개국어 매핑. 미지원 로케일은 en. 웹 navigator.language
     /// 자동 감지 패리티 — 신규 유저가 기기 언어로 시작(영어 기본 + 한국어 데이터 불일치 해소).
     static func deviceDefaultLanguage() -> Language {

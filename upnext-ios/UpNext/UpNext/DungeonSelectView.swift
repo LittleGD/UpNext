@@ -127,7 +127,9 @@ struct DungeonSelectView: View {
     }
 
     /// 던전(=카테고리)별 PixelIcon — 웹 CATEGORY_ICON 맵 1:1.
-    private static func dungeonIcon(_ id: DungeonId) -> PixelIconName {
+    /// internal(비-private) — ShopView.swift 탐험권 그리드가 재사용(22-shop-tickets,
+    /// 중복 switch 금지).
+    static func dungeonIcon(_ id: DungeonId) -> PixelIconName {
         switch id {
         case .fitness:      return .human
         case .learning:     return .bookOpen

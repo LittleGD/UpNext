@@ -34,6 +34,13 @@ struct UpNextApp: App {
 
         // 커스텀 폰트(April16th-Promise) 런타임 등록 — typography(_:) 모디파이어가 쓰는 폰트.
         AppFont.register()
+
+        // 19-i18n-mixed — 인앱 언어 진실원천을 *첫 렌더 이전* 에 선반영.
+        // GameStore.progress.didSet(AppConfig.persistLanguage) 는 auth 확정 후에야 돌아
+        // 그 이전 창에서 AppConfig(Path B)가 stale/기본값을 읽어 카탈로그를 기기 언어로
+        // 해석했다. 캐시된 언어(재방문)·UITest 오버라이드·기기 기본 순으로 한 번 확정해
+        // Path A(environment locale)와 Path B(AppConfig)가 항상 같은 값을 읽도록 정합.
+        AppConfig.persistLanguage(GameStore.bootLanguage().rawValue)
     }
 
     var body: some Scene {

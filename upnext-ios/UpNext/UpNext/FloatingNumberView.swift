@@ -72,8 +72,16 @@ struct FloatingNumberItem: Identifiable {
 }
 
 /// 단일 부유 숫자 뷰 (TimelineView 로 progress 보간).
+///
+/// - `anchored == false`(기본): `.position(item.position)` 절대좌표 배치 — 오버레이 컨테이너
+///   기준. XP/coin/CRIT!/MISS 등 화면 앵커 효과용.
+/// - `anchored == true`: `.position` 없이 부모 `overlay(alignment:)` 가 기준점을 잡고, 여기선
+///   keyframe transform + `baseOffsetY`(웹 top:-16/-18) 만 적용 — 스프라이트 컬럼 상대
+///   "−N" 데미지 숫자용(웹 uphero-heal-float 패리티).
 struct FloatingNumberView: View {
     let item: FloatingNumberItem
+    var anchored: Bool = false
+    var baseOffsetY: CGFloat = 0
 
     var body: some View {
         TimelineView(.animation) { context in
@@ -81,16 +89,22 @@ struct FloatingNumberView: View {
             let progress = min(elapsed / item.variant.duration, 1)
             let frame = computeFrame(variant: item.variant, progress: progress)
 
-            Text(item.text)
+            let glyph = Text(item.text)
                 .typography(.caption)
                 .monospacedDigit()
                 .foregroundStyle(item.color)
                 .opacity(frame.opacity)
                 .scaleEffect(frame.scale)
                 .rotationEffect(.degrees(frame.rotation))
-                .offset(x: frame.offset.width, y: frame.offset.height)
-                .position(item.position)
+                .offset(x: frame.offset.width,
+                        y: (anchored ? baseOffsetY : 0) + frame.offset.height)
                 .allowsHitTesting(false)
+
+            if anchored {
+                glyph
+            } else {
+                glyph.position(item.position)
+            }
         }
     }
 
@@ -194,6 +208,33 @@ struct FloatingNumberOverlay: View {
         .allowsHitTesting(false)
         .onReceive(Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()) { _ in
             // 만료된 아이템 정리
+            let now = Date()
+            items.removeAll { item in
+                now.timeIntervalSince(item.createdAt) > item.variant.duration + 0.05
+            }
+        }
+    }
+}
+
+/// 스프라이트 컬럼에 상대 배치되는 데미지 부유 숫자 오버레이 (웹 enemyDamage/heroDamage 패리티).
+/// 스프라이트 VStack 에 `.overlay(alignment: .topTrailing)` 로 얹어 웹 top:-16(적)/-18(영웅),
+/// right:0 을 재현한다. 절대좌표 앵커(FloatingNumberOverlay)와 달리 부모 정렬 기준.
+struct AnchoredFloatOverlay: View {
+    @Binding var items: [FloatingNumberItem]
+    /// 스프라이트 상단 대비 기준 y 오프셋 (웹 적 -16 / 영웅 -18).
+    var baseOffsetY: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            if !reduceMotion {
+                ForEach(items) { item in
+                    FloatingNumberView(item: item, anchored: true, baseOffsetY: baseOffsetY)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .onReceive(Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()) { _ in
             let now = Date()
             items.removeAll { item in
                 now.timeIntervalSince(item.createdAt) > item.variant.duration + 0.05

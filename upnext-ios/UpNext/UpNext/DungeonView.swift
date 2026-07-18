@@ -27,8 +27,17 @@ struct DungeonView: View {
     @State private var attackFlashTrigger: Int = 0
     @State private var floorSweepTrigger: Int = 0
     @State private var bossBannerData: (monster: Monster, floor: Int)? = nil
-    @State private var lastProcessedLogCount: Int = 0
+    /// 전투 효과 dispatch 커서 — 웹 useDungeonAnimations 의 per-index dedupe set 이식.
+    /// 이미 효과를 발사한 로그 index 집합. 취약한 count 커서(lastProcessedLogCount) 대체:
+    /// onAppear 반복 발화·onChange stale capture·off-by-one 과 무관하게 신규 entry 만 1회 처리.
+    @State private var seenEffectIdx: Set<Int> = []
+    /// 현재 dedupe set 이 추적 중인 세션 식별자(startedAt). 세션 교체 시 set 리셋 트리거.
+    @State private var effectSessionStamp: Int = -1
     @State private var floatingItems: [FloatingNumberItem] = []
+    /// 스프라이트 컬럼 상대 데미지 부유 숫자 — 영웅 피격(적→영웅)은 heroFloats,
+    /// 적 피격(영웅→적)은 enemyFloats. 웹 heroDamage/enemyDamage 컬럼 상대 배치 패리티.
+    @State private var heroFloats: [FloatingNumberItem] = []
+    @State private var enemyFloats: [FloatingNumberItem] = []
     /// 보스 배너가 표시 중인 동안엔 tick 일시정지 — 등장 연출 중 다음 round 가 겹치지 않게.
     @State private var pausedForBoss: Bool = false
     /// 탐험 인터랙션 도움말 오버레이 (웹 DungeonHelpModal).
@@ -59,11 +68,13 @@ struct DungeonView: View {
                     .shake(critShakeTrigger)
                     .attackFlash(attackFlashTrigger, side: attackFlashSide)
                     .floorSweep(floorSweepTrigger)
-                    .onChange(of: session.log.count) { newCount in
-                        processNewLogs(session, oldCount: lastProcessedLogCount, newCount: newCount)
-                        lastProcessedLogCount = newCount
+                    // 로그 카운트 변화가 트리거. 핸들러는 session 을 캡처하지 않고 store 에서
+                    // 매번 최신 세션을 다시 읽어(stale capture 제거) dedupe-set 으로 신규 entry 만
+                    // 정확히 처리한다 — 트리거 형태(단일/2-파라미터)와 무관하게 동작.
+                    .onChange(of: session.log.count) { _ in
+                        syncCombatEffects()
                     }
-                    .onAppear { lastProcessedLogCount = session.log.count }
+                    .onAppear { syncCombatEffects() }
 
                 FloatingNumberOverlay(items: $floatingItems)
 
@@ -267,6 +278,10 @@ struct DungeonView: View {
                     .foregroundStyle(Color.textSecondary)
                     .lineLimit(1)
             }
+            // 영웅 피격(적→영웅) "−N" — 웹 heroDamage: hero 컬럼 상대, top:-18, GB_ENEMY 색.
+            .overlay(alignment: .topTrailing) {
+                AnchoredFloatOverlay(items: $heroFloats, baseOffsetY: -18)
+            }
             Spacer()
             Text("VS")
                 .typography(.caption)
@@ -299,6 +314,10 @@ struct DungeonView: View {
                         .typography(.caption)
                         .foregroundStyle(Color.textTertiary.opacity(0.5))
                 }
+            }
+            // 적 피격(영웅→적) "−N" — 웹 enemyDamage: enemy 컬럼 상대, top:-16, 클래스 테마색.
+            .overlay(alignment: .topTrailing) {
+                AnchoredFloatOverlay(items: $enemyFloats, baseOffsetY: -16)
             }
         }
         .padding(.horizontal, 24)
@@ -590,13 +609,29 @@ struct DungeonView: View {
 
     // MARK: - 새 로그 처리 (효과 트리거)
 
-    /// session.log.count 가 바뀔 때 호출. old..<new 범위의 새 엔트리들을 보고 효과 발사.
-    private func processNewLogs(_ session: CombatSession, oldCount: Int, newCount: Int) {
-        guard newCount > oldCount else { return }
-        for i in oldCount..<newCount {
-            guard i >= 0 && i < session.log.count else { continue }
-            let entry = session.log[i]
-            handleLogEntry(entry)
+    /// 전투 효과 dispatch — 웹 useDungeonAnimations 의 per-index dedupe 패턴 이식.
+    ///
+    /// 취약한 count 커서(lastProcessedLogCount + onAppear 리셋 + deprecated onChange stale
+    /// capture)를 폐기하고, `seenEffectIdx` set 에 없는 index 만 효과를 발사한 뒤 삽입한다.
+    /// 세션 교체(startedAt 변화) 시 set 을 현재 로그로 baseline 리셋(웹 L118-123 패리티) —
+    /// 이 리셋이 startedAt 기준이라 onAppear 가 몇 번 발화하든 재-baseline 되지 않아,
+    /// "매 tick 신규 entry 스킵" 버그가 구조적으로 재발할 수 없다.
+    private func syncCombatEffects() {
+        // store 에서 최신 세션을 직접 읽어 stale capture 원천 차단.
+        guard let session = upHero.state.currentSession else { return }
+        // 세션 교체 감지 — 새 세션이면 기존 로그 전체를 baseline(seen)으로 두어 과거 엔트리
+        // 폭발을 막고, 이후 append 되는 신규 entry 만 효과 발사되게 한다.
+        if session.startedAt != effectSessionStamp {
+            effectSessionStamp = session.startedAt
+            seenEffectIdx = Set(0..<session.log.count)
+            heroFloats.removeAll()
+            enemyFloats.removeAll()
+            return
+        }
+        // 미처리 index(=신규 entry)만 정확히 1회 handleLogEntry. off-by-one/커서 무관.
+        for i in 0..<session.log.count where !seenEffectIdx.contains(i) {
+            seenEffectIdx.insert(i)
+            handleLogEntry(session.log[i])
         }
     }
 
@@ -626,16 +661,12 @@ struct DungeonView: View {
                 Haptics.critHit(intensity: min(1.0, 0.55 + Double(damage) / 40.0 * 0.45))
                 emitFloat(text: "CRIT!", variant: .critPulse, position: enemyAnchor())
                 if damage > 0 {
-                    emitFloat(text: "-\(damage)", variant: .hpRegen,
-                              color: Color.accentSecondary,
-                              position: attacker == .hero ? enemyAnchor() : heroAnchor())
+                    emitDamageFloat(heroIsAttacker: attacker == .hero, damage: damage)
                 }
             case .hit:
                 if damage > 0 {
                     Haptics.play(.light)
-                    emitFloat(text: "-\(damage)", variant: .hpRegen,
-                              color: Color.accentSecondary,
-                              position: attacker == .hero ? enemyAnchor() : heroAnchor())
+                    emitDamageFloat(heroIsAttacker: attacker == .hero, damage: damage)
                 }
             case .dodge:
                 Haptics.play(.selection)
@@ -684,6 +715,21 @@ struct DungeonView: View {
             position: position
         )
         floatingItems.append(item)
+    }
+
+    /// 스프라이트 컬럼 상대 "−N" 데미지 부유 숫자 (웹 enemyDamage/heroDamage 패리티).
+    /// 영웅→적: 적 컬럼(enemyFloats), 색=영웅 클래스 테마색. 적→영웅: 영웅 컬럼(heroFloats),
+    /// 색=accentSecondary(GB_ENEMY). 곡선은 uphero-heal-float(900ms) = .heal variant.
+    private func emitDamageFloat(heroIsAttacker: Bool, damage: Int) {
+        let text = "-\(damage)"
+        if heroIsAttacker {
+            let themed = HeroSprite.themeColor(upHero.state.currentSession?.hero.classType)
+            enemyFloats.append(FloatingNumberItem(text: text, variant: .heal,
+                                                  color: themed, position: .zero))
+        } else {
+            heroFloats.append(FloatingNumberItem(text: text, variant: .heal,
+                                                 color: Color.accentSecondary, position: .zero))
+        }
     }
 
     /// 영웅 sprite 위치 anchor (대략적). 실제 위치는 GeometryReader 로도 가능하나 단순화.

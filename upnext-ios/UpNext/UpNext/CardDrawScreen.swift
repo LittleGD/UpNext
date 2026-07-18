@@ -448,7 +448,8 @@ struct CardSelectScreen: View {
     private var selectingBody: some View {
         VStack(spacing: 0) {
             // 상단 — 선택 카운트 + 미니카드 슬롯 (웹 L:759-781)
-            VStack(spacing: 10) {
+            // 웹 L:765 pt-2 (캡션-행 간격 8px), 이전 10pt에서 정합(조사 리포트 #21).
+            VStack(spacing: 8) {
                 Text("\(selectedCount) / \(maxCards) 선택")
                     .typography(.caption)
                     .foregroundStyle(Color.textTertiary)
@@ -752,7 +753,7 @@ private struct SelectedMiniCard: View {
                     Color(red: 1, green: 0.27, blue: 0.2).opacity(0.06)
                 }
                 VStack(spacing: 2) {
-                    PixelIcon(PixelIconName.resolve(card.icon), size: 20,
+                    PixelIcon(PixelIconName.resolve(card.icon), size: 22,   // 웹 L:1167 22px
                               color: locked ? Color(red: 1, green: 0.27, blue: 0.2) : card.rarity.color)
                     Text(card.localizedTitle(.current))
                         .typography(.caption)
@@ -763,7 +764,12 @@ private struct SelectedMiniCard: View {
             }
             .frame(width: 64, height: 88)
             .clipShape(RoundedRectangle(cornerRadius: 6))
-            .rarityGlow(locked ? .normal : card.rarity)
+            // 웹 globals.css L1041-1043 .grid-border { border: 1px solid rgba(240,240,240,.06) }
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.white.opacity(0.06), lineWidth: 1))
+            // 웹 L1151 locked boxShadow = "0 0 12px rgba(255,70,50,.3)" (blur_px/2 ≈ radius 6),
+            // unlocked 는 기존 rarityGlow(card.rarity) 유지 — 이전엔 .normal(no-op)로 잘못 매핑돼
+            // 페널티 카드의 빨간 글로우가 사라졌었다.
+            .modifier(SelectedMiniCardGlow(locked: locked, rarity: card.rarity))
             .offset(y: dragY)
             .opacity(locked ? 1 : (1 - min(max(dragY, 0), 60) / 60 * 0.6))
             .scaleEffect(locked ? 1 : (1 - min(max(dragY, 0), 60) / 60 * 0.1))
@@ -783,22 +789,41 @@ private struct SelectedMiniCard: View {
                         }
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { dragY = 0 }
                     })
-            // 해제 버튼 (웹 L:1179-1189) / 잠금 표시
+            // 해제 버튼 (웹 L:1179-1189) / 잠금 표시.
+            // 웹 L:1182-1183 주석 "시각 크기는 28px 유지, 실제 히트 영역은 44×44(Apple HIG 최소치)" —
+            // 시각 칩(28×28)은 그대로 두고 탭 타겟만 44×44 로 감싼다(조사 리포트 #21).
             if locked {
                 PixelIcon(.lock, size: 12, color: Color(red: 1, green: 0.27, blue: 0.2))
                     .frame(width: 28, height: 28)
                     .background(Color.bgSurface.opacity(0.5), in: RoundedRectangle(cornerRadius: 4))
+                    .frame(width: 44, height: 44)
             } else {
                 Button { onDeselect(card.id) } label: {
                     PixelIcon(.cancel, size: 14, color: Color.textSecondary)
                         .frame(width: 28, height: 28)
                         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 4))
-                }.buttonStyle(.plain)
+                }
+                .frame(width: 44, height: 44)
+                .buttonStyle(.plain)
             }
         }
         .scaleEffect(appeared ? 1 : 0.85)
         .opacity(appeared ? 1 : 0)
         .onAppear { withAnimation(.spring(response: 0.28, dampingFraction: 0.67)) { appeared = true } }
+    }
+}
+
+/// SelectedMiniCard 글로우 분기 — locked 는 웹 L1151 페널티 레드글로우, unlocked 는 rarityGlow.
+private struct SelectedMiniCardGlow: ViewModifier {
+    let locked: Bool
+    let rarity: Rarity
+
+    func body(content: Content) -> some View {
+        if locked {
+            content.shadow(color: Color(red: 1, green: 0.27, blue: 0.2).opacity(0.3), radius: 6)
+        } else {
+            content.rarityGlow(rarity)
+        }
     }
 }
 

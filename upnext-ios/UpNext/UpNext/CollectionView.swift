@@ -50,27 +50,87 @@ struct CollectionView: View {
         }
     }
 
-    /// 카드 도감 / 앨범 탭 전환.
+    /// 카드 도감 / 칭호 / 앨범 탭 전환 — 웹 CollectionTabs(page.tsx:184-222) sliding-underline.
+    /// 캡슐 필을 걷어내고 균등폭 텍스트 탭 + 하단 인디케이터로 교체해, 바로 아래 필터칩(rounded
+    /// chip)·하단 네비(라임 캡슐)와의 3단 형태 위계를 복원한다(이슈#26).
     private var tabSwitcher: some View {
-        HStack(spacing: 8) {
-            ForEach([CollectionTab.cards, .titles, .album], id: \.self) { t in
+        let tabs: [CollectionTab] = [.cards, .titles, .album]
+        // 웹 패리티 카운트: 카드=해금/전체, 칭호=획득/전체, 앨범=없음.
+        let unlockedCount = store.progress?.unlockedCardIds.count ?? 0
+        let totalCards = CardCatalog.allCards.count
+        let titles = nativeTitles(store.progress)
+        let earnedTitles = titles.filter(\.earned).count
+        return HStack(spacing: 0) {
+            ForEach(tabs, id: \.self) { t in
                 Button { tab = t } label: {
-                    Text(tabLabel(t))
-                        .typography(.caption)
-                        .foregroundStyle(tab == t ? Color.bgPrimary : Color.textTertiary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 7)
-                        .background(tab == t ? Color.textPrimary : Color.bgSurface,
-                                    in: Capsule())
+                    HStack(spacing: 6) {
+                        Text(tabLabel(t))
+                            .typography(.body)
+                        if let counts = tabCounts(t,
+                                                  unlocked: unlockedCount,
+                                                  totalCards: totalCards,
+                                                  earnedTitles: earnedTitles,
+                                                  totalTitles: titles.count) {
+                            Text("\(counts.0)/\(counts.1)")
+                                .typography(.caption)
+                                .monospacedDigit()
+                                .foregroundStyle(tab == t
+                                    ? Color.accentPrimary.opacity(0.75)
+                                    : Color.textTertiary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(tab == t ? Color.accentPrimary : Color.textSecondary)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier(tabAccessibilityId(t))
             }
-            Spacer()
+        }
+        // 웹 nav borderBottom 1px rgb(255 255 255 / 0.06) — 탭 하단 경계선.
+        .background(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.white.opacity(0.06))
+                .frame(height: 1)
+        }
+        // 웹 sliding-underline — 폭=총폭/3, offset=index*(총폭/3), 240ms cubic-bezier(.23,1,.32,1).
+        .overlay {
+            GeometryReader { geo in
+                let seg = geo.size.width / 3
+                Rectangle()
+                    .fill(Color.accentPrimary)
+                    .frame(width: seg, height: 2)
+                    .shadow(color: Color.accentPrimary.opacity(0.4), radius: 2)
+                    .offset(x: CGFloat(tabIndex(tab)) * seg)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .animation(.timingCurve(0.23, 1, 0.32, 1, duration: 0.24), value: tab)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
-        .padding(.bottom, 4)
+    }
+
+    /// 탭 인덱스(cards=0, titles=1, album=2) — 인디케이터 오프셋 계산용.
+    private func tabIndex(_ t: CollectionTab) -> Int {
+        switch t {
+        case .cards:  return 0
+        case .titles: return 1
+        case .album:  return 2
+        }
+    }
+
+    /// 탭 옆 count/total (웹 CollectionTabButton). 앨범은 카운트 없음(nil).
+    private func tabCounts(_ t: CollectionTab,
+                           unlocked: Int,
+                           totalCards: Int,
+                           earnedTitles: Int,
+                           totalTitles: Int) -> (Int, Int)? {
+        switch t {
+        case .cards:  return (unlocked, totalCards)
+        case .titles: return (earnedTitles, totalTitles)
+        case .album:  return nil
+        }
     }
 
     private func tabLabel(_ tab: CollectionTab) -> LocalizedStringKey {
@@ -119,8 +179,10 @@ struct CollectionView: View {
         }
     }
 
+    // 이슈#26 — 필터칩은 웹 rounded-md(6pt) 소형 칩. 상단 세그먼트(언더라인 텍스트 탭)와
+    // 형태를 차별화해 3단 위계의 중간 단계를 담당한다(활성 textPrimary/bgPrimary 유지).
     private var filterRow: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(CardFilter.allCases, id: \.self) { option in
                 Button {
                     filter = option
@@ -128,10 +190,10 @@ struct CollectionView: View {
                     Text(option.label)
                         .typography(.caption)
                         .foregroundStyle(filter == option ? Color.bgPrimary : Color.textTertiary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
                         .background(filter == option ? Color.textPrimary : Color.bgSurface,
-                                    in: Capsule())
+                                    in: RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
             }
@@ -230,7 +292,10 @@ struct CollectionView: View {
     /// 웹 ALL_TITLES 의 카테고리 완료수 티어 (normal/rare/unique/legend).
     private static let categoryTierCounts = [7, 15, 30, 50]
     /// 웹 categoryTitleNames(ko) — 카테고리별 4티어 칭호명.
-    private static let categoryTitleNames: [String: [String]] = [
+    /// computed(static var) — 접근 시점 인앱 언어로 `AppConfig.locRuntime` 재평가
+    /// (19-i18n-mixed). static let 이면 첫 접근 언어로 캐싱돼 이후 언어 전환이 도감에
+    /// 반영되지 않는다(MinigameView.pool 과 동일한 렌더시-재해석 패턴).
+    private static var categoryTitleNames: [String: [String]] {[
         "fitness":      [AppConfig.locRuntime("운동 입문자"), AppConfig.locRuntime("운동 실천가"), AppConfig.locRuntime("운동 마스터"), AppConfig.locRuntime("운동 레전드")],
         "nutrition":    [AppConfig.locRuntime("식단 입문자"), AppConfig.locRuntime("식단 실천가"), AppConfig.locRuntime("식단 마스터"), AppConfig.locRuntime("식단 레전드")],
         "mindfulness":  [AppConfig.locRuntime("마음 수련생"), AppConfig.locRuntime("마음 탐험가"), AppConfig.locRuntime("마음 마스터"), AppConfig.locRuntime("마음 레전드")],
@@ -239,7 +304,7 @@ struct CollectionView: View {
         "productivity": [AppConfig.locRuntime("정리 입문자"), AppConfig.locRuntime("정리 실천가"), AppConfig.locRuntime("정리 마스터"), AppConfig.locRuntime("정리 레전드")],
         "wellness":     [AppConfig.locRuntime("건강 입문자"), AppConfig.locRuntime("건강 실천가"), AppConfig.locRuntime("건강 마스터"), AppConfig.locRuntime("건강 레전드")],
         "trending":     [AppConfig.locRuntime("트렌드 워처"), AppConfig.locRuntime("글로벌 시그널러"), AppConfig.locRuntime("컬처 라이더"), AppConfig.locRuntime("Z게이지 아이콘")],
-    ]
+    ]}
 
     private func nativeTitles(_ progress: UserProgress?) -> [NativeTitle] {
         guard let p = progress else { return [] }

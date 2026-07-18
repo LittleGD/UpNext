@@ -282,11 +282,31 @@ private struct CampView: View {
 
     // MARK: 아지트 탭 세그먼트 [영웅 / 카드매치] (디자인 룰: 보더·아이콘 박스 금지)
 
+    // 이슈#26 — 라임 채운 캡슐 세그먼트를 웹 sliding-underline(EquipmentInventory:473-504
+    // 패리티)으로 교체. 하단 네비 라임 캡슐과 형태를 분리해 세그먼트 위계를 복원한다.
     private var campTabBar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             campTabButton(AppConfig.loc("영웅"), tab: .hero)
             campTabButton(AppConfig.loc("카드매치"), tab: .game)
-            Spacer(minLength: 0)
+        }
+        // 탭 하단 경계선 1px rgb(255 255 255 / 0.06).
+        .background(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.white.opacity(0.06))
+                .frame(height: 1)
+        }
+        // sliding-underline — 2탭 균등폭, 폭=총폭/2, 240ms cubic-bezier(.23,1,.32,1).
+        .overlay {
+            GeometryReader { geo in
+                let seg = geo.size.width / 2
+                Rectangle()
+                    .fill(Color.accentPrimary)
+                    .frame(width: seg, height: 2)
+                    .shadow(color: Color.accentPrimary.opacity(0.4), radius: 2)
+                    .offset(x: (campTab == .hero ? 0 : seg))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .animation(.timingCurve(0.23, 1, 0.32, 1, duration: 0.24), value: campTab)
+            }
         }
     }
 
@@ -297,11 +317,11 @@ private struct CampView: View {
             campTab = tab
         } label: {
             Text(label)
-                .typography(.caption)
-                .foregroundStyle(campTab == tab ? Color.bgPrimary : Color.textTertiary)
-                .padding(.horizontal, 16)
-                .frame(height: 34)
-                .background(campTab == tab ? Color.accentPrimary : Color.bgSurface, in: Capsule())
+                .typography(.body)
+                .foregroundStyle(campTab == tab ? Color.accentPrimary : Color.textSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -570,13 +590,17 @@ private struct CampView: View {
 /// 캠프 분위기 한 줄 — 15줄 풀에서 20s 주기 교체(uphero-ambience-in 520ms blur+translateY)
 /// + 상시 fire-flicker(uphero-fire-flicker 4.2s opacity+warm shadow). 웹 globals.css L:667-705.
 private struct AmbientFlickerText: View {
-    /// 웹 i18n ko `uphero.camp.ambience.1~15` 그대로 (디바이스 한국어 기준).
-    private static let lines = [
-        AppConfig.locRuntime("모닥불이 조용히 타오른다"), AppConfig.locRuntime("장작이 탁, 하고 튀었다"), AppConfig.locRuntime("재 속에서 붉은 숨이 깜빡인다"),
-        AppConfig.locRuntime("연기가 느리게 하늘로 번진다"), AppConfig.locRuntime("불씨 하나가 바람을 따라 올라갔다"), AppConfig.locRuntime("주전자가 나지막이 끓고 있다"),
-        AppConfig.locRuntime("지도를 다시 펼쳐본다"), AppConfig.locRuntime("천막 너머로 별이 번진다"), AppConfig.locRuntime("바람이 먼 곳에서 불어온다"),
-        AppConfig.locRuntime("밤이 한 겹 더 깊어졌다"), AppConfig.locRuntime("발자국 소리가 멀어진다"), AppConfig.locRuntime("무기의 날을 한 번 갈아둔다"),
-        AppConfig.locRuntime("오늘의 피로가 천천히 가신다"), AppConfig.locRuntime("모닥불 그림자가 길게 늘어진다"), AppConfig.locRuntime("여행자의 일기에 한 줄을 적는다"),
+    /// 웹 i18n ko `uphero.camp.ambience.1~15` — *원문 키 배열*만 static 으로 두고, 실제
+    /// 언어 해석은 렌더 시점에 `AppConfig.locRuntime(key)` 로 (19-i18n-mixed).
+    /// static let 이 결과 문자열을 캐싱하면 첫 접근 시점 언어로 고정돼, 이후 인앱 언어
+    /// 전환이 반영되지 않는다(웹 CampPlaceholder / MinigameView.pool 과 동일한 키-저장·
+    /// 렌더시-재해석 패턴).
+    private static let lineKeys = [
+        "모닥불이 조용히 타오른다", "장작이 탁, 하고 튀었다", "재 속에서 붉은 숨이 깜빡인다",
+        "연기가 느리게 하늘로 번진다", "불씨 하나가 바람을 따라 올라갔다", "주전자가 나지막이 끓고 있다",
+        "지도를 다시 펼쳐본다", "천막 너머로 별이 번진다", "바람이 먼 곳에서 불어온다",
+        "밤이 한 겹 더 깊어졌다", "발자국 소리가 멀어진다", "무기의 날을 한 번 갈아둔다",
+        "오늘의 피로가 천천히 가신다", "모닥불 그림자가 길게 늘어진다", "여행자의 일기에 한 줄을 적는다",
     ]
     private static let warm = Color(red: 0.910, green: 0.722, blue: 0.529)  // rgb(232,184,135)
 
@@ -589,7 +613,7 @@ private struct AmbientFlickerText: View {
     var body: some View {
         Group {
             if reduceMotion {
-                Text("— \(Self.lines[index]) —")
+                Text("— \(AppConfig.locRuntime(Self.lineKeys[index])) —")
                     .typography(.caption)
                     .foregroundStyle(GBPalette.light)
             } else {
@@ -597,7 +621,7 @@ private struct AmbientFlickerText: View {
                     let phase = tl.date.timeIntervalSinceReferenceDate
                         .truncatingRemainder(dividingBy: 4.2) / 4.2
                     let f = Self.fireFlicker(phase)
-                    Text("— \(Self.lines[index]) —")
+                    Text("— \(AppConfig.locRuntime(Self.lineKeys[index])) —")
                         .typography(.caption)
                         .foregroundStyle(GBPalette.light)
                         // inner fire-flicker: opacity + warm text-shadow
@@ -610,10 +634,10 @@ private struct AmbientFlickerText: View {
                 }
             }
         }
-        .onAppear { index = Int.random(in: 0..<Self.lines.count) }
+        .onAppear { index = Int.random(in: 0..<Self.lineKeys.count) }
         .onReceive(rotate) { _ in
-            var n = Int.random(in: 0..<Self.lines.count)
-            if n == index { n = (n + 1) % Self.lines.count }
+            var n = Int.random(in: 0..<Self.lineKeys.count)
+            if n == index { n = (n + 1) % Self.lineKeys.count }
             index = n
             guard !reduceMotion else { return }
             shown = false

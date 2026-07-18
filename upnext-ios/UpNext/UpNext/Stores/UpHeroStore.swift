@@ -429,6 +429,53 @@ final class UpHeroStore: ObservableObject {
         }
     }
 
+    // MARK: - 상점 구매 (22-shop-tickets — 웹 purchasePass / claimCoinPouch 1:1 이식)
+
+    /// 탐험권 구매 결과. 웹 `purchasePass` 반환값("ok"/"no-coin"/"daily-cap"/"pass-cap") 대응.
+    enum PurchasePassResult { case ok, noCoin, dailyCap, passCap }
+
+    /// 탐험권 구매 — 던전별 1장, ShopPrices.expeditionPass(80) 코인. 오늘 날짜가 아니면
+    /// shopDaily 를 리셋 후 진행. 일일 총 구매 cap(dailyPassPurchaseCap=8) → 던전별 보유
+    /// cap(passCapPerCategory=20) 순으로 검사. 웹 useUpHeroStore.ts:1545-1580 `purchasePass`.
+    @discardableResult
+    func purchasePass(_ dungeonId: DungeonId) -> PurchasePassResult {
+        let price = ShopPrices.expeditionPass                 // 80
+        guard state.coins >= price else { return .noCoin }
+        let today = AppClock.todayString()
+        var daily = (state.shopDaily?.date == today)
+            ? state.shopDaily!
+            : ShopDaily(date: today, passesBought: 0, coinPouchClaimed: nil)
+        guard daily.passesBought < UpHeroRules.dailyPassPurchaseCap else { return .dailyCap }   // 8
+        let current = state.passes[dungeonId] ?? 0
+        guard current < UpHeroRules.passCapPerCategory else { return .passCap }                 // 20
+        daily.passesBought += 1
+        mutate { s in
+            s.coins -= price
+            s.passes[dungeonId] = current + 1
+            s.shopDaily = daily
+        }
+        return .ok
+    }
+
+    /// 데일리 코인 주머니 — 하루 1회 무료, [coinPouchMin, coinPouchMax](20...160) 균등 랜덤
+    /// 코인 지급. 오늘 이미 수령했으면 실패. 웹 useUpHeroStore.ts:1582-1608 `claimCoinPouch`.
+    /// 반환: (성공 여부, 지급 코인 — 실패 시 0).
+    @discardableResult
+    func claimCoinPouch() -> (ok: Bool, coins: Int) {
+        let today = AppClock.todayString()
+        var daily = (state.shopDaily?.date == today)
+            ? state.shopDaily!
+            : ShopDaily(date: today, passesBought: 0, coinPouchClaimed: nil)
+        guard daily.coinPouchClaimed != true else { return (false, 0) }
+        let rolled = Int.random(in: UpHeroRules.coinPouchMin...UpHeroRules.coinPouchMax)  // 20...160
+        daily.coinPouchClaimed = true
+        mutate { s in
+            s.coins += rolled
+            s.shopDaily = daily
+        }
+        return (true, rolled)
+    }
+
     func grantSkillPoints(_ points: Int) {
         guard points > 0 else { return }
         mutate { $0.hero.skillPoints = ($0.hero.skillPoints ?? 0) + points }

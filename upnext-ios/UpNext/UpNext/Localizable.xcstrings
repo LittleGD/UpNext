@@ -15940,7 +15940,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "{dungeon} — Floor {floor} 에 도착했다."
+            "value": "{dungeon} — {floor}층에 도착했다."
           }
         },
         "en": {
@@ -25040,6 +25040,259 @@
           "stringUnit": {
             "state": "translated",
             "value": "冷却 %lld · 满足条件时自动触发"
+          }
+        }
+      }
+    },
+    "데일리 코인 주머니": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily Coin Pouch"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デイリーコインポーチ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日金币袋"
+          }
+        }
+      }
+    },
+    "하루 1회 · 무작위 코인 보상": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free once a day · random coin reward"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日1回 · ランダムでコイン獲得"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日1次 · 随机金币奖励"
+          }
+        }
+      }
+    },
+    "내일 다시 받기": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back tomorrow"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "明日またどうぞ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "明天再来"
+          }
+        }
+      }
+    },
+    "코인 주머니 +%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coin pouch +%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コインポーチ +%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金币袋 +%lld"
+          }
+        }
+      }
+    },
+    "오늘 %lld/%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today %lld/%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日 %lld/%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日 %lld/%lld"
+          }
+        }
+      }
+    },
+    "%lld 코인 / 장 · 하루 %lld장 한정": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld coins each · %lld per day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld コイン/枚 · 1日 %lld枚限定"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 金币/张 · 每日 %lld 张限购"
+          }
+        }
+      }
+    },
+    "%@ 탐험권 구매 (%lld 코인)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buy %@ Explore Ticket (%lld coins)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@探索チケットを購入 (%lldコイン)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "购买%@探索券 (%lld金币)"
+          }
+        }
+      }
+    },
+    "%@ 탐험권 +1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Explore Ticket +1"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@探索チケット +1"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@探索券 +1"
+          }
+        }
+      }
+    },
+    "코인이 부족해요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not enough coins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コインが足りません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金币不足"
+          }
+        }
+      }
+    },
+    "오늘은 %lld장까지만 구매 가능": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily limit is %lld tickets"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日に%lld枚まで購入可能"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日最多购买%lld张"
+          }
+        }
+      }
+    },
+    "이 던전 탐험권이 가득 찼어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This dungeon's tickets are full"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このダンジョンの探索チケットは満杯です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该地下城探索券已满"
           }
         }
       }

@@ -252,6 +252,10 @@ private struct GuardStatsRow: View {
     let current: Int
     private let maxSavers = RetentionEngine.maxMonthlySavers
 
+    // 등고(웹 grid stretch 동치)는 상태 없는 표준 패턴으로: 자식에 maxHeight .infinity,
+    // HStack 에 fixedSize(vertical) — 스택 높이가 "가장 큰 카드의 이상 높이"로 정해진 뒤
+    // 유연한 자식이 그 높이를 채운다. (이전 PreferenceKey 방식은 측정 지점이 minHeight+
+    // 패딩 이후라 매 레이아웃 패스 +28pt 무한 성장 → 불꽃 탭 전체 백화 — 재발 금지.)
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 8) {
@@ -264,7 +268,7 @@ private struct GuardStatsRow: View {
                 Text(savers > 0 ? "방패 \(savers)개 — 하루 빠져도 이어져요" : "방패가 없어요, 오늘은 꼭 켜요")
                     .typography(.micro).foregroundStyle(Color.textTertiary).lineLimit(2)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(14)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
 
@@ -275,10 +279,11 @@ private struct GuardStatsRow: View {
                     .typography(.micro)
                     .foregroundStyle(current >= best && best > 0 ? Color.accentPrimary : Color.textTertiary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(14)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

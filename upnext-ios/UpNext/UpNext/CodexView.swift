@@ -64,22 +64,45 @@ struct CodexView: View {
         .padding(.horizontal, 8).padding(.vertical, 6)
     }
 
+    // 이슈#26 — 라임 채운 캡슐 세그먼트를 웹 sliding-underline(EquipmentInventory:473-504
+    // 패리티)으로 교체. 하단 네비 라임 캡슐과 형태를 분리해 세그먼트 위계를 복원한다.
     private var tabBar: some View {
-        HStack(spacing: 8) {
-            ForEach(CodexTab.allCases, id: \.self) { t in
+        let cases = CodexTab.allCases
+        let idx = cases.firstIndex(of: tab) ?? 0
+        return HStack(spacing: 0) {
+            ForEach(cases, id: \.self) { t in
                 Button {
                     withAnimation(.easeInOut(duration: 0.15)) { tab = t }
                     Haptics.play(.selection)
                 } label: {
                     Text(AppConfig.locRuntime(t.rawValue))
-                        .typography(.caption)
-                        .foregroundStyle(tab == t ? Color.bgPrimary : Color.textSecondary)
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(tab == t ? Color.accentPrimary : Color.bgSurface, in: Capsule())
+                        .typography(.body)
+                        .foregroundStyle(tab == t ? Color.accentPrimary : Color.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
-            Spacer()
+        }
+        // 탭 하단 경계선 1px rgb(255 255 255 / 0.06).
+        .background(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.white.opacity(0.06))
+                .frame(height: 1)
+        }
+        // sliding-underline — 3탭 균등폭, 폭=총폭/3, 240ms cubic-bezier(.23,1,.32,1).
+        .overlay {
+            GeometryReader { geo in
+                let seg = geo.size.width / CGFloat(cases.count)
+                Rectangle()
+                    .fill(Color.accentPrimary)
+                    .frame(width: seg, height: 2)
+                    .shadow(color: Color.accentPrimary.opacity(0.4), radius: 2)
+                    .offset(x: CGFloat(idx) * seg)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .animation(.timingCurve(0.23, 1, 0.32, 1, duration: 0.24), value: tab)
+            }
         }
         .padding(.horizontal, 12).padding(.bottom, 8)
     }

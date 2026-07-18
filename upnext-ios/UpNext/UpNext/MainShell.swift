@@ -83,11 +83,13 @@ struct MainTabView: View {
             PixelStars()
 
             VStack(spacing: 0) {
-                // 아지트(영웅 RPG)는 자체 hero nameplate 헤더가 있어 글로벌 게임-Lv 헤더를
-                // 숨긴다 — 사용자 제보: "글로벌 레벨과 아지트 레벨이 겹쳐 혼동". 아지트=영웅 Lv,
-                // 나머지 탭=게임 Lv 로 정보 출처를 분리.
-                if tab != .playground {
-                    AppHeader(showXP: tab == .challenge)
+                // 이슈#26 — 상단 Lv/XP 헤더는 챌린지 탭에서만 노출. 아지트는 자체 hero
+                // nameplate, 불꽃은 자체 RitualGreetingHeader, 컬렉션/설정은 자체 타이틀이
+                // 있어 글로벌 Lv 헤더가 중복. 웹은 아지트만 완전 숨김 + collection/settings=compact
+                // 규약이나, 사용자 결정으로 불꽃/설정/컬렉션도 상단 Lv/XP 인디케이터를 제거해
+                // 세그먼트/필터/네비 3단 위계와 정보 출처를 정리한다. (챌린지=게임 Lv+XP 유지)
+                if tab == .challenge {
+                    AppHeader(showXP: true)
                 }
                 screen
             }
@@ -183,6 +185,12 @@ struct MainTabView: View {
             }
             if ProcessInfo.processInfo.arguments.contains("UITestTabRecord") {
                 tab = .record
+            }
+            if ProcessInfo.processInfo.arguments.contains("UITestTabCollection") {
+                tab = .collection
+            }
+            if ProcessInfo.processInfo.arguments.contains("UITestTabSettings") {
+                tab = .settings
             }
             #endif
             syncPackOpener()
