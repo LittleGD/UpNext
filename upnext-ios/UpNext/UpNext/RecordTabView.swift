@@ -21,7 +21,8 @@ struct RecordTabView: View {
             .padding(.bottom, 96)   // 하단 플로팅 네비 여유
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
+        // 앰비언트 노출(요인1) — 화면 루트 투명화. MainShell 바닥의 오로라·별이 관통(웹 main z-[1] 패리티).
+        // 불꽃 히어로/카드는 bgSurface 위라 대비/가독성 유지.
     }
 }
 

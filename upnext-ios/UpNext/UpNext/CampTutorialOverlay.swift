@@ -163,6 +163,7 @@ struct CampTutorialOverlay: View {
 
     private func advance() {
         SoundPlayer.shared.play(.select)
+        Haptics.play(.selection)
         if isLast { finish() } else { goTo(idx + 1) }
     }
 

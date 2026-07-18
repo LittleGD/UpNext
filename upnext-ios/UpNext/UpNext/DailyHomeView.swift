@@ -41,19 +41,46 @@ struct DailyHomeView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
-        .alert("챌린지 완료", isPresented: cardConfirmBinding, presenting: confirmCard) { card in
-            Button("완료") {
-                store.completePhaseChallenge(card.id)
-                confirmCard = nil
+        // 앰비언트 노출(요인1) — 웹 layout.tsx: body 가 bg-primary, main 은 relative z-[1] 투명이라
+        // ClientEffects(오로라·별)가 관통한다. iOS 도 MainShell L79 가 이미 bgPrimary 를 깔고 그 위에
+        // AmbientBackground+PixelStars 를 마운트하므로, 화면 루트의 불투명 배경을 제거해(투명화) 관통 노출.
+        // 콘텐츠는 bgSurface 카드 위에 있어 대비/가독성은 그대로 유지된다.
+        // 05-modal-design — 흰색 시스템 .alert → GbConfirm(GB 팔레트). 껍데기만 교체하고
+        // 14-completion-delay 의 2버튼 구조(사진 인증 옵트인)는 그대로 유지. 웹엔 대응
+        // 확인창이 없는 iOS 전용 스텝이라 표준 확인/취소가 아닌 커스텀 푸터로 구성.
+        .overlay {
+            if let card = confirmCard {
+                GbConfirm(
+                    title: "챌린지 완료",
+                    // 10-i18n-leaks(a): %@ 인자는 원문(한국어) title 이 아닌 localizedTitle 로.
+                    message: "'\(card.localizedTitle(.current))' 을(를) 완료로 표시할까요?"
+                ) { tint in
+                    VStack(spacing: 8) {
+                        // ① "사진으로 인증하고 완료" → 완료 후 growth.beginCapture(라이브 카메라 모달)
+                        Button("사진으로 인증하고 완료") {
+                            store.completePhaseChallenge(card.id)
+                            store.growth.beginCapture(cardId: card.id, title: card.title, category: card.category)
+                            confirmCard = nil
+                        }
+                        .buttonStyle(GbConfirmButtonStyle(
+                            fg: GBPalette.darkest, bg: tint, border: tint, bold: true, fullWidth: true))
+                        // ② "사진없이 완료" → 완료만(카메라 안 뜸 → 즉시 다음 인터랙션 가능)
+                        Button("사진없이 완료") {
+                            store.completePhaseChallenge(card.id)
+                            confirmCard = nil
+                        }
+                        .buttonStyle(GbConfirmButtonStyle(
+                            fg: GBPalette.lightest, bg: .clear, border: GBPalette.lightest, fullWidth: true))
+                        Button("취소") { confirmCard = nil }
+                            .buttonStyle(GbConfirmButtonStyle(
+                                fg: GBPalette.light, bg: .clear, border: GBPalette.light, fullWidth: true))
+                    }
+                }
+                .transition(.opacity)
+                .zIndex(90)
             }
-            Button("취소", role: .cancel) { confirmCard = nil }
-        } message: { card in
-            // 10-i18n-leaks(a): 래퍼 문자열은 카탈로그로 현지화되는데 %@ 인자에 원문(한국어)
-            // card.title 을 넘겨 카드명만 한국어로 새던 회귀 — 다른 표시 지점(L:271 등)과 동일하게
-            // localizedTitle 로 통일.
-            Text("'\(card.localizedTitle(.current))' 을(를) 완료로 표시할까요?")
         }
+        .animation(.easeInOut(duration: 0.2), value: confirmCard)
         // ChallengeConfirmModal — 시스템 .alert 대체. 백드롭 + spring + 파티클 + gradient CTA.
         .overlay {
             if let phase = confirmStartPhase {
@@ -90,12 +117,6 @@ struct DailyHomeView: View {
         }
     }
 
-    private var cardConfirmBinding: Binding<Bool> {
-        Binding(get: { confirmCard != nil }, set: { if !$0 { confirmCard = nil } })
-    }
-    private var phaseConfirmBinding: Binding<Bool> {
-        Binding(get: { confirmStartPhase != nil }, set: { if !$0 { confirmStartPhase = nil } })
-    }
 
     // MARK: - 페이즈 슬라이스
 
@@ -236,15 +257,8 @@ struct DailyHomeView: View {
     }
 
     private func challengeButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .typography(.body)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .foregroundStyle(Color.accentPrimary)
-                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
+        // 공용 secondary(채움 bgSurface) + accentPrimary 텍스트(DailyHome 관례) — 13-button-system.
+        UNButton(title, variant: .secondary, tint: .accentPrimary, action: action)
     }
 
     private func boardCard(_ card: ChallengeCard, completed: Bool) -> some View {
@@ -291,10 +305,22 @@ struct DailyHomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
             // 완료 카드: 배경만 죽이고(웹 DailyBoard 패리티) 완료 배지/내용은 풀불투명 유지.
-            .background(Color.bgSurface.opacity(completed ? 0.55 : 1), in: RoundedRectangle(cornerRadius: 14))
+            // 등급 표면 텍스처(요인2c) — 웹 DailyBoard L400 RarityTexture 오버레이 복원.
+            // bgSurface 위·콘텐츠 아래(.background)라 텍스트 대비는 그대로. 완료 시 톤다운.
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color.bgSurface.opacity(completed ? 0.55 : 1))
+                    RarityTexture(rarity: card.rarity, cornerRadius: 14)
+                        .opacity(completed ? 0.35 : 1)
+                }
+            )
+            // 등급 글로우(요인2a) — 웹 rarityGlow(RarityTexture.tsx L167-172), 미완료 카드만.
+            .modifier(RarityGlow(rarity: card.rarity, active: !completed))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        // 탭 프레스 스케일(요인2e) — 웹 DailyBoard motion.button whileTap scale 0.97.
+        .buttonStyle(CardPressStyle())
         .disabled(completed)
     }
 
@@ -345,15 +371,49 @@ struct DailyHomeView: View {
 
     private func primaryButton(_ title: String, enabled: Bool = true,
                                action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .typography(.body)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .foregroundStyle(Color.bgPrimary)
-                .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
-                .opacity(enabled ? 1 : 0.3)
+        // 공용 primary — OnboardingPrimaryButton 과 100% 동일하던 복붙 정의 흡수(13-button-system).
+        UNButton(title, enabled: enabled, action: action)
+    }
+}
+
+// MARK: - 카드 표면 연출 (요인2 — 등급 글로우 · 프레스 스케일)
+
+/// 등급 외곽 글로우 — 웹 rarityGlow(cards/RarityTexture.tsx L167-172) 수치 1:1.
+/// CSS `0 0 12px ${color}08` 의 blur px → SwiftUI shadow radius 로 그대로, 알파는 hex/255.
+///  · normal 무글로우 / rare r12@0x08 / unique r16@0x0c + r1@0x14 / legend r24@0x12 + r2@0x18.
+/// active(=미완료)일 때만 — 웹은 `!isCompleted` 조건.
+private struct RarityGlow: ViewModifier {
+    let rarity: Rarity
+    let active: Bool
+
+    func body(content: Content) -> some View {
+        if !active {
+            content
+        } else {
+            switch rarity {
+            case .normal:
+                content
+            case .rare:
+                content.shadow(color: rarity.color.opacity(0x08 / 255.0), radius: 12)
+            case .unique:
+                content
+                    .shadow(color: rarity.color.opacity(0x0c / 255.0), radius: 16)
+                    .shadow(color: rarity.color.opacity(0x14 / 255.0), radius: 1)
+            case .legend:
+                content
+                    .shadow(color: rarity.color.opacity(0x12 / 255.0), radius: 24)
+                    .shadow(color: rarity.color.opacity(0x18 / 255.0), radius: 2)
+            }
         }
-        .disabled(!enabled)
+    }
+}
+
+/// 카드 탭 프레스 스케일 — 웹 motion.button whileTap `{ scale: 0.97 }` 패리티.
+/// .plain 처럼 기본 버튼 스타일을 벗기고 press 스케일만 얹는다(콘텐츠 색은 라벨에서 지정).
+private struct CardPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }

@@ -10,10 +10,14 @@ import SwiftUI
 
 /// Up Hero 전용 sage/lime/accent 팔레트 (웹 upHeroPalette.ts GB).
 enum GBPalette {
+    /// #0a1f0a — 가장 어두운 sage (GbConfirm 카드/백드롭 배경). 웹 upHeroPalette.ts:7 GB.darkest.
+    static let darkest = Color(red: 0.039, green: 0.122, blue: 0.039)
     /// #2c4a2c — 어두운 sage (secondary bg, borders, 그림자).
     static let dark = Color(red: 0.173, green: 0.290, blue: 0.173)
     /// #87b87a — 차분한 라임 (text, inactive).
     static let light = Color(red: 0.529, green: 0.722, blue: 0.478)
     /// #cdf564 — UpNext accent (highlights, active). = Color.accentPrimary.
     static let lightest = Color(red: 0.804, green: 0.961, blue: 0.392)
+    /// #e88b7a — GB_ENEMY, 위험/비가역 액션 톤 (GbConfirm danger·사진 삭제). 웹 upHeroPalette.ts:18.
+    static let enemy = Color(hexString: "#e88b7a")
 }

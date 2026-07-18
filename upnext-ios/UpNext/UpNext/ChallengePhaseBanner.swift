@@ -78,7 +78,11 @@ struct ChallengePhaseBanner: View {
             let elapsed = Date().timeIntervalSince(s)
             progress = min(elapsed / holdDuration, 1)
             if progress >= 1 {
-                Haptics.play(.heavy)
+                if phase == .sup {
+                    Haptics.superIgnite()
+                } else {
+                    Haptics.play(.heavy)
+                }
                 SoundPlayer.shared.play(phase == .extra ? .fireIgnite : .superIgnite)
                 charging = false
                 holdStarted = nil

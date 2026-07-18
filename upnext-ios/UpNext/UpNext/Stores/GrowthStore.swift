@@ -252,11 +252,9 @@ final class GrowthStore: ObservableObject {
         category: Category?,
         stickers: [Sticker]
     ) {
-        guard let jpeg = image.jpegData(compressionQuality: 0.9) else { return }
         let kind: PhotoKind = challengeCardId == nil ? .free : .challengeLog
         let prefix = kind == .free ? "vp" : "cl"
         let id = "\(prefix)_\(UpHeroStore.nowMillis())"
-        guard Self.saveImage(jpeg, id: id) else { return }
 
         let now = Date()
         let day = GameStore.todayString()
@@ -276,7 +274,16 @@ final class GrowthStore: ObservableObject {
             signatureData: signature,
             stickers: stickers
         )
+        // 06-photo-flow(a 연장): JPEG 인코딩+디스크 쓰기를 메인에서 제거.
+        // 메타·메모리 캐시는 즉시 반영(image(for:) 는 imageCache 로 파일 없이 서빙되므로
+        // 앨범/디테일이 곧바로 뜬다). 인코딩·파일쓰기는 백그라운드 best-effort —
+        // 합성(합성본 저장 아키텍처는 그대로) 이후 남은 유일한 메인 블로킹이었다.
         insert(meta: meta, image: image)
+        DispatchQueue.global(qos: .utility).async {
+            if let jpeg = image.jpegData(compressionQuality: 0.9) {
+                _ = Self.saveImage(jpeg, id: id)
+            }
+        }
         // 캡처 플로우 종료 — pending 정리.
         cancelCapture()
     }

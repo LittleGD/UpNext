@@ -124,28 +124,14 @@ struct BuffDrawPanel: View {
 
     private var bottomBar: some View {
         HStack(spacing: 10) {
-            Button { upHero.cancelBuffDraw() } label: {
-                Text("취소")
-                    .typography(.body)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .foregroundStyle(Color.textSecondary)
-                    .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-            }
-            .buttonStyle(.plain)
-            Button {
+            Button("취소") { upHero.cancelBuffDraw() }
+                .buttonStyle(.un(.secondary, tint: .textSecondary))
+            Button("탐험 시작") {
                 upHero.confirmDungeon(
                     selectedCardIds: Array(selectedIds),
                     gameLevel: store.progress?.level ?? 1)
-            } label: {
-                Text("탐험 시작")
-                    .typography(.body)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .foregroundStyle(Color.bgPrimary)
-                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.un(.primary))
         }
         // 11-buff-nav-overlap(A): 버프 드로우는 세션 미생성(pendingDungeon)이라 하단 플로팅
         // 네비가 계속 떠 있다(웹 BottomNav hideForUpHero 조건 미발동). 고정 CTA 바가 네비 알약과

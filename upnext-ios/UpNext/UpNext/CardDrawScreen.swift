@@ -153,6 +153,9 @@ struct DeckHoldDraw: View {
         holdStart = Date()
         holdProgress = 0
         SoundPlayer.shared.play(.chargeUp)
+        // chargeUp 사운드(0.8s rumble+가속 pulse)와 동기 — CoreHaptics 연속 램프 시작.
+        // 미지원 기기는 beginHoldCharge 내부에서 prepare(.heavy) 로 폴백.
+        Haptics.beginHoldCharge()
         holdTimer = Timer.publish(every: 0.016, on: .main, in: .common).autoconnect()
             .sink { _ in advanceHold() }
     }
@@ -163,12 +166,16 @@ struct DeckHoldDraw: View {
         isHolding = false
         holdProgress = 0
         shakeX = 0
+        // 취소 — 연속 진동을 조용히 정지(릴리즈 타격 없음).
+        Haptics.endHoldCharge(release: false)
     }
 
     private func advanceHold() {
         guard isHolding, !didDraw else { return }
         let elapsed = Date().timeIntervalSince(holdStart)
         holdProgress = min(elapsed / holdDuration, 1)
+        // 연속 진동 강도를 진행도에 실시간 바인딩 (CoreHaptics sendParameters).
+        Haptics.updateHoldCharge(holdProgress)
         // 흔들림 — 진폭이 진행도 따라 성장 (웹 shakeAmp = holdProgress*5, L:220).
         let amp = holdProgress * 5
         shakeX = CGFloat(sin(elapsed * 38) * amp)
@@ -177,11 +184,14 @@ struct DeckHoldDraw: View {
             isHolding = false
             shakeX = 0
             holdTimer?.cancel(); holdTimer = nil
+            // 충전 완료 — 연속 진동 정지 + 릴리즈 타격.
+            Haptics.endHoldCharge(release: true)
             store.drawPhaseCards()
-            // 6장 cardFlip 80ms 스태거 (웹 L:179-181).
+            // 6장 cardFlip 80ms 스태거 (웹 L:179-181). 각 뒤집힘에 light 페어링.
             for i in 0..<6 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.08) {
                     SoundPlayer.shared.play(.cardFlip)
+                    Haptics.play(.light)
                 }
             }
         }
@@ -399,10 +409,12 @@ struct CardSelectScreen: View {
                     penaltyCardId: penaltyCardId,
                     onDeselect: { id in
                         SoundPlayer.shared.play(.cancel)
+                        Haptics.play(.light)
                         store.deselectPhaseCard(id)
                     },
                     onConfirm: {
                         SoundPlayer.shared.play(.confirm)
+                        Haptics.play(.medium)
                         store.confirmPhaseSelection()
                     })
             } else {
@@ -449,6 +461,7 @@ struct CardSelectScreen: View {
                                 locked: penaltyCardId == card.id,
                                 onDeselect: { id in
                                     SoundPlayer.shared.play(.cancel)
+                                    Haptics.play(.light)
                                     store.deselectPhaseCard(id)
                                 })
                         } else {
@@ -488,6 +501,7 @@ struct CardSelectScreen: View {
                     if phase == .daily && !rerollUsed {
                         Button {
                             SoundPlayer.shared.play(.select)
+                            Haptics.play(.selection)
                             showRerollConfirm = true
                         } label: {
                             HStack(spacing: 6) {
@@ -550,6 +564,7 @@ struct CardSelectScreen: View {
     private func handlePreview(_ cardId: String) {
         guard !isSelectionFull, !previewExiting else { return }
         SoundPlayer.shared.play(.cardPreview)
+        Haptics.play(.selection)
         previewExitDir = nil
         previewId = cardId
     }
@@ -569,6 +584,7 @@ struct CardSelectScreen: View {
         guard !selected.contains(where: { $0.id == card.id }), !previewExiting else { return }
         previewExiting = true
         SoundPlayer.shared.play(.cardSelect)
+        Haptics.play(.selection)
         previewExitDir = .up
         let token = actionToken
         DispatchQueue.main.asyncAfter(deadline: .now() + previewExitMs) {
@@ -597,6 +613,7 @@ struct CardSelectScreen: View {
             HStack(spacing: 12) {
                 Button {
                     SoundPlayer.shared.play(.select)
+                    Haptics.play(.selection)
                     withAnimation(Anim.cardOverlayExit) { showRerollConfirm = false }
                 } label: {
                     Text("취소").typography(.body).foregroundStyle(Color.textSecondary)
@@ -605,6 +622,7 @@ struct CardSelectScreen: View {
                 }.buttonStyle(.plain)
                 Button {
                     SoundPlayer.shared.play(.packOpen)
+                    Haptics.play(.success)
                     actionToken += 1   // 리뷰 #7 — in-flight 확정 타이머 무효화
                     previewExiting = false
                     previewExitDir = nil
@@ -614,6 +632,7 @@ struct CardSelectScreen: View {
                     for i in 0..<6 {
                         DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.08) {
                             SoundPlayer.shared.play(.cardFlip)
+                            Haptics.play(.light)
                         }
                     }
                 } label: {

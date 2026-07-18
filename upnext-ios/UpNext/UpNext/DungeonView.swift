@@ -146,14 +146,8 @@ struct DungeonView: View {
                         .foregroundStyle(Color.accentPrimary)
                         .multilineTextAlignment(.center)
                 }
-                Button { dismissChoiceResult() } label: {
-                    Text("계속")
-                        .typography(.body)
-                        .foregroundStyle(Color.bgPrimary)
-                        .frame(maxWidth: .infinity).frame(height: 48)
-                        .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
-                }
-                .buttonStyle(.plain)
+                Button("계속") { dismissChoiceResult() }
+                    .buttonStyle(.un(.primary))
             }
             .padding(22)
             .frame(maxWidth: 320)
@@ -476,15 +470,19 @@ struct DungeonView: View {
            case let .choice(_, _, _, options, _, _, _, _, _, _) = session.log[idx] {
             VStack(spacing: 8) {
                 ForEach(Array(options.enumerated()), id: \.offset) { i, option in
-                    Button { upHero.resolveChoice(i) } label: {
-                        Text(option.label)
-                            .typography(.body)
-                            .foregroundStyle(Color.textPrimary)
-                            .frame(maxWidth: .infinity)
-                            .frame(minHeight: 50)
-                            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+                    Button {
+                        upHero.resolveChoice(i)
+                    } label: {
+                        // 전투 선택지 라벨 i18n — labelKey(uphero.combat.choice.*)로 인앱 언어
+                        //   해석. 이전엔 raw option.label(한국어 "싸운다"/"도망간다 (85%)")을
+                        //   그대로 렌더해 전 언어에서 한국어로 샜다(카탈로그엔 키가 이미 있었으나
+                        //   코드가 미사용). 로그 텍스트(logText)와 동일한 resolveLog 경로로 통일.
+                        Text(option.labelKey.map {
+                            UpHeroNarrative.resolveLog($0, option.labelParams, fallback: option.label)
+                        } ?? option.label)
                     }
-                    .buttonStyle(.plain)
+                    // 공용 secondary(bgSurface/textPrimary) — minHeight 라 긴 선택지도 안 잘림.
+                    .buttonStyle(.un(.secondary))
                 }
             }
             // 12-combat-parity(3): 전투는 이제 풀스크린 몰입(네비는 MainShell 에서 숨김 —
@@ -498,15 +496,8 @@ struct DungeonView: View {
     }
 
     private var abandonButton: some View {
-        Button { upHero.abandonSession() } label: {
-            Text("탐험 포기")
-                .typography(.body)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .foregroundStyle(Color.textSecondary)
-                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
+        Button("탐험 포기") { upHero.abandonSession() }
+            .buttonStyle(.un(.secondary, tint: .textSecondary))
         // 12-combat-parity(3): 전투 풀스크린 — 네비는 MainShell 에서 숨김. 홈 인디케이터 여유 확보.
         .padding(.horizontal, 16)
         .padding(.top, 16)
@@ -614,9 +605,9 @@ struct DungeonView: View {
         case let .boss(monster, floor, _):
             bossBannerData = (monster: monster, floor: floor)
             pausedForBoss = true
-            // 보스 등장 — 임팩트 사운드 + 강한 햅틱 (웹 play("impactShake") 패리티).
+            // 보스 등장 — 임팩트 사운드 + 2단 타격 햅틱 (impact+반동, CoreHaptics).
             SoundPlayer.shared.play(.impactShake)
-            Haptics.play(.heavy)
+            Haptics.critHit(intensity: 1.0)
         case let .combat(attacker, damage, outcome, _, _, _, _):
             // 공격 플래시 (좌=영웅 공격, 우=적 공격)
             attackFlashSide = attacker == .hero ? .hero : .enemy
@@ -630,7 +621,9 @@ struct DungeonView: View {
             case .crit:
                 critShakeTrigger &+= 1
                 SoundPlayer.shared.play(.impactShake)
-                Haptics.play(.heavy)
+                // 크리티컬 — 임팩트+반동 2단 transient. 데미지 비례 강도(CoreHaptics),
+                // 미지원 기기는 heavy(intensity) 단발로 폴백.
+                Haptics.critHit(intensity: min(1.0, 0.55 + Double(damage) / 40.0 * 0.45))
                 emitFloat(text: "CRIT!", variant: .critPulse, position: enemyAnchor())
                 if damage > 0 {
                     emitFloat(text: "-\(damage)", variant: .hpRegen,
@@ -674,6 +667,7 @@ struct DungeonView: View {
             choiceResultText = text
             choiceResultSummary = effectSummary
             SoundPlayer.shared.play(.select)
+            Haptics.play(.selection)
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
                 if choiceResultText == text { dismissChoiceResult() }
             }

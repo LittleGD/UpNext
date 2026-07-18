@@ -17,8 +17,15 @@ import CoreImage
 
 enum PolaroidFilters {
     /// Kodak Gold 필름 룩을 적용한 UIImage 반환. CI 컨텍스트는 캐시.
-    static func applyKodak(_ image: UIImage) -> UIImage? {
-        guard let ciImage = CIImage(image: image) else { return nil }
+    ///
+    /// 06-photo-flow(a/perf): 이 함수는 **절대 SwiftUI body 안에서 호출하지 말 것** —
+    /// CIFilter 체인 + createCGImage 는 무겁다. 캡처 직후 백그라운드 큐에서 1회만
+    /// 실행해 결과 UIImage 를 캐시하고, 뷰에는 이미 필터된 이미지를 전달한다.
+    /// `maxDimension` 을 주면 필터 전에 다운샘플해 CIFilter/CGImage 비용을 더 줄인다
+    /// (프리뷰/데코 표시는 화면 해상도면 충분 — 원본 풀해상도 불필요).
+    static func applyKodak(_ image: UIImage, maxDimension: CGFloat? = nil) -> UIImage? {
+        let working = maxDimension.map { downsample(image, maxDimension: $0) } ?? image
+        guard let ciImage = CIImage(image: working) else { return nil }
         var output: CIImage = ciImage
 
         // 1. Sepia 0.28
@@ -44,8 +51,68 @@ enum PolaroidFilters {
 
         let ctx = sharedContext
         guard let cg = ctx.createCGImage(output, from: ciImage.extent) else { return nil }
-        return UIImage(cgImage: cg, scale: image.scale, orientation: image.imageOrientation)
+        return UIImage(cgImage: cg, scale: working.scale, orientation: working.imageOrientation)
     }
+
+    /// 최장변이 maxDimension 을 넘으면 비례 축소 (넘지 않으면 원본 그대로).
+    /// scale=1 렌더러로 픽셀=포인트 1:1 축소해 이후 CIFilter/디코드 메모리를 줄인다.
+    static func downsample(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let px = CGSize(width: image.size.width * image.scale,
+                        height: image.size.height * image.scale)
+        let maxSide = max(px.width, px.height)
+        guard maxSide > maxDimension else { return image }
+        let ratio = maxDimension / maxSide
+        let newSize = CGSize(width: px.width * ratio, height: px.height * ratio)
+        let fmt = UIGraphicsImageRendererFormat.default()
+        fmt.scale = 1
+        return UIGraphicsImageRenderer(size: newSize, format: fmt).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+    }
+
+    /// 폴라로이드 종이 텍스처(그레인·섬유)를 1회 생성해 캐시. 프레임 크기와 무관하게
+    /// 고정 해상도 노이즈를 만들어 resizable 로 늘여 쓴다 — 매 SwiftUI 렌더마다
+    /// 랜덤 도트를 재계산하던 06-photo-flow(a) 병목 제거.
+    /// grain: 미세 도트(불투명 다양), fiber: 저주파 짧은 획.
+    static func paperTexture() -> UIImage {
+        if let cached = cachedPaperTexture { return cached }
+        let side: CGFloat = 512
+        let fmt = UIGraphicsImageRendererFormat.default()
+        fmt.scale = 1
+        fmt.opaque = false
+        var seed: UInt64 = 0x9E3779B97F4A7C15   // 고정 시드 — 결정적 결과.
+        func rnd() -> Double {
+            // xorshift64 — 결정적 의사난수.
+            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17
+            return Double(seed % 100_000) / 100_000.0
+        }
+        let img = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: fmt).image { rc in
+            let ctx = rc.cgContext
+            // 그레인 도트 — 웹 feTurbulence 근사 (PolaroidFrame 이전 구현과 밀도 유사).
+            let grainCount = Int(side * side / 200)
+            for _ in 0..<grainCount {
+                let x = rnd() * side, y = rnd() * side
+                let g = 0.3 + rnd() * 0.6
+                ctx.setFillColor(UIColor(white: CGFloat(g), alpha: 0.5).cgColor)
+                ctx.fill(CGRect(x: x, y: y, width: 0.7, height: 0.7))
+            }
+            // 종이 섬유 — 짧은 저주파 획.
+            let fiberCount = Int(side * side / 800)
+            ctx.setLineWidth(0.4)
+            for _ in 0..<fiberCount {
+                let x = rnd() * side, y = rnd() * side
+                let len = 2 + rnd() * 4
+                let g = 0.5 + rnd() * 0.35
+                ctx.setStrokeColor(UIColor(white: CGFloat(g), alpha: 0.45).cgColor)
+                ctx.move(to: CGPoint(x: x, y: y))
+                ctx.addLine(to: CGPoint(x: x + len, y: y + (rnd() * 2 - 1)))
+                ctx.strokePath()
+            }
+        }
+        cachedPaperTexture = img
+        return img
+    }
+    private static var cachedPaperTexture: UIImage?
 
     /// 빈티지 에이징 opacity 계산 — 웹 computeVintageOpacity 1:1.
     /// 0~21일에 걸쳐 0~25% 점진적 황변. 같은 timestamp 라도 ±15% 편차 (LCG jitter).

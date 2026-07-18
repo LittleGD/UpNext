@@ -1,13 +1,16 @@
 //
 //  HexStatChart.swift
-//  UpNext — Up Hero 영웅 스탯 육각 레이더 차트 (Phase 4 슬라이스 16).
+//  UpNext — Up Hero 영웅 스탯 육각 레이더 차트 (08-cardmatch-hero 웹 파리티 복원).
 //
 //  웹 components/uphero/HexStatChart.tsx 포팅. 6축(STR/INT/VIT/DEX/AGI/CRIT)
 //  레이더 차트로 영웅 스탯을 레벨/클래스별 max 대비 비율로 표시한다. 100% 링이
-//  "레벨 자연 성장" 기준선 — 그 바깥은 장비/버프로 초과한 영역.
+//  "레벨 자연 성장" 기준선 — 그 바깥(150/200/250%)은 장비/버프로 초과한 영역이라
+//  대시(dash "2 3") stroke 로 그려 초과분이 시각적으로 드러난다.
 //
-//  웹의 탭 가능한 스탯 설명 popover·스케일 legend·꼭짓점 pull 애니메이션은
-//  condensed — 차트(그리드 + base/eff 다각형 + 꼭짓점)와 숫자 legend 만 포팅.
+//  아지트 = 레트로 게임보이 오버레이라는 아트디렉션을 위해 GBPalette 모노 팔레트
+//  (dark/light/lightest)로 통일 (앱 공통 accentPrimary 치환 복원).
+//
+//  스케일 legend "Lv N 기준 · 초과=장비/버프" 로 100% 링의 의미를 노출한다(웹 :333-355).
 //
 
 import SwiftUI
@@ -39,6 +42,7 @@ struct HexStatChart: View {
     var body: some View {
         VStack(spacing: 12) {
             chart
+            scaleLegend
             legend
         }
     }
@@ -51,7 +55,8 @@ struct HexStatChart: View {
             ForEach(axes.indices, id: \.self) { i in
                 Text(axes[i].label)
                     .typography(.micro)
-                    .foregroundStyle(Color.textSecondary)
+                    .tracking(0.8)
+                    .foregroundStyle(GBPalette.light)
                     .position(labelPoint(i))
             }
         }
@@ -64,6 +69,7 @@ struct HexStatChart: View {
         let radius = size / 2 - 32  // 라벨 공간 확보
         let cap = overflowCap
         let maxes = statMax
+        let dash = StrokeStyle(lineWidth: 1, dash: [2, 3])   // 웹 strokeDasharray "2 3"
 
         func angle(_ i: Int) -> CGFloat { -.pi / 2 + CGFloat(i) * .pi / 3 }
         func point(_ i: Int, _ ratio: Double) -> CGPoint {
@@ -93,36 +99,43 @@ struct HexStatChart: View {
             return p
         }
 
-        // 그리드 링 — 0.5/1.0/1.5/2.0/2.5. 100%(1.0) 링만 강조한다.
-        for ringRatio in [0.5, 1.0, 1.5, 2.0, 2.5] {
-            let isBase = ringRatio == 1.0
-            ctx.stroke(ring(ringRatio),
-                       with: .color(isBase ? Color.accentPrimary.opacity(0.55)
-                                            : Color.textTertiary.opacity(0.28)),
-                       lineWidth: isBase ? 1.5 : 1)
+        // 그리드 링 — 0.5(solid) / 1.0(base·강조) / 1.5·2.0·2.5(over·dash "2 3").
+        // 웹 HexStatChart :180-201.
+        // 0.5 — 일반 solid.
+        ctx.stroke(ring(0.5), with: .color(GBPalette.dark.opacity(0.6)), lineWidth: 1)
+        // 1.0 — "Lv 자연 성장" 기준 링. GB.light 굵게.
+        ctx.stroke(ring(1.0), with: .color(GBPalette.light.opacity(0.9)), lineWidth: 1.5)
+        // 1.5 / 2.0 / 2.5 — 초과 영역 dash.
+        for over in [1.5, 2.0, 2.5] {
+            ctx.stroke(ring(over), with: .color(GBPalette.dark.opacity(0.4)), style: dash)
         }
-        // 축선 — 중심에서 edge 까지.
+
+        // 축선 — 0~100% solid + 100%~cap dash (초과 영역 구분). 웹 :202-229.
         for i in 0..<6 {
-            var axis = Path()
-            axis.move(to: CGPoint(x: c, y: c))
-            axis.addLine(to: point(i, cap))
-            ctx.stroke(axis, with: .color(Color.textTertiary.opacity(0.22)),
-                       lineWidth: 1)
+            var inner = Path()
+            inner.move(to: CGPoint(x: c, y: c))
+            inner.addLine(to: point(i, 1.0))
+            ctx.stroke(inner, with: .color(GBPalette.dark.opacity(0.55)), lineWidth: 1)
+
+            var outer = Path()
+            outer.move(to: point(i, 1.0))
+            outer.addLine(to: point(i, cap))
+            ctx.stroke(outer, with: .color(GBPalette.dark.opacity(0.35)), style: dash)
         }
-        // base 다각형 — 어두운 채움 (레벨 자연 성장만).
+
+        // base 다각형 — 어두운 채움 (레벨 자연 성장만). GB.light.
         let basePoly = polygon(base)
-        ctx.fill(basePoly, with: .color(Color.accentPrimary.opacity(0.14)))
-        ctx.stroke(basePoly, with: .color(Color.accentPrimary.opacity(0.55)),
-                   lineWidth: 1)
-        // effective 다각형 — 밝은 outline (장비/버프 포함).
+        ctx.fill(basePoly, with: .color(GBPalette.light.opacity(0.18)))
+        ctx.stroke(basePoly, with: .color(GBPalette.light), lineWidth: 1)
+        // effective 다각형 — 밝은 outline (장비/버프 포함). GB.lightest.
         let effPoly = polygon(effective)
-        ctx.fill(effPoly, with: .color(Color.accentPrimary.opacity(0.28)))
-        ctx.stroke(effPoly, with: .color(Color.accentPrimary), lineWidth: 2)
-        // 꼭짓점 dot — effective 기준.
+        ctx.fill(effPoly, with: .color(GBPalette.lightest.opacity(0.25)))
+        ctx.stroke(effPoly, with: .color(GBPalette.lightest), lineWidth: 2)
+        // 꼭짓점 dot — effective 기준. GB.lightest.
         for i in 0..<6 {
             let q = point(i, ratio(effective, axes[i].key))
             ctx.fill(Path(ellipseIn: CGRect(x: q.x - 3, y: q.y - 3, width: 6, height: 6)),
-                     with: .color(Color.accentPrimary))
+                     with: .color(GBPalette.lightest))
         }
     }
 
@@ -134,7 +147,25 @@ struct HexStatChart: View {
         return CGPoint(x: c + labelR * cos(a), y: c + labelR * sin(a))
     }
 
-    // MARK: - 숫자 legend
+    // MARK: - 스케일 legend (웹 :333-355 — 100% 링 의미 노출)
+
+    private var scaleLegend: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 5) {
+                RoundedRectangle(cornerRadius: 1)
+                    .stroke(GBPalette.light, lineWidth: 1.5)
+                    .frame(width: 10, height: 10)
+                Text(AppConfig.loc("Lv.\(level) 기준"))
+                    .typography(.micro).foregroundStyle(GBPalette.light)
+            }
+            Text("·").typography(.micro).foregroundStyle(GBPalette.light.opacity(0.5))
+            Text(AppConfig.loc("초과 = 장비·버프"))
+                .typography(.micro).foregroundStyle(GBPalette.light)
+        }
+        .opacity(0.85)
+    }
+
+    // MARK: - 숫자 legend (GB 팔레트)
 
     private var legend: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
@@ -154,19 +185,19 @@ struct HexStatChart: View {
         return HStack(spacing: 4) {
             Text(axis.label)
                 .typography(.micro)
-                .foregroundStyle(Color.textTertiary)
+                .foregroundStyle(GBPalette.light.opacity(0.7))
             Spacer(minLength: 0)
             Text("\(effVal)\(axis.key == .crit ? "%" : "")")
                 .typography(.micro)
-                .foregroundStyle(Color.textPrimary)
+                .foregroundStyle(GBPalette.lightest)
             if bonus != 0 {
                 Text("(\(bonus > 0 ? "+" : "")\(bonus))")
                     .typography(.micro)
-                    .foregroundStyle(bonus > 0 ? Color.accentPrimary : Color.colorError)
+                    .foregroundStyle(bonus > 0 ? GBPalette.lightest : GBPalette.enemy)
             }
             Text("\(pct)%")
                 .typography(.micro)
-                .foregroundStyle(Color.textTertiary)
+                .foregroundStyle(GBPalette.light.opacity(0.7))
         }
     }
 }

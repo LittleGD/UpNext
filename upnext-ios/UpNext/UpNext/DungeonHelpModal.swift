@@ -85,6 +85,7 @@ struct DungeonHelpModal: View {
 
     private func close() {
         SoundPlayer.shared.play(.select)
+        Haptics.play(.selection)
         withAnimation(reduceMotion ? nil : .easeIn(duration: 0.18)) { entered = false }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { onClose() }
     }

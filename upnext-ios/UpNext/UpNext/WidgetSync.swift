@@ -175,7 +175,27 @@ enum WidgetSync {
     ///
     /// challengeId 는 페이즈 단위 — "daily-2026-05-19-daily" 처럼 (날짜+페이즈).
     /// 페이즈가 바뀌면 새 challengeId 로 종료→재시작 (다른 챌린지로 본 사용자 신호).
+    ///
+    /// 14-completion-delay — publish(42-56)처럼 다음 runloop tick 으로 코얼레싱.
+    ///   daily.didSet 이 인라인으로 호출하면 완료 틱에 progress=/daily= 이중 대입·연쇄
+    ///   변경마다 ActivityKit `Activity.activities` 열거·update 가 여러 번 인라인 실행돼
+    ///   완료 틱 메인스레드를 붙잡았다. 마지막 daily 값만 살아남아 1회만 재조정한다.
+    private static var pendingReconcileDaily: DailyState?
+    private static var reconcileScheduled = false
     static func reconcileChallengeActivity(daily: DailyState?) {
+        pendingReconcileDaily = daily
+        guard !reconcileScheduled else { return }
+        reconcileScheduled = true
+        DispatchQueue.main.async {
+            reconcileScheduled = false
+            let snap = pendingReconcileDaily
+            pendingReconcileDaily = nil
+            reconcileChallengeActivityNow(daily: snap)
+        }
+    }
+
+    /// 실제 Live Activity 재조정 수행부 — reconcileChallengeActivity 의 코얼레서가 1회만 호출.
+    private static func reconcileChallengeActivityNow(daily: DailyState?) {
         guard let d = daily else { endChallengeActivity(); return }
         let (selected, completed, selectionDone): ([ChallengeCard], [String], Bool)
         switch d.challengePhase {

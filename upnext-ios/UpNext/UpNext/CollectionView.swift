@@ -44,7 +44,7 @@ struct CollectionView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
+        // 앰비언트 노출(요인1) — 화면 루트 투명화. MainShell 바닥의 오로라·별이 관통(웹 main z-[1] 패리티).
         .sheet(item: $selectedCard) { card in
             CardDetailModal(card: card)
         }
@@ -348,7 +348,8 @@ struct CollectionView: View {
             } label: {
                 cellBody(card, unlocked: true)
             }
-            .buttonStyle(.plain)
+            // 탭 프레스 스케일(요인2e/7) — 웹 컬렉션 셀 whileTap scale 0.97. 평면 리스트 → 촉감 복원.
+            .buttonStyle(CellPressStyle())
         } else {
             cellBody(card, unlocked: false)
         }
@@ -382,5 +383,16 @@ struct CollectionView: View {
         .padding(12)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
         .opacity(unlocked ? 1 : 0.5)
+    }
+}
+
+// MARK: - 셀 프레스 스케일 (요인2e/7 — 웹 whileTap scale 0.97)
+
+/// 컬렉션 카드 셀 탭 프레스 피드백. .plain 처럼 기본 스타일을 벗기고 press 스케일만 얹는다.
+private struct CellPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }

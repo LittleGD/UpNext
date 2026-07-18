@@ -73,11 +73,11 @@ private struct CampView: View {
                 case .codex:
                     CodexView(onBack: { screen = .home })
                 case .weekly:
-                    // P0-3 — 데이터는 후속 슬라이스에서 Firestore 연동. 현재 mock + affix.
-                    // 주간 affix 는 오늘 날짜 weekId 기반 결정론.
+                    // 17-leaderboard-dummy — mock 제거. weekId 를 넘겨 뷰가 Firestore 실데이터를
+                    // fetch 한다(fetchWeeklyTop + fetchMyRank). affix 는 weekId 기반 결정론.
                     WeeklyLeaderboardView(
                         onBack: { screen = .home },
-                        entries: WeeklyLeaderboardView.mockEntries,
+                        weekId: RetentionEngine.weekId(for: AppClock.todayString()),
                         affixName: WeeklyAffixes.pickWeeklyAffix(
                             weekId: RetentionEngine.weekId(for: AppClock.todayString())
                         ).name
@@ -99,6 +99,8 @@ private struct CampView: View {
             // UITest 전용 — 스탯/스킬트리 패널 자동 오픈(검증용, 출시 바이너리엔 비포함).
             let uiTestOpenStats = ProcessInfo.processInfo.arguments.contains("UITestOpenStats")
             if uiTestOpenStats { statsOpen = true }
+            // 17-leaderboard-dummy 검증 — 주간 리더보드 화면 바로 진입(실데이터 상태머신 확인용).
+            if ProcessInfo.processInfo.arguments.contains("UITestCampWeekly") { screen = .weekly }
             #else
             let uiTestOpenStats = false
             #endif
@@ -134,7 +136,8 @@ private struct CampView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
+        // 앰비언트 노출(요인1) — 화면 루트 투명화. MainShell 바닥의 오로라·별이 관통(웹 main z-[1] 패리티).
+        // 전투(DungeonView)·미니게임(MinigameView) 풀스크린은 별도 몰입 배경이라 불투명 유지.
         .sheet(isPresented: $showMinigame) { MinigameView() }
     }
 
@@ -160,45 +163,121 @@ private struct CampView: View {
         }
     }
 
-    // MARK: 카드매치 탭 — 웹 MinigameHome(idle) 패리티. 티켓 보유 시 시작, 런은 시트.
+    // MARK: 카드매치 탭 — 웹 MinigameHome.tsx 패리티.
+    //  타이틀+subtitle → 티켓 카운터 카드 → 전체폭 Play hero CTA → (티켓0)빈상태 →
+    //  통계 그리드(runs/best) → How-to-play 3줄. 런은 시트.
 
     private var gameTab: some View {
         let tickets = store.progress?.tickets ?? 0
-        return VStack(spacing: 18) {
-            Spacer(minLength: 0)
-            PixelIcon(.gamepad, size: 56,
-                      color: tickets > 0 ? Color.accentPrimary : Color.textTertiary)
-            VStack(spacing: 6) {
-                Text("카드 맞추기")
-                    .typography(.title)
-                    .foregroundStyle(Color.textPrimary)
-                Text(tickets > 0
-                     ? AppConfig.loc("티켓 \(tickets)장 · 3라운드 메모리 매치로 카드를 모아요")
-                     : AppConfig.loc("티켓이 없어요 · 챌린지를 완료하면 받아요"))
-                    .typography(.caption)
-                    .foregroundStyle(Color.textTertiary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            }
-            Button {
-                if store.startMinigame() { showMinigame = true }
-            } label: {
-                Text("시작하기")
-                    .typography(.body)
+        let canPlay = tickets > 0
+        return ScrollView {
+            VStack(spacing: 20) {
+                // 타이틀 (웹 typo-display + subtitle)
+                VStack(spacing: 6) {
+                    Text(AppConfig.loc("카드 맞추기"))
+                        .typography(.display).foregroundStyle(Color.textPrimary)
+                    Text(AppConfig.loc("3라운드 메모리 매치로 카드를 모아요"))
+                        .typography(.body).foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 20)
+
+                // 티켓 카운터 — read-only 정보 카드 (coins 아이콘 + count/CAP)
+                HStack(spacing: 12) {
+                    PixelIcon(.coins, size: 32, color: Color.accentSecondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(AppConfig.loc("보유 티켓"))
+                            .typography(.caption).foregroundStyle(Color.textTertiary)
+                        HStack(alignment: .firstTextBaseline, spacing: 3) {
+                            Text("\(tickets)")
+                                .typography(.title).foregroundStyle(Color.textPrimary).monospacedDigit()
+                            Text("/ \(GameConstants.minigameTicketCap)")
+                                .typography(.caption).foregroundStyle(Color.textTertiary).monospacedDigit()
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity)
+                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+
+                // Play hero CTA — 전체폭, 52 높이 (웹 min-h52 + scale0.97)
+                Button {
+                    Haptics.play(.selection)
+                    if store.startMinigame() { showMinigame = true }
+                    else { SoundPlayer.shared.play(.cancel) }
+                } label: {
+                    HStack(spacing: 8) {
+                        PixelIcon(.play, size: 20, color: canPlay ? Color.bgPrimary : Color.textTertiary)
+                        Text(AppConfig.loc("플레이"))
+                            .typography(.title)
+                            .foregroundStyle(canPlay ? Color.bgPrimary : Color.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity).frame(minHeight: 52)
+                    .background(canPlay ? Color.accentPrimary : Color.bgElevated,
+                                in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.unPress)
+                .disabled(!canPlay)
+
+                // 티켓0 빈상태 카드
+                if tickets == 0 {
+                    VStack(spacing: 10) {
+                        PixelIcon(.warningDiamond, size: 28, color: Color.accentSecondary)
+                        VStack(spacing: 3) {
+                            Text(AppConfig.loc("티켓이 없어요"))
+                                .typography(.body).foregroundStyle(Color.textPrimary)
+                            Text(AppConfig.loc("챌린지를 완료하면 티켓을 받아요"))
+                                .typography(.caption).foregroundStyle(Color.textTertiary)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .foregroundStyle(Color.bgPrimary)
-                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
-                    .opacity(tickets > 0 ? 1 : 0.3)
+                    .padding(16)
+                    .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+                }
+
+                // 통계 그리드 (runs / best)
+                HStack(spacing: 12) {
+                    statCard(AppConfig.loc("플레이 횟수"), store.progress?.minigameRunsPlayed ?? 0)
+                    statCard(AppConfig.loc("최고 매치"), store.progress?.minigameBestMatches ?? 0)
+                }
+
+                // How-to-play 3줄
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(AppConfig.loc("플레이 방법"))
+                        .typography(.title).foregroundStyle(Color.textPrimary)
+                    ForEach([
+                        AppConfig.loc("카드를 뒤집어 같은 짝을 맞추세요"),
+                        AppConfig.loc("스킬 카드는 기회를, 저주 카드는 위험을 줘요"),
+                        AppConfig.loc("라운드를 클리어하면 보상을 골라요"),
+                    ], id: \.self) { line in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("•").foregroundStyle(Color.accentPrimary)
+                            Text(line).typography(.caption).foregroundStyle(Color.textSecondary)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
             }
-            .buttonStyle(.plain)
-            .disabled(tickets == 0)
-            .padding(.horizontal, 32)
-            Spacer(minLength: 0)
-            Spacer(minLength: 0)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 96)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.bottom, 90)
+    }
+
+    /// 카드매치 통계 카드 (웹 stats grid runs/best).
+    private func statCard(_ label: String, _ value: Int) -> some View {
+        VStack(spacing: 4) {
+            Text(label).typography(.caption).foregroundStyle(Color.textTertiary)
+            Text("\(value)").typography(.heading).foregroundStyle(Color.textPrimary).monospacedDigit()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: 아지트 탭 세그먼트 [영웅 / 카드매치] (디자인 룰: 보더·아이콘 박스 금지)
@@ -213,6 +292,7 @@ private struct CampView: View {
 
     private func campTabButton(_ label: String, tab: CampTab) -> some View {
         Button {
+            Haptics.play(.selection)   // ② 햅틱 페어링 — select 사운드 지점.
             SoundPlayer.shared.play(.select)
             campTab = tab
         } label: {
@@ -241,6 +321,7 @@ private struct CampView: View {
             VStack(spacing: 0) {
                 // 픽셀 영웅 sprite — 탭하면 스탯 패널 (웹 uphero-hero-tap scale 0.97)
                 Button {
+                    Haptics.play(.selection)   // ② 햅틱 페어링 — select 사운드 지점.
                     SoundPlayer.shared.play(.select)
                     statsOpen = true
                 } label: {
@@ -252,9 +333,10 @@ private struct CampView: View {
                             .opacity(0.6).offset(y: 5)
                     }
                 }
-                .buttonStyle(HeroTapStyle())
+                .buttonStyle(.unPress)
                 // 영웅 탭 안내 chip (웹 uphero-stats-hint, L:423-442)
                 Button {
+                    Haptics.play(.selection)   // ② 햅틱 페어링 — select 사운드 지점.
                     SoundPlayer.shared.play(.select)
                     statsOpen = true
                 } label: {
@@ -293,6 +375,7 @@ private struct CampView: View {
                     hint: totalPasses > 0 ? AppConfig.loc("던전을 골라 출발") : AppConfig.loc("상점에서 구매"),
                     badge: totalPasses > 0 ? "×\(totalPasses)" : nil,
                     primary: true) {
+                Haptics.play(.selection)   // ② 햅틱 페어링 — select 사운드 지점.
                 SoundPlayer.shared.play(.select)
                 if totalPasses > 0 { screen = .dungeons } else { screen = .shop }
             }
@@ -311,6 +394,7 @@ private struct CampView: View {
     private func campTile(_ icon: PixelIconName, _ label: String,
                          action: @escaping () -> Void) -> some View {
         Button {
+            Haptics.play(.selection)   // ② 햅틱 페어링 — select 사운드 지점.
             SoundPlayer.shared.play(.select); action()
         } label: {
             HStack(spacing: 8) {
@@ -478,13 +562,8 @@ private struct CampView: View {
 
 // MARK: - 영웅 탭 프레스 스타일 (웹 uphero-hero-tap: scale 0.97 on active)
 
-private struct HeroTapStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
+// 영웅 탭 프레스는 공용 `.buttonStyle(.unPress)`(UNButtonStyle.swift)로 통합됨
+// — 웹 uphero-hero-tap(scale 0.97) 규약을 앱 전역 press 스타일 하나로 흡수.
 
 // MARK: - 분위기 텍스트 (웹 ambience crossfade + fire flicker)
 

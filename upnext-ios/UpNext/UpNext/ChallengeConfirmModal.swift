@@ -100,6 +100,8 @@ struct ChallengeConfirmModal: View {
 
                 // CTAs
                 VStack(spacing: 10) {
+                    // go — phase(extra/super)별 그라디언트는 의도된 테마색이라 destructive 로
+                    // 흡수하지 않고(그 팔레트가 다름) 유지. 공통 press 어포던스만 얹는다.
                     Button {
                         Haptics.play(.selection)
                         onConfirm()
@@ -115,16 +117,11 @@ struct ChallengeConfirmModal: View {
                                 in: RoundedRectangle(cornerRadius: 14)
                             )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.unPress)
 
-                    Button { onCancel() } label: {
-                        Text(restText)
-                            .typography(.body)
-                            .foregroundStyle(Color.textTertiary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                    }
-                    .buttonStyle(.plain)
+                    // rest — 웹 ghost(text-tertiary → active:text-secondary) 그대로.
+                    Button { onCancel() } label: { Text(restText) }
+                        .buttonStyle(.un(.ghost))
                 }
                 .padding(.top, 4)
             }

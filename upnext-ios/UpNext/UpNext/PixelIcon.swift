@@ -42,6 +42,7 @@ enum PixelIconName: String, CaseIterable {
     case clock          = "Clock"        // R4 신규 — 카드 아이콘 (clock.svg)
     case coffee         = "Coffee"       // R4 신규 — 카드 아이콘 (coffee.svg)
     case coins          = "Coins"
+    case eye            = "Eye"          // R6 신규 — 미니게임 peek2 스킬 아이콘 (eye.svg, 웹 Eye 대체)
     case fire           = "Fire"
     case flag           = "Flag"
     case flame          = "Flame"        // pixelarticons에 flame 없음 → fire.svg 대체
@@ -51,11 +52,13 @@ enum PixelIconName: String, CaseIterable {
     case heart          = "Heart"
     case human          = "Human"        // R5 신규 — fitness 던전 아이콘 (human.svg)
     case image          = "Image"
+    case infoBox        = "InfoBox"      // 05-modal-design — GbConfirm 정보 아이콘 (info-box.svg, danger=false)
     case languages      = "Languages"
     case leaf           = "Leaf"         // R3 마감 — nutrition 카테고리 (CATEGORY_ICONS)
     case lightbulb      = "Lightbulb"    // R4 신규 — 카드 아이콘 (lightbulb.svg)
     case link           = "Link"         // R3 마감 — 듀오 초대코드 만들기
     case lock           = "Lock"
+    case mapPin         = "MapPin"       // R6 신규 — 미니게임 compass 스킬 아이콘 (map-pin.svg, 웹 MapPin 대체)
     case message        = "Message"      // R4 신규 — 카드 아이콘 (message.svg)
     case messageText    = "MessageText"  // R3 마감 — social 카테고리 (CATEGORY_ICONS)
     case monitor        = "Monitor"

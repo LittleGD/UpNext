@@ -427,7 +427,10 @@ struct AppHeader: View {
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .padding(.bottom, 10)
-        .background(Color.bgPrimary)
+        // 앰비언트 노출(요인1) — 웹 Header.tsx L178 `bg-bg-primary/80 backdrop-blur-md` 패리티.
+        // 완전 불투명 대신 0.8 로 낮춰 상단 오로라가 은은히 관통(Lv·XP 가독성은 유지).
+        // (다크 고정 앱이라 시스템 material 대신 명시 토큰 opacity 사용 — 라이트모드 오염 방지.)
+        .background(Color.bgPrimary.opacity(0.8))
         .onAppear { lastSeenLevel = level }
         .onChange(of: level) { newLevel in
             if newLevel > lastSeenLevel {

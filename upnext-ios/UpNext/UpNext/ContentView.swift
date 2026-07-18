@@ -47,6 +47,11 @@ struct ContentView: View {
         }
         .animation(.easeOut(duration: 0.25), value: store.showLoginOverlay)
         .animation(.easeOut(duration: 0.25), value: store.mergeConflict)
+        // 16-reroll-missing — scenePhase onChange(UpNextApp:57-60) 는 SwiftUI 의 알려진
+        //   함정으로 콜드 런치의 최초 `.active` 전환을 놓치는 경우가 있다. 루트 onAppear 를
+        //   폴백으로 둬 하루 롤오버(reconcileForToday)가 매 앱 진입 시 무조건 1회 보장되게
+        //   한다. daily 가 아직 nil 이면 guard 로 안전 no-op 이라 중복 호출 비용은 무시 가능.
+        .onAppear { store.reconcileForToday() }
         // 폰트/로케일 단일 출처 — 기기 로케일이 아닌 *앱 내 언어*(progress.language)를
         // 환경 locale 로 주입한다. Typography 가 @Environment(\.locale) 로 폰트 family 를
         // 고르는데(ko→April16th Promise), 기기 로케일이 en 이면 본문이 Menlo 로 폴백되고

@@ -59,6 +59,9 @@ struct UpNextApp: App {
                     store.reconcileForToday()
                 }
             }
+            // 14-completion-delay(선택) — 첫 렌더 후 사운드 프리웜(완료/레벨업 버퍼 합성 +
+            //   오디오 세션·엔진 워밍). 첫 챌린지 완료의 동기 합성·세션활성 지연을 제거한다.
+            .task { SoundPlayer.shared.prewarm() }
         }
     }
 }

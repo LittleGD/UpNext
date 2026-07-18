@@ -85,17 +85,8 @@ struct CollectionCelebrationView: View {
             titleAward
             rewardGrid
 
-            Button {
-                store.dismissCollectionCelebration()
-            } label: {
-                Text("확인")
-                    .typography(.body)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .foregroundStyle(Color.bgPrimary)
-                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
-            }
-            .buttonStyle(.plain)
+            Button("확인") { store.dismissCollectionCelebration() }
+                .buttonStyle(.un(.primary))
         }
         .padding(24)
         .frame(maxWidth: 360)

@@ -293,6 +293,14 @@ final class GameStore: ObservableObject {
                 progress = cache.progress
                 daily = cache.daily
                 retention = cache.retention
+                // 16-reroll-missing — 웹은 앱 로드마다 initialize() 가 무조건 날짜 리셋
+                //   (useGameStore.ts:272-273 `if (daily.date !== today)`). iOS 는 daily 가
+                //   재대입되는 모든 경로에서 reconcileForToday 를 불러야 rerollUsed/
+                //   challengePhase 가 오늘 기준으로 리셋된다. 익명 콜드런치/재개는 "하루 1번
+                //   앱 열기"의 가장 흔한 경로 — 여기 누락이 "어제 리롤 소진 → 오늘 리롤 버튼
+                //   미노출" 회귀의 직접 원인이었다(scenePhase onChange 만으론 콜드런치 첫
+                //   .active 를 놓침).
+                reconcileForToday(syncChanges: true)
                 phase = .ready
                 AuthFunnel.log(.anonymousResume, ["days": "\(cache.progress.totalDaysCompleted)"])
                 if !loginPromptSeen, !cache.daily.isDrawComplete {
@@ -388,6 +396,8 @@ final class GameStore: ObservableObject {
             // 로컬을 유지하므로 progress/daily/retention 은 이미 셋. 캐시는 더이상
             // 익명 모드 아니므로 비운다 (이젠 Firestore 가 진실).
             LocalProgressCacheStore.clear()
+            // 16-reroll-missing — 머지(로컬 선택) 후에도 오늘 날짜로 리셋 강제.
+            reconcileForToday(syncChanges: false)
             startLiveSync(uid: conflict.uid)
             phase = .ready
         }
@@ -407,6 +417,8 @@ final class GameStore: ObservableObject {
         daily = conflict.cloudDaily
         retention = conflict.cloudRetention ?? RetentionState.fresh(today: Self.todayString())
         LocalProgressCacheStore.clear()
+        // 16-reroll-missing — 머지(클라우드 선택) 후에도 오늘 날짜로 리셋 강제.
+        reconcileForToday(syncChanges: false)
         startLiveSync(uid: conflict.uid)
         phase = .ready
     }
@@ -478,6 +490,10 @@ final class GameStore: ObservableObject {
                 let lr = localRetention ?? RetentionState.fresh(today: Self.todayString())
                 await sync.uploadLocalData(uid: uid, progress: lp, daily: ld, retention: lr)
                 LocalProgressCacheStore.clear()
+                // 16-reroll-missing — 로컬 daily(ld)를 채택하는 경로. 업로드는 이미 끝났으니
+                //   syncChanges:false 로 중복 write 를 막고, 날짜 리셋만 강제한다(다음 자연
+                //   변경에서 syncDaily 가 자연히 발생).
+                reconcileForToday(syncChanges: false)
                 startLiveSync(uid: uid)
                 phase = .ready
                 return
@@ -503,6 +519,8 @@ final class GameStore: ObservableObject {
                 let lr = localRetention ?? RetentionState.fresh(today: Self.todayString())
                 await sync.uploadLocalData(uid: uid, progress: lp, daily: ld, retention: lr)
                 LocalProgressCacheStore.clear()
+                // 16-reroll-missing — 클라우드 미존재 + 로컬 업로드 경로도 날짜 리셋 강제.
+                reconcileForToday(syncChanges: false)
                 startLiveSync(uid: uid)
                 phase = .ready
                 return
@@ -928,7 +946,11 @@ final class GameStore: ObservableObject {
         sync.syncProgress(p)
         sync.syncDaily(d)
         upHero.grantExpeditionPass(card.category, card.rarity)
-        growth.beginCapture(cardId: card.id, title: card.title, category: card.category)
+        // 14-completion-delay — 사진 캡처는 더이상 완료마다 강제하지 않는다(웹 패리티).
+        //   웹 completeChallenge 는 어떤 캡처 모달도 열지 않는다(useGameStore.ts:464-648).
+        //   사진 인증은 옵트인 — DailyHomeView 확인 UI 의 "사진으로 인증하고 완료" 버튼이
+        //   완료 직후 growth.beginCapture 를 호출한다. 여기서 무조건 열던 풀스크린 라이브
+        //   카메라가 완료 직후 전 화면을 덮어 다른 인터랙션을 막던 지연의 직접 원인이었다.
         // 완료 햅틱·사운드 — 레벨업이면 celebration/levelUp, 아니면 success/complete.
         Haptics.play(normalized.levelsGained > 0 ? .celebration : .success)
         SoundPlayer.shared.play(normalized.levelsGained > 0 ? .levelUp : .complete)
@@ -1118,7 +1140,7 @@ final class GameStore: ObservableObject {
         sync.syncProgress(p)
         sync.syncDaily(d)
         upHero.grantExpeditionPass(card.category, card.rarity)
-        growth.beginCapture(cardId: card.id, title: card.title, category: card.category)
+        // 14-completion-delay — 사진 캡처 강제 제거(웹 패리티). 위 completeChallenge 주석 참조.
         Haptics.play(normalized.levelsGained > 0 ? .celebration : .success)
         SoundPlayer.shared.play(normalized.levelsGained > 0 ? .levelUp : .complete)
     }
@@ -1320,6 +1342,20 @@ final class GameStore: ObservableObject {
             d.selectedCards = []
             d.isDrawComplete = true
             d.isSelectionComplete = false
+        }
+        // 16-reroll-missing 회귀 시드 — "어제" 리롤을 소진하고 앱을 종료한 상태를 재현.
+        //   date 를 어제로, rerollUsed=true + 어제자 완료 draw 를 주입한다. 정상 앱
+        //   라이프사이클(ContentView.onAppear → reconcileForToday) 이 돌면 오늘 날짜의
+        //   fresh daily(rerollUsed=false, challengePhase=.daily)로 리셋돼 홀드-드로우 후
+        //   리롤 버튼이 다시 노출돼야 한다. 리셋이 누락되면(버그) 어제 select 화면이
+        //   rerollUsed=true 로 그대로 남는다.
+        if args.contains("UITestSeedStaleReroll") {
+            d.date = RetentionEngine.addDays(todayString(), -1) ?? todayString()
+            d.drawnCards = Array(CardCatalog.allCards.prefix(6))
+            d.selectedCards = []
+            d.isDrawComplete = true
+            d.isSelectionComplete = false
+            d.rerollUsed = true
         }
         // 데일리 풀클리어 상태 — 추가챌린지(ChallengePhaseBanner) shimmer 검증용.
         if args.contains("UITestSeedExtraBanner"),

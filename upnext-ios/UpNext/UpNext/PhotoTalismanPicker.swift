@@ -245,17 +245,20 @@ struct PhotoTalismanPicker: View {
                     .multilineTextAlignment(.center)
                 Text(body).typography(.caption).foregroundStyle(Color.textTertiary)
                     .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                // 중첩 다이얼로그(bgSurface 카드) 위 — 취소는 대비 위해 bgElevated 채움이라
+                // secondary(bgSurface) 로 흡수하면 카드에 묻힌다. 두 버튼의 짝(46pt) 유지 +
+                // 공통 press 어포던스만 얹는다.
                 HStack(spacing: 10) {
                     Button(action: onCancel) {
                         Text("취소").typography(.body).foregroundStyle(Color.textSecondary)
                             .frame(maxWidth: .infinity).frame(height: 46)
                             .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 12))
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.unPress)
                     Button(action: onConfirm) {
                         Text(confirm).typography(.body).foregroundStyle(Color.bgPrimary)
                             .frame(maxWidth: .infinity).frame(height: 46)
                             .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.unPress)
                 }
             }
             .padding(22).frame(maxWidth: 320)
@@ -296,12 +299,9 @@ struct PhotoTalismanPicker: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-                Button { revealItem = nil } label: {
-                    Text("인벤토리로").typography(.body).foregroundStyle(Color.bgPrimary)
-                        .frame(maxWidth: .infinity).frame(height: 48)
-                        .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
-                }
-                .buttonStyle(.plain).padding(16)
+                Button("인벤토리로") { revealItem = nil }
+                    .buttonStyle(.un(.primary))
+                    .padding(16)
             }
             .frame(maxWidth: 320)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 18))

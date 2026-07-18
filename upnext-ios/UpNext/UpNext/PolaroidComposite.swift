@@ -27,14 +27,18 @@ enum PolaroidComposite {
     private static let width: CGFloat = 600
     private static let height: CGFloat = 727  // 600 * 223/184
 
-    /// 폴라로이드 합성 → UIImage PNG. 메인 스레드에서 호출.
+    /// 폴라로이드 합성 → UIImage. 06-photo-flow(a): UIGraphicsImageRenderer 는
+    /// 오프스크린이라 백그라운드 큐에서 호출해도 안전 (저장 시 메인 블로킹 제거).
     /// signatureImage 는 nil 가능, stickers 빈 배열 가능.
+    /// `applyFilter=false` 면 photo 가 이미 Kodak 필터된 것으로 간주해 재필터 생략
+    /// (캡처 직후 캐시한 필터 이미지를 재사용 — 이중 CIFilter 방지).
     static func render(
         photo: UIImage,
         timestamp: Date,
         signatureImage: UIImage? = nil,
         stickers: [CompositeSticker] = [],
-        frameBg: UIColor = UIColor(red: 0.976, green: 0.973, blue: 0.961, alpha: 1)
+        frameBg: UIColor = UIColor(red: 0.976, green: 0.973, blue: 0.961, alpha: 1),
+        applyFilter: Bool = true
     ) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
         return renderer.image { ctx in
@@ -54,8 +58,8 @@ enum PolaroidComposite {
             cgCtx.setFillColor(UIColor.black.cgColor)
             cgCtx.fill(photoRect)
 
-            // 사진 — Kodak 필터 적용 후 object-cover 로 그림
-            let filtered = PolaroidFilters.applyKodak(photo) ?? photo
+            // 사진 — Kodak 필터 적용 후 object-cover 로 그림 (이미 필터됐으면 그대로).
+            let filtered = applyFilter ? (PolaroidFilters.applyKodak(photo) ?? photo) : photo
             drawImageCover(filtered, in: photoRect)
 
             // 비네팅 (가운데 transparent, 가장자리 어둡게)

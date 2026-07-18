@@ -107,6 +107,7 @@ struct MergeConflictDialogView: View {
                     )
             )
         }
-        .buttonStyle(.plain)
+        // 선택 카드(보더·추천 배지·멀티라인)라 variant 대상 아님 — 공통 press 어포던스만.
+        .buttonStyle(.unPress)
     }
 }

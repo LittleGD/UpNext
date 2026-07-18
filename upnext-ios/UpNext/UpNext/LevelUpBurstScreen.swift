@@ -118,17 +118,11 @@ struct LevelUpBurstScreen: View {
     }
 
     private var continueButton: some View {
-        Button {
+        Button("계속") {
             Haptics.play(.selection)
             onComplete()
-        } label: {
-            Text("계속")
-                .typography(.body)
-                .foregroundStyle(Color.bgPrimary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
         }
+        .buttonStyle(.un(.primary))
         .opacity(buttonOpacity)
         .disabled(phase != .done)
     }
@@ -166,6 +160,10 @@ struct LevelUpBurstScreen: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
             phase = .burst
             SoundPlayer.shared.play(.levelUp)
+            // 웹에서 가장 강한 컴파운드 인텐트(celebration)인데 iOS 는 유일하게 완전 무음
+            // 이던 지점. levelUp 6음 상승(~0.86s)과 동기화된 연속 램프+클라이맥스(CoreHaptics),
+            // 미지원 기기는 celebration 3박으로 폴백.
+            Haptics.levelUpBurst()
             // 아이콘 떨림 (sequence: 7 steps × ~70ms)
             runIconShake()
             // 레벨 라벨 롤링 (out → in)

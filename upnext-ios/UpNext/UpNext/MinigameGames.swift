@@ -407,7 +407,7 @@ struct SequenceMemoGame: View {
                 ForEach(0..<4, id: \.self) { i in
                     Button {
                         guard phase == .input else { return }
-                        Haptics.play(.selection)
+                        // 햅틱은 flash() 내부에서 사운드와 함께 발화(입력·재생 양쪽 페어링).
                         flash(i)
                         userInput.append(i)
                         if userInput.last != sequence[userInput.count - 1] {
@@ -451,6 +451,7 @@ struct SequenceMemoGame: View {
     private func flash(_ i: Int) {
         lit = i
         SoundPlayer.shared.play(.cardSelect)
+        Haptics.play(.selection)   // 점등 순간 페어링 — 재생 시연·사용자 입력 공통.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             if lit == i { lit = -1 }
         }

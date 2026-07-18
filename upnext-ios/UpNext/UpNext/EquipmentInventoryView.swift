@@ -21,6 +21,16 @@ struct EquipmentInventoryView: View {
     @State private var enhancingItem: Equipment?
     @State private var enhanceOutcome: EnhanceRitualOutcome?
     @State private var showTalismanPicker = false
+    // 05-modal-design — 판매/버리기(비가역)만 GbConfirm 재확인. 장착/강화는 즉시 실행 유지.
+    // 웹 EquipmentInventory.tsx 처럼 pending 하나로 두 액션 공유, title/body 만 분기.
+    @State private var pendingAction: PendingEquipAction?
+
+    private enum EquipConfirmKind { case sell, discard }
+    private struct PendingEquipAction: Identifiable {
+        let id = UUID()
+        let kind: EquipConfirmKind
+        let item: Equipment
+    }
 
     var body: some View {
         ZStack {
@@ -51,7 +61,30 @@ struct EquipmentInventoryView: View {
                 .transition(.opacity)
                 .zIndex(50)
             }
+
+            // 05-modal-design — 판매/버리기 재확인 (danger). 웹 EquipmentInventory.tsx:741~ 문구.
+            if let pending = pendingAction {
+                GbConfirm(
+                    title: pending.kind == .sell
+                        ? "\(pending.item.localizedDisplayName) — 판매할까요?"
+                        : "\(pending.item.localizedDisplayName) — 버릴까요?",
+                    message: pending.kind == .sell
+                        ? "+\(UpHeroRules.sellPrice[pending.item.rarity] ?? 0) 코인"
+                        : "환급 없음 · 복구 불가",
+                    confirmLabel: pending.kind == .sell ? "판매" : "버리기",
+                    danger: true,
+                    onConfirm: {
+                        if pending.kind == .sell { upHero.sellItem(pending.item.id) }
+                        else { upHero.discardItem(pending.item.id) }
+                        pendingAction = nil
+                    },
+                    onCancel: { pendingAction = nil })
+                .transition(.opacity)
+                .zIndex(60)
+            }
         }
+        // 액션 선택 시트는 장착/강화 즉시 실행 + 판매/버리기 재확인(GbConfirm) 구조로 유지.
+        // (스펙: 장착/강화 는 현 액션시트 안에 유지 가능, 판매/버리기만 GbConfirm 경유.)
         .confirmationDialog(
             actionItem?.name ?? "",
             isPresented: Binding(get: { actionItem != nil }, set: { if !$0 { actionItem = nil } }),
@@ -66,10 +99,10 @@ struct EquipmentInventoryView: View {
             }
             .disabled(upHero.state.coins < 100)
             Button("판매 (+\(UpHeroRules.sellPrice[item.rarity] ?? 0) 코인)") {
-                upHero.sellItem(item.id); actionItem = nil
+                pendingAction = PendingEquipAction(kind: .sell, item: item); actionItem = nil
             }
             Button("버리기", role: .destructive) {
-                upHero.discardItem(item.id); actionItem = nil
+                pendingAction = PendingEquipAction(kind: .discard, item: item); actionItem = nil
             }
             Button("취소", role: .cancel) { actionItem = nil }
         }

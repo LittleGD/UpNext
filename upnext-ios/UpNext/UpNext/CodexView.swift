@@ -96,7 +96,11 @@ struct CodexView: View {
                 ForEach(templates, id: \.id) { template in
                     let isDiscovered = discovered.contains(template.id)
                     Button {
-                        if isDiscovered { SoundPlayer.shared.play(.select); selectedMonster = template }
+                        if isDiscovered {
+                            SoundPlayer.shared.play(.select)
+                            Haptics.play(.selection)
+                            selectedMonster = template
+                        }
                     } label: {
                         MonsterCodexCard(template: template, discovered: isDiscovered)
                     }
@@ -128,7 +132,11 @@ struct CodexView: View {
                         ForEach(bossGroups[dungeonKey]!, id: \.id) { boss in
                             let isDiscovered = discovered.contains(boss.id)
                             Button {
-                                if isDiscovered { SoundPlayer.shared.play(.select); selectedMonster = boss }
+                                if isDiscovered {
+                                    SoundPlayer.shared.play(.select)
+                                    Haptics.play(.selection)
+                                    selectedMonster = boss
+                                }
                             } label: {
                                 MonsterCodexCard(template: boss, discovered: isDiscovered)
                             }

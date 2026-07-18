@@ -210,6 +210,7 @@ private struct PairMatchGame: View {
                 flipped = []
                 lockInput = false
                 SoundPlayer.shared.play(.matchPair)
+                Haptics.play(.medium)   // ② 햅틱 페어링 — matchPair intent = medium.
                 if matchedIds.count == cards.count {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { onComplete(true) }
                 }

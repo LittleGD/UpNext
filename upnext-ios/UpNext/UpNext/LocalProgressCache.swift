@@ -38,6 +38,14 @@ struct LocalProgressCache: Codable {
 
 enum LocalProgressCacheStore {
 
+    /// 디스크 IO 전용 serial 큐 — encode + atomic write / clear 를 메인스레드 밖에서.
+    /// 14-completion-delay: 익명 완료 틱마다 progress/daily/retention didSet →
+    ///   persistLocalIfAnonymous 가 메인에서 encode + atomic write(temp+fsync+rename)를
+    ///   돌려 완료 틱 메인스레드를 붙잡던 비용을 오프메인. save 와 clear 를 같은 serial
+    ///   큐로 태워 FIFO 순서를 보장 → clear 뒤 도착한 stale save 가 파일을 되살리지 않게 한다.
+    private static let ioQueue = DispatchQueue(
+        label: "com.littlegd.upnext.localcache.persist", qos: .utility)
+
     /// 저장 파일 — Application Support/local-progress.json.
     private static var fileURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory,
@@ -53,10 +61,18 @@ enum LocalProgressCacheStore {
 
     /// 캐시 저장 — atomic. 실패는 silent (best-effort: 익명 모드 진행 보존이 *권장 사항*
     /// 이지 *보장 사항* 은 아님. 영구 보존을 원하면 로그인이 정답).
+    /// 메인에서는 값 스냅샷(cache — 순수 Codable struct)만 받고, 인코딩·atomic write 는
+    /// background serial 큐로 넘긴다.
     static func save(_ cache: LocalProgressCache) {
-        ensureDir()
+        // 인코딩은 호출 컨텍스트(메인)에서 — @MainActor 격리 Codable 을 nonisolated 큐에서
+        // 쓰지 않도록. 무거운 atomic 파일쓰기만 background serial 큐로 (Data 는 Sendable).
+        let url = fileURL
         guard let data = try? JSONEncoder().encode(cache) else { return }
-        try? data.write(to: fileURL, options: .atomic)
+        ioQueue.async {
+            try? FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? data.write(to: url, options: .atomic)
+        }
     }
 
     /// 헬퍼 — progress/daily/retention 3개로 저장.
@@ -65,19 +81,14 @@ enum LocalProgressCacheStore {
     }
 
     /// 캐시 삭제 — 로그아웃 + 머지 후 "클라우드 선택" 시 호출 (로컬은 더이상 진실 아님).
+    /// save 와 동일 serial 큐로 태워 pending save 뒤에 순서대로 실행(파일 되살아남 방지).
     static func clear() {
-        try? FileManager.default.removeItem(at: fileURL)
+        let url = fileURL
+        ioQueue.async { try? FileManager.default.removeItem(at: url) }
     }
 
     /// 캐시 존재 여부 — handleAuthState .signedOut 에서 익명 부트 분기 판단.
     static func exists() -> Bool {
         FileManager.default.fileExists(atPath: fileURL.path)
-    }
-
-    /// 캐시 파일 위치 — Application Support 가 없으면 만들어 둔다 (write 실패 방지).
-    private static func ensureDir() {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory,
-                                           in: .userDomainMask)[0]
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
 }

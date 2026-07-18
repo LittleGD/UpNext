@@ -163,6 +163,8 @@ struct SessionResultModal: View {
     // MARK: - CTA
 
     private var cta: some View {
+        // GB 팔레트 세계관 CTA(GBPalette.lightest/dark·radius 8·minHeight 44)는 GbConfirm 과
+        // 같은 이유로 그 룩을 유지 — variant 로 흡수하지 않고 공통 press 어포던스만 얹는다.
         Button {
             Haptics.play(.selection)
             onAcknowledge()
@@ -174,7 +176,7 @@ struct SessionResultModal: View {
                 .frame(minHeight: 44)
                 .background(GBPalette.lightest, in: RoundedRectangle(cornerRadius: 8))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.unPress)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }

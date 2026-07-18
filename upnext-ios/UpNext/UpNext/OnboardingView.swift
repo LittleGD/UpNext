@@ -168,9 +168,7 @@ private struct OnboardingIntro: View {
             // 언어 선택 + 진행 버튼
             VStack(spacing: 12) {
                 LanguageToggle(current: lang) { store.setLanguage($0) }
-                OnboardingPrimaryButton(
-                    title: page == pageCount - 1 ? OnboardingI18n.start(lang) : OnboardingI18n.next(lang)
-                ) {
+                UNButton(page == pageCount - 1 ? OnboardingI18n.start(lang) : OnboardingI18n.next(lang)) {
                     if page == pageCount - 1 { onNext() }
                     else { withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) { page += 1 } }
                 }
@@ -604,29 +602,11 @@ private struct OnboardingBottomBar: View {
                         .frame(width: 52, height: 52)
                         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.unPress)   // 아이콘 스퀘어 — 채움/치수 유지, 공통 press 어포던스만.
                 .accessibilityLabel(Text("Back"))
             }
-            OnboardingPrimaryButton(title: title, enabled: enabled, action: action)
+            // 공용 primary — 화면마다 복붙되던 OnboardingPrimaryButton 흡수(13-button-system).
+            UNButton(title, enabled: enabled, action: action)
         }
-    }
-}
-
-private struct OnboardingPrimaryButton: View {
-    let title: String
-    var enabled: Bool = true
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .typography(.body)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .foregroundStyle(Color.bgPrimary)
-                .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
-                .opacity(enabled ? 1 : 0.3)
-        }
-        .disabled(!enabled)
     }
 }

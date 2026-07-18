@@ -27,6 +27,28 @@ enum PolaroidFrameVariant: Int, CaseIterable {
         self == .four ? 184.0 / 224.0 : 184.0 / 223.0
     }
 
+    /// 랜덤 프레임 선택 — 웹 PolaroidFrame.tsx:35-42 `pickVariant` 1:1 포팅.
+    /// Knuth multiplicative hash `((ms * 2654435761) >>> 0) % 100` → 가중 버킷:
+    /// 0-9 F1, 10-19 F2, 20-29 F3, 30-39 F4, 40-99 F5 (F5 흰색 60%, F1~4 각 10%).
+    /// timestamp 는 저장 메타의 일부라 재현 가능(프레임 = 사진의 영구 속성).
+    /// 사용자 선택 UI 없음 — 촬영 시점 timestamp 로 1회 결정하는 게 정상 경로.
+    static func random(timestamp: Date) -> PolaroidFrameVariant {
+        // 웹은 JS Number(double) * uint 후 `>>> 0`(ToUint32) — 동일 IEEE754 double
+        // 연산 + mod 2^32 로 재현.
+        let ms = (timestamp.timeIntervalSince1970 * 1000).rounded(.down)
+        let product = ms * 2654435761.0
+        let mod = product.truncatingRemainder(dividingBy: 4294967296.0)  // 2^32
+        let u = mod < 0 ? mod + 4294967296.0 : mod
+        let h = Int(u.rounded(.down)) % 100
+        switch h {
+        case ..<10: return .one
+        case ..<20: return .two
+        case ..<30: return .three
+        case ..<40: return .four
+        default:    return .five
+        }
+    }
+
     /// 데코레이션 — variant 별 모서리 fold + 크랙 위치 (단순화 — 픽토그램 fold).
     var decorations: [FrameDecoration] {
         switch self {
@@ -50,7 +72,10 @@ enum FrameDecoration {
 }
 
 struct PolaroidFrame<Caption: View>: View {
-    let imageData: Data?
+    /// **이미 Kodak 필터가 적용된** 표시용 이미지 (06-photo-flow(a/perf)).
+    /// 예전 `imageData: Data?` → body 안에서 `UIImage(data:)` + `applyKodak` 를
+    /// 매 렌더 동기 실행하던 병목을 제거했다. 필터는 캡처 직후 백그라운드에서 1회만.
+    let image: UIImage?
     let timestamp: Date
     let variant: PolaroidFrameVariant
     @ViewBuilder let caption: () -> Caption
@@ -75,8 +100,9 @@ struct PolaroidFrame<Caption: View>: View {
                 // 사진 영역
                 ZStack {
                     Color(hex: 0x010101)
-                    if let imageData, let uiImage = UIImage(data: imageData) {
-                        Image(uiImage: PolaroidFilters.applyKodak(uiImage) ?? uiImage)
+                    if let image {
+                        // 이미 필터된 이미지 — body 에서 CIFilter/디코드 없음.
+                        Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                     } else {
@@ -113,17 +139,14 @@ struct PolaroidFrame<Caption: View>: View {
                     .frame(width: photoW, height: captionH)
                     .offset(x: photoX, y: captionY)
 
-                // 그레인 (전체)
-                grainOverlay
+                // 그레인 + 종이섬유 — 06-photo-flow(a): 매 렌더 랜덤 도트 재계산 대신
+                // 1회 생성·캐시된 텍스처를 늘여 씀 (PolaroidFilters.paperTexture).
+                Image(uiImage: PolaroidFilters.paperTexture())
+                    .resizable()
                     .frame(width: w, height: h)
-                    .opacity(0.18)
+                    .opacity(0.16)
                     .blendMode(.multiply)
-
-                // 종이 섬유 (저주파)
-                paperFiberOverlay
-                    .frame(width: w, height: h)
-                    .opacity(0.08)
-                    .blendMode(.multiply)
+                    .allowsHitTesting(false)
 
                 // 프레임 가장자리 어두움
                 RoundedRectangle(cornerRadius: 2)
@@ -229,42 +252,6 @@ struct PolaroidFrame<Caption: View>: View {
         case .bottomLeading:  return .topTrailing
         case .bottomTrailing: return .topLeading
         default: return .bottomTrailing
-        }
-    }
-
-    // MARK: - Grain / 종이섬유 오버레이
-
-    private var grainOverlay: some View {
-        Canvas { ctx, size in
-            // 50 시드 fractal noise — Swift 에 feTurbulence 가 없어 random dot 으로 근사.
-            for _ in 0..<Int(size.width * size.height / 200) {
-                let x = CGFloat.random(in: 0..<size.width)
-                let y = CGFloat.random(in: 0..<size.height)
-                let g = Double.random(in: 0.3...0.9)
-                ctx.fill(
-                    Path(CGRect(x: x, y: y, width: 0.7, height: 0.7)),
-                    with: .color(Color(white: g))
-                )
-            }
-        }
-    }
-
-    private var paperFiberOverlay: some View {
-        Canvas { ctx, size in
-            for _ in 0..<Int(size.width * size.height / 800) {
-                let x = CGFloat.random(in: 0..<size.width)
-                let y = CGFloat.random(in: 0..<size.height)
-                let len = CGFloat.random(in: 2...6)
-                let g = Double.random(in: 0.5...0.85)
-                ctx.stroke(
-                    Path { p in
-                        p.move(to: CGPoint(x: x, y: y))
-                        p.addLine(to: CGPoint(x: x + len, y: y + CGFloat.random(in: -1...1)))
-                    },
-                    with: .color(Color(white: g)),
-                    lineWidth: 0.4
-                )
-            }
         }
     }
 

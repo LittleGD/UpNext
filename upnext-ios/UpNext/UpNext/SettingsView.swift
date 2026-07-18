@@ -29,8 +29,73 @@ struct SettingsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
+        // 앰비언트 노출(요인1) — 화면 루트 투명화. MainShell 바닥의 오로라·별이 관통(웹 main z-[1] 패리티).
+        // 설정 항목은 bgSurface 카드 위라 대비/가독성 유지.
         .sheet(isPresented: $showPrivacy) { PrivacyView() }
+        // 05-modal-design — 시스템 .alert/.confirmationDialog → GbConfirm(GB 팔레트).
+        // 풀스크린 백드롭이 필요해 개별 섹션이 아닌 body 루트(전체 프레임)에 부착.
+        // ⚠️ 계정 삭제 재인증(Apple/Google) 시트는 store.deleteAccount() 내부의 시스템
+        //    시트로 그대로 유지(교체 금지 — 시스템 권한류).
+        .overlay { confirmDialogs }
+    }
+
+    // MARK: - GbConfirm 다이얼로그 (노출 빈도 순)
+
+    @ViewBuilder
+    private var confirmDialogs: some View {
+        // 모드 변경 — 비파괴적(info).
+        if let mode = modeToConfirm {
+            GbConfirm(
+                title: "모드 변경",
+                message: "\(modeLabel(mode)) 모드는 내일부터 적용됩니다.",
+                confirmLabel: "변경",
+                onConfirm: { store.setMode(mode); modeToConfirm = nil },
+                onCancel: { modeToConfirm = nil })
+            .transition(.opacity)
+        }
+        // 로그아웃 — danger.
+        if showSignOutConfirm {
+            GbConfirm(
+                title: "로그아웃 하시겠어요?",
+                confirmLabel: "로그아웃",
+                danger: true,
+                onConfirm: { store.auth.signOut(); showSignOutConfirm = false },
+                onCancel: { showSignOutConfirm = false })
+            .transition(.opacity)
+        }
+        // 계정 삭제 확인 — danger. 확인 시 재인증 시스템 시트가 이어짐(범위 밖).
+        if showDeleteAccountConfirm {
+            GbConfirm(
+                title: "계정을 삭제하시겠어요?",
+                message: "계정과 모든 데이터가 영구 삭제됩니다. 같은 계정으로 다시 로그인해도 복구되지 않습니다.",
+                confirmLabel: "계정 삭제 (되돌릴 수 없음)",
+                danger: true,
+                onConfirm: { showDeleteAccountConfirm = false; performAccountDeletion() },
+                onCancel: { showDeleteAccountConfirm = false })
+            .transition(.opacity)
+        }
+        // 계정 삭제 실패 에러 — 단일 확인 버튼(info, 웹엔 없는 iOS 자유 설계).
+        if let err = deleteAccountError {
+            GbConfirm(
+                title: "계정 삭제",
+                message: "\(err)",
+                confirmLabel: "확인",
+                showCancel: false,
+                onConfirm: { deleteAccountError = nil },
+                onCancel: { deleteAccountError = nil })
+            .transition(.opacity)
+        }
+        // 모든 데이터 리셋 — danger(웹 app/settings/page.tsx:440 GbConfirm 대응).
+        if showResetConfirm {
+            GbConfirm(
+                title: "모든 데이터 리셋",
+                message: "로컬·클라우드 데이터를 전부 초기화합니다. 카드·진행도·로그·부적·장비가 모두 사라집니다.",
+                confirmLabel: "리셋 (되돌릴 수 없음)",
+                danger: true,
+                onConfirm: { showResetConfirm = false; performReset() },
+                onCancel: { showResetConfirm = false })
+            .transition(.opacity)
+        }
     }
 
     // progress 가 아직 없을 때의 방어용 표시. 실제로는 .ready 단계에서만 이 화면이
@@ -125,19 +190,7 @@ struct SettingsView: View {
             .background(Color.bgSurface)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
-        .alert("모드 변경", isPresented: Binding(
-            get: { modeToConfirm != nil },
-            set: { if !$0 { modeToConfirm = nil } }),
-            presenting: modeToConfirm
-        ) { mode in
-            Button("변경") {
-                store.setMode(mode)
-                modeToConfirm = nil
-            }
-            Button("취소", role: .cancel) { modeToConfirm = nil }
-        } message: { mode in
-            Text("\(modeLabel(mode)) 모드는 내일부터 적용됩니다.")
-        }
+        // 모드 변경 확인은 body 루트의 confirmDialogs(GbConfirm)로 이동.
     }
 
     private func modeRow(_ mode: GameMode, progress p: UserProgress) -> some View {
@@ -337,29 +390,8 @@ struct SettingsView: View {
             .background(Color.bgSurface)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
-        .confirmationDialog("로그아웃 하시겠어요?", isPresented: $showSignOutConfirm) {
-            Button("로그아웃", role: .destructive) {
-                store.auth.signOut()
-            }
-            Button("취소", role: .cancel) {}
-        }
-        .confirmationDialog("계정을 삭제하시겠어요?", isPresented: $showDeleteAccountConfirm,
-                            titleVisibility: .visible) {
-            Button("계정 삭제 (되돌릴 수 없음)", role: .destructive) {
-                performAccountDeletion()
-            }
-            Button("취소", role: .cancel) {}
-        } message: {
-            Text("계정과 모든 데이터가 영구 삭제됩니다. 같은 계정으로 다시 로그인해도 복구되지 않습니다.")
-        }
-        .alert("계정 삭제", isPresented: Binding(
-            get: { deleteAccountError != nil },
-            set: { if !$0 { deleteAccountError = nil } })
-        ) {
-            Button("확인", role: .cancel) { deleteAccountError = nil }
-        } message: {
-            Text(deleteAccountError ?? "")
-        }
+        // 로그아웃·계정 삭제 확인·삭제 실패 에러는 body 루트의 confirmDialogs(GbConfirm)로 이동.
+        // (계정 삭제 확인 이후의 재인증 시스템 시트는 store.deleteAccount() 내부에서 그대로 뜸.)
     }
 
     /// 계정 영구 삭제 실행 — 재인증 시트가 떠 사용자 확인 후 Auth/클라우드/로컬 전부 제거.
@@ -399,15 +431,7 @@ struct SettingsView: View {
             .background(Color.bgSurface)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
-        .confirmationDialog("모든 데이터 리셋", isPresented: $showResetConfirm,
-                            titleVisibility: .visible) {
-            Button("리셋 (되돌릴 수 없음)", role: .destructive) {
-                performReset()
-            }
-            Button("취소", role: .cancel) {}
-        } message: {
-            Text("로컬·클라우드 데이터를 전부 초기화합니다. 카드·진행도·로그·부적·장비가 모두 사라집니다.")
-        }
+        // 데이터 리셋 확인은 body 루트의 confirmDialogs(GbConfirm)로 이동.
     }
 
     /// 모든 데이터 리셋 — 로그인 사용자는 Firestore 클라우드 문서도 삭제 후 로컬 초기화.

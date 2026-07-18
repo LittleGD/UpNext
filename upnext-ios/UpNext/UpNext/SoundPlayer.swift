@@ -113,6 +113,23 @@ final class SoundPlayer {
         engine.connect(player, to: engine.mainMixerNode, format: format)
     }
 
+    /// 14-completion-delay(선택) — 부팅 idle 에 완료/레벨업 버퍼를 미리 합성하고 오디오
+    ///   세션·엔진을 미리 활성화한다. 첫 완료에서 동기 PCM 합성(샘플 루프) + setCategory/
+    ///   setActive/engine.start 를 처음 치르던 지연을 부팅 시점으로 옮긴다. enabled 와 무관하게
+    ///   캐시·엔진만 준비하고 실제 재생(무음)은 하지 않는다. .task 로 첫 렌더 후 호출된다.
+    func prewarm() {
+        for name in [SoundName.complete, .levelUp] where cache[name] == nil {
+            if let synth = synthesize(Self.recipe(name)) { cache[name] = synth }
+        }
+        if !started {
+            try? AVAudioSession.sharedInstance().setCategory(.ambient)
+            try? AVAudioSession.sharedInstance().setActive(true)
+            try? engine.start()
+            player.play()
+            started = true
+        }
+    }
+
     /// 사운드 재생. enabled=false 면 무음. 메인 스레드 전용.
     func play(_ name: SoundName) {
         guard Self.enabled else { return }

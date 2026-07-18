@@ -51,12 +51,35 @@ struct DesignSystemGallery: View {
                     ("colorError", .colorError), ("colorErrorStrong", .colorErrorStrong),
                 ])
 
+                buttonSection
+
                 typographySection
                 iconSection
             }
             .padding(20)
         }
         .background(Color.bgPrimary)
+    }
+
+    // MARK: - 버튼 (UNButtonStyle — 13-button-system)
+
+    /// 공용 버튼 variant 미리보기. #Preview 전용 검증 화면 특성 유지(프로덕션 라우팅 없음).
+    private var buttonSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("버튼 (UNButtonStyle)")
+                .typography(.heading)
+                .foregroundStyle(Color.textPrimary)
+            Button("Primary — 계속") {}.buttonStyle(.un(.primary))
+            Button("Secondary — 취소") {}.buttonStyle(.un(.secondary))
+            Button("Ghost — 나중에") {}.buttonStyle(.un(.ghost))
+            Button("Destructive — 시작") {}.buttonStyle(.un(.destructive))
+            Button("Primary · disabled") {}.buttonStyle(.un(.primary)).disabled(true)
+            // 듀오/소셜 맥락 — variant 색 오버라이드(솔로=라임 / 듀오=시안).
+            Button("Duo — accentCyan tint") {}.buttonStyle(.un(.primary, tint: .accentCyan))
+            Text("press scale 0.97 · radius 12 · disabled opacity 0.5 · primary/secondary/destructive 52 · ghost 48")
+                .typography(.micro)
+                .foregroundStyle(Color.textTertiary)
+        }
     }
 
     private var header: some View {

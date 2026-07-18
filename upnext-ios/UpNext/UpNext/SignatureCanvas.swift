@@ -62,9 +62,16 @@ struct SignatureCanvas: UIViewRepresentable {
 
 extension SignatureCanvas {
     /// 현재 서명을 UIImage 로 렌더 — 합성용.
+    /// 06-photo-flow(a): 저장 합성을 백그라운드 큐로 옮기므로 `UIScreen.main.scale`
+    /// 을 내부에서 읽지 않고 호출부(메인)에서 캡처해 넘긴다. 미지정 시에만 main 접근.
+    @MainActor
     static func renderImage(from data: Data?, size: CGSize) -> UIImage? {
+        renderImage(from: data, size: size, scale: UIScreen.main.scale)
+    }
+
+    static func renderImage(from data: Data?, size: CGSize, scale: CGFloat) -> UIImage? {
         guard let data, let drawing = try? PKDrawing(data: data) else { return nil }
         let bounds = CGRect(origin: .zero, size: size)
-        return drawing.image(from: bounds, scale: UIScreen.main.scale)
+        return drawing.image(from: bounds, scale: scale)
     }
 }

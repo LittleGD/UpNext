@@ -88,7 +88,7 @@ struct LoginView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.unPress)
                 .accessibilityIdentifier("loginOverlaySkipButton")
             }
             .padding(.horizontal, 24)
@@ -145,6 +145,9 @@ struct LoginView: View {
                     .strokeBorder(Color.bgElevated, lineWidth: 1)
             )
         }
+        // 소셜 auth 는 아이콘+라벨+보더의 커스텀 컴포넌트라 variant 로 흡수하지 않고
+        // 공통 press 어포던스(웹 active:scale-0.97)만 얹는다.
+        .buttonStyle(.unPress)
         .disabled(auth.isWorking)
     }
 }

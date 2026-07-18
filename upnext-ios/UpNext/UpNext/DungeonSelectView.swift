@@ -93,6 +93,7 @@ struct DungeonSelectView: View {
         let dColor = Color(hexString: dungeon.themeColor)
         return Button {
             SoundPlayer.shared.play(.select)
+            Haptics.play(.selection)
             // 던전 선택 → 버프 카드 드로우. 해금 카드는 GameStore.progress 소관.
             upHero.prepareBuffDraw(
                 dungeonId: dungeon.id,
@@ -122,7 +123,7 @@ struct DungeonSelectView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).fill(dColor.opacity(0.10)))
             }
         }
-        .buttonStyle(DungeonPressStyle())
+        .buttonStyle(.unPress)   // 공용 press(13-button-system) — 기존 DungeonPressStyle 흡수.
     }
 
     /// 던전(=카테고리)별 PixelIcon — 웹 CATEGORY_ICON 맵 1:1.
@@ -140,11 +141,5 @@ struct DungeonSelectView: View {
     }
 }
 
-/// 던전 카드 프레스 — 웹 uphero-press-btn (scale 0.97, 120ms cubic-bezier(0.23,1,0.32,1)).
-private struct DungeonPressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.timingCurve(0.23, 1, 0.32, 1, duration: 0.12), value: configuration.isPressed)
-    }
-}
+// 던전 카드 프레스는 공용 `.buttonStyle(.unPress)`(UNButtonStyle.swift)로 통합됨
+// — 웹 uphero-press-btn(scale 0.97) 규약을 앱 전역 press 스타일 하나로 흡수.

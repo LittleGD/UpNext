@@ -3,13 +3,19 @@
 //  UpNext — 폴라로이드 챌린지 인증 전체 흐름.
 //
 //  웹 src/components/growth/PhotoCaptureModal.tsx (1496 LOC) 핵심 격상.
-//   3 phase:
-//    1. capture — 라이브 카메라 + 셔터 + 갤러리 진입
-//    2. preview — 사진 미리보기 + 프레임 선택 (1-5) + 재촬영
-//    3. decorate — 폴라로이드 + 스티커/서명/메모 + 저장/공유
+//   3 phase (웹 capturePhase: camera→ejecting→polaroid 대응):
+//    1. capture   — 라이브 카메라 + 셔터 + 갤러리 진입
+//    2. ejecting  — 폴라로이드 배출(인화) 연출 2.5s (웹 tsx:1251-1356)
+//    3. decorate  — 폴라로이드 + 스티커/서명/메모 + 저장/공유
 //
-//  사용: parent 가 `showCapture: Bool` 로 fullScreenCover 띄움. completion 콜백으로
-//        저장 결과(`composited UIImage`)와 메타데이터 반환.
+//  프레임은 웹과 동일하게 촬영 시점 timestamp 로 랜덤 결정(선택 UI 없음).
+//  06-photo-flow 수정:
+//    (a/perf) Kodak CIFilter 를 캡처 직후 백그라운드 1회만 실행해 캐시 — body 안
+//             동기 렌더 제거. 프레임 선택 그리드(전체 이미지 ×5 재인코딩) 삭제.
+//    (b) 배출 시퀀스 이식. (d) 프레임 랜덤화. (a 연장) 저장 합성/인코딩 오프메인.
+//
+//  사용: parent 가 `fullScreenCover(item: $growth.pendingCapture)` 로 띄움.
+//        completion 콜백으로 저장 결과(합성 UIImage)와 메타데이터 반환.
 //
 
 import SwiftUI
@@ -65,14 +71,17 @@ struct PhotoCaptureModal: View {
     }
 
     @State private var phase: Phase = .capture
-    @State private var capturedImage: UIImage?
+    @State private var capturedImage: UIImage?          // 원본 (카메라/갤러리)
+    @State private var filteredImage: UIImage?          // Kodak 필터 적용본 (캐시 — 표시/합성 공용)
+    @State private var captureTimestamp: Date = Date()  // 프레임 랜덤·날짜스탬프·빈티지 기준
     @State private var photosPickerItem: PhotosPickerItem?
     @State private var facingFront: Bool = false
     @State private var flashOn: Bool = false
+    @State private var flashOpacity: Double = 0         // 셔터 플래시 잔상 (웹 showFlash)
     @StateObject private var captureCoord = PhotoCaptureCoordinator()
 
     // Decorate phase
-    @State private var frameVariant: PolaroidFrameVariant = .one
+    @State private var frameVariant: PolaroidFrameVariant = .five  // 촬영 시 random 으로 덮어씀
     @State private var stickers: [Sticker] = []
     @State private var selectedSticker: UUID? = nil
     @State private var signatureData: Data? = nil
@@ -83,16 +92,31 @@ struct PhotoCaptureModal: View {
     @State private var penWidth: PenWidth = .medium
     @State private var showShareSheet: Bool = false
     @State private var compositedImage: UIImage?
+    @State private var isSaving: Bool = false           // 저장 중 가드 + 인디케이터
 
-    private enum Phase { case capture, preview, decorate }
+    // Ejecting 애니메이션 상태 (웹 PhotoCaptureModal.tsx:1251-1356 수치 그대로)
+    @State private var ejectY: CGFloat = -1.0       // 폴라로이드 y = 자기 높이의 배수(-100% 시작)
+    @State private var ejectScale: CGFloat = 1.0
+    @State private var ejectCameraY: CGFloat = 0    // 카메라 top/bottom 레이어 퇴장 offset
+    @State private var developProgress: Double = 0  // 0 sepia/어둠 → 1 풀컬러 현상
+    @State private var ejectStarted: Bool = false   // onAppear 중복 방지
+
+    private enum Phase { case capture, ejecting, decorate }
 
     var body: some View {
         ZStack {
             Color.bgPrimary.ignoresSafeArea()
             switch phase {
             case .capture:  captureView
-            case .preview:  previewView
+            case .ejecting: ejectingView
             case .decorate: decorateView
+            }
+            // 셔터 플래시 잔상 — 웹 captureFromVideo 의 showFlash (opacity 1→0).
+            if flashOpacity > 0 {
+                Color.white
+                    .opacity(flashOpacity)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
         }
         .sheet(isPresented: $showShareSheet) {
@@ -105,10 +129,7 @@ struct PhotoCaptureModal: View {
             Task {
                 guard let data = try? await item.loadTransferable(type: Data.self),
                       let img = UIImage(data: data) else { return }
-                await MainActor.run {
-                    capturedImage = img
-                    phase = .preview
-                }
+                await MainActor.run { beginEject(img) }
             }
         }
     }
@@ -118,8 +139,7 @@ struct PhotoCaptureModal: View {
     private var captureView: some View {
         ZStack {
             PhotoCaptureView(onCapture: { img in
-                capturedImage = img
-                phase = .preview
+                beginEject(img)
             }, facingFront: $facingFront, flashOn: $flashOn,
                coordinator: captureCoord)
             .ignoresSafeArea()
@@ -185,63 +205,134 @@ struct PhotoCaptureModal: View {
         captureCoord.trigger()
     }
 
-    // MARK: - Phase 2 — Preview
+    /// 캡처(카메라·갤러리) 직후 진입점 — 웹 captureFromVideo(tsx:282-337) 대응.
+    /// 프레임을 timestamp 로 랜덤 결정하고, Kodak 필터를 백그라운드 1회만 돌려 캐시한 뒤
+    /// 배출 애니메이션을 시작한다. body 안에서는 필터를 절대 돌리지 않는다.
+    private func beginEject(_ img: UIImage) {
+        capturedImage = img
+        let ts = Date()
+        captureTimestamp = ts
+        frameVariant = PolaroidFrameVariant.random(timestamp: ts)   // 웹 pickVariant (선택 UI 없음)
+        filteredImage = nil
 
-    private var previewView: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Button { retake() } label: {
-                    HStack(spacing: 6) {
-                        PixelIcon(.chevronLeft, size: 14, color: Color.textSecondary)
-                        Text("다시 촬영").typography(.caption).foregroundStyle(Color.textSecondary)
-                    }
-                }
-                Spacer()
-                Button { phase = .decorate } label: {
-                    Text("꾸미기 →")
-                        .typography(.caption)
-                        .foregroundStyle(Color.bgPrimary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.accentPrimary, in: Capsule())
-                }
+        // Kodak 필름룩 — 06-photo-flow(a): 캡처 직후 백그라운드 1회. body 재평가와 무관.
+        // maxDimension 1200 다운샘플로 CIFilter/디코드 비용 절감 (표시·합성엔 충분).
+        DispatchQueue.global(qos: .userInitiated).async {
+            let filtered = PolaroidFilters.applyKodak(img, maxDimension: 1200)
+            DispatchQueue.main.async { self.filteredImage = filtered }
+        }
+
+        // 셔터 플래시 잔상 (opacity 1→0, 0.3s).
+        flashOpacity = 1
+        withAnimation(.easeOut(duration: 0.3)) { flashOpacity = 0 }
+
+        // 배출 초기 상태 세팅 후 ejecting 진입 — 실제 애니메이션 kick 은 ejectingView.onAppear
+        // (뷰 마운트 후에 시작해야 -100% → 15% 가 애니메이트됨).
+        ejectY = -1.0; ejectScale = 1.0; ejectCameraY = 0; developProgress = 0
+        ejectStarted = false
+        phase = .ejecting
+    }
+
+    // MARK: - Phase 2 — Ejecting (폴라로이드 배출 연출)
+
+    /// 웹 tsx:1246-1356 3레이어 샌드위치 — bottom(z1)·폴라로이드(z2)·top(z3).
+    /// 슬롯 라인 = 조립체 높이의 1238/1426 ≈ 86.8%. 폴라로이드는 슬롯에서 위로 숨은 채
+    /// 시작(-100%) → y 증가로 슬롯 밖으로 밀려나옴. 위쪽은 top 레이어가 가려준다.
+    private var ejectingView: some View {
+        GeometryReader { geo in
+            // 조립체 aspect 1525/1426 (웹 style aspectRatio). 최대 340pt.
+            let cw = min(geo.size.width - 32, 340)
+            let ch = cw * 1426.0 / 1525.0
+            let topH = ch * 1238.0 / 1426.0       // top 레이어 높이 (86.8%)
+            let bottomH = ch * 188.0 / 1426.0     // bottom 레이어 높이 (13.2%)
+            let polW = cw * 0.62                   // 폴라로이드 width 62%
+            let polH = polW * (223.0 / 184.0)      // 프레임 aspect (184×223)
+            let polX = (cw - polW) / 2
+            let polBaseY = ch * 1238.0 / 1426.0    // 슬롯 라인 top
+
+            ZStack(alignment: .topLeading) {
+                // Bottom layer (z1) — 카메라 하단 립. 아래 정렬, 위로 퇴장.
+                Image("PolaroidBottom")
+                    .resizable()
+                    .frame(width: cw, height: bottomH)
+                    .offset(x: 0, y: (ch - bottomH) + ejectCameraY)
+                    .zIndex(1)
+
+                // Polaroid (z2) — 슬롯에서 출력. transformOrigin center-top (anchor .top).
+                developedPolaroid
+                    .frame(width: polW, height: polH)
+                    .scaleEffect(ejectScale, anchor: .top)
+                    .offset(x: polX, y: polBaseY + ejectY * polH)
+                    .zIndex(2)
+
+                // Top layer (z3) — 카메라 본체. 위 정렬, 위로 퇴장. 폴라로이드 상단을 가림.
+                Image("PolaroidTop")
+                    .resizable()
+                    .frame(width: cw, height: topH)
+                    .offset(x: 0, y: ejectCameraY)
+                    .zIndex(3)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-
-            Text("프레임 선택")
-                .typography(.heading)
-                .foregroundStyle(Color.textPrimary)
-
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    ForEach(PolaroidFrameVariant.allCases, id: \.self) { v in
-                        Button {
-                            frameVariant = v
-                            Haptics.play(.selection)
-                        } label: {
-                            PolaroidFrame(imageData: capturedImage?.jpegData(compressionQuality: 0.9),
-                                          timestamp: Date(), variant: v) {
-                                EmptyView()
-                            }
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .stroke(frameVariant == v ? Color.accentPrimary : Color.clear,
-                                            lineWidth: 3)
-                                    .padding(-4)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(20)
-            }
+            .frame(width: cw, height: ch)
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+            .onAppear { runEjectSequence() }
         }
     }
 
-    private func retake() {
-        capturedImage = nil
-        phase = .capture
+    /// 배출 중 폴라로이드 — 현상 연출(웹 filter sepia 0.8→0·brightness 0.85→1·contrast 0.9→1).
+    /// SwiftUI 근사: 채도/명도/대비 애니 + 세피아 웜톤 오버레이 페이드.
+    private var developedPolaroid: some View {
+        PolaroidFrame(image: filteredImage ?? capturedImage,
+                      timestamp: captureTimestamp,
+                      variant: frameVariant) { EmptyView() }
+            .saturation(0.35 + 0.65 * developProgress)
+            .brightness(-0.15 * (1 - developProgress))
+            .contrast(0.9 + 0.1 * developProgress)
+            .overlay(
+                Color(red: 0.44, green: 0.30, blue: 0.11)
+                    .opacity(0.42 * (1 - developProgress))
+                    .blendMode(.multiply)
+                    .allowsHitTesting(false)
+            )
+            .compositingGroup()
+    }
+
+    /// 배출 타임라인 (웹 총 2.5s, keyTimes [0,0.5,1]) — 뷰 마운트 후 1회.
+    private func runEjectSequence() {
+        guard !ejectStarted else { return }
+        ejectStarted = true
+
+        // 400ms: 슬라이드 사운드 + 라이트 햅틱 (웹 setTimeout(polaroidSlide,400) / HAPTIC light).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            SoundPlayer.shared.play(.polaroidSlide)
+            Haptics.play(.light)
+        }
+
+        // Stage A (0→1.25s) — 직선 출력 -100%→15%, ease (0.23,1,0.32,1).
+        withAnimation(.timingCurve(0.23, 1, 0.32, 1, duration: 1.25)) {
+            ejectY = 0.15
+        }
+        // 현상 — sepia/어둠 → 풀컬러 (웹 duration 1.8, delay 0.6, ease (0.23,1,0.32,1)).
+        withAnimation(.timingCurve(0.23, 1, 0.32, 1, duration: 1.8).delay(0.6)) {
+            developProgress = 1
+        }
+
+        // Stage B (1.25→2.5s) — 폴라로이드 15%→-45% scale 1→1.3 (ease 0.77,0,0.175,1),
+        // 카메라 레이어 퇴장 (ease 0.33,1,0.68,1).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.25) {
+            withAnimation(.timingCurve(0.77, 0, 0.175, 1, duration: 1.25)) {
+                ejectY = -0.45
+                ejectScale = 1.3
+            }
+            withAnimation(.timingCurve(0.33, 1, 0.68, 1, duration: 1.25)) {
+                // 웹 -700px(≈2.2×조립체높이) — 화면 밖으로 완전 퇴장.
+                ejectCameraY = -UIScreen.main.bounds.height
+            }
+        }
+
+        // 2.5s 후 데코 단계 진입 (웹 setTimeout(→polaroid,2500)).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            phase = .decorate
+        }
     }
 
     // MARK: - Phase 3 — Decorate
@@ -249,7 +340,7 @@ struct PhotoCaptureModal: View {
     private var decorateView: some View {
         VStack(spacing: 12) {
             HStack {
-                Button { phase = .preview } label: {
+                Button { retake() } label: {
                     PixelIcon(.chevronLeft, size: 18, color: Color.textSecondary)
                         .padding(8)
                 }
@@ -285,14 +376,25 @@ struct PhotoCaptureModal: View {
             .padding(.horizontal, 16)
 
             Button { save() } label: {
-                Text("저장")
-                    .typography(.body)
-                    .foregroundStyle(Color.bgPrimary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
+                Group {
+                    if isSaving {
+                        HStack(spacing: 8) {
+                            ProgressView().tint(Color.bgPrimary)
+                            Text(AppConfig.loc("저장 중…"))
+                        }
+                    } else {
+                        Text("저장")
+                    }
+                }
+                .typography(.body)
+                .foregroundStyle(Color.bgPrimary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
+                .opacity(isSaving ? 0.7 : 1)
             }
             .buttonStyle(.plain)
+            .disabled(isSaving)
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
         }
@@ -300,8 +402,9 @@ struct PhotoCaptureModal: View {
 
     private var frontFace: some View {
         ZStack {
-            PolaroidFrame(imageData: capturedImage?.jpegData(compressionQuality: 0.9),
-                          timestamp: Date(), variant: frameVariant) { EmptyView() }
+            // 이미 필터된 이미지를 넘긴다 — PolaroidFrame body 안 CIFilter 없음(06-photo-flow a).
+            PolaroidFrame(image: filteredImage ?? capturedImage,
+                          timestamp: captureTimestamp, variant: frameVariant) { EmptyView() }
             // 스티커 레이어
             StickerLayer(stickers: $stickers, selectedId: $selectedSticker)
                 .allowsHitTesting(currentTool == .sticker || selectedSticker != nil)
@@ -330,36 +433,77 @@ struct PhotoCaptureModal: View {
         .shadow(color: .black.opacity(0.1), radius: 4)
     }
 
+    /// 다시 촬영 — 사진·필터·데코 상태를 초기화하고 카메라로 복귀.
+    private func retake() {
+        capturedImage = nil
+        filteredImage = nil
+        stickers = []
+        selectedSticker = nil
+        signatureData = nil
+        memoText = ""
+        flipped = false
+        phase = .capture
+    }
+
+    // MARK: - 합성 / 저장 / 공유
+
+    /// 폴라로이드 합성 → UIImage. 06-photo-flow(a 연장): 서명 렌더·합성·인코딩을
+    /// 백그라운드 큐로 옮겨 메인 블로킹 제거. UIScreen.main.scale 은 메인에서 캡처해 넘긴다.
+    /// filteredImage 가 있으면 이미 Kodak 이 적용된 것이므로 재필터 생략(이중 CIFilter 방지).
+    private func composite(_ completion: @escaping (UIImage) -> Void) {
+        guard let base = filteredImage ?? capturedImage else { return }
+        let alreadyFiltered = (filteredImage != nil)
+        let ts = captureTimestamp
+        let variantBg = UIColor(Color(hex: frameVariant.backgroundHex))
+        let scale = UIScreen.main.scale
+        let sigData = signatureData
+        let compositeStickers = stickers.map {
+            CompositeSticker(
+                id: $0.id.uuidString,
+                type: $0.type == .emoji ? .emoji : .image,
+                content: $0.content, x: $0.x, y: $0.y,
+                rotation: $0.rotation, scale: $0.scale, zIndex: $0.zIndex
+            )
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let sigImage = SignatureCanvas.renderImage(
+                from: sigData,
+                size: CGSize(width: 600, height: 727),
+                scale: scale
+            )
+            let composited = PolaroidComposite.render(
+                photo: base,
+                timestamp: ts,
+                signatureImage: sigImage,
+                stickers: compositeStickers,
+                frameBg: variantBg,
+                applyFilter: !alreadyFiltered
+            )
+            DispatchQueue.main.async { completion(composited) }
+        }
+    }
+
     private func save() {
-        guard let captured = capturedImage else { return }
-        let sigImage = SignatureCanvas.renderImage(
-            from: signatureData,
-            size: CGSize(width: 600, height: 727)
-        )
-        let composited = PolaroidComposite.render(
-            photo: captured,
-            timestamp: Date(),
-            signatureImage: sigImage,
-            stickers: stickers.map {
-                CompositeSticker(
-                    id: $0.id.uuidString,
-                    type: $0.type == .emoji ? .emoji : .image,
-                    content: $0.content, x: $0.x, y: $0.y,
-                    rotation: $0.rotation, scale: $0.scale, zIndex: $0.zIndex
-                )
-            },
-            frameBg: UIColor(Color(hex: frameVariant.backgroundHex))
-        )
-        compositedImage = composited
+        guard !isSaving else { return }   // 더블탭 가드 (웹 isSavingRef)
+        isSaving = true
         Haptics.play(.success)
-        // 내부 표준 순서 — (image, signature, memo, stickers).
-        // B 형 init 의 onSave 는 init 에서 normalize 어댑터로 변환된다.
-        onSaveImpl(composited, signatureData, memoText, stickers)
+        composite { img in
+            self.compositedImage = img
+            self.isSaving = false
+            // 내부 표준 순서 — (image, signature, memo, stickers).
+            // B 형 init 의 onSave 는 init 에서 normalize 어댑터로 변환된다.
+            self.onSaveImpl(img, self.signatureData, self.memoText, self.stickers)
+        }
     }
 
     private func share() {
-        save()
-        showShareSheet = true
+        guard !isSaving else { return }
+        isSaving = true
+        composite { img in
+            self.compositedImage = img
+            self.isSaving = false
+            self.showShareSheet = true
+        }
     }
 }
 

@@ -102,7 +102,15 @@ struct RetentionSectionView: View {
             }
             .padding(20)
         }
-        .background(Color.bgPrimary)
+        // 앰비언트 노출(요인1) — 시트는 별도 프레젠테이션이라 MainShell 오로라가 뒤에 없다.
+        // bgPrimary 위에 AmbientBackground 를 직접 깔아 시트 안에서도 오로라가 관통(웹 패리티).
+        .background(
+            ZStack {
+                Color.bgPrimary
+                AmbientBackground()
+            }
+            .ignoresSafeArea()
+        )
     }
 
     private func reportMetric(_ title: LocalizedStringKey, _ value: LocalizedStringKey, _ icon: PixelIconName) -> some View {

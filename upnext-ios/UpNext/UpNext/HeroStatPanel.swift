@@ -1,13 +1,16 @@
 //
 //  HeroStatPanel.swift
-//  UpNext — Up Hero 영웅 스탯 패널 (Phase 4 슬라이스 16).
+//  UpNext — Up Hero 영웅 스탯 패널 (08-cardmatch-hero 웹 파리티 복원).
 //
 //  웹 components/uphero/HeroStatPanel.tsx 포팅. 아지트에서 영웅을 탭하면 sheet 로
-//  뜨며, 영웅 요약 + 육각 스탯 차트를 보여준다.
+//  뜨며, 영웅 요약 + 클래스/스킬 + 육각 스탯 차트 + 장착 장비를 보여준다.
 //
-//  웹 패널의 클래스 섹션·스킬트리·장착 장비 4슬롯은 각각 전직(슬라이스 8대)·
-//  스킬트리·장비 슬라이스로 분리 — 여기선 영웅 헤더 + HexStatChart 만 (condensed).
-//  영웅 sprite 는 HeroSprite(566줄 픽셀아트) 대신 SF Symbol stand-in.
+//  아트디렉션 복원: 웹은 아지트 전체를 GameBoy 모노 팔레트(GB.darkest/dark/light/
+//  lightest)로 통일한다. iOS 도 GBPalette 로 배경·텍스트·구분선을 통일해
+//  "레트로 게임보이 오버레이" 정체성을 되살린다 (앱 공통 accentPrimary 치환 복원).
+//
+//  복원 항목: 전직 전 NoviceSkillSection(로드맵), 클래스 액티브 스킬 실시간 cooldown
+//  bar, 장비 행 talisman skill 칩(✦) + 사진 부적 썸네일.
 //
 
 import SwiftUI
@@ -15,14 +18,22 @@ import SwiftUI
 struct HeroStatPanel: View {
     @EnvironmentObject private var upHero: UpHeroStore
     @EnvironmentObject private var store: GameStore
+    @EnvironmentObject private var growth: GrowthStore   // 사진 부적 썸네일 로드용
     @Environment(\.dismiss) private var dismiss
     /// 영웅 이름 inline 편집 버퍼 (웹 HeroNameEditor).
     @State private var editingName: String = ""
     @FocusState private var nameFocused: Bool
 
+    // ── GB 팔레트 별칭 (웹 GB.* / gbClass.textDim 대응) ──────────────
+    private let gbBg = GBPalette.darkest
+    private let gbCard = GBPalette.dark.opacity(0.5)          // 웹 `${GB.dark}80`
+    private let gbCardDim = GBPalette.dark.opacity(0.38)      // 웹 `${GB.dark}60`
+    private let gbText = GBPalette.lightest                   // 밝은 텍스트
+    private let gbDim = GBPalette.light                       // dim 텍스트 (gbClass.textDim)
+    private let gbDivider = GBPalette.dark
+
     var body: some View {
         // 영웅 전용 레벨 → 레벨 스케일 적용된 영웅 → effective 스탯.
-        // 웹 HeroStatPanel 의 getEffectiveHeroLevel → computeHeroForLevel 흐름.
         let hero = upHero.state.hero
         let level = UpHeroRules.getEffectiveHeroLevel(
             gameLevel: store.progress?.level ?? 1,
@@ -37,10 +48,9 @@ struct HeroStatPanel: View {
                     heroSummary(hero: hero, leveled: leveled, level: level)
                     if let cls = hero.classType {
                         classSection(cls, hero: hero)
-                    }
-                    skillsSection(hero: hero)
-                    if let cls = hero.classType {
                         skillTreeSection(cls, hero: hero, level: level)
+                    } else {
+                        noviceSkillSection(hero: hero, level: level)
                     }
                     statsSection(base: leveled.baseStats, effective: effective,
                                  level: level, classType: hero.classType)
@@ -51,151 +61,238 @@ struct HeroStatPanel: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgPrimary)
+        .background(gbBg)                       // 웹 background: GB.darkest
         .onAppear { editingName = upHero.state.hero.name }
     }
 
-    // MARK: - 헤더
+    // MARK: - 헤더 (웹 header: 제목 GB.lightest + ghost 닫기 ✕)
 
     private var header: some View {
         HStack {
-            Text("영웅 정보")
-                .typography(.heading)
-                .foregroundStyle(Color.textPrimary)
-            Spacer()
-            Button("닫기") { dismiss() }
+            Text(AppConfig.loc("영웅 정보"))
                 .typography(.body)
-                .foregroundStyle(Color.accentPrimary)
+                .foregroundStyle(gbText)
+            Spacer()
+            Button {
+                dismiss()
+            } label: {
+                HStack(spacing: 3) {
+                    Text("✕").font(.system(size: 13, weight: .bold))
+                    Text(AppConfig.loc("닫기")).typography(.caption)
+                }
+                .foregroundStyle(gbDim)
+                .frame(minHeight: 40)
+            }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(gbDivider).frame(height: 1)   // 구분선 GB 계열
+        }
     }
 
     // MARK: - 영웅 요약
 
     private func heroSummary(hero: Hero, leveled: Hero, level: Int) -> some View {
         VStack(spacing: 10) {
-            // R5 마감 — PixelIcon(.user) stand-in 폐기, 캠프와 동일한 실제 HeroSprite.
             HeroSprite(variant: UpHeroRules.getHeroAppearanceVariant(level: level),
                        classType: hero.classType,
                        size: 72,
-                       color: HeroSprite.themeColor(hero.classType))
-            // 영웅 이름 inline 편집 (웹 HeroNameEditor) — 탭하면 키보드, 완료/blur 시 renameHero.
-            TextField("영웅 이름", text: $editingName)
-                .typography(.heading)
-                .foregroundStyle(Color.textPrimary)
-                .multilineTextAlignment(.center)
-                .focused($nameFocused)
-                .submitLabel(.done)
-                .onSubmit { upHero.renameHero(editingName); editingName = upHero.state.hero.name }
-                .onChange(of: nameFocused) { focused in
-                    if !focused { upHero.renameHero(editingName); editingName = upHero.state.hero.name }
+                       color: hero.classType != nil ? HeroSprite.themeColor(hero.classType) : gbText)
+            // 영웅 이름 inline 편집 (웹 HeroNameEditor) — GB.lightest 배경 chip + PenSquare.
+            HStack(spacing: 6) {
+                TextField(AppConfig.loc("영웅 이름"), text: $editingName)
+                    .typography(.caption)
+                    .foregroundStyle(gbBg)
+                    .multilineTextAlignment(.center)
+                    .focused($nameFocused)
+                    .submitLabel(.done)
+                    .onSubmit { commitName() }
+                    .onChange(of: nameFocused) { focused in if !focused { commitName() } }
+                    .fixedSize()
+                if !nameFocused {
+                    PixelIcon(.penSquare, size: 12, color: gbBg.opacity(0.55))
                 }
-                .padding(.horizontal, 14).padding(.vertical, 6)
-                .background(Color.bgSurface, in: Capsule())
-                .frame(maxWidth: 220)
-            Text("영웅 Lv.\(level) · HP \(leveled.hp) / \(leveled.maxHp)")
+            }
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(gbText, in: RoundedRectangle(cornerRadius: 4))
+            .frame(maxWidth: 220)
+            Text(AppConfig.loc("영웅 Lv.\(level) · HP \(leveled.hp) / \(leveled.maxHp)"))
                 .typography(.caption)
-                .foregroundStyle(Color.textTertiary)
+                .foregroundStyle(gbDim)
         }
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - 클래스 섹션 (웹 ClassSection — 메타 + 패시브 + 자동 스킬 토글)
+    private func commitName() {
+        upHero.renameHero(editingName)
+        editingName = upHero.state.hero.name
+    }
+
+    // MARK: - 클래스 섹션 (웹 ClassSection — 메타 + 액티브 스킬 카드 + 실시간 cooldown)
 
     private func classSection(_ cls: ClassType, hero: Hero) -> some View {
         let meta = UpHeroRules.classMeta[cls]
+        let skill = ClassSkills.classSkills[cls]
+        // 전투 중이면 실시간 skillCooldown 참조 (웹 currentSession.skillCooldown).
+        let session = upHero.state.currentSession
+        let sessionActive = session != nil && session?.status != .completed
+            && session?.hero.classType == cls
+        let cd = sessionActive ? (session?.skillCooldown ?? 0) : 0
+        let ready = cd == 0
+        let maxCd = max(1, skill?.cooldown ?? 1)
+        let cooldownPct = sessionActive ? Double(maxCd - cd) / Double(maxCd) : 1.0
+
         return VStack(alignment: .leading, spacing: 10) {
             sectionTitle(AppConfig.loc("클래스"))
+            // 클래스 메타 카드 (아이콘 + 이름 + 패시브)
             HStack(spacing: 12) {
-                PixelIcon(PixelIconName.resolve(meta?.icon ?? "user"), size: 22,
-                          color: Color.accentPrimary)
+                PixelIcon(PixelIconName.resolve(meta?.icon ?? "user"), size: 22, color: gbText)
                     .frame(width: 30)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(meta?.name ?? AppConfig.loc("영웅"))
-                        .typography(.body)
-                        .foregroundStyle(Color.textPrimary)
-                    Text(meta?.passive ?? "")
-                        .typography(.caption)
-                        .foregroundStyle(Color.textTertiary)
+                    Text(AppConfig.locRuntime(meta?.name ?? "영웅"))
+                        .typography(.body).foregroundStyle(gbText)
+                    Text(AppConfig.locRuntime(meta?.passive ?? ""))
+                        .typography(.caption).foregroundStyle(gbDim)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
             }
             .padding(14)
-            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-            // 자동 스킬 토글 (웹 autoSkillEnabled).
-            Button {
-                upHero.toggleAutoSkill()
-            } label: {
-                HStack(spacing: 10) {
-                    PixelIcon(.zap, size: 16,
-                              color: (hero.autoSkillEnabled ?? true) ? Color.accentPrimary : Color.textTertiary)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("액티브 스킬 자동 발동")
-                            .typography(.caption)
-                            .foregroundStyle(Color.textPrimary)
-                        Text((hero.autoSkillEnabled ?? true) ? "전투 중 조건 충족 시 자동 사용" : "꺼짐 — 자동 발동 안 함")
-                            .typography(.micro)
-                            .foregroundStyle(Color.textTertiary)
-                    }
-                    Spacer(minLength: 0)
-                    // 토글 pill (보더 금지 — 채움 색으로 on/off 표현)
-                    Capsule()
-                        .fill((hero.autoSkillEnabled ?? true) ? Color.accentPrimary : Color.bgElevated)
-                        .frame(width: 40, height: 24)
-                        .overlay(alignment: (hero.autoSkillEnabled ?? true) ? .trailing : .leading) {
-                            Circle().fill(Color.bgPrimary).frame(width: 18, height: 18).padding(3)
+            .background(gbCard, in: RoundedRectangle(cornerRadius: 12))
+
+            // 액티브 스킬 카드 (dashed border) + 실시간 cooldown bar + skillReady/Cooldown.
+            if let skill {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        PixelIcon(.zap, size: 18, color: gbText).frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 8) {
+                                Text(AppConfig.loc("액티브: ") + skillDisplayName(skill))
+                                    .typography(.caption).foregroundStyle(gbText)
+                                if sessionActive {
+                                    Text(ready ? AppConfig.loc("준비됨")
+                                               : AppConfig.loc("쿨다운 \(cd)"))
+                                        .typography(.micro).monospacedDigit()
+                                        .foregroundStyle(ready ? gbText : gbDim)
+                                }
+                            }
+                            Text(sessionActive
+                                 ? AppConfig.loc("조건 충족 시 자동 발동")
+                                 : AppConfig.loc("쿨다운 \(skill.cooldown) · 조건 충족 시 자동 발동"))
+                                .typography(.micro).foregroundStyle(gbDim)
                         }
+                        Spacer(minLength: 0)
+                        // 자동 스킬 토글 (보더 금지 — 채움 pill)
+                        autoSkillToggle(hero: hero)
+                    }
+                    // 실시간 cooldown bar — 세션 active 일 때만 (웹 :485-500, transition 280ms).
+                    if sessionActive {
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(gbDivider)
+                                Capsule().fill(ready ? gbText : gbDim)
+                                    .frame(width: geo.size.width * cooldownPct)
+                                    .animation(.easeOut(duration: 0.28), value: cooldownPct)
+                            }
+                        }
+                        .frame(height: 2)
+                    }
                 }
                 .padding(14)
-                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(gbCardDim, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(   // 웹 dashed border — 액티브 스킬 구분 아트.
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(gbDim.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                )
             }
-            .buttonStyle(.plain)
         }
     }
 
-    // MARK: - 스킬 섹션 (learnedSkills → findSkillById, 노비스/클래스 공통)
+    private func autoSkillToggle(hero: Hero) -> some View {
+        let on = hero.autoSkillEnabled ?? true
+        return Button {
+            Haptics.play(.selection)
+            upHero.toggleAutoSkill()
+        } label: {
+            Text(on ? AppConfig.loc("자동 ON") : AppConfig.loc("자동 OFF"))
+                .typography(.micro)
+                .foregroundStyle(on ? gbBg : gbDim)
+                .padding(.horizontal, 10)
+                .frame(minHeight: 32)
+                .background(on ? gbText : gbCard, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
 
-    @ViewBuilder
-    private func skillsSection(hero: Hero) -> some View {
-        let learned = (hero.learnedSkills ?? []).compactMap { ClassSkills.findSkillById($0) }
-        if !learned.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                sectionTitle(hero.classType == nil ? AppConfig.loc("수련 스킬") : AppConfig.loc("보유 스킬"))
-                VStack(spacing: 8) {
-                    ForEach(learned, id: \.id) { skill in
-                        HStack(alignment: .top, spacing: 10) {
-                            PixelIcon(.sparkle, size: 14, color: Color.accentPrimary)
-                                .frame(width: 20)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(LocalizedStringKey(skill.name))
-                                    .typography(.caption)
-                                    .foregroundStyle(Color.textPrimary)
-                                Text(LocalizedStringKey(skill.description))
-                                    .typography(.caption)   // 본문 설명 — micro(12) 너무 작아 caption(15)
-                                    .foregroundStyle(Color.textTertiary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            Spacer(minLength: 0)
-                            if skill.cooldown > 0 {
-                                Text("CD \(skill.cooldown)")
-                                    .typography(.micro)
-                                    .monospacedDigit()
-                                    .foregroundStyle(Color.textTertiary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
-                    }
+    private func skillDisplayName(_ skill: ClassSkill) -> String {
+        AppConfig.locRuntime(skill.name)   // 런타임 문자열 — 인앱 언어 카탈로그 경유.
+    }
+
+    // MARK: - 전직 전 노비스 스킬 섹션 (웹 NoviceSkillSection — 로드맵)
+
+    private func noviceSkillSection(hero: Hero, level: Int) -> some View {
+        let learned = hero.learnedSkills ?? []
+        return VStack(alignment: .leading, spacing: 8) {
+            sectionTitle(AppConfig.loc("수련 스킬"))
+            Text(AppConfig.loc("전직 전 영웅이 배우는 기본 스킬. 레벨에 도달하면 자동 습득해요"))
+                .typography(.micro).foregroundStyle(gbDim)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 6) {
+                ForEach(ClassSkills.noviceSkills, id: \.id) { skill in
+                    noviceSkillRow(skill, learned: learned.contains(skill.id), level: level)
                 }
             }
         }
     }
 
-    // MARK: - 스킬트리 섹션 (웹 SkillTreePanel — tier 1-4, 스킬 포인트로 해금)
+    private func noviceSkillRow(_ skill: ClassSkill, learned: Bool, level: Int) -> some View {
+        let levelOk = level >= skill.requiredLevel
+        let borderColor = learned ? gbText : (levelOk ? gbDim : gbDivider)
+        return HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(LocalizedStringKey(skill.name))
+                        .typography(.caption).foregroundStyle(gbText)
+                    if learned {
+                        Text("✓").typography(.micro)
+                            .foregroundStyle(gbBg)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(gbText, in: Capsule())
+                    }
+                }
+                Text(LocalizedStringKey(skill.description))
+                    .typography(.caption).foregroundStyle(gbDim)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    Text(AppConfig.loc("쿨다운 \(skill.cooldown)"))
+                        .typography(.micro).monospacedDigit().foregroundStyle(gbDim)
+                    if !learned {
+                        Text("·").typography(.micro).foregroundStyle(gbDim)
+                        Text(AppConfig.loc("Lv.\(skill.requiredLevel) 해금"))
+                            .typography(.micro)
+                            .foregroundStyle(levelOk ? gbDim : GBPalette.dark)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+            // learned / locked 뱃지
+            Text(learned ? AppConfig.loc("습득") : AppConfig.loc("잠김"))
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(gbDim)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(gbCard, in: RoundedRectangle(cornerRadius: 4))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(GBPalette.dark.opacity(0.33), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(borderColor.opacity(0.5), lineWidth: 1))
+        .opacity(learned ? 1 : 0.75)
+    }
+
+    // MARK: - 스킬트리 섹션 (웹 SkillTreePanel — GB 팔레트)
 
     private enum LearnStatus { case ok, learned, needLevel, needPoints }
 
@@ -214,32 +311,27 @@ struct HeroStatPanel: View {
             let learned = hero.learnedSkills ?? []
             let points = hero.skillPoints ?? 0
             let resourceSpec = UpHeroRules.classResource[cls]
-            let resColor = resourceSpec.map { Color(hexString: $0.color) } ?? Color.accentPrimary
+            let resColor = resourceSpec.map { Color(hexString: $0.color) } ?? gbText
             VStack(alignment: .leading, spacing: 12) {
-                // 헤더 — 타이틀 + 남은 SP
                 HStack {
                     sectionTitle(AppConfig.loc("스킬트리"))
                     Spacer(minLength: 0)
                     HStack(spacing: 4) {
-                        PixelIcon(.star, size: 12, color: Color.textPrimary)
-                        Text("\(points)").typography(.caption).monospacedDigit()
-                            .foregroundStyle(Color.textPrimary)
-                        Text("SP").typography(.micro).foregroundStyle(Color.textTertiary)
+                        PixelIcon(.star, size: 12, color: gbText)
+                        Text("\(points)").typography(.caption).monospacedDigit().foregroundStyle(gbText)
+                        Text("SP").typography(.micro).foregroundStyle(gbDim)
                     }
                 }
                 if let resourceSpec {
-                    Text("자원 \(resourceSpec.name) · 레벨업마다 SP 획득")
-                        .typography(.micro)
-                        .foregroundStyle(Color.textTertiary)
+                    Text(AppConfig.loc("자원 \(resourceSpec.name) · 레벨업마다 SP 획득"))
+                        .typography(.micro).foregroundStyle(gbDim)
                 }
                 ForEach(1...4, id: \.self) { tier in
                     let skills = tree.filter { $0.tier == tier }
                     if !skills.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(tierLabel(tier, skills: skills))
-                                .typography(.micro)
-                                .tracking(1)
-                                .foregroundStyle(Color.textTertiary)
+                                .typography(.micro).tracking(1).foregroundStyle(gbDim)
                             ForEach(skills, id: \.id) { skill in
                                 skillTreeRow(skill, learned: learned, points: points,
                                              level: level, resColor: resColor,
@@ -266,28 +358,22 @@ struct HeroStatPanel: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(LocalizedStringKey(skill.name))
-                        .typography(.caption)
-                        .foregroundStyle(Color.textPrimary)
+                        .typography(.caption).foregroundStyle(gbText)
                     if isLearned {
-                        Text("✓")
-                            .typography(.micro)
-                            .foregroundStyle(Color.bgPrimary)
+                        Text("✓").typography(.micro).foregroundStyle(gbBg)
                             .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Color.accentPrimary, in: Capsule())
+                            .background(gbText, in: Capsule())
                     }
                 }
                 Text(LocalizedStringKey(skill.description))
-                    .typography(.caption)   // 본문 설명 — micro(12) 너무 작아 caption(15)
-                    .foregroundStyle(Color.textTertiary)
+                    .typography(.caption).foregroundStyle(gbDim)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {
                     Text("\(skill.resourceCost) \(resShort)")
-                        .typography(.micro).monospacedDigit()
-                        .foregroundStyle(resColor)
-                    Text("·").typography(.micro).foregroundStyle(Color.textTertiary)
-                    Text("CD \(skill.cooldown)")
-                        .typography(.micro).monospacedDigit()
-                        .foregroundStyle(Color.textTertiary)
+                        .typography(.micro).monospacedDigit().foregroundStyle(resColor)
+                    Text("·").typography(.micro).foregroundStyle(gbDim)
+                    Text(AppConfig.loc("쿨다운 \(skill.cooldown)"))
+                        .typography(.micro).monospacedDigit().foregroundStyle(gbDim)
                 }
             }
             Spacer(minLength: 0)
@@ -297,11 +383,10 @@ struct HeroStatPanel: View {
                 } label: {
                     Text(learnButtonLabel(status, skill: skill))
                         .typography(.micro)
-                        .foregroundStyle(status == .ok ? Color.bgPrimary : Color.textTertiary)
+                        .foregroundStyle(status == .ok ? gbBg : gbDim)
                         .padding(.horizontal, 10)
                         .frame(minHeight: 32)
-                        .background(status == .ok ? Color.accentPrimary : Color.bgElevated,
-                                    in: RoundedRectangle(cornerRadius: 8))
+                        .background(status == .ok ? gbText : gbCard, in: RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
                 .disabled(status != .ok)
@@ -309,7 +394,7 @@ struct HeroStatPanel: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+        .background(gbCard, in: RoundedRectangle(cornerRadius: 10))
         .opacity(dimmed ? 0.55 : 1)
     }
 
@@ -321,7 +406,7 @@ struct HeroStatPanel: View {
         }
     }
 
-    // MARK: - 장착 장비 4슬롯 (웹 HeroStatPanel 하단 equipped)
+    // MARK: - 장착 장비 4슬롯 (웹 equipped — talisman 칩 + 사진 부적 썸네일)
 
     private func equippedSection(hero: Hero) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -335,42 +420,69 @@ struct HeroStatPanel: View {
     }
 
     private func equipRow(slot: EquipSlot, item: Equipment?) -> some View {
-        HStack(spacing: 12) {
-            PixelIcon(item.map { PixelIconName.resolve($0.iconName) } ?? slotIcon(slot),
-                      size: 18,
-                      color: item.map { $0.rarity.color } ?? Color.textTertiary.opacity(0.4))
-                .frame(width: 26)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(slotLabel(slot))
-                    .typography(.micro)
-                    .foregroundStyle(Color.textTertiary)
-                if let item {
+        HStack(alignment: .top, spacing: 12) {
+            Text(slotLabel(slot))
+                .typography(.caption).foregroundStyle(gbDim)
+                .frame(width: 56, alignment: .leading)
+            if let item {
+                // 사진 부적이면 썸네일, 아니면 픽셀 아이콘.
+                if let photoId = item.photoId {
+                    photoThumb(photoId)
+                } else {
+                    PixelIcon(PixelIconName.resolve(item.iconName), size: 16, color: gbText)
+                        .frame(width: 18, height: 18)
+                }
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Text(item.localizedDisplayName)
-                            .typography(.caption)
-                            .foregroundStyle(Color.textPrimary)
-                            .lineLimit(1)
+                            .typography(.caption).foregroundStyle(gbText).lineLimit(1)
                         if let lv = item.enhanceLevel, lv > 0 {
-                            Text("+\(lv)")
-                                .typography(.micro)
-                                .foregroundStyle(Color.accentPrimary)
+                            Text("+\(lv)").typography(.micro).foregroundStyle(gbText)
                         }
                     }
-                } else {
-                    Text("비어 있음")
-                        .typography(.caption)
-                        .foregroundStyle(Color.textTertiary.opacity(0.6))
+                    // talisman skill 칩 (✦ 이름) — 웹 :244-276.
+                    if let ids = item.talismanSkills, !ids.isEmpty {
+                        HStack(spacing: 6) {
+                            ForEach(ids, id: \.self) { id in
+                                if let sk = TalismanSkills.catalog[id] {
+                                    Text("✦ " + AppConfig.locRuntime(sk.name))
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(gbText)
+                                        .padding(.horizontal, 5).padding(.vertical, 2)
+                                        .background(GBPalette.lightest.opacity(0.13),
+                                                    in: RoundedRectangle(cornerRadius: 3))
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-            Spacer(minLength: 0)
-            if let item {
+                Spacer(minLength: 0)
                 Text(item.rarity.displayName)
-                    .typography(.micro)
-                    .foregroundStyle(item.rarity.color)
+                    .typography(.micro).foregroundStyle(item.rarity.color)
+            } else {
+                Text(AppConfig.loc("비어 있음"))
+                    .typography(.caption).foregroundStyle(gbDim.opacity(0.6))
+                Spacer(minLength: 0)
             }
         }
         .padding(12)
-        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(item != nil ? gbCard : GBPalette.dark.opacity(0.2),
+                    in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    /// 사진 부적 썸네일 (웹 StatPanelPhotoThumb 18px). GrowthStore 에서 원본 로드.
+    @ViewBuilder
+    private func photoThumb(_ photoId: String) -> some View {
+        if let img = growth.image(for: photoId) {
+            Image(uiImage: img)
+                .resizable().scaledToFill()
+                .frame(width: 18, height: 18)
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+        } else {
+            RoundedRectangle(cornerRadius: 3).fill(GBPalette.dark)
+                .frame(width: 18, height: 18)
+        }
     }
 
     private func slotLabel(_ slot: EquipSlot) -> String {
@@ -382,19 +494,10 @@ struct HeroStatPanel: View {
         }
     }
 
-    private func slotIcon(_ slot: EquipSlot) -> PixelIconName {
-        switch slot {
-        case .weapon:    return .sword
-        case .armor:     return .shield
-        case .accessory: return .gift
-        case .talisman:  return .sparkle
-        }
-    }
-
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
             .typography(.caption)
-            .foregroundStyle(Color.textTertiary)
+            .foregroundStyle(gbDim)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -403,9 +506,7 @@ struct HeroStatPanel: View {
     private func statsSection(base: HeroBaseStats, effective: HeroBaseStats,
                               level: Int, classType: ClassType?) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("스탯")
-                .typography(.caption)
-                .foregroundStyle(Color.textTertiary)
+            sectionTitle(AppConfig.loc("스탯"))
             HexStatChart(base: base, effective: effective,
                          level: level, classType: classType, size: 240)
                 .frame(maxWidth: .infinity)

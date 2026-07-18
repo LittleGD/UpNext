@@ -241,6 +241,28 @@ final class UpHeroStore: ObservableObject {
         // NG+ — F30 보스를 이번 세션에 처음 처치 시 +1 (weekly variant 제외).
         let clearedF30Newly = newBosses.contains(30) && !prevBosses.contains(30)
 
+        // 17-leaderboard-dummy — 주간 변종 세션이면 clearedDungeons/bestScore 갱신 +
+        //   최고 점수 경신 시 Firestore 업로드(fire-and-forget). 웹 useUpHeroStore.ts:1373-1405.
+        //   F30 미도달 실패도 floorsCleared 기반 점수는 산출(웹 R2). 세션 로그의 F30 보스
+        //   victory 유무로 클리어 판정(prevBosses 와 무관 — 웹 R3).
+        var uploadPayload: (score: Int, floors: Int, heroLevel: Int, clsRaw: String?)?
+        if session.isWeeklyVariant == true, let weekly = state.weeklyVariant {
+            let bossesThisSession = SessionReward.calculateBossesDefeated(
+                log: session.log, existing: [])
+            let clearedF30 = bossesThisSession.contains(30)
+            let reachedFloors = max(0, session.currentFloor - session.startFloor)
+            let floorsCleared = clearedF30 ? reachedFloors + 1 : reachedFloors
+            // 세션 시작 시점 영웅 레벨 스냅샷(웹은 gameLevel-heroStartLevel+1 을 재계산하나
+            //   iOS 는 createSession 이 이미 그 값을 heroLevel 로 스냅샷해 둔다).
+            let heroLv = max(1, session.heroLevel ?? 1)
+            let score = UpHeroRules.computeWeeklyScore(
+                floorsCleared: floorsCleared, remainingTime: session.time, heroLevel: heroLv)
+            let isNewBest = score > weekly.bestScore
+            if isNewBest {
+                uploadPayload = (score, floorsCleared, heroLv, session.hero.classType?.rawValue)
+            }
+        }
+
         mutate { s in
             s.coins += session.rewards.coins
             s.inventory.append(contentsOf: keptDrops)
@@ -249,7 +271,37 @@ final class UpHeroStore: ObservableObject {
             if clearedF30Newly, session.isWeeklyVariant != true {
                 s.ngPlusLevel = (s.ngPlusLevel ?? 0) + 1
             }
+            // 주간 변종 최고 점수 갱신 + 클리어 던전 기록 (state commit 후 업로드는 아래).
+            if session.isWeeklyVariant == true, var weekly = s.weeklyVariant {
+                if let payload = uploadPayload {
+                    weekly.bestScore = max(weekly.bestScore, payload.score)
+                    let bosses = SessionReward.calculateBossesDefeated(log: session.log, existing: [])
+                    if bosses.contains(30), !weekly.clearedDungeons.contains(session.dungeonId) {
+                        weekly.clearedDungeons.append(session.dungeonId)
+                    }
+                }
+                s.weeklyVariant = weekly
+            }
             s.currentSession = nil
+        }
+
+        // state commit 뒤 fire-and-forget 업로드(웹 R1 — atomic 순서 고정). 성공 시에만
+        //   lastUploadedAt 갱신(웹 R3). 익명/미로그인은 서비스 내부에서 skip.
+        if let payload = uploadPayload {
+            let week = state.weeklyVariant?.week ?? RetentionEngine.weekId(for: AppClock.todayString())
+            let anon = AppConfig.loc("익명 영웅")
+            let clearedAt = Self.nowMillis()
+            Task { [weak self] in
+                let result = await WeeklyLeaderboardService.uploadWeeklyScore(
+                    weekId: week, score: payload.score, floorsCleared: payload.floors,
+                    heroLevel: payload.heroLevel, classType: payload.clsRaw,
+                    clearedAt: clearedAt, anonymousFallback: anon)
+                // Task 는 @MainActor UpHeroStore 컨텍스트를 상속 — await 이후 다시 메인.
+                guard result == .ok, let self else { return }
+                if self.state.weeklyVariant?.week == week {
+                    self.mutate { $0.weeklyVariant?.lastUploadedAt = Self.nowMillis() }
+                }
+            }
         }
         return session.rewards.xp
     }
@@ -301,9 +353,12 @@ final class UpHeroStore: ObservableObject {
     }
 
     /// R8 — 모든 영웅 데이터 리셋. 로컬 캐시 삭제 + 메모리 상태 초기.
+    /// 파일 삭제는 savePersisted 와 같은 serial ioQueue 로 넘겨, 리셋 직전 in-flight
+    /// write 가 리셋 뒤에 도착해 파일을 되살리는 race 를 막는다(FIFO 순서 보장).
     func resetAllData() {
         state = Self.makeDefaultState()
-        try? FileManager.default.removeItem(at: Self.persistenceURL)
+        let url = Self.persistenceURL
+        Self.ioQueue.async { try? FileManager.default.removeItem(at: url) }
     }
 
     /// R8 — 장비 강화. 100 코인 소모. 70% success / 20% keep / 10% destroyed.
@@ -623,13 +678,27 @@ final class UpHeroStore: ObservableObject {
         return persisted.toState()
     }
 
+    /// 디스크 IO 전용 serial 큐 — encode + atomic write 를 메인스레드 밖에서 수행.
+    /// 14-completion-delay: grantExpeditionPass(챌린지 완료마다 mutate→persist)가 메인에서
+    ///   JSONEncoder.encode + write(.atomic = temp+fsync+rename)를 코얼레싱 없이 돌려 완료
+    ///   틱의 메인스레드를 붙잡고 fullScreenCover/후속 입력을 지연시키던 비용을 오프메인.
+    ///   serial 이라 write 순서(마지막 상태 우선)가 보장돼 torn write 없음.
+    private static let ioQueue = DispatchQueue(
+        label: "com.littlegd.upnext.uphero.persist", qos: .utility)
+
     /// 상태의 영속 부분(PersistedUpHeroState)을 디스크에 기록. 실패는 무시한다.
     private static func savePersisted(_ state: UpHeroState) {
+        // 인코딩은 호출 컨텍스트(메인)에서 수행하고, 무거운 atomic 파일쓰기(temp+fsync+
+        // rename — 완료 틱 메인을 붙잡던 진짜 blocking IO)만 background serial 큐로 넘긴다.
+        // (인코딩을 큐 안에서 하면 @MainActor 격리 Codable 을 nonisolated 컨텍스트에서 쓰는
+        //  경고가 나므로 Data 스냅샷을 만들어 넘긴다 — Data 는 Sendable.)
         let url = persistenceURL
-        try? FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         guard let data = try? JSONEncoder().encode(PersistedUpHeroState(state)) else { return }
-        try? data.write(to: url, options: .atomic)
+        ioQueue.async {
+            try? FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? data.write(to: url, options: .atomic)
+        }
     }
 
     /// 현재 시각 (epoch ms) — 웹 Date.now() 대응.

@@ -33,7 +33,8 @@ struct PhotoDetailModal: View {
     @FocusState private var memoFocused: Bool
 
     private let polaroidAspect: CGFloat = 184.0 / 223.0
-    private let deleteTint = Color(hexString: "#e88b7a")
+    // 05-modal-design — 로컬 #e88b7a 하드코딩을 GB 팔레트 단일 출처로 교체(GB_ENEMY).
+    private let deleteTint = GBPalette.enemy
 
     var body: some View {
         ZStack {
@@ -159,6 +160,7 @@ struct PhotoDetailModal: View {
     private var flipButton: some View {
         Button {
             SoundPlayer.shared.play(.select)
+            Haptics.play(.selection)
             if memoFocused { memoFocused = false }
             withAnimation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.7)) {
                 flipped.toggle()
@@ -185,6 +187,7 @@ struct PhotoDetailModal: View {
             actionButton(.sparkle, AppConfig.loc("부적"), tint: Color.textSecondary) { makeTalisman() }
             actionButton(.trash, AppConfig.loc("삭제"), tint: deleteTint) {
                 SoundPlayer.shared.play(.select)
+                Haptics.play(.selection)
                 showDeleteConfirm = true
             }
             actionButton(.cancel, AppConfig.loc("닫기"), tint: Color.textSecondary) { close() }
@@ -207,53 +210,26 @@ struct PhotoDetailModal: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - 삭제 확인 (GB 스타일 인라인 컨펌)
+    // MARK: - 삭제 확인 (05-modal-design — GbConfirm 실제 이식)
+    //
+    // 기존 "GB 스타일" 주석과 달리 실제로는 시스템 토큰(bgSurface/bgElevated/textPrimary)을
+    // 쓴 4번째 독자 스타일이었다. 웹 growth/PhotoDetailModal.tsx:507 GbConfirm(danger)과
+    // 색·형태를 실제로 일치시킴.
 
     private var deleteConfirm: some View {
-        ZStack {
-            Color.black.opacity(0.6).ignoresSafeArea()
-                .onTapGesture { showDeleteConfirm = false }
-            VStack(spacing: 16) {
-                Text("이 사진을 삭제할까요?")
-                    .typography(.body)
-                    .foregroundStyle(Color.textPrimary)
-                Text("삭제하면 되돌릴 수 없어요.")
-                    .typography(.caption)
-                    .foregroundStyle(Color.textTertiary)
-                HStack(spacing: 10) {
-                    Button {
-                        showDeleteConfirm = false
-                    } label: {
-                        Text("취소")
-                            .typography(.body)
-                            .foregroundStyle(Color.textSecondary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 46)
-                            .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 12))
-                    }
-                    .buttonStyle(.plain)
-                    Button {
-                        SoundPlayer.shared.play(.cancel)
-                        Haptics.play(.medium)
-                        growth.deletePhoto(meta.id)
-                        showDeleteConfirm = false
-                        close()
-                    } label: {
-                        Text("삭제")
-                            .typography(.body)
-                            .foregroundStyle(Color.bgPrimary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 46)
-                            .background(deleteTint, in: RoundedRectangle(cornerRadius: 12))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(22)
-            .frame(maxWidth: 300)
-            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 18))
-            .padding(.horizontal, 32)
-        }
+        GbConfirm(
+            title: "이 사진을 삭제할까요?",
+            message: "삭제하면 되돌릴 수 없어요.",
+            confirmLabel: "삭제",
+            danger: true,
+            onConfirm: {
+                SoundPlayer.shared.play(.cancel)
+                Haptics.play(.medium)
+                growth.deletePhoto(meta.id)
+                showDeleteConfirm = false
+                close()
+            },
+            onCancel: { showDeleteConfirm = false })
     }
 
     // MARK: - 액션 구현
@@ -261,12 +237,14 @@ struct PhotoDetailModal: View {
     private func share() {
         guard let img = growth.image(for: meta.id) else { return }
         SoundPlayer.shared.play(.select)
+        Haptics.play(.selection)
         shareImage = img
         showShareSheet = true
     }
 
     private func makeTalisman() {
         SoundPlayer.shared.play(.select)
+        Haptics.play(.selection)
         flushMemo()
         // 코인 부족·이미 바인딩이면 의식이 시작되지 않음(실패 결과). 성공 시 닫고
         // 앨범의 의식 오버레이가 이어받는다.
