@@ -487,7 +487,11 @@ struct DungeonView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(16)
+            // 12-combat-parity(3): 전투는 이제 풀스크린 몰입(네비는 MainShell 에서 숨김 —
+            // 웹 DungeonView fixed inset-0 패리티). footer 버튼이 홈 인디케이터를 피하도록 하단 여유.
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 24)
         } else {
             abandonButton
         }
@@ -503,7 +507,10 @@ struct DungeonView: View {
                 .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
-        .padding(16)
+        // 12-combat-parity(3): 전투 풀스크린 — 네비는 MainShell 에서 숨김. 홈 인디케이터 여유 확보.
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 24)
     }
 
     // MARK: - 로그 텍스트/색

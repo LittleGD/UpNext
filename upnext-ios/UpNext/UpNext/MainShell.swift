@@ -57,6 +57,9 @@ enum MainTab: CaseIterable {
 struct MainTabView: View {
     @EnvironmentObject private var store: GameStore
     @EnvironmentObject private var growth: GrowthStore
+    // 11-buff-nav-overlap / 12-combat-parity — 전투 활성 여부로 하단 네비 가시성을 결정하기 위해
+    // 앱 전역에 이미 주입된 UpHeroStore(UpNextApp.swift:45)를 참조.
+    @EnvironmentObject private var upHero: UpHeroStore
     @State private var tab: MainTab = .challenge
     @State private var showPackOpener = false
 
@@ -102,7 +105,13 @@ struct MainTabView: View {
                 .allowsHitTesting(false)
                 .ignoresSafeArea()
 
-            BottomNav(selected: $tab)
+            // 11/12 — 전투(던전) 몰입 중엔 하단 네비를 숨겨 화면 전체를 덮는다.
+            // 웹 BottomNav.tsx:81-102 hideForUpHero(return null) + playground/page.tsx:36-49 immersive
+            // 풀스크린 규약 이식. 이로써 (a) 전투 중 탭 이탈 차단 (b) DungeonView 선택지/포기 footer 를
+            // 가리던 겹침 제거 → 필수 선택 게이트가 다시 보이고 전투 루프가 정지하지 않는다.
+            if !hideNavForDungeon {
+                BottomNav(selected: $tab)
+            }
 
             // R-Effects: PixelConfetti — 챌린지 완료 시 카운터 증가 트리거. trigger 가 토글되면
             // 1회 발사 후 자동 reset (자체 1.5s 정리 + trigger=false 복귀).
@@ -181,6 +190,11 @@ struct MainTabView: View {
             lastCompletedScore = currentCompletedScore
         }
         .onChange(of: pendingPackCount) { _ in syncPackOpener() }
+        // 01-login-prompt: 로그인 오버레이가 닫히는 시점(로그인 성공 또는 "건너뛰기")에 팩 오프너를
+        // 재평가해, 온보딩 직후 "로그인 권유 먼저 → 닫은 뒤 카드팩 개봉" 순서(웹 패리티)를 만든다.
+        .onChange(of: store.showLoginOverlay) { isShowing in
+            if !isShowing { syncPackOpener() }
+        }
         // R-Effects: 챌린지 완료 카운터(daily/extra/super 합산 + 풀클리어 가산) 증가 시 confetti.
         // 단순 completed count 증가만 보지 않고 "풀클리어" 가산점을 함께 보면, 마지막 1장 완료가
         // 일반 카드 완료보다 더 큰 increment(=가산점 발화) 를 만들어 풀클리어시 확실히 발사.
@@ -203,7 +217,9 @@ struct MainTabView: View {
         .fullScreenCover(item: $growth.pendingCapture) { item in
             PhotoCaptureModal(
                 cardId: item.cardId,
-                title: item.title,
+                // 10-i18n-leaks(a): 헤더 표시 제목만 인앱 언어로 현지화하고, 저장(challengeTitle)은
+                // 언어중립 원문(item.title) 유지 — 표시측만 수정한다.
+                title: localizedCaptureTitle(item),
                 category: item.category,
                 onSave: { image, signature, memo, stickers in
                     growth.savePhoto(
@@ -306,6 +322,16 @@ struct MainTabView: View {
         (store.progress?.pendingPacks ?? 0) + (store.progress?.pendingBonusCards ?? 0)
     }
 
+    /// 촬영 모달 헤더에 표시할 챌린지 제목 — 카탈로그에서 cardId 로 카드를 찾아 인앱 언어로
+    /// 현지화(10-i18n-leaks(a)). PendingCaptureContext.title 은 완료 시점 원문(한국어) 스냅샷이라
+    /// 그대로 쓰면 카드명만 한국어로 샜다. 저장용 challengeTitle 은 여전히 원문(item.title)을 쓴다.
+    private func localizedCaptureTitle(_ item: GrowthStore.PendingCaptureContext) -> String {
+        if let card = CardCatalog.allCards.first(where: { $0.id == item.cardId }) {
+            return card.localizedTitle(.current)
+        }
+        return item.title
+    }
+
     /// 컬렉션 완성 축하 모달 노출 조건. 팩 개봉(fullScreenCover)이 떠 있는 동안엔
     /// 보류했다가 닫힌 뒤 등장 — 웹 CollectionCelebration 의 `flag && !isOpeningPack`.
     /// (개봉 중 띄우면 등장 연출이 cover 뒤에서 소진돼 버린다.)
@@ -313,9 +339,31 @@ struct MainTabView: View {
         store.collectionCelebration && !showPackOpener
     }
 
+    /// 전투(던전) 몰입 중 하단 네비 숨김 여부 — 11/12 통합 네비 가시성 규약.
+    /// 웹 BottomNav.tsx:85-90 `hideForUpHero`(status active/paused/awaitingChoice) 이식에
+    /// iOS 는 미니게임을 DungeonView 오버레이(awaitingMinigame)로도 그리므로 그 상태까지 포함해
+    /// 세션이 진행 중인 동안(=`.completed` 결산 전까지) 네비를 숨긴다. 이는 웹
+    /// playground/page.tsx:36-49 의 `!= completed` immersive 판정(12-combat-parity)과도 동치.
+    ///  · nil(캠프·버프 드로우) → 네비 노출(버프 드로우는 패딩으로 겹침 회피, 11-buff-nav-overlap A).
+    ///  · .completed → 노출(SessionResultModal 이 풀백드롭으로 덮고, 확인 시 캠프로 복귀 = 웹 패리티).
+    private var hideNavForDungeon: Bool {
+        guard tab == .playground else { return false }
+        switch upHero.state.currentSession?.status {
+        case .active, .paused, .awaitingChoice, .awaitingMinigame:
+            return true
+        default:
+            return false
+        }
+    }
+
     /// 열 팩이 있으면 개봉 화면을 띄운다. 개봉 중 pendingPacks 가 0 이 돼도
     /// showPackOpener 는 별도 상태라 마지막 reveal 까지 보이고 "완료" 로 닫힌다.
     private func syncPackOpener() {
+        // 01-login-prompt: 로그인 권유가 떠 있는 동안은 팩 오프너(fullScreenCover)로 뒤덮지 않는다 —
+        // 웹은 LoginOverlay(z-50)가 CardPackOpener 위에 뜨는데, iOS 의 fullScreenCover 는 zIndex 로
+        // 못 이기는 네이티브 모달이라 온보딩 직후 순서가 뒤집히던 회귀를 여기서 게이트로 보정.
+        // (오버레이가 닫히면 아래 onChange(showLoginOverlay) 가 이 함수를 재평가해 팩을 연다.)
+        guard !store.showLoginOverlay else { return }
         if pendingPackCount > 0 { showPackOpener = true }
     }
 

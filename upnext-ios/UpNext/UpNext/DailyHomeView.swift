@@ -49,7 +49,10 @@ struct DailyHomeView: View {
             }
             Button("취소", role: .cancel) { confirmCard = nil }
         } message: { card in
-            Text("'\(card.title)' 을(를) 완료로 표시할까요?")
+            // 10-i18n-leaks(a): 래퍼 문자열은 카탈로그로 현지화되는데 %@ 인자에 원문(한국어)
+            // card.title 을 넘겨 카드명만 한국어로 새던 회귀 — 다른 표시 지점(L:271 등)과 동일하게
+            // localizedTitle 로 통일.
+            Text("'\(card.localizedTitle(.current))' 을(를) 완료로 표시할까요?")
         }
         // ChallengeConfirmModal — 시스템 .alert 대체. 백드롭 + spring + 파티클 + gradient CTA.
         .overlay {

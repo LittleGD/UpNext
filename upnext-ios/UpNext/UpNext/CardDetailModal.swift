@@ -25,21 +25,39 @@ final class CardGyro: ObservableObject {
     @Published var tiltY: Double = 0   // roll 유래 (좌우 기울기)
     private let manager = CMMotionManager()
     private let maxTilt: Double = 12   // 자이로 기여 최대 각도
+    // 첫 샘플을 기준(0°)으로 잡기 위한 캘리브레이션 저장 — 웹 useGyroscope.ts:45,84-93 이식.
+    private var neutralRoll: Double?
+    private var neutralPitch: Double?
 
     func start() {
         guard manager.isDeviceMotionAvailable, !manager.isDeviceMotionActive else { return }
+        // 매 start() 마다 기준값 리셋 — 웹 useGyroscope.ts:63-65/111/123 의 initialRef=null 재설정과 동치.
+        neutralRoll = nil
+        neutralPitch = nil
         manager.deviceMotionUpdateInterval = 1.0 / 60.0
         manager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
             guard let self, let m = motion else { return }
             let rollDeg = m.attitude.roll * 180 / .pi
             let pitchDeg = m.attitude.pitch * 180 / .pi
+            // 첫 샘플을 기준(0°)으로 잡고 이후는 델타만 반영 — 웹 useGyroscope.ts:84-93 과 동치.
+            // (구 구현은 attitude 절대값을 직접 매핑해, 기기를 손에 든 자연 자세에서도 카드가
+            //  이미 크게 기울어 보이던 미이식 갭. PolaroidTilt 의 neutral 캡처 패턴과 통일.)
+            if self.neutralRoll == nil { self.neutralRoll = rollDeg }
+            if self.neutralPitch == nil { self.neutralPitch = pitchDeg }
+            let dRoll = rollDeg - (self.neutralRoll ?? rollDeg)
+            let dPitch = pitchDeg - (self.neutralPitch ?? pitchDeg)
             // 0.5 계수 — attitude 변화를 절제된 카드 틸트로 (웹 gyro 스케일 근사).
-            self.tiltY = max(-self.maxTilt, min(self.maxTilt, rollDeg * 0.5))
-            self.tiltX = max(-self.maxTilt, min(self.maxTilt, -pitchDeg * 0.5))
+            self.tiltY = max(-self.maxTilt, min(self.maxTilt, dRoll * 0.5))
+            self.tiltX = max(-self.maxTilt, min(self.maxTilt, -dPitch * 0.5))
         }
     }
 
-    func stop() { manager.stopDeviceMotionUpdates() }
+    func stop() {
+        manager.stopDeviceMotionUpdates()
+        // 방어적 재캘리브레이션 — 다음 start() 에서 다시 첫 샘플을 기준으로 잡도록.
+        neutralRoll = nil
+        neutralPitch = nil
+    }
 }
 
 // MARK: - 3D 카드 뷰어

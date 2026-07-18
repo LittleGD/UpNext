@@ -25,6 +25,15 @@ import UIKit
 enum AppFont {
     static let family = "April16th Promise"
 
+    /// April16th Promise 폰트 실측 결함 보정치 — fontTools 로 hhea/OS2 descent(-220/1000em)와
+    /// 실제 라틴 디센더(g/y/p/j/q) 글리프 잉크 yMin(-310/1000em)을 직접 측정한 차이(90/1000em = 0.09em).
+    /// 이 폰트는 한글 기준으로 수직 메트릭이 잡혀 있어(한글 yMin=-155, 숫자 yMin=-115 는 -220 안에 들어옴)
+    /// 라틴 디센더만 선언된 폰트 박스를 벗어난다. `.lineSpacing()` 은 '줄 사이' 간격만 늘릴 뿐 단일 줄
+    /// 텍스트의 실제 렌더 프레임(=1.04em intrinsic)에는 반영되지 않아, 버튼 라벨 등 단일 줄에서도
+    /// 디센더가 frame 경계에 닿아 잘린다(조사 리포트 15-font-clipping). 웹은 CSS 가 잉크 오버플로를
+    /// 클리핑하지 않아 동일 폰트를 써도 문제가 드러나지 않았을 뿐, 대응하는 웹 코드는 없음(1:1 이식 아님).
+    static let latinDescenderOvershoot: CGFloat = 0.09
+
     /// 언어 코드 (ko/en/ja/zh) 로 폰트 family 결정. bundle 에 ttf 있으면 사용, 없으면 fallback.
     static func family(forLangCode code: String) -> String {
         switch code {
@@ -149,10 +158,17 @@ private struct TypographyModifier: ViewModifier {
         // 실제 폰트 행높이(intrinsic)를 빼고 목표 행높이(size*mult)와의 차이만 추가한다.
         let intrinsic = UIFont(name: family, size: size)?.lineHeight ?? size * 1.2
         let target = size * style.lineHeightMultiple
+        // 라틴 디센더 클리핑 보정 — family == April16th Promise(ko/en) 일 때만 적용.
+        // ja/zh(WDXL Lubrifont JP N / ZCOOL QingKe HuangYou)는 별도 실측이 필요해 범위 밖(후속 이슈).
+        // .lineSpacing() 과 달리 .padding(.bottom:) 은 단일 줄/멀티 줄 관계없이 항상 프레임 높이에
+        // 반영되므로, 이후 체이닝되는 .frame(height:)/.clipShape()/.clipped() 모두 여유를 포함한
+        // 크기를 받는다(개별 호출부 땜빵이 아닌 근본 수정 — 15-font-clipping fixSpec §1).
+        let descenderPad = family == AppFont.family ? size * AppFont.latinDescenderOvershoot : 0
         content
             .font(.custom(family, size: size).weight(style.weight))
             .tracking(size * style.trackingEm)
             .lineSpacing(max(0, target - intrinsic))
+            .padding(.bottom, descenderPad)
     }
 }
 

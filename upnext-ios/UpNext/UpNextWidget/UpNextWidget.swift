@@ -34,6 +34,18 @@ private extension Font {
     }
 }
 
+private extension View {
+    /// April16th Promise 라틴 디센더(g/y/p/j/q) 클리핑 보정 — Shared/Typography.swift
+    /// AppFont.latinDescenderOvershoot(실측 0.09em) 참고. 위젯은 Typography.swift 의
+    /// TypographyModifier 를 거치지 않는 별도 Font.up() 헬퍼를 쓰므로 그 보정을 받지 못한다
+    /// — 동일 상수를 여기서 별도 적용(조사 리포트 15-font-clipping fixSpec §3). WidgetKit 은
+    /// 오버플로를 스크롤이 아닌 클리핑으로 처리하므로 lineLimit/minimumScaleFactor 로 채워지는
+    /// 텍스트일수록 이 보정이 더 중요.
+    func fixDescenderClip(_ fontSize: CGFloat) -> some View {
+        padding(.bottom, fontSize * AppFont.latinDescenderOvershoot)
+    }
+}
+
 // MARK: - 위젯 픽셀 아이콘 (브랜드 PixelIcon — 위젯 번들 Assets.xcassets)
 
 /// SF Symbol "target" 폴백 폐기 — 메인 앱과 동일 픽셀아트 Target 아이콘.
@@ -182,6 +194,7 @@ private struct TaskRowMini: View {
                 .offset(y: -1)
             Text(task.title)
                 .font(.up(13, .medium))
+                .fixDescenderClip(13)
                 .foregroundColor(task.done ? .textTertiary : .textSecondary)
                 .strikethrough(task.done, color: .textTertiary)
                 .lineLimit(1)
@@ -206,6 +219,7 @@ private struct TaskRowLarge: View {
                 }
             Text(task.title)
                 .font(.up(16, task.done ? .regular : (isNextTodo ? .semibold : .medium)))
+                .fixDescenderClip(16)
                 .foregroundColor(task.done ? .textTertiary : (isNextTodo ? .accentPrimary : .textPrimary))
                 .strikethrough(task.done, color: .textTertiary)
                 .lineLimit(1)
@@ -228,7 +242,7 @@ struct HomeSmallView: View {
             HStack(spacing: 6) {
                 widgetTargetIcon(13)
                 Text(AppConfig.locBundled("widget.label.today_challenge"))
-                    .font(.up(13, .semibold)).foregroundColor(.textTertiary)
+                    .font(.up(13, .semibold)).fixDescenderClip(13).foregroundColor(.textTertiary)
                     .lineLimit(1).minimumScaleFactor(0.8)
                 Spacer(minLength: 4)
                 StreakChip(streak: state.streak)
@@ -236,6 +250,7 @@ struct HomeSmallView: View {
             Spacer(minLength: 6)
             Text(state.displayChallengeTitle)
                 .font(.up(20, .semibold))
+                .fixDescenderClip(20)
                 .foregroundColor(allDone ? .accentPrimary : .textPrimary)
                 .lineLimit(3).multilineTextAlignment(.leading).minimumScaleFactor(0.85)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -270,13 +285,14 @@ struct HomeMediumView: View {
                 HStack(spacing: 6) {
                     widgetTargetIcon(13)
                     Text(AppConfig.locBundled("widget.label.today_challenge"))
-                        .font(.up(13, .semibold)).foregroundColor(.textTertiary).lineLimit(1)
+                        .font(.up(13, .semibold)).fixDescenderClip(13).foregroundColor(.textTertiary).lineLimit(1)
                     Spacer(minLength: 4)
                     StreakChip(streak: state.streak)
                 }
                 Spacer(minLength: 6)
                 Text(state.displayChallengeTitle)
                     .font(.up(20, .semibold))
+                    .fixDescenderClip(20)
                     .foregroundColor(allDone ? .accentPrimary : .textPrimary)
                     .lineLimit(2).minimumScaleFactor(0.85)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -318,7 +334,7 @@ struct HomeLargeView: View {
             HStack(spacing: 8) {
                 widgetTargetIcon(16)
                 Text(AppConfig.locBundled("widget.label.today_challenge"))
-                    .font(.up(17, .semibold)).foregroundColor(.textPrimary).lineLimit(1)
+                    .font(.up(17, .semibold)).fixDescenderClip(17).foregroundColor(.textPrimary).lineLimit(1)
                 Spacer(minLength: 4)
                 StreakChip(streak: state.streak, flameSize: 15, numberSize: 16)
             }
@@ -340,7 +356,7 @@ struct HomeLargeView: View {
             } else {
                 // tasks[] 부재(구버전) 또는 선택 전 — 다음 태스크/안내 문구를 히어로로.
                 Text(state.displayChallengeTitle)
-                    .font(.up(22, .semibold)).foregroundColor(.textPrimary)
+                    .font(.up(22, .semibold)).fixDescenderClip(22).foregroundColor(.textPrimary)
                     .lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -387,6 +403,7 @@ struct LockCircularView: View {
                 .font(.system(size: 22, weight: .bold, design: .rounded))
             Text(AppConfig.locBundled("widget.label.streak"))
                 .font(.up(9, .semibold))
+                .fixDescenderClip(9)
         }
     }
 }
@@ -405,6 +422,7 @@ struct LockRectangularView: View {
             }
             Text(state.displayChallengeTitle)
                 .font(.up(13, .semibold))
+                .fixDescenderClip(13)
                 .lineLimit(2)
         }
     }
@@ -497,6 +515,7 @@ struct ChallengeLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     Text(context.state.title)
                         .font(.up(15, .semibold))
+                        .fixDescenderClip(15)
                         .foregroundColor(.textPrimary)
                         .lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -535,6 +554,7 @@ struct ChallengeLockScreenView: View {
                     .foregroundColor(.textTertiary)
                 Text(context.state.title)
                     .font(.up(15, .semibold))
+                    .fixDescenderClip(15)
                     .foregroundColor(.textPrimary)
                     .lineLimit(2)
             }

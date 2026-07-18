@@ -147,7 +147,12 @@ struct BuffDrawPanel: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(16)
+        // 11-buff-nav-overlap(A): 버프 드로우는 세션 미생성(pendingDungeon)이라 하단 플로팅
+        // 네비가 계속 떠 있다(웹 BottomNav hideForUpHero 조건 미발동). 고정 CTA 바가 네비 알약과
+        // 겹치던 갭을 코드베이스 관례(DungeonSelectView.swift:42 등)와 통일해 보정.
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 88)   // 하단 플로팅 네비 여유
     }
 
     // MARK: - 선택 토글

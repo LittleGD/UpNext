@@ -654,22 +654,31 @@ private struct HandCard: View {
             .scaleEffect(isPreview ? 1.05 : 1 + min(max(-dragY, 0), 80) / 80 * 0.02)
             .opacity(isPreview ? 0 : (shown ? 1 : 0))
             .rarityGlow(card.rarity)
-            // simultaneousGesture — 가로 ScrollView 스크롤과 공존. 세로 우세 제스처만 카드 추적.
+            // 탭/스와이프업을 하나의 DragGesture(minimumDistance:0) 로 겸용하던 구조를 분리
+            // (조사 리포트 18-hand-scroll). 탭은 TapGesture 로 — 이동 추적 없이 아주 짧은
+            // 임계 안에서 즉시 실패(fail)하는 표준 패턴이라 ScrollView 가로 스크롤과 충돌하지 않음
+            // (웹 onClick, L:1081과 동치).
+            .onTapGesture { onTap() }
+            // simultaneousGesture — 가로 ScrollView 스크롤과 공존. minimumDistance 를 0→18 로
+            // 올려, UIScrollView.panGestureRecognizer(관례상 ~10pt 이동 후 인식 시작)가 먼저
+            // 승리할 여지를 준다. 기존 minimumDistance:0 은 손가락이 닿는 즉시(0pt 이동) 이
+            // 제스처가 터치 스트림을 선점해버려 ScrollView 가 인식을 시작하기도 전에 가로
+            // 스크롤을 죽이는 SwiftUI/UIKit 제스처 아비트레이션 함정이었다(rootCause).
             .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
+                DragGesture(minimumDistance: 18)
                     .onChanged { value in
-                        // 세로 우세일 때만 카드 추적 (가로는 스크롤에 양보).
-                        if abs(value.translation.height) > abs(value.translation.width) {
+                        // 세로 우세일 때만 카드 추적 (20% 여유로 대각선 터치 시 dragY 튐 억제,
+                        // 가로 우세는 스크롤에 양보).
+                        if abs(value.translation.height) > abs(value.translation.width) * 1.2 {
                             dragY = value.translation.height.clamped(to: -160...20)
                         }
                     }
                     .onEnded { value in
                         let dy = value.translation.height
-                        let dx = value.translation.width
                         let predicted = value.predictedEndTranslation.height
-                        if abs(dy) < 8 && abs(dx) < 8 {
-                            onTap()                    // 탭 (웹 onClick)
-                        } else if dy < swipeThreshold || predicted < -300 {
+                        // predicted < -300 은 웹 info.velocity.y < -400(px/s, 속도 기준)의 근사치 —
+                        // iOS 는 projected translation 기준이라 단위가 다름(근사치로 유지).
+                        if dy < swipeThreshold || predicted < -300 {
                             onSwipeUp()                // 스와이프업 (웹 L:1052)
                         }
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { dragY = 0 }

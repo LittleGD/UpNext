@@ -55,7 +55,8 @@ struct PhotoCaptureModal: View {
         onClose: @escaping () -> Void,
         onSave: @escaping (_ image: UIImage, _ memo: String, _ signature: Data?, _ stickers: [Sticker]) -> Void
     ) {
-        self.displayTitle = card?.title
+        // 10-i18n-leaks(a): 헤더 표시용 제목은 인앱 언어로 현지화(원문 title 직결 누수 차단).
+        self.displayTitle = card?.localizedTitle(.current)
         self.onCloseImpl = onClose
         // A 형 (image, signature, memo, stickers) → B 형 (image, memo, signature, stickers) 매핑.
         self.onSaveImpl = { image, signature, memo, stickers in

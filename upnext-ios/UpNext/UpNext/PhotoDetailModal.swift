@@ -102,7 +102,8 @@ struct PhotoDetailModal: View {
     private var displayTitle: String? {
         if let id = meta.challengeCardId,
            let card = CardCatalog.allCards.first(where: { $0.id == id }) {
-            return card.title
+            // 10-i18n-leaks(a): 카드명은 원문(한국어) title 대신 인앱 언어로 현지화해 표시.
+            return card.localizedTitle(.current)
         }
         return meta.challengeTitle
     }
