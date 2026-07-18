@@ -18464,13 +18464,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "今日のフレイムをゆっくり灯しましょう"
+            "value": "今日の炎をゆっくり灯しましょう"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "慢慢点亮今天的火苗吧"
+            "value": "慢慢点亮今天的火焰吧"
           }
         }
       }
@@ -23242,7 +23242,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap Rush"
+            "value": "Tap Burst"
           }
         },
         "ja": {
@@ -23278,6 +23278,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "无法删除账号数据，请稍后再试"
+          }
+        }
+      }
+    },
+    "추가 챌린지": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra Challenge"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加チャレンジ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "额外挑战"
+          }
+        }
+      }
+    },
+    "슈퍼 챌린지": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Super Challenge"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スーパーチャレンジ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超级挑战"
           }
         }
       }

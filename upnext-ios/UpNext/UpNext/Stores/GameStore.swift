@@ -206,6 +206,10 @@ final class GameStore: ObservableObject {
             resetAllData()
             return true
         }
+        // 삭제 동안 라이브 sync 정지 — 리스너/in-flight write 가 재인증·revoke 왕복
+        // 사이에 users/{uid} 를 재생성하는 고아 PII 레이스 차단. 실패/취소 시 재개.
+        sync.setSyncReady(false)
+        sync.stopListener()
         let ok = await auth.deleteAccount(cloudCleanup: { [weak self] in
             guard let self else { return false }
             // 아직 인증된 상태 — 파트너 문서 PII 제거(best-effort) 후 내 클라우드 문서 삭제.
@@ -218,6 +222,9 @@ final class GameStore: ObservableObject {
         if ok {
             // Auth 는 이미 삭제됨 — resetAllData 의 signOut 은 무해(currentUser nil).
             resetAllData()
+        } else {
+            // 실패/취소 — 로그인 유지 상태이므로 라이브 sync 를 원상 복구.
+            startLiveSync(uid: uid)
         }
         return ok
     }
