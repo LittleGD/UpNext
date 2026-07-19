@@ -17,6 +17,19 @@ enum OnboardingI18n {
     // 공통
     static func next(_ l: Language) -> String { pick(l, ko: "다음", en: "Next", ja: "次へ", zh: "下一步") }
     static func start(_ l: Language) -> String { pick(l, ko: "시작하기", en: "Get Started", ja: "はじめる", zh: "开始") }
+
+    // 스플래시 태그라인 — SplashView 는 ContentView 의 `.environment(\.locale)` 밖(형제)이라
+    // 카탈로그 `Text(LocalizedStringKey)` 로 두면 인앱 언어가 아닌 *기기 로케일*로 해석돼
+    // (미지원 기기어는 개발 지역 ko 로 폴백) 앱 본문과 언어가 어긋난다(19-i18n-mixed).
+    // 온보딩과 동일하게 인앱 언어(Language.current, 부트 시 App Group 선반영)로 명시 해석.
+    // 문구는 카탈로그(Localizable.xcstrings)의 동일 키 번역과 1:1.
+    static func splashTagline(_ l: Language) -> String {
+        pick(l,
+             ko: "로그라이크 챌린지 카드로\n매일 갓생을 시작하세요",
+             en: "Start your go-getter life every day\nwith roguelike Challenge cards",
+             ja: "ローグライクなチャレンジカードで\n毎日、理想の毎日を始めましょう",
+             zh: "用 Roguelike 挑战卡牌\n每天开启你的充实生活")
+    }
     static func levelShort(_ l: Language, _ lv: Int) -> String {
         pick(l, ko: "Lv.\(lv)", en: "Lv.\(lv)", ja: "Lv.\(lv)", zh: "Lv.\(lv)")
     }

@@ -78,6 +78,15 @@ struct PhotoCaptureModal: View {
     @State private var facingFront: Bool = false
     @State private var flashOn: Bool = false
     @State private var flashOpacity: Double = 0         // 셔터 플래시 잔상 (웹 showFlash)
+    // 노출 보정 EV(-2..+2) — 웹 PhotoCaptureModal exposureEV. 리브드 슬라이더 드래그로 조정.
+    //   파인더 노출계 바늘 각도 + 리브 translate + 캡처 시 CIExposureAdjust 로 반영.
+    //   (웹은 라이브 휘도 자동 측광이지만 iOS 미리보기 레이어엔 프레임 접근이 없어
+    //    바늘을 수동 EV 매치-니들 방식으로 구동 — 실사 필름 카메라 매치니들과 동일 감각.)
+    @State private var exposureEV: Double = 0
+    @State private var isExposureDragging: Bool = false
+    @State private var exposureDragStartEV: Double = 0
+    @State private var cameraError: Bool = false       // 카메라 불가 → 갤러리 폴백(웹 cameraError)
+    @State private var showGalleryPicker: Bool = false  // 프로그램적 PhotosPicker 트리거
     @StateObject private var captureCoord = PhotoCaptureCoordinator()
 
     // Decorate phase
@@ -124,6 +133,8 @@ struct PhotoCaptureModal: View {
                 PolaroidShareSheet(image: img)
             }
         }
+        // 갤러리 폴백 — 카메라 불가(시뮬/권한)거나 뷰파인더 탭 시 프로그램적으로 오픈.
+        .photosPicker(isPresented: $showGalleryPicker, selection: $photosPickerItem, matching: .images)
         .onChange(of: photosPickerItem) { item in
             guard let item else { return }
             Task {
@@ -136,68 +147,446 @@ struct PhotoCaptureModal: View {
 
     // MARK: - Phase 1 — Capture
 
+    //
+    // 웹 PhotoCaptureModal.tsx camera phase(tsx:505-1244) 정밀 이식 — 레트로 폴라로이드
+    // 카메라 바디 스킨. 크림 바디 + 그린 액센트 스트라이프 + 필름 그레인 → 헤더(로고+CLOSE)
+    // → 이중 베젤 뷰파인더(라이브 카메라 + 광학 파인더 오버레이 + 노출계 바늘) → 움푹
+    // 컨트롤 트레이(FLASH 슬라이드 토글·SHUTTER·전후면·EXPOSURE 리브드 바) → 필름 배출 슬롯.
     private var captureView: some View {
-        ZStack {
-            PhotoCaptureView(onCapture: { img in
-                beginEject(img)
-            }, facingFront: $facingFront, flashOn: $flashOn,
-               coordinator: captureCoord)
-            .ignoresSafeArea()
+        GeometryReader { geo in
+            let vfSide = min(geo.size.width - 16, 386)  // 뷰파인더 외곽 변(웹 maxWidth 386)
+            ZStack {
+                cameraBodyBackground.ignoresSafeArea()
 
-            // 상단 — 닫기 / 카드 제목
-            VStack {
-                HStack {
-                    Button { onCloseImpl() } label: {
-                        PixelIcon(.cancel, size: 22, color: Color.white)
-                            .padding(12)
-                            .background(Color.black.opacity(0.4), in: Circle())
-                    }
+                // 상단 중앙 그린 액센트 스트라이프 — 웹 top:-13, 108×216 #cdf564(바디 위·헤더 뒤).
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(Color(hex: 0xCDF564))
+                        .frame(width: 108, height: 216)
+                        .offset(y: -13 - geo.safeAreaInsets.top)
                     Spacer()
-                    if let displayTitle {
-                        Text(displayTitle)
-                            .typography(.body)
-                            .foregroundStyle(Color.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.black.opacity(0.4), in: Capsule())
-                    }
-                    Spacer()
-                    Button { flashOn.toggle() } label: {
-                        PixelIcon(flashOn ? .zap : .moon, size: 22, color: Color.white)
-                            .padding(12)
-                            .background(Color.black.opacity(0.4), in: Circle())
-                    }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                Spacer()
-                // 하단 — 갤러리 / 셔터 / 전후면 토글
-                HStack(spacing: 28) {
-                    PhotosPicker(selection: $photosPickerItem, matching: .images) {
-                        PixelIcon(.image, size: 26, color: Color.white)
-                            .frame(width: 56, height: 56)
-                            .background(Color.black.opacity(0.4), in: Circle())
-                    }
-                    Button { shutterTap() } label: {
-                        ZStack {
-                            Circle().fill(Color.white).frame(width: 76, height: 76)
-                            Circle()
-                                .stroke(Color.white, lineWidth: 4)
-                                .frame(width: 86, height: 86)
-                        }
-                    }
-                    Button { facingFront.toggle() } label: {
-                        PixelIcon(.reload, size: 26, color: Color.white)
-                            .frame(width: 56, height: 56)
-                            .background(Color.black.opacity(0.4), in: Circle())
-                    }
+                .allowsHitTesting(false)
+
+                // 전체 바디 아날로그 필름 그레인 — 캐시된 종이 텍스처 재사용(멀티플라이).
+                Image(uiImage: PolaroidFilters.paperTexture())
+                    .resizable()
+                    .opacity(0.16)
+                    .blendMode(.multiply)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+
+                VStack(spacing: 0) {
+                    cameraHeaderRow
+                    Spacer(minLength: 8)
+                    viewfinder(side: vfSide)
+                    Spacer(minLength: 10)
+                    controlsTray(width: vfSide)
+                    filmOutputSlot(width: vfSide)
+                        .padding(.top, 6)
                 }
-                .padding(.bottom, 40)
+                .frame(maxWidth: 430)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 8)
+                .padding(.top, geo.safeAreaInsets.top + 4)
+                .padding(.bottom, max(geo.safeAreaInsets.bottom, 8))
             }
         }
     }
 
+    // MARK: 바디 배경 — 웹 두 겹 그라디언트
+
+    private var cameraBodyBackground: some View {
+        ZStack {
+            // Layer2 270deg: #DCD5BC → #EDE7D2 → #EDE7D2 → #DCD5BC (가로 중앙 하이라이트)
+            LinearGradient(
+                colors: [Color(hex: 0xDCD5BC), Color(hex: 0xEDE7D2),
+                         Color(hex: 0xEDE7D2), Color(hex: 0xDCD5BC)],
+                startPoint: .trailing, endPoint: .leading
+            )
+            // Layer1 180deg 20%: #D7CFB1 → #C3BB9C (세로 어둠 오버레이)
+            LinearGradient(
+                colors: [Color(hex: 0xD7CFB1, alpha: 0.20), Color(hex: 0xC3BB9C, alpha: 0.20)],
+                startPoint: .top, endPoint: .bottom
+            )
+        }
+    }
+
+    // MARK: 헤더 — UpNext 워드마크 + CLOSE
+
+    private var cameraHeaderRow: some View {
+        HStack {
+            Image("Wordmark")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(height: 24)
+                .foregroundStyle(Color(hex: 0x212727))
+            Spacer()
+            Button { onCloseImpl() } label: {
+                moldedDarkButton(width: 80, height: 40) {
+                    Text("CLOSE")
+                        .font(.system(size: 10, weight: .bold))
+                        .tracking(0.4)
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.55), radius: 0.5, y: 1)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(AppConfig.loc("카메라 닫기"))
+        }
+        .padding(8)
+    }
+
+    /// 몰드된 다크 플라스틱 버튼(4px 검정 프레임 + 내부 수직 그라디언트 + 양각) — CLOSE/전후면 공용.
+    @ViewBuilder
+    private func moldedDarkButton<Content: View>(
+        width: CGFloat, height: CGFloat, @ViewBuilder content: () -> Content
+    ) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8).fill(.black)                 // 4px 검정 프레임
+            RoundedRectangle(cornerRadius: 4)
+                .fill(LinearGradient(
+                    colors: [Color(hex: 0x2A2F2F), Color(hex: 0x212727), Color(hex: 0x161B1B)],
+                    startPoint: .top, endPoint: .bottom))
+                .overlay(                                                   // 상단 양각 하이라이트
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(LinearGradient(colors: [.white.opacity(0.22), .clear],
+                                             startPoint: .top, endPoint: .center))
+                        .allowsHitTesting(false))
+                .padding(4)
+            content()
+        }
+        .frame(width: width, height: height)
+        .shadow(color: .black.opacity(0.25), radius: 2, y: 2)
+    }
+
+    // MARK: 뷰파인더 — 이중 베젤 + 라이브 카메라 + 광학 오버레이
+
+    private func viewfinder(side: CGFloat) -> some View {
+        let videoSide = side - 8 * 2 - 11 * 2   // 외곽 pad 8 + mid pad 11
+        return cameraInner(size: videoSide)
+            .frame(width: videoSide, height: videoSide)
+            .padding(11)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color(hex: 0xACA798, alpha: 0.2))
+                    .overlay(RoundedRectangle(cornerRadius: 24)
+                        .stroke(Color(hex: 0xB7AE91), lineWidth: 1))
+            )
+            .padding(8)
+            .background(
+                RoundedRectangle(cornerRadius: 32)
+                    .strokeBorder(LinearGradient(
+                        colors: [Color(hex: 0xECE9DE, alpha: 0.5), Color(hex: 0x46443E, alpha: 0.5)],
+                        startPoint: .top, endPoint: .bottom), lineWidth: 2)
+            )
+            .shadow(color: .black.opacity(0.15), radius: 2)
+    }
+
+    private func cameraInner(size: CGFloat) -> some View {
+        ZStack {
+            Color(hex: 0x1A1D1E)
+
+            // 라이브 카메라 (시뮬엔 프레임 없음 → cameraError=true → 갤러리 폴백)
+            PhotoCaptureView(onCapture: { img in beginEject(img, exposureEV: exposureEV) },
+                             facingFront: $facingFront, flashOn: $flashOn,
+                             cameraError: $cameraError, coordinator: captureCoord)
+
+            // 매트 스크린 그레인
+            Image(uiImage: PolaroidFilters.paperTexture())
+                .resizable().opacity(0.10).blendMode(.overlay).allowsHitTesting(false)
+
+            // 광학 원형 비네트 (엣지 어둠)
+            RadialGradient(colors: [.clear, .black.opacity(0.18), .black.opacity(0.55)],
+                           center: .center, startRadius: size * 0.20, endRadius: size * 0.56)
+                .allowsHitTesting(false)
+
+            // 광학 파인더 오버레이 (프레임라인·마이크로프리즘·스플릿원·노출계 바늘)
+            viewfinderOptics(size: size).allowsHitTesting(false)
+
+            // 우측 노출 스케일 라벨 +/○/−
+            HStack {
+                Spacer()
+                VStack(spacing: 9) {
+                    Text("+")
+                    Text("○").font(.system(size: 8, weight: .bold))
+                    Text("−")
+                }
+                .font(.custom("Times New Roman", size: 7))
+                .foregroundStyle(.white.opacity(0.55))
+                .shadow(color: .black.opacity(0.9), radius: 1, y: 1)
+                .padding(.trailing, 6)
+            }
+            .allowsHitTesting(false)
+
+            // 카메라 불가 시 — 뷰파인더 탭 = 갤러리(웹 cameraError 오버레이 대응, 아이콘 only)
+            if cameraError {
+                Button { showGalleryPicker = true } label: {
+                    ZStack {
+                        Color(hex: 0x1A1D1E, alpha: 0.85)
+                        PixelIcon(.image, size: 28, color: Color(hex: 0xECE9DE))
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(AppConfig.loc("갤러리에서 선택"))
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    /// 광학 파인더 오버레이 — 웹 SVG(viewBox 100×100) 를 Canvas 로 이식. 좌표 정규화.
+    private func viewfinderOptics(size: CGFloat) -> some View {
+        Canvas { ctx, cs in
+            let s = cs.width / 100.0
+            func P(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x * s, y: y * s) }
+            let w = Color.white
+
+            // 35mm 프레임 라인 rect(6,16,88,68)
+            ctx.stroke(Path(CGRect(x: 6 * s, y: 16 * s, width: 88 * s, height: 68 * s)),
+                       with: .color(w.opacity(0.22)), lineWidth: 0.25 * s)
+
+            // 마이크로프리즘 링 (48 dots r6.2 + 56 dots r7.6)
+            for i in 0..<48 {
+                let a = Double(i) / 48 * 2 * .pi
+                let c = P(50 + cos(a) * 6.2, 50 + sin(a) * 6.2)
+                ctx.fill(Path(ellipseIn: CGRect(x: c.x - 0.28 * s, y: c.y - 0.28 * s,
+                                                width: 0.56 * s, height: 0.56 * s)),
+                         with: .color(w.opacity(0.2)))
+            }
+            for i in 0..<56 {
+                let a = (Double(i) + 0.5) / 56 * 2 * .pi
+                let c = P(50 + cos(a) * 7.6, 50 + sin(a) * 7.6)
+                ctx.fill(Path(ellipseIn: CGRect(x: c.x - 0.22 * s, y: c.y - 0.22 * s,
+                                                width: 0.44 * s, height: 0.44 * s)),
+                         with: .color(w.opacity(0.15)))
+            }
+
+            // 스플릿 이미지 원 r4.2 + 수평 스플릿 라인
+            ctx.stroke(Path(ellipseIn: CGRect(x: (50 - 4.2) * s, y: (50 - 4.2) * s,
+                                              width: 8.4 * s, height: 8.4 * s)),
+                       with: .color(w.opacity(0.55)), lineWidth: 0.32 * s)
+            var split = Path(); split.move(to: P(45.8, 50)); split.addLine(to: P(54.2, 50))
+            ctx.stroke(split, with: .color(w.opacity(0.55)), lineWidth: 0.28 * s)
+
+            // 우측 노출 미터 세로선 + 틱마크 (+2,+1,0,-1,-2)
+            var meter = Path(); meter.move(to: P(90, 32)); meter.addLine(to: P(90, 68))
+            ctx.stroke(meter, with: .color(w.opacity(0.45)), lineWidth: 0.2 * s)
+            let ticks: [(Double, Double, Double)] = [
+                (32, 88.5, 0.2), (41, 89, 0.2), (50, 87.5, 0.3), (59, 89, 0.2), (68, 88.5, 0.2)]
+            for (y, x0, lw) in ticks {
+                var t = Path(); t.move(to: P(x0, y)); t.addLine(to: P(90, y))
+                ctx.stroke(t, with: .color(w.opacity(0.45)), lineWidth: lw * s)
+            }
+
+            // 바늘 — 웹: θ = -EV·(π/8), 길이 5.15, 피벗(85,50)
+            let ang = -exposureEV * (.pi / 8)
+            let tip = P(85 + 5.15 * cos(ang), 50 + 5.15 * sin(ang))
+            var needle = Path(); needle.move(to: P(85, 50)); needle.addLine(to: tip)
+            ctx.stroke(needle, with: .color(w.opacity(0.75)),
+                       style: StrokeStyle(lineWidth: 0.42 * s, lineCap: .round))
+            ctx.fill(Path(ellipseIn: CGRect(x: (85 - 0.55) * s, y: (50 - 0.55) * s,
+                                            width: 1.1 * s, height: 1.1 * s)),
+                     with: .color(w.opacity(0.75)))
+        }
+    }
+
+    // MARK: 컨트롤 트레이 (움푹) — Row1 FLASH+SHUTTER, Row2 전후면+EXPOSURE
+
+    private func controlsTray(width: CGFloat) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 16) {
+                flashGroup
+                shutterGroup
+            }
+            HStack(spacing: 8) {
+                flipButton
+                Text("EXPOSURE")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color(hex: 0x212328))
+                exposureBar
+            }
+        }
+        .padding(EdgeInsets(top: 10, leading: 12, bottom: 12, trailing: 12))
+        .frame(width: width)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(hex: 0x46443E, alpha: 0.06))
+                .overlay(RoundedRectangle(cornerRadius: 14)
+                    .stroke(.white.opacity(0.28), lineWidth: 0.5))
+        )
+    }
+
+    // FLASH 그룹 — 라벨 + 슬라이드 토글 + OFF/ON
+    private var flashGroup: some View {
+        VStack(spacing: 4) {
+            Text("FLASH")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Color(hex: 0x212328))
+            Button {
+                flashOn.toggle(); Haptics.play(.light)
+            } label: { flashToggle }
+            .buttonStyle(.plain)
+            .accessibilityLabel(flashOn ? AppConfig.loc("플래시 끄기") : AppConfig.loc("플래시 켜기"))
+            HStack {
+                Text("OFF"); Spacer(); Text("ON")
+            }
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(Color(hex: 0x212328, alpha: 0.4))
+            .frame(width: 80)
+        }
+    }
+
+    private var flashToggle: some View {
+        ZStack(alignment: flashOn ? .trailing : .leading) {
+            RoundedRectangle(cornerRadius: 8).fill(.black)
+            ribbedTrack.padding(4)
+            flashKnob.padding(2)
+        }
+        .frame(width: 80, height: 40)
+        .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+        .animation(.spring(response: 0.28, dampingFraction: 0.72), value: flashOn)
+    }
+
+    /// 미끄럼방지 리브 그릴 트랙 — 수직 릿지(하이라이트+섀도우).
+    private var ribbedTrack: some View {
+        Canvas { ctx, sz in
+            ctx.fill(Path(CGRect(origin: .zero, size: sz)), with: .color(Color(hex: 0x434039)))
+            var x: CGFloat = 0
+            while x < sz.width {
+                ctx.fill(Path(CGRect(x: x, y: 0, width: 0.5, height: sz.height)),
+                         with: .color(.white.opacity(0.06)))
+                ctx.fill(Path(CGRect(x: x + 2, y: 0, width: 1, height: sz.height)),
+                         with: .color(.black.opacity(0.45)))
+                x += 3
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+
+    private var flashKnob: some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(LinearGradient(colors: [Color(hex: 0xF6F1DC), Color(hex: 0xEDE7D2), Color(hex: 0xCFC6A6)],
+                                 startPoint: .top, endPoint: .bottom))
+            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color(hex: 0x7D7660), lineWidth: 1))
+            .frame(width: 34, height: 34)
+            .overlay(PixelIcon(.zap, size: 12, color: Color(hex: 0x212727)))
+            .shadow(color: .black.opacity(0.5), radius: 2, y: 2)
+    }
+
+    // SHUTTER 그룹 (flex-1)
+    private var shutterGroup: some View {
+        VStack(spacing: 4) {
+            Text("SHUTTER")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Color(hex: 0x212328))
+            Button { shutterTap() } label: { shutterButton }
+                .buttonStyle(.plain)
+                .accessibilityLabel(AppConfig.loc("사진 촬영"))
+            // FLASH 의 OFF/ON 행과 높이 매칭 (버튼 센터 정렬용 히든 스페이서)
+            Text("OFF").font(.system(size: 10, weight: .bold)).opacity(0)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var shutterButton: some View {
+        ZStack {
+            Capsule().fill(Color(hex: 0xCA3024))                          // red1
+            Capsule()                                                     // red2 그라디언트 하이라인
+                .strokeBorder(LinearGradient(
+                    colors: [Color(hex: 0xE38F7C, alpha: 0.5), Color(hex: 0x871D14, alpha: 0.5)],
+                    startPoint: .top, endPoint: .bottom), lineWidth: 2)
+                .padding(6)
+            Capsule().fill(LinearGradient(colors: [.white.opacity(0.22), .clear],
+                                          startPoint: .top, endPoint: .center))  // top gloss
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 80)
+        .clipShape(Capsule())
+        .overlay(Capsule().strokeBorder(Color(hex: 0x232829), lineWidth: 1))
+        .overlay(Capsule().strokeBorder(LinearGradient(
+            colors: [Color(hex: 0xECE9DE, alpha: 0.25), Color(hex: 0x46443E, alpha: 0.25)],
+            startPoint: .top, endPoint: .bottom), lineWidth: 2))
+        .shadow(color: .black.opacity(0.2), radius: 3, y: 2)
+    }
+
+    private var flipButton: some View {
+        Button {
+            facingFront.toggle(); Haptics.play(.light)
+        } label: {
+            moldedDarkButton(width: 40, height: 40) {
+                PixelIcon(.reload, size: 16, color: .white)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(cameraError)
+        .opacity(cameraError ? 0.4 : 1)
+        .accessibilityLabel(facingFront ? AppConfig.loc("후면 카메라로 전환") : AppConfig.loc("전면 카메라로 전환"))
+    }
+
+    // EXPOSURE 리브드 바 — 드래그로 EV(-2..+2) 조정, 리브 translate + 바늘 반응
+    private var exposureBar: some View {
+        GeometryReader { g in
+            ZStack {
+                RoundedRectangle(cornerRadius: 8).fill(.black)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(LinearGradient(colors: [Color(hex: 0x212727), Color(hex: 0x939595), Color(hex: 0x212727)],
+                                         startPoint: .leading, endPoint: .trailing))
+                    .padding(4)
+                HStack {
+                    Text("−"); Spacer(); Text("+")
+                }
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Color(hex: 0x7C7C7C))
+                .padding(.horizontal, 16)
+                // 리브 그룹 — EV 에 따라 좌우로 활주 (웹 translateX(EV*24))
+                HStack(spacing: 4) {
+                    ForEach(0..<25, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(Color(hex: 0x1D1E18))
+                            .frame(width: 2, height: 12)
+                    }
+                }
+                .offset(x: exposureEV * 24)
+                .mask(RoundedRectangle(cornerRadius: 4).padding(4))
+                .animation(isExposureDragging ? nil : .easeOut(duration: 0.16), value: exposureEV)
+            }
+            .contentShape(Rectangle())
+            .gesture(exposureDrag(width: g.size.width))
+        }
+        .frame(height: 24)
+    }
+
+    private func exposureDrag(width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { v in
+                if !isExposureDragging { isExposureDragging = true; exposureDragStartEV = exposureEV }
+                let dEV = Double(v.translation.width) / Double(max(1, width / 4))  // 바 폭 1/4 = 1 stop
+                exposureEV = max(-2, min(2, exposureDragStartEV + dEV))
+            }
+            .onEnded { _ in isExposureDragging = false }
+    }
+
+    // MARK: 필름 배출 슬롯 — 라운드-탑
+
+    private func filmOutputSlot(width: CGFloat) -> some View {
+        UnevenRoundedRectangle(topLeadingRadius: 40, bottomLeadingRadius: 0,
+                               bottomTrailingRadius: 0, topTrailingRadius: 40)
+            .fill(Color(hex: 0x191A13))
+            .frame(width: width, height: 42)
+            .overlay(
+                UnevenRoundedRectangle(topLeadingRadius: 40, bottomLeadingRadius: 0,
+                                       bottomTrailingRadius: 0, topTrailingRadius: 40)
+                    .fill(LinearGradient(colors: [.white.opacity(0.18), .clear],
+                                         startPoint: .top, endPoint: .center))
+                    .allowsHitTesting(false))
+            .shadow(color: .black.opacity(0.15), radius: 2)
+    }
+
     private func shutterTap() {
+        // 카메라 불가(시뮬/권한) 시 셔터 = 갤러리 폴백(웹 cameraError → file input).
+        if cameraError { showGalleryPicker = true; return }
         Haptics.play(.medium)
         SoundPlayer.shared.play(.cameraShutter)
         // PhotoCaptureCoordinator 가 들고 있는 CameraVC.capture() 직호출.
@@ -208,7 +597,7 @@ struct PhotoCaptureModal: View {
     /// 캡처(카메라·갤러리) 직후 진입점 — 웹 captureFromVideo(tsx:282-337) 대응.
     /// 프레임을 timestamp 로 랜덤 결정하고, Kodak 필터를 백그라운드 1회만 돌려 캐시한 뒤
     /// 배출 애니메이션을 시작한다. body 안에서는 필터를 절대 돌리지 않는다.
-    private func beginEject(_ img: UIImage) {
+    private func beginEject(_ img: UIImage, exposureEV ev: Double = 0) {
         capturedImage = img
         let ts = Date()
         captureTimestamp = ts
@@ -217,8 +606,10 @@ struct PhotoCaptureModal: View {
 
         // Kodak 필름룩 — 06-photo-flow(a): 캡처 직후 백그라운드 1회. body 재평가와 무관.
         // maxDimension 1200 다운샘플로 CIFilter/디코드 비용 절감 (표시·합성엔 충분).
+        // exposureEV(EXPOSURE 다이얼) 를 여기서 1회 베이크 — 이후 filteredImage 재사용이라
+        //   합성(composite)은 applyFilter:false 로 이중 적용 안 됨.
         DispatchQueue.global(qos: .userInitiated).async {
-            let filtered = PolaroidFilters.applyKodak(img, maxDimension: 1200)
+            let filtered = PolaroidFilters.applyKodak(img, maxDimension: 1200, exposureEV: ev)
             DispatchQueue.main.async { self.filteredImage = filtered }
         }
 

@@ -1337,6 +1337,8 @@ final class GameStore: ObservableObject {
             d.isSelectionComplete = true
         }
         // 카드 선택 상태 — 6장 드로우 완료, 선택 미완(부채꼴 핸드 검증/잘림 진단용).
+        // 갓생 모드(2슬롯) 오버라이드 — 선택 슬롯 행 레이아웃 검증용(다른 시드와 조합).
+        if args.contains("UITestSeedGodlife") { p.mode = .godlife }
         if args.contains("UITestSeedSelect") {
             d.drawnCards = Array(CardCatalog.allCards.prefix(6))
             d.selectedCards = []
@@ -1440,6 +1442,17 @@ final class GameStore: ObservableObject {
             store.upHero.markCampTutorialSeen()  // 캠프 홈 IA 검증 — 튜토리얼 가림 방지
             // 캐시된 영웅 이름을 강제 언어 풀의 결정론 이름으로 — 스크린샷 언어 일관성.
             store.upHero.renameHero(UpHeroRules.heroNamePools[forcedLang ?? .ko]?.first ?? "레오")
+        }
+        // 도감 발견 표시 검증 — 실제 전투 기록 경로로 codex 를 시드(몬스터/보스 발견).
+        if args.contains("UITestSeedCodex") {
+            p.level = 35
+            p.xp = GameRules.totalXPForLevel(35)
+            p.unlockedCardIds = CardCatalog.allCards.map(\.id)
+            store.upHero.assignClass(.warrior)
+            store.upHero.addCoins(2400)
+            store.upHero.markCampTutorialSeen()
+            store.upHero.renameHero(UpHeroRules.heroNamePools[forcedLang ?? .ko]?.first ?? "레오")
+            store.upHero.seedCodexFromCombatForUITests()
         }
         store.progress = p
         store.daily = d

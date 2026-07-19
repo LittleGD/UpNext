@@ -28,6 +28,9 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
     let onCapture: (UIImage) -> Void
     @Binding var facingFront: Bool
     @Binding var flashOn: Bool
+    /// 카메라 사용 불가(시뮬레이터·권한 거부·하드웨어 없음)일 때 true 로 세팅.
+    /// 웹 PhotoCaptureModal 의 `cameraError` 대응 — 부모가 갤러리 폴백을 노출한다.
+    @Binding var cameraError: Bool
     /// 부모 모달이 보유하는 코디네이터 — 셔터 버튼이 `coord.trigger()` 호출.
     /// nil 이면 외부 트리거 없이 동작 (테스트/프리뷰).
     var coordinator: PhotoCaptureCoordinator? = nil
@@ -36,6 +39,7 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
         let vc = CameraVC()
         vc.onCapture = onCapture
         vc.facingFront = facingFront
+        vc.onCameraUnavailable = { DispatchQueue.main.async { cameraError = true } }
         coordinator?.vc = vc
         return vc
     }
@@ -57,6 +61,8 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
 
 final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
     var onCapture: ((UIImage) -> Void)?
+    /// 카메라 장치를 열 수 없을 때(시뮬레이터/권한/하드웨어) 1회 통지 — 부모가 갤러리 폴백 노출.
+    var onCameraUnavailable: (() -> Void)?
     var facingFront: Bool = false
     var flashOn: Bool = false
 
@@ -100,6 +106,8 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
               let input = try? AVCaptureDeviceInput(device: device) else {
             session.commitConfiguration()
+            // 시뮬레이터/권한 거부/하드웨어 없음 — 갤러리 폴백 노출을 위해 부모에 통지.
+            onCameraUnavailable?()
             return
         }
         if session.canAddInput(input) { session.addInput(input) }

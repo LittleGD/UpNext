@@ -323,7 +323,9 @@ struct HeroStatPanel: View {
                     }
                 }
                 if let resourceSpec {
-                    Text(AppConfig.loc("자원 \(resourceSpec.name) · 레벨업마다 SP 획득"))
+                    // 자원명(분노/마나…)은 콘텐츠 문자열 — 보간 인자로 넣으면 %@ 가 원문(한국어)
+                    // 그대로 새므로 locRuntime 으로 먼저 현지화한 뒤 템플릿에 끼운다.
+                    Text(AppConfig.loc("자원 \(AppConfig.locRuntime(resourceSpec.name)) · 레벨업마다 SP 획득"))
                         .typography(.micro).foregroundStyle(gbDim)
                 }
                 ForEach(1...4, id: \.self) { tier in

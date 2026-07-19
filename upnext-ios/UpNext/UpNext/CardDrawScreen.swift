@@ -453,7 +453,13 @@ struct CardSelectScreen: View {
                 Text("\(selectedCount) / \(maxCards) 선택")
                     .typography(.caption)
                     .foregroundStyle(Color.textTertiary)
-                HStack(spacing: 12) {
+                // 웹 L:759,765 fixed w-full ... "flex justify-center gap-3"(12px) — 슬롯 행을
+                // 그 자체로 중앙정렬 컨테이너로 명시(조사 리포트 #22). alignment: .top —
+                // 선택 카드(카드88+gap4+해제버튼44=136pt)와 빈 슬롯(카드88+gap4+스페이서28=120pt)은
+                // 풋터 높이가 다른데(웹도 h-11 vs h-7 로 동일하게 다름), 기본 HStack .center 정렬을
+                // 쓰면 카드 박스 상단이 8pt 씩 어긋나 1장 선택 시 카드가 들쭉날쭉·비대칭으로
+                // 보이던 원인. 웹은 block-flow 상단정렬이라 카드 박스 top 이 항상 맞음 — .top 으로 동치화.
+                HStack(alignment: .top, spacing: 12) {
                     ForEach(0..<maxCards, id: \.self) { i in
                         if i < selected.count {
                             let card = selected[i]
@@ -470,6 +476,7 @@ struct CardSelectScreen: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity)
             }
             .padding(.top, 12)
 
@@ -836,7 +843,9 @@ private struct PlaceholderSlot: View {
                 .foregroundStyle(Color.white.opacity(0.1))
                 .frame(width: 64, height: 88)
                 .overlay(PixelIcon(.plus, size: 18, color: Color.textTertiary))
-            Color.clear.frame(height: 28)
+            // 풋터 스페이서 — width 미지정 Color 는 수평 무한 확장이라 HStack 에서 슬롯이
+            // 남은 폭을 나눠 가지며 벌어졌다(2슬롯 갭 폭주·1선택 비대칭의 진범). 64 고정.
+            Color.clear.frame(width: 64, height: 28)
         }
     }
 }

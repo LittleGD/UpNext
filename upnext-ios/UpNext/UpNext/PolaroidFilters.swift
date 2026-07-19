@@ -23,11 +23,21 @@ enum PolaroidFilters {
     /// 실행해 결과 UIImage 를 캐시하고, 뷰에는 이미 필터된 이미지를 전달한다.
     /// `maxDimension` 을 주면 필터 전에 다운샘플해 CIFilter/CGImage 비용을 더 줄인다
     /// (프리뷰/데코 표시는 화면 해상도면 충분 — 원본 풀해상도 불필요).
-    static func applyKodak(_ image: UIImage, maxDimension: CGFloat? = nil) -> UIImage? {
+    /// - Parameter exposureEV: 노출 보정(스톱). 웹 캡처의 `brightness(pow(2, EV))` 대응 —
+    ///   EXPOSURE 다이얼 값을 실제 저장 이미지에 반영. CIExposureAdjust 는 EV(스톱) 직결이라
+    ///   `pow(2, EV)` 밝기 배수와 동치. 0 이면 스킵.
+    static func applyKodak(_ image: UIImage, maxDimension: CGFloat? = nil,
+                           exposureEV: Double = 0) -> UIImage? {
         let working = maxDimension.map { downsample(image, maxDimension: $0) } ?? image
         guard let ciImage = CIImage(image: working) else { return nil }
         var output: CIImage = ciImage
 
+        // 0. Exposure 보정 (EV 스톱) — 웹 captureFromVideo 의 brightness(2^EV).
+        if abs(exposureEV) > 0.01, let f = CIFilter(name: "CIExposureAdjust") {
+            f.setValue(output, forKey: kCIInputImageKey)
+            f.setValue(exposureEV, forKey: kCIInputEVKey)
+            if let result = f.outputImage { output = result }
+        }
         // 1. Sepia 0.28
         if let f = CIFilter(name: "CISepiaTone") {
             f.setValue(output, forKey: kCIInputImageKey)

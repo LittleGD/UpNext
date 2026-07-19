@@ -80,7 +80,14 @@ final class DuoStore: ObservableObject {
     }
 
     func createInvite() {
-        guard let uid, activeDuo == nil, !isWorking else { return }
+        guard activeDuo == nil, !isWorking else { return }
+        // uid 가 nil(익명) 이면 이전엔 조용히 return 해 버튼이 무반응이었다. UI 는 로그인
+        // 게이트(RetentionSectionView.inviteControls → store.promptLogin)로 선차단하지만,
+        // 직접 호출 방어로 여기서도 사유를 message 에 표면화한다(기존 message 표시 경로 재사용).
+        guard let uid else {
+            message = "로그인하면 친구와 함께 불꽃을 켤 수 있어요"
+            return
+        }
         isWorking = true
         message = nil
         let code = Self.makeCode()
@@ -119,7 +126,12 @@ final class DuoStore: ObservableObject {
     }
 
     func joinInvite(code rawCode: String) {
-        guard uid != nil, activeDuo == nil, !isWorking else { return }
+        guard activeDuo == nil, !isWorking else { return }
+        // createInvite 와 동일 — 익명 상태의 조용한 무반응을 방어적으로 표면화.
+        guard uid != nil else {
+            message = "로그인하면 친구와 함께 불꽃을 켤 수 있어요"
+            return
+        }
         let code = rawCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard code.count >= 4 else { return }
         isWorking = true

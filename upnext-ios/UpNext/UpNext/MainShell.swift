@@ -192,6 +192,14 @@ struct MainTabView: View {
             if ProcessInfo.processInfo.arguments.contains("UITestTabSettings") {
                 tab = .settings
             }
+            // 폴라로이드 카메라 바디 스킨 렌더 검증용 — pendingCapture 를 세팅해
+            // PhotoCaptureModal(capture phase)을 자동 표시. 시뮬엔 카메라가 없어
+            // 뷰파인더는 검정이지만 스킨 전체가 렌더된다. 출시 바이너리엔 비포함.
+            if ProcessInfo.processInfo.arguments.contains("UITestOpenCapture") {
+                growth.beginCapture(cardId: "uitest",
+                                    title: "UITest Capture",
+                                    category: .fitness)
+            }
             #endif
             syncPackOpener()
             evaluatePatchNotes()

@@ -80,7 +80,11 @@ struct SplashView: View {
                 }
                 .offset(x: containerOffsetX)
 
-                Text("로그라이크 챌린지 카드로\n매일 갓생을 시작하세요")
+                // 19-i18n-mixed — 인앱 언어(부트 시 App Group 선반영)로 명시 해석.
+                // 문자열 리터럴 Text 는 카탈로그 LocalizedStringKey 로 취급돼, SplashView 가
+                // ContentView 의 `.environment(\.locale)` 밖에 있어 *기기 로케일*로 새는(스플래시만
+                // 앱 본문과 다른 언어) 결함이 있었다. verbatim 인자로 카탈로그 경로 자체를 차단.
+                Text(verbatim: OnboardingI18n.splashTagline(Language.current))
                     .typography(.caption)
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)

@@ -589,6 +589,28 @@ final class UpHeroStore: ObservableObject {
         mutate { $0.hasSeenCampTutorial = true }
     }
 
+    #if DEBUG
+    /// UITest 전용 — 도감 발견 상태를 *실제 기록 경로*(SessionReward.calculateCodexDelta)로
+    /// 시드한다. 전투 로그(.encounter/.drop)를 구성해 acknowledgeSessionEnd 와 동일한
+    /// 함수로 codex 를 갱신 → "처치 후 도감 발견" 을 결정론적으로 재현(도감 표시 버그 검증용).
+    func seedCodexFromCombatForUITests() {
+        let pool = MonsterPool.templates[.fitness]!
+        let m1 = MonsterPool.scaleMonster(pool.normal[2], dungeonId: .fitness, floor: 5)   // 산악 늑대
+        let m2 = MonsterPool.scaleMonster(pool.normal[3], dungeonId: .fitness, floor: 6)   // 돌산 곰
+        let m3 = MonsterPool.scaleMonster(pool.normal[6], dungeonId: .fitness, floor: 8)   // 절벽 독수리
+        let boss = MonsterPool.scaleMonster(pool.bosses[0], dungeonId: .fitness, floor: 10) // 알파 늑대
+        let log: [LogEntry] = [
+            .encounter(monster: m1, timestamp: 0),
+            .encounter(monster: m2, timestamp: 1),
+            .encounter(monster: m3, timestamp: 2),
+            .boss(monster: boss, floor: 10, timestamp: 3),
+            .encounter(monster: boss, timestamp: 4),
+        ]
+        let newCodex = SessionReward.calculateCodexDelta(log: log, current: state.codex)
+        mutate { $0.codex = newCodex }
+    }
+    #endif
+
     /// 액티브 스킬 자동 발동 on/off 토글. 웹 toggleAutoSkill.
     func toggleAutoSkill() {
         mutate { $0.hero.autoSkillEnabled = !($0.hero.autoSkillEnabled ?? true) }

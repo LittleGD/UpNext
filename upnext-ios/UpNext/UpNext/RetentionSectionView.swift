@@ -25,6 +25,35 @@ struct RetentionSectionView: View {
     }
 
     var body: some View {
+        content
+            .sheet(item: $shownReport) { report in
+                reportSheet(report).presentationDetents([.medium, .large])
+            }
+    }
+
+    @ViewBuilder private var content: some View {
+        #if DEBUG
+        // 재현/재검증 전용 — 시뮬에 스크롤/탭 주입 수단이 없는 환경에서 2인 불꽃 카드(탭 하단)를
+        // 최상단에만 렌더해 익명 로그인 게이트를 단일 스크린샷으로 캡처한다. UITestDuoPromptLogin
+        // 동반 시 onAppear 에서 store.promptLogin() 을 호출해 CTA 대상(로그인 오버레이)까지 확인.
+        // 인자 미지정 시 일반 렌더 — 프로덕션 경로 무영향.
+        if ProcessInfo.processInfo.arguments.contains("UITestDuoFocus") {
+            VStack(spacing: 14) { DuoFlameCard() }
+                .padding(.top, 24)
+                .onAppear {
+                    if ProcessInfo.processInfo.arguments.contains("UITestDuoPromptLogin") {
+                        store.promptLogin()
+                    }
+                }
+        } else {
+            fullContent
+        }
+        #else
+        fullContent
+        #endif
+    }
+
+    @ViewBuilder private var fullContent: some View {
         VStack(spacing: 14) {
             FlameHeroCore(streak: state.currentLightStreak, best: state.bestLightStreak,
                           checkedToday: checkedToday, onCheckIn: { store.checkInToday() })
@@ -37,9 +66,6 @@ struct RetentionSectionView: View {
             if let report = store.retention?.weeklyReports.first {
                 weeklyReportRow(report)
             }
-        }
-        .sheet(item: $shownReport) { report in
-            reportSheet(report).presentationDetents([.medium, .large])
         }
     }
 
@@ -468,31 +494,51 @@ private struct DuoFlameCard: View {
 
     private var inviteControls: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                TextField("초대코드", text: $joinCode)
-                    .typography(.caption)
-                    .textInputAutocapitalization(.characters)
-                    .disableAutocorrection(true)
-                    .padding(.horizontal, 10).frame(height: 38)
+            if store.auth.uid == nil {
+                // 익명(비로그인) 게이트 — createInvite/joinInvite 는 uid 가 nil 이면 guard 로
+                // 조용히 return 해 버튼이 무반응이었다(실기기 익명 사용자도 동일 증상). 듀오는
+                // 양쪽 모두 안정적 uid(로그인)가 필요하므로, 조용한 no-op 대신 로그인 오버레이로
+                // 유도한다 — 백업 배너(BackupReminderBannerView) 의 store.promptLogin() 게이트와 동일.
+                Button { store.promptLogin() } label: {
+                    HStack(spacing: 6) {
+                        PixelIcon(.link, size: 14, color: Color.accentPrimary)
+                        Text("로그인하고 함께 켜기").typography(.caption).foregroundStyle(Color.accentPrimary)
+                    }
+                    .frame(maxWidth: .infinity).frame(height: 38)
                     .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
-                    .accessibilityIdentifier("duoJoinCodeField")
-                Button("참여") { duo.joinInvite(code: joinCode) }
-                    .typography(.caption).foregroundStyle(Color.bgPrimary)
-                    .frame(width: 56, height: 38)
-                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("duoJoinButton")
-            }
-            Button { duo.createInvite() } label: {
-                HStack(spacing: 6) {
-                    PixelIcon(.link, size: 14, color: Color.accentPrimary)
-                    Text("초대코드 만들기").typography(.caption).foregroundStyle(Color.accentPrimary)
                 }
-                .frame(maxWidth: .infinity).frame(height: 38)
-                .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("duoCreateInviteButton")
+                Text("2인 불꽃은 로그인이 필요해요")
+                    .typography(.micro).foregroundStyle(Color.textTertiary)
+                    .frame(maxWidth: .infinity)
+            } else {
+                HStack(spacing: 8) {
+                    TextField("초대코드", text: $joinCode)
+                        .typography(.caption)
+                        .textInputAutocapitalization(.characters)
+                        .disableAutocorrection(true)
+                        .padding(.horizontal, 10).frame(height: 38)
+                        .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
+                        .accessibilityIdentifier("duoJoinCodeField")
+                    Button("참여") { duo.joinInvite(code: joinCode) }
+                        .typography(.caption).foregroundStyle(Color.bgPrimary)
+                        .frame(width: 56, height: 38)
+                        .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("duoJoinButton")
+                }
+                Button { duo.createInvite() } label: {
+                    HStack(spacing: 6) {
+                        PixelIcon(.link, size: 14, color: Color.accentPrimary)
+                        Text("초대코드 만들기").typography(.caption).foregroundStyle(Color.accentPrimary)
+                    }
+                    .frame(maxWidth: .infinity).frame(height: 38)
+                    .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("duoCreateInviteButton")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("duoCreateInviteButton")
         }
     }
 

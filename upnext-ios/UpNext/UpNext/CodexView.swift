@@ -111,13 +111,15 @@ struct CodexView: View {
 
     private var monsterGrid: some View {
         let templates = MonsterPool.allTemplates.filter { !$0.isBoss }
-        let discovered = Set(upHero.state.codex.monsters)
+        // 웹 패리티 — codex 는 template.name 기반 기록. 하위호환으로 boss set 도 합집합.
+        let discovered = Set(upHero.state.codex.monsters).union(upHero.state.codex.bosses)
+        let discoveredCount = templates.filter { Self.isDiscovered($0, in: discovered) }.count
         return VStack(alignment: .leading, spacing: 10) {
-            Text("\(discovered.count) / \(templates.count)종 발견")
+            Text("\(discoveredCount) / \(templates.count)종 발견")
                 .typography(.caption).foregroundStyle(Color.textSecondary)
             LazyVGrid(columns: gridColumns, spacing: 12) {
                 ForEach(templates, id: \.id) { template in
-                    let isDiscovered = discovered.contains(template.id)
+                    let isDiscovered = Self.isDiscovered(template, in: discovered)
                     Button {
                         if isDiscovered {
                             SoundPlayer.shared.play(.select)
@@ -143,17 +145,21 @@ struct CodexView: View {
                     acc[did.rawValue, default: []].append(t)
                 }
             }
-        let discovered = Set(upHero.state.codex.bosses)
+        let discovered = Set(upHero.state.codex.bosses).union(upHero.state.codex.monsters)
+        let allBosses = MonsterPool.allTemplates.filter { $0.isBoss }
+        let discoveredCount = allBosses.filter { Self.isDiscovered($0, in: discovered) }.count
         return VStack(alignment: .leading, spacing: 16) {
-            Text("\(discovered.count) / \(MonsterPool.allTemplates.filter { $0.isBoss }.count)종 발견")
+            Text("\(discoveredCount) / \(allBosses.count)종 발견")
                 .typography(.caption).foregroundStyle(Color.textSecondary)
             ForEach(bossGroups.keys.sorted(), id: \.self) { dungeonKey in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(dungeonKey)
+                    // 웹 패리티(dungeonName) — raw enum id("fitness") 대신 현지화 던전명 노출.
+                    Text(LocalizedStringKey(
+                        Dungeons.all[DungeonId(rawValue: dungeonKey) ?? .fitness]?.name ?? dungeonKey))
                         .typography(.heading).foregroundStyle(Color.accentPrimary)
                     LazyVGrid(columns: gridColumns, spacing: 12) {
                         ForEach(bossGroups[dungeonKey]!, id: \.id) { boss in
-                            let isDiscovered = discovered.contains(boss.id)
+                            let isDiscovered = Self.isDiscovered(boss, in: discovered)
                             Button {
                                 if isDiscovered {
                                     SoundPlayer.shared.play(.select)
@@ -201,6 +207,15 @@ struct CodexView: View {
         [GridItem(.flexible(), spacing: 12),
          GridItem(.flexible(), spacing: 12),
          GridItem(.flexible(), spacing: 12)]
+    }
+
+    /// 웹 HeroCodex.isDiscovered 패리티 — codex(monsters/bosses)는 template.name 기반 기록.
+    /// (기존 버그: template.id 로 대조 → 이름 집합과 절대 불일치해 발견분이 ??? 로 표시.)
+    /// 레거시 instance-id("{id}_f...") 포맷도 하위호환 매칭.
+    static func isDiscovered(_ template: MonsterTemplate, in discovered: Set<String>) -> Bool {
+        if discovered.contains(template.name) { return true }
+        let prefix = "\(template.id)_f"
+        return discovered.contains { $0.hasPrefix(prefix) }
     }
 }
 

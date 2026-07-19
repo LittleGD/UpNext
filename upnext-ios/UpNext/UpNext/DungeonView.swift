@@ -607,6 +607,21 @@ struct DungeonView: View {
         }
     }
 
+    /// 선택지 효과 요약을 구조화 데이터에서 인앱 언어로 재구성. UpHeroCombat.summarizeEffects
+    /// 는 한국어 문자열이라 모달에 그대로 쓰면 샌다 — 카탈로그 보간 키로 현지화.
+    private static func localizedEffectSummary(_ sd: EffectSummaryData) -> String {
+        var parts: [String] = []
+        if let xp = sd.xp { parts.append(AppConfig.loc("경험치 +\(xp)")) }
+        if let coins = sd.coins { parts.append(AppConfig.loc("코인 +\(coins)")) }
+        if let heal = sd.heal { parts.append(AppConfig.loc("체력 +\(heal)")) }
+        if let damage = sd.damage { parts.append(AppConfig.loc("체력 −\(damage)")) }
+        if let td = sd.timeDelta {
+            if td > 0 { parts.append(AppConfig.loc("시간 +\(td)")) }
+            else if td < 0 { parts.append(AppConfig.loc("시간 \(td)")) }
+        }
+        return parts.joined(separator: " · ")
+    }
+
     // MARK: - 새 로그 처리 (효과 트리거)
 
     /// 전투 효과 dispatch — 웹 useDungeonAnimations 의 per-index dedupe 패턴 이식.
@@ -693,10 +708,15 @@ struct DungeonView: View {
             if coins > 0 {
                 emitFloat(text: "+\(coins)", variant: .coin, position: heroAnchor())
             }
-        case let .choiceResult(text, effectSummary, _, _, _, _, _, _):
+        case let .choiceResult(text, effectSummary, summaryData, _, _, resultTextKey, resultTextFallback, _):
             // 선택지 결과 — 모달로 표시(tick pause). 2.6s 후 자동 닫힘(웹 autoMs).
-            choiceResultText = text
-            choiceResultSummary = effectSummary
+            // logText 와 동일하게 resultTextKey 로 인앱 언어 해석(원문 text 는 "> 라벨 →
+            // 결과" 한국어 조합이라 그대로 쓰면 전 언어에서 샌다). 요약도 구조화 데이터에서
+            // 현지화 재구성(effectSummary 는 한국어 문자열).
+            choiceResultText = resultTextKey.map {
+                UpHeroNarrative.resolveLog($0, nil, fallback: resultTextFallback ?? text)
+            } ?? text
+            choiceResultSummary = summaryData.map(Self.localizedEffectSummary) ?? effectSummary
             SoundPlayer.shared.play(.select)
             Haptics.play(.selection)
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {

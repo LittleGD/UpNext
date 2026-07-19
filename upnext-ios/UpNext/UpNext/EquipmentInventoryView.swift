@@ -86,7 +86,8 @@ struct EquipmentInventoryView: View {
         // 액션 선택 시트는 장착/강화 즉시 실행 + 판매/버리기 재확인(GbConfirm) 구조로 유지.
         // (스펙: 장착/강화 는 현 액션시트 안에 유지 가능, 판매/버리기만 GbConfirm 경유.)
         .confirmationDialog(
-            actionItem?.name ?? "",
+            // 액션시트 타이틀은 raw name(한국어 원문) 대신 현지화 표시명 사용 — 전 언어 정합.
+            actionItem?.localizedDisplayName ?? "",
             isPresented: Binding(get: { actionItem != nil }, set: { if !$0 { actionItem = nil } }),
             presenting: actionItem
         ) { item in

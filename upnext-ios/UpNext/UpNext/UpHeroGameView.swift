@@ -101,6 +101,12 @@ private struct CampView: View {
             if uiTestOpenStats { statsOpen = true }
             // 17-leaderboard-dummy 검증 — 주간 리더보드 화면 바로 진입(실데이터 상태머신 확인용).
             if ProcessInfo.processInfo.arguments.contains("UITestCampWeekly") { screen = .weekly }
+            // 아지트 서브화면 바로 진입(i18n·도감 검증용). 출시 바이너리엔 비포함.
+            let campArgs = ProcessInfo.processInfo.arguments
+            if campArgs.contains("UITestOpenCodex") { screen = .codex }
+            if campArgs.contains("UITestOpenShop") { screen = .shop }
+            if campArgs.contains("UITestOpenGear") { screen = .equipment }
+            if campArgs.contains("UITestOpenDungeons") { screen = .dungeons }
             #else
             let uiTestOpenStats = false
             #endif
