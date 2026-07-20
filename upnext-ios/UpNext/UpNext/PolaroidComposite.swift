@@ -83,8 +83,11 @@ enum PolaroidComposite {
             cgCtx.restoreGState()
 
             // 3. 오렌지 날짜 스탬프
+            //   웹 polaroidComposite.ts 포맷 `'YY MM DD HH:mm`. Unicode 패턴에서 리터럴
+            //   아포스트로피는 `''`. 닫히지 않은 `'yy…`는 "yy MM dd HH:mm" 리터럴로 찍히던 버그.
             let df = DateFormatter()
-            df.dateFormat = "'yy MM dd HH:mm"
+            df.locale = Locale(identifier: "en_US_POSIX")
+            df.dateFormat = "''yy MM dd HH:mm"
             let dateStr = df.string(from: timestamp)
             let stampColor = UIColor(red: 1.0, green: 107/255, blue: 53/255, alpha: 1)
             let stampAttr: [NSAttributedString.Key: Any] = [
@@ -157,13 +160,45 @@ enum PolaroidComposite {
                 withAttributes: attr
             )
         case .image:
-            // 자산 이름으로 로드 (Assets.xcassets / Bundle).
-            if let img = UIImage(named: s.content) {
+            if s.content == "upnext-logo" {
+                // P3(g) 브랜드 스티커 합성 — 화면 StickerLayer 와 동일한 흰 카드 + 워드마크.
+                //   기존 UIImage(named:"upnext-logo") 는 asset 부재로 nil → 저장본에서 소실됐다.
+                let cardW = size * 1.3
+                let cardH = size * 0.55
+                let logo = brandLogoImage(cardW: cardW, cardH: cardH)
+                logo.draw(in: CGRect(x: -cardW / 2, y: -cardH / 2, width: cardW, height: cardH))
+            } else if let img = UIImage(named: s.content) {
+                // 그 외 자산 이름으로 로드 (Assets.xcassets / Bundle).
                 img.draw(in: CGRect(x: -size/2, y: -size/2, width: size, height: size))
             }
         }
 
         ctx.restoreGState()
+    }
+
+    /// 브랜드 로고 스티커 — 흰 둥근 카드 위 UpNext 워드마크(#212727)를 오프스크린 렌더.
+    /// 웹 StickerLayer 의 흰 카드 + UpNextLogoMark 와 시각 일치. 합성 컨텍스트 안에서
+    /// 회전/이동 CTM 아래 draw 되도록 UIImage 로 만들어 넘긴다.
+    private static func brandLogoImage(cardW: CGFloat, cardH: CGFloat) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: cardW, height: cardH)).image { _ in
+            let cardRect = CGRect(x: 0, y: 0, width: cardW, height: cardH)
+            UIColor.white.setFill()
+            UIBezierPath(roundedRect: cardRect, cornerRadius: 8).fill()
+
+            guard let wm = UIImage(named: "Wordmark") else { return }
+            let padX = cardW * 0.10
+            let padY = cardH * 0.16
+            let avail = CGRect(x: padX, y: padY,
+                               width: cardW - 2 * padX, height: cardH - 2 * padY)
+            let aspect = wm.size.height > 0 ? wm.size.width / wm.size.height : 2.673
+            var dw = avail.width
+            var dh = dw / aspect
+            if dh > avail.height { dh = avail.height; dw = dh * aspect }
+            let drawRect = CGRect(x: avail.midX - dw / 2, y: avail.midY - dh / 2,
+                                  width: dw, height: dh)
+            let tint = UIColor(red: 33.0 / 255, green: 39.0 / 255, blue: 39.0 / 255, alpha: 1)
+            wm.withTintColor(tint, renderingMode: .alwaysOriginal).draw(in: drawRect)
+        }
     }
 }
 

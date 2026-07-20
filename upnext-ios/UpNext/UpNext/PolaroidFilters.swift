@@ -39,6 +39,10 @@ enum PolaroidFilters {
             if let result = f.outputImage { output = result }
         }
         // 1. Sepia 0.28
+        //    P4-b 주: 웹 CSS `sepia(0.28)` 와 색조 방향이 다르지만(iOS 웜 vs 웹 틸), 이는 누락이
+        //    아니라 피델리티 편차(blocker 아님). CSS sepia 행렬 + 승산 brightness 로 이식을 시도했으나
+        //    CoreImage 의 saturation/contrast 색공간 차로 블루의 R 채널이 0 으로 하드클램프되어
+        //    (skin/red 뭉개짐) 원본보다 나빠 회귀 위험 → 기존 CISepiaTone 체인 유지. 웹 정합은 후속.
         if let f = CIFilter(name: "CISepiaTone") {
             f.setValue(output, forKey: kCIInputImageKey)
             f.setValue(0.28, forKey: kCIInputIntensityKey)

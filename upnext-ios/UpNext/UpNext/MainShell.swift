@@ -238,6 +238,11 @@ struct MainTabView: View {
                 title: localizedCaptureTitle(item),
                 category: item.category,
                 onSave: { image, signature, memo, stickers in
+                    // P1-b(1안·웹 패리티): 완료(XP/레벨업)를 사진 저장 뒤로 직렬화 — 웹
+                    //   handleCaptureComplete→finishChallenge(DailyBoard.tsx:248-252)와 동일 순서.
+                    //   savePhoto 가 pendingCapture=nil 로 cover 를 먼저 내리고(fullScreenCover 는
+                    //   ZStack 오버레이보다 네이티브 상위라 레벨업이 가려짐), 그 다음 완료 →
+                    //   레벨업 오버레이는 캡처 모달이 닫힌 뒤에만 노출된다.
                     growth.savePhoto(
                         image: image,
                         signature: signature,
@@ -247,8 +252,15 @@ struct MainTabView: View {
                         category: item.category,
                         stickers: stickers
                     )
+                    store.completePhaseChallenge(item.cardId)
                 },
-                onCancel: { growth.cancelCapture() }
+                // 취소=사진 없이 완료 처리 — 완료 의도(버튼 ①)는 이미 표명됐으므로 사진만
+                //   생략하고 완료는 유실시키지 않는다. completePhaseChallenge 는 이미 완료된
+                //   카드/미선택 카드(예: UITest "uitest")엔 no-op 가드라 중복/오완료가 없다.
+                onCancel: {
+                    growth.cancelCapture()
+                    store.completePhaseChallenge(item.cardId)
+                }
             )
         }
     }

@@ -20,6 +20,9 @@
 
 import SwiftUI
 import PhotosUI
+#if DEBUG
+import PencilKit
+#endif
 
 struct PhotoCaptureModal: View {
     /// 헤더에 표시할 챌린지 제목 — nil 이면 자유 캡처 (제목 캡슐 생략).
@@ -96,6 +99,12 @@ struct PhotoCaptureModal: View {
     @State private var signatureData: Data? = nil
     @State private var memoText: String = ""
     @State private var flipped: Bool = false
+    // P3(d) 사용자 지시 — 뒷면 메모 진입 시 키보드 즉시 표시. MemoEditor 의 focus: 파라미터에
+    //   직접 배선한다(합성 View 바깥 .focused() 는 no-op 이 되는 SwiftUI 함정 회피).
+    @FocusState private var memoFocused: Bool
+    // P4 — 편집 오버레이(폴라로이드 프레임=서명/스티커 컨테이너)의 실제 point 크기.
+    //   서명 합성 시 이 크기로 렌더한 뒤 600×727 로 균일 스케일해 웹과 좌표 정합.
+    @State private var polaroidEditorSize: CGSize = .zero
     @State private var currentTool: DecorationTool = .pen
     @State private var penColor: PenColor = .black
     @State private var penWidth: PenWidth = .medium
@@ -109,6 +118,12 @@ struct PhotoCaptureModal: View {
     @State private var ejectCameraY: CGFloat = 0    // 카메라 top/bottom 레이어 퇴장 offset
     @State private var developProgress: Double = 0  // 0 sepia/어둠 → 1 풀컬러 현상
     @State private var ejectStarted: Bool = false   // onAppear 중복 방지
+
+    #if DEBUG
+    // #10 정량 왕복 검증 훅(출시 바이너리 비포함) — UITestDecorateProbe.
+    @State private var probeDidSetup = false
+    @State private var probeDidStroke = false
+    #endif
 
     private enum Phase { case capture, ejecting, decorate }
 
@@ -133,6 +148,9 @@ struct PhotoCaptureModal: View {
                 PolaroidShareSheet(image: img)
             }
         }
+        #if DEBUG
+        .onAppear { decorateProbeSetup() }
+        #endif
         // 갤러리 폴백 — 카메라 불가(시뮬/권한)거나 뷰파인더 탭 시 프로그램적으로 오픈.
         .photosPicker(isPresented: $showGalleryPicker, selection: $photosPickerItem, matching: .images)
         .onChange(of: photosPickerItem) { item in
@@ -140,7 +158,9 @@ struct PhotoCaptureModal: View {
             Task {
                 guard let data = try? await item.loadTransferable(type: Data.self),
                       let img = UIImage(data: data) else { return }
-                await MainActor.run { beginEject(img) }
+                // 갤러리 폴백 — 기기 노출계가 없으므로 EXPOSURE 다이얼 값을 CIExposureAdjust 로
+                //   소프트 베이크(P2-a: 갤러리 경로만 소프트 노출, 카메라는 하드웨어 bias).
+                await MainActor.run { beginEject(img, exposureEV: exposureEV) }
             }
         }
     }
@@ -289,9 +309,20 @@ struct PhotoCaptureModal: View {
             Color(hex: 0x1A1D1E)
 
             // 라이브 카메라 (시뮬엔 프레임 없음 → cameraError=true → 갤러리 폴백)
-            PhotoCaptureView(onCapture: { img in beginEject(img, exposureEV: exposureEV) },
+            //   exposureEV 바인딩 → 기기 setExposureTargetBias 로 라이브 프리뷰 밝기 실시간 반영(P2-a).
+            //   하드웨어 캡처는 이미 노출이 반영되므로 beginEject 는 exposureEV:0 (이중적용 방지).
+            PhotoCaptureView(onCapture: { img in beginEject(img, exposureEV: 0) },
                              facingFront: $facingFront, flashOn: $flashOn,
+                             exposureEV: $exposureEV,
                              cameraError: $cameraError, coordinator: captureCoord)
+
+            // FLASH 라이브 프리뷰 밝기 파리티 — 웹 video CSS `brightness(1.15)` 근사(P2-b).
+            //   라이브 프리뷰 위 화이트 15% 컴포짓. 시뮬/갤러리(cameraError) 모드엔 미적용.
+            if flashOn && !cameraError {
+                Color.white
+                    .opacity(0.15)
+                    .allowsHitTesting(false)
+            }
 
             // 매트 스크린 그레인
             Image(uiImage: PolaroidFilters.paperTexture())
@@ -598,18 +629,24 @@ struct PhotoCaptureModal: View {
     /// 프레임을 timestamp 로 랜덤 결정하고, Kodak 필터를 백그라운드 1회만 돌려 캐시한 뒤
     /// 배출 애니메이션을 시작한다. body 안에서는 필터를 절대 돌리지 않는다.
     private func beginEject(_ img: UIImage, exposureEV ev: Double = 0) {
-        capturedImage = img
+        // (P1-a·1·3) 표시용 이미지는 항상 즉시 다운샘플 — SwiftUI 가 12MP 원본을 첫 디코드/렌더
+        //   하며 배출·데코가 프리즈하던 근본 원인 제거(웹은 촬영부터 ~800px CSS-filter). capturedImage
+        //   자체를 축소본(960, 웹 800 계열)으로 대체하므로 이후 `filteredImage ?? capturedImage`
+        //   표시·합성 경로가 전부 ≤960px. 원본 12MP 는 여기서 1회만 디코드(다운샘플)하고 버린다.
+        let preview = PolaroidFilters.downsample(img, maxDimension: 960)
+        capturedImage = preview
         let ts = Date()
         captureTimestamp = ts
         frameVariant = PolaroidFrameVariant.random(timestamp: ts)   // 웹 pickVariant (선택 UI 없음)
         filteredImage = nil
 
         // Kodak 필름룩 — 06-photo-flow(a): 캡처 직후 백그라운드 1회. body 재평가와 무관.
-        // maxDimension 1200 다운샘플로 CIFilter/디코드 비용 절감 (표시·합성엔 충분).
-        // exposureEV(EXPOSURE 다이얼) 를 여기서 1회 베이크 — 이후 filteredImage 재사용이라
-        //   합성(composite)은 applyFilter:false 로 이중 적용 안 됨.
+        //   이미 축소된 preview(960)를 재사용해 원본 12MP 재디코드를 피한다(표시·합성엔 충분).
+        // exposureEV(EXPOSURE 다이얼): 카메라 경로는 0(하드웨어 setExposureTargetBias 가 캡처에
+        //   이미 반영, P2-a 이중적용 방지), 갤러리 폴백만 CIExposureAdjust 로 소프트 베이크.
+        //   이후 filteredImage 재사용이라 합성(composite)은 applyFilter:false 로 이중 적용 안 됨.
         DispatchQueue.global(qos: .userInitiated).async {
-            let filtered = PolaroidFilters.applyKodak(img, maxDimension: 1200, exposureEV: ev)
+            let filtered = PolaroidFilters.applyKodak(preview, exposureEV: ev)
             DispatchQueue.main.async { self.filteredImage = filtered }
         }
 
@@ -675,6 +712,12 @@ struct PhotoCaptureModal: View {
         PolaroidFrame(image: filteredImage ?? capturedImage,
                       timestamp: captureTimestamp,
                       variant: frameVariant) { EmptyView() }
+            // (P1-a·2) 무거운 프레임 서브트리(Canvas 크로스해치 수백 path·blur stroke·그라디언트·
+            //   paperTexture)를 drawingGroup 으로 1회 래스터화해 정적 비트맵으로 고정. 이후 현상용
+            //   애니메이팅 컬러필터(saturation/brightness/contrast)+세피아 오버레이는 그 플랫 비트맵
+            //   위 GPU 패스만 돌므로, 1.8s 배출 내내 중첩 compositingGroup+Canvas 를 매 프레임
+            //   재래스터화하던 실기기 프리즈가 사라진다(배출 모션·현상 룩은 동일 — P2 정상 판정 유지).
+            .drawingGroup()
             .saturation(0.35 + 0.65 * developProgress)
             .brightness(-0.15 * (1 - developProgress))
             .contrast(0.9 + 0.1 * developProgress)
@@ -736,7 +779,10 @@ struct PhotoCaptureModal: View {
                         .padding(8)
                 }
                 Spacer()
-                Button { flipped.toggle() } label: {
+                Button {
+                    if memoFocused { memoFocused = false }
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { flipped.toggle() }
+                } label: {
                     Text(flipped ? AppConfig.loc("앞면") : AppConfig.loc("뒷면 메모"))
                         .typography(.caption)
                         .foregroundStyle(Color.textSecondary)
@@ -752,19 +798,28 @@ struct PhotoCaptureModal: View {
             .padding(.horizontal, 16)
 
             // 폴라로이드 (PolaroidTilt + PolaroidFlip 합성)
+            //   틸트 enabled: !flipped — 뒷면(메모)에선 틸트를 하위뷰로 양보(메모 탭이 편집 진입).
+            //   플립 enabled: !memoFocused — 메모 편집 중엔 드래그 플립 비활성(포커스 탈취 방지).
+            //   (PhotoDetailModal 과 동일한 GestureMask 게이트 규약. 뷰 정체성 유지.)
             PolaroidTilt(content: {
-                PolaroidFlip(flipped: $flipped, front: { frontFace }, back: { backFace })
-            })
+                PolaroidFlip(flipped: $flipped, enabled: !memoFocused,
+                             front: { frontFace }, back: { backFace })
+            }, enabled: !flipped)
             .frame(maxWidth: 320)
             .padding(.vertical, 8)
 
-            DecorationToolbar(
-                currentTool: $currentTool,
-                penColor: $penColor,
-                penWidth: $penWidth,
-                onPickSticker: { stickers.append($0) }
-            )
-            .padding(.horizontal, 16)
+            // P3(d) 사용자 지시 — 뒷면 메모 화면에선 꾸미기 툴박스를 임시로 숨긴다(펜/지우개/
+            //   스티커 스와치는 앞면 사진 전용). 앞면 복귀 시 자동 복원.
+            if !flipped {
+                DecorationToolbar(
+                    currentTool: $currentTool,
+                    penColor: $penColor,
+                    penWidth: $penWidth,
+                    onPickSticker: { stickers.append($0) }
+                )
+                .padding(.horizontal, 16)
+                .transition(.opacity)
+            }
 
             Button { save() } label: {
                 Group {
@@ -774,7 +829,10 @@ struct PhotoCaptureModal: View {
                             Text(AppConfig.loc("저장 중…"))
                         }
                     } else {
-                        Text("저장")
+                        // P3(a) 저장모델 명확화 — 캡처의 단일 명시 저장은 "꾸미기(사진+데코+메모)
+                        //   전체를 한 번에 커밋"하는 창작 행위. 상세뷰의 메모 자동저장(편집)과
+                        //   구분되게 라벨을 "꾸미기 저장"으로 축소해 이원화 혼란을 줄인다.
+                        Text(AppConfig.loc("꾸미기 저장"))
                     }
                 }
                 .typography(.body)
@@ -788,6 +846,18 @@ struct PhotoCaptureModal: View {
             .disabled(isSaving)
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
+        }
+        .animation(.easeInOut(duration: 0.2), value: flipped)
+        // P3(d) 사용자 지시 — 뒷면 진입 시 키보드 즉시 표시, 앞면 복귀 시 해제.
+        //   플립 애니메이션이 시작된 뒤(≈0.35s) 포커스를 줘 3D 회전 중 포커스 점프를 피한다.
+        .onChange(of: flipped) { isBack in
+            if isBack {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    if flipped { memoFocused = true }
+                }
+            } else {
+                memoFocused = false
+            }
         }
     }
 
@@ -810,14 +880,39 @@ struct PhotoCaptureModal: View {
                 .allowsHitTesting(true)
             }
         }
+        // P4 좌표 정합 — 오버레이(스티커/서명) 컨테이너를 폴라로이드 프레임과 동일 bounds 로
+        //   강제(웹 absolute inset-0). 그리디 자식(GeometryReader/PKCanvasView)이 ZStack 을
+        //   세로로 늘려 컨테이너 aspect(≈0.55)가 합성 600:727(0.825)과 어긋나던 것을 제거 →
+        //   컨테이너=프레임=600:727. 서명 CROP 오배치·스티커 세로 드리프트 모두 해소.
+        .aspectRatio(frameVariant.aspectRatio, contentMode: .fit)
+        .background(
+            GeometryReader { geo in
+                Color.clear.preference(key: EditorSizeKey.self, value: geo.size)
+            }
+        )
+        .onPreferenceChange(EditorSizeKey.self) {
+            polaroidEditorSize = $0
+            #if DEBUG
+            decorateProbeStrokeIfReady()
+            #endif
+        }
     }
 
     private var backFace: some View {
         ZStack {
             Color.paperCream.clipShape(RoundedRectangle(cornerRadius: 2))
-            VStack {
-                MemoEditor(text: $memoText)
+            VStack(spacing: 0) {
+                // 포커스를 파라미터로 넘겨 실제 내부 TextEditor 의 .focused() 에 직접 연결(합성 View
+                //   바깥 .focused() 는 no-op 이 되는 함정 회피 — PhotoDetailModal 과 동일 규약).
+                MemoEditor(text: $memoText, focus: $memoFocused)
                     .padding(8)
+                // P3(a/d) 뒷면 힌트 — 캡처 backFace 엔 없던 placeholder. 비어있고 미편집일 때만.
+                if memoText.trimmingCharacters(in: .whitespaces).isEmpty && !memoFocused {
+                    Text(AppConfig.loc("탭하여 메모를 남겨요"))
+                        .typography(.micro)
+                        .foregroundStyle(Color.inkWarmText.opacity(0.5))
+                        .padding(.bottom, 10)
+                }
             }
         }
         .aspectRatio(184.0/223.0, contentMode: .fit)
@@ -848,6 +943,12 @@ struct PhotoCaptureModal: View {
         let variantBg = UIColor(Color(hex: frameVariant.backgroundHex))
         let scale = UIScreen.main.scale
         let sigData = signatureData
+        // P4 — 서명을 편집 캔버스 실제 point 크기로 렌더한 뒤 PolaroidComposite 가 600×727 로
+        //   균일 스케일(0,0,600,727)한다. 편집 컨테이너 aspect 가 600:727 로 잠겨 있어(frontFace
+        //   aspect-lock) 왜곡 없이 정합. 폴백(레이아웃 전)은 600×727(구 동작).
+        let editorSize: CGSize = (polaroidEditorSize.width > 1 && polaroidEditorSize.height > 1)
+            ? polaroidEditorSize
+            : CGSize(width: 600, height: 727)
         let compositeStickers = stickers.map {
             CompositeSticker(
                 id: $0.id.uuidString,
@@ -859,7 +960,7 @@ struct PhotoCaptureModal: View {
         DispatchQueue.global(qos: .userInitiated).async {
             let sigImage = SignatureCanvas.renderImage(
                 from: sigData,
-                size: CGSize(width: 600, height: 727),
+                size: editorSize,
                 scale: scale
             )
             let composited = PolaroidComposite.render(
@@ -896,7 +997,105 @@ struct PhotoCaptureModal: View {
             self.showShareSheet = true
         }
     }
+
+    #if DEBUG
+    // MARK: - #10 정량 왕복 검증 프로브 (UITestDecorateProbe, 출시 비포함)
+    //
+    // 절차: 결정 위치에 스티커(⭐ 50/25%) + 낙서(캡션영역 가로선, editor 프랙션 기준) 를
+    //   프로그램적으로 배치 → 저장 → 앨범 저장본에서 같은 위치에 렌더되는지 픽셀 검증.
+    //   낙서를 top-left 가 아닌 하단(≈80%y)에 둬 P4 수정(SCALE) 과 구버그(CROP)를 확실히 구분.
+
+    private func decorateProbeSetup() {
+        guard ProcessInfo.processInfo.arguments.contains("UITestDecorateProbe"),
+              !probeDidSetup else { return }
+        probeDidSetup = true
+        let img = Self.makeProbePhoto()
+        captureTimestamp = Date()
+        frameVariant = .five
+        capturedImage = img
+        filteredImage = img          // 필터 베이크 스킵 — 좌표 검증에 집중
+        stickers = [Sticker(type: .emoji, content: "⭐️", x: 50, y: 25)]
+        currentTool = .pen
+        phase = .decorate
+    }
+
+    private func decorateProbeStrokeIfReady() {
+        guard ProcessInfo.processInfo.arguments.contains("UITestDecorateProbe"),
+              !probeDidStroke, polaroidEditorSize.width > 1 else { return }
+        probeDidStroke = true
+        let size = polaroidEditorSize
+        signatureData = Self.makeProbeStroke(in: size)
+        // 필터 자체검증 — 솔리드 블루(60,120,200)에 Kodak 적용 후 중앙 픽셀 로그(웹 타깃 (61,134,196)).
+        Self.logKodakSample()
+        // 저장(합성 → GrowthStore 커밋). 실제 save 경로(백그라운드 합성)로 왕복 검증.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { save() }
+    }
+
+    /// 검증용 사진 — 파랑 바탕 + 4모서리 색블록(좌표 오리엔테이션 확인).
+    private static func makeProbePhoto() -> UIImage {
+        let s: CGFloat = 800
+        return UIGraphicsImageRenderer(size: CGSize(width: s, height: s)).image { rc in
+            let c = rc.cgContext
+            c.setFillColor(UIColor(red: 60/255, green: 120/255, blue: 200/255, alpha: 1).cgColor)
+            c.fill(CGRect(x: 0, y: 0, width: s, height: s))
+            let corners: [(CGRect, UIColor)] = [
+                (CGRect(x: 0, y: 0, width: 160, height: 160), .red),
+                (CGRect(x: s-160, y: 0, width: 160, height: 160), .green),
+                (CGRect(x: 0, y: s-160, width: 160, height: 160), .yellow),
+                (CGRect(x: s-160, y: s-160, width: 160, height: 160), .magenta),
+            ]
+            for (r, col) in corners { col.setFill(); c.fill(r) }
+        }
+    }
+
+    /// 검증용 낙서 — 편집 캔버스 하단(≈80%y)을 가로지르는 검은 획(x 15%→85%).
+    private static func makeProbeStroke(in size: CGSize) -> Data {
+        let ink = PKInk(.pen, color: .black)
+        let y = size.height * 0.80
+        var points: [PKStrokePoint] = []
+        let n = 40
+        for i in 0...n {
+            let t = CGFloat(i) / CGFloat(n)
+            let x = size.width * (0.15 + 0.70 * t)
+            points.append(PKStrokePoint(
+                location: CGPoint(x: x, y: y),
+                timeOffset: TimeInterval(i) * 0.008,
+                size: CGSize(width: 6, height: 6),
+                opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2))
+        }
+        let path = PKStrokePath(controlPoints: points, creationDate: Date())
+        let stroke = PKStroke(ink: ink, path: path)
+        return PKDrawing(strokes: [stroke]).dataRepresentation()
+    }
+
+    /// P4-b 필터 자체검증 — 솔리드 블루에 Kodak 적용 후 중앙 픽셀 로그.
+    private static func logKodakSample() {
+        let src = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 40)).image { rc in
+            UIColor(red: 60/255, green: 120/255, blue: 200/255, alpha: 1).setFill()
+            rc.fill(CGRect(x: 0, y: 0, width: 40, height: 40))
+        }
+        guard let out = PolaroidFilters.applyKodak(src), let cg = out.cgImage else { return }
+        var buf = [UInt8](repeating: 0, count: 4)
+        if let c = CGContext(data: &buf, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                             space: CGColorSpaceCreateDeviceRGB(),
+                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+            c.draw(cg, in: CGRect(x: -Int(out.size.width)/2, y: -Int(out.size.height)/2,
+                                  width: Int(out.size.width), height: Int(out.size.height)))
+            NSLog("PROBE kodak blue(60,120,200) -> (\(buf[0]),\(buf[1]),\(buf[2]))  web target (61,134,196)")
+        }
+    }
+    #endif
 }
 
 // (이전의 `.upnextCameraShutter` Notification.Name 은 셔터 트리거가 코디네이터
 //  직호출로 바뀌면서 폐기 — 옵저버가 없던 dead code 였다.)
+
+/// P4 — 편집 오버레이(폴라로이드 프레임) 실제 렌더 크기를 위로 전달하는 PreferenceKey.
+///   서명 합성 좌표 기준(편집 point 공간)을 잡는 데만 쓴다.
+private struct EditorSizeKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        let next = nextValue()
+        if next != .zero { value = next }
+    }
+}

@@ -28,6 +28,10 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
     let onCapture: (UIImage) -> Void
     @Binding var facingFront: Bool
     @Binding var flashOn: Bool
+    /// EXPOSURE 다이얼(EV, -2..+2) — 웹 PhotoCaptureModal exposureEV. 값 변경 시 기기
+    /// `setExposureTargetBias` 로 라이브 AVCaptureVideoPreviewLayer 밝기를 실시간 반영(P2-a).
+    /// 웹의 프리뷰 CSS `brightness(2^EV)` WYSIWYG 대응.
+    @Binding var exposureEV: Double
     /// 카메라 사용 불가(시뮬레이터·권한 거부·하드웨어 없음)일 때 true 로 세팅.
     /// 웹 PhotoCaptureModal 의 `cameraError` 대응 — 부모가 갤러리 폴백을 노출한다.
     @Binding var cameraError: Bool
@@ -39,6 +43,7 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
         let vc = CameraVC()
         vc.onCapture = onCapture
         vc.facingFront = facingFront
+        vc.exposureEV = exposureEV
         vc.onCameraUnavailable = { DispatchQueue.main.async { cameraError = true } }
         coordinator?.vc = vc
         return vc
@@ -50,6 +55,11 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
             vc.reconfigure()
         }
         vc.flashOn = flashOn
+        // EXPOSURE 다이얼 변화 시에만 기기 노출 bias 재적용(매 update 마다 스팸 방지).
+        if vc.exposureEV != exposureEV {
+            vc.exposureEV = exposureEV
+            vc.applyExposureBias()
+        }
         // SwiftUI 가 representable 을 재생성할 때마다 코디네이터에 현재 VC 보장.
         coordinator?.vc = vc
     }
@@ -69,10 +79,14 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
     var onCameraUnavailable: (() -> Void)?
     var facingFront: Bool = false
     var flashOn: Bool = false
+    /// EXPOSURE 다이얼 EV(-2..+2) — `applyExposureBias()` 로 기기 노출계에 반영.
+    var exposureEV: Double = 0
 
     private let session = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
     private var previewLayer: AVCaptureVideoPreviewLayer?
+    /// 현재 활성 비디오 장치 — setExposureTargetBias 대상. configure/reconfigure 에서 갱신.
+    private var videoDevice: AVCaptureDevice?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -110,10 +124,12 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
               let input = try? AVCaptureDeviceInput(device: device) else {
             session.commitConfiguration()
+            videoDevice = nil
             // 시뮬레이터/권한 거부/하드웨어 없음 — 갤러리 폴백 노출을 위해 부모에 통지.
             onCameraUnavailable?()
             return
         }
+        videoDevice = device
         if session.canAddInput(input) { session.addInput(input) }
         if !session.outputs.contains(photoOutput),
            session.canAddOutput(photoOutput) {
@@ -130,6 +146,23 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
         }
         Self.sessionQueue.async { [weak self] in
             self?.session.startRunning()
+        }
+        // 세션 구성 직후 현재 EXPOSURE 값 반영(플립 후 재구성 시 다이얼 값 유지).
+        applyExposureBias()
+    }
+
+    /// EXPOSURE 다이얼(EV) → 기기 노출 보정. 라이브 프리뷰가 실시간으로 밝기 반영(웹 패리티).
+    /// 기기 bias 범위(통상 ±8EV)로 클램프하므로 ±2 는 항상 유효. 세션 큐에서 lockForConfiguration
+    /// 해 configure/start 와 직렬화(레이스 방지). 장치 없음(시뮬)이면 무시.
+    func applyExposureBias() {
+        guard let device = videoDevice else { return }
+        let ev = exposureEV
+        Self.sessionQueue.async {
+            guard (try? device.lockForConfiguration()) != nil else { return }
+            let clamped = max(device.minExposureTargetBias,
+                              min(device.maxExposureTargetBias, Float(ev)))
+            device.setExposureTargetBias(clamped, completionHandler: nil)
+            device.unlockForConfiguration()
         }
     }
 

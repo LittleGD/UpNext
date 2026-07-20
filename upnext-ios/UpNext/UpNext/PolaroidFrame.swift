@@ -259,7 +259,12 @@ struct PolaroidFrame<Caption: View>: View {
 
     private var dateStamp: String {
         let f = DateFormatter()
-        f.dateFormat = "'yy MM dd HH:mm"
+        // 웹 PolaroidFrameBase.tsx 포맷: `'YY MM DD HH:mm` (예 '25 07 20 14:30).
+        //   Unicode 패턴에서 `'`(단일 따옴표)는 리터럴 구간을 여는 구분자라, 닫히지 않은
+        //   `'yy…`는 뒤 전체를 리터럴로 삼아 "yy MM dd HH:mm" 가 그대로 찍히던 버그.
+        //   리터럴 아포스트로피는 `''`(두 개)로 이스케이프해야 한다.
+        f.locale = Locale(identifier: "en_US_POSIX")   // 그레고리력·아라비아 숫자 고정
+        f.dateFormat = "''yy MM dd HH:mm"
         return f.string(from: timestamp)
     }
 }

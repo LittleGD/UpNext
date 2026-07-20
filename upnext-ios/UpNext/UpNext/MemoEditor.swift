@@ -15,7 +15,18 @@ struct MemoEditor: View {
     @Binding var text: String
     let maxLength: Int = 200
 
-    @FocusState private var focused: Bool
+    // 포커스 소유권 — 호출부가 `focus:` 로 자기 FocusState 를 넘기면 그걸 쓰고(합성 View
+    // 바깥에서 `.focused()` 를 붙이면 SwiftUI 에서 no-op 이 되는 함정을 제거), 안 넘기면
+    // 내부 @FocusState 로 자체 관리한다(PhotoCaptureModal 처럼 외부 포커스가 필요없는 곳).
+    //   PhotoDetailModal 은 뒷면 메모 편집 상태(memoEditing)를 이 포커스로 구동하므로
+    //   외부 바인딩이 반드시 실제 TextEditor 의 `.focused()` 에 직접 연결돼야 한다.
+    private let externalFocus: FocusState<Bool>.Binding?
+    @FocusState private var internalFocus: Bool
+
+    init(text: Binding<String>, focus: FocusState<Bool>.Binding? = nil) {
+        self._text = text
+        self.externalFocus = focus
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -26,7 +37,7 @@ struct MemoEditor: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 TextEditor(text: bindingClamped)
-                    .focused($focused)
+                    .focused(externalFocus ?? $internalFocus)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .font(.custom(AppFont.family, size: 16))

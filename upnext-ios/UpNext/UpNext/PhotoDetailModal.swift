@@ -30,6 +30,9 @@ struct PhotoDetailModal: View {
     @State private var shareImage: UIImage?
     @State private var entered = false
     @State private var memoSaveTask: Task<Void, Never>?
+    // 부적 의식 실패 피드백(코인 부족·이미 바인딩) — 웹 PhotoTalismanPicker onNotify 토스트
+    // 패턴 이식. 이 값이 있으면 하단 토스트를 띄운다. 실패를 침묵으로 버리던 결함 수정.
+    @State private var talismanToast: String?
     @FocusState private var memoFocused: Bool
 
     private let polaroidAspect: CGFloat = 184.0 / 223.0
@@ -57,6 +60,7 @@ struct PhotoDetailModal: View {
             .opacity(entered ? 1 : 0)
 
             if showDeleteConfirm { deleteConfirm }
+            if let toast = talismanToast { talismanToastView(toast) }
         }
         .sheet(isPresented: $showShareSheet) {
             if let img = shareImage { PolaroidShareSheet(image: img) }
@@ -66,6 +70,9 @@ struct PhotoDetailModal: View {
             withAnimation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.82)) {
                 entered = true
             }
+            #if DEBUG
+            applyUITestHooks()
+            #endif
         }
         .onChange(of: memoFocused) { focused in
             memoEditing = focused
@@ -112,9 +119,17 @@ struct PhotoDetailModal: View {
     // MARK: - 폴라로이드 (틸트 + 플립)
 
     private var polaroid: some View {
+        // 웹 PolaroidTilt/PolaroidFlip 의 textarea passthrough 근사 이식.
+        //   틸트(enabled: !flipped): 메모(뒷면)가 보일 때는 틸트를 하위뷰로 양보해야 메모 영역
+        //     탭이 TextEditor 로 전달돼 편집에 진입할 수 있다. 앞면(사진)에서만 틸트 활성.
+        //     (틸트 제스처는 minimumDistance 0 이라 켜져 있으면 메모 탭을 가로채 포커스가 실패한다.)
+        //   플립(enabled: !memoEditing): 편집 중엔 드래그 플립 비활성(내부에서 flipped 도 함께 검사).
+        // 두 컴포넌트 모두 제스처를 GestureMask 로만 게이트해 뷰 정체성을 유지 → 편집 진입 시
+        // memoFocused 가 살아있어 memoEditing 이 정상 구동된다.
         PolaroidTilt(content: {
-            PolaroidFlip(flipped: $flipped, front: { frontFace }, back: { backFace })
-        }, enabled: !memoEditing)
+            PolaroidFlip(flipped: $flipped, enabled: !memoEditing,
+                         front: { frontFace }, back: { backFace })
+        }, enabled: !flipped)
         .frame(maxWidth: 300)
         .padding(.vertical, 4)
     }
@@ -140,8 +155,10 @@ struct PhotoDetailModal: View {
         ZStack {
             Color.paperCream.clipShape(RoundedRectangle(cornerRadius: 4))
             VStack(spacing: 0) {
-                MemoEditor(text: $memoDraft)
-                    .focused($memoFocused)
+                // 포커스를 합성 View(MemoEditor) 바깥에 `.focused()` 로 붙이면 SwiftUI 에서
+                // no-op → memoFocused 가 영원히 false 로 죽던 함정 제거. 이제 focus 를
+                // 파라미터로 넘겨 실제 내부 TextEditor 의 `.focused()` 에 직접 연결한다.
+                MemoEditor(text: $memoDraft, focus: $memoFocused)
                     .padding(14)
                 if memoDraft.trimmingCharacters(in: .whitespaces).isEmpty && !memoEditing {
                     Text("탭하여 메모를 남겨요")
@@ -247,9 +264,45 @@ struct PhotoDetailModal: View {
         Haptics.play(.selection)
         flushMemo()
         // 코인 부족·이미 바인딩이면 의식이 시작되지 않음(실패 결과). 성공 시 닫고
-        // 앨범의 의식 오버레이가 이어받는다.
+        // 앨범(AlbumView)의 의식 오버레이가 pendingTalismanPhoto 를 구독해 이어받는다.
         let result = upHero.beginPhotoTalismanRitual(photo: meta)
-        if result.ok { onClose() }
+        if result.ok {
+            onClose()
+        } else if let err = result.error {
+            // 실패를 침묵으로 버리던 결함 수정 — 웹 onNotify 처럼 사운드·햅틱·토스트로
+            // 사유(코인 부족/이미 부적)를 반드시 노출한다(기본 0코인 유저의 무반응 해소).
+            SoundPlayer.shared.play(.cancel)
+            Haptics.play(.warning)
+            showTalismanToast(err)
+        }
+    }
+
+    /// 부적 실패 토스트 — 2초 후 자동 소멸(웹 PhotoTalismanPicker.showToast 패턴).
+    private func showTalismanToast(_ msg: String) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { talismanToast = msg }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            if talismanToast == msg {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { talismanToast = nil }
+            }
+        }
+    }
+
+    private func talismanToastView(_ msg: String) -> some View {
+        VStack {
+            Spacer()
+            Text(msg)
+                .typography(.caption)
+                .foregroundStyle(Color.textPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.bgElevated, in: Capsule())
+                .padding(.bottom, 60)
+                .padding(.horizontal, 32)
+        }
+        .transition(.opacity)
+        .allowsHitTesting(false)   // 백드롭 탭(닫기) 관통 허용
+        .accessibilityIdentifier("talismanToast")
     }
 
     private func flushMemo() {
@@ -263,4 +316,38 @@ struct PhotoDetailModal: View {
         withAnimation(reduceMotion ? nil : .easeIn(duration: 0.18)) { entered = false }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { onClose() }
     }
+
+    #if DEBUG
+    // MARK: - UITest 검증 훅 (출시 바이너리엔 비포함)
+    //
+    // simctl 은 좌표 탭이 불가하므로, 상세 진입 후 각 결함 수정을 결정론적으로 재현하기
+    // 위한 런치 인자 훅. 기존 MainShell/GameStore 의 UITest 훅 패턴을 따른다.
+    //   UITestFlipMemo    : 뒷면(메모)으로 즉시 플립 — 플립 렌더 확인.
+    //   UITestOpenMemo    : 뒷면 플립 + 메모 포커스 → memoEditing 활성(포커스 바인딩 확인).
+    //   UITestGrantCoins  : 부적 성공 경로 검증용 코인 지급(200).
+    //   UITestTalismanTap : 부적 버튼 자동 탭 — 실패 토스트(0코인) 또는 성공(코인 지급 시).
+    private func applyUITestHooks() {
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("UITestFlipMemo") || args.contains("UITestOpenMemo")
+            || args.contains("UITestTypeMemo") {
+            flipped = true
+        }
+        if args.contains("UITestGrantCoins") {
+            upHero.addCoins(200)
+        }
+        if args.contains("UITestOpenMemo") || args.contains("UITestTypeMemo") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { memoFocused = true }
+        }
+        // 편집→저장 파이프라인(.onChange(of: memoDraft) → growth.updatePhotoMemo) 실측용:
+        // 메모 본문을 변경해 카운터/본문 갱신 + 디바운스 저장을 트리거.
+        if args.contains("UITestTypeMemo") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                memoDraft += " ✎편집저장"
+            }
+        }
+        if args.contains("UITestTalismanTap") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { makeTalisman() }
+        }
+    }
+    #endif
 }

@@ -143,12 +143,20 @@ private struct StickerView: View {
                 .minimumScaleFactor(0.5)
         case .image:
             if sticker.content == "upnext-logo" {
-                // 브랜드 마크 — 단순 SVG 대체 텍스트
-                Text("U↗")
-                    .font(.system(size: baseSize * 0.6, weight: .bold))
-                    .foregroundStyle(Color.accentPrimary)
-                    .frame(width: baseSize, height: baseSize)
-                    .background(Color.bgPrimary.opacity(0.85), in: Circle())
+                // P3(g) 브랜드 스티커 — 웹 StickerLayer 처럼 흰 둥근 카드 위 실제 UpNext 워드마크.
+                //   기존 "U↗" 임시 텍스트는 저품질이었고, 합성(PolaroidComposite)은 존재하지 않는
+                //   "upnext-logo" asset 을 참조해 저장본에서 완전 소실됐다. 앱에 이미 있는 "Wordmark"
+                //   벡터 asset(template)을 흰 카드에 얹어 화면·저장을 동일 브랜드 마크로 통일한다.
+                Image("Wordmark")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(Color(hex: 0x212727))
+                    .frame(width: baseSize * 1.05)
+                    .padding(.horizontal, baseSize * 0.10)
+                    .padding(.vertical, baseSize * 0.11)
+                    .frame(width: baseSize * 1.3, height: baseSize * 0.55)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 8))
             } else if let img = UIImage(named: sticker.content) {
                 Image(uiImage: img)
                     .resizable()

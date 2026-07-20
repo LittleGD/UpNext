@@ -39,7 +39,12 @@ struct PolaroidTilt<Content: View>: View {
     @State private var cardSize: CGSize = .zero
 
     var body: some View {
-        if reduceMotion || !enabled {
+        // reduceMotion 은 런타임에 토글되지 않으므로 구조 분기를 둬도 포커스 소실 위험이 없다.
+        // 반면 `enabled`(호출부의 flipped/편집 상태)는 런타임에 바뀌므로, 이걸 구조 분기(if !enabled
+        // { content() })로 두면 하위 TextEditor 가 재생성돼 포커스가 날아간다. 따라서 enabled 는
+        // 구조를 바꾸지 않고 tiltView 내부에서 제스처 mask·회전값만 게이트한다(웹 target.closest
+        // passthrough 근사 — 메모/textarea 면에선 틸트를 하위뷰로 양보).
+        if reduceMotion {
             content()
         } else {
             tiltView
@@ -70,8 +75,10 @@ struct PolaroidTilt<Content: View>: View {
                 .allowsHitTesting(false)
                 .clipShape(RoundedRectangle(cornerRadius: 4))   // 카드 코너와 정합 (웹 rounded-sm 대응, 누락분 보강)
             )
-            .rotation3DEffect(.degrees(rotX), axis: (x: 1, y: 0, z: 0), perspective: 0.8)
-            .rotation3DEffect(.degrees(rotY), axis: (x: 0, y: 1, z: 0), perspective: 0.8)
+            // enabled==false(메모 면)면 회전을 중립(0)으로 렌더해 카드를 평평하게 두고,
+            // 제스처는 GestureMask(.subviews)로 하위뷰(TextEditor)에 양보한다.
+            .rotation3DEffect(.degrees(enabled ? rotX : 0), axis: (x: 1, y: 0, z: 0), perspective: 0.8)
+            .rotation3DEffect(.degrees(enabled ? rotY : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.8)
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { g in
@@ -90,7 +97,8 @@ struct PolaroidTilt<Content: View>: View {
                             rotX = 0
                             rotY = 0
                         }
-                    }
+                    },
+                including: enabled ? .all : .subviews
             )
             .onAppear {
                 if autoHint { runAutoHint() }
