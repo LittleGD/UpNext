@@ -223,7 +223,7 @@ final class UpHeroStore: ObservableObject {
     /// GameStore.progress 소관이라 지급량만 반환한다 (호출부가 progress 에 적용).
     /// 반환: 지급할 XP (세션 없음/미완료면 0).
     @discardableResult
-    func acknowledgeSessionEnd() -> Int {
+    func acknowledgeSessionEnd(gameLevel: Int? = nil) -> Int {
         guard let session = state.currentSession,
               session.status == .completed else { return 0 }
         var rng = SystemRandom()
@@ -252,9 +252,17 @@ final class UpHeroStore: ObservableObject {
             let clearedF30 = bossesThisSession.contains(30)
             let reachedFloors = max(0, session.currentFloor - session.startFloor)
             let floorsCleared = clearedF30 ? reachedFloors + 1 : reachedFloors
-            // 세션 시작 시점 영웅 레벨 스냅샷(웹은 gameLevel-heroStartLevel+1 을 재계산하나
-            //   iOS 는 createSession 이 이미 그 값을 heroLevel 로 스냅샷해 둔다).
-            let heroLv = max(1, session.heroLevel ?? 1)
+            // 웹 파리티: 정산 시점에 gameLevel-heroStartLevel+1 재계산 — 세션 도중
+            // 챌린지 XP 로 레벨업하면 시작 스냅샷(session.heroLevel)은 낮은 점수를
+            // isNewBest 로 영구 업로드하는 비가역 결함이 있었다(코드리뷰 must-fix).
+            // gameLevel 미전달 폴백만 스냅샷 사용.
+            let heroLv: Int
+            if let gl = gameLevel {
+                heroLv = UpHeroRules.getEffectiveHeroLevel(
+                    gameLevel: gl, heroStartLevel: state.heroStartLevel)
+            } else {
+                heroLv = max(1, session.heroLevel ?? 1)
+            }
             let score = UpHeroRules.computeWeeklyScore(
                 floorsCleared: floorsCleared, remainingTime: session.time, heroLevel: heroLv)
             let isNewBest = score > weekly.bestScore
@@ -643,10 +651,10 @@ final class UpHeroStore: ObservableObject {
     func bindPhotoAsTalisman(photo: PhotoMeta) -> PhotoTalismanResult {
         guard !PhotoTalisman.isBound(photo.id, inventory: state.inventory,
                                      equipped: state.hero.equipped) else {
-            return talismanFail("이미 부적으로 만든 사진이에요")
+            return talismanFail(AppConfig.loc("이미 부적으로 만든 사진이에요"))
         }
         guard state.coins >= PhotoTalisman.ritualCost else {
-            return talismanFail("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)")
+            return talismanFail(AppConfig.loc("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)"))
         }
         var rng = SystemRandom()
         let rarity = PhotoTalisman.rollRarity(&rng)
@@ -666,15 +674,15 @@ final class UpHeroStore: ObservableObject {
     func rebindPhotoTalisman(photoId: String) -> PhotoTalismanResult {
         guard let found = PhotoTalisman.findBound(photoId, inventory: state.inventory,
                                                   equipped: state.hero.equipped) else {
-            return talismanFail("바인딩된 부적이 아니에요")
+            return talismanFail(AppConfig.loc("바인딩된 부적이 아니에요"))
         }
         let cur = found.item.enhanceLevel ?? 0
         guard cur < PhotoTalisman.maxEnhanceLevel else {
-            return talismanFail("이미 최대 강화(+\(PhotoTalisman.maxEnhanceLevel))예요")
+            return talismanFail(AppConfig.loc("이미 최대 강화(+\(PhotoTalisman.maxEnhanceLevel))예요"))
         }
         let cost = PhotoTalisman.rebindCost(currentLevel: cur)
         guard state.coins >= cost else {
-            return talismanFail("코인이 부족해요 (\(cost) 필요)")
+            return talismanFail(AppConfig.loc("코인이 부족해요 (\(cost) 필요)"))
         }
         let newItem = PhotoTalisman.rebuild(current: found.item, newLevel: cur + 1)
         mutate { s in
@@ -708,10 +716,10 @@ final class UpHeroStore: ObservableObject {
             return PhotoTalismanResult(ok: false, item: nil, error: nil)
         }
         if PhotoTalisman.isBound(photo.id, inventory: state.inventory, equipped: state.hero.equipped) {
-            return talismanFail("이미 부적으로 만든 사진이에요")
+            return talismanFail(AppConfig.loc("이미 부적으로 만든 사진이에요"))
         }
         if state.coins < PhotoTalisman.ritualCost {
-            return talismanFail("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)")
+            return talismanFail(AppConfig.loc("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)"))
         }
         pendingTalismanPhoto = photo
         return PhotoTalismanResult(ok: true, item: nil, error: nil)

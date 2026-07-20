@@ -568,8 +568,17 @@ struct DungeonView: View {
                      "보스 \(monster.name) 등장! (\(floor)층)")
         case let .choice(prompt, promptKey, promptParams, _, _, _, _, _, _, _):
             return promptKey.map { R($0, promptParams, prompt) } ?? prompt
-        case let .sessionEnd(reason, detail, detailKey, _, _, _, _):
-            if let detailKey { return R(detailKey, nil, detail ?? sessionEndText(reason)) }
+        case let .sessionEnd(reason, detail, detailKey, _, detailMonster, detailFloor, _):
+            // sessionEnd detail 도 {monster}/{floor} 토큰 치환 — 이전엔 params=nil 이라
+            //   killedBy/bossDefeated/abandonedAtFloor 템플릿의 토큰이 안 풀렸다(웹
+            //   SessionResultModal 은 monster/floor 주입). 웹 파리티로 detailMonsterFallback·
+            //   detailFloor 를 params 로 전달(monster 는 resolveLog 내 locRuntime 재현지화).
+            if let detailKey {
+                var p: NarrativeParams = [:]
+                if let detailMonster { p["monster"] = .text(detailMonster) }
+                if let detailFloor { p["floor"] = .number(Double(detailFloor)) }
+                return R(detailKey, p.isEmpty ? nil : p, detail ?? sessionEndText(reason))
+            }
             return detail ?? sessionEndText(reason)
         case let .skill(_, _, skillName, narrative, key, params, _):
             if let key { return R(key, params, narrative.isEmpty ? skillName : narrative) }

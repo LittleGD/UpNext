@@ -125,6 +125,9 @@ struct DeckHoldDraw: View {
         .onDisappear {
             holdTimer?.cancel(); holdTimer = nil
             isHolding = false; holdProgress = 0; didDraw = false; shakeX = 0
+            // 홀드 중 화면 이탈 시 CoreHaptics 연속 플레이어 정지 — 미정지 시 재진입에서
+            // 잔여 진동이 중첩된다(코드리뷰 haptics-holdcharge-ondisappear-leak).
+            Haptics.endHoldCharge(release: false)
         }
     }
 

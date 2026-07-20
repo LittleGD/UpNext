@@ -234,9 +234,20 @@ struct SessionResultModal: View {
         var reason: SessionEndReason = .heroAbandoned
         var detailText: String?
         for entry in s.log.reversed() {
-            if case let .sessionEnd(r, d, _, _, _, _, _) = entry {
+            if case let .sessionEnd(r, d, dKey, _, dMonster, dFloor, _) = entry {
                 reason = r
-                detailText = d
+                // 세션 결과 detail 다국어 — 이전엔 한국어 detail(d)을 그대로 렌더해 전
+                //   언어에서 "몬스터 에게 쓰러졌다" 등이 샜다. 웹 SessionResultModal 파리티로
+                //   detailKey 를 인앱 언어로 해석하고 monster/floor 를 주입한다(monster 는
+                //   resolveLog 내 locRuntime 재현지화). 키 없으면 한국어 fallback(legacy 세이브).
+                if let dKey {
+                    var p: NarrativeParams = [:]
+                    if let dMonster { p["monster"] = .text(dMonster) }
+                    if let dFloor { p["floor"] = .number(Double(dFloor)) }
+                    detailText = UpHeroNarrative.resolveLog(dKey, p.isEmpty ? nil : p, fallback: d ?? "")
+                } else {
+                    detailText = d
+                }
                 break
             }
         }

@@ -37,6 +37,15 @@ enum PhotoTalisman {
         .normal: "회상의 ", .rare: "빛바랜 ", .unique: "운명의 ", .legend: "신성한 ",
     ]
 
+    /// `flavor`(build() 시 rarityPrefix + 사용자 텍스트로 합성 저장된 값)를 렌더 시점에
+    /// 현지화 — 접두사만 카탈로그 경유로 번역하고 사용자 입력(메모/제목/날짜) 본문은
+    /// 원문 그대로 유지. 접두사+사용자텍스트 합성물은 접두사만 현지화하는 원칙.
+    static func localizedFlavor(_ flavor: String, rarity: Rarity) -> String {
+        guard let prefix = rarityPrefix[rarity], !prefix.isEmpty,
+              flavor.hasPrefix(prefix) else { return flavor }
+        return AppConfig.locRuntime(prefix) + flavor.dropFirst(prefix.count)
+    }
+
     /// rarity 분포 — legend 3% / unique 12% / rare 35% / normal 50%.
     static func rollRarity<R: RandomSource>(_ rng: inout R) -> Rarity {
         let r = rng.unit()

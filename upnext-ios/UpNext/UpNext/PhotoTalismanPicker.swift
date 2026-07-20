@@ -289,12 +289,15 @@ struct PhotoTalismanPicker: View {
                     if let skills = item.talismanSkills, !skills.isEmpty {
                         Text("부적 스킬").typography(.caption).foregroundStyle(Color.textTertiary).padding(.top, 4)
                         ForEach(skills, id: \.self) { sid in
-                            Text(TalismanSkills.catalog[sid]?.name ?? sid)
+                            // 런타임 문자열 — 인앱 언어 카탈로그 경유(HeroStatPanel 과 동일 패턴).
+                            Text(AppConfig.locRuntime(TalismanSkills.catalog[sid]?.name ?? sid))
                                 .typography(.caption).foregroundStyle(Color.accentPrimary)
                         }
                     }
                     if let flavor = item.flavor {
-                        Text(flavor).typography(.micro).foregroundStyle(Color.textTertiary)
+                        // rarity prefix(회상의/빛바랜/운명의/신성한)만 현지화, 사용자 텍스트는 원문 유지.
+                        Text(PhotoTalisman.localizedFlavor(flavor, rarity: item.rarity))
+                            .typography(.micro).foregroundStyle(Color.textTertiary)
                             .fixedSize(horizontal: false, vertical: true).padding(.top, 4)
                     }
                 }

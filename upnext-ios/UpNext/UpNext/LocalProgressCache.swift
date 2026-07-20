@@ -88,7 +88,9 @@ enum LocalProgressCacheStore {
     }
 
     /// 캐시 존재 여부 — handleAuthState .signedOut 에서 익명 부트 분기 판단.
+    /// ioQueue.sync 배리어 — save()/clear() 가 같은 직렬 큐에서 비동기 쓰기 중이라,
+    /// 큐를 거치지 않으면 방금 큐잉된 쓰기/삭제를 못 본 stale 판정이 가능(코드리뷰).
     static func exists() -> Bool {
-        FileManager.default.fileExists(atPath: fileURL.path)
+        ioQueue.sync { FileManager.default.fileExists(atPath: fileURL.path) }
     }
 }

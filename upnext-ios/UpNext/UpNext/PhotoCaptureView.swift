@@ -60,6 +60,10 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
 }
 
 final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
+    /// 세션 구성/시작/정지 전용 직렬 큐 — global() concurrent 큐에 흩어 보내면
+    /// configure 와 stopRunning 이 동시 실행되는 레이스가 가능(코드리뷰 avcapture-serial).
+    private static let sessionQueue = DispatchQueue(label: "com.littlegd.upnext.camera-session",
+                                                    qos: .userInitiated)
     var onCapture: ((UIImage) -> Void)?
     /// 카메라 장치를 열 수 없을 때(시뮬레이터/권한/하드웨어) 1회 통지 — 부모가 갤러리 폴백 노출.
     var onCameraUnavailable: (() -> Void)?
@@ -85,7 +89,7 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
     /// 살아남는 일이 없도록.
     func teardown() {
         if session.isRunning {
-            DispatchQueue.global(qos: .userInitiated).async { [session] in
+            Self.sessionQueue.async { [session] in
                 session.stopRunning()
             }
         }
@@ -124,13 +128,13 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
             view.layer.addSublayer(layer)
             previewLayer = layer
         }
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        Self.sessionQueue.async { [weak self] in
             self?.session.startRunning()
         }
     }
 
     func reconfigure() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        Self.sessionQueue.async { [weak self] in
             guard let self else { return }
             session.stopRunning()
             configure()

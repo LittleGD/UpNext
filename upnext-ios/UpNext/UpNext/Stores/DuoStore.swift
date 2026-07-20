@@ -115,7 +115,11 @@ final class DuoStore: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.isWorking = false
                 if let error {
-                    self?.message = "초대 생성 실패: \(error.localizedDescription)"
+                    // 보간 메시지 — String.LocalizationValue 가 "초대 생성 실패: %@" 를
+                    // 카탈로그 키로 캡처하고 error.localizedDescription 은 인자로 유지하므로
+                    // 포맷이 깨지지 않는다(RetentionSectionView 의 LocalizedStringKey 표시와
+                    // 이중 방어). AppConfig.loc 는 인앱 언어로 즉시 해석.
+                    self?.message = AppConfig.loc("초대 생성 실패: \(error.localizedDescription)")
                     return
                 }
                 self?.inviteCode = code
@@ -142,7 +146,8 @@ final class DuoStore: ObservableObject {
                 guard let self else { return }
                 if let error {
                     self.isWorking = false
-                    self.message = "초대 조회 실패: \(error.localizedDescription)"
+                    // 보간 메시지 — 포맷 유지 방안은 createInvite 의 주석 참고.
+                    self.message = AppConfig.loc("초대 조회 실패: \(error.localizedDescription)")
                     return
                 }
                 guard let data = snapshot?.data(),
@@ -191,7 +196,8 @@ final class DuoStore: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.isWorking = false
                 if let error {
-                    self?.message = "듀오 참여 실패: \(error.localizedDescription)"
+                    // 보간 메시지 — 포맷 유지 방안은 createInvite 의 주석 참고.
+                    self?.message = AppConfig.loc("듀오 참여 실패: \(error.localizedDescription)")
                     return
                 }
                 self?.inviteCode = nil

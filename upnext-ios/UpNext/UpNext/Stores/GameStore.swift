@@ -1245,7 +1245,7 @@ final class GameStore: ObservableObject {
     /// 반영하고 세션을 비운 뒤, 반환한 세션 XP 를 progress 에 적용한다.
     /// 웹 acknowledgeSessionEnd 의 cross-store XP 반영부. (idle XP 와 동일 경로.)
     func finishUpHeroSession() {
-        let sessionXP = upHero.acknowledgeSessionEnd()
+        let sessionXP = upHero.acknowledgeSessionEnd(gameLevel: progress?.level)
         guard sessionXP > 0 else { return }
         mutateProgress {
             $0.xp += sessionXP

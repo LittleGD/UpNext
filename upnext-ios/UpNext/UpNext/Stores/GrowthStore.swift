@@ -279,9 +279,13 @@ final class GrowthStore: ObservableObject {
         // 앨범/디테일이 곧바로 뜬다). 인코딩·파일쓰기는 백그라운드 best-effort —
         // 합성(합성본 저장 아키텍처는 그대로) 이후 남은 유일한 메인 블로킹이었다.
         insert(meta: meta, image: image)
-        DispatchQueue.global(qos: .utility).async {
-            if let jpeg = image.jpegData(compressionQuality: 0.9) {
-                _ = Self.saveImage(jpeg, id: id)
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let ok = image.jpegData(compressionQuality: 0.9)
+                .map { Self.saveImage($0, id: id) } ?? false
+            // 인코딩/파일쓰기 실패 시 방금 넣은 메타 롤백 — 실패한 채 두면 imageCache
+            // 축출/재시작 후 이미지 없는 고아 메타(깨진 사진)가 남는다(코드리뷰).
+            if !ok {
+                Task { @MainActor [weak self] in self?.deletePhoto(id) }
             }
         }
         // 캡처 플로우 종료 — pending 정리.

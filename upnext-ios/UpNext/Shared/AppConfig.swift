@@ -57,10 +57,17 @@ enum AppConfig {
     /// 읽어 콘텐츠가 기기 언어로 샜다. 서브번들을 직접 지정하면 이를 확정 차단한다.
     /// (SwiftUI `Text`(LocalizedStringKey) 경로는 ContentView 의 `.environment(\.locale)` 로
     ///  테이블을 실제 전환하므로 정상 — 여기서 뷰 밖 헬퍼를 동일 언어로 정합시킨다.)
+    /// 언어 키 기반 캐시 — loc/locRuntime 이 매 호출마다 파일시스템 조회(Bundle.main.path)
+    /// + Bundle 인스턴스화를 반복하던 비용 제거(코드리뷰 perf-1). `static let` 고정 캐시는
+    /// 인앱 언어 변경 시 동결되는 static-freeze 버그 클래스라 금지 — 언어 id 가 바뀌면
+    /// 재해석하는 키드 캐시로만. (loc 호출은 사실상 메인스레드 한정이라 락 불필요.)
+    private static var bundleCache: (id: String, bundle: Bundle?)?
     static var inAppBundle: Bundle? {
         let id = catalogLocaleIdentifier(sharedDefaults?.string(forKey: languageKey) ?? "ko")
-        guard let path = Bundle.main.path(forResource: id, ofType: "lproj") else { return nil }
-        return Bundle(path: path)
+        if let c = bundleCache, c.id == id { return c.bundle }
+        let bundle = Bundle.main.path(forResource: id, ofType: "lproj").flatMap { Bundle(path: $0) }
+        bundleCache = (id, bundle)
+        return bundle
     }
 
     /// 인앱 언어로 카탈로그 문자열을 해석(뷰 밖 공용 헬퍼). 인앱 언어 `.lproj` 서브번들을

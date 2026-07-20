@@ -382,7 +382,12 @@ private struct DuoFlameCard: View {
                 inactiveBody
             }
             if let message = duo.message {
-                Text(message).typography(.caption).foregroundStyle(Color.textTertiary).lineLimit(2)
+                // message 는 저장 없이 즉시 표시되는 런타임 String — 고정 문구는 원문 자체가
+                // 카탈로그 키(ContentView:94 관례), 보간 문구(오류 메시지)는 DuoStore 에서
+                // AppConfig.loc 로 이미 인앱 언어로 해석돼 들어온다. LocalizedStringKey 로
+                // 감싸 두 경우 모두 verbatim 렌더를 피한다(후자는 카탈로그 미매치 시 그대로
+                // 표시되는 안전한 폴백).
+                Text(LocalizedStringKey(message)).typography(.caption).foregroundStyle(Color.textTertiary).lineLimit(2)
             }
         }
         .padding(14)
