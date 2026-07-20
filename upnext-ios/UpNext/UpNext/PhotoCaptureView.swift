@@ -115,61 +115,73 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
         if session.isRunning { session.stopRunning() }
     }
 
+    /// 세션 구성 전체를 sessionQueue 에서 수행 — videoDevice 는 이 큐에서만 읽고 쓴다
+    /// (코드리뷰 b-videoDevice-datarace: 메인/큐 양쪽 비동기 접근이 미정의 동작).
+    /// UIKit 작업(previewLayer 생성·폴백 통지)만 메인으로 홉.
     func configure() {
-        session.beginConfiguration()
-        session.sessionPreset = .photo
-        // 기존 입력 제거
-        for input in session.inputs { session.removeInput(input) }
         let position: AVCaptureDevice.Position = facingFront ? .front : .back
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
-              let input = try? AVCaptureDeviceInput(device: device) else {
-            session.commitConfiguration()
-            videoDevice = nil
-            // 시뮬레이터/권한 거부/하드웨어 없음 — 갤러리 폴백 노출을 위해 부모에 통지.
-            onCameraUnavailable?()
-            return
-        }
-        videoDevice = device
-        if session.canAddInput(input) { session.addInput(input) }
-        if !session.outputs.contains(photoOutput),
-           session.canAddOutput(photoOutput) {
-            session.addOutput(photoOutput)
-        }
-        session.commitConfiguration()
-
-        if previewLayer == nil {
-            let layer = AVCaptureVideoPreviewLayer(session: session)
-            layer.videoGravity = .resizeAspectFill
-            layer.frame = view.bounds
-            view.layer.addSublayer(layer)
-            previewLayer = layer
-        }
+        let ev = exposureEV
         Self.sessionQueue.async { [weak self] in
-            self?.session.startRunning()
+            guard let self else { return }
+            session.beginConfiguration()
+            session.sessionPreset = .photo
+            // 기존 입력 제거
+            for input in session.inputs { session.removeInput(input) }
+            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
+                  let input = try? AVCaptureDeviceInput(device: device) else {
+                session.commitConfiguration()
+                videoDevice = nil
+                // 시뮬레이터/권한 거부/하드웨어 없음 — 갤러리 폴백 노출을 위해 부모에 통지.
+                DispatchQueue.main.async { [weak self] in self?.onCameraUnavailable?() }
+                return
+            }
+            videoDevice = device
+            if session.canAddInput(input) { session.addInput(input) }
+            if !session.outputs.contains(photoOutput),
+               session.canAddOutput(photoOutput) {
+                session.addOutput(photoOutput)
+            }
+            session.commitConfiguration()
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self, previewLayer == nil else { return }
+                let layer = AVCaptureVideoPreviewLayer(session: session)
+                layer.videoGravity = .resizeAspectFill
+                layer.frame = view.bounds
+                view.layer.addSublayer(layer)
+                previewLayer = layer
+            }
+            session.startRunning()
+            // 세션 구성 직후 현재 EXPOSURE 값 반영(플립 후 재구성 시 다이얼 값 유지).
+            applyExposureBiasOnQueue(ev)
         }
-        // 세션 구성 직후 현재 EXPOSURE 값 반영(플립 후 재구성 시 다이얼 값 유지).
-        applyExposureBias()
     }
 
     /// EXPOSURE 다이얼(EV) → 기기 노출 보정. 라이브 프리뷰가 실시간으로 밝기 반영(웹 패리티).
-    /// 기기 bias 범위(통상 ±8EV)로 클램프하므로 ±2 는 항상 유효. 세션 큐에서 lockForConfiguration
-    /// 해 configure/start 와 직렬화(레이스 방지). 장치 없음(시뮬)이면 무시.
+    /// 기기 bias 범위(통상 ±8EV)로 클램프하므로 ±2 는 항상 유효. videoDevice 읽기까지
+    /// 세션 큐 안에서 수행해 configure/start 와 완전 직렬화. 장치 없음(시뮬)이면 무시.
     func applyExposureBias() {
-        guard let device = videoDevice else { return }
         let ev = exposureEV
-        Self.sessionQueue.async {
-            guard (try? device.lockForConfiguration()) != nil else { return }
-            let clamped = max(device.minExposureTargetBias,
-                              min(device.maxExposureTargetBias, Float(ev)))
-            device.setExposureTargetBias(clamped, completionHandler: nil)
-            device.unlockForConfiguration()
+        Self.sessionQueue.async { [weak self] in
+            self?.applyExposureBiasOnQueue(ev)
         }
+    }
+
+    /// sessionQueue 위에서만 호출할 것.
+    private func applyExposureBiasOnQueue(_ ev: Double) {
+        guard let device = videoDevice else { return }
+        guard (try? device.lockForConfiguration()) != nil else { return }
+        let clamped = max(device.minExposureTargetBias,
+                          min(device.maxExposureTargetBias, Float(ev)))
+        device.setExposureTargetBias(clamped, completionHandler: nil)
+        device.unlockForConfiguration()
     }
 
     func reconfigure() {
         Self.sessionQueue.async { [weak self] in
             guard let self else { return }
             session.stopRunning()
+            // configure 는 내부에서 다시 sessionQueue 로 디스패치 — 직렬 큐라 순서 보장.
             configure()
         }
     }

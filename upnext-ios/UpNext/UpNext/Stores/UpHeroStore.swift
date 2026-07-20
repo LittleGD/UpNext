@@ -713,7 +713,8 @@ final class UpHeroStore: ObservableObject {
     @discardableResult
     func beginPhotoTalismanRitual(photo: PhotoMeta) -> PhotoTalismanResult {
         guard pendingTalismanPhoto == nil else {
-            return PhotoTalismanResult(ok: false, item: nil, error: nil)
+            // error:nil 이면 UI 토스트 분기가 스킵돼 침묵 실패(코드리뷰 F1) — 사유 표면화.
+            return talismanFail(AppConfig.loc("이미 의식이 진행 중이에요"))
         }
         if PhotoTalisman.isBound(photo.id, inventory: state.inventory, equipped: state.hero.equipped) {
             return talismanFail(AppConfig.loc("이미 부적으로 만든 사진이에요"))

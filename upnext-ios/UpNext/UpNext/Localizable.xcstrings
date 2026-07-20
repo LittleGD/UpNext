@@ -46896,6 +46896,29 @@
           }
         }
       }
+    },
+    "이미 의식이 진행 중이에요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A ritual is already in progress"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すでに儀式が進行中です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仪式已在进行中"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -56,14 +56,14 @@ struct DailyHomeView: View {
                     message: "'\(card.localizedTitle(.current))' 을(를) 완료로 표시할까요?"
                 ) { tint in
                     VStack(spacing: 8) {
-                        // ① "사진으로 인증하고 완료" → 라이브 카메라 모달만 띄우고, 실제 완료
-                        //   (XP/레벨업)는 사진 저장/취소 후로 미룬다 — 웹 handleConfirmWithPhoto
-                        //   패리티(완료=finishChallenge 를 사진 저장 콜백으로 직렬화, DailyBoard.tsx:239-252).
-                        //   지금 completePhaseChallenge 를 호출하면 pendingLevelUp(오버레이)과
-                        //   pendingCapture(fullScreenCover)가 같은 틱에 동시 트리거돼, 레벨업이
-                        //   폴라로이드 cover 보다 먼저 뜨던 경합(P1-b)이 생긴다. 완료는 MainShell
-                        //   onSave/onCancel 에서(저장 성공=사진과 함께, 취소=사진 없이) 1회 수행.
+                        // ① "사진으로 인증하고 완료" → 완료(XP/레벨업)를 *즉시 동기 커밋*하고
+                        //   카메라 모달을 띄운다. 완료를 저장 콜백으로 미루는 방식(구 P1-b 1안)은
+                        //   촬영 중 강제종료/백그라운드 킬 시 완료가 통째로 유실되는 비가역
+                        //   손실이 있어 폐기(코드리뷰 photo-completion-loss). 레벨업/캡처 모달의
+                        //   동시 트리거 경합은 MainShell 의 레벨업 오버레이 게이트(pendingCapture
+                        //   == nil 일 때만 표시)로 해소한다 — 완료는 영속, 표시만 지연(P1-b 2안).
                         Button("사진으로 인증하고 완료") {
+                            store.completePhaseChallenge(card.id)
                             store.growth.beginCapture(cardId: card.id, title: card.title, category: card.category)
                             confirmCard = nil
                         }

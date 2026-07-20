@@ -102,6 +102,8 @@ struct PhotoCaptureModal: View {
     // P3(d) 사용자 지시 — 뒷면 메모 진입 시 키보드 즉시 표시. MemoEditor 의 focus: 파라미터에
     //   직접 배선한다(합성 View 바깥 .focused() 는 no-op 이 되는 SwiftUI 함정 회피).
     @FocusState private var memoFocused: Bool
+    // 뒷면 진입 키보드 지연 표시 예약 — 재플립 시 취소용(a-flip-focus-stale-timer).
+    @State private var memoFocusWork: DispatchWorkItem?
     // P4 — 편집 오버레이(폴라로이드 프레임=서명/스티커 컨테이너)의 실제 point 크기.
     //   서명 합성 시 이 크기로 렌더한 뒤 600×727 로 균일 스케일해 웹과 좌표 정합.
     @State private var polaroidEditorSize: CGSize = .zero
@@ -851,10 +853,13 @@ struct PhotoCaptureModal: View {
         // P3(d) 사용자 지시 — 뒷면 진입 시 키보드 즉시 표시, 앞면 복귀 시 해제.
         //   플립 애니메이션이 시작된 뒤(≈0.35s) 포커스를 줘 3D 회전 중 포커스 점프를 피한다.
         .onChange(of: flipped) { isBack in
+            // 빠른 재플립 시 이전 지연 클로저가 회전 중 키보드를 오띄우던 레이스 —
+            // WorkItem 으로 이전 예약을 취소(코드리뷰 a-flip-focus-stale-timer).
+            memoFocusWork?.cancel()
             if isBack {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    if flipped { memoFocused = true }
-                }
+                let work = DispatchWorkItem { if flipped { memoFocused = true } }
+                memoFocusWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
             } else {
                 memoFocused = false
             }
@@ -957,12 +962,15 @@ struct PhotoCaptureModal: View {
                 rotation: $0.rotation, scale: $0.scale, zIndex: $0.zIndex
             )
         }
+        // 서명 렌더는 메인에서 — PKDrawing.image + UITraitCollection.performAsCurrent 는
+        // UIKit 트레이트 API 라 백그라운드 호출이 미정의(코드리뷰 d-signature-trait-offmain).
+        // 600×727 1회 렌더라 메인 비용은 수 ms. 무거운 합성만 백그라운드로.
+        let sigImage = SignatureCanvas.renderImage(
+            from: sigData,
+            size: editorSize,
+            scale: scale
+        )
         DispatchQueue.global(qos: .userInitiated).async {
-            let sigImage = SignatureCanvas.renderImage(
-                from: sigData,
-                size: editorSize,
-                scale: scale
-            )
             let composited = PolaroidComposite.render(
                 photo: base,
                 timestamp: ts,

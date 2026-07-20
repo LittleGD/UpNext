@@ -132,7 +132,10 @@ struct MainTabView: View {
             // D agent 가 GameStore 에 pendingLevelUp(LevelUpEvent?) + acknowledgeLevelUp() 을
             // 이미 추가했음(L:56-66, L:159, L:290). 챌린지 레벨업이 발생하면 progress.didSet 의
             // detectLevelUp 이 set, 사용자가 모달 dismiss 시 acknowledgeLevelUp() 가 nil 처리.
-            if let event = store.pendingLevelUp {
+            // photo-completion-loss 픽스: 완료는 캡처 진입 전에 커밋되므로 레벨업 이벤트가
+            // 캡처 모달과 같은 틱에 발행될 수 있다 — 캡처 cover 가 떠 있는 동안은 표시를
+            // 보류하고(이벤트는 유지), cover 가 닫히면 노출한다.
+            if let event = store.pendingLevelUp, growth.pendingCapture == nil {
                 UpHeroLevelUpOverlay(
                     oldLevel: event.oldLevel,
                     newLevel: event.newLevel,
@@ -238,11 +241,10 @@ struct MainTabView: View {
                 title: localizedCaptureTitle(item),
                 category: item.category,
                 onSave: { image, signature, memo, stickers in
-                    // P1-b(1안·웹 패리티): 완료(XP/레벨업)를 사진 저장 뒤로 직렬화 — 웹
-                    //   handleCaptureComplete→finishChallenge(DailyBoard.tsx:248-252)와 동일 순서.
-                    //   savePhoto 가 pendingCapture=nil 로 cover 를 먼저 내리고(fullScreenCover 는
-                    //   ZStack 오버레이보다 네이티브 상위라 레벨업이 가려짐), 그 다음 완료 →
-                    //   레벨업 오버레이는 캡처 모달이 닫힌 뒤에만 노출된다.
+                    // 완료(XP/레벨업)는 버튼 ① 시점에 이미 동기 커밋됨(DailyHomeView —
+                    //   촬영 중 강제종료에도 완료 유실 없음). 여기선 사진 저장만.
+                    //   레벨업 오버레이는 아래 게이트(pendingCapture == nil)로 cover 가
+                    //   닫힌 뒤에만 노출돼 동시 트리거 경합이 없다.
                     growth.savePhoto(
                         image: image,
                         signature: signature,
@@ -252,14 +254,10 @@ struct MainTabView: View {
                         category: item.category,
                         stickers: stickers
                     )
-                    store.completePhaseChallenge(item.cardId)
                 },
-                // 취소=사진 없이 완료 처리 — 완료 의도(버튼 ①)는 이미 표명됐으므로 사진만
-                //   생략하고 완료는 유실시키지 않는다. completePhaseChallenge 는 이미 완료된
-                //   카드/미선택 카드(예: UITest "uitest")엔 no-op 가드라 중복/오완료가 없다.
+                // 취소=사진만 생략 — 완료는 이미 커밋돼 있어 처리할 것 없음.
                 onCancel: {
                     growth.cancelCapture()
-                    store.completePhaseChallenge(item.cardId)
                 }
             )
         }

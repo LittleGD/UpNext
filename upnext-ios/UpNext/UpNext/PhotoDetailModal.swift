@@ -269,9 +269,9 @@ struct PhotoDetailModal: View {
         if result.ok {
             onClose()
         } else if let err = result.error {
-            // 실패를 침묵으로 버리던 결함 수정 — 웹 onNotify 처럼 사운드·햅틱·토스트로
-            // 사유(코인 부족/이미 부적)를 반드시 노출한다(기본 0코인 유저의 무반응 해소).
-            SoundPlayer.shared.play(.cancel)
+            // 실패를 침묵으로 버리던 결함 수정 — 웹 onNotify 처럼 햅틱·토스트로 사유
+            // (코인 부족/이미 부적/진행 중)를 반드시 노출한다. cancel 사운드는
+            // talismanFail(스토어)이 전 호출처 공통으로 재생하므로 여기선 중복 재생 안 함.
             Haptics.play(.warning)
             showTalismanToast(err)
         }
