@@ -13,6 +13,7 @@
 
 import SwiftUI
 import AVFoundation
+import CoreMedia
 import Combine
 
 /// SwiftUI 부모가 카메라 VC 를 외부에서 트리거하기 위한 핸들. PhotoCaptureView 가
@@ -141,6 +142,14 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
                session.canAddOutput(photoOutput) {
                 session.addOutput(photoOutput)
             }
+            // 캡처 해상도 축소 — 표시·합성·저장이 전부 ≤960px 프리뷰만 쓰므로 12MP 인코드/디코드는
+            // 순수 비용 낭비다(실기기 셔터→꾸미기 1~2초 지연의 근원). 지원 dimension 중 최장변
+            // ~2016급(1920~2048)을 골라 photoOutput 상한을 낮춘다. 지원 배열이 비면(구형/미지원)
+            // 상한을 건드리지 않아 기존 12MP 동작으로 폴백한다. AVCam 의 configureSession 과 동일 패턴
+            // (device.activeFormat.supportedMaxPhotoDimensions 에서 선택 후 output 에 반영).
+            if let dims = Self.reducedPhotoDimensions(from: device.activeFormat) {
+                photoOutput.maxPhotoDimensions = dims
+            }
             session.commitConfiguration()
 
             DispatchQueue.main.async { [weak self] in
@@ -190,7 +199,31 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
     func capture() {
         let settings = AVCapturePhotoSettings()
         settings.flashMode = flashOn ? .on : .off
+        // 캡처 해상도 상한을 세션 구성에서 낮춘 값으로 명시(축소 미지원 기기면 기존 최대 그대로).
+        //   12MP JPEG 인코드/디코드 비용 원천 제거 — 이후 경로는 전부 960px 프리뷰만 쓴다.
+        settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
+        // 속도 우선 — 멀티프레임 노이즈리덕션/후처리 지연 제거(체감 셔터 지연 감소).
+        //   .speed ≤ 출력 기본 maxPhotoQualityPrioritization(.balanced) 라 항상 유효.
+        settings.photoQualityPrioritization = .speed
         photoOutput.capturePhoto(with: settings, delegate: self)
+    }
+
+    /// 지원 max photo dimension 중 최장변 ~2016급을 선택. 표시/합성/저장이 전부 ≤960px 라
+    /// 12MP 는 불필요 — 인코드/디코드 비용만 낸다. 선택 규칙:
+    ///   1) 최장변 1920~2048 대역 중 가장 작은 것(스펙 명시 대역, 프리뷰 960 대비 충분한 여유)
+    ///   2) 대역이 없으면 최장변이 target(2016)에 가장 가까운 지원 dimension
+    /// 지원 배열이 비면 nil → 호출측이 photoOutput 상한을 건드리지 않아 기존 최대 해상도 동작 유지(폴백).
+    /// 반환값은 항상 supportedMaxPhotoDimensions 원소라 photoOutput.maxPhotoDimensions 설정 시 예외 없음.
+    private static func reducedPhotoDimensions(from format: AVCaptureDevice.Format) -> CMVideoDimensions? {
+        let supported = format.supportedMaxPhotoDimensions
+        guard !supported.isEmpty else { return nil }
+        func side(_ d: CMVideoDimensions) -> Int32 { max(d.width, d.height) }
+        let target: Int32 = 2016
+        if let inBand = supported.filter({ side($0) >= 1920 && side($0) <= 2048 })
+            .min(by: { side($0) < side($1) }) {
+            return inBand
+        }
+        return supported.min(by: { abs(side($0) - target) < abs(side($1) - target) })
     }
 
     func photoOutput(_ output: AVCapturePhotoOutput,

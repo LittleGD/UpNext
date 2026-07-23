@@ -650,40 +650,53 @@ struct PhotoCaptureModal: View {
 
     /// 캡처(카메라·갤러리) 직후 진입점 — 웹 captureFromVideo(tsx:282-337) 대응.
     ///
-    /// 배출(ejecting) 연출은 폐기됐다. 여기서는 무거운 이미지 작업(다운샘플·Kodak)만
-    /// 오프메인에서 처리하고, 완료되면 곧바로 decorate 로 진입한다(폴라로이드는 그 시점에
-    /// 이미 풀컬러 필터 적용본으로 표시). 순서:
-    ///   (bg) 다운샘플 → (bg) applyKodak
-    ///   → (main) 소형·필터본 세팅 → phase=.decorate (진입 페이드는 decorateView 가 kick).
-    /// 처리 구간(보통 0.5s 미만)엔 셔터 플래시 여운 + 짧은 스피너만 노출(과한 연출 금지).
+    /// 배출(ejecting) 연출은 폐기됐다. 체감 지연 최소화를 위해 **다운샘플 완료 즉시 무필터로
+    /// decorate 에 진입**하고, Kodak 필터는 뒤에서 완료되는 대로 크로스페이드(0.2s)로 스왑한다.
+    /// (12MP 인코드+디코드+필터 직렬 대기가 실기기에서 1~2초 지연으로 체감되던 것을, 캡처 해상도
+    ///  축소 + 필터 비동기화로 분해.) 순서:
+    ///   (bg) 다운샘플 → (main) 무필터본 세팅·phase=.decorate 즉시 진입
+    ///   → (bg) applyKodak → (main) filteredImage 크로스페이드 스왑.
+    /// 저장 정합: 사용자가 필터 도착 전에 저장하면 filteredImage==nil 이라 composite 이
+    ///   applyFilter=true 로 합성 내부에서 Kodak 을 적용한다(이중적용/무필터 저장 모두 방지).
+    /// 처리 구간(이제 수십 ms)엔 셔터 플래시 여운 + (거의 안 보일) 짧은 스피너만.
     private func beginProcess(_ img: UIImage, exposureEV ev: Double = 0) {
         let ts = Date()
         let variant = PolaroidFrameVariant.random(timestamp: ts)  // 웹 pickVariant (선택 UI 없음)
 
-        // 셔터 플래시 잔상 (opacity 1→0, 0.3s) — 오프메인 처리 구간을 흰 플래시로 덮는다.
+        // 셔터 플래시 잔상 (opacity 1→0, 0.3s) — 진입 직전 짧은 처리 구간을 흰 플래시로 덮는다.
         flashOpacity = 1
         withAnimation(.easeOut(duration: 0.3)) { flashOpacity = 0 }
-        // 플래시 여운으로 못 덮는 드문 지연 대비 최소 피드백(작은 스피너). 완료 시 해제.
+        // 플래시 여운으로 못 덮는 드문 지연 대비 최소 피드백(작은 스피너). decorate 진입 시 해제.
         isProcessing = true
 
-        // 다운샘플·Kodak 를 오프메인 직렬화(카메라/갤러리 양경로 공통). 원본 12MP 는 여기서
-        //   1회만 디코드(다운샘플)하고 버린다. exposureEV: 카메라는 0(하드웨어 bias 이미 반영),
-        //   갤러리 폴백만 CIExposureAdjust 소프트 베이크.
+        // exposureEV: 카메라는 0(하드웨어 bias 이미 반영), 갤러리 폴백만 CIExposureAdjust 소프트 베이크.
         DispatchQueue.global(qos: .userInitiated).async {
-            // 1. 다운샘플 (12MP→960) — 이후 표시·합성 경로가 전부 ≤960px.
+            // 1. 다운샘플 (소스→960) — 캡처 해상도 축소로 이제 수십 ms. 이후 표시·합성 경로가 전부 ≤960px.
             let preview = PolaroidFilters.downsample(img, maxDimension: 960)
-            // 2. Kodak 필름룩 — 축소된 preview 재사용(원본 재디코드 회피). 꾸미기 표시/합성 공용.
-            let filtered = PolaroidFilters.applyKodak(preview, exposureEV: ev) ?? preview
 
             DispatchQueue.main.async {
-                // 3. (main) 소형·이미 필터된 비트맵 세팅 후 바로 decorate 진입.
+                // 2. (main) 무필터 소형본 세팅 후 즉시 decorate 진입 — 필터 대기 없음.
                 self.capturedImage = preview
-                self.filteredImage = filtered
+                self.filteredImage = nil          // 아직 필터 없음 → frontFace 는 capturedImage(무필터) 표시
                 self.captureTimestamp = ts
                 self.frameVariant = variant
                 self.isProcessing = false
-                self.decorateAppear = false   // 진입 페이드 재트리거(재촬영 왕복 대비)
+                self.decorateAppear = false       // 진입 페이드 재트리거(재촬영 왕복 대비)
                 self.phase = .decorate
+
+                // 3. Kodak 필름룩을 뒤에서 계속 — 완료되는 대로 0.2s 크로스페이드로 스왑.
+                //    축소된 preview 재사용(원본 재디코드 회피). 꾸미기 표시/저장 합성 공용.
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let filtered = PolaroidFilters.applyKodak(preview, exposureEV: ev) ?? preview
+                    DispatchQueue.main.async {
+                        // decorate 세션이 유지 중일 때만 스왑(재촬영으로 capture 복귀했으면 무시).
+                        guard self.phase == .decorate, self.capturedImage === preview else { return }
+                        // filteredImage 판독은 decorateView 의 .animation(value:) 가 body 의존성으로
+                        //   확립(없으면 frontFace 의 지연 판독이라 부모가 변화를 못 받아 스왑이 화면에
+                        //   안 뜬다). 그 .animation 이 .id 교체 + .transition(.opacity) 크로스페이드도 구동.
+                        self.filteredImage = filtered
+                    }
+                }
             }
         }
     }
@@ -777,6 +790,11 @@ struct PhotoCaptureModal: View {
             .padding(.bottom, 12)
         }
         .animation(.easeInOut(duration: 0.2), value: flipped)
+        // 무필터→Kodak 크로스페이드 구동 + filteredImage 를 body 의존성으로 확립(핵심).
+        //   frontFace 의 filteredImage 판독은 front 클로저 뒤로 지연돼 부모가 구독하지 못하므로,
+        //   여기서 value 로 판독해 필터 도착 시 body 재평가 → frontFace 재구성(필터 오버레이 삽입)
+        //   → .transition(.opacity) 페이드인(0.2s)이 실제로 화면에 뜬다.
+        .animation(.easeInOut(duration: 0.2), value: filteredImage != nil)
         // P3(d) 사용자 지시 — 뒷면 진입 시 키보드 즉시 표시, 앞면 복귀 시 해제.
         //   플립 애니메이션이 시작된 뒤(≈0.35s) 포커스를 줘 3D 회전 중 포커스 점프를 피한다.
         .onChange(of: flipped) { isBack in
@@ -876,9 +894,17 @@ struct PhotoCaptureModal: View {
 
     private var frontFace: some View {
         ZStack {
-            // 이미 필터된 이미지를 넘긴다 — PolaroidFrame body 안 CIFilter 없음(06-photo-flow a).
+            // 무필터(capturedImage)로 즉시 진입 → Kodak(filteredImage) 도착 시 크로스페이드.
+            //   단일 프레임 + `.id` 스왑: SwiftUI Image(uiImage:) 는 뷰 아이덴티티가 유지되면 UIImage
+            //   인스턴스가 바뀌어도 텍스처를 갱신하지 않는다(실측 확인). filteredImage 인스턴스로
+            //   .id 를 부여해 필터 도착 시 아이덴티티 교체 → 텍스처 갱신 강제, .transition(.opacity)
+            //   로 무필터→필터 크로스페이드(구동은 decorateView 의 .animation(value:)).
+            //   (2겹 오버레이 방식은 두 번째 aspect-ratio 프레임이 ZStack 에서 레이아웃 붕괴 → 폐기.)
+            //   body 안 CIFilter 없음(06-photo-flow a) — 표시용은 전달본만.
             PolaroidFrame(image: filteredImage ?? capturedImage,
                           timestamp: captureTimestamp, variant: frameVariant) { EmptyView() }
+                .id(filteredImage.map(ObjectIdentifier.init))
+                .transition(.opacity)
             // 스티커 레이어
             StickerLayer(stickers: $stickers, selectedId: $selectedSticker)
                 .allowsHitTesting(currentTool == .sticker || selectedSticker != nil)
