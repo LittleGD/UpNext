@@ -113,6 +113,9 @@ struct PhotoCaptureModal: View {
     @State private var showShareSheet: Bool = false
     @State private var compositedImage: UIImage?
     @State private var isSaving: Bool = false           // 저장 중 가드 + 인디케이터
+    // ae-nav(A) — 꾸미기 파괴 액션 확인 다이얼로그. dirty(서명/스티커/메모 존재) 시에만 노출.
+    @State private var showQuitConfirm: Bool = false     // 그만두기(캡처 취소) 확인
+    @State private var showRetakeConfirm: Bool = false   // 다시 찍기(카메라 복귀) 확인
 
     // Ejecting 애니메이션 상태 (웹 PhotoCaptureModal.tsx:1251-1356 수치 그대로)
     @State private var ejectY: CGFloat = -1.0       // 폴라로이드 y = 자기 높이의 배수(-100% 시작)
@@ -120,6 +123,14 @@ struct PhotoCaptureModal: View {
     @State private var ejectCameraY: CGFloat = 0    // 카메라 top/bottom 레이어 퇴장 offset
     @State private var developProgress: Double = 0  // 0 sepia/어둠 → 1 풀컬러 현상
     @State private var ejectStarted: Bool = false   // onAppear 중복 방지
+    // B-2 — 배출용 폴라로이드 프리래스터 결과(flat UIImage). 배출 시작 전 1회 래스터화해
+    //   배출 내내 이 비트맵에 현상 컬러필터+슬라이드만 적용(.drawingGroup 최초/재래스터·
+    //   filteredImage 스왑 재래스터 제거). nil 이면 라이브 렌더 폴백.
+    @State private var ejectPolaroidFlat: UIImage?
+    // B-2 — PolaroidTop/Bottom 대형 PNG 를 오프메인에서 미리 디코드해 배출 첫 렌더 틱의
+    //   동기 디코드 비용을 없앤다. Image(uiImage:) 로 렌더해 재디코드를 피함.
+    @State private var prewarmedTop: UIImage?
+    @State private var prewarmedBottom: UIImage?
 
     #if DEBUG
     // #10 정량 왕복 검증 훅(출시 바이너리 비포함) — UITestDecorateProbe.
@@ -628,39 +639,74 @@ struct PhotoCaptureModal: View {
     }
 
     /// 캡처(카메라·갤러리) 직후 진입점 — 웹 captureFromVideo(tsx:282-337) 대응.
-    /// 프레임을 timestamp 로 랜덤 결정하고, Kodak 필터를 백그라운드 1회만 돌려 캐시한 뒤
-    /// 배출 애니메이션을 시작한다. body 안에서는 필터를 절대 돌리지 않는다.
+    ///
+    /// B-1/B-2/B-3(배출 프리즈 근본 수리) — 모든 무거운 이미지 작업을 배출 애니메이션 창
+    /// 밖으로 직렬화한다. 실기기 12MP 에서 배출 시작 틱에 다운샘플·Kodak·프레임 최초 래스터·
+    /// PNG 디코드가 한꺼번에 메인을 삼켜 애니메이션이 "정지"처럼 보이던 것(조사 실측 766ms)을
+    /// 제거한다. 순서:
+    ///   (bg) 다운샘플 → (bg) applyKodak → (bg) PolaroidTop/Bottom 디코드 프리웜
+    ///   → (main) 소형 비트맵 세팅 + 배출 폴라로이드 flat 프리래스터(1회)
+    ///   → **깨끗한 메인에서** phase=.ejecting (배출 애니는 ejectingView.onAppear 가 kick).
+    /// 배출 중엔 flat 비트맵만 애니메이트하므로 메인 런루프가 비고, 슬라이드/현상이 매끈.
     private func beginEject(_ img: UIImage, exposureEV ev: Double = 0) {
-        // (P1-a·1·3) 표시용 이미지는 항상 즉시 다운샘플 — SwiftUI 가 12MP 원본을 첫 디코드/렌더
-        //   하며 배출·데코가 프리즈하던 근본 원인 제거(웹은 촬영부터 ~800px CSS-filter). capturedImage
-        //   자체를 축소본(960, 웹 800 계열)으로 대체하므로 이후 `filteredImage ?? capturedImage`
-        //   표시·합성 경로가 전부 ≤960px. 원본 12MP 는 여기서 1회만 디코드(다운샘플)하고 버린다.
-        let preview = PolaroidFilters.downsample(img, maxDimension: 960)
-        capturedImage = preview
         let ts = Date()
-        captureTimestamp = ts
-        frameVariant = PolaroidFrameVariant.random(timestamp: ts)   // 웹 pickVariant (선택 UI 없음)
-        filteredImage = nil
+        let variant = PolaroidFrameVariant.random(timestamp: ts)  // 웹 pickVariant (선택 UI 없음)
 
-        // Kodak 필름룩 — 06-photo-flow(a): 캡처 직후 백그라운드 1회. body 재평가와 무관.
-        //   이미 축소된 preview(960)를 재사용해 원본 12MP 재디코드를 피한다(표시·합성엔 충분).
-        // exposureEV(EXPOSURE 다이얼): 카메라 경로는 0(하드웨어 setExposureTargetBias 가 캡처에
-        //   이미 반영, P2-a 이중적용 방지), 갤러리 폴백만 CIExposureAdjust 로 소프트 베이크.
-        //   이후 filteredImage 재사용이라 합성(composite)은 applyFilter:false 로 이중 적용 안 됨.
-        DispatchQueue.global(qos: .userInitiated).async {
-            let filtered = PolaroidFilters.applyKodak(preview, exposureEV: ev)
-            DispatchQueue.main.async { self.filteredImage = filtered }
-        }
-
-        // 셔터 플래시 잔상 (opacity 1→0, 0.3s).
+        // 셔터 플래시 잔상 (opacity 1→0, 0.3s) — 프리래스터 준비 구간을 흰 플래시로 덮는다.
         flashOpacity = 1
         withAnimation(.easeOut(duration: 0.3)) { flashOpacity = 0 }
 
-        // 배출 초기 상태 세팅 후 ejecting 진입 — 실제 애니메이션 kick 은 ejectingView.onAppear
-        // (뷰 마운트 후에 시작해야 -100% → 15% 가 애니메이트됨).
-        ejectY = -1.0; ejectScale = 1.0; ejectCameraY = 0; developProgress = 0
-        ejectStarted = false
-        phase = .ejecting
+        // B-1/B-3 — 다운샘플·Kodak·PNG 디코드를 전부 오프메인 직렬화(카메라/갤러리 양경로 공통).
+        //   원본 12MP 는 여기서 1회만 디코드(다운샘플)하고 버린다. exposureEV: 카메라는 0
+        //   (하드웨어 bias 이미 반영), 갤러리 폴백만 CIExposureAdjust 소프트 베이크.
+        DispatchQueue.global(qos: .userInitiated).async {
+            // 1. 다운샘플 (12MP→960) — 이후 표시·합성 경로가 전부 ≤960px.
+            let preview = PolaroidFilters.downsample(img, maxDimension: 960)
+            // 2. Kodak 필름룩 — 축소된 preview 재사용(원본 재디코드 회피).
+            let filtered = PolaroidFilters.applyKodak(preview, exposureEV: ev) ?? preview
+            // 3. B-2 — 배출 레이어(PolaroidTop/Bottom) 대형 PNG 오프메인 디코드 프리웜.
+            let top = UIImage(named: "PolaroidTop")?.preparingForDisplay()
+            let bottom = UIImage(named: "PolaroidBottom")?.preparingForDisplay()
+
+            DispatchQueue.main.async {
+                // 4. (main) 소형·이미 필터된 비트맵 세팅 — 배출 중 스왑 없음(B-2).
+                self.capturedImage = preview
+                self.filteredImage = filtered
+                self.captureTimestamp = ts
+                self.frameVariant = variant
+                self.prewarmedTop = top
+                self.prewarmedBottom = bottom
+                // 5. B-2 — 배출 폴라로이드 flat 프리래스터(ImageRenderer 는 @MainActor 라 main 1회).
+                //   입력이 이미 ≤960 + 필터본이라 구(舊) 라이브 12MP + drawingGroup 이중 래스터보다
+                //   훨씬 싸고(실측 ~10ms), 배출 애니 창 *밖*(phase 전환 전)에서 1회만 돈다.
+                self.ejectPolaroidFlat = Self.renderEjectPolaroid(
+                    image: filtered, timestamp: ts, variant: variant)
+                // 6. 배출 초기 상태 세팅 후 깨끗한 메인에서 ejecting 진입.
+                self.ejectY = -1.0; self.ejectScale = 1.0; self.ejectCameraY = 0
+                self.developProgress = 0
+                self.ejectStarted = false
+                self.phase = .ejecting
+            }
+        }
+    }
+
+    /// B-2 — 배출용 폴라로이드를 단일 flat UIImage 로 1회 래스터화.
+    /// ImageRenderer 는 @MainActor 제약이라 백그라운드 불가 → 메인에서 1회(배출 애니 시작 전).
+    /// 입력 image 는 이미 다운샘플+Kodak 된 소형 비트맵이라 비용이 작다. 배출은 폭 340pt 상한
+    /// (폴라로이드 62%≈210pt)이므로 넉넉히 240pt 로 렌더해 스케일 소프트닝을 피한다.
+    @MainActor
+    private static func renderEjectPolaroid(
+        image: UIImage, timestamp: Date, variant: PolaroidFrameVariant
+    ) -> UIImage? {
+        let w: CGFloat = 240
+        let h = w / variant.aspectRatio
+        let content = PolaroidFrame(image: image, timestamp: timestamp, variant: variant) {
+            EmptyView()
+        }
+        .frame(width: w, height: h)
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = UIScreen.main.scale
+        return renderer.uiImage
     }
 
     // MARK: - Phase 2 — Ejecting (폴라로이드 배출 연출)
@@ -682,8 +728,8 @@ struct PhotoCaptureModal: View {
 
             ZStack(alignment: .topLeading) {
                 // Bottom layer (z1) — 카메라 하단 립. 아래 정렬, 위로 퇴장.
-                Image("PolaroidBottom")
-                    .resizable()
+                //   B-2 — 오프메인 프리웜 디코드본을 렌더(배출 첫 틱 동기 디코드 제거).
+                ejectLayerImage(prewarmedBottom, fallback: "PolaroidBottom")
                     .frame(width: cw, height: bottomH)
                     .offset(x: 0, y: (ch - bottomH) + ejectCameraY)
                     .zIndex(1)
@@ -696,8 +742,7 @@ struct PhotoCaptureModal: View {
                     .zIndex(2)
 
                 // Top layer (z3) — 카메라 본체. 위 정렬, 위로 퇴장. 폴라로이드 상단을 가림.
-                Image("PolaroidTop")
-                    .resizable()
+                ejectLayerImage(prewarmedTop, fallback: "PolaroidTop")
                     .frame(width: cw, height: topH)
                     .offset(x: 0, y: ejectCameraY)
                     .zIndex(3)
@@ -708,28 +753,49 @@ struct PhotoCaptureModal: View {
         }
     }
 
+    /// 배출 레이어 이미지 — 오프메인 프리웜 디코드본(prewarmed)이 있으면 그걸 쓰고,
+    /// 없으면(레이스/실패) 에셋명 폴백. 둘 다 resizable.
+    @ViewBuilder
+    private func ejectLayerImage(_ prewarmed: UIImage?, fallback: String) -> some View {
+        if let prewarmed {
+            Image(uiImage: prewarmed).resizable()
+        } else {
+            Image(fallback).resizable()
+        }
+    }
+
     /// 배출 중 폴라로이드 — 현상 연출(웹 filter sepia 0.8→0·brightness 0.85→1·contrast 0.9→1).
     /// SwiftUI 근사: 채도/명도/대비 애니 + 세피아 웜톤 오버레이 페이드.
+    ///
+    /// B-2 — 배출 시작 전 오프메인 직렬화에서 만든 flat 비트맵(ejectPolaroidFlat)만 애니메이트한다.
+    ///   이전엔 무거운 PolaroidFrame 서브트리(Canvas 크로스해치 수백 path·blur·paperTexture)를
+    ///   .drawingGroup() 으로 배출 첫 틱에 동기 래스터화 + filteredImage 스왑 시 재래스터화해
+    ///   실기기 12MP 에서 766ms 메인 블록(=애니 정지)이 났다. 조사가 "애니 케이스 순손해"로
+    ///   판정한 .drawingGroup() 을 제거하고, 정적 비트맵 위 GPU 컬러필터만 남긴다.
+    ///   프리래스터 실패 시에만 라이브 렌더 폴백(그때도 drawingGroup 없음).
     private var developedPolaroid: some View {
-        PolaroidFrame(image: filteredImage ?? capturedImage,
-                      timestamp: captureTimestamp,
-                      variant: frameVariant) { EmptyView() }
-            // (P1-a·2) 무거운 프레임 서브트리(Canvas 크로스해치 수백 path·blur stroke·그라디언트·
-            //   paperTexture)를 drawingGroup 으로 1회 래스터화해 정적 비트맵으로 고정. 이후 현상용
-            //   애니메이팅 컬러필터(saturation/brightness/contrast)+세피아 오버레이는 그 플랫 비트맵
-            //   위 GPU 패스만 돌므로, 1.8s 배출 내내 중첩 compositingGroup+Canvas 를 매 프레임
-            //   재래스터화하던 실기기 프리즈가 사라진다(배출 모션·현상 룩은 동일 — P2 정상 판정 유지).
-            .drawingGroup()
-            .saturation(0.35 + 0.65 * developProgress)
-            .brightness(-0.15 * (1 - developProgress))
-            .contrast(0.9 + 0.1 * developProgress)
-            .overlay(
-                Color(red: 0.44, green: 0.30, blue: 0.11)
-                    .opacity(0.42 * (1 - developProgress))
-                    .blendMode(.multiply)
-                    .allowsHitTesting(false)
-            )
-            .compositingGroup()
+        Group {
+            if let flat = ejectPolaroidFlat {
+                Image(uiImage: flat)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                PolaroidFrame(image: filteredImage ?? capturedImage,
+                              timestamp: captureTimestamp,
+                              variant: frameVariant) { EmptyView() }
+            }
+        }
+        .saturation(0.35 + 0.65 * developProgress)
+        .brightness(-0.15 * (1 - developProgress))
+        .contrast(0.9 + 0.1 * developProgress)
+        // 세피아 웜톤 — 구 overlay(Color·blendMode.multiply)+compositingGroup 은 배출 첫 마운트에
+        //   오프스크린 합성 패스를 강제해 히치를 키웠다. 수학적으로 동치인 .colorMultiply 로 대체:
+        //   multiply(base, (1-a)*white + a*C), a=0.42*(1-p), C=(0.44,0.30,0.11)
+        //   → 채널 배수 = 1 - 0.42*(1-p)*(1-C_ch). 오프스크린 그룹 없이 GPU 셰이더 1패스.
+        .colorMultiply(Color(
+            red:   1 - 0.2352 * (1 - developProgress),
+            green: 1 - 0.2940 * (1 - developProgress),
+            blue:  1 - 0.3738 * (1 - developProgress)))
     }
 
     /// 배출 타임라인 (웹 총 2.5s, keyTimes [0,0.5,1]) — 뷰 마운트 후 1회.
@@ -775,26 +841,33 @@ struct PhotoCaptureModal: View {
 
     private var decorateView: some View {
         VStack(spacing: 12) {
+            // ae-nav(A) 상단 바 — 좌: `그만두기`(캡처 취소), 우: `다시 찍기`(카메라 복귀).
+            //   모호한 chevron/공유(send) 아이콘 제거(공유는 상세뷰 전용). 명시 텍스트 라벨 +
+            //   dirty(서명/스티커/메모) 시 GbConfirm 가드. 완료는 버튼 ① 시점에 이미 커밋돼
+            //   그만두기=사진만 생략(완료 유지). 보더·아이콘박스 없음(디자인 규칙).
             HStack {
-                Button { retake() } label: {
-                    PixelIcon(.chevronLeft, size: 18, color: Color.textSecondary)
-                        .padding(8)
-                }
-                Spacer()
-                Button {
-                    if memoFocused { memoFocused = false }
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { flipped.toggle() }
-                } label: {
-                    Text(flipped ? AppConfig.loc("앞면") : AppConfig.loc("뒷면 메모"))
-                        .typography(.caption)
+                Button { quitTapped() } label: {
+                    Text(AppConfig.loc("그만두기"))
+                        .typography(.body)
                         .foregroundStyle(Color.textSecondary)
-                        .padding(.horizontal, 14).padding(.vertical, 6)
-                        .background(Color.bgSurface, in: Capsule())
+                        .padding(.vertical, 6).padding(.horizontal, 4)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(AppConfig.loc("그만두기"))
                 Spacer()
-                Button { share() } label: {
-                    PixelIcon(.send, size: 18, color: Color.accentPrimary)
-                        .padding(8)
+                // `다시 찍기` — 앞면에서만 노출. 뒷면(메모)에선 숨겨 "이전으로" 후보 경쟁 제거.
+                if !flipped {
+                    Button { retakeTapped() } label: {
+                        Text(AppConfig.loc("다시 찍기"))
+                            .typography(.body)
+                            .foregroundStyle(Color.textSecondary)
+                            .padding(.vertical, 6).padding(.horizontal, 4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(AppConfig.loc("다시 찍기"))
+                    .transition(.opacity)
                 }
             }
             .padding(.horizontal, 16)
@@ -809,6 +882,10 @@ struct PhotoCaptureModal: View {
             }, enabled: !flipped)
             .frame(maxWidth: 320)
             .padding(.vertical, 8)
+
+            // ae-nav(A) 플립 pill — 폴라로이드 하단 중앙. 라벨을 목적 중심으로 통일:
+            //   `뒷면에 메모해요` ⇄ `앞면 사진 보기` (PhotoDetailModal flip 라벨과 같은 한 벌).
+            flipPill
 
             // P3(d) 사용자 지시 — 뒷면 메모 화면에선 꾸미기 툴박스를 임시로 숨긴다(펜/지우개/
             //   스티커 스와치는 앞면 사진 전용). 앞면 복귀 시 자동 복원.
@@ -831,10 +908,9 @@ struct PhotoCaptureModal: View {
                             Text(AppConfig.loc("저장 중…"))
                         }
                     } else {
-                        // P3(a) 저장모델 명확화 — 캡처의 단일 명시 저장은 "꾸미기(사진+데코+메모)
-                        //   전체를 한 번에 커밋"하는 창작 행위. 상세뷰의 메모 자동저장(편집)과
-                        //   구분되게 라벨을 "꾸미기 저장"으로 축소해 이원화 혼란을 줄인다.
-                        Text(AppConfig.loc("꾸미기 저장"))
+                        // ae-nav(A) — 하단 primary 라벨을 `저장`으로 통일(구 "꾸미기 저장" 대체).
+                        //   사진+데코+메모 전체를 한 번에 커밋하는 창작 저장.
+                        Text(AppConfig.loc("저장"))
                     }
                 }
                 .typography(.body)
@@ -863,6 +939,87 @@ struct PhotoCaptureModal: View {
             } else {
                 memoFocused = false
             }
+        }
+        // ae-nav(A) 파괴 액션 확인 — GbConfirm 재사용(05-modal-design). danger primary + secondary.
+        .overlay {
+            if showQuitConfirm {
+                GbConfirm(
+                    title: "꾸미기를 그만둘까요?",
+                    message: "저장하지 않으면 지금까지 꾸민 건 사라져요.",
+                    confirmLabel: "그만두기",
+                    cancelLabel: "계속 꾸미기",
+                    danger: true,
+                    onConfirm: { showQuitConfirm = false; onCloseImpl() },
+                    onCancel: { showQuitConfirm = false }
+                )
+                .transition(.opacity)
+                .zIndex(90)
+            }
+        }
+        .overlay {
+            if showRetakeConfirm {
+                GbConfirm(
+                    title: "다시 찍을까요?",
+                    message: "꾸민 내용은 사라지고 카메라로 돌아가요.",
+                    confirmLabel: "다시 찍기",
+                    cancelLabel: "취소",
+                    danger: true,
+                    onConfirm: { showRetakeConfirm = false; retake() },
+                    onCancel: { showRetakeConfirm = false }
+                )
+                .transition(.opacity)
+                .zIndex(90)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: showQuitConfirm)
+        .animation(.easeInOut(duration: 0.2), value: showRetakeConfirm)
+    }
+
+    /// ae-nav(A) 플립 pill — 폴라로이드 하단 중앙. PhotoDetailModal.flipButton 과 같은 한 벌.
+    private var flipPill: some View {
+        Button { toggleFlip() } label: {
+            HStack(spacing: 6) {
+                PixelIcon(.reload, size: 12, color: Color.textSecondary)
+                Text(flipped ? AppConfig.loc("앞면 사진 보기") : AppConfig.loc("뒷면에 메모해요"))
+                    .typography(.caption)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(Color.bgSurface, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 앞면 ⇄ 뒷면 메모 전환 — 편집 포커스는 먼저 내리고 스프링 플립.
+    private func toggleFlip() {
+        if memoFocused { memoFocused = false }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { flipped.toggle() }
+    }
+
+    /// 꾸미기 dirty 판정 — 서명·스티커·메모 중 하나라도 있으면 파괴 액션에 확인 가드.
+    private var decorateDirty: Bool {
+        signatureData != nil
+            || !stickers.isEmpty
+            || !memoText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// `그만두기` — 캡처 취소(모달 닫기). 완료는 이미 커밋돼 사진만 생략된다.
+    private func quitTapped() {
+        if memoFocused { memoFocused = false }
+        if decorateDirty {
+            showQuitConfirm = true
+        } else {
+            onCloseImpl()
+        }
+    }
+
+    /// `다시 찍기` — 카메라 복귀. dirty 면 확인 후 retake().
+    private func retakeTapped() {
+        if memoFocused { memoFocused = false }
+        if decorateDirty {
+            showRetakeConfirm = true
+        } else {
+            retake()
         }
     }
 
@@ -912,8 +1069,9 @@ struct PhotoCaptureModal: View {
                 MemoEditor(text: $memoText, focus: $memoFocused)
                     .padding(8)
                 // P3(a/d) 뒷면 힌트 — 캡처 backFace 엔 없던 placeholder. 비어있고 미편집일 때만.
+                //   ae-nav(A) — 문구를 `여기에 오늘 메모를 남겨요`로 통일("~해요" 톤).
                 if memoText.trimmingCharacters(in: .whitespaces).isEmpty && !memoFocused {
-                    Text(AppConfig.loc("탭하여 메모를 남겨요"))
+                    Text(AppConfig.loc("여기에 오늘 메모를 남겨요"))
                         .typography(.micro)
                         .foregroundStyle(Color.inkWarmText.opacity(0.5))
                         .padding(.bottom, 10)
@@ -928,6 +1086,7 @@ struct PhotoCaptureModal: View {
     private func retake() {
         capturedImage = nil
         filteredImage = nil
+        ejectPolaroidFlat = nil          // B-2 배출 프리래스터 캐시 무효화
         stickers = []
         selectedSticker = nil
         signatureData = nil

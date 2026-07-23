@@ -63,9 +63,17 @@ struct DailyHomeView: View {
                         //   동시 트리거 경합은 MainShell 의 레벨업 오버레이 게이트(pendingCapture
                         //   == nil 일 때만 표시)로 해소한다 — 완료는 영속, 표시만 지연(P1-b 2안).
                         Button("사진으로 인증하고 완료") {
+                            // A-1 — 완료(동기 커밋)와 캡처 모달 present 를 *다른 틱*으로 분리한다.
+                            //   같은 틱이면 완료 didSet 의 디바운스 작업(WidgetSync·LiveActivity·
+                            //   persist)이 fullScreenCover 프레젠테이션+카메라 스킨 빌드+AVCaptureSession
+                            //   구성과 경합해 프리징을 유발했다. beginCapture 를 main.async 로 미뤄
+                            //   완료 커밋의 동기·디바운스 작업이 먼저 드레인된 다음 present 가 뜨게 한다.
+                            //   완료-선커밋(내구성)은 유지 — 촬영 중 강제종료에도 완료 유실 없음.
                             store.completePhaseChallenge(card.id)
-                            store.growth.beginCapture(cardId: card.id, title: card.title, category: card.category)
                             confirmCard = nil
+                            DispatchQueue.main.async {
+                                store.growth.beginCapture(cardId: card.id, title: card.title, category: card.category)
+                            }
                         }
                         .buttonStyle(GbConfirmButtonStyle(
                             fg: GBPalette.darkest, bg: tint, border: tint, bold: true, fullWidth: true))

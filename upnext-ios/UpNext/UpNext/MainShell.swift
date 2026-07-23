@@ -71,6 +71,15 @@ struct MainTabView: View {
     /// 패치 노트 모달 표시 — onAppear 에서 lastSeenPatchVersion 비교 후 true.
     @State private var showPatchNotes: Bool = false
 
+    /// A-2 — 레벨업 오버레이 전용 표시 state. `pendingLevelUp != nil`(이벤트 존재)를 직접
+    /// 게이트로 쓰면, 캡처 cover 디스미스(pendingCapture→nil) 틱에 오버레이가 *애니 없이 팝인*
+    /// (`.animation(value: pendingLevelUp != nil)` 이 그 순간 값이 안 바뀌어 발화하지 않음)하고
+    /// 디스미스 트랜잭션에 얹혀 히치가 났다. 대신 이 전용 state 를 두고, pendingCapture 가 nil 이
+    /// 된 뒤 cover 디스미스 소요(~0.4s)만큼 기다렸다 withAnimation 으로 켜서 명시 페이드인한다.
+    @State private var showLevelUpOverlay: Bool = false
+    /// 지연 표시 예약 취소용 — 대기 중 상태가 바뀌면(재캡처 등) 이전 예약을 무효화.
+    @State private var levelUpShowWork: DispatchWorkItem?
+
     /// 마지막으로 본 패치 노트 버전 — UserDefaults 영속. 신규 버전 노트가 있으면 모달 1회 표시.
     @AppStorage("lastSeenPatchVersion") private var lastSeenPatchVersion: String = ""
 
@@ -135,11 +144,17 @@ struct MainTabView: View {
             // photo-completion-loss 픽스: 완료는 캡처 진입 전에 커밋되므로 레벨업 이벤트가
             // 캡처 모달과 같은 틱에 발행될 수 있다 — 캡처 cover 가 떠 있는 동안은 표시를
             // 보류하고(이벤트는 유지), cover 가 닫히면 노출한다.
-            if let event = store.pendingLevelUp, growth.pendingCapture == nil {
+            // A-2 — 게이트를 pendingCapture==nil 직결이 아닌 전용 state(showLevelUpOverlay)로.
+            //   pendingCapture/pendingLevelUp 변화를 onChange 에서 관찰해, cover 디스미스 소요
+            //   뒤 withAnimation 으로 이 state 를 켠다(팝인 버그·히치 해소). 아래 계산은 그대로.
+            if let event = store.pendingLevelUp, showLevelUpOverlay {
                 UpHeroLevelUpOverlay(
                     oldLevel: event.oldLevel,
                     newLevel: event.newLevel,
-                    onDismiss: { store.acknowledgeLevelUp() }
+                    onDismiss: {
+                        showLevelUpOverlay = false
+                        store.acknowledgeLevelUp()
+                    }
                 )
                 .zIndex(100)
                 .transition(.opacity)
@@ -178,8 +193,16 @@ struct MainTabView: View {
             #endif
         }
         .animation(.easeInOut(duration: 0.3), value: showCelebration)
-        .animation(.easeOut(duration: 0.25), value: store.pendingLevelUp != nil)
+        // A-2 — 오버레이 애니는 전용 state 를 따른다(구: pendingLevelUp != nil → 팝인 발화 실패).
+        .animation(.easeOut(duration: 0.25), value: showLevelUpOverlay)
         .animation(.easeOut(duration: 0.25), value: showPatchNotes)
+        // A-2 — 레벨업 이벤트/캡처 상태 변화를 관찰해 오버레이 표시 타이밍을 조정.
+        .onChange(of: store.pendingLevelUp) { event in
+            evaluateLevelUpOverlay(hasEvent: event != nil, capturing: growth.pendingCapture != nil)
+        }
+        .onChange(of: growth.pendingCapture) { pending in
+            evaluateLevelUpOverlay(hasEvent: store.pendingLevelUp != nil, capturing: pending != nil)
+        }
         .onAppear {
             #if DEBUG
             // UITest 전용 — 특정 탭 바로 진입(IA 검증용). 출시 바이너리엔 비포함.
@@ -305,6 +328,31 @@ struct MainTabView: View {
         if !d.superSelectedCards.isEmpty,
            d.superCompletedIds.count >= d.superSelectedCards.count { s += 10 }
         return s
+    }
+
+    /// A-2 — 레벨업 오버레이 표시 타이밍 결정. 캡처 cover 가 떠 있으면 보류(이벤트는 유지),
+    /// 닫히면(또는 캡처 없이 레벨업 시) cover 디스미스 소요(~0.4s) 뒤 withAnimation 으로 켠다.
+    /// 이벤트가 소멸(ack)하면 즉시 끈다. 대기 중 상태가 바뀌면 이전 예약은 취소.
+    private func evaluateLevelUpOverlay(hasEvent: Bool, capturing: Bool) {
+        levelUpShowWork?.cancel()
+        levelUpShowWork = nil
+        guard hasEvent else {
+            if showLevelUpOverlay { showLevelUpOverlay = false }
+            return
+        }
+        if capturing {
+            // 캡처 cover 노출 중 — 보류(이벤트는 GameStore 가 유지).
+            if showLevelUpOverlay { showLevelUpOverlay = false }
+            return
+        }
+        guard !showLevelUpOverlay else { return }
+        // cover 디스미스 애니(~0.4s)와 오버레이 등장 애니가 틱을 공유하지 않도록 지연 후 표시.
+        let work = DispatchWorkItem {
+            guard store.pendingLevelUp != nil, growth.pendingCapture == nil else { return }
+            withAnimation(.easeOut(duration: 0.25)) { showLevelUpOverlay = true }
+        }
+        levelUpShowWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
     }
 
     private func handleDeepLink(_ url: URL) {

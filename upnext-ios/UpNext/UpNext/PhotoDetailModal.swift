@@ -185,7 +185,8 @@ struct PhotoDetailModal: View {
         } label: {
             HStack(spacing: 6) {
                 PixelIcon(.reload, size: 12, color: Color.textSecondary)
-                Text(flipped ? AppConfig.loc("사진 보기") : AppConfig.loc("메모 보기"))
+                // ae-nav(A) — 캡처 꾸미기 flip pill 과 같은 한 벌로 통일(학습 비용 감소).
+                Text(flipped ? AppConfig.loc("앞면 사진 보기") : AppConfig.loc("뒷면에 메모해요"))
                     .typography(.caption)
                     .foregroundStyle(Color.textSecondary)
             }
