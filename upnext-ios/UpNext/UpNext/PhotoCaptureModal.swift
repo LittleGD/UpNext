@@ -2,17 +2,21 @@
 //  PhotoCaptureModal.swift
 //  UpNext — 폴라로이드 챌린지 인증 전체 흐름.
 //
-//  웹 src/components/growth/PhotoCaptureModal.tsx (1496 LOC) 핵심 격상.
-//   3 phase (웹 capturePhase: camera→ejecting→polaroid 대응):
+//  웹 src/components/growth/PhotoCaptureModal.tsx 핵심 격상.
+//   2 phase:
 //    1. capture   — 라이브 카메라 + 셔터 + 갤러리 진입
-//    2. ejecting  — 폴라로이드 배출(인화) 연출 2.5s (웹 tsx:1251-1356)
-//    3. decorate  — 폴라로이드 + 스티커/서명/메모 + 저장/공유
+//    2. decorate  — 이미 현상된 폴라로이드 + 스티커/서명/메모 + 저장/공유
+//
+//  배출(ejecting) 인화 연출은 제거됐다(실기기 반복 문제로 기능 자체 폐기). 촬영/갤러리
+//  선택 직후 오프메인에서 다운샘플·Kodak 필터만 처리하고 바로 decorate 로 진입한다.
+//  폴라로이드는 진입 시점에 이미 풀컬러 필터 적용본으로 표시되며, 전환은 가벼운
+//  페이드(opacity 0→1·scale 0.97→1·y 8→0, 0.35s)만 준다.
 //
 //  프레임은 웹과 동일하게 촬영 시점 timestamp 로 랜덤 결정(선택 UI 없음).
 //  06-photo-flow 수정:
 //    (a/perf) Kodak CIFilter 를 캡처 직후 백그라운드 1회만 실행해 캐시 — body 안
 //             동기 렌더 제거. 프레임 선택 그리드(전체 이미지 ×5 재인코딩) 삭제.
-//    (b) 배출 시퀀스 이식. (d) 프레임 랜덤화. (a 연장) 저장 합성/인코딩 오프메인.
+//    (d) 프레임 랜덤화. (a 연장) 저장 합성/인코딩 오프메인.
 //
 //  사용: parent 가 `fullScreenCover(item: $growth.pendingCapture)` 로 띄움.
 //        completion 콜백으로 저장 결과(합성 UIImage)와 메타데이터 반환.
@@ -117,20 +121,12 @@ struct PhotoCaptureModal: View {
     @State private var showQuitConfirm: Bool = false     // 그만두기(캡처 취소) 확인
     @State private var showRetakeConfirm: Bool = false   // 다시 찍기(카메라 복귀) 확인
 
-    // Ejecting 애니메이션 상태 (웹 PhotoCaptureModal.tsx:1251-1356 수치 그대로)
-    @State private var ejectY: CGFloat = -1.0       // 폴라로이드 y = 자기 높이의 배수(-100% 시작)
-    @State private var ejectScale: CGFloat = 1.0
-    @State private var ejectCameraY: CGFloat = 0    // 카메라 top/bottom 레이어 퇴장 offset
-    @State private var developProgress: Double = 0  // 0 sepia/어둠 → 1 풀컬러 현상
-    @State private var ejectStarted: Bool = false   // onAppear 중복 방지
-    // B-2 — 배출용 폴라로이드 프리래스터 결과(flat UIImage). 배출 시작 전 1회 래스터화해
-    //   배출 내내 이 비트맵에 현상 컬러필터+슬라이드만 적용(.drawingGroup 최초/재래스터·
-    //   filteredImage 스왑 재래스터 제거). nil 이면 라이브 렌더 폴백.
-    @State private var ejectPolaroidFlat: UIImage?
-    // B-2 — PolaroidTop/Bottom 대형 PNG 를 오프메인에서 미리 디코드해 배출 첫 렌더 틱의
-    //   동기 디코드 비용을 없앤다. Image(uiImage:) 로 렌더해 재디코드를 피함.
-    @State private var prewarmedTop: UIImage?
-    @State private var prewarmedBottom: UIImage?
+    // decorate 진입 페이드 — 배출 연출을 없앤 대신 주는 가벼운 등장(웹 polaroid phase 진입 동일).
+    //   opacity 0→1·scale 0.97→1·y 8→0, 0.35s. false 로 시작해 decorateView.onAppear 가 kick.
+    @State private var decorateAppear: Bool = false
+    // 촬영/갤러리 직후 오프메인 처리(다운샘플~Kodak) 진행 표시 — 셔터 플래시 여운으로 못 덮는
+    //   드문 지연 구간의 최소 피드백(작은 스피너). 처리 완료 즉시 false. 과한 연출 금지.
+    @State private var isProcessing: Bool = false
 
     #if DEBUG
     // #10 정량 왕복 검증 훅(출시 바이너리 비포함) — UITestDecorateProbe.
@@ -138,21 +134,35 @@ struct PhotoCaptureModal: View {
     @State private var probeDidStroke = false
     #endif
 
-    private enum Phase { case capture, ejecting, decorate }
+    private enum Phase { case capture, decorate }
 
     var body: some View {
         ZStack {
             Color.bgPrimary.ignoresSafeArea()
             switch phase {
             case .capture:  captureView
-            case .ejecting: ejectingView
-            case .decorate: decorateView
+            case .decorate:
+                // 배출 연출 제거 — 가벼운 페이드로만 등장(opacity 0→1·scale 0.97→1·y 8→0, 0.35s).
+                decorateView
+                    .opacity(decorateAppear ? 1 : 0)
+                    .scaleEffect(decorateAppear ? 1 : 0.97)
+                    .offset(y: decorateAppear ? 0 : 8)
+                    .onAppear {
+                        withAnimation(.easeOut(duration: 0.35)) { decorateAppear = true }
+                    }
             }
             // 셔터 플래시 잔상 — 웹 captureFromVideo 의 showFlash (opacity 1→0).
             if flashOpacity > 0 {
                 Color.white
                     .opacity(flashOpacity)
                     .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
+            // 오프메인 처리(다운샘플~Kodak) 중 최소 피드백 — 플래시 여운 뒤 남는 짧은 구간만.
+            //   과한 연출 금지: 작은 스피너 하나. 처리 완료 즉시 사라진다(보통 0.5s 미만).
+            if isProcessing {
+                ProgressView()
+                    .tint(Color.textSecondary)
                     .allowsHitTesting(false)
             }
         }
@@ -173,7 +183,7 @@ struct PhotoCaptureModal: View {
                       let img = UIImage(data: data) else { return }
                 // 갤러리 폴백 — 기기 노출계가 없으므로 EXPOSURE 다이얼 값을 CIExposureAdjust 로
                 //   소프트 베이크(P2-a: 갤러리 경로만 소프트 노출, 카메라는 하드웨어 bias).
-                await MainActor.run { beginEject(img, exposureEV: exposureEV) }
+                await MainActor.run { beginProcess(img, exposureEV: exposureEV) }
             }
         }
     }
@@ -323,8 +333,8 @@ struct PhotoCaptureModal: View {
 
             // 라이브 카메라 (시뮬엔 프레임 없음 → cameraError=true → 갤러리 폴백)
             //   exposureEV 바인딩 → 기기 setExposureTargetBias 로 라이브 프리뷰 밝기 실시간 반영(P2-a).
-            //   하드웨어 캡처는 이미 노출이 반영되므로 beginEject 는 exposureEV:0 (이중적용 방지).
-            PhotoCaptureView(onCapture: { img in beginEject(img, exposureEV: 0) },
+            //   하드웨어 캡처는 이미 노출이 반영되므로 beginProcess 는 exposureEV:0 (이중적용 방지).
+            PhotoCaptureView(onCapture: { img in beginProcess(img, exposureEV: 0) },
                              facingFront: $facingFront, flashOn: $flashOn,
                              exposureEV: $exposureEV,
                              cameraError: $cameraError, coordinator: captureCoord)
@@ -640,204 +650,45 @@ struct PhotoCaptureModal: View {
 
     /// 캡처(카메라·갤러리) 직후 진입점 — 웹 captureFromVideo(tsx:282-337) 대응.
     ///
-    /// B-1/B-2/B-3(배출 프리즈 근본 수리) — 모든 무거운 이미지 작업을 배출 애니메이션 창
-    /// 밖으로 직렬화한다. 실기기 12MP 에서 배출 시작 틱에 다운샘플·Kodak·프레임 최초 래스터·
-    /// PNG 디코드가 한꺼번에 메인을 삼켜 애니메이션이 "정지"처럼 보이던 것(조사 실측 766ms)을
-    /// 제거한다. 순서:
-    ///   (bg) 다운샘플 → (bg) applyKodak → (bg) PolaroidTop/Bottom 디코드 프리웜
-    ///   → (main) 소형 비트맵 세팅 + 배출 폴라로이드 flat 프리래스터(1회)
-    ///   → **깨끗한 메인에서** phase=.ejecting (배출 애니는 ejectingView.onAppear 가 kick).
-    /// 배출 중엔 flat 비트맵만 애니메이트하므로 메인 런루프가 비고, 슬라이드/현상이 매끈.
-    private func beginEject(_ img: UIImage, exposureEV ev: Double = 0) {
+    /// 배출(ejecting) 연출은 폐기됐다. 여기서는 무거운 이미지 작업(다운샘플·Kodak)만
+    /// 오프메인에서 처리하고, 완료되면 곧바로 decorate 로 진입한다(폴라로이드는 그 시점에
+    /// 이미 풀컬러 필터 적용본으로 표시). 순서:
+    ///   (bg) 다운샘플 → (bg) applyKodak
+    ///   → (main) 소형·필터본 세팅 → phase=.decorate (진입 페이드는 decorateView 가 kick).
+    /// 처리 구간(보통 0.5s 미만)엔 셔터 플래시 여운 + 짧은 스피너만 노출(과한 연출 금지).
+    private func beginProcess(_ img: UIImage, exposureEV ev: Double = 0) {
         let ts = Date()
         let variant = PolaroidFrameVariant.random(timestamp: ts)  // 웹 pickVariant (선택 UI 없음)
 
-        // 셔터 플래시 잔상 (opacity 1→0, 0.3s) — 프리래스터 준비 구간을 흰 플래시로 덮는다.
+        // 셔터 플래시 잔상 (opacity 1→0, 0.3s) — 오프메인 처리 구간을 흰 플래시로 덮는다.
         flashOpacity = 1
         withAnimation(.easeOut(duration: 0.3)) { flashOpacity = 0 }
+        // 플래시 여운으로 못 덮는 드문 지연 대비 최소 피드백(작은 스피너). 완료 시 해제.
+        isProcessing = true
 
-        // B-1/B-3 — 다운샘플·Kodak·PNG 디코드를 전부 오프메인 직렬화(카메라/갤러리 양경로 공통).
-        //   원본 12MP 는 여기서 1회만 디코드(다운샘플)하고 버린다. exposureEV: 카메라는 0
-        //   (하드웨어 bias 이미 반영), 갤러리 폴백만 CIExposureAdjust 소프트 베이크.
+        // 다운샘플·Kodak 를 오프메인 직렬화(카메라/갤러리 양경로 공통). 원본 12MP 는 여기서
+        //   1회만 디코드(다운샘플)하고 버린다. exposureEV: 카메라는 0(하드웨어 bias 이미 반영),
+        //   갤러리 폴백만 CIExposureAdjust 소프트 베이크.
         DispatchQueue.global(qos: .userInitiated).async {
             // 1. 다운샘플 (12MP→960) — 이후 표시·합성 경로가 전부 ≤960px.
             let preview = PolaroidFilters.downsample(img, maxDimension: 960)
-            // 2. Kodak 필름룩 — 축소된 preview 재사용(원본 재디코드 회피).
+            // 2. Kodak 필름룩 — 축소된 preview 재사용(원본 재디코드 회피). 꾸미기 표시/합성 공용.
             let filtered = PolaroidFilters.applyKodak(preview, exposureEV: ev) ?? preview
-            // 3. B-2 — 배출 레이어(PolaroidTop/Bottom) 대형 PNG 오프메인 디코드 프리웜.
-            let top = UIImage(named: "PolaroidTop")?.preparingForDisplay()
-            let bottom = UIImage(named: "PolaroidBottom")?.preparingForDisplay()
 
             DispatchQueue.main.async {
-                // 4. (main) 소형·이미 필터된 비트맵 세팅 — 배출 중 스왑 없음(B-2).
+                // 3. (main) 소형·이미 필터된 비트맵 세팅 후 바로 decorate 진입.
                 self.capturedImage = preview
                 self.filteredImage = filtered
                 self.captureTimestamp = ts
                 self.frameVariant = variant
-                self.prewarmedTop = top
-                self.prewarmedBottom = bottom
-                // 5. B-2 — 배출 폴라로이드 flat 프리래스터(ImageRenderer 는 @MainActor 라 main 1회).
-                //   입력이 이미 ≤960 + 필터본이라 구(舊) 라이브 12MP + drawingGroup 이중 래스터보다
-                //   훨씬 싸고(실측 ~10ms), 배출 애니 창 *밖*(phase 전환 전)에서 1회만 돈다.
-                self.ejectPolaroidFlat = Self.renderEjectPolaroid(
-                    image: filtered, timestamp: ts, variant: variant)
-                // 6. 배출 초기 상태 세팅 후 깨끗한 메인에서 ejecting 진입.
-                self.ejectY = -1.0; self.ejectScale = 1.0; self.ejectCameraY = 0
-                self.developProgress = 0
-                self.ejectStarted = false
-                self.phase = .ejecting
+                self.isProcessing = false
+                self.decorateAppear = false   // 진입 페이드 재트리거(재촬영 왕복 대비)
+                self.phase = .decorate
             }
         }
     }
 
-    /// B-2 — 배출용 폴라로이드를 단일 flat UIImage 로 1회 래스터화.
-    /// ImageRenderer 는 @MainActor 제약이라 백그라운드 불가 → 메인에서 1회(배출 애니 시작 전).
-    /// 입력 image 는 이미 다운샘플+Kodak 된 소형 비트맵이라 비용이 작다. 배출은 폭 340pt 상한
-    /// (폴라로이드 62%≈210pt)이므로 넉넉히 240pt 로 렌더해 스케일 소프트닝을 피한다.
-    @MainActor
-    private static func renderEjectPolaroid(
-        image: UIImage, timestamp: Date, variant: PolaroidFrameVariant
-    ) -> UIImage? {
-        let w: CGFloat = 240
-        let h = w / variant.aspectRatio
-        let content = PolaroidFrame(image: image, timestamp: timestamp, variant: variant) {
-            EmptyView()
-        }
-        .frame(width: w, height: h)
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = UIScreen.main.scale
-        return renderer.uiImage
-    }
-
-    // MARK: - Phase 2 — Ejecting (폴라로이드 배출 연출)
-
-    /// 웹 tsx:1246-1356 3레이어 샌드위치 — bottom(z1)·폴라로이드(z2)·top(z3).
-    /// 슬롯 라인 = 조립체 높이의 1238/1426 ≈ 86.8%. 폴라로이드는 슬롯에서 위로 숨은 채
-    /// 시작(-100%) → y 증가로 슬롯 밖으로 밀려나옴. 위쪽은 top 레이어가 가려준다.
-    private var ejectingView: some View {
-        GeometryReader { geo in
-            // 조립체 aspect 1525/1426 (웹 style aspectRatio). 최대 340pt.
-            let cw = min(geo.size.width - 32, 340)
-            let ch = cw * 1426.0 / 1525.0
-            let topH = ch * 1238.0 / 1426.0       // top 레이어 높이 (86.8%)
-            let bottomH = ch * 188.0 / 1426.0     // bottom 레이어 높이 (13.2%)
-            let polW = cw * 0.62                   // 폴라로이드 width 62%
-            let polH = polW * (223.0 / 184.0)      // 프레임 aspect (184×223)
-            let polX = (cw - polW) / 2
-            let polBaseY = ch * 1238.0 / 1426.0    // 슬롯 라인 top
-
-            ZStack(alignment: .topLeading) {
-                // Bottom layer (z1) — 카메라 하단 립. 아래 정렬, 위로 퇴장.
-                //   B-2 — 오프메인 프리웜 디코드본을 렌더(배출 첫 틱 동기 디코드 제거).
-                ejectLayerImage(prewarmedBottom, fallback: "PolaroidBottom")
-                    .frame(width: cw, height: bottomH)
-                    .offset(x: 0, y: (ch - bottomH) + ejectCameraY)
-                    .zIndex(1)
-
-                // Polaroid (z2) — 슬롯에서 출력. transformOrigin center-top (anchor .top).
-                developedPolaroid
-                    .frame(width: polW, height: polH)
-                    .scaleEffect(ejectScale, anchor: .top)
-                    .offset(x: polX, y: polBaseY + ejectY * polH)
-                    .zIndex(2)
-
-                // Top layer (z3) — 카메라 본체. 위 정렬, 위로 퇴장. 폴라로이드 상단을 가림.
-                ejectLayerImage(prewarmedTop, fallback: "PolaroidTop")
-                    .frame(width: cw, height: topH)
-                    .offset(x: 0, y: ejectCameraY)
-                    .zIndex(3)
-            }
-            .frame(width: cw, height: ch)
-            .position(x: geo.size.width / 2, y: geo.size.height / 2)
-            .onAppear { runEjectSequence() }
-        }
-    }
-
-    /// 배출 레이어 이미지 — 오프메인 프리웜 디코드본(prewarmed)이 있으면 그걸 쓰고,
-    /// 없으면(레이스/실패) 에셋명 폴백. 둘 다 resizable.
-    @ViewBuilder
-    private func ejectLayerImage(_ prewarmed: UIImage?, fallback: String) -> some View {
-        if let prewarmed {
-            Image(uiImage: prewarmed).resizable()
-        } else {
-            Image(fallback).resizable()
-        }
-    }
-
-    /// 배출 중 폴라로이드 — 현상 연출(웹 filter sepia 0.8→0·brightness 0.85→1·contrast 0.9→1).
-    /// SwiftUI 근사: 채도/명도/대비 애니 + 세피아 웜톤 오버레이 페이드.
-    ///
-    /// B-2 — 배출 시작 전 오프메인 직렬화에서 만든 flat 비트맵(ejectPolaroidFlat)만 애니메이트한다.
-    ///   이전엔 무거운 PolaroidFrame 서브트리(Canvas 크로스해치 수백 path·blur·paperTexture)를
-    ///   .drawingGroup() 으로 배출 첫 틱에 동기 래스터화 + filteredImage 스왑 시 재래스터화해
-    ///   실기기 12MP 에서 766ms 메인 블록(=애니 정지)이 났다. 조사가 "애니 케이스 순손해"로
-    ///   판정한 .drawingGroup() 을 제거하고, 정적 비트맵 위 GPU 컬러필터만 남긴다.
-    ///   프리래스터 실패 시에만 라이브 렌더 폴백(그때도 drawingGroup 없음).
-    private var developedPolaroid: some View {
-        Group {
-            if let flat = ejectPolaroidFlat {
-                Image(uiImage: flat)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            } else {
-                PolaroidFrame(image: filteredImage ?? capturedImage,
-                              timestamp: captureTimestamp,
-                              variant: frameVariant) { EmptyView() }
-            }
-        }
-        .saturation(0.35 + 0.65 * developProgress)
-        .brightness(-0.15 * (1 - developProgress))
-        .contrast(0.9 + 0.1 * developProgress)
-        // 세피아 웜톤 — 구 overlay(Color·blendMode.multiply)+compositingGroup 은 배출 첫 마운트에
-        //   오프스크린 합성 패스를 강제해 히치를 키웠다. 수학적으로 동치인 .colorMultiply 로 대체:
-        //   multiply(base, (1-a)*white + a*C), a=0.42*(1-p), C=(0.44,0.30,0.11)
-        //   → 채널 배수 = 1 - 0.42*(1-p)*(1-C_ch). 오프스크린 그룹 없이 GPU 셰이더 1패스.
-        .colorMultiply(Color(
-            red:   1 - 0.2352 * (1 - developProgress),
-            green: 1 - 0.2940 * (1 - developProgress),
-            blue:  1 - 0.3738 * (1 - developProgress)))
-    }
-
-    /// 배출 타임라인 (웹 총 2.5s, keyTimes [0,0.5,1]) — 뷰 마운트 후 1회.
-    private func runEjectSequence() {
-        guard !ejectStarted else { return }
-        ejectStarted = true
-
-        // 400ms: 슬라이드 사운드 + 라이트 햅틱 (웹 setTimeout(polaroidSlide,400) / HAPTIC light).
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            SoundPlayer.shared.play(.polaroidSlide)
-            Haptics.play(.light)
-        }
-
-        // Stage A (0→1.25s) — 직선 출력 -100%→15%, ease (0.23,1,0.32,1).
-        withAnimation(.timingCurve(0.23, 1, 0.32, 1, duration: 1.25)) {
-            ejectY = 0.15
-        }
-        // 현상 — sepia/어둠 → 풀컬러 (웹 duration 1.8, delay 0.6, ease (0.23,1,0.32,1)).
-        withAnimation(.timingCurve(0.23, 1, 0.32, 1, duration: 1.8).delay(0.6)) {
-            developProgress = 1
-        }
-
-        // Stage B (1.25→2.5s) — 폴라로이드 15%→-45% scale 1→1.3 (ease 0.77,0,0.175,1),
-        // 카메라 레이어 퇴장 (ease 0.33,1,0.68,1).
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.25) {
-            withAnimation(.timingCurve(0.77, 0, 0.175, 1, duration: 1.25)) {
-                ejectY = -0.45
-                ejectScale = 1.3
-            }
-            withAnimation(.timingCurve(0.33, 1, 0.68, 1, duration: 1.25)) {
-                // 웹 -700px(≈2.2×조립체높이) — 화면 밖으로 완전 퇴장.
-                ejectCameraY = -UIScreen.main.bounds.height
-            }
-        }
-
-        // 2.5s 후 데코 단계 진입 (웹 setTimeout(→polaroid,2500)).
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            phase = .decorate
-        }
-    }
-
-    // MARK: - Phase 3 — Decorate
+    // MARK: - Phase 2 — Decorate
 
     private var decorateView: some View {
         VStack(spacing: 12) {
@@ -1086,12 +937,12 @@ struct PhotoCaptureModal: View {
     private func retake() {
         capturedImage = nil
         filteredImage = nil
-        ejectPolaroidFlat = nil          // B-2 배출 프리래스터 캐시 무효화
         stickers = []
         selectedSticker = nil
         signatureData = nil
         memoText = ""
         flipped = false
+        decorateAppear = false           // 재진입 시 진입 페이드 재트리거
         phase = .capture
     }
 
