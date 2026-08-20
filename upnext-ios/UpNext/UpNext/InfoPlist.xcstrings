@@ -29,6 +29,35 @@
           }
         }
       }
+    },
+    "NSPhotoLibraryAddUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "꾸민 폴라로이드 사진을 사진 앨범에 저장하기 위해 사용합니다."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UpNext saves your decorated polaroid photos to your photo library."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "デコレーションしたポラロイド写真をフォトライブラリに保存するために使用します。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用于将装饰好的拍立得照片保存到照片图库。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

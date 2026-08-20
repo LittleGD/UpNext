@@ -45,6 +45,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>챌린지 인증 사진을 촬영하기 위해 카메라를 사용합니다.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>꾸민 폴라로이드 사진을 사진 앨범에 저장하기 위해 사용합니다.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

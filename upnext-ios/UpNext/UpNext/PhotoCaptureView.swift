@@ -92,7 +92,21 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
-        configure()
+        // 권한 사전 확인(AVCam 패턴) — 거부 상태에서 세션을 시작하면 iOS 버전에 따라
+        // 검은 프리뷰로 남을 수 있어, configure 진입 전에 갤러리 폴백으로 확정 분기한다.
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            configure()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    if granted { configure() } else { onCameraUnavailable?() }
+                }
+            }
+        default: // .denied, .restricted
+            onCameraUnavailable?()
+        }
     }
 
     override func viewDidLayoutSubviews() {
