@@ -779,9 +779,9 @@ final class UpHeroStore: ObservableObject {
         }
     }
 
-    /// 현재 시각 (epoch ms) — 웹 Date.now() 대응.
+    /// 현재 시각 (epoch ms) — 웹 Date.now() 대응. 진실의 원천은 AppClock(모델 레이어).
     static func nowMillis() -> Int {
-        Int(Date().timeIntervalSince1970 * 1000)
+        AppClock.nowMillis()
     }
 
     // MARK: - 기본 상태 팩토리 (웹 useUpHeroStore 초기 상태 리터럴)

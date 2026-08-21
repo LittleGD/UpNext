@@ -37,13 +37,13 @@ struct PhotoMeta: Codable, Identifiable, Equatable {
 extension PhotoMeta {
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = (try? c.decode(String.self, forKey: .id)) ?? "vp_\(UpHeroStore.nowMillis())"
+        id = (try? c.decode(String.self, forKey: .id)) ?? "vp_\(AppClock.nowMillis())"
         kind = (try? c.decode(PhotoKind.self, forKey: .kind)) ?? .free
         challengeCardId = try? c.decode(String.self, forKey: .challengeCardId)
         challengeTitle = try? c.decode(String.self, forKey: .challengeTitle)
         category = try? c.decode(Category.self, forKey: .category)
-        date = (try? c.decode(String.self, forKey: .date)) ?? GameStore.todayString()
-        timestamp = (try? c.decode(Int.self, forKey: .timestamp)) ?? UpHeroStore.nowMillis()
+        date = (try? c.decode(String.self, forKey: .date)) ?? AppClock.todayString()
+        timestamp = (try? c.decode(Int.self, forKey: .timestamp)) ?? AppClock.nowMillis()
         memo = (try? c.decode(String.self, forKey: .memo)) ?? ""
         timeSlot = try? c.decode(String.self, forKey: .timeSlot)
         caption = try? c.decode(String.self, forKey: .caption)

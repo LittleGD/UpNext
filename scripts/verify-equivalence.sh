@@ -18,6 +18,9 @@ set -u
 cd "$(dirname "$0")/.."
 
 MODELS="upnext-ios/UpNext/UpNext/Models"
+# Game.swift(Language)가 AppConfig(App+Widget 공유 상수, Models 밖)를 참조하므로
+# 모든 suite 컴파일에 항상 포함. Foundation 전용이라 부작용 없음.
+SHARED="upnext-ios/UpNext/Shared/AppConfig.swift"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -27,7 +30,7 @@ TOTAL=0
 
 run_suite() {
   local name="$1"; shift
-  local args=()
+  local args=("$SHARED")
   local f
   for f in "$@"; do args+=("$MODELS/$f"); done
   # 검증기 swift 파일은 top-level 코드 → swiftc 다중 파일 컴파일 시 main.swift 여야 함.
@@ -58,7 +61,7 @@ run_suite() {
 # 시드 고정으로 세션을 끝까지 돌려 크래시·불변식·종료 보장만 확인 (exit 0 = pass).
 run_smoke() {
   local name="$1"; shift
-  local args=()
+  local args=("$SHARED")
   local f
   for f in "$@"; do args+=("$MODELS/$f"); done
   cp "scripts/equiv/$name.swift" "$TMP/main.swift"
@@ -89,7 +92,9 @@ run_suite talisman-reward  Card.swift Game.swift UpHero.swift UpHeroRNG.swift Up
 run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift
 run_suite affix-narrative  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift
 run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift FlavorPool.swift
-run_suite sync             Card.swift Game.swift FirestoreModels.swift
+# sync: UserDoc.retention(RetentionState) → Retention → PhotoMeta(GrowthModels) → Sticker
+#       + RetentionEngine.buildReport 의 CardCatalog 까지 컴파일 클로저에 포함.
+run_suite sync             Card.swift Game.swift FirestoreModels.swift Retention.swift GrowthModels.swift StickerModels.swift CardCatalog.swift
 run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift
 echo "──────────────────────────────────────────"
 echo "결과: $PASS/$((PASS + FAIL)) suite 통과 · 총 $TOTAL 라인 동치"

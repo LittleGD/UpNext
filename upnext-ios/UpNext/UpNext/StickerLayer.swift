@@ -13,28 +13,7 @@
 
 import SwiftUI
 
-struct Sticker: Identifiable, Equatable, Codable {
-    /// 새 id 발급은 init 으로만, 디코드 시엔 저장된 id 보존.
-    let id: UUID
-    var type: StickerType
-    var content: String      // emoji char 또는 asset name ("upnext-logo")
-    var x: Double            // 0-100 (%)
-    var y: Double
-    var rotation: Double     // degrees
-    var scale: Double        // 0.4 ~ 3.0
-    var zIndex: Int
-
-    init(type: StickerType, content: String, x: Double, y: Double,
-         rotation: Double = 0, scale: Double = 1, zIndex: Int = 0) {
-        self.id = UUID()
-        self.type = type
-        self.content = content
-        self.x = x; self.y = y; self.rotation = rotation
-        self.scale = scale; self.zIndex = zIndex
-    }
-
-    enum StickerType: String, Equatable, Codable { case emoji, image }
-}
+// Sticker 데이터 구조체는 Models/StickerModels.swift 로 분리 (모델 레이어 CLI 컴파일용).
 
 struct StickerLayer: View {
     @Binding var stickers: [Sticker]

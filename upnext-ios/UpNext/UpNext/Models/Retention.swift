@@ -28,6 +28,11 @@ enum AppClock {
         dayFormatter.date(from: day)
     }
 
+    /// 현재 시각 (epoch ms) — 웹 Date.now() 대응. 모델 레이어 단일 진실의 원천.
+    static func nowMillis() -> Int {
+        Int(Date().timeIntervalSince1970 * 1000)
+    }
+
     private static func uiTestTodayOverride() -> String? {
         // 테스트 클럭 주입은 DEBUG 전용 — Release 바이너리에는 런치인자/환경변수 경로가
         // 컴파일되지 않는다(다른 UITest 훅과 동일하게 #if DEBUG 격리).
