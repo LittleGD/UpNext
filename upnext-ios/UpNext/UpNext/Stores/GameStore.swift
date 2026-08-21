@@ -1414,6 +1414,14 @@ final class GameStore: ObservableObject {
            let card = CardCatalog.allCards.first {
             store.growth.seedChallengeLogForUITests(card: card)
         }
+        // 로그인 상태 시드 — `uid != nil` 로만 갈리는 UI(2인 불꽃 초대코드 만들기/참여)
+        // 검증용. 이 시드가 true 를 반환하면 호출부가 즉시 return 해 auth.$state 구독을
+        // 걸지 않으므로, handleAuthState 부수효과 없이 uid 만 채워진다. DuoStore 는
+        // 일부러 start 하지 않는다 — 미인증 Firestore 리스너를 붙이지 않기 위함이며,
+        // 듀오 없음(inactiveBody) 상태가 초대/참여 컨트롤의 검증 대상 상태다.
+        if args.contains("UITestSignedIn") {
+            store.auth.forceSignedInForUITests(uid: "uitest-uid", displayName: "UITest")
+        }
         // PhotoDetailModal 검증 — 실제 이미지가 있는 사진 1장(+메모) 시드.
         if args.contains("UITestSeedAlbum"),
            let card = CardCatalog.allCards.first {

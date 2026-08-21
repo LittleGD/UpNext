@@ -55,6 +55,19 @@ final class AuthService: NSObject, ObservableObject {
         return nil
     }
 
+    #if DEBUG
+    /// UITest 전용 — Firebase 로그인 없이 signedIn 상태를 고정한다(GameStore 의
+    /// `UITestSignedIn` 시드에서만 호출). 듀오 초대/참여 컨트롤처럼 `uid != nil` 로만
+    /// 게이트되는 UI 를 시뮬레이터에서 검증하기 위한 훅으로, 실제 Firestore 세션은
+    /// 만들지 않는다(네트워크 경로는 그대로 미인증 → 조용히 거절). 출시 바이너리 비포함.
+    private var uiTestForcedUID: String?
+
+    func forceSignedInForUITests(uid: String, displayName: String) {
+        uiTestForcedUID = uid
+        state = .signedIn(uid: uid, provider: "uitest", displayName: displayName)
+    }
+    #endif
+
     override init() {
         super.init()
         // Firebase Auth 상태 리스너 — 로그인/로그아웃/앱 재시작(세션 복원) 시 state 갱신.
@@ -64,6 +77,12 @@ final class AuthService: NSObject, ObservableObject {
     }
 
     private func applyUser(_ user: User?) {
+        #if DEBUG
+        // UITest 가 주입한 고정 로그인 상태는 Firebase 리스너 콜백(항상 nil 유저)이
+        // 덮어쓰지 않게 한다 — 주입 직후 리스너가 한 번 더 발화하면 .signedOut 으로
+        // 되돌아가 듀오 초대/참여 컨트롤이 다시 로그인 게이트로 접히던 경합 차단.
+        if uiTestForcedUID != nil { return }
+        #endif
         guard let user else {
             state = .signedOut
             return

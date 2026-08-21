@@ -77,6 +77,7 @@ struct DailyHomeView: View {
                         }
                         .buttonStyle(GbConfirmButtonStyle(
                             fg: GBPalette.darkest, bg: tint, border: tint, bold: true, fullWidth: true))
+                        .accessibilityIdentifier("challengeCompleteWithPhotoButton")
                         // ② "사진없이 완료" → 완료만(카메라 안 뜸 → 즉시 다음 인터랙션 가능)
                         Button("사진없이 완료") {
                             store.completePhaseChallenge(card.id)
@@ -84,6 +85,7 @@ struct DailyHomeView: View {
                         }
                         .buttonStyle(GbConfirmButtonStyle(
                             fg: GBPalette.lightest, bg: .clear, border: GBPalette.lightest, fullWidth: true))
+                        .accessibilityIdentifier("challengeCompleteWithoutPhotoButton")
                         Button("취소") { confirmCard = nil }
                             .buttonStyle(GbConfirmButtonStyle(
                                 fg: GBPalette.light, bg: .clear, border: GBPalette.light, fullWidth: true))
@@ -335,6 +337,9 @@ struct DailyHomeView: View {
         // 탭 프레스 스케일(요인2e) — 웹 DailyBoard motion.button whileTap scale 0.97.
         .buttonStyle(CardPressStyle())
         .disabled(completed)
+        // 완료 여부로 식별자를 가르는 건 AlbumView(L195) 의 kind 분기와 같은 관례 —
+        // UI 테스트가 카피(“탭하여 완료”) 대신 상태를 식별자로 읽게 해 다국어 무관하게 만든다.
+        .accessibilityIdentifier(completed ? "boardCardCompleted" : "boardCard")
     }
 
     private func logPromptSheet(_ card: ChallengeCard) -> some View {

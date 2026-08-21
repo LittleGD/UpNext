@@ -110,6 +110,7 @@ struct RetentionSectionView: View {
                 Text("지난주 리포트")
                     .typography(.title)
                     .foregroundStyle(Color.textPrimary)
+                    .accessibilityIdentifier("weeklyReportSheetTitle")
                 Text("\(report.weekStart) - \(report.weekEnd)")
                     .typography(.caption)
                     .foregroundStyle(Color.textTertiary)
