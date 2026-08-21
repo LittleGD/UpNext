@@ -1,7 +1,7 @@
 import type { ChallengeCard, Category } from "./card";
 
 // === 언어 ===
-export type Language = "ko" | "en";
+export type Language = "ko" | "en" | "ja";
 
 // === 게임 모드 ===
 // 하루에 선택하는 카드 수가 달라짐
@@ -95,9 +95,10 @@ export function getXPProgress(totalXP: number, level: number): { current: number
 // === 칭호 시스템 ===
 const LEVEL_TITLES_KO = ["입문자", "뉴비", "도전자", "실천가", "갓생러", "마스터", "레전드"] as const;
 const LEVEL_TITLES_EN = ["Beginner", "Newbie", "Challenger", "Achiever", "Go-getter", "Master", "Legend"] as const;
+const LEVEL_TITLES_JA = ["入門者", "ルーキー", "チャレンジャー", "実践者", "努力家", "マスター", "レジェンド"] as const;
 
 export function getTitleForLevel(level: number, lang: Language = "ko"): string {
-  const titles = lang === "en" ? LEVEL_TITLES_EN : LEVEL_TITLES_KO;
+  const titles = lang === "ja" ? LEVEL_TITLES_JA : lang === "en" ? LEVEL_TITLES_EN : LEVEL_TITLES_KO;
   if (level <= 0) return titles[0];
   if (level <= 1) return titles[1];
   if (level <= 3) return titles[2];

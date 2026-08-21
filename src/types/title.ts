@@ -11,8 +11,10 @@ export interface TitleDefinition {
   id: string;
   name: string;
   nameEn?: string;
+  nameJa?: string;
   description: string;
   descriptionEn?: string;
+  descriptionJa?: string;
   rarity: Rarity;
   condition: TitleCondition;
   icon: string;

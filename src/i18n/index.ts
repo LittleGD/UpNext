@@ -1,9 +1,10 @@
 import ko, { type DictKey } from "./ko";
 import en from "./en";
+import ja from "./ja";
 import type { Language } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
 
-const dictionaries: Record<Language, Record<DictKey, string>> = { ko, en };
+const dictionaries: Record<Language, Record<DictKey, string>> = { ko, en, ja };
 
 /**
  * Translate a key, with optional interpolation.
@@ -28,6 +29,7 @@ export function t(
  * Falls back to Korean title if English is missing.
  */
 export function cardTitle(card: ChallengeCard, lang: Language): string {
+  if (lang === "ja" && card.titleJa) return card.titleJa;
   if (lang === "en" && card.titleEn) return card.titleEn;
   return card.title;
 }
@@ -37,6 +39,7 @@ export function cardTitle(card: ChallengeCard, lang: Language): string {
  * Falls back to Korean description if English is missing.
  */
 export function cardDesc(card: ChallengeCard, lang: Language): string {
+  if (lang === "ja" && card.descriptionJa) return card.descriptionJa;
   if (lang === "en" && card.descriptionEn) return card.descriptionEn;
   return card.description;
 }
