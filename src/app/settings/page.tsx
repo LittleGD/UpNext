@@ -189,7 +189,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <PixelIcon name={title.icon} size={18} color={isEquipped ? undefined : rarity.color} />
-                        <span className="text-sm font-semibold">{language === "en" && title.nameEn ? title.nameEn : title.name}</span>
+                        <span className="text-sm font-semibold">{language === "zh" && title.nameZh ? title.nameZh : language === "en" && title.nameEn ? title.nameEn : title.name}</span>
                       </div>
                       <span
                         className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm"
@@ -198,7 +198,7 @@ export default function SettingsPage() {
                           color: isEquipped ? "var(--bg-primary)" : "#0A0A0A",
                         }}
                       >
-                        {language === "en" ? rarity.label : rarity.labelKo}
+                        {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
                       </span>
                     </div>
                   </button>

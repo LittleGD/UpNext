@@ -28,6 +28,8 @@ export interface ChallengeCard {
   icon: string;            // pixelarticons 아이콘 이름 (예: "Human")
   titleEn?: string;        // English title
   descriptionEn?: string;  // English description
+  titleZh?: string;        // Simplified Chinese title
+  descriptionZh?: string;  // Simplified Chinese description
   verifyType: VerifyType;  // 인증 방식
   target?: number;         // count 타입일 때 목표 수치
   hardcoreTarget?: number; // 초갓생모드에서의 상향된 목표

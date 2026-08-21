@@ -272,7 +272,7 @@ export default function CardDrawScreen() {
                       className="text-[13px] font-bold px-2 py-0.5 rounded-sm"
                       style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
                     >
-                      {language === "en" ? rarity.label : rarity.labelKo}
+                      {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
                     </span>
                     <span className="text-[13px] text-text-tertiary capitalize">
                       {language === "en" ? card.category : card.category}
@@ -569,7 +569,7 @@ function HandCard({
         className="text-[10px] md:text-[12px] lg:text-[13px] font-bold px-1.5 py-0.5 rounded-sm self-start leading-tight"
         style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
       >
-        {language === "en" ? rarity.label : rarity.labelKo}
+        {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
       </span>
       <div className="flex-1 flex items-center justify-center" style={{ color: rarity.color }}>
         <PixelIcon name={card.icon} size={iconSize} />
@@ -648,7 +648,7 @@ function PreviewCard({
           className="text-[13px] font-bold px-2 py-0.5 rounded-sm"
           style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
         >
-          {language === "en" ? rarity.label : rarity.labelKo}
+          {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
         </span>
         <span className="text-[13px] text-text-tertiary capitalize">
           {card.category}

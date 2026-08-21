@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { ALL_CARDS } from "@/data/cards";
 import { RARITY_CONFIG } from "@/data/rarityConfig";
-import { ALL_TITLES, CATEGORY_LABELS, CATEGORY_LABELS_EN, getEarnedTitleIds, getTitleProgress } from "@/data/titles";
+import { ALL_TITLES, CATEGORY_LABELS, CATEGORY_LABELS_EN, CATEGORY_LABELS_ZH, getEarnedTitleIds, getTitleProgress } from "@/data/titles";
 import type { Category } from "@/types/card";
 import type { TitleDefinition } from "@/types/title";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -181,7 +181,7 @@ function CardsTab({
       return true;
     });
     const unlockedInCat = allCards.filter((c) => progress.unlockedCardIds.includes(c.id)).length;
-    const label = language === "en" ? CATEGORY_LABELS_EN[cat] : CATEGORY_LABELS[cat];
+    const label = language === "zh" ? CATEGORY_LABELS_ZH[cat] : language === "en" ? CATEGORY_LABELS_EN[cat] : CATEGORY_LABELS[cat];
     return { category: cat, label, cards: filtered, unlockedInCat, totalInCat: allCards.length };
   }).filter((g) => g.cards.length > 0);
 
@@ -220,7 +220,7 @@ function CardsTab({
                       className="text-[13px] font-bold px-1.5 py-0.5 rounded-sm text-black inline-block mb-1"
                       style={{ backgroundColor: rarity.color }}
                     >
-                      {language === "en" ? rarity.label : rarity.labelKo}
+                      {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
                     </div>
                     <div className="mb-1" style={{ color: rarity.color }}>
                       <PixelIcon name={card.icon} size={28} />
@@ -229,7 +229,7 @@ function CardsTab({
                       {cardTitle(card, language)}
                     </p>
                     <p className="text-[13px] text-text-secondary mt-0.5">
-                      {language === "en" ? CATEGORY_LABELS_EN[card.category] : CATEGORY_LABELS[card.category]}
+                      {language === "zh" ? CATEGORY_LABELS_ZH[card.category] : language === "en" ? CATEGORY_LABELS_EN[card.category] : CATEGORY_LABELS[card.category]}
                     </p>
                   </div>
                 </motion.div>
@@ -265,7 +265,7 @@ function TitlesTab({
     return true;
   };
 
-  const catLabels = language === "en" ? CATEGORY_LABELS_EN : CATEGORY_LABELS;
+  const catLabels = language === "zh" ? CATEGORY_LABELS_ZH : language === "en" ? CATEGORY_LABELS_EN : CATEGORY_LABELS;
   const groups = [
     ...CATEGORY_ORDER.map((cat) => ({
       key: `cat-${cat}`,
@@ -302,7 +302,7 @@ function TitlesTab({
             <div>
               <p className="text-caption mb-1">{translate("collection.titles.equipped", language)}</p>
               <p className="text-body font-semibold text-accent">
-                {(() => { const tt = ALL_TITLES.find((t) => t.id === progress.equippedTitleId); return tt ? (language === "en" && tt.nameEn ? tt.nameEn : tt.name) : ""; })()}
+                {(() => { const tt = ALL_TITLES.find((t) => t.id === progress.equippedTitleId); return tt ? (language === "zh" && tt.nameZh ? tt.nameZh : language === "en" && tt.nameEn ? tt.nameEn : tt.name) : ""; })()}
               </p>
             </div>
             <button
@@ -382,10 +382,10 @@ function TitleCard({
               color: isEarned ? "#0A0A0A" : "var(--text-tertiary)",
             }}
           >
-            {language === "en" ? rarity.label : rarity.labelKo}
+            {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
           </span>
           <span className={`text-sm font-semibold truncate ${isEarned ? "text-text-primary" : "text-text-tertiary"}`}>
-            {language === "en" && title.nameEn ? title.nameEn : title.name}
+            {language === "zh" && title.nameZh ? title.nameZh : language === "en" && title.nameEn ? title.nameEn : title.name}
           </span>
           {isEquipped && (
             <span className="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-accent/20 rounded-sm flex-shrink-0">
@@ -393,7 +393,7 @@ function TitleCard({
             </span>
           )}
         </div>
-        <p className="text-[12px] text-text-secondary mt-0.5">{language === "en" && title.descriptionEn ? title.descriptionEn : title.description}</p>
+        <p className="text-[12px] text-text-secondary mt-0.5">{language === "zh" && title.descriptionZh ? title.descriptionZh : language === "en" && title.descriptionEn ? title.descriptionEn : title.description}</p>
         {!isEarned && (
           <div className="flex items-center gap-2 mt-1.5">
             <div className="flex-1 h-1 bg-bg-elevated rounded-sm overflow-hidden">

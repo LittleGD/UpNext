@@ -1,9 +1,10 @@
 import ko, { type DictKey } from "./ko";
 import en from "./en";
+import zh from "./zh";
 import type { Language } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
 
-const dictionaries: Record<Language, Record<DictKey, string>> = { ko, en };
+const dictionaries: Record<Language, Record<DictKey, string>> = { ko, en, zh };
 
 /**
  * Translate a key, with optional interpolation.
@@ -25,18 +26,20 @@ export function t(
 
 /**
  * Get a card's title in the given language.
- * Falls back to Korean title if English is missing.
+ * Falls back to Korean title if English/Chinese is missing.
  */
 export function cardTitle(card: ChallengeCard, lang: Language): string {
+  if (lang === "zh" && card.titleZh) return card.titleZh;
   if (lang === "en" && card.titleEn) return card.titleEn;
   return card.title;
 }
 
 /**
  * Get a card's description in the given language.
- * Falls back to Korean description if English is missing.
+ * Falls back to Korean description if English/Chinese is missing.
  */
 export function cardDesc(card: ChallengeCard, lang: Language): string {
+  if (lang === "zh" && card.descriptionZh) return card.descriptionZh;
   if (lang === "en" && card.descriptionEn) return card.descriptionEn;
   return card.description;
 }

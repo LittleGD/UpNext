@@ -167,7 +167,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
                   className="text-[min(13px,3vw)] font-bold px-1.5 py-0.5 rounded-sm self-start"
                   style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
                 >
-                  {language === "en" ? rarity.label : rarity.labelKo}
+                  {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
                 </span>
 
                 {/* 아이콘 */}

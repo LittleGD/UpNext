@@ -36,7 +36,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
   // 카드 리빌 화면
   if (phase === "revealing" && selectedPack) {
     const pack = STARTER_PACKS.find((p) => p.id === selectedPack)!;
-    const packName = language === "en" && pack.nameEn ? pack.nameEn : pack.name;
+    const packName = language === "zh" && pack.nameZh ? pack.nameZh : language === "en" && pack.nameEn ? pack.nameEn : pack.name;
     const cards = pack.cardIds.map((id) => ALL_CARDS.find((c) => c.id === id)!).filter(Boolean);
 
     return (
@@ -75,7 +75,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
                   className="text-[13px] font-bold px-1.5 py-0.5 rounded-sm self-start"
                   style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
                 >
-                  {language === "en" ? rarity.label : rarity.labelKo}
+                  {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
                 </span>
                 <motion.div
                   initial={{ scale: 0 }}
@@ -130,8 +130,8 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
 
         <div className="space-y-3">
           {STARTER_PACKS.map((pack) => {
-            const packName = language === "en" && pack.nameEn ? pack.nameEn : pack.name;
-            const packDesc = language === "en" && pack.descriptionEn ? pack.descriptionEn : pack.description;
+            const packName = language === "zh" && pack.nameZh ? pack.nameZh : language === "en" && pack.nameEn ? pack.nameEn : pack.name;
+            const packDesc = language === "zh" && pack.descriptionZh ? pack.descriptionZh : language === "en" && pack.descriptionEn ? pack.descriptionEn : pack.description;
             return (
               <motion.button
                 key={pack.id}

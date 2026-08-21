@@ -455,7 +455,7 @@ export default function DailyBoard() {
                         color: isCompleted ? "var(--text-tertiary)" : rarity.color,
                       }}
                     >
-                      {language === "en" ? rarity.label : rarity.labelKo}
+                      {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
                     </span>
                     {!isCompleted && (
                       <div className="flex items-center gap-1">

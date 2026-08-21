@@ -20,7 +20,7 @@ export default function Header() {
     ? ALL_TITLES.find((t) => t.id === progress.equippedTitleId)
     : null;
   const title = equippedTitle
-    ? (language === "en" && equippedTitle.nameEn ? equippedTitle.nameEn : equippedTitle.name)
+    ? (language === "zh" && equippedTitle.nameZh ? equippedTitle.nameZh : language === "en" && equippedTitle.nameEn ? equippedTitle.nameEn : equippedTitle.name)
     : getTitleForLevel(progress.level, language);
   const titleColor = equippedTitle ? RARITY_CONFIG[equippedTitle.rarity].color : undefined;
   const { current, needed } = getXPProgress(progress.xp || 0, progress.level);

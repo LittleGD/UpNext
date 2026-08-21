@@ -58,7 +58,7 @@ export default function ChallengeCard({
         className="absolute -top-2 -right-2 text-[13px] font-bold px-2 py-0.5 rounded-sm"
         style={{ backgroundColor: rarity.color, color: "#0A0A0A" }}
       >
-        {language === "en" ? rarity.label : rarity.labelKo}
+        {language === "zh" ? rarity.labelZh : language === "en" ? rarity.label : rarity.labelKo}
       </div>
 
       {/* 카드 내용 */}

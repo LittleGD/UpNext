@@ -6,6 +6,7 @@ export interface RarityConfig {
   bgClass: string;
   label: string;
   labelKo: string;
+  labelZh: string;
 }
 
 export const RARITY_CONFIG: Record<Rarity, RarityConfig> = {
@@ -15,6 +16,7 @@ export const RARITY_CONFIG: Record<Rarity, RarityConfig> = {
     bgClass: "bg-bg-surface",
     label: "Normal",
     labelKo: "일반",
+    labelZh: "普通",
   },
   rare: {
     weight: 25,
@@ -22,6 +24,7 @@ export const RARITY_CONFIG: Record<Rarity, RarityConfig> = {
     bgClass: "bg-bg-surface",
     label: "Rare",
     labelKo: "레어",
+    labelZh: "稀有",
   },
   unique: {
     weight: 12,
@@ -29,6 +32,7 @@ export const RARITY_CONFIG: Record<Rarity, RarityConfig> = {
     bgClass: "bg-bg-surface",
     label: "Unique",
     labelKo: "유니크",
+    labelZh: "史诗",
   },
   legend: {
     weight: 3,
@@ -36,5 +40,6 @@ export const RARITY_CONFIG: Record<Rarity, RarityConfig> = {
     bgClass: "bg-bg-surface",
     label: "Legend",
     labelKo: "레전드",
+    labelZh: "传说",
   },
 };
