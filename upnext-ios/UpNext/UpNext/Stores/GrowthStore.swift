@@ -95,31 +95,6 @@ final class GrowthStore: ObservableObject {
         insert(meta: meta, image: image)
     }
 
-    /// 챌린지 완료 직후 남기는 "2초 로그" v1 — 실제 영상 대신 사진 1장 + 짧은 캡션.
-    func addChallengeLog(imageData: Data, card: ChallengeCard, caption: String) {
-        guard let image = UIImage(data: imageData),
-              let jpeg = image.jpegData(compressionQuality: 0.85) else { return }
-        let now = Date()
-        let id = "cl_\(UpHeroStore.nowMillis())"
-        guard Self.saveImage(jpeg, id: id) else { return }
-        let day = GameStore.todayString()
-        let cleanCaption = String(caption.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
-        let meta = PhotoMeta(
-            id: id,
-            kind: .challengeLog,
-            challengeCardId: card.id,
-            challengeTitle: card.title,
-            category: card.category,
-            date: day,
-            timestamp: UpHeroStore.nowMillis(),
-            memo: cleanCaption,
-            timeSlot: Self.timeSlotFormatter.string(from: now),
-            caption: cleanCaption,
-            weekId: RetentionEngine.weekId(for: day)
-        )
-        insert(meta: meta, image: image)
-    }
-
     private func insert(meta: PhotoMeta, image: UIImage) {
         imageCache[meta.id] = image
         photoMetas.insert(meta, at: 0)   // 최신이 앞
@@ -240,7 +215,7 @@ final class GrowthStore: ObservableObject {
     /// 폴라로이드 합성본 + 메타데이터 저장. PhotoCaptureModal.onSave 콜백이 호출.
     /// challengeCardId 가 nil 이면 자유 사진(.free), 있으면 챌린지 로그(.challengeLog).
     /// 저장 후 캡처 플로우를 초기화 (cancelCapture 와 동일하게 pending 클리어).
-    /// 기존 addPhoto / addChallengeLog 와 다른 점:
+    /// 기존 addPhoto(앨범 직접 추가) 와 다른 점:
     ///   - 합성 완료된 이미지(폴라로이드 프레임 + 서명 + 스티커) 그대로 저장.
     ///   - 서명·스티커 raw 데이터도 PhotoMeta 에 보존 — 추후 재편집/재합성 여지.
     func savePhoto(

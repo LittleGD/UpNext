@@ -628,28 +628,6 @@
         }
       }
     },
-    "2초 로그 남기기": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leave a 2-Second Log"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "2秒ログを残す"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "留下2秒记录"
-          }
-        }
-      }
-    },
     "Apple ID 로그인이 필요해요": {
       "localizations": {
         "en": {
@@ -2808,28 +2786,6 @@
         }
       }
     },
-    "사진 1장 선택": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pick 1 photo"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "写真を1枚選択"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择1张照片"
-          }
-        }
-      }
-    },
     "사진 추가": {
       "extractionState": "manual",
       "localizations": {
@@ -4434,28 +4390,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "学习"
-          }
-        }
-      }
-    },
-    "한 줄 캡션": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "One-line caption"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "一行キャプション"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "一行说明"
           }
         }
       }

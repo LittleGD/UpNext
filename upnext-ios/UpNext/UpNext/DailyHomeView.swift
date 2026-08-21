@@ -14,15 +14,11 @@
 //
 
 import SwiftUI
-import PhotosUI
 
 struct DailyHomeView: View {
     @EnvironmentObject private var store: GameStore
     @State private var confirmCard: ChallengeCard?
     @State private var confirmStartPhase: ChallengePhase?
-    @State private var logPromptCard: ChallengeCard?
-    @State private var logPickerItem: PhotosPickerItem?
-    @State private var logCaption = ""
     // 리텐션(불꽃/리포트/듀오)과 미니게임은 아지트로 이전됨 — 데일리는 순수 카드 흐름.
 
     var body: some View {
@@ -111,23 +107,6 @@ struct DailyHomeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: confirmStartPhase)
-        .sheet(item: $logPromptCard) { card in
-            logPromptSheet(card)
-                .presentationDetents([.medium])
-        }
-        .onChange(of: logPickerItem) { item in
-            guard let item, let card = logPromptCard else { return }
-            let caption = logCaption
-            Task {
-                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-                await MainActor.run {
-                    store.growth.addChallengeLog(imageData: data, card: card, caption: caption)
-                    logPickerItem = nil
-                    logPromptCard = nil
-                    logCaption = ""
-                }
-            }
-        }
     }
 
 
@@ -335,49 +314,6 @@ struct DailyHomeView: View {
         // 탭 프레스 스케일(요인2e) — 웹 DailyBoard motion.button whileTap scale 0.97.
         .buttonStyle(CardPressStyle())
         .disabled(completed)
-    }
-
-    private func logPromptSheet(_ card: ChallengeCard) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Capsule()
-                .fill(Color.textTertiary.opacity(0.3))
-                .frame(width: 42, height: 5)
-                .frame(maxWidth: .infinity)
-            VStack(alignment: .leading, spacing: 6) {
-                Text("2초 로그 남기기")
-                    .typography(.title)
-                    .foregroundStyle(Color.textPrimary)
-                Text(card.localizedTitle(.current))
-                    .typography(.body)
-                    .foregroundStyle(Color.accentPrimary)
-            }
-            TextField("한 줄 캡션", text: $logCaption)
-                .typography(.body)
-                .padding(.horizontal, 12)
-                .frame(height: 46)
-                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-                .accessibilityIdentifier("challengeLogCaption")
-            PhotosPicker(selection: $logPickerItem, matching: .images) {
-                HStack(spacing: 6) {
-                    PixelIcon(.camera, size: 18, color: Color.bgPrimary)
-                    Text("사진 1장 선택").typography(.body).foregroundStyle(Color.bgPrimary)
-                }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 12))
-            }
-            .accessibilityIdentifier("challengeLogPicker")
-            Button("나중에") {
-                logPromptCard = nil
-                logCaption = ""
-            }
-            .typography(.caption)
-            .foregroundStyle(Color.textTertiary)
-            .frame(maxWidth: .infinity)
-            Spacer(minLength: 0)
-        }
-        .padding(20)
-        .background(Color.bgPrimary)
     }
 
     // MARK: - 공통
