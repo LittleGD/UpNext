@@ -217,6 +217,11 @@ final class GameStore: ObservableObject {
             if self.duo.activeDuo != nil {
                 await self.duo.leaveDuoAsync()
             }
+            // 주간 리더보드 entry 정리(전 주차) — displayName·점수가 공개(read: if true)로
+            // 남는 PII. Auth 삭제 후엔 rules(uid 매칭 delete)를 아무도 통과할 수 없어
+            // 지금이 유일한 정리 시점. best-effort: rules 미배포 등으로 실패해도 계정 삭제
+            // 자체는 진행한다 — 삭제 기능이 막히는 쪽이 더 큰 5.1.1(v) 위반.
+            _ = await WeeklyLeaderboardService.deleteAllMyEntries()
             return await self.sync.deleteCloudData(uid: uid)
         })
         if ok {
@@ -1442,6 +1447,19 @@ final class GameStore: ObservableObject {
             store.upHero.markCampTutorialSeen()  // 캠프 홈 IA 검증 — 튜토리얼 가림 방지
             // 캐시된 영웅 이름을 강제 언어 풀의 결정론 이름으로 — 스크린샷 언어 일관성.
             store.upHero.renameHero(UpHeroRules.heroNamePools[forcedLang ?? .ko]?.first ?? "레오")
+        }
+        // 주간 악몽 진입 검증 — 현재 주 weeklyVariant 시드 + F30 클리어 이력(글로벌 해금).
+        // UITestCampNightmare 와 조합해 진입 view → 세션 생성 배선을 확인한다.
+        // UITestSeedWeeklyLocked 는 F30 이력 없이 시드 — not-unlocked 토스트 경로 재현.
+        if args.contains("UITestSeedWeekly") || args.contains("UITestSeedWeeklyLocked") {
+            p.level = 35
+            p.xp = GameRules.totalXPForLevel(35)
+            p.unlockedCardIds = CardCatalog.allCards.map(\.id)
+            store.upHero.assignClass(.warrior)
+            store.upHero.markCampTutorialSeen()
+            store.upHero.renameHero(UpHeroRules.heroNamePools[forcedLang ?? .ko]?.first ?? "레오")
+            store.upHero.seedWeeklyForUITests(
+                f30Cleared: !args.contains("UITestSeedWeeklyLocked"))
         }
         // 도감 발견 표시 검증 — 실제 전투 기록 경로로 codex 를 시드(몬스터/보스 발견).
         if args.contains("UITestSeedCodex") {

@@ -157,6 +157,61 @@ enum WeeklyLeaderboardService {
         }
     }
 
+    // MARK: - Delete (계정 삭제 정리 — GameStore.deleteAccount cloudCleanup 에서 호출)
+
+    /// 유저의 리더보드 entry 를 *모든 주차*에서 제거. entry 는 displayName·점수가
+    /// `read: if true` 로 전체 공개라, 계정 삭제 후 남기면 영구 공개 고아 PII 가 된다
+    /// (Auth 삭제 뒤엔 rules 의 uid 매칭 delete 를 아무도 통과할 수 없어 지금이 유일한 시점).
+    ///
+    /// weekId 는 결정론적 ISO 주차라 열거 가능 — 컬렉션 그룹 쿼리/인덱스 없이 기능 출시
+    /// 주(2026-W01)부터 다음 주까지 blind delete 배치를 커밋한다 (존재하지 않는 doc 의
+    /// delete 는 Firestore 에서 no-op 허용).
+    /// ⚠️ rules 의 `allow delete`(uid 매칭) 분기가 배포돼 있어야 성공한다 — firestore.rules
+    /// 수정 커밋 ≠ 배포. 미배포면 batch 전체가 permission-denied 로 실패해 false 반환.
+    static func deleteAllMyEntries() async -> Bool {
+        guard let uid = Auth.auth().currentUser?.uid else { return true }  // 비로그인 — 정리 대상 없음
+        let weekIds = allWeekIdsSinceLaunch()
+        do {
+            // Firestore 배치 상한 500 op — 여유롭게 400 단위로 쪼갠다 (수년 뒤에도 안전).
+            var index = 0
+            while index < weekIds.count {
+                let chunk = weekIds[index..<min(index + 400, weekIds.count)]
+                let batch = db.batch()
+                for weekId in chunk {
+                    batch.deleteDocument(entriesCollection(weekId).document(uid))
+                }
+                try await batch.commit()
+                index += 400
+            }
+            return true
+        } catch {
+            #if DEBUG
+            print("[WeeklyLeaderboardService] deleteAllMyEntries failed: \(error)")
+            #endif
+            return false
+        }
+    }
+
+    /// 리더보드 출시 주(2026-W01)부터 now+7일(기기 시계 skew 여유)까지의 ISO week id 열거.
+    /// 7일 간격 스텝은 ISO 주를 정확히 한 번씩 지나므로 누락 없음. 시작점 2025-12-29(월)는
+    /// 첫 rules 배포(2026-04)보다 충분히 앞선 안전 마진.
+    static func allWeekIdsSinceLaunch(now: Date = Date()) -> [String] {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        var dc = DateComponents()
+        dc.year = 2025; dc.month = 12; dc.day = 29
+        guard let launch = utc.date(from: dc) else { return [UpHeroRules.getISOWeekId(now)] }
+        var ids: [String] = []
+        var cursor = launch
+        let end = now.addingTimeInterval(7 * 86_400)
+        while cursor <= end {
+            let id = UpHeroRules.getISOWeekId(cursor)
+            if ids.last != id { ids.append(id) }
+            cursor = cursor.addingTimeInterval(7 * 86_400)
+        }
+        return ids
+    }
+
     // MARK: - Decode 가드 (웹 isValidEntry — corrupted/legacy doc 필터)
 
     private static func decodeEntry(_ data: [String: Any]) -> WeeklyLeaderboardEntry? {

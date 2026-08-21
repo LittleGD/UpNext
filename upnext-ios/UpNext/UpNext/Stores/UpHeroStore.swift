@@ -56,6 +56,20 @@ final class UpHeroStore: ObservableObject {
             s.heroStartLevel = gameLevel
         }
 
+        // 주간 악몽 seed / rollover — 웹 useUpHeroStore.initialize (Phase 11c).
+        //   주가 바뀌었으면 새 affix 로 리셋, 같은 주면 진행 상태 유지. affix 는
+        //   week id 기반 결정론 pick 이라 전 유저 동일. 웹처럼 initialize 에서만
+        //   평가한다 (앱을 켜둔 채 주가 넘어가도 다음 부팅까지 이전 주 유지).
+        let currentWeek = UpHeroRules.getISOWeekId()
+        if s.weeklyVariant?.week != currentWeek {
+            s.weeklyVariant = WeeklyVariant(
+                week: currentWeek,
+                affixId: WeeklyAffixes.pickWeeklyAffix(weekId: currentWeek).id,
+                clearedDungeons: [],
+                bestScore: 0,
+                lastUploadedAt: nil)
+        }
+
         // 오프라인 수련 보상 — 영웅 effective 레벨 기준 (웹과 동일).
         //   클래스 XP/coin 배율은 전직 슬라이스에서 — 현재 영웅은 무직이라 ×1.
         let heroLevel = UpHeroRules.getEffectiveHeroLevel(
@@ -210,6 +224,41 @@ final class UpHeroStore: ObservableObject {
         SoundPlayer.shared.play(.confirm)
     }
 
+    /// 주간 악몽 진입 결과. 웹 enterWeeklyVariant 반환값("ok"/"not-unlocked"/"no-weekly").
+    enum EnterWeeklyResult { case ok, notUnlocked, noWeekly }
+
+    /// 주간 악몽 던전 세션 시작. 웹 useUpHeroStore.enterWeeklyVariant (Phase 11c).
+    ///   F30 을 일반 모드에서 한 번 이상 클리어해야 해금 (ngPlusLevel 1+ 이면 자동).
+    ///   탐험권 소모 없음 · 버프 드로우 없음 · startFloor 고정 30 (단판 보스전).
+    ///   ngPlusLevel 은 0 으로 전달 — weekly affix 자체가 별도 난이도 소스(웹 주석).
+    ///   F30 보스 선삽입·affix 적용은 UpHeroSession.createSession 이 처리(이미 이식됨).
+    @discardableResult
+    func enterWeeklyVariant(_ dungeonId: DungeonId, gameLevel: Int) -> EnterWeeklyResult {
+        guard let weekly = state.weeklyVariant else { return .noWeekly }
+        // 웹 파리티 — 해금은 *글로벌* F30-ever-cleared (타일 뱃지는 던전별이지만
+        // 실제 게이트는 아무 던전이나 F30 클리어 이력 or NG+).
+        let f30EverCleared = (state.ngPlusLevel ?? 0) > 0
+            || state.dungeons.values.contains { $0.bossesDefeated.contains(30) }
+        guard f30EverCleared else { return .notUnlocked }
+
+        let heroLevel = UpHeroRules.getEffectiveHeroLevel(
+            gameLevel: gameLevel, heroStartLevel: state.heroStartLevel)
+        let leveledHero = UpHeroRules.computeHeroForLevel(state.hero, level: heroLevel)
+
+        var rng = SystemRandom()
+        let session = UpHeroSession.createSession(
+            dungeonId: dungeonId, hero: leveledHero, startFloor: 30,
+            activeBuffs: nil,
+            options: CreateSessionOptions(
+                ngPlusLevel: 0, isWeeklyVariant: true,
+                weeklyAffixId: weekly.affixId, heroLevel: heroLevel),
+            rng: &rng)
+        mutate { $0.currentSession = session }
+        Haptics.play(.medium)  // 탐험 출발 (confirmDungeon 과 동일)
+        SoundPlayer.shared.play(.confirm)
+        return .ok
+    }
+
     /// 탐험 포기 — 세션을 .completed(heroAbandoned)로 종료시킨다. 웹 abandonSession.
     /// 즉시 비우지 않고 정상 종료 처리 → 결산 화면을 거쳐 그때까지 모은 보상을
     /// acknowledgeSessionEnd 에서 지급한다 (포기해도 번 건 챙긴다).
@@ -246,6 +295,9 @@ final class UpHeroStore: ObservableObject {
         //   F30 미도달 실패도 floorsCleared 기반 점수는 산출(웹 R2). 세션 로그의 F30 보스
         //   victory 유무로 클리어 판정(prevBosses 와 무관 — 웹 R3).
         var uploadPayload: (score: Int, floors: Int, heroLevel: Int, clsRaw: String?)?
+        // bestScore/clearedDungeons 반영용 — isNewBest(업로드 게이트)와 무관하게 항상 기록
+        //   (웹 useUpHeroStore.ts:1368-1375 — clearedDungeons 는 F30 처치 시, bestScore 는 max).
+        var weeklyOutcome: (score: Int, clearedF30: Bool)?
         if session.isWeeklyVariant == true, let weekly = state.weeklyVariant {
             let bossesThisSession = SessionReward.calculateBossesDefeated(
                 log: session.log, existing: [])
@@ -265,6 +317,7 @@ final class UpHeroStore: ObservableObject {
             }
             let score = UpHeroRules.computeWeeklyScore(
                 floorsCleared: floorsCleared, remainingTime: session.time, heroLevel: heroLv)
+            weeklyOutcome = (score, clearedF30)
             let isNewBest = score > weekly.bestScore
             if isNewBest {
                 uploadPayload = (score, floorsCleared, heroLv, session.hero.classType?.rawValue)
@@ -280,13 +333,13 @@ final class UpHeroStore: ObservableObject {
                 s.ngPlusLevel = (s.ngPlusLevel ?? 0) + 1
             }
             // 주간 변종 최고 점수 갱신 + 클리어 던전 기록 (state commit 후 업로드는 아래).
-            if session.isWeeklyVariant == true, var weekly = s.weeklyVariant {
-                if let payload = uploadPayload {
-                    weekly.bestScore = max(weekly.bestScore, payload.score)
-                    let bosses = SessionReward.calculateBossesDefeated(log: session.log, existing: [])
-                    if bosses.contains(30), !weekly.clearedDungeons.contains(session.dungeonId) {
-                        weekly.clearedDungeons.append(session.dungeonId)
-                    }
+            //   isNewBest 와 무관 — 낮은 점수로 다른 던전을 F30 클리어해도 clearedDungeons
+            //   에는 기록돼야 한다 (웹 파리티 — 이전 코드는 payload 가드 안이라 누락).
+            if session.isWeeklyVariant == true, var weekly = s.weeklyVariant,
+               let outcome = weeklyOutcome {
+                weekly.bestScore = max(weekly.bestScore, outcome.score)
+                if outcome.clearedF30, !weekly.clearedDungeons.contains(session.dungeonId) {
+                    weekly.clearedDungeons.append(session.dungeonId)
                 }
                 s.weeklyVariant = weekly
             }
@@ -296,7 +349,9 @@ final class UpHeroStore: ObservableObject {
         // state commit 뒤 fire-and-forget 업로드(웹 R1 — atomic 순서 고정). 성공 시에만
         //   lastUploadedAt 갱신(웹 R3). 익명/미로그인은 서비스 내부에서 skip.
         if let payload = uploadPayload {
-            let week = state.weeklyVariant?.week ?? RetentionEngine.weekId(for: AppClock.todayString())
+            // 폴백은 ISO 주차 포맷("2026-W34") — RetentionEngine.weekId 는 "YYYY-MM-DD" 라
+            // rules 의 weekId regex(^\d{4}-W\d{2}$)에 걸려 업로드가 전부 거부됐다(버그 픽스).
+            let week = state.weeklyVariant?.week ?? UpHeroRules.getISOWeekId()
             let anon = AppConfig.loc("익명 영웅")
             let clearedAt = Self.nowMillis()
             Task { [weak self] in
@@ -616,6 +671,25 @@ final class UpHeroStore: ObservableObject {
         ]
         let newCodex = SessionReward.calculateCodexDelta(log: log, current: state.codex)
         mutate { $0.codex = newCodex }
+    }
+
+    /// UITest 전용 — 주간 악몽 진입 상태 시드: 현재 주 weeklyVariant + (f30Cleared 면)
+    /// fitness F30 클리어 이력(글로벌 해금 충족). affix pick 은 프로덕션 경로(initialize)와
+    /// 동일 로직. f30Cleared=false 는 글로벌 잠김 상태(not-unlocked 토스트 경로) 재현용.
+    func seedWeeklyForUITests(f30Cleared: Bool = true) {
+        let week = UpHeroRules.getISOWeekId()
+        mutate { s in
+            s.pendingDungeon = nil   // 이전 UITest run 의 영속 잔재로 BuffDrawPanel 이 덮는 것 방지
+            s.dungeons[.fitness] = f30Cleared
+                ? DungeonProgress(
+                    dungeonId: .fitness, floorReached: 30, bestFloorReached: 30,
+                    bossesDefeated: [10, 20, 30])
+                : nil
+            s.weeklyVariant = WeeklyVariant(
+                week: week,
+                affixId: WeeklyAffixes.pickWeeklyAffix(weekId: week).id,
+                clearedDungeons: [], bestScore: 0, lastUploadedAt: nil)
+        }
     }
     #endif
 

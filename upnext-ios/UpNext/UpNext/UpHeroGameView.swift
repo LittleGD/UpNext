@@ -45,7 +45,10 @@ private struct CampView: View {
 
     /// 아지트 내부 화면 — 웹 CampPlaceholder 의 `view` 상태(home/dungeons/…) 대응.
     /// P0-3 — `.weekly` 추가 (WeeklyLeaderboardView 진입 경로 회복).
-    private enum CampScreen { case home, dungeons, equipment, shop, classChoice, codex, weekly }
+    /// Phase 11c 이식 — `.weeklyNightmare` 추가 (주간 악몽 던전 진입 view — 웹 WeeklyView).
+    private enum CampScreen {
+        case home, dungeons, equipment, shop, classChoice, codex, weekly, weeklyNightmare
+    }
     /// 웹 src/app/playground/page.tsx TABS=[uphero, game] 이식.
     private enum CampTab { case hero, game }
 
@@ -75,13 +78,16 @@ private struct CampView: View {
                 case .weekly:
                     // 17-leaderboard-dummy — mock 제거. weekId 를 넘겨 뷰가 Firestore 실데이터를
                     // fetch 한다(fetchWeeklyTop + fetchMyRank). affix 는 weekId 기반 결정론.
+                    // Phase 11c 픽스 — weekId 는 ISO 주차("2026-W34"). 기존 RetentionEngine.weekId
+                    // 는 "YYYY-MM-DD" 포맷이라 웹 데이터와 다른 컬렉션을 읽었다.
                     WeeklyLeaderboardView(
                         onBack: { screen = .home },
-                        weekId: RetentionEngine.weekId(for: AppClock.todayString()),
-                        affixName: WeeklyAffixes.pickWeeklyAffix(
-                            weekId: RetentionEngine.weekId(for: AppClock.todayString())
-                        ).name
+                        weekId: currentWeekId,
+                        affixName: WeeklyAffixes.pickWeeklyAffix(weekId: currentWeekId).name
                     )
+                case .weeklyNightmare:
+                    // Phase 11c — 주간 악몽 던전 진입 (웹 CampPlaceholder WeeklyView).
+                    WeeklyNightmareView(onBack: { screen = .home })
                 }
             }
         }
@@ -101,6 +107,10 @@ private struct CampView: View {
             if uiTestOpenStats { statsOpen = true }
             // 17-leaderboard-dummy 검증 — 주간 리더보드 화면 바로 진입(실데이터 상태머신 확인용).
             if ProcessInfo.processInfo.arguments.contains("UITestCampWeekly") { screen = .weekly }
+            // Phase 11c — 주간 악몽 진입 view 바로 열기 (UI 배선 검증용).
+            if ProcessInfo.processInfo.arguments.contains("UITestCampNightmare") {
+                screen = .weeklyNightmare
+            }
             // 아지트 서브화면 바로 진입(i18n·도감 검증용). 출시 바이너리엔 비포함.
             let campArgs = ProcessInfo.processInfo.arguments
             if campArgs.contains("UITestOpenCodex") { screen = .codex }
@@ -405,6 +415,11 @@ private struct CampView: View {
                 SoundPlayer.shared.play(.select)
                 if totalPasses > 0 { screen = .dungeons } else { screen = .shop }
             }
+            // Phase 11c R1 — 주간 악몽 compact ribbon. PrimaryCTA 바로 아래(웹 패리티 —
+            // CampPlaceholder.tsx:501-509). F30 돌파 이력(또는 NG+) 있을 때만 노출.
+            if f30Unlocked, let weekly = upHero.state.weeklyVariant {
+                weeklyRibbon(weekly)
+            }
             // 보조 액션 — 2열 그리드(부제목 제거)로 압축해 한 페이지 위계를 줄인다.
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
                                 GridItem(.flexible(), spacing: 10)], spacing: 10) {
@@ -518,6 +533,70 @@ private struct CampView: View {
         UpHeroRules.getEffectiveHeroLevel(
             gameLevel: store.progress?.level ?? 1,
             heroStartLevel: upHero.state.heroStartLevel)
+    }
+
+    /// 현재 ISO 주차 id — weeklyVariant 가 seed 됐으면 그 값(진실원천), 없으면 재계산.
+    private var currentWeekId: String {
+        upHero.state.weeklyVariant?.week ?? UpHeroRules.getISOWeekId()
+    }
+
+    /// F30 돌파 이력 — 주간 악몽 ribbon 노출 조건. 웹 f30Unlocked (CampPlaceholder:341).
+    private var f30Unlocked: Bool {
+        (upHero.state.ngPlusLevel ?? 0) > 0
+            || upHero.state.dungeons.values.contains { $0.bossesDefeated.contains(30) }
+    }
+
+    /// 주간 악몽 compact ribbon — 웹 WeeklyNightmareRibbon (CampPlaceholder.tsx:1292-1361).
+    /// 좌측 sand accent bar + 1줄 제목(affix 이름) + 1줄 메타(weekId · 클리어 · 최고점).
+    /// 웹은 sand borderLeft — iOS 디자인 룰(보더 금지)에 따라 accent bar 채움으로 재현.
+    private func weeklyRibbon(_ weekly: WeeklyVariant) -> some View {
+        let sand = Color(hexString: "#e8b887")
+        let affix = WeeklyAffixes.getWeeklyAffixById(weekly.affixId)
+        let affixName = affix.map { AppConfig.locRuntime($0.name) } ?? "—"
+        // 제목/메타는 사전 현지화된 String 을 조립 — Text 리터럴 보간("%@ · %@" 키 조회) 회피.
+        let title = AppConfig.loc("이번 주 악몽") + " · " + affixName
+        var meta = weekly.week
+        if !weekly.clearedDungeons.isEmpty {
+            meta += " · \(weekly.clearedDungeons.count)/8"
+        }
+        if weekly.bestScore > 0 {
+            meta += " · " + AppConfig.loc("최고 \(weekly.bestScore)점")
+        }
+        return Button {
+            Haptics.play(.selection)   // ② 햅틱 페어링 — select 사운드 지점.
+            SoundPlayer.shared.play(.select)
+            screen = .weeklyNightmare
+        } label: {
+            HStack(spacing: 10) {
+                PixelIcon(.warningDiamond, size: 14, color: sand)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .typography(.caption)
+                        .foregroundStyle(GBPalette.lightest)
+                        .lineLimit(1)
+                    Text(meta)
+                        .typography(.micro)
+                        .monospacedDigit()
+                        .foregroundStyle(GBPalette.light.opacity(0.7))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                PixelIcon(.chevronRight, size: 12, color: GBPalette.light)
+            }
+            .padding(.leading, 15)   // accent bar(3pt) 폭만큼 본문을 안쪽으로
+            .padding(.trailing, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .background(GBPalette.dark.opacity(0.8), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(alignment: .leading) {
+                Capsule().fill(sand)
+                    .frame(width: 3)
+                    .padding(.vertical, 9)
+                    .padding(.leading, 5)
+            }
+        }
+        .buttonStyle(.unPress)
+        .accessibilityIdentifier("weeklyNightmareRibbon")
     }
 
     // MARK: 헤더 — 영웅 nameplate (웹 CampPlaceholder 헤더: 영웅 이름 + 영웅 Lv + XP + NG+ + 코인)

@@ -154,7 +154,17 @@ service cloud.firestore {
     //     완전한 cheat 방지는 Cloud Function 재계산 단계 (추후) 에서.
     match /weekly-leaderboard/{weekId}/entries/{uid} {
       allow read: if true;
-      allow write: if request.auth != null
+
+      // 계정 삭제 정리 — 본인 entry 삭제 허용 (iOS GameStore.deleteAccount).
+      //   delete 는 request.resource 가 존재하지 않아 아래 create/update 조건과 분리해야
+      //   한다 — 기존 단일 `allow write` 에선 delete 가 request.resource.data 접근 실패로
+      //   항상 거부돼, 계정 삭제 후 entry 가 영구 공개로 남았다.
+      //   weekId regex 는 delete 에 불필요 (entry 는 create 시점에 이미 regex 검증됨 —
+      //   여기 걸면 포맷 변경 시 정리만 조용히 깨지는 실패 모드가 생긴다).
+      allow delete: if request.auth != null
+        && request.auth.uid == uid;
+
+      allow create, update: if request.auth != null
         && request.auth.uid == uid
         && weekId.matches('^[0-9]{4}-W[0-9]{2}$')
         // 필드 allowlist — 허용된 키만 존재.
