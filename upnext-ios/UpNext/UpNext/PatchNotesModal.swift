@@ -15,7 +15,7 @@ struct PatchNoteEntry {
 }
 
 struct PatchNoteVersion: Identifiable {
-    let id = UUID()
+    var id: String { version }
     let version: String
     let date: String
     let headline: String
@@ -165,7 +165,8 @@ struct PatchNotesModal: View {
 
     // MARK: - Mock notes (실제로는 patchNotes.json bundle 로드)
 
-    static let notes: [PatchNoteVersion] = [
+    // computed — static let 은 첫 접근 시점 언어로 AppConfig.loc 결과가 동결된다(금지 패턴).
+    static var notes: [PatchNoteVersion] { [
         PatchNoteVersion(
             version: "2026.05.22",
             date: "2026-05-22",
@@ -196,5 +197,5 @@ struct PatchNotesModal: View {
             ],
             isNew: false
         ),
-    ]
+    ] }
 }

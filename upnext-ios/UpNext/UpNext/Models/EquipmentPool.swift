@@ -115,13 +115,24 @@ enum EquipmentPool {
         .normal: "", .rare: "빛나는 ", .unique: "전설적 ", .legend: "신성한 ",
     ]
 
-    /// Equipment.name 에서 rarity 접두사 제거해 baseName 복원. 웹 `getEquipmentBaseName`.
+    /// Equipment 의 baseName 복원. 웹 `getEquipmentBaseName`.
+    /// baseId 역참조 우선(신규 드롭은 항상 보유) — name 문자열 파싱은 legacy 전용.
+    /// name 은 "빛나는 자기절제의 검 of 힘, 민첩" 형태라 rarity 접두사와 affix 접미사를
+    /// 모두 벗겨야 카탈로그 키(baseName)와 매칭된다.
     static func equipmentBaseName(_ eq: Equipment) -> String {
-        let prefix = rarityPrefix[eq.rarity] ?? ""
-        if !prefix.isEmpty && eq.name.hasPrefix(prefix) {
-            return String(eq.name.dropFirst(prefix.count))
+        if let baseId = eq.baseId,
+           let t = templates.first(where: { $0.baseId == baseId }) {
+            return t.baseName
         }
-        return eq.name
+        var name = eq.name
+        let prefix = rarityPrefix[eq.rarity] ?? ""
+        if !prefix.isEmpty && name.hasPrefix(prefix) {
+            name = String(name.dropFirst(prefix.count))
+        }
+        if let r = name.range(of: " of ") {
+            name = String(name[..<r.lowerBound])
+        }
+        return name
     }
 
     /// 도감 표시용 — 저장된 식별자(현재 codex.equipment 는 한글 baseName, 미래 호환 위해

@@ -65,12 +65,22 @@ enum PhotoTalisman {
         if rarity == .unique || rarity == .legend { stats[.slotBonus] = 1 }
         if rarity == .legend { stats[.crit] = 3 }
 
+        // 이름은 생성 시점 데이터에 구워지는 구조 — 생성 시점 인앱 언어로 현지화(플레이버와 동일).
+        // 챌린지 카드는 다국어 필드를 가진 카탈로그에서 재조회, 폴백 문구는 카탈로그 경유.
+        var isFallbackTitle = false
         let rawTitle: String = {
+            if let cid = photo.challengeCardId,
+               let card = CardCatalog.allCards.first(where: { $0.id == cid }) {
+                return card.localizedTitle(.current)
+            }
             if let t = photo.challengeTitle, !t.isEmpty { return t }
             if !photo.memo.isEmpty { return photo.memo }
-            return "성장의 순간"
+            isFallbackTitle = true
+            return AppConfig.loc("성장의 순간")
         }()
-        let shortTitle = rawTitle.count > 5 ? String(rawTitle.prefix(5)) + "…" : rawTitle
+        // 폴백 제목은 자르면 전 언어에서 훼손되므로 truncation 면제.
+        let shortTitle = (!isFallbackTitle && rawTitle.count > 5)
+            ? String(rawTitle.prefix(5)) + "…" : rawTitle
 
         let dateLabel = photo.date
         let flavorBody = (photo.memo.isEmpty == false)

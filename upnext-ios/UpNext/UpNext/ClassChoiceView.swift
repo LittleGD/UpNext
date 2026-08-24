@@ -84,7 +84,7 @@ struct ClassChoiceView: View {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(UpHeroRules.classMeta[cls]?.name ?? "")
+                        Text(AppConfig.locRuntime(UpHeroRules.classMeta[cls]?.name ?? ""))
                             .typography(.body)
                             .foregroundStyle(Color.textPrimary)
                         if isRec {

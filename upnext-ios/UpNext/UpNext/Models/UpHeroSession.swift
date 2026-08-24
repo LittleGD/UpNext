@@ -884,7 +884,9 @@ enum UpHeroSession {
             effectSummaryData: hasData ? sd : nil,
             actionLabelKey: success ? "uphero.combat.minigame.success" : "uphero.combat.minigame.fail",
             actionLabelFallback: success ? "도전 성공" : "도전 실패",
-            resultTextKey: nil, resultTextFallback: nil, timestamp: now()))
+            resultTextKey: success ? "uphero.combat.minigame.success" : "uphero.combat.minigame.fail",
+            resultTextFallback: success ? "도전 성공" : "도전 실패",
+            timestamp: now()))
         for e in effects {
             applyChoiceEffect(&s, effect: e, rng: &rng)
             if s.status == .completed { break }

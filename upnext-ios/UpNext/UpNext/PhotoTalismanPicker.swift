@@ -223,7 +223,7 @@ struct PhotoTalismanPicker: View {
         } else if let rb = pendingRebind {
             let lvl = rb.item.enhanceLevel ?? 0
             confirmCard(
-                title: AppConfig.loc("재의식 — \(rb.item.name)"),
+                title: AppConfig.loc("재의식 — \(rb.item.localizedDisplayName)"),
                 body: AppConfig.loc("\(PhotoTalisman.rebindCost(currentLevel: lvl)) 코인으로 +\(lvl) → +\(lvl + 1) 강화해요. +5·+10 에서 부적 스킬을 얻어요."),
                 confirm: AppConfig.loc("재의식"),
                 onConfirm: {

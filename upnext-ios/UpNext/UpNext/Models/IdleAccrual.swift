@@ -58,13 +58,13 @@ enum IdleAccrual {
         )
     }
 
-    /// "1시간 20분" 포맷 (한국어). 웹 `formatElapsed`.
-    /// 다국어 변형(formatElapsedI18n)은 Phase 5.6 i18n에서 처리.
+    /// "1시간 20분" 포맷 — 인앱 언어로 현지화. 웹 `formatElapsedI18n`(uphero.idle.elapsed.*).
+    /// Int 보간은 %lld 포맷키로 카탈로그 매칭.
     static func formatElapsed(_ min: Int) -> String {
-        if min < 60 { return "\(min)분" }
+        if min < 60 { return AppConfig.loc("\(min)분") }
         let h = min / 60
         let m = min % 60
-        if m == 0 { return "\(h)시간" }
-        return "\(h)시간 \(m)분"
+        if m == 0 { return AppConfig.loc("\(h)시간") }
+        return AppConfig.loc("\(h)시간 \(m)분")
     }
 }

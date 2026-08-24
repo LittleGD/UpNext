@@ -86,7 +86,7 @@ final class AuthService: NSObject, ObservableObject {
             GIDSignIn.sharedInstance.signOut()
             lastError = nil
         } catch {
-            lastError = "로그아웃 실패: \(error.localizedDescription)"
+            lastError = AppConfig.loc("로그아웃 실패: \(error.localizedDescription)")
         }
     }
 

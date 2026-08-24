@@ -175,7 +175,7 @@ struct AlbumView: View {
             }
             .shadow(color: .black.opacity(0.18), radius: 5, y: 3)
             .overlay(alignment: .bottomLeading) {
-                if meta.kind == .challengeLog, let title = meta.challengeTitle {
+                if meta.kind == .challengeLog, let title = localizedChallengeTitle(meta) {
                     Text(title)
                         .typography(.micro)
                         .foregroundStyle(Color.bgPrimary)
@@ -197,8 +197,18 @@ struct AlbumView: View {
 
     private func polaroidCaption(_ meta: PhotoMeta) -> String {
         if let memo = meta.memo.nonEmpty { return memo }
-        if let title = meta.challengeTitle { return title }
+        if let title = localizedChallengeTitle(meta) { return title }
         return meta.date
+    }
+
+    /// challengeTitle 은 저장 시점 한국어 원문(card.title) — 렌더 시점에 카드 다국어
+    /// 필드로 재현지화 (PhotoDetailModal.displayTitle 과 동일 패턴).
+    private func localizedChallengeTitle(_ meta: PhotoMeta) -> String? {
+        if let id = meta.challengeCardId,
+           let card = CardCatalog.allCards.first(where: { $0.id == id }) {
+            return card.localizedTitle(.current)
+        }
+        return meta.challengeTitle
     }
 }
 

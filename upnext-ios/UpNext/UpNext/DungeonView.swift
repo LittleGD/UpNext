@@ -586,8 +586,11 @@ struct DungeonView: View {
         case let .monsterEffect(_, _, narrative, key, params, _):
             if let key { return R(key, params, narrative ?? "") }
             return narrative ?? R("ios.log.monsterEffect", nil, "몬스터 효과 발동")
-        case let .choiceResult(text, _, _, _, _, resultTextKey, resultTextFallback, _):
-            return resultTextKey.map { R($0, nil, resultTextFallback ?? text) } ?? text
+        case let .choiceResult(text, _, _, actionLabelKey, actionLabelFallback, resultTextKey, resultTextFallback, _):
+            // resultTextKey 우선, 없으면 actionLabelKey(미니게임 legacy 엔트리) — raw text 는 최후 폴백.
+            if let resultTextKey { return R(resultTextKey, nil, resultTextFallback ?? text) }
+            if let actionLabelKey { return R(actionLabelKey, nil, actionLabelFallback ?? text) }
+            return text
         }
     }
 
@@ -717,19 +720,26 @@ struct DungeonView: View {
             if coins > 0 {
                 emitFloat(text: "+\(coins)", variant: .coin, position: heroAnchor())
             }
-        case let .choiceResult(text, effectSummary, summaryData, _, _, resultTextKey, resultTextFallback, _):
+        case let .choiceResult(text, effectSummary, summaryData, actionLabelKey, actionLabelFallback, resultTextKey, resultTextFallback, _):
             // 선택지 결과 — 모달로 표시(tick pause). 2.6s 후 자동 닫힘(웹 autoMs).
-            // logText 와 동일하게 resultTextKey 로 인앱 언어 해석(원문 text 는 "> 라벨 →
-            // 결과" 한국어 조합이라 그대로 쓰면 전 언어에서 샌다). 요약도 구조화 데이터에서
-            // 현지화 재구성(effectSummary 는 한국어 문자열).
-            choiceResultText = resultTextKey.map {
-                UpHeroNarrative.resolveLog($0, nil, fallback: resultTextFallback ?? text)
-            } ?? text
+            // logText 와 동일하게 resultTextKey → actionLabelKey(미니게임 legacy) 순으로
+            // 인앱 언어 해석(원문 text 는 "> 라벨 → 결과" 한국어 조합이라 그대로 쓰면 전
+            // 언어에서 샌다). 요약도 구조화 데이터에서 현지화 재구성(effectSummary 는 한국어 문자열).
+            let resolved: String
+            if let resultTextKey {
+                resolved = UpHeroNarrative.resolveLog(resultTextKey, nil, fallback: resultTextFallback ?? text)
+            } else if let actionLabelKey {
+                resolved = UpHeroNarrative.resolveLog(actionLabelKey, nil, fallback: actionLabelFallback ?? text)
+            } else {
+                resolved = text
+            }
+            choiceResultText = resolved
             choiceResultSummary = summaryData.map(Self.localizedEffectSummary) ?? effectSummary
             SoundPlayer.shared.play(.select)
             Haptics.play(.selection)
+            // 자동 닫힘 가드는 해석된 문자열 기준(같은 모달이 아직 떠 있는지 확인).
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
-                if choiceResultText == text { dismissChoiceResult() }
+                if choiceResultText == resolved { dismissChoiceResult() }
             }
         default:
             break

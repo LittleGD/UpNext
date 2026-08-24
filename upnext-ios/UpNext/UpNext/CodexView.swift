@@ -291,7 +291,7 @@ struct EquipmentCodexCard: View {
                 slotIcon, size: 28,
                 color: discovered ? Color.accentPrimary : Color.textTertiary.opacity(0.3)
             )
-            Text(discovered ? template.baseName : "???")
+            Text(discovered ? LocalizedStringKey(template.baseName) : "???")
                 .typography(.micro)
                 .foregroundStyle(discovered ? Color.textPrimary : Color.textTertiary)
                 .lineLimit(2)

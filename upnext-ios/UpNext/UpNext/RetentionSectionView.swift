@@ -123,7 +123,11 @@ struct RetentionSectionView: View {
                     reportRow(icon: category.pixelIcon, title: "가장 많이 한 카테고리", value: category.label)
                 }
                 if let title = report.highlightCardTitle {
-                    reportRow(icon: .sparkle, title: "인상적인 카드", value: title)
+                    // 저장값은 한국어 card.title(안정 식별자) — 렌더 시점에 재현지화.
+                    let localized = CardCatalog.allCards
+                        .first(where: { $0.title == title })?
+                        .localizedTitle(.current) ?? title
+                    reportRow(icon: .sparkle, title: "인상적인 카드", value: localized)
                 }
             }
             .padding(20)
