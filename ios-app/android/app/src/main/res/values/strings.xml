@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">UpNext</string>
     <string name="title_activity_main">UpNext</string>
-    <string name="package_name">com.littlegd.upnext</string>
-    <string name="custom_url_scheme">com.littlegd.upnext</string>
+    <string name="package_name">app.vercel.upnext</string>
+    <string name="custom_url_scheme">app.vercel.upnext</string>
 </resources>

@@ -1,7 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.littlegd.upnext',
+  // 안드로이드 Play 리스팅(app.vercel.upnext)을 업데이트해야 하므로 TWA 와 동일한 id 를 쓴다.
+  // (iOS 는 이 프로젝트를 쓰지 않는다 — 네이티브 SwiftUI 앱 upnext-ios/ 가 com.littlegd.upnext 로 출시됨)
+  appId: 'app.vercel.upnext',
   appName: 'UpNext',
   webDir: 'www',
   server: {
@@ -55,7 +57,15 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'DARK',
       backgroundColor: '#0A0A0A',
-      overlaysWebView: false,
+      overlaysWebView: true,
+    },
+    // Capacitor 8 안드로이드의 실제 시스템 바 처리기 (StatusBar 설정은 15+에서 사실상 무동작).
+    // style DARK = 다크 배경 -> 밝은 아이콘. insetsHandling css = WebView 140+ 에서는
+    // env(safe-area-inset-*) 패스스루, 미만에서는 네이티브 패딩 폴백 (windowBackground 가 보임 —
+    // styles.xml 에서 다크로 지정).
+    SystemBars: {
+      style: 'DARK',
+      insetsHandling: 'css',
     },
   },
 };

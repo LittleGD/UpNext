@@ -13,10 +13,14 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- WebView 140 미만 폴백(네이티브 패딩) 시 시스템 바 영역에 보이는 배경 — 브랜드 다크 -->
+        <item name="android:windowBackground">@color/splashBackground</item>
     </style>
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <!-- API 31+ 시스템 스플래시 — 기본 밝은 배경 대신 브랜드 다크 배경 -->
+        <item name="windowSplashScreenBackground">@color/splashBackground</item>
     </style>
 </resources>

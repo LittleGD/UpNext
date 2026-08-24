@@ -1,14 +1,15 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.littlegd.upnext"
+    namespace = "app.vercel.upnext"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.littlegd.upnext"
+        applicationId "app.vercel.upnext"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // TWA 마지막 릴리스가 versionCode 2 (v1.1.0). Capacitor 전환 빌드는 3부터.
+        versionCode 3
+        versionName "2.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +17,38 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // 서명 설정 — keystore.properties (gitignored) 또는 환경 변수에서 읽음. android-twa 와 동일 패턴.
+    // 우선순위: keystore.properties > 환경 변수 > (없으면 서명 스킵 + 경고)
+    def keystoreProps = new Properties()
+    def keystorePropsFile = rootProject.file("keystore.properties")
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.withInputStream { keystoreProps.load(it) }
+    }
+    def ksStoreFile = keystoreProps.getProperty('storeFile') ?: System.getenv('UPNEXT_KEYSTORE_FILE')
+    def ksStorePassword = keystoreProps.getProperty('storePassword') ?: System.getenv('UPNEXT_KEYSTORE_PASSWORD')
+    def ksKeyAlias = keystoreProps.getProperty('keyAlias') ?: System.getenv('UPNEXT_KEY_ALIAS')
+    def ksKeyPassword = keystoreProps.getProperty('keyPassword') ?: System.getenv('UPNEXT_KEY_PASSWORD')
+    def hasSigningConfig = ksStoreFile && ksStorePassword && ksKeyAlias && ksKeyPassword
+    if (!hasSigningConfig) {
+        logger.warn("WARNING: 릴리스 서명 자격 증명 없음 — release 빌드는 무서명으로 생성됩니다 (Play 업로드 불가)")
+    }
+    signingConfigs {
+        release {
+            if (hasSigningConfig) {
+                storeFile file(ksStoreFile)
+                storePassword ksStorePassword
+                keyAlias ksKeyAlias
+                keyPassword ksKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasSigningConfig) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
