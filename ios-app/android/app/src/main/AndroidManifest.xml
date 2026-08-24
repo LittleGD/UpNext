@@ -48,4 +48,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 폴라로이드 촬영(getUserMedia) — TWA 시절엔 Chrome 이 권한을 대신 처리했다.
+         Capacitor 의 BridgeWebChromeClient 는 manifest 에 선언된 경우에만 런타임 권한을 요청한다. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 데일리 리마인더 로컬 알림 (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
