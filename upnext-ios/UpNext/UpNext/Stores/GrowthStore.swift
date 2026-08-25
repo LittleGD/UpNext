@@ -12,6 +12,7 @@
 
 import SwiftUI
 import Combine  // ObservableObject / @Published
+import ImageIO  // CGImageSourceCreateThumbnailAtIndex — 그리드 썸네일 다운샘플 디코드
 
 @MainActor
 final class GrowthStore: ObservableObject {
@@ -20,7 +21,20 @@ final class GrowthStore: ObservableObject {
     @Published private(set) var photoMetas: [PhotoMeta] = []
 
     /// 로드된 이미지 메모리 캐시 — 그리드가 매 렌더 디스크를 안 읽도록.
-    private var imageCache: [String: UIImage] = [:]
+    /// NSCache: 비용 상한 + 시스템 메모리 압박 시 자동 축출. 이전의 [String: UIImage]
+    /// 딕셔너리는 축출이 전무해 촬영/앨범 반복 시 합성본이 무한 누적 — 실기기에서
+    /// jetsam 직전 전역 렉(촬영 직후 수 초 프리즈 가중)의 원인이었다.
+    private let imageCache: NSCache<NSString, UIImage> = {
+        let c = NSCache<NSString, UIImage>()
+        c.totalCostLimit = 96 * 1024 * 1024   // 디코드 픽셀 바이트 기준 ≈96MB
+        return c
+    }()
+
+    /// NSCache 비용 — 디코드된 픽셀 버퍼 크기(바이트).
+    nonisolated private static func cacheCost(of image: UIImage) -> Int {
+        guard let cg = image.cgImage else { return 4_000_000 }
+        return cg.bytesPerRow * cg.height
+    }
 
     /// 사진 보관 상한 — 초과 시 가장 오래된 것부터 정리. 웹 useGrowthStore 의 cap 대응
     /// (저장 공간·앨범 로딩 무한 증가 방지).
@@ -121,12 +135,14 @@ final class GrowthStore: ObservableObject {
     }
 
     private func insert(meta: PhotoMeta, image: UIImage) {
-        imageCache[meta.id] = image
+        imageCache.setObject(image, forKey: meta.id as NSString,
+                             cost: Self.cacheCost(of: image))
         photoMetas.insert(meta, at: 0)   // 최신이 앞
         // cap 초과분 — 가장 오래된 것(메타 끝)부터 메타·캐시·파일 정리.
         while photoMetas.count > Self.photoCap {
             let old = photoMetas.removeLast()
-            imageCache[old.id] = nil
+            imageCache.removeObject(forKey: old.id as NSString)
+            imageCache.removeObject(forKey: Self.thumbKey(old.id))
             Self.deleteImage(id: old.id)
         }
         Self.saveMetas(photoMetas)
@@ -135,7 +151,8 @@ final class GrowthStore: ObservableObject {
     /// 사진 삭제 — 메타·캐시·파일 모두 제거. 웹 deletePhoto.
     func deletePhoto(_ id: String) {
         photoMetas.removeAll { $0.id == id }
-        imageCache[id] = nil
+        imageCache.removeObject(forKey: id as NSString)
+        imageCache.removeObject(forKey: Self.thumbKey(id))
         Self.deleteImage(id: id)
         Self.saveMetas(photoMetas)
     }
@@ -156,22 +173,82 @@ final class GrowthStore: ObservableObject {
     func reset() {
         for meta in photoMetas { Self.deleteImage(id: meta.id) }
         photoMetas = []
-        imageCache.removeAll()
+        imageCache.removeAllObjects()
         Self.saveMetas([])
         pendingCapture = nil
         capturePhase = .idle
     }
 
     /// 사진 이미지 로드 (메모리 캐시). 파일이 없으면 nil.
+    /// 풀사이즈 디코드 — PhotoDetailModal·부적 의식 등 크게 보는 화면 전용.
+    /// 그리드/썸네일 셀은 loadThumbnail(for:) 을 쓸 것 (장당 7~15MB vs ~0.3MB).
     func image(for id: String) -> UIImage? {
-        if let cached = imageCache[id] { return cached }
+        if let cached = imageCache.object(forKey: id as NSString) { return cached }
         guard let img = UIImage(contentsOfFile: Self.imageURL(id).path) else { return nil }
-        imageCache[id] = img
+        imageCache.setObject(img, forKey: id as NSString, cost: Self.cacheCost(of: img))
         return img
     }
 
+    // MARK: - 그리드 썸네일
+
+    /// 그리드 썸네일 최대 픽셀(긴 변). 앨범 3열 셀 ≈ 110pt(@3x 330px) — 300px 이면
+    /// 셀 표시에 충분하고, 저장 합성본(1200×1454, 구버전 1800×2181) 풀 디코드 대비
+    /// 픽셀 메모리가 1/16~1/36 로 줄어 NSCache 상한 안에 수백 장이 들어간다.
+    nonisolated private static let thumbMaxPixel = 300
+
+    /// 썸네일 캐시 키 — 풀사이즈(id 키)와 같은 NSCache 를 쓰되 별도 키로 공존.
+    nonisolated private static func thumbKey(_ id: String) -> NSString {
+        "\(id)#thumb" as NSString
+    }
+
+    /// 캐시된 썸네일 즉시 조회 — 없으면 nil (디스크 접근 없음). 셀 init 에서 첫
+    /// 프레임 placeholder 깜빡임을 피할 때 사용.
+    func cachedThumbnail(for id: String) -> UIImage? {
+        imageCache.object(forKey: Self.thumbKey(id))
+    }
+
+    /// 그리드용 썸네일 로드 — ImageIO 로 셀 크기(≤300px)만 디코드해 별도 키로 캐시.
+    /// 디코드는 백그라운드에서 수행하고 캐시 반영은 메인. 파일이 아직 없으면(방금
+    /// savePhoto 직후 백그라운드 쓰기 진행 중) 메모리의 풀사이즈에서 다운스케일 폴백.
+    func loadThumbnail(for id: String) async -> UIImage? {
+        if let cached = imageCache.object(forKey: Self.thumbKey(id)) { return cached }
+        let url = Self.imageURL(id)
+        var thumb = await Task.detached(priority: .userInitiated) {
+            Self.decodeThumbnail(at: url)
+        }.value
+        if thumb == nil, let full = imageCache.object(forKey: id as NSString) {
+            thumb = await full.byPreparingThumbnail(ofSize: Self.thumbSize(for: full.size))
+        }
+        guard let thumb else { return nil }
+        imageCache.setObject(thumb, forKey: Self.thumbKey(id),
+                             cost: Self.cacheCost(of: thumb))
+        return thumb
+    }
+
+    /// 원본 크기를 긴 변 thumbMaxPixel 이하로 축소한 목표 크기 (비율 유지).
+    nonisolated private static func thumbSize(for size: CGSize) -> CGSize {
+        let maxDim = max(size.width, size.height)
+        guard maxDim > 0 else { return CGSize(width: thumbMaxPixel, height: thumbMaxPixel) }
+        let scale = min(1, CGFloat(thumbMaxPixel) / maxDim)
+        return CGSize(width: size.width * scale, height: size.height * scale)
+    }
+
+    /// ImageIO 다운샘플 디코드 — 풀사이즈 픽셀 버퍼를 만들지 않고 썸네일만 생성.
+    nonisolated private static func decodeThumbnail(at url: URL) -> UIImage? {
+        let opts: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: thumbMaxPixel,
+        ]
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
+        else { return nil }
+        return UIImage(cgImage: cg)
+    }
+
     /// id 로 PhotoMeta 조회 — 부적 의식 등 외부 화면이 미리보기 사진을 가져갈 때.
-    /// 메타 목록은 작아서 (cap 60) 선형 탐색 안전.
+    /// 메타 목록은 작아서 (cap 500) 선형 탐색 안전.
     func photoMeta(for id: String) -> PhotoMeta? {
         photoMetas.first { $0.id == id }
     }
@@ -334,21 +411,28 @@ final class GrowthStore: ObservableObject {
             weekId: RetentionEngine.weekId(for: day)
         )
         photoMetas = [meta]
-        imageCache[meta.id] = nil
+        imageCache.removeObject(forKey: meta.id as NSString)
+        imageCache.removeObject(forKey: Self.thumbKey(meta.id))
         Self.saveMetas(photoMetas)
     }
     #endif
 
     // MARK: - 파일 저장 (Application Support/growth/)
 
-    private static var dir: URL {
+    /// 메타 영속화 전용 직렬 큐 — 인코드+쓰기를 메인에서 제거. 이전엔 매 저장·메모
+    /// 편집마다 전체 메타(서명 PKDrawing Data 포함) JSON 을 메인에서 재인코드+원자적
+    /// 쓰기해, 사진이 쌓일수록 저장 버튼 직후 메인이 그만큼 정지했다.
+    nonisolated private static let persistQueue =
+        DispatchQueue(label: "com.littlegd.upnext.growth-persist", qos: .utility)
+
+    nonisolated private static var dir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("growth", isDirectory: true)
     }
-    private static func imageURL(_ id: String) -> URL {
+    nonisolated private static func imageURL(_ id: String) -> URL {
         dir.appendingPathComponent("\(id).jpg")
     }
-    private static var metasURL: URL {
+    nonisolated private static var metasURL: URL {
         dir.appendingPathComponent("metas.json")
     }
 
@@ -360,13 +444,14 @@ final class GrowthStore: ObservableObject {
         return f
     }()
 
-    private static func ensureDir() {
+    nonisolated private static func ensureDir() {
         try? FileManager.default.createDirectory(
             at: dir, withIntermediateDirectories: true)
     }
 
     /// 이미지 JPEG 데이터를 파일로 기록. 성공 여부 반환.
-    private static func saveImage(_ jpeg: Data, id: String) -> Bool {
+    /// nonisolated — savePhoto 의 백그라운드 인코드 경로에서 호출된다.
+    nonisolated private static func saveImage(_ jpeg: Data, id: String) -> Bool {
         ensureDir()
         do {
             try jpeg.write(to: imageURL(id), options: .atomic)
@@ -376,12 +461,12 @@ final class GrowthStore: ObservableObject {
         }
     }
 
-    private static func deleteImage(id: String) {
+    nonisolated private static func deleteImage(id: String) {
         try? FileManager.default.removeItem(at: imageURL(id))
     }
 
     /// 메타 목록 복원. 파일이 없거나 손상되면 빈 배열.
-    private static func loadMetas() -> [PhotoMeta] {
+    nonisolated private static func loadMetas() -> [PhotoMeta] {
         guard let data = try? Data(contentsOf: metasURL),
               let metas = try? JSONDecoder().decode([PhotoMeta].self, from: data)
         else { return [] }
@@ -389,9 +474,13 @@ final class GrowthStore: ObservableObject {
     }
 
     /// 메타 목록을 JSON 파일로 기록. 실패는 무시 (best-effort).
-    private static func saveMetas(_ metas: [PhotoMeta]) {
-        ensureDir()
-        guard let data = try? JSONEncoder().encode(metas) else { return }
-        try? data.write(to: metasURL, options: .atomic)
+    /// 호출 시점의 스냅샷을 캡처해 persistQueue 에서 인코드+쓰기 — 직렬 큐라 순서가
+    /// 보존되고 마지막 쓰기가 최종 상태와 일치한다. 메인은 즉시 반환.
+    nonisolated private static func saveMetas(_ metas: [PhotoMeta]) {
+        persistQueue.async {
+            ensureDir()
+            guard let data = try? JSONEncoder().encode(metas) else { return }
+            try? data.write(to: metasURL, options: .atomic)
+        }
     }
 }

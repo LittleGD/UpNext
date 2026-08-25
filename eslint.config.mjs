@@ -16,6 +16,9 @@ const eslintConfig = defineConfig([
     "upnext-ios/**",
     "ios-app/**",
     "android-twa/**",
+    // Claude Code 로컬 워크스페이스 — .claude/worktrees/*/.next 빌드 산출물이
+    // 메인 체크아웃 lint 에서 ~75k 문제를 유발 (.next/** 패턴은 루트만 매칭).
+    ".claude/**",
   ]),
 ]);
 

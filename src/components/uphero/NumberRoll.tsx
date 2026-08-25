@@ -22,7 +22,7 @@
  *  - rolling 모션은 변화를 즉각 알림 + 보상감 (게임의 "딸깍")
  */
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 
 interface NumberRollProps {
@@ -55,43 +55,32 @@ export default function NumberRoll({
   skipFirst = true,
   silent = false,
 }: NumberRollProps) {
-  const [prev, setPrev] = useState<number | null>(null);
-  const [animating, setAnimating] = useState(false);
-  const [flashColor, setFlashColor] = useState<string | null>(null);
-  const firstRenderRef = useRef(true);
-  const timerRef = useRef<number | null>(null);
+  // 애니메이션 출발값 (null = 아직 기준 없음 → skipFirst 시 첫 변경은 기준만 잡고 skip).
+  // "value 변화 감지"는 렌더 단계의 prev-비교 setState 패턴 (React 공식 adjust-state 패턴,
+  // 기존 useEffect 내 동기 setState 를 react-hooks/set-state-in-effect 준수 형태로 대체).
+  const [prev, setPrev] = useState<number | null>(skipFirst ? null : value);
+  const [lastSeenValue, setLastSeenValue] = useState(value);
+  if (value !== lastSeenValue) {
+    setLastSeenValue(value);
+    if (prev === null) setPrev(value); // 첫 변경: 애니메이션 없이 기준만 갱신
+  }
+
+  // 기준값과 현재값이 다르면 rolling 중 — 260ms 뒤 timer 가 기준값을 현재값으로 정착시킨다
+  const animating = prev !== null && prev !== value;
+  const delta = prev !== null ? value - prev : 0;
+  const flashColor = !animating
+    ? null
+    : delta > 0
+      ? gainColor
+      : delta < 0 && lossColor
+        ? lossColor
+        : null;
 
   useEffect(() => {
-    if (firstRenderRef.current) {
-      firstRenderRef.current = false;
-      if (skipFirst) return;
-    }
-    // prev 기록 후 animating=true
-    setPrev((p) => (p === null ? value : p));
-  }, [value, skipFirst]);
-
-  useEffect(() => {
-    if (prev === null) return;
-    if (prev === value) return;
-    // animation 시작
-    setAnimating(true);
-    const delta = value - prev;
-    if (delta > 0) setFlashColor(gainColor);
-    else if (delta < 0 && lossColor) setFlashColor(lossColor);
-    else setFlashColor(null);
-
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => {
-      setAnimating(false);
-      setFlashColor(null);
-      setPrev(value);
-      timerRef.current = null;
-    }, 260);
-
-    return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-    };
-  }, [value, prev, gainColor, lossColor]);
+    if (!animating) return;
+    const id = window.setTimeout(() => setPrev(value), 260);
+    return () => window.clearTimeout(id);
+  }, [animating, value]);
 
   const display = format ? format(value) : String(value);
   const prevDisplay =

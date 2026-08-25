@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
 import { useMotionValue, type MotionValue } from "framer-motion";
 import { useReducedMotion } from "./useReducedMotion";
 import { isLowEndDeviceCached } from "@/lib/devicePerformance";
@@ -28,6 +28,19 @@ export interface GyroscopeState {
   requestPermission: () => Promise<boolean>;
 }
 
+// 클라이언트에서만 알 수 있는 정적 환경 정보 — mount 후 값이 바뀌지 않으므로
+// 구독 없는 useSyncExternalStore 로 읽는다 (SSR/hydration 첫 렌더는 false).
+const noopSubscribe = () => () => {};
+const getHasAPI = () => "DeviceOrientationEvent" in window;
+const getServerFalse = () => false;
+const getNeedsPermissionAPI = () => {
+  if (!("DeviceOrientationEvent" in window)) return false;
+  const DOE = DeviceOrientationEvent as unknown as {
+    requestPermission?: () => Promise<"granted" | "denied">;
+  };
+  return typeof DOE.requestPermission === "function";
+};
+
 /**
  * DeviceOrientation 이벤트를 래핑하여 3D 카드 기울기에 쓸 수 있는 beta/gamma MotionValue 반환.
  * - MotionValue 기반이라 리렌더 없이 60fps 유지
@@ -39,35 +52,26 @@ export function useGyroscope(): GyroscopeState {
   const reducedMotion = useReducedMotion();
   const beta = useMotionValue(0);
   const gamma = useMotionValue(0);
-  const [isAvailable, setIsAvailable] = useState(false);
-  const [isActive, setIsActive] = useState(false);
-  const [needsPermission, setNeedsPermission] = useState(false);
+  const hasAPI = useSyncExternalStore(noopSubscribe, getHasAPI, getServerFalse);
+  const permissionAPIRequired = useSyncExternalStore(
+    noopSubscribe,
+    getNeedsPermissionAPI,
+    getServerFalse,
+  );
+  const [granted, setGranted] = useState(false);
   const initialRef = useRef<{ beta: number; gamma: number } | null>(null);
 
-  // 센서 존재 여부 판단 + 자동 활성화
-  useEffect(() => {
-    if (reducedMotion) return;
-    const hasAPI = typeof window !== "undefined" && "DeviceOrientationEvent" in window;
-    setIsAvailable(hasAPI);
-    if (!hasAPI) return;
-
-    const DOE = DeviceOrientationEvent as unknown as {
-      requestPermission?: () => Promise<"granted" | "denied">;
-    };
-
-    if (typeof DOE.requestPermission === "function") {
-      // iOS 13+ — 사용자 제스처 필요
-      setNeedsPermission(true);
-    } else {
-      // Android / 데스크탑 — 자동 활성화
-      initialRef.current = null;
-      setIsActive(true);
-    }
-  }, [reducedMotion]);
+  const isAvailable = !reducedMotion && hasAPI;
+  // 비iOS: 자동 활성화 / iOS 13+: 권한 승인 후 활성화
+  const isActive = isAvailable && (!permissionAPIRequired || granted);
+  const needsPermission = isAvailable && permissionAPIRequired && !granted;
 
   // 리스너 등록/해제
   useEffect(() => {
     if (!isActive || reducedMotion) return;
+
+    // (재)활성화 시점마다 기준 자세를 다시 잡는다
+    initialRef.current = null;
 
     const lowEnd = isLowEndDeviceCached();
     let lastUpdate = 0;
@@ -98,7 +102,7 @@ export function useGyroscope(): GyroscopeState {
   }, [isActive, reducedMotion, beta, gamma]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (reducedMotion || !isAvailable) return false;
+    if (!isAvailable) return false;
 
     const DOE = DeviceOrientationEvent as unknown as {
       requestPermission?: () => Promise<"granted" | "denied">;
@@ -108,9 +112,7 @@ export function useGyroscope(): GyroscopeState {
       try {
         const result = await DOE.requestPermission();
         if (result === "granted") {
-          initialRef.current = null;
-          setIsActive(true);
-          setNeedsPermission(false);
+          setGranted(true);
           return true;
         }
         return false;
@@ -120,17 +122,16 @@ export function useGyroscope(): GyroscopeState {
     }
 
     // iOS 미만 또는 Android — 권한 불필요
-    initialRef.current = null;
-    setIsActive(true);
+    setGranted(true);
     return true;
-  }, [reducedMotion, isAvailable]);
+  }, [isAvailable]);
 
   return {
     beta,
     gamma,
     isAvailable,
     isActive,
-    needsPermission: reducedMotion ? false : needsPermission,
+    needsPermission,
     requestPermission,
   };
 }

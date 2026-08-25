@@ -46713,6 +46713,29 @@
         }
       }
     },
+    "카메라 일시 중단됨": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera paused"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラは一時停止中"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相机已暂停"
+          }
+        }
+      }
+    },
     "갤러리에서 선택": {
       "extractionState": "manual",
       "localizations": {

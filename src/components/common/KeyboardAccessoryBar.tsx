@@ -19,7 +19,7 @@
  *    키보드에 덮일 수 있음 → fallback 용.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -48,6 +48,11 @@ function getKeyboardOffset(): number {
   return Math.max(0, bottom);
 }
 
+// SSR/hydration 첫 렌더에서만 false — portal 마운트 가드 (useEffect + setState 대체 패턴)
+const noopSubscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export default function KeyboardAccessoryBar({
   visible,
   onDone,
@@ -57,11 +62,7 @@ export default function KeyboardAccessoryBar({
 }: Props) {
   const { t } = useTranslation();
   const [kbOffset, setKbOffset] = useState(0);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(noopSubscribe, getClientSnapshot, getServerSnapshot);
 
   useEffect(() => {
     if (!visible) return;

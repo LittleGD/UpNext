@@ -39,11 +39,14 @@ export default function PixelConfetti({ trigger }: { trigger: boolean }) {
   const [particles, setParticles] = useState<Particle[]>([]);
 
   useEffect(() => {
-    if (trigger) {
-      setParticles(createParticles(24));
-      const timer = setTimeout(() => setParticles([]), 1500);
-      return () => clearTimeout(timer);
-    }
+    if (!trigger) return;
+    // rAF 콜백에서 생성 — effect 내 동기 setState 금지 규칙 준수 (다음 프레임, 시각적 차이 없음)
+    const raf = requestAnimationFrame(() => setParticles(createParticles(24)));
+    const timer = setTimeout(() => setParticles([]), 1500);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
   }, [trigger]);
 
   return (

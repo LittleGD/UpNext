@@ -93,6 +93,9 @@ struct PhotoCaptureModal: View {
     @State private var isExposureDragging: Bool = false
     @State private var exposureDragStartEV: Double = 0
     @State private var cameraError: Bool = false       // 카메라 불가 → 갤러리 폴백(웹 cameraError)
+    // 세션 인터럽션(전화 수신·잠금·다른 앱 카메라 점유) — 뷰파인더 정지 사유 안내 오버레이.
+    //   cameraError 와 달리 일시 상태: interruptionEnded 에서 자동 해제(네이티브 전용, 웹엔 없음).
+    @State private var cameraInterrupted: Bool = false
     @State private var showGalleryPicker: Bool = false  // 프로그램적 PhotosPicker 트리거
     @StateObject private var captureCoord = PhotoCaptureCoordinator()
 
@@ -179,11 +182,16 @@ struct PhotoCaptureModal: View {
         .onChange(of: photosPickerItem) { item in
             guard let item else { return }
             Task {
-                guard let data = try? await item.loadTransferable(type: Data.self),
-                      let img = UIImage(data: data) else { return }
-                // 갤러리 폴백 — 기기 노출계가 없으므로 EXPOSURE 다이얼 값을 CIExposureAdjust 로
-                //   소프트 베이크(P2-a: 갤러리 경로만 소프트 노출, 카메라는 하드웨어 bias).
-                await MainActor.run { beginProcess(img, exposureEV: exposureEV) }
+                let data = try? await item.loadTransferable(type: Data.self)
+                await MainActor.run {
+                    // 선택 소비 후 리셋 — 안 하면 재촬영 뒤 같은 사진을 다시 골라도
+                    // onChange 가 발화하지 않는 갤러리 데드엔드가 된다(nil 은 위 guard 가 무시).
+                    photosPickerItem = nil
+                    guard let data, let img = UIImage(data: data) else { return }
+                    // 갤러리 폴백 — 기기 노출계가 없으므로 EXPOSURE 다이얼 값을 CIExposureAdjust 로
+                    //   소프트 베이크(P2-a: 갤러리 경로만 소프트 노출, 카메라는 하드웨어 bias).
+                    beginProcess(img, exposureEV: exposureEV)
+                }
             }
         }
     }
@@ -337,7 +345,9 @@ struct PhotoCaptureModal: View {
             PhotoCaptureView(onCapture: { img in beginProcess(img, exposureEV: 0) },
                              facingFront: $facingFront, flashOn: $flashOn,
                              exposureEV: $exposureEV,
-                             cameraError: $cameraError, coordinator: captureCoord)
+                             cameraError: $cameraError,
+                             cameraInterrupted: $cameraInterrupted,
+                             coordinator: captureCoord)
 
             // FLASH 라이브 프리뷰 밝기 파리티 — 웹 video CSS `brightness(1.15)` 근사(P2-b).
             //   라이브 프리뷰 위 화이트 15% 컴포짓. 시뮬/갤러리(cameraError) 모드엔 미적용.
@@ -373,6 +383,18 @@ struct PhotoCaptureModal: View {
                 .padding(.trailing, 6)
             }
             .allowsHitTesting(false)
+
+            // 세션 인터럽션 안내 — 뷰파인더가 마지막 프레임으로 굳는 이유(통화·잠금·카메라
+            // 점유)를 표시. 셔터는 capture() 의 isRunning 가드로 이미 no-op — 침묵 대신 안내.
+            if cameraInterrupted && !cameraError {
+                ZStack {
+                    Color(hex: 0x1A1D1E, alpha: 0.85)
+                    Text(AppConfig.loc("카메라 일시 중단됨"))
+                        .typography(.caption)
+                        .foregroundStyle(Color(hex: 0xECE9DE))
+                }
+                .allowsHitTesting(false)
+            }
 
             // 카메라 불가 시 — 뷰파인더 탭 = 갤러리(웹 cameraError 오버레이 대응, 아이콘 only)
             if cameraError {
@@ -660,13 +682,22 @@ struct PhotoCaptureModal: View {
     ///   applyFilter=true 로 합성 내부에서 Kodak 을 적용한다(이중적용/무필터 저장 모두 방지).
     /// 처리 구간(이제 수십 ms)엔 셔터 플래시 여운 + (거의 안 보일) 짧은 스피너만.
     private func beginProcess(_ img: UIImage, exposureEV ev: Double = 0) {
+        // 재진입 가드 — 셔터 연타/갤러리 재선택으로 늦은 캡처가 이미 decorate 로 전환한
+        // 뒤에 도착하면, 아래 main 블록이 decorateAppear=false 를 되돌리는데 phase 는
+        // .decorate 그대로라 decorateView 가 재삽입되지 않아 onAppear 가 다시 불리지
+        // 않는다 → 화면 전체가 opacity 0(=bgPrimary 순검정) + 히트테스트 제외로 영구
+        // 고착(강제종료 외 탈출 불가). 처리 중/이미 decorate 인 캡처는 버린다.
+        guard phase == .capture, !isProcessing else { return }
         let ts = Date()
         let variant = PolaroidFrameVariant.random(timestamp: ts)  // 웹 pickVariant (선택 UI 없음)
 
-        // 셔터 플래시 잔상 (opacity 1→0, 0.3s) — 진입 직전 짧은 처리 구간을 흰 플래시로 덮는다.
+        // 셔터 플래시 (opacity 1) — 처리 구간~decorate 진입까지를 흰 플래시로 덮는다.
+        // 페이드아웃은 decorate 커밋 *후* 다음 틱에 시작(아래 main 블록). 이전처럼 같은
+        // 런루프 콜아웃에서 1→0 을 연속 쓰면 SwiftUI 가 상태 쓰기를 병합해 body 는 최종값
+        // 0 만 보고, `if flashOpacity > 0` 분기가 한 번도 참이 되지 않아 플래시가 아예
+        // 렌더되지 않았다(데드 코드) — 전환 구간 전체가 bgPrimary 순검정으로 노출되던 원인.
         flashOpacity = 1
-        withAnimation(.easeOut(duration: 0.3)) { flashOpacity = 0 }
-        // 플래시 여운으로 못 덮는 드문 지연 대비 최소 피드백(작은 스피너). decorate 진입 시 해제.
+        // 플래시로 못 덮는 드문 지연 대비 최소 피드백(작은 스피너). decorate 진입 시 해제.
         isProcessing = true
 
         // exposureEV: 카메라는 0(하드웨어 bias 이미 반영), 갤러리 폴백만 CIExposureAdjust 소프트 베이크.
@@ -675,6 +706,12 @@ struct PhotoCaptureModal: View {
             let preview = PolaroidFilters.downsample(img, maxDimension: 960)
 
             DispatchQueue.main.async {
+                // 늦은 중복 캡처 최종 방어 — 진입 가드와 이 블록 사이에 다른 캡처가
+                // 먼저 decorate 로 전환했으면 이 캡처는 버린다(위 재진입 가드 참조).
+                guard self.phase == .capture else {
+                    self.flashOpacity = 0    // 켜둔 플래시 정리(도달 사실상 불가, 안전망)
+                    return
+                }
                 // 2. (main) 무필터 소형본 세팅 후 즉시 decorate 진입 — 필터 대기 없음.
                 self.capturedImage = preview
                 self.filteredImage = nil          // 아직 필터 없음 → frontFace 는 capturedImage(무필터) 표시
@@ -683,6 +720,12 @@ struct PhotoCaptureModal: View {
                 self.isProcessing = false
                 self.decorateAppear = false       // 진입 페이드 재트리거(재촬영 왕복 대비)
                 self.phase = .decorate
+                // 셔터 플래시 페이드아웃 — decorate 가 opacity 1 로 커밋된 *다음 틱*에
+                // 시작해, 흰 플래시가 카메라→폴라로이드 전환(0.35s 진입 페이드 포함)을
+                // 끝까지 덮는다. 검은 진입 프레임이 사용자에게 노출되지 않는다.
+                DispatchQueue.main.async {
+                    withAnimation(.easeOut(duration: 0.3)) { self.flashOpacity = 0 }
+                }
 
                 // 3. Kodak 필름룩을 뒤에서 계속 — 완료되는 대로 0.2s 크로스페이드로 스왑.
                 //    축소된 preview 재사용(원본 재디코드 회피). 꾸미기 표시/저장 합성 공용.

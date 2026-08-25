@@ -473,18 +473,13 @@ struct HeroStatPanel: View {
                     in: RoundedRectangle(cornerRadius: 10))
     }
 
-    /// 사진 부적 썸네일 (웹 StatPanelPhotoThumb 18px). GrowthStore 에서 원본 로드.
-    @ViewBuilder
+    /// 사진 부적 썸네일 (웹 StatPanelPhotoThumb 18px). 썸네일 경로로 로드.
     private func photoThumb(_ photoId: String) -> some View {
-        if let img = growth.image(for: photoId) {
-            Image(uiImage: img)
-                .resizable().scaledToFill()
-                .frame(width: 18, height: 18)
-                .clipShape(RoundedRectangle(cornerRadius: 3))
-        } else {
+        GrowthThumbImage(id: photoId, growth: growth) {
             RoundedRectangle(cornerRadius: 3).fill(GBPalette.dark)
-                .frame(width: 18, height: 18)
         }
+        .frame(width: 18, height: 18)
+        .clipShape(RoundedRectangle(cornerRadius: 3))
     }
 
     private func slotLabel(_ slot: EquipSlot) -> String {

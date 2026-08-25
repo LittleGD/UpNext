@@ -182,9 +182,7 @@ struct PhotoTalismanPicker: View {
         VStack(spacing: 0) {
             ZStack {
                 Color.black
-                if let img = growth.image(for: photo.id) {
-                    Image(uiImage: img).resizable().scaledToFill()
-                } else {
+                GrowthThumbImage(id: photo.id, growth: growth) {
                     PixelIcon(.image, size: 20, color: Color.textTertiary)
                 }
                 if let cat = photo.category {

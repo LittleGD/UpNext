@@ -31,6 +31,11 @@ function generateParticles() {
   });
 }
 
+// 파티클별 장식용 지속시간 지터 — 렌더 스코프 밖 헬퍼 (react-hooks/purity 준수)
+function particleDuration(): number {
+  return 0.7 + Math.random() * 0.3;
+}
+
 export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
   const [phase, setPhase] = useState<"filling" | "burst" | "done">("filling");
   const [particles] = useState(generateParticles);
@@ -132,7 +137,7 @@ export default function LevelUpScreen({ onComplete }: LevelUpScreenProps) {
                     opacity: 0,
                   }}
                   transition={{
-                    duration: 0.7 + Math.random() * 0.3,
+                    duration: particleDuration(),
                     delay: p.delay,
                     ease: "easeOut",
                   }}

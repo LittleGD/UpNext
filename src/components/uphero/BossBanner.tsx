@@ -37,8 +37,12 @@ const BANNER_DURATION_REDUCED = 600;
 export default function BossBanner({ monster, floor, onDone }: BossBannerProps) {
   const { t, language } = useTranslation();
   // onDone reference 가 매 render 마다 변해도 effect 재실행 막기 — ref 패턴
+  // (render 중 ref 쓰기는 react-hooks/refs 위반 → commit 후 effect 에서 갱신.
+  //  읽는 곳이 setTimeout/이벤트 핸들러뿐이라 타이밍 동일)
   const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  });
 
   // Phase 11c R3 — prefers-reduced-motion 유저는 520ms 빨간 flash + tremor 가 가장
   //   공격적인 모션. 짧게 끊고 애니메이션 제거 (아래 style jsx 의 @media 쿼리).

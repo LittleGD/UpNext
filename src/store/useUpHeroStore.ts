@@ -83,10 +83,7 @@ import { useGrowthStore } from "./useGrowthStore";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
 import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
-import {
-  ALL_EQUIPMENT_TEMPLATES,
-  findTemplateByLegacyId,
-} from "@/data/upHeroEquipment";
+import { findTemplateByLegacyId } from "@/data/upHeroEquipment";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { useGameStore, getTodayString } from "./useGameStore";
 import { t } from "@/i18n";

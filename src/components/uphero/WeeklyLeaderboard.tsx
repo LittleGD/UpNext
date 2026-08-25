@@ -24,9 +24,12 @@ import {
   type WeeklyLeaderboardEntry,
 } from "@/lib/weeklyLeaderboard";
 import { isFirebaseConfigured } from "@/lib/firebase";
-import { CLASS_META } from "@/types/uphero";
 import { className as classNameI18n } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
+
+// Phase 13 final review — sentinel 을 안정 identifier 로 (한국어 literal 제거).
+//   유저 노출은 `t("uphero.leaderboard.loginRequired")` 로 이미 i18n 됨.
+const FIREBASE_UNCONFIGURED = "firebase-unconfigured";
 
 interface WeeklyLeaderboardProps {
   weekId: string;
@@ -47,16 +50,14 @@ export default function WeeklyLeaderboard({
   const [myData, setMyData] = useState<
     { rank: number; entry: WeeklyLeaderboardEntry } | null
   >(null);
-  const [error, setError] = useState<string | null>(null);
+  // isFirebaseConfigured 는 모듈 상수 — 미설정 에러는 초기 상태로 직접 표현
+  // (기존 useEffect 내 동기 setState 를 규칙 준수 형태로 대체)
+  const [error, setError] = useState<string | null>(
+    isFirebaseConfigured ? null : FIREBASE_UNCONFIGURED,
+  );
 
-  // Phase 13 final review — sentinel 을 안정 identifier 로 (한국어 literal 제거).
-  //   유저 노출은 `t("uphero.leaderboard.loginRequired")` 로 이미 i18n 됨.
-  const FIREBASE_UNCONFIGURED = "firebase-unconfigured";
   useEffect(() => {
-    if (!isFirebaseConfigured) {
-      setError(FIREBASE_UNCONFIGURED);
-      return;
-    }
+    if (!isFirebaseConfigured) return;
     let cancelled = false;
     (async () => {
       try {

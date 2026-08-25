@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useGameStore } from "@/store/useGameStore";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
@@ -8,7 +8,7 @@ import { PASS_GRANT_BY_RARITY, PASS_CAP_PER_CATEGORY } from "@/types/uphero";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import PhotoCaptureModal from "@/components/growth/PhotoCaptureModal";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
-import { MODE_CARD_COUNT, XP_PER_RARITY } from "@/types/game";
+import { XP_PER_RARITY } from "@/types/game";
 import type { Category, ChallengeCard } from "@/types/card";
 import { motion, AnimatePresence } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -135,9 +135,13 @@ interface CelebrationPayload {
   willBeAllDone: boolean;
 }
 
+// SSR/hydration 첫 렌더에서만 false — portal 마운트 가드용 uSES 헬퍼
+const portalReadyNoopSubscribe = () => () => {};
+const portalReadyClientSnapshot = () => true;
+const portalReadyServerSnapshot = () => false;
+
 export default function DailyBoard() {
   const daily = useGameStore((s) => s.daily);
-  const progress = useGameStore((s) => s.progress);
   const completeChallenge = useGameStore((s) => s.completeChallenge);
   const completePhaseChallenge = useGameStore((s) => s.completePhaseChallenge);
   const startExtraChallenge = useGameStore((s) => s.startExtraChallenge);
@@ -146,9 +150,12 @@ export default function DailyBoard() {
   const { t, language } = useTranslation();
   const reducedMotion = useReducedMotion();
   const [confirmCard, setConfirmCard] = useState<ChallengeCard | null>(null);
-  // Portal mount 가드 (SSR safe)
-  const [portalReady, setPortalReady] = useState(false);
-  useEffect(() => setPortalReady(true), []);
+  // Portal mount 가드 (SSR safe) — hydration 첫 렌더에서만 false 인 파생값
+  const portalReady = useSyncExternalStore(
+    portalReadyNoopSubscribe,
+    portalReadyClientSnapshot,
+    portalReadyServerSnapshot,
+  );
   const [showConfetti, setShowConfetti] = useState(false);
   const [completingCard, setCompletingCard] = useState<ChallengeCard | null>(null);
   const [completingXp, setCompletingXp] = useState(0);

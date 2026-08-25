@@ -35,7 +35,10 @@ export default function SpotDiff({ difficulty, onComplete, onCancel }: MinigameP
   const [remainingMs, setRemainingMs] = useState(durationMs);
   const [done, setDone] = useState<"success" | "fail" | null>(null);
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    // render 중 ref 쓰기 금지 (react-hooks/refs) — 읽는 곳이 타이머 콜백뿐이라 commit 후 갱신로 충분
+    onCompleteRef.current = onComplete;
+  });
 
   useEffect(() => {
     if (done) return;

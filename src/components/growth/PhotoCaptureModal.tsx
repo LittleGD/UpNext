@@ -23,14 +23,11 @@ interface Props {
   onComplete: () => void;
 }
 
-const RAINBOW = ["#FF0000", "#FF8000", "#FFD700", "#00C853", "#2196F3", "#7B1FA2"];
-
 export default function PhotoCaptureModal({ card, onComplete }: Props) {
   const savePhoto = useGrowthStore((s) => s.savePhoto);
   const cancelCapture = useGrowthStore((s) => s.cancelCapture);
   const capturePhase = useGrowthStore((s) => s.capturePhase);
   const setCapturePhase = useGrowthStore((s) => s.setCapturePhase);
-  const photoCount = useGrowthStore((s) => s.photoMetas.length);
   const { play } = useSound();
   const { t, language } = useTranslation();
 

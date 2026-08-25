@@ -85,7 +85,10 @@ export default function ChoiceResultModal({
   //   포함되어 effect 재실행 → performance.now() 새로 찍혀 remaining 이 full 로
   //   점프 → "바가 튀면서 줄어드는" 현상. 이제 onDismiss 는 deps 에서 제외.
   const onDismissRef = useRef(onDismiss);
-  onDismissRef.current = onDismiss;
+  useEffect(() => {
+    // render 중 ref 쓰기 금지 (react-hooks/refs) — 읽는 곳이 rAF 콜백뿐이라 commit 후 갱신로 충분
+    onDismissRef.current = onDismiss;
+  });
   const [remaining, setRemaining] = useState(autoMs);
   useEffect(() => {
     if (reducedMotion) return;

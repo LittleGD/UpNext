@@ -50,10 +50,13 @@ export default function TracePath({ difficulty, onComplete, onCancel }: Minigame
   const [remainingMs, setRemainingMs] = useState(durationMs);
   const [done, setDone] = useState<"success" | "fail" | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
+  // clearedRef 는 onMove(이벤트 핸들러)에서만 읽고 쓴다 — pointermove 가 렌더보다
+  // 빠르게 연사되므로 ref 가 authoritative. 렌더 중 mirror 대입은 불필요 + refs 규칙 위반.
   const clearedRef = useRef(0);
-  clearedRef.current = cleared;
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  });
 
   useEffect(() => {
     if (done) return;

@@ -13,7 +13,7 @@
  * (storage evict + 백업 미진행) 를 사전 차단하기 위한 UX 안전망.
  */
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/store/useGameStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -30,34 +30,43 @@ const STORAGE_KEY = "backup_reminder_dismissed_at";
 const REMIND_AGAIN_AFTER_DAYS = 7;
 const MIN_DAYS_THRESHOLD = 3;
 
+// localStorage 의 "최근 dismiss 여부"를 uSES 로 읽는다 — SSR/첫 hydration 은 true(숨김) 취급.
+// (기존 useEffect + setState 초기화를 react-hooks/set-state-in-effect 준수 형태로 대체)
+const noopSubscribe = () => () => {};
+const getRecentlyDismissedSnapshot = () => {
+  const dismissedAt = loadFromStorage<number>(STORAGE_KEY);
+  if (!dismissedAt) return false;
+  const daysSince = (Date.now() - dismissedAt) / (1000 * 60 * 60 * 24);
+  return daysSince < REMIND_AGAIN_AFTER_DAYS;
+};
+const getRecentlyDismissedServerSnapshot = () => true;
+
 export default function BackupReminderBanner({ onLogin }: BackupReminderBannerProps) {
   const { t } = useTranslation();
   const isSignedIn = useAuthStore((s) => s.isSignedIn);
   const totalDaysCompleted = useGameStore((s) => s.progress.totalDaysCompleted);
-  const [visible, setVisible] = useState(false);
+  // 이번 세션에서 사용자가 닫았는지 (dismiss 는 storage 에도 기록되지만, 로그인 버튼은 세션 내 숨김만)
+  const [hiddenThisSession, setHiddenThisSession] = useState(false);
+  const recentlyDismissed = useSyncExternalStore(
+    noopSubscribe,
+    getRecentlyDismissedSnapshot,
+    getRecentlyDismissedServerSnapshot,
+  );
 
-  useEffect(() => {
-    if (!isFirebaseConfigured) return;
-    if (isSignedIn) return;
-    if ((totalDaysCompleted ?? 0) < MIN_DAYS_THRESHOLD) return;
-    const dismissedAt = loadFromStorage<number>(STORAGE_KEY);
-    if (dismissedAt) {
-      const daysSince = (Date.now() - dismissedAt) / (1000 * 60 * 60 * 24);
-      if (daysSince < REMIND_AGAIN_AFTER_DAYS) {
-        setVisible(false);
-        return;
-      }
-    }
-    setVisible(true);
-  }, [isSignedIn, totalDaysCompleted]);
+  const visible =
+    isFirebaseConfigured &&
+    !isSignedIn &&
+    (totalDaysCompleted ?? 0) >= MIN_DAYS_THRESHOLD &&
+    !recentlyDismissed &&
+    !hiddenThisSession;
 
   const dismiss = () => {
     saveToStorage(STORAGE_KEY, Date.now());
-    setVisible(false);
+    setHiddenThisSession(true);
   };
 
   const handleLogin = () => {
-    setVisible(false);
+    setHiddenThisSession(true);
     onLogin();
   };
 

@@ -202,6 +202,12 @@ struct MainTabView: View {
         }
         .onChange(of: growth.pendingCapture) { pending in
             evaluateLevelUpOverlay(hasEvent: store.pendingLevelUp != nil, capturing: pending != nil)
+            // 캡처 종료 시 보류된 카드팩 개봉 재평가 — cover 디스미스 소요(~0.4s) 뒤 present
+            // (syncPackOpener 의 캡처 게이트와 한 세트. 그 사이 새 캡처가 시작되면
+            //  syncPackOpener 내부 가드가 다시 보류한다).
+            if pending == nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { syncPackOpener() }
+            }
         }
         .onAppear {
             #if DEBUG
@@ -437,8 +443,16 @@ struct MainTabView: View {
         // 웹은 LoginOverlay(z-50)가 CardPackOpener 위에 뜨는데, iOS 의 fullScreenCover 는 zIndex 로
         // 못 이기는 네이티브 모달이라 온보딩 직후 순서가 뒤집히던 회귀를 여기서 게이트로 보정.
         // (오버레이가 닫히면 아래 onChange(showLoginOverlay) 가 이 함수를 재평가해 팩을 연다.)
-        guard !store.showLoginOverlay else { return }
-        if pendingPackCount > 0 { showPackOpener = true }
+        //
+        // 캡처 cover 와의 present 경합 방지 — 레벨업/풀클리어 완료는 pendingPacks 증가(이 함수
+        // 트리거)와 beginCapture(다음 틱, A-1)가 같은 완료 틱에 겹친다. 두 sibling
+        // fullScreenCover 가 연속 틱에 경합하면 UIKit 이 뒤 요청(카메라)을 드롭/지연시킨다.
+        // 판정을 한 틱 미뤄 pendingCapture 확정 후 검사하고, 캡처 중이면 보류 —
+        // 캡처 종료 시 onChange(growth.pendingCapture) 가 재평가해 팩을 연다.
+        DispatchQueue.main.async {
+            guard !store.showLoginOverlay, growth.pendingCapture == nil else { return }
+            if pendingPackCount > 0 { showPackOpener = true }
+        }
     }
 
     @ViewBuilder private var screen: some View {

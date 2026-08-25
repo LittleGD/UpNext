@@ -121,24 +121,62 @@ struct AlbumView: View {
     }
 
     /// 사진 셀 — 웹 앨범의 mini-polaroid 정체성을 유지한다. 탭하면 사진 상세 모달.
+    ///
+    /// 챌린지 로그 저장본은 이미 완성된 폴라로이드 합성 이미지(프레임·날짜 스탬프·서명
+    /// 포함, 600×727)라 통째로 표시한다 — 이전엔 정방 크롭 뒤 셀 프레임을 또 씌워
+    /// "폴라로이드 속 폴라로이드"로 잘려 보였다. 자유 사진(원본)만 miniPolaroid 로 감싼다.
+    /// 캡션은 친(chin) 영역 한 곳에만 — 구 하단 그라디언트 제목 오버레이가 친 캡션과
+    /// 같은 자리에 이중 렌더되어 글자가 겹치던 결함을 오버레이 삭제로 해소.
     private func photoCell(_ meta: PhotoMeta) -> some View {
         Button { detailTarget = meta } label: {
-            VStack(spacing: 0) {
-                ZStack {
-                    Color.black
-                    if let img = growth.image(for: meta.id) {
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFill()
+            GeometryReader { geo in
+                let w = geo.size.width
+                let h = geo.size.height
+                // 폴라로이드 공통 지오메트리(Figma 184×223) — PolaroidFrame/합성과 동일 비례.
+                let sideM = w * (15.0 / 184.0)
+                let topM = h * (14.0 / 223.0)
+                let photoW = w - sideM * 2
+                let photoH = h * (157.0 / 223.0)
+                let chinTop = topM + photoH
+
+                ZStack(alignment: .topLeading) {
+                    if meta.kind == .challengeLog {
+                        // 합성 저장본 전체가 폴라로이드 — 그대로. 로드 전엔 스캐폴드 표시.
+                        GrowthThumbImage(id: meta.id, growth: growth) {
+                            miniPolaroid(w: w, h: h) {
+                                PixelIcon(.image, size: 22, color: Color.paperPlaceholder)
+                            }
+                        }
+                        .frame(width: w, height: h)
+                        .clipped()
                     } else {
-                        PixelIcon(.image, size: 22, color: Color.paperPlaceholder)
+                        miniPolaroid(w: w, h: h) {
+                            GrowthThumbImage(id: meta.id, growth: growth) {
+                                PixelIcon(.image, size: 22, color: Color.paperPlaceholder)
+                            }
+                        }
                     }
-                }
-                .aspectRatio(1, contentMode: .fit)
-                .clipped()
-                .padding(.horizontal, 7)
-                .padding(.top, 7)
-                .overlay(alignment: .topLeading) {
+
+                    // 캡션 — 친 좌상단 한 곳에만 (메모 > 제목 > 날짜).
+                    Text(polaroidCaption(meta))
+                        .typography(.micro)
+                        .foregroundStyle(Color.inkWarmText.opacity(0.85))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                        .multilineTextAlignment(.leading)
+                        .frame(width: photoW, height: max(0, h - chinTop - h * 0.035),
+                               alignment: .topLeading)
+                        .offset(x: sideM, y: chinTop + h * 0.02)
+
+                    // 아날로그 종이 그레인 — 큰 PolaroidFrame 표시와 같은 캐시 텍스처.
+                    Image(uiImage: PolaroidFilters.paperTexture())
+                        .resizable()
+                        .frame(width: w, height: h)
+                        .opacity(0.12)
+                        .blendMode(.multiply)
+                        .allowsHitTesting(false)
+
+                    // 챌린지 배지 — 사진 좌상단 코너.
                     if meta.kind == .challengeLog {
                         HStack(spacing: 4) {
                             PixelIcon(meta.category?.pixelIcon ?? .check, size: 9, color: Color.bgPrimary)
@@ -150,49 +188,69 @@ struct AlbumView: View {
                         .padding(.horizontal, 6)
                         .frame(height: 20)
                         .background(Color.accentPrimary, in: Capsule())
-                        .padding(11)
+                        .padding(sideM + 3)
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("challengeLogBadge")
                     }
                 }
-
-                Text(polaroidCaption(meta))
-                    .typography(.micro)
-                    .foregroundStyle(Color.inkWarmText)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, minHeight: 31, alignment: .topLeading)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 5)
-                    .padding(.bottom, 7)
             }
             .aspectRatio(184.0 / 223.0, contentMode: .fit)
             .background(Color.paperCream)
             .clipShape(RoundedRectangle(cornerRadius: 3))
             .overlay {
                 RoundedRectangle(cornerRadius: 3)
-                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
+                    .stroke(Color.black.opacity(0.06), lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.18), radius: 5, y: 3)
-            .overlay(alignment: .bottomLeading) {
-                if meta.kind == .challengeLog, let title = localizedChallengeTitle(meta) {
-                    Text(title)
-                        .typography(.micro)
-                        .foregroundStyle(Color.bgPrimary)
-                        .lineLimit(2)
-                        .padding(6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            LinearGradient(
-                                colors: [.black.opacity(0.0), .black.opacity(0.58)],
-                                startPoint: .top,
-                                endPoint: .bottom)
-                        )
-                }
-            }
+            // 샘플 프레임의 부드러운 이중 그림자(근접 접지 + 넓은 확산).
+            .shadow(color: .black.opacity(0.14), radius: 2, y: 1)
+            .shadow(color: .black.opacity(0.10), radius: 7, y: 4)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(meta.kind == .challengeLog ? "challengeLogBadge" : "photoCard")
+    }
+
+    /// 자유 사진용 미니 폴라로이드 스캐폴드 — 샘플 프레임 기준: 아이보리 바탕 위
+    /// 비례 여백의 사진 영역(인화지 단차 그림자), 친의 현상액 주름(크리스) 자국.
+    @ViewBuilder
+    private func miniPolaroid<Photo: View>(
+        w: CGFloat, h: CGFloat, @ViewBuilder photo: () -> Photo
+    ) -> some View {
+        let sideM = w * (15.0 / 184.0)
+        let topM = h * (14.0 / 223.0)
+        let photoW = w - sideM * 2
+        let photoH = h * (157.0 / 223.0)
+        let chinTop = topM + photoH
+
+        ZStack(alignment: .topLeading) {
+            Color.paperCream
+            ZStack {
+                Color(hex: 0x010101)
+                photo()
+            }
+            .frame(width: photoW, height: photoH)
+            .clipped()
+            .offset(x: sideM, y: topM)
+            .shadow(color: .black.opacity(0.12), radius: 1.5, y: 0.5)
+
+            // 친 현상액 주름 — 샘플의 "\ /" 크리스 한 쌍. 음각선 + 우측 하이라이트로 엠보스.
+            Canvas { ctx, size in
+                let cw = size.width, ch = size.height
+                func crease(from x0: CGFloat, to x1: CGFloat) {
+                    var p = Path()
+                    p.move(to: CGPoint(x: x0, y: ch * 0.22))
+                    p.addLine(to: CGPoint(x: x1, y: ch * 0.78))
+                    ctx.stroke(p, with: .color(.black.opacity(0.05)), lineWidth: 0.7)
+                    ctx.stroke(p.offsetBy(dx: 0.7, dy: 0),
+                               with: .color(.white.opacity(0.5)), lineWidth: 0.5)
+                }
+                crease(from: cw * 0.36, to: cw * 0.44)   // "\"
+                crease(from: cw * 0.64, to: cw * 0.56)   // "/"
+            }
+            .frame(width: photoW, height: max(0, h - chinTop))
+            .offset(x: sideM, y: chinTop)
+            .allowsHitTesting(false)
+        }
+        .frame(width: w, height: h)
     }
 
     private func polaroidCaption(_ meta: PhotoMeta) -> String {

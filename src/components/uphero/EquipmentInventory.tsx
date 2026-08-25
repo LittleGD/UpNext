@@ -26,7 +26,6 @@ import {
   ENHANCE_PRESERVE_BY_RARITY,
   MAX_ENHANCE_LEVEL,
   SELL_PRICE,
-  SHOP_PRICES,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
 import type { Equipment, EquipSlot } from "@/types/uphero";

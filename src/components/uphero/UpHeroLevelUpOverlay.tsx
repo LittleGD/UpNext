@@ -62,6 +62,11 @@ interface Celebration {
   particles: Particle[];
 }
 
+// 파티클별 장식용 지속시간 지터 — 렌더 스코프 밖 헬퍼 (react-hooks/purity 준수)
+function particleDuration(): number {
+  return 0.8 + Math.random() * 0.3;
+}
+
 export default function UpHeroLevelUpOverlay() {
   const level = useGameStore((s) => s.progress.level);
   const isLoaded = useGameStore((s) => s.isLoaded);
@@ -73,39 +78,35 @@ export default function UpHeroLevelUpOverlay() {
   const reducedMotion = useReducedMotion();
   const { announce } = useAnnounce();
 
-  const prevLevelRef = useRef<number | null>(null);
+  // 레벨 상승 감지 — 렌더 단계 prev-비교 setState 패턴 (set-state-in-effect 제거, 동작 동일).
+  // 첫 seed: 실제 level 값을 조용히 기록 (store 기본값 0 → 실제값 전환이
+  // false-positive 축하를 트리거하지 않도록). 레벨 동일/하향 (서버 보정 등)은 조용히 seed 갱신.
+  const [prevLevel, setPrevLevel] = useState<number | null>(null);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
-
-  useEffect(() => {
-    if (!isLoaded || !hasCompletedOnboarding) return;
-    // 첫 seed — 실제 level 값을 조용히 기록 (store 기본값 0 → 실제값 전환이
-    // false-positive 축하를 트리거하지 않도록).
-    if (prevLevelRef.current === null) {
-      prevLevelRef.current = level;
-      return;
-    }
-    if (level > prevLevelRef.current) {
-      prevLevelRef.current = level;
+  if (isLoaded && hasCompletedOnboarding && prevLevel !== level) {
+    setPrevLevel(level);
+    if (prevLevel !== null && level > prevLevel) {
       setCelebration({
-        key: Date.now(),
+        // key 는 remount 용 고유값 — 레벨은 상승 단조라 level 자체로 충분 (Date.now 는 렌더 불순)
+        key: level,
         newLevel: level,
         particles: reducedMotion ? [] : generateParticles(),
       });
-      play("levelUp");
-      announce(t("uphero.levelup.announce", { level }), "assertive");
-      return;
     }
-    // 레벨 동일/하향 (서버 보정 등): ref 만 조용히 맞춤
-    prevLevelRef.current = level;
-  }, [
-    level,
-    isLoaded,
-    hasCompletedOnboarding,
-    reducedMotion,
-    play,
-    announce,
-    t,
-  ]);
+  }
+
+  // 사운드/SR 공지 — celebration 이 새로 만들어졌을 때 1회 (객체 identity 로 중복 방지)
+  const playedKeyRef = useRef<Celebration | null>(null);
+  useEffect(() => {
+    if (!celebration) return;
+    if (playedKeyRef.current === celebration) return;
+    playedKeyRef.current = celebration;
+    play("levelUp");
+    announce(
+      t("uphero.levelup.announce", { level: celebration.newLevel }),
+      "assertive",
+    );
+  }, [celebration, play, announce, t]);
 
   useEffect(() => {
     if (!celebration) return;
@@ -220,7 +221,7 @@ export default function UpHeroLevelUpOverlay() {
                         opacity: 0,
                       }}
                       transition={{
-                        duration: 0.8 + Math.random() * 0.3,
+                        duration: particleDuration(),
                         delay: p.delay + 0.2,
                         ease: "easeOut",
                       }}

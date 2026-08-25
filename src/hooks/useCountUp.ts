@@ -27,18 +27,12 @@ export function useCountUp(
   duration = 700,
   enabled = true,
 ): number {
-  const [n, setN] = useState(enabled ? 0 : target);
+  const [n, setN] = useState(0);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!enabled) {
-      setN(target);
-      return;
-    }
-    if (target === 0) {
-      setN(0);
-      return;
-    }
+    // skip 케이스는 아래 return 식에서 파생값으로 처리 (effect 내 동기 setState 금지)
+    if (!enabled || target === 0) return;
     const start = performance.now();
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
@@ -52,5 +46,8 @@ export function useCountUp(
     };
   }, [target, duration, enabled]);
 
+  // enabled=false → 즉시 target, target===0 → 0, 그 외 → 애니메이션 값
+  if (!enabled) return target;
+  if (target === 0) return 0;
   return n;
 }

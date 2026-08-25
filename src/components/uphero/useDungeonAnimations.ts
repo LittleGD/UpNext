@@ -91,9 +91,11 @@ export function useDungeonAnimations(session: CombatSession | null): Result {
 
   // unmount 시 모든 pending timer 정리.
   useEffect(() => {
+    // Set 인스턴스는 재할당되지 않으므로 effect 시점 캡처와 동일 (exhaustive-deps 경고 해소)
+    const timers = floatTimersRef.current;
     return () => {
-      floatTimersRef.current.forEach((id) => window.clearTimeout(id));
-      floatTimersRef.current.clear();
+      timers.forEach((id) => window.clearTimeout(id));
+      timers.clear();
     };
   }, []);
 

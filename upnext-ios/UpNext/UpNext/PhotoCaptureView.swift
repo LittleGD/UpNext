@@ -36,6 +36,9 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
     /// 카메라 사용 불가(시뮬레이터·권한 거부·하드웨어 없음)일 때 true 로 세팅.
     /// 웹 PhotoCaptureModal 의 `cameraError` 대응 — 부모가 갤러리 폴백을 노출한다.
     @Binding var cameraError: Bool
+    /// 세션 인터럽션(전화 수신·잠금·다른 앱 카메라 점유) 동안 true — 부모가 안내 오버레이를
+    /// 표시한다. `cameraError` 와 달리 일시 상태: interruptionEnded 로 세션이 재개되면 false.
+    @Binding var cameraInterrupted: Bool
     /// 부모 모달이 보유하는 코디네이터 — 셔터 버튼이 `coord.trigger()` 호출.
     /// nil 이면 외부 트리거 없이 동작 (테스트/프리뷰).
     var coordinator: PhotoCaptureCoordinator? = nil
@@ -46,6 +49,9 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
         vc.facingFront = facingFront
         vc.exposureEV = exposureEV
         vc.onCameraUnavailable = { DispatchQueue.main.async { cameraError = true } }
+        vc.onInterruptionChanged = { interrupted in
+            DispatchQueue.main.async { cameraInterrupted = interrupted }
+        }
         coordinator?.vc = vc
         return vc
     }
@@ -78,6 +84,8 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
     var onCapture: ((UIImage) -> Void)?
     /// 카메라 장치를 열 수 없을 때(시뮬레이터/권한/하드웨어) 1회 통지 — 부모가 갤러리 폴백 노출.
     var onCameraUnavailable: (() -> Void)?
+    /// 세션 인터럽션 상태 통지(true=중단/false=재개) — 항상 메인 스레드에서 호출된다.
+    var onInterruptionChanged: ((Bool) -> Void)?
     var facingFront: Bool = false
     var flashOn: Bool = false
     /// EXPOSURE 다이얼 EV(-2..+2) — `applyExposureBias()` 로 기기 노출계에 반영.
@@ -88,10 +96,19 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
     private var previewLayer: AVCaptureVideoPreviewLayer?
     /// 현재 활성 비디오 장치 — setExposureTargetBias 대상. configure/reconfigure 에서 갱신.
     private var videoDevice: AVCaptureDevice?
+    /// 세션 노티 구독 토큰 — viewDidLoad 1회 설치(메인), deinit 해제. 블록 기반이라 명시 해제 필수.
+    private var sessionObservers: [NSObjectProtocol] = []
+    /// runtimeError 재시도 폭주 가드 — sessionQueue 에서만 접근. 실패한 startRunning 이
+    /// 다시 runtimeError 를 통지하는 되먹임을 1회 재시도로 끊는다. 재시도 성공·세션 재구성·
+    /// interruptionEnded(시스템 재개)에서 해제.
+    private var runtimeRestartFailed = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
+        // 세션 노티 구독은 configure 이전·1회 지점인 여기서. configure() 는 플립마다 재호출되고
+        // 메인/sessionQueue 어느 쪽에서도 진입할 수 있어(reconfigure 경유) 설치 가드가 레이스가 된다.
+        installSessionObservers()
         // 권한 사전 확인(AVCam 패턴) — 거부 상태에서 세션을 시작하면 iOS 버전에 따라
         // 검은 프리뷰로 남을 수 있어, configure 진입 전에 갤러리 폴백으로 확정 분기한다.
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -114,20 +131,72 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
         previewLayer?.frame = view.bounds
     }
 
-    /// VC 해제 시 세션을 명시적으로 정지 — preview layer 가 백그라운드 큐에서
-    /// 살아남는 일이 없도록.
-    func teardown() {
-        if session.isRunning {
-            Self.sessionQueue.async { [session] in
-                session.stopRunning()
+    /// AVCam 패턴 세션 노티 3종 구독 — 미구독 시 전화 수신·잠금·mediaServicesWereReset 후
+    /// 세션이 정지된 채 남아 뷰파인더가 마지막 프레임/검정으로 굳고, capture() 의 isRunning
+    /// 가드로 셔터가 무음 no-op 이 됐다(모달 재진입 전까지 복구 불가 — 2026-08-24 S2-4).
+    /// 세션 조작(startRunning)은 반드시 sessionQueue 안에서만 — 메인 stopRunning/startRunning 은
+    /// 블랙스크린 수정에서 확립된 금지 규약.
+    private func installSessionObservers() {
+        let nc = NotificationCenter.default
+        // runtimeError — 대표 케이스 .mediaServicesWereReset(미디어데몬 재시동): 세션이 스스로
+        // 복구하지 않으므로 sessionQueue 에서 startRunning 1회 재시도. 실패한 startRunning 은
+        // runtimeError 를 재통지하므로 runtimeRestartFailed 가 되먹임 폭주를 끊고, 그때는
+        // 인터럽션 오버레이로 안내만 남긴다(성공 시 오버레이 해제).
+        sessionObservers.append(nc.addObserver(forName: .AVCaptureSessionRuntimeError,
+                                               object: session, queue: nil) { [weak self] note in
+            let code = (note.userInfo?[AVCaptureSessionErrorKey] as? NSError)?.code
+            NSLog("PhotoCapture session runtime error (code: \(code.map(String.init) ?? "?"))")
+            Self.sessionQueue.async { [weak self] in
+                guard let self, !session.isRunning else { return }
+                if !runtimeRestartFailed {
+                    runtimeRestartFailed = true
+                    session.startRunning()
+                    if session.isRunning { runtimeRestartFailed = false }
+                }
+                let recovered = session.isRunning
+                DispatchQueue.main.async { [weak self] in
+                    self?.onInterruptionChanged?(!recovered)
+                }
             }
+        })
+        // wasInterrupted — 전화 수신·잠금·다른 앱의 카메라 점유. 세션은 시스템이 정지시킨
+        // 상태라 여기서의 startRunning 은 무의미(인터럽션 중엔 실패) — 안내 오버레이만 요청.
+        sessionObservers.append(nc.addObserver(forName: .AVCaptureSessionWasInterrupted,
+                                               object: session, queue: .main) { [weak self] note in
+            let reason = note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int
+            NSLog("PhotoCapture session interrupted (reason: \(reason.map(String.init) ?? "?"))")
+            self?.onInterruptionChanged?(true)
+        })
+        // interruptionEnded — 시스템이 세션을 자동 재개. 오버레이 해제 + 재시도 가드 리셋.
+        sessionObservers.append(nc.addObserver(forName: .AVCaptureSessionInterruptionEnded,
+                                               object: session, queue: .main) { [weak self] _ in
+            self?.onInterruptionChanged?(false)
+            Self.sessionQueue.async { [weak self] in self?.runtimeRestartFailed = false }
+        })
+    }
+
+    /// VC 해제 시 세션을 명시적으로 정지 — preview layer 가 백그라운드 큐에서
+    /// 살아남는 일이 없도록. isRunning 판독까지 큐 안에서 수행한다(메인 판독은
+    /// configure/stop 과의 TOCTOU 레이스).
+    func teardown() {
+        Self.sessionQueue.async { [session] in
+            if session.isRunning { session.stopRunning() }
         }
     }
 
     deinit {
-        // SwiftUI 의 dismantleUIViewController 가 먼저 teardown 을 부르지만,
-        // 안전망으로 한 번 더 — 이중 호출은 무해 (isRunning 가드).
-        if session.isRunning { session.stopRunning() }
+        // 블록 기반 노티 토큰은 자동 해제되지 않는다 — 명시 제거(잔류 시 무해하나 누수).
+        for token in sessionObservers { NotificationCenter.default.removeObserver(token) }
+        // 안전망도 반드시 세션 큐로. stopRunning 은 세션이 완전히 정지할 때까지
+        // 블로킹하는 호출이라(AVCam 이 전용 큐에서만 부르는 이유) 이전처럼 여기서
+        // 동기 호출하면 — deinit 은 phase=.decorate 커밋 직후 메인에서 실행되고,
+        // teardown 의 비동기 정지가 아직 끝나기 전이라 isRunning 이 참 — 검은 첫
+        // 프레임(꾸미기 opacity 0) 위에서 메인이 수백 ms~수 초 정지했다(실기기
+        // 촬영 직후 블랙스크린+무반응의 주범). [session] 강캡처가 블록 실행까지
+        // 세션 수명을 보장하므로 deinit 뒤에도 안전하다.
+        Self.sessionQueue.async { [session] in
+            if session.isRunning { session.stopRunning() }
+        }
     }
 
     /// 세션 구성 전체를 sessionQueue 에서 수행 — videoDevice 는 이 큐에서만 읽고 쓴다
@@ -138,6 +207,8 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
         let ev = exposureEV
         Self.sessionQueue.async { [weak self] in
             guard let self else { return }
+            // 새 구성 = 새 시작 기회 — runtimeError 재시도 폭주 가드 리셋.
+            runtimeRestartFailed = false
             session.beginConfiguration()
             session.sessionPreset = .photo
             // 기존 입력 제거
@@ -209,17 +280,35 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
         }
     }
 
+    /// 촬영 인플라이트 가드 — 메인 스레드에서만 접근. 셔터 연타로 capturePhoto 가
+    /// 중복 큐잉되면 didFinishProcessingPhoto 가 2회 도착하고, 두 번째 콜백의
+    /// beginProcess 재진입이 decorate 를 영구 opacity 0(순검정 무반응)으로 고착시켰다.
+    private var captureInFlight = false
+
     /// 외부 셔터 — PhotoCaptureCoordinator.trigger() 가 호출. 메인 스레드에서.
+    /// 실제 capturePhoto 는 세션 큐에서 실행 — configure/reconfigure 와 직렬화해
+    /// 미부착 출력·미가동 세션에서의 NSGenericException, 플립 직후 스테일
+    /// maxPhotoDimensions 레이스를 제거한다(AVCam 과 동일 패턴).
     func capture() {
-        let settings = AVCapturePhotoSettings()
-        settings.flashMode = flashOn ? .on : .off
-        // 캡처 해상도 상한을 세션 구성에서 낮춘 값으로 명시(축소 미지원 기기면 기존 최대 그대로).
-        //   12MP JPEG 인코드/디코드 비용 원천 제거 — 이후 경로는 전부 960px 프리뷰만 쓴다.
-        settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
-        // 속도 우선 — 멀티프레임 노이즈리덕션/후처리 지연 제거(체감 셔터 지연 감소).
-        //   .speed ≤ 출력 기본 maxPhotoQualityPrioritization(.balanced) 라 항상 유효.
-        settings.photoQualityPrioritization = .speed
-        photoOutput.capturePhoto(with: settings, delegate: self)
+        guard !captureInFlight else { return }
+        captureInFlight = true
+        let flash = flashOn
+        Self.sessionQueue.async { [weak self] in
+            guard let self else { return }
+            guard session.isRunning, photoOutput.connection(with: .video) != nil else {
+                DispatchQueue.main.async { [weak self] in self?.captureInFlight = false }
+                return
+            }
+            let settings = AVCapturePhotoSettings()
+            settings.flashMode = flash ? .on : .off
+            // 캡처 해상도 상한을 세션 구성에서 낮춘 값으로 명시(축소 미지원 기기면 기존 최대 그대로).
+            //   12MP JPEG 인코드/디코드 비용 원천 제거 — 이후 경로는 전부 960px 프리뷰만 쓴다.
+            settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
+            // 속도 우선 — 멀티프레임 노이즈리덕션/후처리 지연 제거(체감 셔터 지연 감소).
+            //   .speed ≤ 출력 기본 maxPhotoQualityPrioritization(.balanced) 라 항상 유효.
+            settings.photoQualityPrioritization = .speed
+            photoOutput.capturePhoto(with: settings, delegate: self)
+        }
     }
 
     /// 지원 max photo dimension 중 최장변 ~2016급을 선택. 표시/합성/저장이 전부 ≤960px 라
@@ -240,11 +329,20 @@ final class CameraVC: UIViewController, AVCapturePhotoCaptureDelegate {
         return supported.min(by: { abs(side($0) - target) < abs(side($1) - target) })
     }
 
-    func photoOutput(_ output: AVCapturePhotoOutput,
-                     didFinishProcessingPhoto photo: AVCapturePhoto,
-                     error: Error?) {
-        guard let data = photo.fileDataRepresentation(),
-              let image = UIImage(data: data) else { return }
-        DispatchQueue.main.async { self.onCapture?(image) }
+    // nonisolated — AVFoundation 이 자체 큐에서 부르는 콜백. 세션 큐에서 delegate 로
+    // self 를 넘기려면 conformance 가 메인 액터 격리여선 안 된다(Swift 6 에러 예방).
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput,
+                                 didFinishProcessingPhoto photo: AVCapturePhoto,
+                                 error: Error?) {
+        if let error { NSLog("PhotoCapture failed: \(error.localizedDescription)") }
+        let image: UIImage? = (error == nil)
+            ? photo.fileDataRepresentation().flatMap { UIImage(data: $0) }
+            : nil
+        Task { @MainActor in
+            // 실패(인터럽션·발열 제한 등)여도 인플라이트를 풀어 셔터가 죽지 않게 한다
+            // (이전엔 silent return — 셔터음만 나고 무반응인 데드 셔터).
+            self.captureInFlight = false
+            if let image { self.onCapture?(image) }
+        }
     }
 }

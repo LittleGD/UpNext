@@ -116,10 +116,11 @@ export default function PairMatch({
   const [done, setDone] = useState<"success" | "fail" | null>(null);
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdownStep, setCountdownStep] = useState<CountdownStep>(3);
-  const doneRef = useRef<"success" | "fail" | null>(null);
-  doneRef.current = done;
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    // render 중 ref 쓰기 금지 (react-hooks/refs) — 읽는 곳이 타이머 콜백뿐이라 commit 후 갱신로 충분
+    onCompleteRef.current = onComplete;
+  });
 
   // 카운트다운: 3 → 2 → 1 → "시작!" → playing.
   // 각 step COUNTDOWN_TICK_MS, 마지막 GO 표시는 COUNTDOWN_GO_MS 후 phase 전환.

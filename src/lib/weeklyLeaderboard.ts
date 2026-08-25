@@ -128,7 +128,7 @@ export async function uploadWeeklyScore(
   const sanitized = sanitizeEntry(entry);
   if (!sanitized) {
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
+       
       console.warn("[weeklyLeaderboard] entry failed local validation:", entry);
     }
     return "error";
@@ -153,7 +153,7 @@ export async function uploadWeeklyScore(
     return "ok";
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
+       
       console.warn("[weeklyLeaderboard] upload failed:", e);
     }
     return "error";
@@ -219,7 +219,7 @@ export async function fetchWeeklyTop(
     return entries;
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
+       
       console.warn("[weeklyLeaderboard] fetchTop failed:", e);
     }
     return [];
@@ -288,7 +288,7 @@ export async function fetchMyRank(
     return result;
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
+       
       console.warn("[weeklyLeaderboard] fetchMyRank failed:", e);
     }
     // Phase 11c R3 — failed-precondition (composite index 미배포) 시에도 cache 에

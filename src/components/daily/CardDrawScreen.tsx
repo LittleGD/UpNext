@@ -714,7 +714,7 @@ export default function CardDrawScreen() {
                   ) : (
                     <motion.button
                       whileTap={{ scale: 0.97 }}
-                      onClick={() => { play("cancel"); phase === "daily" ? deselectCard(card.id) : deselectPhaseCard(card.id); }}
+                      onClick={() => { play("cancel"); if (phase === "daily") deselectCard(card.id); else deselectPhaseCard(card.id); }}
                       className="flex items-center justify-center gap-1.5 min-h-[44px] rounded-md bg-bg-surface text-text-secondary typo-micro mt-1"
                     >
                       <PixelIcon name="Cancel" size={12} />
@@ -742,7 +742,7 @@ export default function CardDrawScreen() {
         >
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={() => { play("confirm"); phase === "daily" ? confirmSelection() : confirmPhaseSelection(); }}
+            onClick={() => { play("confirm"); if (phase === "daily") confirmSelection(); else confirmPhaseSelection(); }}
             className="w-full min-h-[48px] py-3 bg-accent text-bg-primary rounded-md typo-body"
           >
             {t("daily.select.confirmButton")}
@@ -771,7 +771,7 @@ export default function CardDrawScreen() {
                 key={card.id}
                 card={card}
                 locked={!!isPenaltyCard}
-                onDeselect={(id) => { play("cancel"); phase === "daily" ? deselectCard(id) : deselectPhaseCard(id); }}
+                onDeselect={(id) => { play("cancel"); if (phase === "daily") deselectCard(id); else deselectPhaseCard(id); }}
               />
             ) : (
               <PlaceholderSlot key={`placeholder-${i}`} />

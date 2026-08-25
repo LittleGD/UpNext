@@ -40,7 +40,15 @@ enum PolaroidComposite {
         frameBg: UIColor = UIColor(red: 0.976, green: 0.973, blue: 0.961, alpha: 1),
         applyFilter: Bool = true
     ) -> UIImage {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
+        // 픽셀 스케일 고정 2x — 기본 포맷은 기기 screen scale(3x)이라 출력이 1800×2181
+        // (디코드 시 장당 ≈15.7MB)로 부풀었다. 사진 소스가 ≤960px 프리뷰라 3x 는 순수
+        // 업스케일 낭비. 2x 는 사진 영역(502pt→1004px)이 소스와 1:1 로 정합해 디테일
+        // 손실 없이 메모리·인코드·이후 앨범 디코드 비용을 절반 이하로 줄인다
+        // (실기기 촬영/앨범 반복 시 메모리 압박 렉의 배율 항).
+        let fmt = UIGraphicsImageRendererFormat.default()
+        fmt.scale = 2
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height),
+                                               format: fmt)
         return renderer.image { ctx in
             let cgCtx = ctx.cgContext
 

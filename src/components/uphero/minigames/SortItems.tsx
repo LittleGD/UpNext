@@ -52,7 +52,10 @@ export default function SortItems({ difficulty, onComplete, onCancel }: Minigame
   const [flash, setFlash] = useState<"hit" | "miss" | null>(null);
 
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    // render 중 ref 쓰기 금지 (react-hooks/refs) — 읽는 곳이 타이머 콜백뿐이라 commit 후 갱신로 충분
+    onCompleteRef.current = onComplete;
+  });
 
   useEffect(() => {
     if (result) return;

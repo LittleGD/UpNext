@@ -90,31 +90,32 @@ function useTypewriter(text: string, enabled: boolean): {
   // Phase 9a — reduced-motion 사용자에겐 타이핑 건너뛰고 즉시 전체 표시.
   //   CSS 레벨 가드로는 JS setTimeout 체인을 막을 수 없으므로 hook 에서 처리.
   const reducedMotion = useReducedMotion();
-  const [chars, setChars] = useState(enabled && !reducedMotion ? 0 : text.length);
-  const timerRef = useRef<number | null>(null);
+  const instant = !enabled || reducedMotion;
+  const [chars, setChars] = useState(instant ? text.length : 0);
+  // 입력(text/instant) 변화 시 리셋은 렌더 단계 prev-비교 setState 패턴으로
+  // (기존 useEffect 내 동기 setState 를 react-hooks/set-state-in-effect 준수 형태로 대체)
+  const [prevText, setPrevText] = useState(text);
+  const [prevInstant, setPrevInstant] = useState(instant);
+  if (prevText !== text || prevInstant !== instant) {
+    setPrevText(text);
+    setPrevInstant(instant);
+    setChars(instant ? text.length : 0);
+  }
 
   useEffect(() => {
-    if (!enabled || reducedMotion) {
-      setChars(text.length);
-      return;
-    }
-    setChars(0);
+    if (instant) return;
     const perChar = text.length > 40 ? 12 : 18;
     let i = 0;
+    let timer: number;
     const tick = () => {
       i += 1;
       setChars(i);
-      if (i >= text.length) {
-        timerRef.current = null;
-        return;
-      }
-      timerRef.current = window.setTimeout(tick, perChar);
+      if (i >= text.length) return;
+      timer = window.setTimeout(tick, perChar);
     };
-    timerRef.current = window.setTimeout(tick, perChar);
-    return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-    };
-  }, [text, enabled, reducedMotion]);
+    timer = window.setTimeout(tick, perChar);
+    return () => window.clearTimeout(timer);
+  }, [text, instant]);
 
   return { visible: text.slice(0, chars), done: chars >= text.length };
 }
