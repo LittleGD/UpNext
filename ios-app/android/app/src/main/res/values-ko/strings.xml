@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">연속 달성일과 오늘의 챌린지를 한눈에</string>
+    <string name="widget_today_challenge">오늘의 챌린지</string>
+    <string name="widget_daily_empty">오늘의 카드를 뽑아보세요</string>
+    <string name="widget_daily_start_prompt">카드를 뽑아 챌린지를 시작해보세요</string>
+    <string name="widget_daily_complete">오늘의 도전 완료!</string>
+</resources>

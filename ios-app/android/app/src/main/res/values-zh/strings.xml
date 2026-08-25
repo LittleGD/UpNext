@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">一眼查看连续完成天数和今日挑战</string>
+    <string name="widget_today_challenge">今日的挑战</string>
+    <string name="widget_daily_empty">抽取今日卡牌</string>
+    <string name="widget_daily_start_prompt">抽张卡牌开始挑战</string>
+    <string name="widget_daily_complete">今天的挑战完成!</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">連続達成日と今日のチャレンジを一目で</string>
+    <string name="widget_today_challenge">今日のチャレンジ</string>
+    <string name="widget_daily_empty">今日のカードを引く</string>
+    <string name="widget_daily_start_prompt">カードを引いてチャレンジを始めましょう</string>
+    <string name="widget_daily_complete">今日のチャレンジ完了!</string>
+</resources>

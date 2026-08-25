@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="splashBackground">#0A0A0A</color>
+    <!-- 홈 위젯 토큰 (웹 globals.css / iOS 위젯과 동일 계열) -->
+    <color name="widgetBg">#0A0A0A</color>
+    <color name="widgetAccent">#CDF564</color>
+    <color name="widgetTextPrimary">#F2F2F2</color>
+    <color name="widgetTextSecondary">#A8A8A8</color>
+    <color name="widgetDotEmpty">#262626</color>
 </resources>
