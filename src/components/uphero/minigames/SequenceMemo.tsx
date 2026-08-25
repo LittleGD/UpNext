@@ -37,6 +37,15 @@ const COLOR_NAME_KEYS: Record<Color, "uphero.mini.seq.color.red" | "uphero.mini.
   3: "uphero.mini.seq.color.green",
 };
 
+// 시퀀스 생성 — 렌더 밖 모듈 함수 (react-hooks/purity: 렌더 스코프 직접 Math.random 금지)
+function makeSequence(length: number): Color[] {
+  const arr: Color[] = [];
+  for (let i = 0; i < length; i++) {
+    arr.push(Math.floor(Math.random() * 4) as Color);
+  }
+  return arr;
+}
+
 export default function SequenceMemo({
   difficulty,
   onComplete,
@@ -44,13 +53,7 @@ export default function SequenceMemo({
 }: MinigameProps) {
   const { t } = useTranslation();
   const length = difficulty + 2;
-  const sequence = useMemo<Color[]>(() => {
-    const arr: Color[] = [];
-    for (let i = 0; i < length; i++) {
-      arr.push(Math.floor(Math.random() * 4) as Color);
-    }
-    return arr;
-  }, [length]);
+  const sequence = useMemo<Color[]>(() => makeSequence(length), [length]);
 
   const [phase, setPhase] = useState<"watch" | "input" | "done">("watch");
   const [watchIdx, setWatchIdx] = useState(-1);
@@ -59,7 +62,10 @@ export default function SequenceMemo({
   const [result, setResult] = useState<"success" | "fail" | null>(null);
 
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    // render 중 ref 쓰기 금지 (react-hooks/refs) — 읽는 곳이 타이머 콜백뿐이라 commit 후 갱신로 충분
+    onCompleteRef.current = onComplete;
+  });
 
   useEffect(() => {
     if (phase !== "watch") return;

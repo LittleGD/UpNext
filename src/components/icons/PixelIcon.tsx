@@ -28,7 +28,7 @@ function loadIcon(name: string): Promise<ComponentType<SVGProps<SVGSVGElement>>>
           // 알 수 없는 아이콘 이름 — 레거시 저장 데이터나 신규 이름에 대비해
           // 크래시 대신 invisible 컴포넌트로 폴백한다.
           if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
-            // eslint-disable-next-line no-console
+             
             console.warn(`[PixelIcon] missing pixelarticons icon: "${name}"`);
           }
           const Fallback: ComponentType<SVGProps<SVGSVGElement>> = () => null;
@@ -46,17 +46,27 @@ export default function PixelIcon({
   className = "",
   color = "currentColor",
 }: PixelIconProps) {
+  // Icon 은 state 로 보관 (렌더 중 캐시 파생은 react-hooks/static-components 위반).
+  // name 변경 시 캐시 동기화는 렌더 단계 prev-비교 setState 패턴, 비동기 로드 완료는
+  // then 콜백에서 반영 (effect 내 동기 setState 없음).
   const [Icon, setIcon] = useState<ComponentType<SVGProps<SVGSVGElement>> | null>(
     () => iconCache.get(name) ?? null
   );
+  const [prevName, setPrevName] = useState(name);
+  if (prevName !== name) {
+    setPrevName(name);
+    setIcon(() => iconCache.get(name) ?? null);
+  }
 
   useEffect(() => {
-    if (!name) return;
-    if (iconCache.has(name)) {
-      setIcon(() => iconCache.get(name)!);
-      return;
-    }
-    loadIcon(name).then((component) => setIcon(() => component));
+    if (!name || iconCache.has(name)) return;
+    let cancelled = false;
+    loadIcon(name).then((component) => {
+      if (!cancelled) setIcon(() => component);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [name]);
 
   if (!Icon) {

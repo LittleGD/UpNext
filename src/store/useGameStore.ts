@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import type { ChallengeCard, Category, Rarity } from "@/types/card";
+import type { ChallengeCard, Rarity } from "@/types/card";
 import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase } from "@/types/game";
-import { MODE_CARD_COUNT, XP_PER_RARITY, xpToNextLevel, totalXPForLevel, getLevelFromXP, getXPProgress, normalizeProgressXpLevel, PHASE_MIN_CARDS, PHASE_MAX_CARDS, MINIGAME_TICKET_CAP } from "@/types/game";
+import { MODE_CARD_COUNT, XP_PER_RARITY, totalXPForLevel, getLevelFromXP, normalizeProgressXpLevel, PHASE_MIN_CARDS, PHASE_MAX_CARDS, MINIGAME_TICKET_CAP } from "@/types/game";
 import { ALL_CARDS, STARTER_CARD_IDS } from "@/data/cards";
 import { drawCards, drawFromPool } from "@/lib/deck";
 import {
@@ -1051,7 +1051,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // phase에 맞는 배열에 카드 선택 (extra/super: 최대 6장)
   selectPhaseCard: (card: ChallengeCard) => {
-    const { daily, progress } = get();
+    const { daily } = get();
     const phase = daily.challengePhase;
 
     if (phase === "extra") {

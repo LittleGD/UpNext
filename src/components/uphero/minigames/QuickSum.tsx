@@ -54,7 +54,10 @@ export default function QuickSum({ difficulty, onComplete, onCancel }: MinigameP
   const [done, setDone] = useState<"success" | "fail" | null>(null);
   const [problemKey, setProblemKey] = useState(0);
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    // render 중 ref 쓰기 금지 (react-hooks/refs) — 읽는 곳이 타이머 콜백뿐이라 commit 후 갱신로 충분
+    onCompleteRef.current = onComplete;
+  });
 
   useEffect(() => {
     if (done) return;

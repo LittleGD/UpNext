@@ -303,15 +303,24 @@ function HeroNameEditor({ name }: { name: string }) {
   const [draft, setDraft] = useState(name);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // 편집 시작(또는 편집 중 name 외부 변경) 시 draft 동기화 — 렌더 단계 prev-비교
+  // setState 패턴 (기존 useEffect 내 동기 setState 를 규칙 준수 형태로 대체)
+  const [prevEditing, setPrevEditing] = useState(editing);
+  const [prevName, setPrevName] = useState(name);
+  if (prevEditing !== editing || prevName !== name) {
+    setPrevEditing(editing);
+    setPrevName(name);
+    if (editing) setDraft(name);
+  }
+
   useEffect(() => {
-    if (editing) {
-      setDraft(name);
-      // next tick 에 focus + select
-      setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }, 20);
-    }
+    if (!editing) return;
+    // next tick 에 focus + select
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 20);
+    return () => clearTimeout(timer);
   }, [editing, name]);
 
   const commit = () => {

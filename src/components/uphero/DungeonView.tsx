@@ -25,7 +25,7 @@ import {
   getEffectiveHeroLevel,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
-import type { Monster } from "@/types/uphero";
+import type { CombatSession, Monster } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -53,6 +53,32 @@ const TICK_INTERVAL: Record<1 | 2 | 4, number> = {
   4: 300,
 };
 
+// Phase 10 — "아직 닫지 않은" 최신 choiceResult entry 스캔.
+//   encounter choice (싸운다/도망) 의 narrative 는 "> " 로 시작하지 않으므로 자동 제외.
+//   최근 encounter/combat/보스 등장 이후만 — 그보다 오래된 건 이미 지나간 것.
+//   Phase 11c R1 — explicit choiceResult variant (기존: narrative prefix 매칭).
+function findActiveChoiceResult(session: CombatSession | null, seenUpTo: number) {
+  if (!session) return null;
+  for (let idx = session.log.length - 1; idx >= 0; idx -= 1) {
+    const entry = session.log[idx];
+    if (entry.type === "combat" || entry.type === "encounter" || entry.type === "boss")
+      break;
+    if (entry.type !== "choiceResult") continue;
+    if (idx <= seenUpTo) continue;
+    return {
+      idx,
+      text: entry.text,
+      summary: entry.effectSummary ?? null,
+      summaryData: entry.effectSummaryData ?? null,
+      actionLabelKey: entry.actionLabelKey,
+      actionLabelFallback: entry.actionLabelFallback,
+      resultTextKey: entry.resultTextKey,
+      resultTextFallback: entry.resultTextFallback,
+    };
+  }
+  return null;
+}
+
 export default function DungeonView() {
   const session = useUpHeroStore((s) => s.currentSession);
   const tickSession = useUpHeroStore((s) => s.tickSession);
@@ -72,24 +98,18 @@ export default function DungeonView() {
   /** Phase 12f — 인터랙션 도움말 overlay. */
   const [helpOpen, setHelpOpen] = useState(false);
   /** Phase 10 — 방금 resolve 된 event choice 의 결과 narrative.
-   *   null 이 아니면 결과 모달 표시 + tick pause. 유저 "계속" 또는 2.6s 후 null.
-   *   Phase 11c R4 — text + effectSummary 2 필드로 수치 별도 표시. */
-  const [choiceResultData, setChoiceResultData] = useState<{
-    text: string;
-    summary: string | null;
-    summaryData?: {
-      xp?: number;
-      coins?: number;
-      heal?: number;
-      damage?: number;
-      timeDelta?: number;
-    } | null;
-    actionLabelKey?: string;
-    actionLabelFallback?: string;
-    resultTextKey?: string;
-    resultTextFallback?: string;
-  } | null>(null);
-  const choiceResultText = choiceResultData?.text ?? null;
+   *   결과 모달 표시 중 tick pause. 유저 "계속" 또는 2.6s 후 닫힘.
+   *   Phase 11c R4 — text + effectSummary 2 필드로 수치 별도 표시.
+   *   Phase 15 lint — 표시할 결과는 log 에서 파생(아래 activeChoiceResult useMemo),
+   *   상태는 "어디까지 닫았는지(log idx)"만 저장 (set-state-in-effect 제거, 동작 동일). */
+  const [choiceSeenUpTo, setChoiceSeenUpTo] = useState(-1);
+  // 세션이 바뀌면(종료 포함) seen idx 초기화 — 렌더 단계 prev-비교 setState 패턴
+  const sessionKey = session?.startedAt ?? null;
+  const [prevSessionKey, setPrevSessionKey] = useState(sessionKey);
+  if (sessionKey !== prevSessionKey) {
+    setPrevSessionKey(sessionKey);
+    setChoiceSeenUpTo(-1);
+  }
   const { play } = useSound();
   const { t, language } = useTranslation();
 
@@ -107,46 +127,21 @@ export default function DungeonView() {
   } = useDungeonAnimations(session);
   useDungeonAnnouncer(session);
 
+  // render 중 ref 쓰기는 react-hooks/refs 위반 — 읽는 곳이 interval 콜백뿐이라 commit 후 갱신로 충분
   const tickRef = useRef(tickSession);
-  tickRef.current = tickSession;
+  useEffect(() => {
+    tickRef.current = tickSession;
+  });
 
   // Phase 10 — 이벤트 choice 결과 narrative 감지.
-  //   resolveChoice 가 push 하는 "> {label} → {result}" narrative 를 잡아 모달 표시.
-  //   encounter choice (싸운다/도망) 의 narrative 는 "> " 로 시작하지 않으므로 자동 제외.
-  const seenChoiceResultRef = useRef<Set<number>>(new Set());
-  useEffect(() => {
-    if (!session) return;
-    // 모달 이미 떠있으면 새로 trigger 안 함 (겹침 방지)
-    if (choiceResultText !== null) return;
-    for (let idx = session.log.length - 1; idx >= 0; idx -= 1) {
-      const entry = session.log[idx];
-      // 최근 encounter/combat/보스 등장 이후만 — 그보다 오래된 건 이미 지나간 것
-      if (entry.type === "combat" || entry.type === "encounter" || entry.type === "boss")
-        break;
-      // Phase 11c R1 — explicit choiceResult variant (기존: narrative prefix 매칭).
-      if (entry.type !== "choiceResult") continue;
-      if (seenChoiceResultRef.current.has(idx)) continue;
-      seenChoiceResultRef.current.add(idx);
-      setChoiceResultData({
-        text: entry.text,
-        summary: entry.effectSummary ?? null,
-        summaryData: entry.effectSummaryData ?? null,
-        actionLabelKey: entry.actionLabelKey,
-        actionLabelFallback: entry.actionLabelFallback,
-        resultTextKey: entry.resultTextKey,
-        resultTextFallback: entry.resultTextFallback,
-      });
-      break;
-    }
-  }, [session, choiceResultText]);
-
-  // 세션 바뀌면 choice result seen 초기화
-  useEffect(() => {
-    if (!session) {
-      seenChoiceResultRef.current.clear();
-      setChoiceResultData(null);
-    }
-  }, [session?.startedAt, session]);
+  //   resolveChoice 가 push 하는 choiceResult entry 를 log 에서 파생해 모달 표시.
+  //   모달 표시 중에는 tick 이 pause 되어 새 entry 가 쌓이지 않으므로
+  //   "아직 닫지 않은 최신 entry" == 기존의 seen-set 스캔과 동일한 결과.
+  const activeChoiceResult = useMemo(
+    () => findActiveChoiceResult(session, choiceSeenUpTo),
+    [session, choiceSeenUpTo],
+  );
+  const choiceResultText = activeChoiceResult?.text ?? null;
 
   // 보스 등장 감지 — session.status === "paused" 이고 last log 가 "boss" 엔트리
   // combat.ts 에서 보스 등장 시 자동으로 status = "paused" 로 세팅
@@ -182,6 +177,45 @@ export default function DungeonView() {
     return () => window.clearInterval(id);
   }, [session, speed, paused, choiceResultText]);
 
+  // Phase 4c-polish: 현재 진행 중인 encounter 의 몬스터 — sprite 표시용.
+  // 마지막 encounter 이후 victory/drop 이 나왔으면 전투 종료라 null.
+  // (early return 위로 이동 — hook 은 조건부 호출 불가, react-hooks/rules-of-hooks)
+  const currentEnemy = session ? findActiveEnemy(session.log) : null;
+  const sessionLog = session?.log;
+  // Phase 12 bugfix — 적 HP 를 log 누적으로 계산해 bar 표시 (수치는 숨김).
+  //   몬스터는 static hp 에서 hero-attacker combat entry 의 damage 만 누적 감산.
+  // Phase 12 R3 — useMemo 래핑: log 길이 / currentEnemy 변화 시에만 재계산.
+  //   speed toggle / paused / other state 변경에 의한 무상관 recompute 제거.
+  // Phase 15 bugfix — regen trait 몬스터는 engine 의 computeMonsterHp 가 log 의
+  //   monsterEffect/regen 을 더해 HP 를 유지하는데 UI 계산이 이를 누락해 "바는
+  //   0 인데 몬스터가 안 죽는" 상태 노출. engine 로직과 일치시킴 (regen 가산 +
+  //   maxHp cap). 14 종 regen 몬스터 (일반 7 + 보스 7) 모두 영향.
+  const enemyHpPct = useMemo(() => {
+    if (!currentEnemy || !sessionLog) return 100;
+    let hp = currentEnemy.hp;
+    const cap = currentEnemy.maxHp ?? currentEnemy.hp;
+    let startIdx = -1;
+    for (let i = sessionLog.length - 1; i >= 0; i--) {
+      if (sessionLog[i].type === "encounter") {
+        startIdx = i;
+        break;
+      }
+    }
+    if (startIdx < 0) return 100;
+    for (let i = startIdx + 1; i < sessionLog.length; i++) {
+      const e = sessionLog[i];
+      if (e.type === "combat") {
+        if (e.damage === 0) continue;
+        if (e.attacker === "hero") hp -= e.damage;
+        continue;
+      }
+      if (e.type === "monsterEffect" && e.effect === "regen") {
+        hp = Math.min(cap, hp + e.amount);
+      }
+    }
+    return Math.max(0, Math.min(100, (hp / cap) * 100));
+  }, [currentEnemy, sessionLog]);
+
   if (!session) return null;
 
   const dungeon = DUNGEONS[session.dungeonId];
@@ -193,43 +227,6 @@ export default function DungeonView() {
   const maxTime = session.maxTime;
   const timePct = Math.max(0, Math.min(100, (time / maxTime) * 100));
   const stats = computeEffectiveStats(session.hero);
-
-  // Phase 4c-polish: 현재 진행 중인 encounter 의 몬스터 — sprite 표시용.
-  // 마지막 encounter 이후 victory/drop 이 나왔으면 전투 종료라 null.
-  const currentEnemy = findActiveEnemy(session.log);
-  // Phase 12 bugfix — 적 HP 를 log 누적으로 계산해 bar 표시 (수치는 숨김).
-  //   몬스터는 static hp 에서 hero-attacker combat entry 의 damage 만 누적 감산.
-  // Phase 12 R3 — useMemo 래핑: log 길이 / currentEnemy 변화 시에만 재계산.
-  //   speed toggle / paused / other state 변경에 의한 무상관 recompute 제거.
-  // Phase 15 bugfix — regen trait 몬스터는 engine 의 computeMonsterHp 가 log 의
-  //   monsterEffect/regen 을 더해 HP 를 유지하는데 UI 계산이 이를 누락해 "바는
-  //   0 인데 몬스터가 안 죽는" 상태 노출. engine 로직과 일치시킴 (regen 가산 +
-  //   maxHp cap). 14 종 regen 몬스터 (일반 7 + 보스 7) 모두 영향.
-  const enemyHpPct = useMemo(() => {
-    if (!currentEnemy) return 100;
-    let hp = currentEnemy.hp;
-    const cap = currentEnemy.maxHp ?? currentEnemy.hp;
-    let startIdx = -1;
-    for (let i = session.log.length - 1; i >= 0; i--) {
-      if (session.log[i].type === "encounter") {
-        startIdx = i;
-        break;
-      }
-    }
-    if (startIdx < 0) return 100;
-    for (let i = startIdx + 1; i < session.log.length; i++) {
-      const e = session.log[i];
-      if (e.type === "combat") {
-        if (e.damage === 0) continue;
-        if (e.attacker === "hero") hp -= e.damage;
-        continue;
-      }
-      if (e.type === "monsterEffect" && e.effect === "regen") {
-        hp = Math.min(cap, hp + e.amount);
-      }
-    }
-    return Math.max(0, Math.min(100, (hp / cap) * 100));
-  }, [currentEnemy, session.log]);
   const heroVariant = getHeroAppearanceVariant(heroLevel) as 0 | 1 | 2;
 
   const awaitingChoice = session.status === "awaitingChoice";
@@ -906,16 +903,16 @@ export default function DungeonView() {
             "> {label} → {result}" narrative 가 새로 push 되는 순간 감지돼 2.6s 표시.
             열려있는 동안 tick 은 pause (useEffect dep). 유저는 "계속" 로 즉시 진행 가능.
             Phase 11c R4 — effectSummary 로 구체 수치 노출 (XP/코인/시간/HP 변화). */}
-      {choiceResultData && (
+      {activeChoiceResult && (
         <ChoiceResultModal
-          text={choiceResultData.text}
-          summary={choiceResultData.summary}
-          summaryData={choiceResultData.summaryData}
-          actionLabelKey={choiceResultData.actionLabelKey}
-          actionLabelFallback={choiceResultData.actionLabelFallback}
-          resultTextKey={choiceResultData.resultTextKey}
-          resultTextFallback={choiceResultData.resultTextFallback}
-          onDismiss={() => setChoiceResultData(null)}
+          text={activeChoiceResult.text}
+          summary={activeChoiceResult.summary}
+          summaryData={activeChoiceResult.summaryData}
+          actionLabelKey={activeChoiceResult.actionLabelKey}
+          actionLabelFallback={activeChoiceResult.actionLabelFallback}
+          resultTextKey={activeChoiceResult.resultTextKey}
+          resultTextFallback={activeChoiceResult.resultTextFallback}
+          onDismiss={() => setChoiceSeenUpTo(activeChoiceResult.idx)}
         />
       )}
 

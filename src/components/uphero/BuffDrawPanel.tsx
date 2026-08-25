@@ -14,14 +14,14 @@
  *  - 선택됨 상태: accent 배경 + 체크
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
 import { getBuffSlotCount, getEffectiveHeroLevel } from "@/types/uphero";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
 import { DUNGEONS } from "@/data/upHeroDungeons";
-import { GB, EASE_OUT, EASE_DRAWER, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
+import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND, GB_UNIQUE, GB_RARE } from "@/lib/upHeroPalette";
 import type { ChallengeCard, Rarity } from "@/types/card";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -241,21 +241,27 @@ function BuffCardPreview({
   // 선택 순간 pulse — selected 가 false → true 로 바뀐 edge 에서만 재생.
   // 애니메이션 restart 를 위해: 먼저 클래스를 제거, 다음 프레임에 추가 → reflow 를
   // 거치면서 keyframe 이 0부터 다시 시작된다 (remount 없이 DOM focus 보존).
-  const prevSelectedRef = useRef(selected);
+  // edge 감지는 렌더 단계 prev-비교 setState 패턴, 클래스 추가는 rAF (모두
+  // react-hooks/set-state-in-effect 준수 형태).
   const [pulsing, setPulsing] = useState(false);
-  useEffect(() => {
-    if (selected && !prevSelectedRef.current) {
-      setPulsing(false);
-      const raf = requestAnimationFrame(() => setPulsing(true));
-      const clear = window.setTimeout(() => setPulsing(false), 290);
-      prevSelectedRef.current = selected;
-      return () => {
-        cancelAnimationFrame(raf);
-        window.clearTimeout(clear);
-      };
+  const [pulseSeq, setPulseSeq] = useState(0);
+  const [prevSelected, setPrevSelected] = useState(selected);
+  if (selected !== prevSelected) {
+    setPrevSelected(selected);
+    if (selected) {
+      if (pulsing) setPulsing(false); // restart 준비 — 이번 commit 에서 클래스 제거
+      setPulseSeq((s) => s + 1);
     }
-    prevSelectedRef.current = selected;
-  }, [selected]);
+  }
+  useEffect(() => {
+    if (pulseSeq === 0) return;
+    const raf = requestAnimationFrame(() => setPulsing(true));
+    const clear = window.setTimeout(() => setPulsing(false), 290);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(clear);
+    };
+  }, [pulseSeq]);
 
   return (
     <button

@@ -349,11 +349,17 @@ function HomeView({
     "uphero.camp.ambience.1",
   );
   useEffect(() => {
-    setAmbienceKey((prev) => pickCampAmbience(prev));
+    // 첫 로테이션도 rAF 콜백에서 — effect 내 동기 setState 금지 규칙 준수 (1프레임 차이, 시각 차 없음)
+    const raf = requestAnimationFrame(() => {
+      setAmbienceKey((prev) => pickCampAmbience(prev));
+    });
     const id = window.setInterval(() => {
       setAmbienceKey((prev) => pickCampAmbience(prev));
     }, 20000);
-    return () => window.clearInterval(id);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearInterval(id);
+    };
   }, []);
 
   return (

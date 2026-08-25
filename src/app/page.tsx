@@ -26,6 +26,12 @@ const subscribeNoop = () => () => {};
 const getStandaloneSnapshot = () => isStandalone();
 const getStandaloneServerSnapshot = () => false;
 
+// login_prompt_seen 도 같은 uSES 패턴 — LoginOverlay 가 저장(항상 onDismiss 와 짝)하므로
+// 세션 중 값이 바뀌면 다음 렌더에서 자연히 반영된다. 서버/첫 hydration 은 "seen" 취급해 오버레이 숨김.
+const getLoginPromptSeenSnapshot = () =>
+  loadFromStorage<boolean>("login_prompt_seen") === true;
+const getLoginPromptSeenServerSnapshot = () => true;
+
 const CardPackOpener = dynamic(
   () => import("@/components/cards/CardPackOpener"),
   { ssr: false },
@@ -63,7 +69,14 @@ export default function Home() {
   const isOpeningPack = useGameStore((s) => s.isOpeningPack);
   const dismissPackOpener = useGameStore((s) => s.dismissPackOpener);
 
-  const [showLoginOverlay, setShowLoginOverlay] = useState(false);
+  // 오버레이 표시 여부 — 수동 열기/닫기(override)가 없으면 "최초 조건 충족 시 자동 표시" 파생값.
+  // (기존 useEffect + setState 자동 오픈을 react-hooks/set-state-in-effect 준수 형태로 대체)
+  const [overlayOverride, setOverlayOverride] = useState<"open" | "closed" | null>(null);
+  const loginPromptSeen = useSyncExternalStore(
+    subscribeNoop,
+    getLoginPromptSeenSnapshot,
+    getLoginPromptSeenServerSnapshot,
+  );
   // PWA/TWA → 앱 열 때마다 모션 스플래시 표시 (세션당 1회).
   // 서버·첫 hydration 은 standalone=false 로 평가 → OnboardingFlow/DailyBoard 가 렌더 시도되지만,
   // hydration 완료 직후 getSnapshot=true 로 전환되며 splashDismissed=false 이면 스플래시로 교체.
@@ -78,12 +91,9 @@ export default function Home() {
   const splashDismissed = useUIStore((s) => s.splashDismissed);
   const showSplash = standalone && !splashDismissed;
 
-  useEffect(() => {
-    if (isLoaded && hasCompletedOnboarding && !daily.isDrawComplete) {
-      const seen = loadFromStorage<boolean>("login_prompt_seen");
-      if (!seen) setShowLoginOverlay(true);
-    }
-  }, [isLoaded, hasCompletedOnboarding, daily.isDrawComplete]);
+  const showLoginOverlay = overlayOverride
+    ? overlayOverride === "open"
+    : isLoaded && hasCompletedOnboarding && !daily.isDrawComplete && !loginPromptSeen;
 
   useEffect(() => {
     initialize();
@@ -110,9 +120,6 @@ export default function Home() {
 
   // phase-aware 화면 전환
   const phase = daily.challengePhase || "daily";
-  const isCurrentDrawDone = phase === "daily" ? daily.isDrawComplete
-    : phase === "extra" ? daily.extraDrawComplete
-    : daily.superDrawComplete;
   const isCurrentSelectionDone = phase === "daily" ? daily.isSelectionComplete
     : phase === "extra" ? daily.extraSelectionComplete
     : daily.superSelectionComplete;
@@ -138,7 +145,7 @@ export default function Home() {
         {/* P2 — 미로그인 + 진행 누적된 사용자에게 백업 안내. 카드팩 오픈 / 컬렉션
             축하 등 모달이 띄워진 상태에서는 자동으로 가려지므로 항상 마운트 가능. */}
         {!isOpeningPack && (
-          <BackupReminderBanner onLogin={() => setShowLoginOverlay(true)} />
+          <BackupReminderBanner onLogin={() => setOverlayOverride("open")} />
         )}
         {isOpeningPack ? (
           <CardPackOpener onComplete={dismissPackOpener} />
@@ -150,7 +157,7 @@ export default function Home() {
 
         <AnimatePresence>
           {showLoginOverlay && (
-            <LoginOverlay onDismiss={() => setShowLoginOverlay(false)} />
+            <LoginOverlay onDismiss={() => setOverlayOverride("closed")} />
           )}
         </AnimatePresence>
 
@@ -160,7 +167,7 @@ export default function Home() {
 
         {/* Phase F — Android Capacitor 첫 실행 1회 백업 안내. PWA → Play Store 앱
             전환 시 데이터 격리로 인한 손실 방지. */}
-        <AndroidFirstLaunchModal onLogin={() => setShowLoginOverlay(true)} />
+        <AndroidFirstLaunchModal onLogin={() => setOverlayOverride("open")} />
       </div>
     </>
   );

@@ -34,19 +34,19 @@ export default function ClassAwakenModal() {
   const reducedMotion = useReducedMotion();
 
   // 다단계 reveal state — 0: 배경만, 1: 타이틀, 2: 아이콘, 3: 이름+설명
+  // pending 변화에 따른 리셋은 렌더 단계 prev-비교 setState 패턴 (set-state-in-effect 준수)
   const [stage, setStage] = useState(0);
+  const [prevPending, setPrevPending] = useState(pending);
+  if (pending !== prevPending) {
+    setPrevPending(pending);
+    // 닫힘 → 0 리셋 / RM: stage 딜레이 (30/530/1030ms) 스킵, 모든 레이어 즉시 노출
+    setStage(!pending ? 0 : reducedMotion ? 3 : 0);
+  }
 
   useEffect(() => {
-    if (!pending) {
-      setStage(0);
-      return;
-    }
+    if (!pending) return;
     play("impactShake");
-    if (reducedMotion) {
-      // RM: stage 2 번의 delay (30/530/1030ms) 스킵. 모든 레이어 즉시 노출.
-      setStage(3);
-      return;
-    }
+    if (reducedMotion) return;
     // Phase 5d: stage 0 을 30ms 로 줄여 빈 gradient 공백 제거.
     // rAF 직후 바로 stage 1 로 전환 → 타이틀이 즉시 fade-in 시작.
     // 타이틀 → 아이콘 간격은 유지 (500ms), 아이콘 → 설명 간격도 유지 (500ms).

@@ -155,7 +155,7 @@ function ArchiveSlot({
 // === ArchiveSheet ===
 export default function ArchiveSheet() {
   const photoMetas = useGrowthStore((s) => s.photoMetas);
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const [selectedMeta, setSelectedMeta] = useState<PhotoMeta | null>(null);
 
   // Phase 7 polish — Up Hero 의 부적으로 바인딩된 photo id 집합.

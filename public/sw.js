@@ -60,7 +60,7 @@ self.addEventListener("push", (event) => {
         vibrate: [100, 50, 100],
       })
     );
-  } catch (_) {
+  } catch {
     // malformed push payload — skip
   }
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { springBouncy } from "@/lib/motion";
@@ -51,15 +51,25 @@ const SPARKLES_2 = [
 ];
 
 
+// hydration 이후에만 true — uSES 마운트 가드 헬퍼
+const mountedNoopSubscribe = () => () => {};
+const mountedClientSnapshot = () => true;
+const mountedServerSnapshot = () => false;
+
 export default function AppDescription({ onNext }: AppDescriptionProps) {
   const [page, setPage] = useState(0);
   const { t } = useTranslation();
   const { play } = useSound();
 
-  // 초기 마운트 시 진입 애니메이션 비활성 → LCP = FCP (SSR 콘텐츠 그대로 유지)
-  const isInitialMount = useRef(true);
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => { isInitialMount.current = false; setIsMounted(true); }, []);
+  // 초기 마운트 시 진입 애니메이션 비활성 → LCP = FCP (SSR 콘텐츠 그대로 유지).
+  // AnimatePresence 의 initial={false} 가 첫 렌더 자식의 mount 애니메이션만 억제
+  // (이후 page 전환 enter 는 정상 재생) — ref 렌더 읽기 없이 동일 동작.
+  // 모션 그래픽은 hydration 이후에만 — uSES 마운트 가드 (useEffect + setState 대체)
+  const isMounted = useSyncExternalStore(
+    mountedNoopSubscribe,
+    mountedClientSnapshot,
+    mountedServerSnapshot,
+  );
 
   // Play sound effect when page changes
   useEffect(() => {
@@ -120,10 +130,10 @@ export default function AppDescription({ onNext }: AppDescriptionProps) {
 
       {/* 콘텐츠 */}
       <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={page}
-            initial={isInitialMount.current ? false : { opacity: 0, x: 80 }}
+            initial={{ opacity: 0, x: 80 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -80 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}

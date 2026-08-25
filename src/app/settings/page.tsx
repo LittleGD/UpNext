@@ -6,7 +6,7 @@ import { useGameStore } from "@/store/useGameStore";
 import type { GameMode } from "@/types/game";
 import type { Category } from "@/types/card";
 import type { TitleDefinition } from "@/types/title";
-import { getTitleForLevel, getXPProgress } from "@/types/game";
+import { getTitleForLevel } from "@/types/game";
 import { ALL_TITLES, getEarnedTitleIds, categoryLabel } from "@/data/titles";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -54,7 +54,11 @@ export default function SettingsPage() {
   const { play } = useSound();
   const { t, language } = useTranslation();
   const [pendingMode, setPendingMode] = useState<GameMode | null>(null);
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
+  // 초기값을 lazy initializer 로 직접 읽는다 (SSR 은 "unsupported" 반환, 화면은 isLoaded 스켈레톤 뒤라 hydration 안전).
+  // 권한 요청 후에는 핸들러에서 setNotifPermission 으로 갱신.
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
+    () => getNotificationPermission(),
+  );
   // Phase 13 review dev cleanup — window.confirm 대신 커스텀 GbConfirm 다이얼로그.
   //   pixel-art 디자인 시스템 일관성 + i18n 제목/본문 명확 표기.
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -62,10 +66,6 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!isLoaded) initialize();
   }, [isLoaded, initialize]);
-
-  useEffect(() => {
-    setNotifPermission(getNotificationPermission());
-  }, []);
 
   if (!isLoaded) {
     return (

@@ -1,6 +1,5 @@
 import type {
   RewardDefinition,
-  RewardEffectId,
   SkillEffectId,
   CurseEffectId,
 } from "@/types/minigame";

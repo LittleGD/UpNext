@@ -113,8 +113,6 @@ let isSyncReady = false;
 export function setSyncReady(ready: boolean): void {
   isSyncReady = ready;
 }
-let cloudUpdatePromise: Promise<void> | null = null;
-
 export function isCloudUpdate(): boolean {
   return isUpdatingFromCloud;
 }
@@ -168,7 +166,7 @@ export async function startListener(
     }
 
     isUpdatingFromCloud = true;
-    cloudUpdatePromise = Promise.resolve().then(() => {
+    Promise.resolve().then(() => {
       try {
         const progress = data.progress as UserProgress;
         const daily = hydrateDaily((data.daily as Record<string, unknown>) || {});
@@ -178,7 +176,6 @@ export async function startListener(
         onCloudUpdate(progress, daily, retention);
       } finally {
         isUpdatingFromCloud = false;
-        cloudUpdatePromise = null;
       }
     });
   });

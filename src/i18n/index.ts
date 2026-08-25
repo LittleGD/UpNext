@@ -60,7 +60,7 @@ export async function ensureLanguage(lang: Language): Promise<void> {
     bumpVersion();
   } catch (e) {
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
+       
       console.warn(`[i18n] failed to load ${lang} dict:`, e);
     }
   } finally {
