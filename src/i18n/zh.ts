@@ -10,6 +10,10 @@ const zh: Record<DictKey, string> = {
   "backup.notSynced": "尚未备份",
   "backup.signInToBackup": "登录以备份",
   // === android first launch ===
+  "androidMigration.banner.title": "重大更新即将到来",
+  "androidMigration.banner.body": "现在登录，连胜、XP和进度都会保留。照片仅保存在本设备上，不会转移。",
+  "androidMigration.banner.cta": "登录以保留进度",
+  "androidMigration.banner.later": "稍后",
   "androidFirstLaunch.title": "数据保护提醒",
   "androidFirstLaunch.body1": "Play Store 版本使用独立的存储区域。要从 Chrome PWA 中继承进度，请使用相同账号登录。",
   "androidFirstLaunch.body2": "登录后自动同步到云端，更换设备或重装也安全。",

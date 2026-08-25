@@ -10,6 +10,10 @@ const en: Record<DictKey, string> = {
   "backup.notSynced": "Not yet backed up",
   "backup.signInToBackup": "Sign in to back up",
   // === android first launch ===
+  "androidMigration.banner.title": "A big app update is coming",
+  "androidMigration.banner.body": "Log in now and your streak, XP and progress will carry over. Photos are stored only on this device and won't transfer.",
+  "androidMigration.banner.cta": "Log in to keep it",
+  "androidMigration.banner.later": "Later",
   "androidFirstLaunch.title": "Keep your progress safe",
   "androidFirstLaunch.body1": "The Play Store app uses separate storage. To bring over progress from your Chrome PWA, sign in with the same account.",
   "androidFirstLaunch.body2": "Signing in syncs everything to the cloud — safe across devices and reinstalls.",

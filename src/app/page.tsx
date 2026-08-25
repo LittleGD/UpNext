@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { useUIStore } from "@/store/useUIStore";
 import { loadFromStorage } from "@/lib/storage";
+import { isAndroidTwa } from "@/lib/platform";
 import CardDrawScreen from "@/components/daily/CardDrawScreen";
 import DailyBoard from "@/components/daily/DailyBoard";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
@@ -38,6 +39,10 @@ const BackupReminderBanner = dynamic(
   () => import("@/components/auth/BackupReminderBanner"),
   { ssr: false },
 );
+const AndroidMigrationBanner = dynamic(
+  () => import("@/components/auth/AndroidMigrationBanner"),
+  { ssr: false },
+);
 const AndroidFirstLaunchModal = dynamic(
   () => import("@/components/auth/AndroidFirstLaunchModal"),
   { ssr: false },
@@ -64,6 +69,12 @@ export default function Home() {
   const dismissPackOpener = useGameStore((s) => s.dismissPackOpener);
 
   const [showLoginOverlay, setShowLoginOverlay] = useState(false);
+  // TWA 감지는 클라이언트 전용 (referrer/localStorage) — hydration 불일치 방지를
+  // 위해 effect 에서 판정. 두 배너 모두 초기 비가시라 전환 깜빡임은 없다.
+  const [isTwaClient, setIsTwaClient] = useState(false);
+  useEffect(() => {
+    setIsTwaClient(isAndroidTwa());
+  }, []);
   // PWA/TWA → 앱 열 때마다 모션 스플래시 표시 (세션당 1회).
   // 서버·첫 hydration 은 standalone=false 로 평가 → OnboardingFlow/DailyBoard 가 렌더 시도되지만,
   // hydration 완료 직후 getSnapshot=true 로 전환되며 splashDismissed=false 이면 스플래시로 교체.
@@ -136,10 +147,15 @@ export default function Home() {
 
       <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
         {/* P2 — 미로그인 + 진행 누적된 사용자에게 백업 안내. 카드팩 오픈 / 컬렉션
-            축하 등 모달이 띄워진 상태에서는 자동으로 가려지므로 항상 마운트 가능. */}
-        {!isOpeningPack && (
-          <BackupReminderBanner onLogin={() => setShowLoginOverlay(true)} />
-        )}
+            축하 등 모달이 띄워진 상태에서는 자동으로 가려지므로 항상 마운트 가능.
+            TWA 에서는 Capacitor 전환 예고 배너가 백업 배너를 대체한다 (같은 대상,
+            문구가 백업+마이그레이션을 함께 다루므로 이중 노출 방지). */}
+        {!isOpeningPack &&
+          (isTwaClient ? (
+            <AndroidMigrationBanner onLogin={() => setShowLoginOverlay(true)} />
+          ) : (
+            <BackupReminderBanner onLogin={() => setShowLoginOverlay(true)} />
+          ))}
         {isOpeningPack ? (
           <CardPackOpener onComplete={dismissPackOpener} />
         ) : showBoard ? (

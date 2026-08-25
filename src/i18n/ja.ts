@@ -10,6 +10,10 @@ const ja: Record<DictKey, string> = {
   "backup.notSynced": "まだバックアップされていません",
   "backup.signInToBackup": "ログインしてバックアップ",
   // === android first launch ===
+  "androidMigration.banner.title": "まもなく大型アップデートが届きます",
+  "androidMigration.banner.body": "今ログインしておけば、ストリーク・XP・進捗はそのまま引き継がれます。写真はこの端末のみに保存され、引き継がれません。",
+  "androidMigration.banner.cta": "ログインして守る",
+  "androidMigration.banner.later": "あとで",
   "androidFirstLaunch.title": "データ保護のお知らせ",
   "androidFirstLaunch.body1": "Play Store版アプリは別の保存領域を使います。ChromeのPWAで進めていたデータを引き継ぐには、同じアカウントでログインしてください。",
   "androidFirstLaunch.body2": "ログインするとクラウドに自動同期され、機種変更や再インストールでも安心です。",

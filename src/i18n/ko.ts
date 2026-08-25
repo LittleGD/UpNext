@@ -7,6 +7,11 @@ const ko = {
   "backup.lastSyncedAt": "마지막 백업: {ago}",
   "backup.notSynced": "아직 백업되지 않음",
   "backup.signInToBackup": "로그인하여 백업하기",
+  // === android migration banner (TWA→Capacitor 전환 예고) ===
+  "androidMigration.banner.title": "곧 대규모 앱 업데이트가 찾아와요",
+  "androidMigration.banner.body": "지금 로그인해 두면 스트릭·XP·진행도가 그대로 이어져요. 사진은 이 기기에만 저장되어 이전되지 않아요.",
+  "androidMigration.banner.cta": "로그인하고 지켜두기",
+  "androidMigration.banner.later": "나중에",
   // === android first launch ===
   "androidFirstLaunch.title": "데이터 보존 안내",
   "androidFirstLaunch.body1": "Play Store 앱은 별도 저장소를 사용해요. Chrome 에서 PWA 로 쓰던 진행 데이터를 가져오려면 같은 계정으로 로그인이 필요합니다.",
