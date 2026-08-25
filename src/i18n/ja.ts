@@ -235,6 +235,9 @@ const ja: Record<DictKey, string> = {
   "settings.notifications.denied": "通知がブロックされています。ブラウザ設定で許可してください。",
 
   // === 通知 ===
+  "notif.daily.reminder.body": "カードを引く時間です! 🎴",
+  "notif.channel.reminder": "チャレンジリマインダー",
+  "notif.channel.celebration": "達成のお祝い",
   "notif.daily.complete.title": "今日のチャレンジ完了!",
   "notif.daily.complete.body": "お疲れ様。追加チャレンジもありますよ。",
   "notif.extra.complete.title": "追加チャレンジ完了!",

@@ -235,6 +235,9 @@ const en: Record<DictKey, string> = {
   "settings.notifications.denied": "Notifications blocked. Please enable in browser settings.",
 
   // === notifications ===
+  "notif.daily.reminder.body": "Time to draw your cards! 🎴",
+  "notif.channel.reminder": "Challenge reminders",
+  "notif.channel.celebration": "Completion celebrations",
   "notif.daily.complete.title": "Daily Challenge Complete!",
   "notif.daily.complete.body": "Great job. Extra challenges are waiting.",
   "notif.extra.complete.title": "Extra Challenge Complete!",

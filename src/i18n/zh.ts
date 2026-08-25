@@ -235,6 +235,9 @@ const zh: Record<DictKey, string> = {
   "settings.notifications.denied": "通知已被阻止。请在浏览器设置中允许。",
 
   // === 通知 ===
+  "notif.daily.reminder.body": "该抽卡了！🎴",
+  "notif.channel.reminder": "挑战提醒",
+  "notif.channel.celebration": "完成祝贺",
   "notif.daily.complete.title": "今日挑战完成！",
   "notif.daily.complete.body": "辛苦了。还有额外挑战哦。",
   "notif.extra.complete.title": "额外挑战完成！",

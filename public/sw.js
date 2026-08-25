@@ -73,7 +73,7 @@ self.addEventListener("notificationclick", (event) => {
 // === 로컬 리마인더 스케줄링 ===
 let reminderTimeout = null;
 
-function scheduleNextReminder(timeStr) {
+function scheduleNextReminder(timeStr, bodyText) {
   if (reminderTimeout) clearTimeout(reminderTimeout);
 
   const [hours, minutes] = timeStr.split(":").map(Number);
@@ -88,14 +88,15 @@ function scheduleNextReminder(timeStr) {
 
   reminderTimeout = setTimeout(() => {
     self.registration.showNotification("UpNext", {
-      body: "Time to draw your cards! 🎴",
+      // 호출부(설정/부팅 재스케줄)가 인앱 언어로 로컬라이즈한 문구를 넘긴다.
+      body: bodyText || "Time to draw your cards! 🎴",
       icon: "/icons/icon-192x192.png",
       badge: "/icons/icon-192x192.png",
       vibrate: [100, 50, 100],
       tag: "daily-reminder",
     });
     // 다음날 재스케줄
-    scheduleNextReminder(timeStr);
+    scheduleNextReminder(timeStr, bodyText);
   }, delay);
 }
 
@@ -198,7 +199,7 @@ function cancelExtraNudge() {
 self.addEventListener("message", (event) => {
   const { type } = event.data || {};
   if (type === "SCHEDULE_REMINDER") {
-    scheduleNextReminder(event.data.time);
+    scheduleNextReminder(event.data.time, event.data.body);
   } else if (type === "CANCEL_REMINDER") {
     if (reminderTimeout) clearTimeout(reminderTimeout);
     reminderTimeout = null;

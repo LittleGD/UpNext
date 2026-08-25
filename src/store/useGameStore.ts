@@ -469,7 +469,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // 챌린지 알림 스케줄 + 상시 알림 표시
     if (progress.notificationsEnabled) {
-      scheduleChallengeReminder(t("notif.challenge.reminder", progress.language));
+      scheduleChallengeReminder(
+        t("notif.challenge.reminder", progress.language),
+        progress.language,
+      );
       showChallengeStatus(updated.selectedCards.map((c) => ({
         name: c.title, completed: updated.completedIds.includes(c.id),
       })));
@@ -644,6 +647,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           t("notif.daily.complete.title", lang),
           t("notif.daily.complete.body", lang),
           "daily-complete",
+          lang,
         );
 
         // 2) 2시간 뒤 "추가 챌린지, 하고 싶지 않아?" 넛지 (하루 1회)
@@ -653,6 +657,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
           scheduleExtraNudge(
             t("notif.extra.nudge.title", lang),
             t("notif.extra.nudge.body", lang),
+            undefined,
+            lang,
           );
         }
       } else {
@@ -1258,6 +1264,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         t("notif.extra.complete.title", lang),
         t("notif.extra.complete.body", lang),
         "extra-complete",
+        lang,
       );
     }
   },

@@ -235,6 +235,9 @@ const ko = {
   "settings.notifications.denied": "알림이 차단되었습니다. 브라우저 설정에서 허용해주세요.",
 
   // === 알림 문구 ===
+  "notif.daily.reminder.body": "카드를 뽑을 시간이에요! 🎴",
+  "notif.channel.reminder": "챌린지 리마인더",
+  "notif.channel.celebration": "완료 축하",
   "notif.daily.complete.title": "오늘의 챌린지 완료!",
   "notif.daily.complete.body": "수고했어요. 추가 챌린지도 있어요.",
   "notif.extra.complete.title": "추가 챌린지 완료!",

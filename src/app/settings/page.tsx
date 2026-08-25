@@ -24,7 +24,7 @@ import type { DictKey } from "@/i18n";
 import { titleName } from "@/i18n";
 import {
   requestNotificationPermission,
-  getNotificationPermission,
+  getNotificationPermissionAsync,
   scheduleLocalReminder,
   cancelLocalReminder,
 } from "@/lib/notifications";
@@ -64,7 +64,8 @@ export default function SettingsPage() {
   }, [isLoaded, initialize]);
 
   useEffect(() => {
-    setNotifPermission(getNotificationPermission());
+    // 네이티브(안드로이드 Capacitor)는 권한 조회가 비동기라 async 버전으로 통일
+    void getNotificationPermissionAsync().then(setNotifPermission);
   }, []);
 
   if (!isLoaded) {
@@ -182,10 +183,14 @@ export default function SettingsPage() {
               } else {
                 // 켜기 — 권한 요청
                 const granted = await requestNotificationPermission();
-                setNotifPermission(getNotificationPermission());
+                setNotifPermission(await getNotificationPermissionAsync());
                 if (granted) {
                   setNotificationsEnabled(true);
-                  scheduleLocalReminder(progress.notificationTime);
+                  scheduleLocalReminder(
+                    progress.notificationTime,
+                    t("notif.daily.reminder.body"),
+                    language,
+                  );
                   play("confirm");
                 }
               }
@@ -212,7 +217,7 @@ export default function SettingsPage() {
                 value={progress.notificationTime}
                 onChange={(e) => {
                   setNotificationTime(e.target.value);
-                  scheduleLocalReminder(e.target.value);
+                  scheduleLocalReminder(e.target.value, t("notif.daily.reminder.body"), language);
                 }}
                 className="bg-bg-elevated text-text-primary rounded px-2 py-1 typo-body"
               />
