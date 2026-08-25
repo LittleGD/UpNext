@@ -1,6 +1,10 @@
 // LocalStorage 헬퍼 — 브라우저에 데이터를 저장/불러오기
 // JSON.stringify로 객체를 문자열로 변환하여 저장하고,
 // JSON.parse로 문자열을 다시 객체로 변환하여 불러옴
+//
+// 클라우드 동기화 대상 키 (saveToStorage 가 sync.ts syncToCloud 로 라우팅):
+//   progress / daily / onboarding_complete / retention (트랙 2-1)
+// 그 외 키(growth, uphero 등)는 로컬 전용으로 저장만 된다.
 
 import { syncToCloud } from "@/lib/sync";
 

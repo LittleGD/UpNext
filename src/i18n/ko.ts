@@ -167,6 +167,7 @@ const ko = {
 
   // === nav ===
   "nav.challenge": "챌린지",
+  "nav.flame": "불꽃",
   "nav.collection": "컬렉션",
   "nav.playground": "아지트",
   "nav.settings": "설정",
@@ -261,6 +262,14 @@ const ko = {
   "settings.reset.button": "데이터 초기화 & 계정 연동 해제",
   "settings.reset.confirmWithAccount": "모든 진행 데이터가 삭제되고 계정 연동이 해제됩니다. 정말 초기화할까요?",
   "settings.reset.confirmLocal": "모든 진행 데이터가 삭제됩니다. 정말 초기화할까요?",
+  // 계정 삭제 (트랙 2: iOS SettingsView 포팅. App Store 5.1.1(v) 웹 대응 동일 플로우)
+  "settings.account.delete": "계정 삭제",
+  "settings.account.deleteConfirmTitle": "계정을 삭제하시겠어요?",
+  "settings.account.deleteConfirmBody": "계정과 모든 데이터가 영구 삭제됩니다. 같은 계정으로 다시 로그인해도 복구되지 않습니다.",
+  "settings.account.deleteConfirmCta": "계정 삭제 (되돌릴 수 없음)",
+  "settings.account.deleteFailed": "계정 삭제에 실패했어요. 잠시 후 다시 시도해주세요",
+  "settings.account.deleteCancelled": "계정 삭제가 취소됐어요",
+  "settings.account.deleteDataFailed": "계정 데이터 삭제에 실패했어요. 잠시 후 다시 시도해주세요",
 
   // === collection ===
   "collection.tab.cards": "카드",
@@ -2290,6 +2299,89 @@ const ko = {
   "uphero.photo.error.maxEnhance": "이미 +10 최대 강화",
 
   "uphero.ribbon.weeklyProgress": "{cleared}/{total}",
+
+  // === flame retention tab (트랙 2: iOS RetentionSectionView/RecordTabView 포팅) ===
+  // 번역 원문은 iOS Localizable.xcstrings 재사용. 솔로=라임, 듀오=시안 톤 규칙 동일.
+  // 시간대 인사 헤더 (RitualGreetingHeader)
+  "flame.greeting.morning.title": "좋은 아침이에요",
+  "flame.greeting.morning.sub": "오늘의 불꽃을 천천히 켜볼까요",
+  "flame.greeting.midday.title": "한낮이에요",
+  "flame.greeting.midday.sub": "잠깐 멈춰 오늘을 챙겨봐요",
+  "flame.greeting.evening.title": "저녁이에요",
+  "flame.greeting.evening.sub": "오늘 하루, 어땠어요?",
+  "flame.greeting.night.title": "늦은 밤이에요",
+  "flame.greeting.night.sub": "오늘도 여기 있어줘서 고마워요",
+  // 스트릭 히어로 (체크인 CTA)
+  "flame.hero.streakUnit": "일 연속",
+  "flame.hero.bestRenewing": "최고 기록 경신 중",
+  "flame.hero.checkedToday": "오늘 불꽃을 이어갔어요",
+  "flame.hero.continuePrompt": "오늘도 한 번, {days}일 불꽃을 이어가요",
+  "flame.hero.firstPrompt": "첫 불꽃을 켜보세요",
+  "flame.hero.checkIn": "불꽃 켜기",
+  // 마일스톤 트랙 (7/30/100일)
+  "flame.milestone.toNext": "다음 마일스톤까지 {days}일",
+  "flame.milestone.legend": "100일 달성, 전설의 불꽃",
+  // 방패(세이버) + 최고기록 스탯 행
+  "flame.guard.savers": "방패 {count}개, 하루 빠져도 이어져요",
+  "flame.guard.noSavers": "방패가 없어요, 오늘은 꼭 켜요",
+  "flame.guard.bestLabel": "최고 기록",
+  // 수치 단위 (리포트 metric 값 + 최고기록 값 공용)
+  "flame.unit.days": "{n}일",
+  "flame.unit.cards": "{n}장",
+  "flame.unit.logs": "{n}개",
+  // 28일 체크인 히트맵
+  "flame.heatmap.title": "내가 지나온 28일",
+  "flame.heatmap.a11y.lit": "{date} 불꽃 켜짐",
+  "flame.heatmap.a11y.saver": "{date} 방패로 메움",
+  "flame.heatmap.a11y.empty": "{date} 빈 날",
+  // 지난주 리포트 (행 + 시트)
+  "flame.report.rowTitle": "지난주의 나",
+  "flame.report.rowSummary": "{checkIns}일 체크인 · 카드 {cards}장 · 로그 {logs}개",
+  "flame.report.sheetTitle": "지난주 리포트",
+  "flame.report.metric.checkIns": "체크인",
+  "flame.report.metric.cards": "완료 카드",
+  "flame.report.metric.photos": "사진 로그",
+  "flame.report.metric.saver": "세이버",
+  "flame.report.saverUsed": "사용",
+  "flame.report.saverUnused": "미사용",
+  "flame.report.topCategory": "가장 많이 한 카테고리",
+  "flame.report.highlightCard": "인상적인 카드",
+  // 2인 불꽃 카드 (활성/대기/비활성 3상태)
+  "flame.duo.title": "2인 불꽃",
+  "flame.duo.me": "나",
+  "flame.duo.friend": "친구",
+  "flame.duo.together": "함께 {days}일째",
+  "flame.duo.bothLit": "오늘 둘 다 불꽃을 켰어요",
+  "flame.duo.leave": "나가기",
+  "flame.duo.leaveConfirmTitle": "2인 불꽃에서 나갈까요?",
+  "flame.duo.leaveConfirmBody": "함께한 기록이 사라지고, 친구는 혼자 남게 돼요",
+  "flame.duo.waiting": "동료를 기다리는 중",
+  "flame.duo.inviteCode": "초대코드 {code}",
+  "flame.duo.codePlaceholder": "초대코드",
+  "flame.duo.join": "참여",
+  "flame.duo.createInvite": "초대코드 만들기",
+  "flame.duo.loginCta": "로그인하고 함께 켜기",
+  "flame.duo.loginRequired": "2인 불꽃은 로그인이 필요해요",
+  "flame.duo.emptySlot": "빈 자리",
+  "flame.duo.inactiveTitle": "함께 켜면 더 오래 타요",
+  "flame.duo.inactiveSub": "친구를 불러 공동 불꽃을 시작하세요",
+  "flame.duo.friendNotYet": "{name}님은 아직이에요",
+  "flame.duo.nudge": "콕 찌르기",
+  "flame.duo.nudged": "콕 찔렀어요",
+  "flame.duo.nudgeBanner": "친구가 콕 찔렀어요. 오늘 불꽃을 켜볼까요?",
+  "flame.duo.status.friendFirst": "친구가 먼저 켰어요, 같이 이어가요",
+  "flame.duo.status.waitingFriend": "친구의 불꽃을 기다리는 중",
+  "flame.duo.status.bothNotYet": "오늘은 둘 다 아직이에요, 천천히 켜요",
+  // 듀오 스토어 런타임 메시지 (useDuoStore.message 경유 표시)
+  "flame.duo.msg.loginRequired": "로그인하면 친구와 함께 불꽃을 켤 수 있어요",
+  "flame.duo.msg.inviteReady": "초대코드가 준비됐어요",
+  "flame.duo.msg.invalidCode": "유효하지 않은 초대코드예요",
+  "flame.duo.msg.started": "2인 불꽃이 시작됐어요",
+  "flame.duo.msg.nudgeFailed": "콕 찌르기를 보내지 못했어요",
+  "flame.duo.msg.createFailed": "초대 생성 실패: {error}",
+  "flame.duo.msg.lookupFailed": "초대 조회 실패: {error}",
+  "flame.duo.msg.joinFailed": "듀오 참여 실패: {error}",
+  "flame.duo.msg.observeFailed": "듀오 정보를 불러오지 못했어요: {error}",
 } as const;
 
 export type DictKey = keyof typeof ko;

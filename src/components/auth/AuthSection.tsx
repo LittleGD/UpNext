@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuthStore } from "@/store/useAuthStore";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import { getLastBackupAt } from "@/lib/sync";
 import { isIos } from "@/lib/platform";
+import { GB, GB_DANGER, EASE_OUT } from "@/lib/upHeroPalette";
 import PixelIcon from "@/components/icons/PixelIcon";
+import GbConfirm from "@/components/uphero/GbConfirm";
+import { useModalA11y } from "@/hooks/useModalA11y";
+import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
+import type { DictKey } from "@/i18n";
 
 /**
  * P3 — "N분 전 / N시간 전" 등 사람이 읽을 수 있는 상대 시간.
@@ -38,11 +44,36 @@ export default function AuthSection() {
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const signInWithApple = useAuthStore((s) => s.signInWithApple);
   const signOut = useAuthStore((s) => s.signOut);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const isSigningIn = useAuthStore((s) => s.isSigningIn);
   const signInError = useAuthStore((s) => s.signInError);
   const showAppleButton = isIos();
 
   const { t, language } = useTranslation();
+  const { play } = useSound();
+
+  // 트랙 2-3: 계정 삭제 플로우 상태. 확인 다이얼로그 → 진행 스피너 →
+  // 실패/취소 시 결과 알럿 (성공은 deleteAccountWeb 내부 reload 로 종료).
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteResultKey, setDeleteResultKey] = useState<DictKey | null>(null);
+
+  const handleDeleteAccount = async () => {
+    setDeleteConfirmOpen(false);
+    setIsDeleting(true);
+    const result = await deleteAccount();
+    // 성공 시 내부에서 로컬 소거 + reload 되므로 아래는 실패/취소 경로만 실행.
+    if (!result.ok) {
+      setIsDeleting(false);
+      setDeleteResultKey(
+        result.reason === "cancelled"
+          ? "settings.account.deleteCancelled"
+          : result.reason === "data-delete-failed"
+            ? "settings.account.deleteDataFailed"
+            : "settings.account.deleteFailed",
+      );
+    }
+  };
 
   // P3 — 마지막 백업 시각 표시. 60초 마다 갱신해서 "1분 전 → 2분 전" 자동.
   // localStorage 폴링이라 비용 무시 가능.
@@ -100,6 +131,26 @@ export default function AuthSection() {
           >
             {t("auth.section.signOut")}
           </button>
+          {/* 구분선 */}
+          <div className="h-px bg-white/[0.06]" />
+          {/* 계정 삭제: iOS(App Store 5.1.1(v) 대응)와 동일한 경로를 웹에도 제공.
+                복구 불가 액션이라 danger 톤 + GbConfirm 확인 후 진행. */}
+          <button
+            onClick={() => {
+              play("select");
+              setDeleteConfirmOpen(true);
+            }}
+            disabled={isDeleting}
+            className="w-full text-left px-4 py-3 typo-body text-accent-secondary hover:bg-bg-elevated transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isDeleting && (
+              <div
+                className="w-3.5 h-3.5 border-2 border-accent-secondary/30 border-t-accent-secondary rounded-full animate-spin"
+                aria-hidden="true"
+              />
+            )}
+            {t("settings.account.delete")}
+          </button>
         </div>
       ) : (
         <div className="rounded-lg bg-bg-surface grid-border p-4 space-y-3">
@@ -150,6 +201,152 @@ export default function AuthSection() {
           )}
         </div>
       )}
+
+      {/* 계정 삭제 확인: settings 리셋과 동일하게 GbConfirm danger 변형 사용 */}
+      <GbConfirm
+        open={deleteConfirmOpen}
+        danger
+        title={t("settings.account.deleteConfirmTitle")}
+        body={t("settings.account.deleteConfirmBody")}
+        confirmLabel={t("settings.account.deleteConfirmCta")}
+        cancelLabel={t("common.cancelDefault")}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteAccount}
+      />
+      {/* 실패/취소 결과 통지: 취소는 정보 톤, 나머지는 danger 톤 */}
+      <GbAlert
+        open={deleteResultKey !== null}
+        danger={deleteResultKey !== "settings.account.deleteCancelled"}
+        title={deleteResultKey ? t(deleteResultKey) : ""}
+        onClose={() => setDeleteResultKey(null)}
+      />
     </section>
+  );
+}
+
+/**
+ * GbConfirm 의 단일 버튼(확인만) 변형: 결과 통지용 알럿.
+ * 웹에 공용 알럿 컴포넌트가 아직 없어 AuthSection 로컬로 최소 구현했다.
+ * GbConfirm 과 동일한 GB 팔레트 / role="alertdialog" / useModalA11y 계약을 따른다.
+ */
+function GbAlert({
+  open,
+  title,
+  danger = false,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  danger?: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalA11y(containerRef, onClose, { disabled: !open });
+
+  if (!open) return null;
+  if (typeof window === "undefined") return null;
+
+  const tone = danger ? GB_DANGER : GB.lightest;
+
+  return createPortal(
+    <div
+      className="gb-alert-backdrop fixed inset-0 z-[70] flex items-center justify-center p-4"
+      style={{ background: `${GB.darkest}e0` }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={containerRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="gb-alert-title"
+        className="gb-alert-card w-full max-w-xs rounded-md"
+        style={{
+          background: GB.darkest,
+          border: `1px solid ${tone}`,
+          outline: "none",
+        }}
+      >
+        <div className="px-4 pt-4 pb-3 flex items-start gap-2">
+          <PixelIcon
+            name={danger ? "WarningDiamond" : "InfoBox"}
+            size={16}
+            color={tone}
+          />
+          <div
+            id="gb-alert-title"
+            className="typo-body flex-1 leading-snug"
+            style={{ color: GB.lightest }}
+          >
+            {title}
+          </div>
+        </div>
+        <div
+          className="px-3 py-3 flex items-center justify-end"
+          style={{ borderTop: `1px solid ${GB.dark}` }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            className="gb-alert-btn typo-caption rounded"
+            style={{
+              minHeight: 44,
+              padding: "10px 14px",
+              background: tone,
+              color: GB.darkest,
+              border: `1px solid ${tone}`,
+              fontWeight: 600,
+            }}
+            autoFocus
+          >
+            {t("common.confirmDefault")}
+          </button>
+        </div>
+      </div>
+      <style jsx>{`
+        .gb-alert-backdrop {
+          animation: gb-alert-fade 180ms ${EASE_OUT} both;
+        }
+        .gb-alert-card {
+          animation: gb-alert-in 200ms ${EASE_OUT} both;
+        }
+        .gb-alert-btn {
+          transition: transform 120ms ${EASE_OUT}, filter 160ms ${EASE_OUT};
+        }
+        .gb-alert-btn:active {
+          transform: scale(0.97);
+        }
+        .gb-alert-btn:hover {
+          filter: brightness(1.06);
+        }
+        @keyframes gb-alert-fade {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes gb-alert-in {
+          from {
+            opacity: 0;
+            transform: scale(0.96);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .gb-alert-backdrop,
+          .gb-alert-card {
+            animation: none !important;
+          }
+        }
+      `}</style>
+    </div>,
+    document.body,
   );
 }

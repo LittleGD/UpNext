@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { springSnappy } from "@/lib/motion";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -67,19 +66,6 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   //   오류 등 모든 케이스. 기존엔 silent catch 였으나 유저는 "뷰파인더 검정"
   //   만 보고 무슨 일인지 모름. 이 플래그로 명시적 안내 + 파일 선택 CTA 노출.
   const [cameraError, setCameraError] = useState(false);
-
-  // Phase 14 perf — ejecting 연출에 쓰이는 카메라 layer PNG/WebP 를 camera
-  //   단계 진입 시 warm cache. 198KB (webp) 정도로 부담 없고, ejecting 전환
-  //   순간의 블로킹 decode 를 없애 애니메이션 첫 프레임이 자연스럽다.
-  useEffect(() => {
-    if (capturePhase !== "camera") return;
-    const imgs = [
-      new Image(),
-      new Image(),
-    ];
-    imgs[0].src = "/polaroid-top.webp";
-    imgs[1].src = "/polaroid-bottom.webp";
-  }, [capturePhase]);
 
   // 카메라 시작
   useEffect(() => {
@@ -278,17 +264,22 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
   const needleTipX = 85 + needleLen * Math.cos(needleAngleRad);
   const needleTipY = 50 + needleLen * Math.sin(needleAngleRad);
 
-  // 사진 촬영 → 바로 ejecting 단계로 (재촬영 없음)
+  // 사진 촬영 → 폴라로이드(꾸미기) 직행 (재촬영 없음)
   const captureFromVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
     const canvas = document.createElement("canvas");
-    const size = Math.min(video.videoWidth || 800, video.videoHeight || 800);
+    // iOS fc7dee8 백포트 — 캡처 캔버스를 최대 1024px 로 캡. 소스 crop 은
+    //   기존 center-crop 수식 그대로 (srcSize 정사각), 출력만 다운스케일.
+    //   저장 경로는 이미 800px 압축이라 무손실이고, 고해상도 스트림에서
+    //   toDataURL 인코드 + 이후 디코드 비용만 원천 제거된다.
+    const srcSize = Math.min(video.videoWidth || 800, video.videoHeight || 800);
+    const size = Math.min(srcSize, 1024);
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d")!;
-    const sx = (video.videoWidth - size) / 2;
-    const sy = (video.videoHeight - size) / 2;
+    const sx = (video.videoWidth - srcSize) / 2;
+    const sy = (video.videoHeight - srcSize) / 2;
 
     // Phase 13 review Critical — flash/exposure UI 가 실제 capture 에 반영됨.
     //   이전: drawImage 전후 filter 미적용 → UI 에서 -2EV 로 맞춰도 결과 동일.
@@ -308,7 +299,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
       ctx.translate(size, 0);
       ctx.scale(-1, 1);
     }
-    ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+    ctx.drawImage(video, sx, sy, srcSize, srcSize, 0, 0, size, size);
     if (facingMode === "user") {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
@@ -330,10 +321,9 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     setCapturedImage(dataUrl);
     setCaptureTimestamp(ts);
     stopCamera();
-    setCapturePhase("ejecting");
-
-    setTimeout(() => play("polaroidSlide"), 400);
-    setTimeout(() => setCapturePhase("polaroid"), 2500);
+    // iOS c3cdb4f 백포트 — 인화(ejecting) 연출 없이 폴라로이드(꾸미기) 직행.
+    //   진입 페이드 0.35s 는 polaroid 섹션의 mount 애니메이션이 담당.
+    setCapturePhase("polaroid");
   }, [stopCamera, play, setCapturePhase, exposureEV, flashOn, facingMode]);
 
   // 파일 선택 폴백
@@ -348,9 +338,8 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
       play("cameraShutter");
       setShowFlash(true);
       setTimeout(() => setShowFlash(false), 200);
-      setCapturePhase("ejecting");
-      setTimeout(() => play("polaroidSlide"), 400);
-      setTimeout(() => setCapturePhase("polaroid"), 2500);
+      // 카메라 경로와 동일 — 인화 연출 없이 꾸미기 직행
+      setCapturePhase("polaroid");
     };
     reader.readAsDataURL(file);
   }, [play, setCapturePhase]);
@@ -389,13 +378,17 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
         setSignatureData(null);
         setStickers([]);
       } else {
-        onComplete(); // savePhoto 가 null 반환 (pendingCaptureCardId 없음)
+        // savePhoto 가 null 반환 (pendingCaptureCardId 없음) — 이 경로는 phase 가
+        // polaroid/memo 에 머무르므로 cancelCapture 로 idle 리셋 후 종료를 알린다
+        // (DailyBoard 의 연출 게이트가 idle 을 요구).
+        cancelCapture();
+        onComplete();
       }
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [capturedImage, signatureData, stickers, savePhoto, card, language, play, onComplete]);
+  }, [capturedImage, signatureData, stickers, savePhoto, cancelCapture, card, language, play, onComplete]);
 
   // 스티커 추가 — position 주어지면 그 위치 (드래그-앤-드롭 결과), 없으면 중앙 (탭).
   // UpNext 로고는 항상 최상단 (zIndex 999), 다른 스티커는 시퀀셜.
@@ -418,26 +411,22 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
     [],
   );
 
-  // 건너뛰기
-  const handleSkip = useCallback(() => {
+  // 닫기 — 캡처 취소/이탈. 완료(XP)는 DailyBoard 가 캡처 시작 전에 이미
+  //   선커밋했으므로 (iOS d00a7d7 패턴) 여기서 잃는 것은 사진뿐이다.
+  //   onComplete 로 부모에 종료를 알려 모달 해제 + 보류된 연출을 실행시킨다.
+  const handleClose = useCallback(() => {
     stopCamera();
     cancelCapture();
     onComplete();
   }, [stopCamera, cancelCapture, onComplete]);
 
-  // 닫기
-  const handleClose = useCallback(() => {
-    stopCamera();
-    cancelCapture();
-  }, [stopCamera, cancelCapture]);
-
-  // Phase 13 review Critical — back button (popstate) 로 camera/ejecting
-  //   phase 이탈 시 getUserMedia stream leak 방지. ESC 는 useModalA11y 가
-  //   통합 처리 (handleClose 동일 경로 → stopCamera + cancelCapture).
+  // Phase 13 review Critical — back button (popstate) 로 camera phase 이탈 시
+  //   getUserMedia stream leak 방지. ESC 는 useModalA11y 가 통합 처리
+  //   (handleClose 동일 경로 → stopCamera + cancelCapture + onComplete).
   //   savedMeta 가 있으면 detail 뷰라 handle 안 함 (detail 자체가 별도 close UX).
   useEffect(() => {
     if (savedMeta) return;
-    if (capturePhase !== "camera" && capturePhase !== "ejecting") return;
+    if (capturePhase !== "camera") return;
     const onPopState = () => handleClose();
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -478,7 +467,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
           capturePhase === "camera" ? "bg-[#DCD5BC]" : "bg-black"
         }`}
       >
-        {/* 헤더 — 카메라/이젝팅 시에는 숨김.
+        {/* 헤더 — 카메라 시에는 숨김.
             Close 버튼: 아이콘 + "Close" 텍스트 (다른 모달과 일관성). */}
         {(capturePhase === "polaroid" || capturePhase === "memo") && (
           <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
@@ -496,11 +485,7 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
         )}
 
         {/* 콘텐츠 */}
-        <div className={`flex-1 flex flex-col items-center px-4 ${
-          capturePhase === "ejecting"
-            ? "justify-start pt-8"
-            : "justify-center overflow-hidden"
-        }`}>
+        <div className="flex-1 flex flex-col items-center justify-center overflow-hidden px-4">
 
           {/* ========== CAMERA PHASE — Figma node 340:2189 (정밀 구현) ========== */}
           {/* 모바일 기준 max-width 430px — 데스크탑/태블릿에서도 모바일 카메라 바디 크기 유지.
@@ -1243,116 +1228,17 @@ export default function PhotoCaptureModal({ card, onComplete }: Props) {
             </motion.div>
           )}
 
-          {/* ========== EJECTING PHASE — UpNext 카메라 (PNG 레이어 샌드위치) + 폴라로이드 슬롯 출력 ========== */}
-          {/* 구조: bottom-layer(z1) · 폴라로이드(z2) · top-layer(z3)
-              슬롯 라인은 top-layer 하단 = 전체 높이의 1238/1426 ≈ 86.8% 지점.
-              폴라로이드는 슬롯 라인에서 위로 숨겨진 채 시작 → y 증가로 슬롯 밖으로 밀려나옴.
-              위쪽 부분은 top-layer 가 가려주고, 아래쪽 부분만 bottom-layer 위에서 드러난다. */}
-          {capturePhase === "ejecting" && capturedImage && (
-            <div className="relative w-full max-w-[340px] mx-auto flex flex-col items-center">
-              {/* 플래시 잔상 */}
-              {showFlash && (
-                <motion.div
-                  initial={{ opacity: 1 }}
-                  animate={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="fixed inset-0 bg-white z-50"
-                />
-              )}
-
-              {/* 카메라 샌드위치 조립체 — 3키프레임 시퀀스 (총 2.5s)
-                  ① 0→50%  직선 슬라이드 아웃
-                  ② 50→100% 카메라 퇴장 + 폴라로이드 확대 1.3x + 화면 중앙 */}
-              <div
-                className="relative w-full"
-                style={{ aspectRatio: "1525 / 1426" }}
-              >
-                {/* Bottom layer (z=1) — 위로 빠르게 퇴장.
-                    Phase 14 perf: PNG 1.3MB 를 WebP 로 전환 (14% 크기),
-                    fallback 은 기존 PNG 유지. animation 은 wrapper div 로 이동. */}
-                <motion.div
-                  aria-hidden
-                  className="absolute inset-x-0 bottom-0 w-full select-none pointer-events-none"
-                  style={{ height: `${(188 / 1426) * 100}%`, zIndex: 1 }}
-                  initial={{ y: 0 }}
-                  animate={{ y: [0, 0, -700] }}
-                  transition={{
-                    duration: 2.5,
-                    times: [0, 0.5, 1],
-                    ease: ["linear", [0.33, 1, 0.68, 1]],
-                  }}
-                >
-                  <picture>
-                    <source srcSet="/polaroid-bottom.webp" type="image/webp" />
-                    <img
-                      src="/polaroid-bottom.png"
-                      alt=""
-                      draggable={false}
-                      decoding="async"
-                      className="w-full h-full"
-                    />
-                  </picture>
-                </motion.div>
-
-                {/* Polaroid (z=2) — 3키프레임: 직선출력 → 퇴장+확대
-                    left:50% + framer x:"-50%" — Tailwind translate 충돌 방지 */}
-                <motion.div
-                  className="absolute"
-                  style={{
-                    top: `${(1238 / 1426) * 100}%`,
-                    left: "50%",
-                    width: "62%",
-                    zIndex: 2,
-                    transformOrigin: "center top",
-                  }}
-                  initial={{ x: "-50%", y: "-100%", scale: 1 }}
-                  animate={{
-                    x: "-50%",
-                    y: ["-100%", "15%", "-45%"],
-                    scale: [1, 1, 1.3],
-                  }}
-                  transition={{
-                    duration: 2.5,
-                    times: [0, 0.5, 1],
-                    ease: [[0.23, 1, 0.32, 1], [0.77, 0, 0.175, 1]],
-                  }}
-                >
-                  <motion.div
-                    initial={{ filter: "sepia(0.8) brightness(0.85) contrast(0.9)" }}
-                    animate={{ filter: "sepia(0) brightness(1) contrast(1)" }}
-                    transition={{ duration: 1.8, delay: 0.6, ease: [0.23, 1, 0.32, 1] }}
-                  >
-                    <PolaroidFrame imageSrc={capturedImage} timestamp={captureTimestamp} />
-                  </motion.div>
-                </motion.div>
-
-                {/* Top layer (z=3) — 위로 빠르게 퇴장.
-                    Phase 14 perf: WebP 전환 + animation wrapper 분리 (bottom 과 동일 패턴). */}
-                <motion.div
-                  aria-hidden
-                  className="absolute inset-x-0 top-0 w-full select-none pointer-events-none"
-                  style={{ height: `${(1238 / 1426) * 100}%`, zIndex: 3 }}
-                  initial={{ y: 0 }}
-                  animate={{ y: [0, 0, -700] }}
-                  transition={{
-                    duration: 2.5,
-                    times: [0, 0.5, 1],
-                    ease: ["linear", [0.33, 1, 0.68, 1]],
-                  }}
-                >
-                  <picture>
-                    <source srcSet="/polaroid-top.webp" type="image/webp" />
-                    <img
-                      src="/polaroid-top.png"
-                      alt=""
-                      draggable={false}
-                      decoding="async"
-                      className="w-full h-full"
-                    />
-                  </picture>
-                </motion.div>
-              </div>
-            </div>
+          {/* 셔터 플래시 잔상 — 인화(ejecting) 단계 제거 후에도 촬영 직후의
+              흰 플래시가 카메라→꾸미기 전환 컷을 부드럽게 잇는다. camera 단계
+              에서는 뷰파인더 내부 플래시가 별도로 처리. */}
+          {showFlash && capturePhase !== "camera" && (
+            <motion.div
+              aria-hidden
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 bg-white z-50 pointer-events-none"
+            />
           )}
 
           {/* ========== POLAROID PHASE — 자유 낙서 + 스티커 + 데코레이션 툴바 ==========

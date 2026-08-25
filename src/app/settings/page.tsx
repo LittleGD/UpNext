@@ -475,7 +475,7 @@ export default function SettingsPage() {
            (git sha / build date) 확장 가능. */}
       <section className="pt-2 text-center">
         <p className="typo-micro text-text-tertiary opacity-60 tabular-nums">
-          UpNext v0.1.0
+          UpNext v0.2.0
         </p>
       </section>
 

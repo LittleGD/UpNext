@@ -26,4 +26,6 @@ export interface PhotoMeta {
 }
 
 // === 캡처 플로우 단계 ===
-export type CapturePhase = "idle" | "camera" | "ejecting" | "polaroid" | "memo" | "saving";
+// iOS c3cdb4f 백포트 — "ejecting"(인화 연출) 단계 제거. 촬영 후 폴라로이드
+//   (꾸미기) 로 0.35초 페이드 직행.
+export type CapturePhase = "idle" | "camera" | "polaroid" | "memo" | "saving";

@@ -2,8 +2,10 @@
 
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { ALL_CARDS } from "@/data/cards";
+import { normalizeRetentionState, stripUndefined } from "@/lib/retention";
 import type { DailyState, UserProgress } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
+import type { RetentionState } from "@/types/retention";
 import type { Unsubscribe } from "firebase/firestore";
 
 // 카드 ID → ChallengeCard 매핑
@@ -21,7 +23,9 @@ function dehydrateCards(cards: ChallengeCard[]): string[] {
 // Firestore 데이터 → DailyState (카드 ID 배열 → 풀 객체 복원)
 export function hydrateDaily(data: Record<string, unknown>): DailyState {
   return {
-    date: (data.date as string) || (() => { const d = new Date(); d.setHours(d.getHours() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })(),
+    // 인라인 폴백은 getTodayString()/retentionTodayString() 과 동일 로직 (데이 경계
+    // 변경 시 3곳 동시 수정). 절대시간 1시간 감산 — iOS AppClock 과 동일, DST 안전.
+    date: (data.date as string) || (() => { const d = new Date(Date.now() - 3600_000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })(),
     drawnCards: hydrateCards((data.drawnCardIds as string[]) || []),
     selectedCards: hydrateCards((data.selectedCardIds as string[]) || []),
     completedIds: (data.completedIds as string[]) || [],
@@ -125,9 +129,16 @@ async function getFirestoreMod() {
 }
 
 // 리스너 시작: Firestore 문서 변경 감지 → 콜백 호출
+//   retention 인자 (트랙 2-1): 문서에 retention 필드가 없거나 null 이면 null 을
+//   전달한다. null 은 "필드 부재 = 로컬 유지" 신호 (iOS cloudRetention ?? retention
+//   폴백과 동일). 존재하면 normalizeRetentionState 관용 디코드를 거친 값.
 export async function startListener(
   uid: string,
-  onCloudUpdate: (progress: UserProgress, daily: DailyState) => void,
+  onCloudUpdate: (
+    progress: UserProgress,
+    daily: DailyState,
+    retention: RetentionState | null,
+  ) => void,
 ): Promise<void> {
   if (!isFirebaseConfigured) return;
   stopListener();
@@ -161,7 +172,10 @@ export async function startListener(
       try {
         const progress = data.progress as UserProgress;
         const daily = hydrateDaily((data.daily as Record<string, unknown>) || {});
-        onCloudUpdate(progress, daily);
+        // retention 손상은 progress 동기화를 막지 않는다: isValidProgress 와 달리
+        // per-field 관용 디코드로 항상 사용 가능한 상태를 만든다.
+        const retention = data.retention == null ? null : normalizeRetentionState(data.retention);
+        onCloudUpdate(progress, daily, retention);
       } finally {
         isUpdatingFromCloud = false;
         cloudUpdatePromise = null;
@@ -200,6 +214,16 @@ export function syncToCloud(key: string, value: unknown): void {
     pendingSyncData.daily = dehydrateDaily(value as DailyState);
   } else if (key === "onboarding_complete") {
     pendingSyncData.onboardingComplete = value;
+  } else if (key === "retention") {
+    // uploadLocalData 와 동일한 lastCheckInDate 게이트: 체크인 기록이 없는 상태
+    // (주간 리포트만 백필된 fresh retention 등)는 클라우드에 이득이 없고, merge 로
+    // iOS 가 기록한 currentLightStreak/checkInDates 를 0/[] 로 덮는 위험만 있다.
+    // 키를 아예 싣지 않아 클라우드 값을 보존한다 (P0 클로버 방어 2중선).
+    if ((value as RetentionState | undefined)?.lastCheckInDate === undefined) return;
+    // stripUndefined 필수: 옵셔널(lastCheckInDate 등)이 undefined 로 실려오면
+    // Firestore JS SDK 가 throw 한다. 키 생략이 iOS Swift 의 nil 생략과 같은
+    // 와이어 포맷을 만든다 (src/lib/retention.ts 참고).
+    pendingSyncData.retention = stripUndefined(value);
   }
 
   // 로컬에 pending write가 있음을 표시 — 이 동안 stale cloud snapshot 무시
@@ -224,10 +248,14 @@ async function flushSync(): Promise<void> {
   const docRef = doc(db, "users", currentUid);
   let success = false;
   try {
+    // stripUndefined: progress 는 원본 in-memory 객체가 그대로 실려오므로
+    // (예: 일일 롤오버 DayRecord 의 옵셔널 필드) undefined 값 키가 남아 있으면
+    // setDoc 전체가 throw → 같은 배치의 retention/daily 까지 클라우드에 못 간다.
+    // meta 는 serverTimestamp 센티널이 재귀 복사에 깨지므로 밖에서 합친다.
     await setDoc(
       docRef,
       {
-        ...dataToSync,
+        ...stripUndefined(dataToSync),
         meta: {
           lastSyncedAt: serverTimestamp(),
           lastDeviceId: getDeviceId(),
@@ -282,6 +310,22 @@ async function flushSync(): Promise<void> {
   }
 }
 
+/**
+ * 디바운스를 기다리지 않고 pending write 를 즉시 flush.
+ * pagehide/visibilitychange(hidden) 훅용 — 체크인 직후 300ms 디바운스 창 안에서
+ * 탭을 닫으면 write 가 유실되는 문제를 줄인다 (웹 Firestore JS 는 iOS 와 달리
+ * 오프라인 영속이 기본 비활성이라 큐가 재시작을 못 넘긴다). best-effort:
+ * 언로드 중 네트워크 완료는 보장되지 않지만 유실 창을 실질적으로 좁힌다.
+ */
+export function flushPendingSync(): void {
+  if (syncDebounceTimer) {
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = null;
+  }
+  if (Object.keys(pendingSyncData).length === 0) return;
+  void flushSync();
+}
+
 // 로컬 데이터를 클라우드에 초기 업로드.
 //   P1 — uploadLocalData 는 syncToCloud 디바운스를 우회하므로, 별도로
 //   `hasLocalPendingWrite` 플래그를 잡았다 풀어야 startListener 의 첫
@@ -291,25 +335,41 @@ export async function uploadLocalData(
   uid: string,
   progress: UserProgress,
   daily: DailyState,
+  retention?: RetentionState,
 ): Promise<void> {
   if (!isFirebaseConfigured) return;
 
   const { db } = await getFirebase();
   const { doc, setDoc, serverTimestamp } = await getFirestoreMod();
 
+  // 트랙 2-0/2-1: retention 은 로컬에 체크인 기록(lastCheckInDate)이 있을 때만
+  // 포함한다. 없으면 키 자체를 생략해 merge 가 iOS 가 기록한 클라우드 retention
+  // 값을 보존한다 (fresh 상태 업로드가 iOS 불꽃 스트릭을 0 으로 덮는 것 방지).
+  const includeRetention =
+    retention !== undefined && retention.lastCheckInDate !== undefined;
+
   hasLocalPendingWrite = true;
   try {
     const docRef = doc(db, "users", uid);
-    await setDoc(docRef, {
-      progress,
-      daily: dehydrateDaily(daily),
-      onboardingComplete: true,
-      meta: {
-        createdAt: serverTimestamp(),
-        lastSyncedAt: serverTimestamp(),
-        lastDeviceId: getDeviceId(),
+    // merge: true — iOS SyncManager 가 기록한 retention 등 다른 필드를 보존한다.
+    // (merge 없는 setDoc 은 문서 전체 덮어쓰기 → iOS 불꽃 스트릭이 삭제되는 크로스 플랫폼 버그)
+    // stripUndefined — progress 의 DayRecord 옵셔널 등 undefined 값 키가 있으면
+    // Firestore JS SDK 가 throw 한다 (flushSync 와 동일 방어, meta 센티널은 제외).
+    await setDoc(
+      docRef,
+      {
+        progress: stripUndefined(progress),
+        daily: stripUndefined(dehydrateDaily(daily)),
+        ...(includeRetention ? { retention: stripUndefined(retention) } : {}),
+        onboardingComplete: true,
+        meta: {
+          createdAt: serverTimestamp(),
+          lastSyncedAt: serverTimestamp(),
+          lastDeviceId: getDeviceId(),
+        },
       },
-    });
+      { merge: true }
+    );
     markBackupSucceeded();
   } finally {
     hasLocalPendingWrite = false;
@@ -332,27 +392,38 @@ export function isValidProgress(data: unknown): data is UserProgress {
   return true;
 }
 
+/**
+ * 클라우드 사용자 문서 로드 결과 — iOS SyncManager.CloudLoad 의 3상태 미러.
+ *  - "notFound": 문서 없음 (진짜 신규 계정 → 로컬 업로드 가능)
+ *  - "invalid": 문서는 있으나 progress 손상 (기존 데이터 보호 — 절대 덮어쓰기 금지,
+ *    업로드하면 merge 라도 progress/daily/retention 이 로컬 값으로 덮인다)
+ */
+export type CloudDataResult =
+  | { progress: UserProgress; daily: DailyState; retention: RetentionState | null }
+  | "notFound"
+  | "invalid";
+
 // 클라우드에 기존 데이터가 있는지 확인
-export async function getCloudData(
-  uid: string,
-): Promise<{ progress: UserProgress; daily: DailyState } | null> {
-  if (!isFirebaseConfigured) return null;
+//   retention: 필드 부재/null 이면 null (로컬 유지 신호), 존재하면 관용 디코드 값.
+export async function getCloudData(uid: string): Promise<CloudDataResult> {
+  if (!isFirebaseConfigured) return "notFound";
 
   const { db } = await getFirebase();
   const { doc, getDoc } = await getFirestoreMod();
 
   const docRef = doc(db, "users", uid);
   const snapshot = await getDoc(docRef);
-  if (!snapshot.exists()) return null;
+  if (!snapshot.exists()) return "notFound";
 
   const data = snapshot.data();
   if (!isValidProgress(data.progress)) {
     console.warn("Invalid cloud progress data, ignoring");
-    return null;
+    return "invalid";
   }
   return {
     progress: data.progress as UserProgress,
     daily: hydrateDaily((data.daily as Record<string, unknown>) || {}),
+    retention: data.retention == null ? null : normalizeRetentionState(data.retention),
   };
 }
 

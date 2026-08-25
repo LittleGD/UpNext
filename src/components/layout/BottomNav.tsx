@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
-import { NAV_ICONS } from "@/components/icons";
+import { NAV_ICONS, UI_ICONS } from "@/components/icons";
 import { useGameStore } from "@/store/useGameStore";
 import { useMinigameStore } from "@/store/useMinigameStore";
 import { useUIStore } from "@/store/useUIStore";
@@ -19,6 +19,9 @@ import type { DictKey } from "@/i18n";
 
 const navItems = [
   { href: "/", icon: NAV_ICONS.today, labelKey: "nav.challenge" as DictKey },
+  // 트랙 2-1: 불꽃 리텐션 탭 (iOS IA 순서: 챌린지 다음). NAV_ICONS 에 불꽃
+  //   전용 항목이 없어 UI_ICONS.fire("Fire", 히어로/히트맵과 동일 글리프) 사용.
+  { href: "/flame", icon: UI_ICONS.fire, labelKey: "nav.flame" as DictKey },
   { href: "/collection", icon: NAV_ICONS.collection, labelKey: "nav.collection" as DictKey },
   { href: "/playground", icon: NAV_ICONS.playground, labelKey: "nav.playground" as DictKey },
   { href: "/settings", icon: NAV_ICONS.settings, labelKey: "nav.settings" as DictKey },
@@ -111,7 +114,10 @@ export default function BottomNav() {
       transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
       className="fixed bottom-5 left-1/2 -translate-x-1/2 z-10 pb-[env(safe-area-inset-bottom)]"
     >
-      <div className="flex items-center gap-1 bg-bg-elevated/90 backdrop-blur-md rounded-full px-2 py-1.5 grid-border">
+      {/* 트랙 2-1: 5탭 + 활성 라벨 확장이 320px 폭에 들어가도록 초소형 화면
+            (≤360px) 에서 아이템 패딩/간격을 한 단계 축소. 터치 세로 44px 은
+            min-h 로 유지되므로 HIG 기준은 그대로 충족. */}
+      <div className="flex items-center gap-1 max-[360px]:gap-0.5 bg-bg-elevated/90 backdrop-blur-md rounded-full px-2 max-[360px]:px-1.5 py-1.5 grid-border">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -128,7 +134,7 @@ export default function BottomNav() {
                      로 세로 확보. 가로는 active 시 label 포함 48px+ 로 충분.
                      whileTap scale 0.9 → 0.97 (Emil 표준). reduced-motion 시 생략. */
                 whileTap={reducedMotion ? undefined : { scale: 0.97 }}
-                className={`flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-full transition-all ${
+                className={`flex items-center gap-1.5 px-4 max-[360px]:px-2.5 py-2.5 min-h-[44px] rounded-full transition-all ${
                   isActive
                     ? "bg-accent text-bg-primary"
                     : "text-text-tertiary hover:text-text-secondary"

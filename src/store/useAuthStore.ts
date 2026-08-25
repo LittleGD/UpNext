@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { isNative } from "@/lib/platform";
 import type { AuthUser } from "@/types/auth";
+import type { AccountDeletionResult } from "@/lib/accountDeletion";
 
 /** Sign-in 실패 분류 — UI 는 i18n key 로 renderer 가 t() 호출. */
 export type SignInErrorKind =
@@ -30,6 +31,12 @@ interface AuthState {
   /** iOS Capacitor에서만 동작. 웹/Android에서는 no-op (UI에서 버튼 숨김). */
   signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
+  /**
+   * 계정 영구 삭제 (트랙 2-3, 웹 Google 전용): 재인증 → 듀오 탈퇴 →
+   * 클라우드 소거 → Auth 삭제 → 로컬 소거 + reload. 성공 시 내부에서
+   * reload 하므로 호출부 이후 코드는 실패/취소 경로에서만 실행된다.
+   */
+  deleteAccount: () => Promise<AccountDeletionResult>;
 }
 
 /**
@@ -130,14 +137,18 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Phase 14 security — in-memory Zustand singleton 명시적 reset. reload 가
       //   SW / navigation 인터럽트로 실패해도 이전 유저 state 가 UI 에 드러나지
       //   않도록. 동적 import 로 순환 의존 회피.
-      const [gameStoreMod, growthStoreMod, upHeroStoreMod] = await Promise.all([
+      const [gameStoreMod, growthStoreMod, upHeroStoreMod, retentionStoreMod] = await Promise.all([
         import("@/store/useGameStore"),
         import("@/store/useGrowthStore"),
         import("@/store/useUpHeroStore"),
+        import("@/store/useRetentionStore"),
       ]);
       gameStoreMod.useGameStore.getState().resetForSignOut();
       growthStoreMod.useGrowthStore.getState().resetForSignOut();
       upHeroStoreMod.useUpHeroStore.getState().resetForSignOut();
+      // 트랙 2-1: 불꽃 리텐션 in-memory 도 초기화 (듀오는 auth null 시
+      // SyncProvider 가 useDuoStore.reset() 으로 리스너까지 해제).
+      retentionStoreMod.useRetentionStore.getState().resetForSignOut();
 
       const { auth } = await getFirebase();
       const { signOut: firebaseSignOut } = await import("firebase/auth");
@@ -151,5 +162,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (error) {
       console.error("Sign-out failed:", error);
     }
+  },
+
+  deleteAccount: async () => {
+    // 무거운 삭제 플로우는 별도 모듈로 분리, 실제 실행 시점에만 동적 import.
+    const { deleteAccountWeb } = await import("@/lib/accountDeletion");
+    return deleteAccountWeb();
   },
 }));

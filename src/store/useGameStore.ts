@@ -28,11 +28,15 @@ import { useUpHeroStore } from "./useUpHeroStore";
 export const COMPLETION_HISTORY_CAP = 365;
 
 // 오늘 날짜를 "2026-04-01" 형식으로 반환
-// 하루 기준: 새벽 1시 ~ 다음날 00:59 (1시간 빼서 날짜 계산)
+// 하루 기준: 새벽 1시 ~ 다음날 00:59 (절대시간 1시간 감산 후 로컬 날짜)
 // Phase 11a — useUpHeroStore 의 shopDaily reset 에서도 공용으로 쓰이므로 export.
+// 트랙 2-1: src/lib/retention.ts 의 retentionTodayString() 이 동일 로직의 의도적
+// 중복 구현 (순수 lib 이 스토어 모듈 그래프를 끌지 않기 위해). 데이 경계를
+// 바꾸면 반드시 sync.ts hydrateDaily 인라인 폴백까지 3곳을 함께 수정할 것.
+// iOS AppClock.productDayString 의 addingTimeInterval(-3600) 과 동일하게 절대시간
+// 감산 사용 — 벽시계 감산(setHours)은 DST 전환 1시간 창에서 iOS 와 날짜가 어긋난다.
 export function getTodayString(): string {
-  const d = new Date();
-  d.setHours(d.getHours() - 1);
+  const d = new Date(Date.now() - 3600_000);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
@@ -185,6 +189,14 @@ interface GameStore {
   ) => void;
 
   /**
+   * 트랙 2-1: 불꽃 체크인 결과를 progress 스트릭에 반영
+   * (iOS GameStore.checkInToday 미러). 라이트 스트릭이 사용자에게 보이는
+   * currentStreak/longestStreak 의 진실원이 되도록 두 값을 덮어쓴다.
+   * useRetentionStore.checkInToday() 전용.
+   */
+  _applyLightStreak: (currentLightStreak: number, bestLightStreak: number) => void;
+
+  /**
    * Phase 14 security — 로그아웃 시 in-memory state 초기화.
    * localStorage wipe 와 별개로 zustand 싱글톤도 초기값으로 되돌려, reload 가
    * 실패해도 이전 유저 데이터가 UI 에 드러나지 않도록 이중 방어.
@@ -277,15 +289,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const dailyFailed = !wasFullClear;
         const extraDone = daily.extraSelectionComplete && daily.extraCompletedIds.length >= daily.extraSelectedCards.length;
         const superDone = daily.superSelectionComplete && daily.superCompletedIds.length >= daily.superSelectedCards.length;
+        // 옵셔널 필드는 조건부 스프레드로 키 자체를 생략한다 — `x || undefined` 로
+        // undefined 값 키를 만들면 localStorage JSON 왕복 전의 in-memory progress 가
+        // syncToCloud 로 그대로 실려가 Firestore setDoc 이 throw 한다 (sync.ts 의
+        // stripUndefined 방어와 이중 안전장치, Swift 의 nil 생략 와이어 포맷과 동일).
         const record: DayRecord = {
           date: daily.date,
           selectedCardIds: daily.selectedCards.map((c) => c.id),
           completedCardIds: daily.completedIds,
           wasFullClear,
           mode: progress.mode,
-          extraCompleted: extraDone || undefined,
-          superCompleted: superDone || undefined,
-          wasFailed: dailyFailed || undefined,
+          ...(extraDone ? { extraCompleted: true } : {}),
+          ...(superDone ? { superCompleted: true } : {}),
+          ...(dailyFailed ? { wasFailed: true } : {}),
         };
         // Phase 13 review C#1 — history 누적 cap. 최근 365 entry 만 유지.
         progress.completionHistory = [
@@ -890,6 +906,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   markPatchNotesSeen: (version: string) => {
     if (get().progress.lastSeenPatchVersion === version) return;
     const progress = { ...get().progress, lastSeenPatchVersion: version };
+    set({ progress });
+    saveToStorage("progress", progress);
+  },
+
+  // 트랙 2-1: 불꽃 체크인의 라이트 스트릭으로 progress 스트릭 덮어쓰기.
+  // saveToStorage 경유라 클라우드 동기화(iOS sync.syncProgress 대응)까지 수행.
+  _applyLightStreak: (currentLightStreak: number, bestLightStreak: number) => {
+    const progress = {
+      ...get().progress,
+      currentStreak: currentLightStreak,
+      longestStreak: bestLightStreak,
+    };
     set({ progress });
     saveToStorage("progress", progress);
   },

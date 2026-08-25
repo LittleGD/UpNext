@@ -17,6 +17,106 @@ export interface PatchNote {
 // 최신 순으로 맨 앞에 쌓기 — LATEST_PATCH는 항상 PATCH_NOTES[0]
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "2026.08.24",
+    date: "2026-08-24",
+    headline: {
+      ko: "불꽃 탭 + 2인 불꽃 + 더 빨라진 촬영, 매일이 이어집니다",
+      en: "Flame tab, Two-Player Flame, faster capture: every day connects",
+      ja: "炎タブ＋2人の炎＋より速い撮影、毎日がつながります",
+      zh: "火焰标签页 + 双人火焰 + 更快的拍摄，每一天都在延续",
+    },
+    entries: {
+      ko: [
+        {
+          icon: "Fire",
+          title: "불꽃 탭: 매일의 체크인 스트릭",
+          description: "하단에 불꽃 탭이 새로 생겼어요. 매일 불꽃을 켜 스트릭을 쌓고, 하루 빠져도 월 2개씩 리필되는 방패가 지켜줍니다. 28일 히트맵으로 지나온 날을 돌아보고, 매주 월요일 지난주 리포트를 받아보세요.",
+        },
+        {
+          icon: "UserPlus",
+          title: "2인 불꽃: 친구와 함께 켜기",
+          description: "초대코드를 만들어 친구와 공동 불꽃을 시작하세요. 함께한 날이 차곡차곡 쌓이고, 친구가 아직 안 켰다면 콕 찔러 알려줄 수 있어요.",
+        },
+        {
+          icon: "Camera",
+          title: "촬영이 더 빨라졌어요",
+          description: "촬영 후 인화 대기 화면을 없애, 셔터를 누르면 바로 꾸미기로 넘어갑니다. 사진 완료를 선택한 순간 완료가 먼저 확정되어, 촬영을 취소하거나 앱이 꺼져도 완료가 그대로 유지돼요.",
+        },
+        {
+          icon: "UserMinus",
+          title: "계정 삭제",
+          description: "설정의 계정 영역에서 계정과 클라우드 데이터를 직접 삭제할 수 있어요. 삭제 전 재인증 확인 절차로 안전하게 진행됩니다.",
+        },
+      ],
+      en: [
+        {
+          icon: "Fire",
+          title: "Flame tab: daily check-in streaks",
+          description: "A new Flame tab lights up the bottom bar. Check in daily to grow your streak, and Shields (2 refills per month) cover the days you miss. Look back on a 28-day heatmap and get a report of last week every Monday.",
+        },
+        {
+          icon: "UserPlus",
+          title: "Two-Player Flame: light it with a friend",
+          description: "Create an invite code and start a shared Flame. Your days together keep adding up, and you can poke your friend when they haven't lit theirs yet.",
+        },
+        {
+          icon: "Camera",
+          title: "Faster photo capture",
+          description: "The developing-wait screen is gone: press the shutter and jump straight into decorating. Choosing photo completion commits it first, so your completion sticks even if you cancel the shot or the app closes.",
+        },
+        {
+          icon: "UserMinus",
+          title: "Account deletion",
+          description: "Delete your account and cloud data yourself from the account section in Settings. A re-authentication step keeps the process safe.",
+        },
+      ],
+      ja: [
+        {
+          icon: "Fire",
+          title: "炎タブ: 毎日のチェックインストリーク",
+          description: "下部に炎タブが新登場。毎日炎をつけてストリークを伸ばし、月2個リフィルされるシールドが休んだ日を守ります。28日ヒートマップで歩みを振り返り、毎週月曜に先週のリポートが届きます。",
+        },
+        {
+          icon: "UserPlus",
+          title: "2人の炎: フレンドと一緒に灯す",
+          description: "招待コードを作ってフレンドと共同の炎を始めましょう。一緒の日数が積み重なり、フレンドがまだならつついて知らせることができます。",
+        },
+        {
+          icon: "Camera",
+          title: "撮影がもっと速く",
+          description: "撮影後の現像待ち画面を廃止し、シャッターを押すとすぐデコレーションへ。写真完了を選んだ瞬間に完了が先に確定するので、撮影をキャンセルしてもアプリが閉じても完了は残ります。",
+        },
+        {
+          icon: "UserMinus",
+          title: "アカウント削除",
+          description: "設定のアカウント欄からアカウントとクラウドデータを自分で削除できます。削除前の再認証ステップで安全に進みます。",
+        },
+      ],
+      zh: [
+        {
+          icon: "Fire",
+          title: "火焰标签页: 每日打卡连击",
+          description: "底部新增火焰标签页。每天点燃火焰累积连击，漏掉一天也有每月补充2个的护盾守护。用28天热力图回顾走过的日子，每周一还能收到上周报告。",
+        },
+        {
+          icon: "UserPlus",
+          title: "双人火焰: 和朋友一起点亮",
+          description: "创建邀请码，和朋友开启共同火焰。共同天数不断累积，朋友还没点亮时可以戳一下提醒。",
+        },
+        {
+          icon: "Camera",
+          title: "拍摄更快了",
+          description: "移除了拍摄后的显影等待画面，按下快门直接进入装饰。选择照片完成的瞬间会先确认完成，即使取消拍摄或应用关闭，完成也会保留。",
+        },
+        {
+          icon: "UserMinus",
+          title: "删除账号",
+          description: "可在设置的账号区域自行删除账号和云端数据。删除前的重新认证步骤保障安全。",
+        },
+      ],
+    },
+  },
+  {
     version: "2026.04.26",
     date: "2026-04-26",
     headline: {

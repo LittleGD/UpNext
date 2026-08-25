@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useGameStore } from "@/store/useGameStore";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
@@ -9,7 +9,7 @@ import { useGrowthStore } from "@/store/useGrowthStore";
 import PhotoCaptureModal from "@/components/growth/PhotoCaptureModal";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import { MODE_CARD_COUNT, XP_PER_RARITY } from "@/types/game";
-import type { ChallengeCard } from "@/types/card";
+import type { Category, ChallengeCard } from "@/types/card";
 import { motion, AnimatePresence } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { springSnappy } from "@/lib/motion";
@@ -121,6 +121,20 @@ function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
   );
 }
 
+// === 셀레브레이션 payload — commitChallenge 가 커밋 직전 상태로 계산해 반환 ===
+// iOS d00a7d7 백포트: 완료(XP/탐험권)는 동기 선커밋하고 연출은 나중에 따로
+// 재생하므로, pass cap 표시처럼 "커밋 전" 스냅샷이 필요한 값을 여기 담아 넘긴다.
+interface CelebrationPayload {
+  card: ChallengeCard;
+  xp: number;
+  pass: {
+    amount: number;
+    category: Category;
+    capped: boolean;
+  };
+  willBeAllDone: boolean;
+}
+
 export default function DailyBoard() {
   const daily = useGameStore((s) => s.daily);
   const progress = useGameStore((s) => s.progress);
@@ -153,8 +167,11 @@ export default function DailyBoard() {
   const [showChallengeModal, setShowChallengeModal] = useState<"extra" | "super" | null>(null);
   const [shakeCount, setShakeCount] = useState(0);
   const [captureCard, setCaptureCard] = useState<ChallengeCard | null>(null);
+  // 사진 완료 경로의 보류된 셀레브레이션 — 커밋은 즉시, 연출은 캡처 종료 후.
+  //   렌더에 안 쓰이는 이벤트 간 전달값이라 ref (state 면 불필요한 리렌더 +
+  //   set-state-in-effect 게이트가 필요해짐).
+  const pendingCelebrationRef = useRef<CelebrationPayload | null>(null);
   const startCapture = useGrowthStore((s) => s.startCapture);
-  const capturePhase = useGrowthStore((s) => s.capturePhase);
   // 배너를 re-mount 해 hold 상태를 초기화하기 위한 key
   // 모달을 cancel 로 닫으면 bump 되어 배너가 새 인스턴스로 교체됨
   const [bannerResetKey, setBannerResetKey] = useState(0);
@@ -189,11 +206,13 @@ export default function DailyBoard() {
     }
   };
 
-  // 챌린지 완료 + 셀레브레이션 공통 로직
-  const finishChallenge = useCallback((card: ChallengeCard) => {
+  // 챌린지 완료 커밋 (동기) — XP/탐험권/스트릭이 이 시점에 확정된다.
+  //   iOS d00a7d7 백포트: 연출과 분리해, 사진 캡처 경로에서도 촬영 전에 먼저
+  //   커밋할 수 있게 한다 (촬영 중 강제종료/이탈에도 완료 유실 없음).
+  //   연출 데이터는 커밋 "전" 상태로 계산해 반환 — pass cap 체크는 지급 전
+  //   기준이어야 정확하다.
+  const commitChallenge = useCallback((card: ChallengeCard): CelebrationPayload => {
     const xp = XP_PER_RARITY[card.rarity] || 10;
-    setCompletingCard(card);
-    setCompletingXp(xp);
     // Phase 12 bugfix — 탐험권 지급 피드백. 지급 전 현재 passes 읽어 cap 체크.
     //   grant = PASS_GRANT_BY_RARITY[rarity] (normal:1, rare:2, unique:3, legend:3).
     //   current + grant > 20 면 일부만 지급 (cap), 그 경우 capped=true.
@@ -204,52 +223,77 @@ export default function DailyBoard() {
       expectedGrant,
       PASS_CAP_PER_CATEGORY - currentPasses,
     );
-    setCompletingPass({
-      amount: actualGrant,
-      category: card.category,
-      capped: currentPasses + expectedGrant > PASS_CAP_PER_CATEGORY,
-    });
+    const willBeAllDone = completedCount + 1 >= totalCount;
+    handleCompleteAction(card.id);
+    return {
+      card,
+      xp,
+      pass: {
+        amount: actualGrant,
+        category: card.category,
+        capped: currentPasses + expectedGrant > PASS_CAP_PER_CATEGORY,
+      },
+      willBeAllDone,
+    };
+  }, [completedCount, totalCount, handleCompleteAction]);
+
+  // 셀레브레이션 재생 (사운드 / XP 토스트 / 콘페티) — 커밋과 분리된 순수 연출.
+  const playCelebration = useCallback((payload: CelebrationPayload) => {
+    setCompletingCard(payload.card);
+    setCompletingXp(payload.xp);
+    setCompletingPass(payload.pass);
     play("complete");
     setTimeout(() => play("xpGain"), 280);
-    handleCompleteAction(card.id);
-
-    const willBeAllDone = completedCount + 1 >= totalCount;
 
     setTimeout(() => {
       setCompletingCard(null);
       setCompletingPass(null);
-      if (willBeAllDone) {
+      if (payload.willBeAllDone) {
         setTimeout(() => play("fullClear"), 100);
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 2000);
       }
     }, 1200);
-  }, [completedCount, totalCount, play, handleCompleteAction]);
+  }, [play]);
 
-  // "완료" — 사진 없이 바로 완료
+  // "완료" — 사진 없이 바로 완료 (커밋 + 연출 즉시)
   const handleConfirm = () => {
     if (confirmCard) {
       const card = confirmCard;
       setConfirmCard(null);
-      finishChallenge(card);
+      playCelebration(commitChallenge(card));
     }
   };
 
-  // "기록 남기기" — 사진 캡처 후 완료
+  // "기록 남기기" — 완료를 먼저 동기 커밋한 뒤 사진 캡처 (iOS d00a7d7 패턴).
+  //   연출은 ref 에 보류해 두고 캡처가 끝나면 handleCaptureComplete 가 재생한다.
+  //   startCapture 는 다음 틱으로 미뤄 커밋의 동기 작업 (persist/debounce) 이
+  //   먼저 드레인된 뒤 카메라가 뜨게 한다 (iOS A-1 과 동일한 경합 해소).
   const handleConfirmWithPhoto = () => {
     if (confirmCard) {
-      setCaptureCard(confirmCard);
-      startCapture(confirmCard.id);
+      const card = confirmCard;
       setConfirmCard(null);
+      pendingCelebrationRef.current = commitChallenge(card);
+      setCaptureCard(card);
+      setTimeout(() => startCapture(card.id), 0);
     }
   };
 
-  // 사진 캡처 완료 후 챌린지 완료 처리
+  // 사진 캡처 종료 (저장 완료 / 취소 / 이탈 공통) — 완료는 이미 선커밋됐으니
+  //   모달을 내리고 보류된 연출만 재생한다 (중복 커밋 금지).
+  //   연출 게이트: capturePhase 가 idle 로 돌아온 뒤에만 실행. 모든 종료 경로
+  //   (cancelCapture / savePhoto) 가 idle 을 먼저 set 하고 onComplete 를
+  //   호출하므로 정상 경로는 항상 통과하고, 혹시 모를 비정상 경로에선 연출을
+  //   생략해 캡처 UI 위로 겹치는 잔상을 막는다. detail 뷰가 떠 있는 동안은
+  //   onComplete 자체가 아직 안 불렸으므로 연출이 위를 덮지 않는다.
   const handleCaptureComplete = useCallback(() => {
-    if (!captureCard) return;
-    finishChallenge(captureCard);
     setCaptureCard(null);
-  }, [captureCard, finishChallenge]);
+    const payload = pendingCelebrationRef.current;
+    if (!payload) return;
+    if (useGrowthStore.getState().capturePhase !== "idle") return;
+    pendingCelebrationRef.current = null;
+    playCelebration(payload);
+  }, [playCelebration]);
 
   // 추가 챌린지 확인 핸들러
   const handleExtraConfirm = () => {
@@ -750,10 +794,12 @@ export default function DailyBoard() {
            Phase 11a-fix — `capturePhase !== "idle"` 가드 제거.
              savePhoto 완료 직후 capturePhase 가 idle 로 돌아가면서 이 조건이 false
              가 되어 PhotoCaptureModal 전체가 unmount → 그 안의 PhotoDetailModal 까지
-             사라져 사용자가 확인 버튼을 누르기 전에 닫힘. 결과적으로 onComplete 가
-             never fire → 챌린지가 completed 목록에 안 들어가고 XP 도 안 오름.
-             이제는 captureCard 기준으로만 render, PhotoCaptureModal 안에서 savedMeta
-             또는 capturePhase 에 따라 알아서 null 처리. */}
+             사라져 사용자가 확인 버튼을 누르기 전에 닫힘. 이제는 captureCard 기준으로만
+             render, PhotoCaptureModal 안에서 savedMeta 또는 capturePhase 에 따라
+             알아서 null 처리.
+           iOS d00a7d7 백포트 — 완료(XP)는 캡처 시작 전에 이미 선커밋됐으므로
+             onComplete 는 "캡처 플로우 종료" 신호 (저장 완료/취소/이탈 공통).
+             여기서는 모달만 내리고, 연출은 위의 게이트 효과가 재생. */}
       {captureCard && (
         <PhotoCaptureModal
           card={captureCard}
