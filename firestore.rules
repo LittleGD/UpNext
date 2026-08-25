@@ -101,7 +101,16 @@ service cloud.firestore {
     }
 
     match /duoInvites/{code} {
-      allow read: if signedIn();
+      // 보안: read 를 get/list 로 분리한다.
+      //   get  — 코드(doc id)를 아는 사람만 단일 조회 (join 플로우). 코드 = 공유 비밀.
+      //   list — 본인이 만든 초대만 열거 가능 (recoverInviteCode). createdBy==uid 필터를
+      //          강제하지 않는 쿼리는 거부된다.
+      //   → 과거 `allow read: if signedIn()` 은 전체 컬렉션 열거를 허용해, 임의 로그인
+      //     사용자가 모든 대기 중 초대의 duoId 를 수집한 뒤 솔로 듀오를 가로챌 수 있었다.
+      //     (duos update 분기 A 는 duoId 만 알면 solo→pair 를 허용하므로 조합 취약점)
+      allow get: if signedIn();
+      allow list: if signedIn()
+        && resource.data.createdBy == request.auth.uid;
 
       allow create: if signedIn()
         && code.matches('^[A-Z2-9]{6}$')
