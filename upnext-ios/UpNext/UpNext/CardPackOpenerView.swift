@@ -692,7 +692,11 @@ private struct AbsorbTrails: View {
                         let x = tri3(p, fan * 30, fan * -20, 0)            // 웹 x fan
                         let sc = tri3(p, 0.5, 0.8, 0)                      // scale [0.5,0.8,0]
                         // 웹 4+rand*4 근사 — 결정적(프레임 간 안정).
-                        let baseSize = 4.0 + Double((i * 7 + j * 13) % 5)
+                        // 정수 연산을 Double(...) 안에 중첩하면 추론이 무거워진다(타입 검사
+                        // 250ms — 코드베이스에서 유일하게 150ms 를 넘긴 식). 단계를 나누고
+                        // 타입을 명시한다.
+                        let jitter: Int = (i * 7 + j * 13) % 5
+                        let baseSize: Double = 4.0 + Double(jitter)
                         let sz = max(baseSize * sc, 0.1)
                         let dot = CGRect(x: cx + x - sz / 2, y: cy + y - sz / 2, width: sz, height: sz)
                         g.fill(Path(ellipseIn: dot.insetBy(dx: -sz, dy: -sz)), with: .color(color.opacity(op * 0.3)))

@@ -673,8 +673,9 @@ private struct HandCard: View {
     @State private var shown = false
     @State private var dragY: CGFloat = 0
 
-    /// 위로 끄는 진행도 0...1. 784행과 같은 이유로 타입을 명시해 분리한다.
-    private var pullProgress: CGFloat { min(max(-dragY, 0), 80) / 80 }
+    /// 위로 끄는 진행도 0...1. dragProgress 와 같은 이유로 Double 로 확정한다.
+    private var pullProgress: Double { Double(min(max(-dragY, 0), 80)) / 80.0 }
+    private var pullScale: Double { isPreview ? 1.05 : 1.0 + pullProgress * 0.02 }
 
     private let swipeThreshold: CGFloat = -100   // 웹 SWIPE_UP_THRESHOLD
 
@@ -684,7 +685,7 @@ private struct HandCard: View {
             // 진입 오프셋을 200→40 으로 줄여 핸드 ScrollView(200) 안에서 상승 →
             // 진입 애니 도중 카드가 잘려 보이던 현상 제거(사용자 제보).
             .offset(y: (shown ? 0 : 40) + dragY + (isPreview ? -20 : 0))
-            .scaleEffect(isPreview ? 1.05 : 1 + pullProgress * 0.02)
+            .scaleEffect(pullScale)
             .opacity(isPreview ? 0 : (shown ? 1 : 0))
             .rarityGlow(card.rarity)
             // 탭/스와이프업을 하나의 DragGesture(minimumDistance:0) 로 겸용하던 구조를 분리
@@ -758,11 +759,16 @@ private struct SelectedMiniCard: View {
     @State private var appeared = false
     @State private var dragY: CGFloat = 0
 
-    /// 아래로 끄는 진행도 0...1. min/max/나눗셈/실수 리터럴이 한 식에 섞이면 타입
-    /// 추론 후보가 폭발해 Xcode 26.3 이 "ambiguous use of operator '/'" 로 컴파일을
-    /// 실패시킨다(로컬 26.6 은 통과 — 컴파일러 버전 간 편차라 CI 에서만 터졌다).
-    /// 타입을 명시해 추론 부담을 없앤다.
-    private var dragProgress: CGFloat { min(max(dragY, 0), 60) / 60 }
+    /// 아래로 끄는 진행도 0...1.
+    ///
+    /// opacity/scaleEffect 는 Double 을 받는데 dragY 는 CGFloat 이다. 삼항 + 정수
+    /// 리터럴 + 나눗셈 + CGFloat↔Double 변환이 한 식에 겹치면 추론 후보가 폭발해
+    /// Xcode 26.3 이 "ambiguous use of operator" 로 컴파일을 거부한다(로컬 26.6 은
+    /// 통과 — 컴파일러 버전 간 편차라 CI 에서만 터졌다). 진행도를 Double 로 확정하고
+    /// 최종 값까지 미리 계산해, 호출부에는 추론할 것을 남기지 않는다.
+    private var dragProgress: Double { Double(min(max(dragY, 0), 60)) / 60.0 }
+    private var dragOpacity: Double { locked ? 1.0 : 1.0 - dragProgress * 0.6 }
+    private var dragScale: Double { locked ? 1.0 : 1.0 - dragProgress * 0.1 }
 
     var body: some View {
         VStack(spacing: 4) {
@@ -790,8 +796,8 @@ private struct SelectedMiniCard: View {
             // 페널티 카드의 빨간 글로우가 사라졌었다.
             .modifier(SelectedMiniCardGlow(locked: locked, rarity: card.rarity))
             .offset(y: dragY)
-            .opacity(locked ? 1 : 1 - dragProgress * 0.6)
-            .scaleEffect(locked ? 1 : 1 - dragProgress * 0.1)
+            .opacity(dragOpacity)
+            .scaleEffect(dragScale)
             // 잠금 카드는 핸들러에서 guard (조건부 .gesture 는 타입 불가).
             .gesture(
                 DragGesture(minimumDistance: 0)
