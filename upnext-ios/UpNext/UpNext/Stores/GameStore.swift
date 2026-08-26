@@ -741,6 +741,13 @@ final class GameStore: ObservableObject {
 
     /// progress 를 변경 → 발행 → 클라우드 동기화(디바운스). 모든 설정 액션의 공통 경로.
     /// (웹 액션의 `set({progress})` + `saveToStorage` 대응 — 단 저장은 SyncManager 가 담당.)
+    /// 앱 평가 모달을 띄웠음을 1회 기록 — 이후 영구히 다시 뜨지 않는다.
+    /// 웹과 같은 필드(reviewPromptShownAt)를 쓰므로 플랫폼을 오가도 중복 노출되지 않는다.
+    func markReviewPromptShown() {
+        guard progress?.reviewPromptShownAt == nil else { return }
+        mutateProgress { $0.reviewPromptShownAt = Int(Date().timeIntervalSince1970 * 1000) }
+    }
+
     private func mutateProgress(_ change: (inout UserProgress) -> Void) {
         guard var p = progress else { return }
         change(&p)
@@ -1336,6 +1343,26 @@ final class GameStore: ObservableObject {
             d.isDrawComplete = true
             d.isSelectionComplete = true
         }
+        // 앱 평가 모달 검증 — "챌린지를 완료한 서로 다른 날 2일" 조건을 만든다.
+        //   어제 완료 기록 1일 + 오늘 완료 1건. reviewPromptShownAt 은 비워 재노출 허용.
+        //   MainShell.evaluateReviewPrompt 는 이 인자에 한해 UITest 가드를 통과시킨다.
+        if args.contains("UITestSeedReviewPrompt"),
+           let card = CardCatalog.allCards.first {
+            let yesterday = RetentionEngine.addDays(todayString(), -1) ?? todayString()
+            p.completionHistory = [
+                DayRecord(date: yesterday,
+                          selectedCardIds: [card.id],
+                          completedCardIds: [card.id],
+                          wasFullClear: true,
+                          mode: p.mode)
+            ]
+            p.reviewPromptShownAt = nil
+            d.drawnCards = Array(CardCatalog.allCards.prefix(6))
+            d.selectedCards = [card]
+            d.completedIds = [card.id]
+            d.isDrawComplete = true
+            d.isSelectionComplete = true
+        }
         // 카드 선택 상태 — 6장 드로우 완료, 선택 미완(부채꼴 핸드 검증/잘림 진단용).
         // 갓생 모드(2슬롯) 오버라이드 — 선택 슬롯 행 레이아웃 검증용(다른 시드와 조합).
         if args.contains("UITestSeedGodlife") { p.mode = .godlife }
@@ -1529,7 +1556,8 @@ final class GameStore: ObservableObject {
             minigameBestMatches: 0,
             cardmatchShopDaily: nil,
             lastSeenPatchVersion: nil,
-            collectionCompletedAt: nil
+            collectionCompletedAt: nil,
+            reviewPromptShownAt: nil
         )
     }
 

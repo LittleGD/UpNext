@@ -181,6 +181,11 @@ struct UserProgress: Codable {
 
     // 컬렉션 완료
     var collectionCompletedAt: String?
+
+    // 앱 평가 요청 — 모달을 띄운 시각(ms). 값이 있으면 다시 띄우지 않는다.
+    // progress 는 Firestore 로 동기화되므로 재설치·기기 변경 후에도 중복 노출되지 않고,
+    // 웹(reviewPromptShownAt)과 같은 키라 플랫폼을 오가도 한 번만 뜬다.
+    var reviewPromptShownAt: Int?
 }
 
 // MARK: - Firestore 관대 디코딩 (Phase 3.1)
@@ -233,6 +238,7 @@ extension UserProgress {
         cardmatchShopDaily = try? c.decode(CardmatchShopDaily.self, forKey: .cardmatchShopDaily)
         lastSeenPatchVersion = try? c.decode(String.self, forKey: .lastSeenPatchVersion)
         collectionCompletedAt = try? c.decode(String.self, forKey: .collectionCompletedAt)
+        reviewPromptShownAt = try? c.decode(Int.self, forKey: .reviewPromptShownAt)
     }
 }
 

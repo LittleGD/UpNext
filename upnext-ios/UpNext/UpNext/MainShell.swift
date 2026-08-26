@@ -70,6 +70,7 @@ struct MainTabView: View {
     @State private var lastCompletedScore: Int = 0
     /// 패치 노트 모달 표시 — onAppear 에서 lastSeenPatchVersion 비교 후 true.
     @State private var showPatchNotes: Bool = false
+    @State private var showReviewPrompt: Bool = false
 
     /// A-2 — 레벨업 오버레이 전용 표시 state. `pendingLevelUp != nil`(이벤트 존재)를 직접
     /// 게이트로 쓰면, 캡처 cover 디스미스(pendingCapture→nil) 틱에 오버레이가 *애니 없이 팝인*
@@ -174,6 +175,17 @@ struct MainTabView: View {
                 .transition(.opacity)
             }
 
+            // 앱 평가 요청 — 챌린지를 완료한 서로 다른 날이 2일에 도달하면 1회.
+            // 패치 노트(110)보다 아래에 둬 둘이 겹치면 패치 노트가 위에 오게 한다.
+            if showReviewPrompt {
+                ReviewPromptModal(onDismiss: {
+                    store.markReviewPromptShown()
+                    showReviewPrompt = false
+                })
+                .zIndex(105)
+                .transition(.opacity)
+            }
+
             #if DEBUG
             // UITest 전용 — 검증 화면 자동 표시(출시 바이너리엔 비포함).
             if ProcessInfo.processInfo.arguments.contains("UITestOpenPhotoDetail"),
@@ -235,8 +247,12 @@ struct MainTabView: View {
             #endif
             syncPackOpener()
             evaluatePatchNotes()
+            evaluateReviewPrompt()
             lastCompletedScore = currentCompletedScore
         }
+        // 챌린지 완료 직후에도 재평가 — 앱을 켜둔 채 2일차 완료를 찍는 경로에서
+        // onAppear 만으로는 그날 안에 뜨지 않는다.
+        .onChange(of: currentCompletedScore) { _ in evaluateReviewPrompt() }
         .onChange(of: pendingPackCount) { _ in syncPackOpener() }
         // 01-login-prompt: 로그인 오버레이가 닫히는 시점(로그인 성공 또는 "건너뛰기")에 팩 오프너를
         // 재평가해, 온보딩 직후 "로그인 권유 먼저 → 닫은 뒤 카드팩 개봉" 순서(웹 패리티)를 만든다.
@@ -395,6 +411,22 @@ struct MainTabView: View {
         if lastSeenPatchVersion != current {
             showPatchNotes = true
         }
+    }
+
+    /// 앱 평가 모달 노출 평가 — 챌린지를 완료한 서로 다른 날이 2일에 도달했을 때 1회.
+    /// 패치 노트가 뜬 날은 양보한다(두 모달이 같은 진입에 겹치지 않도록).
+    private func evaluateReviewPrompt() {
+        #if DEBUG
+        // UITest 런치에선 자동 노출을 막아 다른 화면 검증을 가리지 않게 한다.
+        // 단 이 모달 자체를 검증하는 전용 시드는 통과시킨다.
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains(where: { $0.hasPrefix("UITest") }),
+           !args.contains("UITestSeedReviewPrompt") { return }
+        #endif
+        guard !showPatchNotes, !showReviewPrompt else { return }
+        guard let progress = store.progress, let daily = store.daily else { return }
+        guard ReviewPromptService.shouldShow(progress: progress, daily: daily) else { return }
+        showReviewPrompt = true
     }
 
     /// 미개봉 카드팩 수 (레벨업 팩 + 보너스 카드).
