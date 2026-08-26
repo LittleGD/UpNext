@@ -71,6 +71,46 @@ jobs:
           echo "Selected: $BEST ($BEST_V)"
           sudo xcode-select -s "$BEST"
           xcodebuild -version
+      # GoogleService-Info.plist 는 자격증명이라 커밋하지 않는다(.gitignore:69).
+      # 그래서 CI 체크아웃엔 없고, 없는 채로 UpNextApp.init() 의 FirebaseApp.configure()
+      # 가 돌면 NSException → SIGABRT 로 앱이 실행 즉시 죽는다. 빌드는 통과하고 테스트만
+      # "Test crashed with signal abrt before establishing connection" 으로 전멸하는
+      # 형태라 원인이 잘 안 보인다(실제로 이 잡은 그동안 push/PR 에서 계속 이 지점에서
+      # 깨져 있었고, 마지막 '성공' 실행은 schedule 이벤트라 잡 자체가 skip 된 것이었다).
+      #
+      # 진짜 설정을 시크릿으로 넣지 않는 이유: 유닛 테스트(RetentionEngine·PhotoMeta
+      # 코딩)는 순수 로직이라 네트워크가 필요 없다. configure() 만 통과시키면 충분하다.
+      # 프로젝트가 파일시스템 동기화 그룹(objectVersion 77)이라 이 폴더에 두면 타깃에
+      # 자동 포함된다.
+      - name: Provision Firebase placeholder (CI 전용, 더미 값)
+        run: |
+          cat > upnext-ios/UpNext/UpNext/GoogleService-Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>API_KEY</key><string>AIzaSyCI-NOT-A-REAL-KEY-000000000000000</string>
+            <key>GCM_SENDER_ID</key><string>000000000000</string>
+            <key>PLIST_VERSION</key><string>1</string>
+            <key>BUNDLE_ID</key><string>com.littlegd.upnext</string>
+            <key>PROJECT_ID</key><string>upnext-ci-placeholder</string>
+            <key>STORAGE_BUCKET</key><string>upnext-ci-placeholder.appspot.com</string>
+            <key>GOOGLE_APP_ID</key><string>1:000000000000:ios:0000000000000000000000</string>
+            <key>CLIENT_ID</key><string>000000000000-ci.apps.googleusercontent.com</string>
+            <key>REVERSED_CLIENT_ID</key><string>com.googleusercontent.apps.000000000000-ci</string>
+            <key>IS_ADS_ENABLED</key><false/>
+            <key>IS_ANALYTICS_ENABLED</key><false/>
+            <key>IS_APPINVITE_ENABLED</key><false/>
+            <key>IS_GCM_ENABLED</key><false/>
+            <key>IS_SIGNIN_ENABLED</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          # heredoc 들여쓰기 제거 — plist 는 선행 공백이 있어도 유효하지만 XML 헤더는
+          # 파일 맨 앞이어야 파서가 받아들인다.
+          sed -i '' -e 's/^          //' upnext-ios/UpNext/UpNext/GoogleService-Info.plist
+          plutil -lint upnext-ios/UpNext/UpNext/GoogleService-Info.plist
+
       - name: Build
         run: |
           cd upnext-ios/UpNext
