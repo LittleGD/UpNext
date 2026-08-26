@@ -137,28 +137,22 @@ jobs:
             -derivedDataPath /tmp/upnext-build \
             -only-testing:UpNextTests
 
-      # UI 테스트는 한시적 비차단.
-      #
-      # RetentionFlowUITests 는 iOS 26 시뮬레이터 런타임에서 앱 코드와 무관하게 깨진다.
-      # xctrunner 자체가 뜨지 못하고("Simulator device failed to launch ...xctrunner",
-      # CI 에선 "crashed with signal abrt before establishing connection") 그 뒤 케이스가
-      # 연쇄로 실패한다.
-      #
-      # 앱 코드 탓이 아님을 대조 실행으로 확인했다 — 마지막으로 이 게이트가 초록이던
-      # 97de12d 를 같은 시뮬레이터(iOS 26.2)에서 돌리면 5건 전부 실패한다. 그때 CI 가
-      # 통과했던 건 러너에 Xcode 16.x 가 있어 옛 런타임에서 돌았기 때문이고, 그 Xcode 가
-      # 이미지에서 사라져 26.3 으로 올라오면서 드러났다.
-      #
-      # 되돌리는 대신 신호를 유지한다: 유닛 테스트는 계속 차단하고, UI 는 결과만 남긴다.
-      # 새 런타임에 맞게 수리한 뒤 continue-on-error 를 제거할 것.
-      - name: Test (UI — 한시적 비차단, iOS 26 런타임 이슈)
-        continue-on-error: true
+      # UI 테스트 — iOS 26 런타임 수리 완료 후 차단 게이트 복원.
+      # 수리 내역(원인 3계열): ① 시뮬레이터 로케일 의존 — i18n 감사로 en 번역이 채워지자
+      # 한국어 문자열 단언이 깨짐 → 테스트 launch() 가 -AppleLanguages/(ko)+UITestLang=ko 고정.
+      # ② 커스텀 GbConfirm 확인창을 iOS 18 은 Alert 로, 26 은 Other 로 분류 → app.alerts
+      # 스코핑 제거하고 버튼 라벨 직접 탭. ③ CI 키체인엔 Firebase 세션이 없어 uid=nil →
+      # 듀오 카드가 로그인 게이트로 렌더 → UITestFakeSignedIn 훅으로 로그인 상태 고정 +
+      # Button("참여") 타이틀-init 이 iOS 26 AX 에서 버튼으로 노출 안 되는 문제를 label-closure
+      # 구조로 수정. 공유 러너 클론-부팅 플레이크 완충으로 재시도 1회를 허용한다.
+      - name: Test (UI)
         run: |
           cd upnext-ios/UpNext
           xcodebuild test -project UpNext.xcodeproj -scheme UpNext \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath /tmp/upnext-build \
-            -only-testing:UpNextUITests
+            -only-testing:UpNextUITests \
+            -retry-tests-on-failure -test-iterations 2
 
   # ═════════════════════════════ INFORMATIONAL ═════════════════════════════
   fidelity-capture:

@@ -57,6 +57,16 @@ final class AuthService: NSObject, ObservableObject {
 
     override init() {
         super.init()
+        #if DEBUG
+        // UI 테스트 전용 — 로그인 상태를 결정적으로 고정. CI 시뮬레이터는 키체인이
+        // 비어 있어 항상 signedOut 이라, 로그인 게이트 뒤 UI(듀오 초대/참여 등)를
+        // 스모크할 수 없다. 리스너를 설치하지 않고 반환해 실제 Firebase 상태가
+        // 페이크를 덮어쓰지 못하게 한다 (네트워크 호출은 하지 않는 UI 스모크 전용).
+        if ProcessInfo.processInfo.arguments.contains("UITestFakeSignedIn") {
+            state = .signedIn(uid: "uitest-fake-uid", provider: "UITest", displayName: "UITest")
+            return
+        }
+        #endif
         // Firebase Auth 상태 리스너 — 로그인/로그아웃/앱 재시작(세션 복원) 시 state 갱신.
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in self?.applyUser(user) }

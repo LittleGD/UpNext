@@ -530,12 +530,18 @@ private struct DuoFlameCard: View {
                         .padding(.horizontal, 10).frame(height: 38)
                         .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
                         .accessibilityIdentifier("duoJoinCodeField")
-                    Button("참여") { duo.joinInvite(code: joinCode) }
-                        .typography(.caption).foregroundStyle(Color.bgPrimary)
-                        .frame(width: 56, height: 38)
-                        .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("duoJoinButton")
+                    // label-closure 형태 — 타이틀-init(Button("참여"))에 frame/background 를
+                    // 버튼 자체에 걸면 iOS 26 AX 트리에서 identifier 가 버튼 타입으로
+                    // 노출되지 않아 XCUITest app.buttons[...] 매칭이 깨진다. 형제
+                    // (duoCreateInviteButton)와 동일한 구조로 맞춘다. 시각 결과 동일.
+                    Button { duo.joinInvite(code: joinCode) } label: {
+                        Text("참여")
+                            .typography(.caption).foregroundStyle(Color.bgPrimary)
+                            .frame(width: 56, height: 38)
+                            .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("duoJoinButton")
                 }
                 Button { duo.createInvite() } label: {
                     HStack(spacing: 6) {
