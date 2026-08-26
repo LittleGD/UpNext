@@ -182,6 +182,7 @@ interface GameStore {
   equipTitle: (titleId: string | null) => void;
   markTitlesSeen: (titleIds: string[]) => void;
   markPatchNotesSeen: (version: string) => void;
+  markReviewPromptShown: () => void;
   _setFromCloud: (
     progress: UserProgress,
     daily: DailyState,
@@ -912,6 +913,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   markPatchNotesSeen: (version: string) => {
     if (get().progress.lastSeenPatchVersion === version) return;
     const progress = { ...get().progress, lastSeenPatchVersion: version };
+    set({ progress });
+    saveToStorage("progress", progress);
+  },
+
+  markReviewPromptShown: () => {
+    if (get().progress.reviewPromptShownAt) return;
+    const progress = { ...get().progress, reviewPromptShownAt: Date.now() };
     set({ progress });
     saveToStorage("progress", progress);
   },

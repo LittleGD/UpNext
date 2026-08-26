@@ -24,7 +24,9 @@ import type { RetentionState } from "@/types/retention";
 import { AnimatePresence } from "framer-motion";
 import MergeConflictDialog from "@/components/auth/MergeConflictDialog";
 import PatchNotesModal from "@/components/PatchNotesModal";
+import ReviewPromptModal from "@/components/ReviewPromptModal";
 import { LATEST_PATCH } from "@/data/patchNotes";
+import { shouldShowReviewPrompt } from "@/lib/reviewPrompt";
 
 interface ConflictState {
   uid: string;
@@ -92,6 +94,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   const syncSettled = useUIStore((s) => s.syncSettled);
   const setSyncSettled = useUIStore((s) => s.setSyncSettled);
   const [showPatchModal, setShowPatchModal] = useState(false);
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
 
   useEffect(() => {
     if (!isFirebaseConfigured) {
@@ -274,6 +277,10 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   const totalDaysCompleted = useGameStore((s) => s.progress.totalDaysCompleted);
   const completionHistoryLength = useGameStore((s) => s.progress.completionHistory?.length ?? 0);
   const minigameRunsPlayed = useGameStore((s) => s.progress.minigameRunsPlayed);
+  const reviewPromptShownAt = useGameStore((s) => s.progress.reviewPromptShownAt);
+  // 오늘 완료 수 — 이틀째 완료를 "그날 당일에" 감지하려면 필요하다.
+  // completionHistory 는 날짜가 넘어가야 기록되므로 오늘 몫이 빠져 있다.
+  const todayCompletedCount = useGameStore((s) => s.daily.completedIds.length);
   // 카드 드로우/선택 진행 중에는 패치 모달을 띄우지 않는다.
   // 선택이 끝나면 isSelectionDone이 true로 바뀌면서 이 effect가 재실행돼 모달을 띄운다.
   const isSelectionDone = useGameStore((s) => {
@@ -324,6 +331,37 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   const handleClosePatchModal = () => {
     useGameStore.getState().markPatchNotesSeen(LATEST_PATCH.version);
     setShowPatchModal(false);
+  };
+
+  // 앱 평가 요청 — 챌린지를 완료한 서로 다른 날이 2일에 도달하면 1회.
+  // 패치노트와 같은 게이트(동기화 완료·온보딩 완료·카드 선택 중 아님)를 쓰되,
+  // 두 모달이 겹치지 않도록 패치노트가 떠 있으면 양보한다.
+  useEffect(() => {
+    if (!syncSettled || conflict || !hasCompletedOnboarding) return;
+    if (!isSelectionDone || showPatchModal) return;
+    if (reviewPromptShownAt) return;
+
+    const { progress, daily } = useGameStore.getState();
+    if (!shouldShowReviewPrompt(progress, daily)) return;
+
+    // 완료 직후 축하 연출과 겹치지 않도록 여유를 둔다(패치노트 300ms 보다 뒤).
+    const timer = setTimeout(() => setShowReviewPrompt(true), 1200);
+    return () => clearTimeout(timer);
+  }, [
+    syncSettled,
+    conflict,
+    hasCompletedOnboarding,
+    isSelectionDone,
+    showPatchModal,
+    reviewPromptShownAt,
+    completionHistoryLength,
+    todayCompletedCount,
+  ]);
+
+  // 어느 경로로 닫히든(스토어 이동·피드백 전송·나중에) 여기서 1회 기록한다.
+  const handleCloseReviewPrompt = () => {
+    useGameStore.getState().markReviewPromptShown();
+    setShowReviewPrompt(false);
   };
 
   // Phase 13 review Critical #3 — `checkDailyReset` 호출 훅 (이전엔 어느 곳에서도
@@ -400,6 +438,11 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
       <AnimatePresence>
         {showPatchModal && !conflict && (
           <PatchNotesModal patch={LATEST_PATCH} onClose={handleClosePatchModal} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showReviewPrompt && !conflict && !showPatchModal && (
+          <ReviewPromptModal onClose={handleCloseReviewPrompt} />
         )}
       </AnimatePresence>
     </>

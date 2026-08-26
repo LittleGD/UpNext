@@ -113,6 +113,11 @@ export interface UserProgress {
   // === 패치 노트 ===
   lastSeenPatchVersion?: string;             // 마지막으로 확인한 패치 버전 (모달 중복 노출 방지)
 
+  // === 앱 평가 요청 ===
+  // 평가 모달을 띄운 시각(ms). 값이 있으면 다시 띄우지 않는다 — progress 는 클라우드로
+  // 동기화되므로 재설치·기기 변경 후에도 중복 노출되지 않는다.
+  reviewPromptShownAt?: number;
+
   // === 컬렉션 완료 ===
   // 처음으로 모든 카드를 모은 시점 (ISO 날짜).
   //  - 첫 회 도달 시: 축하 모달 + 칭호 부여 + 1회성 큰 보너스

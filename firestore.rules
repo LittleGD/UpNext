@@ -203,5 +203,44 @@ service cloud.firestore {
         && request.resource.data.clearedAt is int
         && request.resource.data.clearedAt >= 1704067200000;
     }
+
+    // 앱 평가 모달의 부정 응답 경로에서 남기는 피드백 (객관식 + 자유 서술).
+    //   create 전용 — 클라이언트는 자기 피드백도 다시 읽지 못한다(조회는 콘솔/Admin SDK).
+    //   수정·삭제 불가라 남긴 내용이 사후 위조되지 않는다.
+    //
+    //   로그인 필수: 미인증 create 를 열면 임의의 외부 호출로 문서를 무한 생성해
+    //   과금을 올릴 수 있다(App Check 미도입 상태). 게스트 피드백까지 받으려면
+    //   Firebase 콘솔에서 익명 인증을 켜는 편이 안전하다.
+    match /feedback/{feedbackId} {
+      allow read, update, delete: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+          ['uid', 'reasons', 'comment', 'platform', 'appVersion', 'locale', 'createdAt'])
+        && request.resource.data.keys().hasAll(['uid', 'reasons', 'platform', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        // reasons — 알려진 slug 만, 최대 6개.
+        && request.resource.data.reasons is list
+        && request.resource.data.reasons.size() <= 6
+        && request.resource.data.platform in ['ios', 'android', 'web']
+        && (
+          !('comment' in request.resource.data.keys())
+          || (request.resource.data.comment is string
+              && request.resource.data.comment.size() <= 500)
+        )
+        && (
+          !('appVersion' in request.resource.data.keys())
+          || (request.resource.data.appVersion is string
+              && request.resource.data.appVersion.size() <= 20)
+        )
+        && (
+          !('locale' in request.resource.data.keys())
+          || (request.resource.data.locale is string
+              && request.resource.data.locale.size() <= 10)
+        )
+        // createdAt — 2024-01-01 이후 (음수/0 차단).
+        && request.resource.data.createdAt is int
+        && request.resource.data.createdAt >= 1704067200000;
+    }
   }
 }

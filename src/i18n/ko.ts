@@ -2354,6 +2354,15 @@ const ko = {
   "flame.report.saverUnused": "미사용",
   "flame.report.topCategory": "가장 많이 한 카테고리",
   "flame.report.highlightCard": "인상적인 카드",
+  // 응원 카드 (옵트인 리워드 광고 — SupportCard)
+  "flame.support.title": "개발자의 불꽃 지펴주기",
+  "flame.support.desc": "광고 한 편이 큰 응원이 돼요",
+  "flame.support.done": "오늘의 응원 완료, 정말 고마워요",
+  "flame.support.loading": "광고 불러오는 중…",
+  "flame.support.fail": "지금은 보여줄 광고가 없어요",
+  "flame.support.thanks.title": "{count}번째 응원이 도착했어요",
+  "flame.support.thanks.body": "덕분에 UpNext가 계속 자랍니다. 오늘도 갓생!",
+  "flame.support.thanks.dismiss": "탭해서 닫기",
   // 2인 불꽃 카드 (활성/대기/비활성 3상태)
   "flame.duo.title": "2인 불꽃",
   "flame.duo.me": "나",
@@ -2390,6 +2399,29 @@ const ko = {
   "flame.duo.msg.lookupFailed": "초대 조회 실패: {error}",
   "flame.duo.msg.joinFailed": "듀오 참여 실패: {error}",
   "flame.duo.msg.observeFailed": "듀오 정보를 불러오지 못했어요: {error}",
+
+  // === 앱 평가 요청 (챌린지 2일차 1회 노출) ===
+  "review.ask.title": "챌린지, 잘 맞으세요?",
+  "review.ask.body": "이틀째 챌린지를 해내셨네요. 지금 UpNext 는 어떠신가요?",
+  "review.ask.love": "재밌어요! 별점 남기기",
+  "review.ask.meh": "아쉬운 점이 있어요",
+  "review.ask.later": "나중에",
+  "review.feedback.title": "어떤 점이 아쉬우셨나요?",
+  "review.feedback.body": "해당하는 걸 모두 골라 주세요. 남겨 주신 의견은 개발자가 직접 읽어요.",
+  "review.feedback.placeholder": "더 하고 싶은 말이 있다면 자유롭게 적어 주세요 (선택)",
+  "review.feedback.send": "보내기",
+  "review.feedback.sending": "보내는 중...",
+  "review.reason.boring": "챌린지가 재미없어요",
+  "review.reason.difficult": "어렵고 복잡해요",
+  "review.reason.bug": "오류가 있어요",
+  "review.reason.performance": "느리거나 멈춰요",
+  "review.reason.notifications": "알림이 너무 많아요",
+  "review.reason.design": "디자인이 아쉬워요",
+  "review.thanks.title": "고맙습니다",
+  "review.thanks.body": "보내 주신 의견을 바탕으로 다음 업데이트를 준비할게요.",
+  "review.thanks.close": "닫기",
+  "review.error.signedOut": "의견을 보내려면 로그인이 필요해요.",
+  "review.error.failed": "전송에 실패했어요. 잠시 후 다시 시도해 주세요.",
 } as const;
 
 export type DictKey = keyof typeof ko;
