@@ -42,12 +42,35 @@ jobs:
 
   build-test:
     name: iOS build + tests
-    runs-on: macos-14
+    runs-on: macos-15
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.app || true
+      - name: Select Xcode (>= 16 필수)
+        run: |
+          # UpNext.xcodeproj 는 objectVersion 77 (Xcode 16 의 파일시스템 동기화 그룹).
+          # 15.x 로 열면 'Unable to read project' 로 죽는다. 예전엔 경로를 하드코딩하고
+          # `|| true` 로 실패를 삼켜, 러너 이미지에서 Xcode_16.app 이 사라지자 15.4 로
+          # 조용히 폴백해 빌드가 13초 만에 깨졌다. 실제 설치된 것 중 16+ 최신을 고르고
+          # 없으면 큰 소리로 실패시킨다.
+          BEST=""; BEST_V=""
+          for app in /Applications/Xcode*.app; do
+            [ -d "$app" ] || continue
+            V=$(/usr/bin/defaults read "$app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null) || continue
+            case "${V%%.*}" in ''|*[!0-9]*) continue ;; esac
+            [ "${V%%.*}" -ge 16 ] || continue
+            if [ -z "$BEST" ] || [ "$(printf '%s\n%s\n' "$BEST_V" "$V" | sort -V | tail -1)" = "$V" ]; then
+              BEST="$app"; BEST_V="$V"
+            fi
+          done
+          if [ -z "$BEST" ]; then
+            echo "::error::Xcode >= 16 not found on runner (project objectVersion 77 requires it)"
+            ls -d /Applications/Xcode*.app || true
+            exit 1
+          fi
+          echo "Selected: $BEST ($BEST_V)"
+          sudo xcode-select -s "$BEST"
+          xcodebuild -version
       - name: Build
         run: |
           cd upnext-ios/UpNext
@@ -75,7 +98,7 @@ jobs:
   # ═════════════════════════════ INFORMATIONAL ═════════════════════════════
   fidelity-capture:
     name: Fidelity diff (informational)
-    runs-on: macos-14
+    runs-on: macos-15
     if: github.event_name == 'pull_request'
     continue-on-error: true   # baseline 미캡처 — 차단 아님, 정보 제공만
     needs: build-test
@@ -145,7 +168,7 @@ jobs:
 
   nightly:
     name: Fidelity nightly (full 24 rows)
-    runs-on: macos-14
+    runs-on: macos-15
     if: github.event_name == 'schedule'
     continue-on-error: true
     steps:
