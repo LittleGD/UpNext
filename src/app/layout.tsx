@@ -28,6 +28,11 @@ const april16 = localFont({
 // 렌더 블로킹 CSS를 비대화시킴 (170ms→330ms)
 
 export const metadata: Metadata = {
+  // OG 이미지 파일 규칙은 상대 경로로 생성된다 — 미리보기 크롤러가 읽으려면 절대 URL 이
+  // 필요하므로 기준 도메인을 명시한다. 미설정 시 Vercel 은 배포별 임시 URL 로 떨어진다.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://up-next-phi.vercel.app"
+  ),
   title: "UpNext",
   description: "A roguelike challenge for daily achievements",
   appleWebApp: {
