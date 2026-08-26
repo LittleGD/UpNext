@@ -673,6 +673,9 @@ private struct HandCard: View {
     @State private var shown = false
     @State private var dragY: CGFloat = 0
 
+    /// 위로 끄는 진행도 0...1. 784행과 같은 이유로 타입을 명시해 분리한다.
+    private var pullProgress: CGFloat { min(max(-dragY, 0), 80) / 80 }
+
     private let swipeThreshold: CGFloat = -100   // 웹 SWIPE_UP_THRESHOLD
 
     var body: some View {
@@ -681,7 +684,7 @@ private struct HandCard: View {
             // 진입 오프셋을 200→40 으로 줄여 핸드 ScrollView(200) 안에서 상승 →
             // 진입 애니 도중 카드가 잘려 보이던 현상 제거(사용자 제보).
             .offset(y: (shown ? 0 : 40) + dragY + (isPreview ? -20 : 0))
-            .scaleEffect(isPreview ? 1.05 : 1 + min(max(-dragY, 0), 80) / 80 * 0.02)
+            .scaleEffect(isPreview ? 1.05 : 1 + pullProgress * 0.02)
             .opacity(isPreview ? 0 : (shown ? 1 : 0))
             .rarityGlow(card.rarity)
             // 탭/스와이프업을 하나의 DragGesture(minimumDistance:0) 로 겸용하던 구조를 분리
@@ -755,6 +758,12 @@ private struct SelectedMiniCard: View {
     @State private var appeared = false
     @State private var dragY: CGFloat = 0
 
+    /// 아래로 끄는 진행도 0...1. min/max/나눗셈/실수 리터럴이 한 식에 섞이면 타입
+    /// 추론 후보가 폭발해 Xcode 26.3 이 "ambiguous use of operator '/'" 로 컴파일을
+    /// 실패시킨다(로컬 26.6 은 통과 — 컴파일러 버전 간 편차라 CI 에서만 터졌다).
+    /// 타입을 명시해 추론 부담을 없앤다.
+    private var dragProgress: CGFloat { min(max(dragY, 0), 60) / 60 }
+
     var body: some View {
         VStack(spacing: 4) {
             ZStack {
@@ -781,8 +790,8 @@ private struct SelectedMiniCard: View {
             // 페널티 카드의 빨간 글로우가 사라졌었다.
             .modifier(SelectedMiniCardGlow(locked: locked, rarity: card.rarity))
             .offset(y: dragY)
-            .opacity(locked ? 1 : (1 - min(max(dragY, 0), 60) / 60 * 0.6))
-            .scaleEffect(locked ? 1 : (1 - min(max(dragY, 0), 60) / 60 * 0.1))
+            .opacity(locked ? 1 : 1 - dragProgress * 0.6)
+            .scaleEffect(locked ? 1 : 1 - dragProgress * 0.1)
             // 잠금 카드는 핸들러에서 guard (조건부 .gesture 는 타입 불가).
             .gesture(
                 DragGesture(minimumDistance: 0)
