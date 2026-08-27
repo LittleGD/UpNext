@@ -591,6 +591,11 @@ struct UpHeroState: Equatable {
     var weeklyVariant: WeeklyVariant?
     var schemaVersion: Int?           // Phase 5a.3 — 저장 스키마 버전
     var hasSeenCampTutorial: Bool?
+    /// 시작 선물(100코인) 을 이미 받았는지. 최초 1회 지급 후 true 로 고정.
+    var welcomeGiftClaimed: Bool?
+    /// 시작 선물 예약분 — 미수령이면 코인 수, 수령했으면 nil.
+    /// 오버레이의 "받기" 를 눌러야 실제 지급된다(연출을 못 본 채 소모되는 걸 막는다).
+    var pendingWelcomeGift: Int?           // transient — persist X
     var idleReward: IdleRewardSnapshot?    // transient — persist X
     var pendingClassAwaken: ClassType?     // transient — persist X
     var pendingClassChoice: PendingClassChoice?  // transient — persist X
@@ -606,7 +611,8 @@ enum ShopPrices {
     static let cardPackFull = 800    // 5장 (level-up pack)
     static let enhance = 30
     static let fastForward = 20
-    static let reroll = 50
+    /// 리롤 — 하루 1회 상한은 그대로 두고 무료에서 유료로 전환(광고 시청 경로 병존).
+    static let reroll = 100
     static let expeditionPass = 80   // Phase 11a — 탐험권 1장
 }
 

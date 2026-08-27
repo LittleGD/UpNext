@@ -19,6 +19,7 @@ import { STARTER_PACKS } from "@/data/starterPacks";
 import { scheduleChallengeReminder, cancelChallengeReminder, showChallengeStatus, hideChallengeStatus, showInstantNotify, scheduleExtraNudge, cancelExtraNudge } from "@/lib/notifications";
 import { t } from "@/i18n";
 import { useUpHeroStore } from "./useUpHeroStore";
+import { SHOP_PRICES } from "@/types/uphero";
 
 /**
  * Phase 13 review Critical #1 — `completionHistory` 는 매일 push 되므로 2-3 년
@@ -161,7 +162,7 @@ interface GameStore {
   // 액션
   initialize: () => void;
   drawDailyCards: () => void;
-  rerollCards: () => void;
+  rerollCards: (payment: "coins" | "ad") => boolean;
   selectCard: (card: ChallengeCard) => void;
   deselectCard: (cardId: string) => void;
   confirmSelection: () => void;
@@ -398,10 +399,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("daily", daily);
   },
 
-  // 리롤 — 하루 1회, 선택된 카드 초기화 + 새로 6장 드로우
-  rerollCards: () => {
+  // 리롤 — 하루 1회, 선택된 카드 초기화 + 새로 6장 드로우.
+  //
+  // 유료화: 하루 1회 상한(rerollUsed)은 그대로 두고 결제 수단만 추가했다.
+  //   - "coins": 갓생 코인 SHOP_PRICES.reroll 차감. 부족하면 아무것도 하지 않고 false.
+  //   - "ad": 차감 없음. 리워드 광고를 끝까지 봤다는 보장은 호출부 책임
+  //           (showRewardedAd 가 "rewarded" 를 준 경우에만 이 경로로 들어온다).
+  // 광고가 유일한 경로가 되면 안 되므로 코인 경로는 항상 병존한다.
+  rerollCards: (payment) => {
     const { daily, progress } = get();
-    if (daily.rerollUsed || daily.isSelectionComplete) return;
+    if (daily.rerollUsed || daily.isSelectionComplete) return false;
+
+    // 결제 먼저 — 실패 시 드로우를 진행하지 않아야 "코인만 빠지고 카드는 그대로"
+    // 또는 그 반대의 어긋난 상태가 생기지 않는다.
+    if (payment === "coins") {
+      const paid = useUpHeroStore.getState().spendCoins(SHOP_PRICES.reroll);
+      if (!paid) return false;
+    }
 
     const unlockedCards = ALL_CARDS.filter((card) =>
       progress.unlockedCardIds.includes(card.id)
@@ -427,6 +441,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
     set({ daily: updated });
     saveToStorage("daily", updated);
+    return true;
   },
 
   // 카드 선택

@@ -15,6 +15,8 @@
 		CC000000000000000000000A /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = CC0000000000000000000005 /* FirebaseMessaging */; };
 		CC000000000000000000000B /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = CC0000000000000000000006 /* GoogleSignIn */; };
 		CC000000000000000000000C /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CC0000000000000000000007 /* GoogleSignInSwift */; };
+		CC000000000000000000000F /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = CC000000000000000000000E /* GoogleMobileAds */; };
+		CC0000000000000000000012 /* GoogleUserMessagingPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = CC0000000000000000000011 /* GoogleUserMessagingPlatform */; };
 		DD0000000000000000000002 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* AppConfig.swift */; };
 		DD0000000000000000000003 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* AppConfig.swift */; };
 		DD0000000000000000000006 /* Color+Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000005 /* Color+Tokens.swift */; };
@@ -144,6 +146,8 @@
 				CC000000000000000000000A /* FirebaseMessaging in Frameworks */,
 				CC000000000000000000000B /* GoogleSignIn in Frameworks */,
 				CC000000000000000000000C /* GoogleSignInSwift in Frameworks */,
+				CC000000000000000000000F /* GoogleMobileAds in Frameworks */,
+				CC0000000000000000000012 /* GoogleUserMessagingPlatform in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -260,6 +264,8 @@
 				CC0000000000000000000005 /* FirebaseMessaging */,
 				CC0000000000000000000006 /* GoogleSignIn */,
 				CC0000000000000000000007 /* GoogleSignInSwift */,
+				CC000000000000000000000E /* GoogleMobileAds */,
+				CC0000000000000000000011 /* GoogleUserMessagingPlatform */,
 			);
 			productName = UpNext;
 			productReference = E6B6A0952FB6DEB800E7EA09 /* UpNext.app */;
@@ -352,6 +358,8 @@
 			packageReferences = (
 				CC0000000000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				CC0000000000000000000002 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				CC000000000000000000000D /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+				CC0000000000000000000010 /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E6B6A0962FB6DEB800E7EA09 /* Products */;
@@ -885,6 +893,22 @@
 				minimumVersion = 9.0.0;
 			};
 		};
+		CC000000000000000000000D /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.0.0;
+			};
+		};
+		CC0000000000000000000010 /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-user-messaging-platform.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -912,6 +936,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CC0000000000000000000002 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		CC000000000000000000000E /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CC000000000000000000000D /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+		CC0000000000000000000011 /* GoogleUserMessagingPlatform */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CC0000000000000000000010 /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */;
+			productName = GoogleUserMessagingPlatform;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

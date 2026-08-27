@@ -904,6 +904,22 @@ export interface UpHeroState {
    */
   hasSeenCampTutorial?: boolean;
   /**
+   * 시작 선물(WELCOME_GRANT_COINS) 수령 여부.
+   *   false/undefined → 아직 미지급. initialize 에서 pendingWelcomeGrant 로 예약된다.
+   *   true → 다시 지급하지 않음.
+   *   기존 유저도 플래그가 없으므로 "미지급" 으로 간주되어 1회 받는다 (의도된 동작).
+   *   Persist 대상.
+   */
+  welcomeGrantClaimed?: boolean;
+  /**
+   * 시작 선물 오버레이 표시용 예약 금액 (아직 지급 전).
+   *   initialize 에서 welcomeGrantClaimed 가 아니면 WELCOME_GRANT_COINS 로 set.
+   *   유저가 오버레이의 "받기" 를 누르면 claimWelcomeGrant() 가 실제 지급 + 플래그 확정.
+   *   transient — persist 되지 않는다. 오버레이가 아직 마운트되지 않은 화면에서
+   *   플래그만 소모되어 연출을 놓치는 일이 없도록 "예약 → 수령" 2단계로 나눴다.
+   */
+  pendingWelcomeGrant: number | null;
+  /**
    * Phase 5b.1 — 마지막 initialize 에서 계산된 idle reward.
    * UI 에서 토스트로 표시 후 acknowledgeIdleReward() 로 null 클리어.
    * transient — persist 되지 않음.
@@ -959,10 +975,22 @@ export const SHOP_PRICES = {
   cardPackFull: 800, // 5장 (level-up pack)
   enhance: 30,
   fastForward: 20,
-  reroll: 50,
+  /**
+   * 리롤 1회 가격. 하루 1회 상한은 그대로 두고 "무료 → 유료" 로 전환하면서
+   * 50 → 100 으로 상향. 코인 결제 대신 리워드 광고 시청 경로도 병존한다
+   * (광고가 유일한 경로가 되면 안 되므로 코인 경로는 항상 유지).
+   */
+  reroll: 100,
   /** Phase 11a — 탐험권 1장 가격 (던전 무관 고정). */
   expeditionPass: 80,
 } as const;
+
+/**
+ * 시작 선물 — 최초 1회만 지급되는 환영 코인.
+ * 첫 리롤(SHOP_PRICES.reroll) 을 바로 한 번 써볼 수 있는 금액으로 맞췄다.
+ * 지급 여부는 UpHeroState.welcomeGrantClaimed 로 영속 기록.
+ */
+export const WELCOME_GRANT_COINS = 100;
 
 /** Phase 11a — 상점에서 하루에 살 수 있는 탐험권 cap. */
 // Phase 12a → 4 → 8. 챌린지로 얻기 어려운 날엔 상점 구매로 더 길게 플레이 가능하게.

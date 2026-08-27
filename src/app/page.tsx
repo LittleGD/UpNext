@@ -58,6 +58,10 @@ const AndroidFirstLaunchModal = dynamic(
   () => import("@/components/auth/AndroidFirstLaunchModal"),
   { ssr: false },
 );
+const WelcomeCoinsOverlay = dynamic(
+  () => import("@/components/onboarding/WelcomeCoinsOverlay"),
+  { ssr: false },
+);
 const LoginOverlay = dynamic(
   () => import("@/components/auth/LoginOverlay"),
   { ssr: false },
@@ -185,6 +189,10 @@ export default function Home() {
         {/* 컬렉션 100% 첫 달성 축하 — store.collectionCelebration 토글 시 자동 마운트.
             CardPackOpener 닫힌 다음 프레임에 자연스럽게 등장. */}
         <CollectionCelebration />
+
+        {/* 시작 선물 100코인 — 신규 유저 최초 1회. "받기" 를 눌러야 지급되며,
+            온보딩·팩 오프너 중에는 오버레이 내부 가드가 마운트를 보류한다. */}
+        <WelcomeCoinsOverlay />
 
         {/* Phase F — Android Capacitor 첫 실행 1회 백업 안내. PWA → Play Store 앱
             전환 시 데이터 격리로 인한 손실 방지. */}

@@ -22,6 +22,7 @@ import {
   DAILY_PASS_PURCHASE_CAP,
   COIN_POUCH_MIN,
   COIN_POUCH_MAX,
+  WELCOME_GRANT_COINS,
   enhanceSuccessRate,
   enhanceCost,
   getISOWeekId,
@@ -345,6 +346,21 @@ interface UpHeroActions {
   addCoins(n: number): void;
 
   /**
+   * 외부 시스템(데일리 리롤 유료화 등) 에서 코인을 -N 차감.
+   * 잔액이 모자라면 아무것도 하지 않고 false 를 반환한다 (부분 차감 없음).
+   * @returns 차감 성공 여부
+   */
+  spendCoins(n: number): boolean;
+
+  /**
+   * 시작 선물 수령 — pendingWelcomeGrant 예약분을 실제 코인으로 지급하고
+   * welcomeGrantClaimed 를 확정 persist. 예약이 없으면 no-op.
+   * 오버레이의 "받기" 버튼이 호출한다.
+   * @returns 지급된 코인 (예약이 없었으면 0)
+   */
+  claimWelcomeGrant(): number;
+
+  /**
    * Phase 11a — 상점에서 탐험권 구매.
    * 고정 가격 SHOP_PRICES.expeditionPass, 하루 최대 DAILY_PASS_PURCHASE_CAP 장.
    * @returns
@@ -356,12 +372,15 @@ interface UpHeroActions {
   purchasePass(dungeonId: DungeonId): "ok" | "no-coin" | "daily-cap" | "pass-cap";
 
   /**
-   * 데일리 코인 주머니 수령 — 하루 1회 무료, [COIN_POUCH_MIN, COIN_POUCH_MAX] 균등 랜덤.
+   * 데일리 코인 주머니 수령 — 하루 1회, [COIN_POUCH_MIN, COIN_POUCH_MAX] 균등 랜덤.
+   * @param multiplier 롤링된 코인에 곱할 배수. 1 = 기본 무료 수령,
+   *   2 = 리워드 광고를 끝까지 본 경우 (광고 성공 판정은 호출부 책임).
+   *   기본값 1 — 기존 호출부는 시그니처 변경 없이 그대로 동작한다.
    * @returns
-   *   - { ok: true, coins }  — 수령 성공. coins = 이번 roll 값
+   *   - { ok: true, coins }  — 수령 성공. coins = 배수까지 적용된 최종 지급액
    *   - { ok: false }        — 오늘 이미 수령함 (UI 는 disabled 상태로 먼저 막아야 함)
    */
-  claimCoinPouch(): { ok: true; coins: number } | { ok: false };
+  claimCoinPouch(multiplier?: 1 | 2): { ok: true; coins: number } | { ok: false };
 
   /**
    * Phase 11a — 장비 +N 강화 (기존 2→1 합성 대체).
@@ -415,6 +434,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     weeklyVariant,
     schemaVersion,
     hasSeenCampTutorial,
+    welcomeGrantClaimed,
   } = s;
   // Phase 13 review C#2 — session.log tail-slice 로 persist payload 감축.
   const trimmedSession =
@@ -441,6 +461,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     weeklyVariant,
     schemaVersion,
     hasSeenCampTutorial,
+    welcomeGrantClaimed,
   };
 }
 
@@ -469,6 +490,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   pendingClassChoice: null,
   // 아지트 첫 진입 튜토리얼 — 최초 false. 유저가 완료/Skip 누르면 true persist.
   hasSeenCampTutorial: false,
+  // 시작 선물 — 최초 false. initialize 에서 pendingWelcomeGrant 예약 후 수령 시 true persist.
+  welcomeGrantClaimed: false,
+  pendingWelcomeGrant: null,
   isLoaded: false,
 
   initialize() {
@@ -656,6 +680,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       // Hotfix: 이전 버전에선 이 필드가 restore 누락되어 return 유저에게도 매 로드마다
       // 튜토리얼이 다시 뜨는 버그가 있었음.
       hasSeenCampTutorial: saved?.hasSeenCampTutorial ?? false,
+      // 시작 선물 — 플래그가 없으면 "아직 안 받음" 으로 간주해 예약한다.
+      //   기존 유저도 플래그가 없으므로 1회 받게 된다 (의도된 소급 지급).
+      //   여기서는 코인을 더하지 않고 예약만 한다. 실제 지급은 오버레이의
+      //   claimWelcomeGrant() 시점 — 연출을 못 본 채 플래그만 소모되는 걸 막는다.
+      welcomeGrantClaimed: saved?.welcomeGrantClaimed ?? false,
+      pendingWelcomeGrant: saved?.welcomeGrantClaimed ? null : WELCOME_GRANT_COINS,
       isLoaded: true,
     });
 
@@ -1539,6 +1569,35 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, coins: newCoins }));
   },
 
+  spendCoins(n) {
+    if (!Number.isFinite(n) || n <= 0) return false;
+    const cost = Math.floor(n);
+    const state = get();
+    // 부분 차감 없음 — 잔액이 모자라면 상태를 건드리지 않고 실패로 끝낸다.
+    if (state.coins < cost) return false;
+    const newCoins = state.coins - cost;
+    set({ coins: newCoins });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, coins: newCoins }));
+    return true;
+  },
+
+  claimWelcomeGrant() {
+    const state = get();
+    const amount = state.pendingWelcomeGrant;
+    // 이미 받았거나 예약이 없으면 no-op. 오버레이가 중복 마운트돼도 안전.
+    if (!amount || state.welcomeGrantClaimed) {
+      if (state.pendingWelcomeGrant !== null) set({ pendingWelcomeGrant: null });
+      return 0;
+    }
+    const newCoins = state.coins + amount;
+    set({ coins: newCoins, welcomeGrantClaimed: true, pendingWelcomeGrant: null });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, coins: newCoins, welcomeGrantClaimed: true }),
+    );
+    return amount;
+  },
+
   purchasePass(dungeonId) {
     // Phase 11a — 갓생 상점에서 탐험권 1장 구매. 고정 80 코인, 하루 2장 cap.
     const state = get();
@@ -1576,7 +1635,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     return "ok";
   },
 
-  claimCoinPouch() {
+  claimCoinPouch(multiplier = 1) {
     const state = get();
     const today = getTodayString();
     const daily =
@@ -1586,9 +1645,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     if (daily.coinPouchClaimed) return { ok: false };
 
     // [MIN, MAX] 균등 정수 랜덤 — inclusive 양 끝.
+    // 배수는 광고 시청 보상(2배) 전용. 그 외 값이 들어오면 1 로 방어.
+    const mult = multiplier === 2 ? 2 : 1;
     const rolled =
-      Math.floor(Math.random() * (COIN_POUCH_MAX - COIN_POUCH_MIN + 1)) +
-      COIN_POUCH_MIN;
+      (Math.floor(Math.random() * (COIN_POUCH_MAX - COIN_POUCH_MIN + 1)) +
+        COIN_POUCH_MIN) *
+      mult;
     const newCoins = state.coins + rolled;
     const newShopDaily = { ...daily, coinPouchClaimed: true };
 
@@ -1758,6 +1820,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       pendingClassAwaken: null,
       pendingClassChoice: null,
       schemaVersion: CURRENT_SCHEMA_VERSION,
+      // 로그아웃 = 다른 계정으로 갈아탈 준비. 시작 선물도 계정 단위로 다시 판정한다.
+      welcomeGrantClaimed: false,
+      pendingWelcomeGrant: null,
       isLoaded: false,
     });
   },

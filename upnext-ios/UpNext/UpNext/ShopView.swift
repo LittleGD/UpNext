@@ -20,6 +20,11 @@ struct ShopView: View {
     let onBack: () -> Void
 
     @State private var toast: String?
+    // 코인 주머니 2배 — 광고 로딩 중엔 버튼을 잠근다(중복 탭 = 이중 수령 시도).
+    @State private var pouchAdLoading = false
+    // 광고 진입점 노출 여부. false 여도 기존 무료 수령은 그대로 남는다(AdMob 정책 —
+    // 광고가 유일한 경로가 되면 안 된다).
+    @State private var adAvailable = false
 
     // 오늘 날짜가 아니면 shopDaily 는 이미 지난 값 — 리셋된 것으로 취급(구매 함수와 동일 규칙).
     private var shopDailyToday: ShopDaily? {
@@ -53,6 +58,7 @@ struct ShopView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgPrimary)
+        .task { adAvailable = AdsService.shared.isAvailable }
     }
 
     // MARK: - 헤더 (뒤로 + 코인 잔액)
@@ -92,9 +98,19 @@ struct ShopView: View {
             UNButton(
                 pouchClaimedToday ? AppConfig.loc("내일 다시 받기") : AppConfig.loc("받기"),
                 variant: pouchClaimedToday ? .secondary : .primary,
-                enabled: !pouchClaimedToday
+                enabled: !pouchClaimedToday && !pouchAdLoading
             ) {
                 claimPouch()
+            }
+            // 광고 시청 시 같은 1회 수령을 2배로. 무료 수령을 대체하지 않고 옆에 선택지로 둔다.
+            if adAvailable && !pouchClaimedToday {
+                UNButton(
+                    pouchAdLoading ? AppConfig.loc("광고 불러오는 중…") : AppConfig.loc("광고 보고 2배 받기"),
+                    variant: .secondary,
+                    enabled: !pouchAdLoading
+                ) {
+                    Task { await claimPouchWithAd() }
+                }
             }
             Text("하루 1회 · 무작위 코인 보상")
                 .typography(.micro)
@@ -114,6 +130,32 @@ struct ShopView: View {
         Haptics.play(.success)
         SoundPlayer.shared.play(.collect)
         showToast(AppConfig.loc("코인 주머니 +\(result.coins)"))
+    }
+
+    /// 광고 완주 시 같은 하루 1회 수령을 2배로 지급. 중도 이탈/광고 없음이면 수령분은
+    /// 소모되지 않고 무료 "받기" 버튼이 그대로 남는다.
+    @MainActor
+    private func claimPouchWithAd() async {
+        guard !pouchClaimedToday, !pouchAdLoading else { return }
+        SoundPlayer.shared.play(.select)
+        pouchAdLoading = true
+        let result = await AdsService.shared.showRewardedAd(slot: .coinPouch)
+        pouchAdLoading = false
+        switch result {
+        case .rewarded:
+            let claimed = upHero.claimCoinPouch(multiplier: 2)
+            guard claimed.ok else { return }
+            Haptics.play(.success)
+            SoundPlayer.shared.play(.collect)
+            showToast(AppConfig.loc("2배로 받았어요"))
+        case .unavailable:
+            Haptics.play(.warning)
+            SoundPlayer.shared.play(.cancel)
+            showToast(AppConfig.loc("지금은 보여줄 광고가 없어요"))
+        case .dismissed:
+            // 중도 이탈 — 아무 일도 없던 것처럼 (무료 수령은 그대로 가능)
+            break
+        }
     }
 
     // MARK: - 탐험권 구매 그리드 (웹 ShopView 탐험권 섹션 — 8던전 4열, 웹 grid-cols-4)

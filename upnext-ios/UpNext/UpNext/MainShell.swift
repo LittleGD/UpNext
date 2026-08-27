@@ -161,6 +161,16 @@ struct MainTabView: View {
                 .transition(.opacity)
             }
 
+            // 시작 선물 — 신규 유저 최초 1회 100코인 + 축하 연출. bootstrapUpHero 의
+            // initialize 가 예약(pendingWelcomeGift)하고, "받기" 를 눌러야 실제 지급된다
+            // (연출을 못 본 채 플래그만 소모되는 걸 막는다 — 웹 WelcomeCoinsOverlay 동치).
+            // 카드팩 오프너(fullScreenCover)가 떠 있으면 그 아래에 대기했다가 드러난다.
+            if let gift = upHero.state.pendingWelcomeGift {
+                WelcomeGiftOverlay(coins: gift) { upHero.claimWelcomeGift() }
+                    .zIndex(115)
+                    .transition(.opacity)
+            }
+
             // R-Effects: PatchNotesModal — 새 버전 노트가 있을 때 자동 1회 표시.
             // dismiss 시 lastSeenPatchVersion 을 현재 최신으로 갱신해 다시 안 나타남.
             if showPatchNotes {
@@ -208,6 +218,7 @@ struct MainTabView: View {
         // A-2 — 오버레이 애니는 전용 state 를 따른다(구: pendingLevelUp != nil → 팝인 발화 실패).
         .animation(.easeOut(duration: 0.25), value: showLevelUpOverlay)
         .animation(.easeOut(duration: 0.25), value: showPatchNotes)
+        .animation(.easeOut(duration: 0.25), value: upHero.state.pendingWelcomeGift)
         // A-2 — 레벨업 이벤트/캡처 상태 변화를 관찰해 오버레이 표시 타이밍을 조정.
         .onChange(of: store.pendingLevelUp) { event in
             evaluateLevelUpOverlay(hasEvent: event != nil, capturing: growth.pendingCapture != nil)

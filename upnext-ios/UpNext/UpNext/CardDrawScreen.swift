@@ -373,6 +373,8 @@ private struct LightBeam: View {
 /// 드로우 완료 후 카드 선택. 풀블리드 (웹 fixed inset-0). 선택 full 시 리뷰 캐러셀로 전환.
 struct CardSelectScreen: View {
     @EnvironmentObject private var store: GameStore
+    /// 리롤 코인 결제 — 잔액 변화를 즉시 반영하려면 UpHeroStore 를 직접 구독해야 한다.
+    @EnvironmentObject private var upHero: UpHeroStore
     let phase: ChallengePhase
     let drawn: [ChallengeCard]
     let selected: [ChallengeCard]
@@ -385,8 +387,16 @@ struct CardSelectScreen: View {
     @State private var previewExitDir: ExitDir?
     @State private var previewExiting = false
     @State private var showRerollConfirm = false
+    // 리롤 결제 선택 카드의 진행 상태 — 광고 로딩/실패·코인 부족 안내를 한 줄로 표시.
+    @State private var rerollPhase: RerollPhase = .idle
+    // 광고 진입점 노출 여부. 광고가 유일한 경로가 되면 안 되므로(AdMob 정책) 이게
+    // false 여도 코인 버튼은 그대로 남는다.
+    @State private var adAvailable = false
     // 리뷰 #7 — 확정 320ms 타이머 무효화 토큰. 리롤/취소가 증가시켜 in-flight 확정을 폐기.
     @State private var actionToken = 0
+
+    /// 리롤 선택 카드의 안내 문구 상태.
+    private enum RerollPhase { case idle, loading, adFail, noCoins }
 
     enum ExitDir { case up, down }
     private let previewExitMs: Double = 0.32   // 웹 PREVIEW_EXIT_MS 320ms
@@ -435,15 +445,18 @@ struct CardSelectScreen: View {
 
             if showRerollConfirm {
                 OverlayContainer(onBackdropTap: {
-                    withAnimation(Anim.cardOverlayExit) { showRerollConfirm = false }
+                    // 광고 로딩 중 백드롭 탭으로 닫히면 결과 처리가 붕 뜬다 — 잠근다.
+                    guard rerollPhase != .loading else { return }
+                    closeRerollChoice()
                 }) {
-                    rerollConfirmCard
+                    rerollChoiceCard
                 }
                 .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: 0.22), value: previewId)
         .animation(.easeOut(duration: 0.2), value: showRerollConfirm)
+        .task { adAvailable = AdsService.shared.isAvailable }
     }
 
     // MARK: 선택 중 본문 (웹 L:756-1015)
@@ -513,6 +526,7 @@ struct CardSelectScreen: View {
                         Button {
                             SoundPlayer.shared.play(.select)
                             Haptics.play(.selection)
+                            rerollPhase = .idle
                             showRerollConfirm = true
                         } label: {
                             HStack(spacing: 6) {
@@ -608,55 +622,135 @@ struct CardSelectScreen: View {
         }
     }
 
-    // MARK: 리롤 확인 모달 (웹 L:916-975)
+    // MARK: 리롤 결제 선택 모달 (웹 L:916-975 의 확인 카드 → 코인/광고 선택으로 확장)
 
-    // 리롤 확인 카드 — backdrop/진입 모션은 OverlayContainer 가 담당 (R6).
-    private var rerollConfirmCard: some View {
+    // 리롤은 하루 1회 그대로, 무료에서 코인(ShopPrices.reroll) 또는 리워드 광고로 전환.
+    // AdMob 정책상 광고가 유일한 경로가 되면 안 되므로 코인 버튼은 항상 남는다
+    // (잔액이 모자라면 비활성 + "코인이 부족해요" 안내).
+    // backdrop/진입 모션은 OverlayContainer 가 담당 (R6).
+    private var rerollChoiceCard: some View {
         VStack(spacing: 16) {
             HStack(spacing: 8) {
                 PixelIcon(.reload, size: 24, color: Color.accentPrimary)
                 Text("다시 뽑기").typography(.heading).foregroundStyle(Color.textPrimary)
             }
-            Text("카드를 다시 뽑으면 현재 6장이 새 카드로 교체돼요.\n다시 뽑기는 하루 한 번만 가능해요.")
+            Text("카드를 다시 뽑는 방법을 골라주세요")
                 .typography(.body)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
-            HStack(spacing: 12) {
-                Button {
-                    SoundPlayer.shared.play(.select)
-                    Haptics.play(.selection)
-                    withAnimation(Anim.cardOverlayExit) { showRerollConfirm = false }
-                } label: {
-                    Text("취소").typography(.body).foregroundStyle(Color.textSecondary)
-                        .padding(.horizontal, 24).frame(height: 48)
-                        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
-                }.buttonStyle(.plain)
-                Button {
-                    SoundPlayer.shared.play(.packOpen)
-                    Haptics.play(.success)
-                    actionToken += 1   // 리뷰 #7 — in-flight 확정 타이머 무효화
-                    previewExiting = false
-                    previewExitDir = nil
-                    previewId = nil
-                    store.rerollCards()
-                    withAnimation(Anim.cardOverlayExit) { showRerollConfirm = false }
-                    for i in 0..<6 {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.08) {
-                            SoundPlayer.shared.play(.cardFlip)
-                            Haptics.play(.light)
-                        }
+
+            VStack(spacing: 8) {
+                UNButton(AppConfig.loc("리롤 · \(ShopPrices.reroll)코인"),
+                         variant: .primary,
+                         enabled: canPayRerollWithCoins && rerollPhase != .loading) {
+                    payRerollWithCoins()
+                }
+                if adAvailable {
+                    UNButton(AppConfig.loc("광고 보고 리롤"),
+                             variant: .secondary,
+                             enabled: rerollPhase != .loading) {
+                        Task { await payRerollWithAd() }
                     }
-                } label: {
-                    Text("다시 뽑기").typography(.body).foregroundStyle(Color.bgPrimary)
-                        .padding(.horizontal, 24).frame(height: 48)
-                        .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
-                }.buttonStyle(.plain)
+                }
             }
+
+            rerollNotice
+
+            Button {
+                SoundPlayer.shared.play(.select)
+                Haptics.play(.selection)
+                closeRerollChoice()
+            } label: {
+                Text("취소").typography(.body).foregroundStyle(Color.textSecondary)
+                    .padding(.horizontal, 24).frame(height: 48)
+            }
+            .buttonStyle(.plain)
+            .disabled(rerollPhase == .loading)
         }
         .padding(24)
         .frame(maxWidth: 360)
         .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 20))
         .padding(.horizontal, 24)
+    }
+
+    /// 선택 카드 하단 한 줄 안내 — 기본은 하루 1회 상한, 그 외엔 진행/실패 사유.
+    private var rerollNotice: some View {
+        Group {
+            switch rerollPhase {
+            case .loading:  Text("광고 불러오는 중…")
+            case .adFail:   Text("지금은 보여줄 광고가 없어요")
+            case .noCoins:  Text("코인이 부족해요")
+            case .idle:     Text("리롤은 하루에 한 번만 가능합니다")
+            }
+        }
+        .typography(.caption)
+        .foregroundStyle(rerollPhase == .adFail || rerollPhase == .noCoins
+                         ? Color.accentSecondary : Color.textTertiary)
+        .multilineTextAlignment(.center)
+    }
+
+    private var canPayRerollWithCoins: Bool { upHero.state.coins >= ShopPrices.reroll }
+
+    private func closeRerollChoice() {
+        rerollPhase = .idle
+        withAnimation(Anim.cardOverlayExit) { showRerollConfirm = false }
+    }
+
+    /// 코인 결제 리롤 — 차감은 스토어가 한다(잔액 부족이면 .noCoins 로 되돌아온다).
+    private func payRerollWithCoins() {
+        switch store.rerollCards(payment: .coins) {
+        case .ok:
+            applyRerollSuccess()
+        case .noCoins:
+            SoundPlayer.shared.play(.cancel)
+            Haptics.play(.warning)
+            rerollPhase = .noCoins
+        case .unavailable:
+            // 오늘 이미 리롤했거나 선택이 확정된 상태 — 진입 버튼이 이미 사라져 있어
+            // 정상 흐름에선 도달하지 않는다. 조용히 닫는다.
+            closeRerollChoice()
+        }
+    }
+
+    /// 광고 결제 리롤 — 끝까지 본 경우(.rewarded)에만 리롤이 실행된다.
+    @MainActor
+    private func payRerollWithAd() async {
+        guard rerollPhase != .loading else { return }
+        SoundPlayer.shared.play(.select)
+        rerollPhase = .loading
+        let result = await AdsService.shared.showRewardedAd(slot: .reroll)
+        switch result {
+        case .rewarded:
+            if store.rerollCards(payment: .ad) == .ok {
+                applyRerollSuccess()
+            } else {
+                closeRerollChoice()
+            }
+        case .unavailable:
+            SoundPlayer.shared.play(.cancel)
+            Haptics.play(.warning)
+            rerollPhase = .adFail
+        case .dismissed:
+            // 중도 이탈 — 아무 일도 없던 것처럼 선택지로 복귀 (소모 없음)
+            rerollPhase = .idle
+        }
+    }
+
+    /// 리롤 성공 공통 후처리 — in-flight 확정 무효화 + 프리뷰 정리 + 6장 플립 연출.
+    private func applyRerollSuccess() {
+        SoundPlayer.shared.play(.packOpen)
+        Haptics.play(.success)
+        actionToken += 1   // 리뷰 #7 — in-flight 확정 타이머 무효화
+        previewExiting = false
+        previewExitDir = nil
+        previewId = nil
+        closeRerollChoice()
+        for i in 0..<6 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.08) {
+                SoundPlayer.shared.play(.cardFlip)
+                Haptics.play(.light)
+            }
+        }
     }
 }
 

@@ -32,6 +32,7 @@ import {
   getEffectiveHeroLevel,
 } from "@/types/uphero";
 import type { DungeonId } from "@/types/uphero";
+import { isAdAvailable, showRewardedAd } from "@/lib/ads";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
@@ -704,6 +705,9 @@ function ShopView({
   //   방지. small (200 coin) 은 부담 낮아 스킵.
   const [confirmFullPack, setConfirmFullPack] = useState(false);
 
+  // 코인 주머니 2배 수령 — 리워드 광고 재생 중 상태. 중복 탭 방지 + 로딩 문구.
+  const [pouchAdLoading, setPouchAdLoading] = useState(false);
+
   const onBuyTicket = () => {
     const ok = purchaseTicket();
     if (ok) {
@@ -771,10 +775,30 @@ function ShopView({
   };
 
   const onClaimPouch = () => {
-    const result = claimCoinPouch();
+    const result = claimCoinPouch(1);
     if (result.ok) {
       play("collect");
       onNotify(t("uphero.shop.coinPouch.rolled", { coins: result.coins }));
+    }
+  };
+
+  // 2배 수령 — 리워드 광고를 끝까지 본 경우에만 배수 2 로 수령한다.
+  //   중도 이탈/광고 없음 이면 수령 자체를 하지 않아 무료 수령 기회가 남는다.
+  //   무료 수령 버튼은 그대로 두므로 광고가 유일한 경로가 되지 않는다.
+  const onClaimPouchDoubled = async () => {
+    if (pouchAdLoading || pouchClaimedToday) return;
+    play("select");
+    setPouchAdLoading(true);
+    const adResult = await showRewardedAd("coinPouch");
+    setPouchAdLoading(false);
+    if (adResult !== "rewarded") return;
+    const result = claimCoinPouch(2);
+    if (result.ok) {
+      play("collect");
+      // 토스트는 한 번만 — 배수 적용 사실과 실제 지급액을 한 줄로 붙여 보여준다.
+      onNotify(
+        `${t("shop.pouch.doubled")} · ${t("uphero.shop.coinPouch.rolled", { coins: result.coins })}`,
+      );
     }
   };
 
@@ -835,6 +859,35 @@ function ShopView({
               </span>
             </div>
           </PressButton>
+
+          {/* 2배 수령 — 광고를 쓸 수 없는 환경(순수 웹 브라우저)에서는 숨긴다.
+              이미 오늘 수령했으면 노출 자체가 의미 없으므로 함께 숨김. */}
+          {isAdAvailable() && !pouchClaimedToday && (
+            <PressButton
+              onClick={onClaimPouchDoubled}
+              disabled={pouchAdLoading}
+              className="mt-2"
+              style={{
+                width: "100%",
+                minHeight: 42,
+                background: "transparent",
+                color: GB.lightest,
+                border: `1px solid ${GB.light}`,
+                opacity: pouchAdLoading ? 0.6 : 1,
+              }}
+              aria-label={t("shop.pouch.double")}
+            >
+              <div className="flex items-center justify-center gap-1.5">
+                <PixelIcon name="Play" size={14} color={GB.lightest} />
+                <span className="typo-caption">
+                  {pouchAdLoading
+                    ? t("shop.pouch.adLoading")
+                    : t("shop.pouch.double")}
+                </span>
+              </div>
+            </PressButton>
+          )}
+
           <div
             className={`typo-micro mt-2 ${gbClass.textDim} text-center`}
             style={{ letterSpacing: "0.05em" }}
