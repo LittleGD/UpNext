@@ -14,6 +14,59 @@
 
 import SwiftUI
 
+// MARK: - 폴라로이드 지오메트리 (화면 렌더 ⇄ 저장 합성 단일 진실의 원천)
+//
+// WYSIWYG 규약: PolaroidFrame(화면)과 PolaroidComposite(저장 600px 캔버스)는 **반드시**
+// 이 비율만 보고 그린다. 과거엔 화면이 고정 pt(스탬프 11pt·fold 14pt·해칭 3pt)를,
+// 합성이 별도 고정 px(스탬프 22px·fold 없음)를 써서 "꾸민 것"과 "앨범에서 보는 것"이
+// 달랐다. 모든 치수를 프레임 가로폭 비율로 표현하면 어떤 크기로 그려도 동일해진다.
+// (300 = 실기기 폴라로이드 표시 폭 기준값. 이 값으로 나눠 기존 디자인 수치를 비율화.)
+enum PolaroidGeometry {
+    /// 디자인 기준 표시 폭 — 기존 고정 pt 수치를 비율로 환산할 때의 분모.
+    static let designWidth: CGFloat = 300
+
+    // 사진/캡션 영역 — Figma 184×223 원본 비율.
+    static let photoXRatio: CGFloat = 15.0 / 184.0
+    static let photoYRatio: CGFloat = 14.0 / 223.0
+    static let photoWRatio: CGFloat = 154.0 / 184.0
+    static let photoHRatio: CGFloat = 157.0 / 223.0
+    static let captionYRatio: CGFloat = (14.0 + 157.0) / 223.0
+
+    // 오렌지 날짜 스탬프.
+    static let stampFont: CGFloat = 11 / designWidth
+    static let stampTracking: CGFloat = 1.2 / designWidth
+    static let stampPad: CGFloat = 8 / designWidth
+    static let stampGlow: CGFloat = 4 / designWidth
+
+    // 모서리 fold / 크랙 데코레이션.
+    static let foldSide: CGFloat = 14 / designWidth
+    static let crackBoxW: CGFloat = 50 / designWidth
+    static let crackBoxH: CGFloat = 12 / designWidth
+    static let crackLen: CGFloat = 38 / designWidth
+    static let crackLine: CGFloat = 0.6 / designWidth
+
+    // 캡션 crosshatch 엠보스 — 캡션 폭 기준(≈250 @designWidth).
+    static let hatchStep: CGFloat = 3 / 250
+    static let hatchLine: CGFloat = 0.5 / 250
+
+    /// 종이 그레인 오버레이 불투명도 (multiply).
+    static let grainOpacity: CGFloat = 0.16
+    /// 프레임 가장자리 어두움 stroke.
+    static let edgeLine: CGFloat = 3 / designWidth
+
+    static let stampColor = (r: 1.0, g: 107.0 / 255.0, b: 53.0 / 255.0)
+
+    /// 웹 PolaroidFrameBase.tsx 포맷 `'YY MM DD HH:mm`.
+    ///   Unicode 패턴에서 `'`는 리터럴 구간 구분자라, 닫히지 않은 `'yy…`는 뒤 전체를
+    ///   리터럴로 삼아 "yy MM dd HH:mm" 이 그대로 찍힌다. 아포스트로피는 `''` 로 이스케이프.
+    static func dateStamp(_ timestamp: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")   // 그레고리력·아라비아 숫자 고정
+        f.dateFormat = "''yy MM dd HH:mm"
+        return f.string(from: timestamp)
+    }
+}
+
 enum PolaroidFrameVariant: Int, CaseIterable {
     case one = 1, two, three, four, five
 
@@ -84,11 +137,11 @@ struct PolaroidFrame<Caption: View>: View {
         GeometryReader { geo in
             let w = geo.size.width
             let h = w / variant.aspectRatio
-            let photoX = w * (15.0/184.0)
-            let photoY = h * (14.0/223.0)
-            let photoW = w * (154.0/184.0)
-            let photoH = h * (157.0/223.0)
-            let captionY = h * ((14.0 + 157.0)/223.0)
+            let photoX = w * PolaroidGeometry.photoXRatio
+            let photoY = h * PolaroidGeometry.photoYRatio
+            let photoW = w * PolaroidGeometry.photoWRatio
+            let photoH = h * PolaroidGeometry.photoHRatio
+            let captionY = h * PolaroidGeometry.captionYRatio
             let captionH = h - captionY
 
             ZStack(alignment: .topLeading) {
@@ -102,9 +155,16 @@ struct PolaroidFrame<Caption: View>: View {
                     Color(hex: 0x010101)
                     if let image {
                         // 이미 필터된 이미지 — body 에서 CIFilter/디코드 없음.
+                        //   `.frame + .clipped()` 필수: aspectRatio(.fill) 은 제안 크기보다 **큰**
+                        //   레이아웃 크기를 가질 수 있고, ZStack 은 자식 중 최대 크기를 자기 크기로
+                        //   삼는다. 그러면 가로 사진에서 ZStack 이 photoW 보다 넓어져, 우하단 정렬인
+                        //   날짜 스탬프가 사진 밖으로 밀려나 잘려 보였다(가로 사진일수록 심함).
+                        //   여기서 사진 자체를 사진 영역 크기로 잘라 ZStack 크기를 고정한다.
                         Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
+                            .frame(width: photoW, height: photoH)
+                            .clipped()
                     } else {
                         PixelIcon(.image, size: 28, color: Color.textTertiary)
                     }
@@ -115,17 +175,19 @@ struct PolaroidFrame<Caption: View>: View {
                         endRadius: photoW * 0.75
                     )
                     .blendMode(.multiply)
-                    // 오렌지 날짜 스탬프
+                    // 오렌지 날짜 스탬프 — 치수는 전부 프레임 폭 비율(저장 합성과 동일 규약).
                     VStack {
                         Spacer()
                         HStack {
                             Spacer()
                             Text(dateStamp)
-                                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                .foregroundStyle(Color(red: 1.0, green: 107/255, blue: 53/255))
-                                .shadow(color: Color(red: 1.0, green: 107/255, blue: 53/255).opacity(0.5), radius: 4)
-                                .tracking(1.2)
-                                .padding(8)
+                                .font(.system(size: w * PolaroidGeometry.stampFont,
+                                              weight: .bold, design: .monospaced))
+                                .foregroundStyle(Color.polaroidStamp)
+                                .shadow(color: Color.polaroidStamp.opacity(0.5),
+                                        radius: w * PolaroidGeometry.stampGlow)
+                                .tracking(w * PolaroidGeometry.stampTracking)
+                                .padding(w * PolaroidGeometry.stampPad)
                         }
                     }
                 }
@@ -150,31 +212,15 @@ struct PolaroidFrame<Caption: View>: View {
 
                 // 프레임 가장자리 어두움
                 RoundedRectangle(cornerRadius: 2)
-                    .stroke(Color.black.opacity(0.04), lineWidth: 3)
-                    .blur(radius: 4)
+                    .stroke(Color.black.opacity(0.04), lineWidth: w * PolaroidGeometry.edgeLine)
+                    .blur(radius: w * PolaroidGeometry.edgeLine * 1.33)
                     .frame(width: w, height: h)
 
-                // 하단 엠보스 (caption 영역 cross-hatch)
-                Rectangle()
-                    .fill(Color.clear)
-                    .overlay(
-                        Canvas { ctx, size in
-                            let cw = size.width, ch = size.height
-                            // 45° + -45° 교차 라인 (3px 간격)
-                            for d in stride(from: -ch, through: cw + ch, by: 3) {
-                                var p = Path()
-                                p.move(to: CGPoint(x: d, y: 0))
-                                p.addLine(to: CGPoint(x: d + ch, y: ch))
-                                ctx.stroke(p, with: .color(Color.black.opacity(0.015)),
-                                           lineWidth: 0.5)
-                                var p2 = Path()
-                                p2.move(to: CGPoint(x: d, y: ch))
-                                p2.addLine(to: CGPoint(x: d + ch, y: 0))
-                                ctx.stroke(p2, with: .color(Color.black.opacity(0.015)),
-                                           lineWidth: 0.5)
-                            }
-                        }
-                    )
+                // 하단 엠보스 (caption 영역 cross-hatch) — 1회 생성·캐시된 타일을 늘여 쓴다.
+                //   구현이 Canvas 였을 땐 렌더 1회당 Path 수백 개를 새로 만들었다(알파 1.5%,
+                //   사실상 안 보이는 무늬에). 합성도 같은 타일을 쓰므로 무늬가 자동 일치한다.
+                Image(uiImage: PolaroidFilters.crossHatchTexture())
+                    .resizable()
                     .frame(width: photoW, height: captionH)
                     .offset(x: photoX, y: captionY)
                     .allowsHitTesting(false)
@@ -205,9 +251,12 @@ struct PolaroidFrame<Caption: View>: View {
 
     @ViewBuilder
     private func decorationView(_ dec: FrameDecoration, frameSize: CGSize) -> some View {
+        // 치수는 전부 프레임 폭 비율 — 저장 합성(600px)에서도 같은 크기로 재현된다.
+        let w = frameSize.width
         switch dec {
         case let .fold(alignment):
-            // 14×14 모서리 fold — 삼각형 그늘.
+            // 모서리 fold — 삼각형 그늘.
+            let side = w * PolaroidGeometry.foldSide
             ZStack {
                 FoldShape(alignment: alignment)
                     .fill(LinearGradient(
@@ -216,20 +265,22 @@ struct PolaroidFrame<Caption: View>: View {
                         endPoint: foldGradEnd(alignment)
                     ))
                     .blendMode(.multiply)
-                    .frame(width: 14, height: 14)
+                    .frame(width: side, height: side)
             }
             .frame(width: frameSize.width, height: frameSize.height, alignment: alignment)
         case let .crack(alignment):
             // 균열 — 미세 dark line (변형적 표현).
+            let boxW = w * PolaroidGeometry.crackBoxW
+            let boxH = w * PolaroidGeometry.crackBoxH
+            let len = w * PolaroidGeometry.crackLen
             Path { p in
-                let len: CGFloat = 38
                 p.move(to: CGPoint(x: 0, y: 0))
-                p.addLine(to: CGPoint(x: len * 0.4, y: 6))
-                p.addLine(to: CGPoint(x: len * 0.7, y: -3))
-                p.addLine(to: CGPoint(x: len, y: 4))
+                p.addLine(to: CGPoint(x: len * 0.4, y: boxH * 0.5))
+                p.addLine(to: CGPoint(x: len * 0.7, y: -boxH * 0.25))
+                p.addLine(to: CGPoint(x: len, y: boxH * 0.33))
             }
-            .stroke(Color.black.opacity(0.10), lineWidth: 0.6)
-            .frame(width: 50, height: 12)
+            .stroke(Color.black.opacity(0.10), lineWidth: max(0.3, w * PolaroidGeometry.crackLine))
+            .frame(width: boxW, height: boxH)
             .frame(width: frameSize.width, height: frameSize.height, alignment: alignment)
             .blendMode(.multiply)
         }
@@ -255,18 +306,16 @@ struct PolaroidFrame<Caption: View>: View {
         }
     }
 
-    // MARK: - 날짜 스탬프
+    // MARK: - 날짜 스탬프 (포맷은 PolaroidGeometry 단일 출처 — 합성과 공용)
 
-    private var dateStamp: String {
-        let f = DateFormatter()
-        // 웹 PolaroidFrameBase.tsx 포맷: `'YY MM DD HH:mm` (예 '25 07 20 14:30).
-        //   Unicode 패턴에서 `'`(단일 따옴표)는 리터럴 구간을 여는 구분자라, 닫히지 않은
-        //   `'yy…`는 뒤 전체를 리터럴로 삼아 "yy MM dd HH:mm" 가 그대로 찍히던 버그.
-        //   리터럴 아포스트로피는 `''`(두 개)로 이스케이프해야 한다.
-        f.locale = Locale(identifier: "en_US_POSIX")   // 그레고리력·아라비아 숫자 고정
-        f.dateFormat = "''yy MM dd HH:mm"
-        return f.string(from: timestamp)
-    }
+    private var dateStamp: String { PolaroidGeometry.dateStamp(timestamp) }
+}
+
+extension Color {
+    /// 폴라로이드 오렌지 날짜 스탬프 색 — 화면·합성 공용.
+    static let polaroidStamp = Color(red: PolaroidGeometry.stampColor.r,
+                                     green: PolaroidGeometry.stampColor.g,
+                                     blue: PolaroidGeometry.stampColor.b)
 }
 
 // MARK: - Fold 삼각형 모양

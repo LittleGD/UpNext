@@ -88,8 +88,15 @@ enum PolaroidFilters {
     /// 고정 해상도 노이즈를 만들어 resizable 로 늘여 쓴다 — 매 SwiftUI 렌더마다
     /// 랜덤 도트를 재계산하던 06-photo-flow(a) 병목 제거.
     /// grain: 미세 도트(불투명 다양), fiber: 저주파 짧은 획.
-    static func paperTexture() -> UIImage {
-        if let cached = cachedPaperTexture { return cached }
+    /// 종이 텍스처 — `static let` 지연 초기화라 **스레드 안전**하다.
+    ///   구 구현은 `if let cached = cachedPaperTexture` + `static var` 대입이라, 메인(뷰 렌더)과
+    ///   백그라운드(저장 합성)가 동시에 처음 호출하면 UIGraphicsImageRenderer 를 두 번 돌리며
+    ///   var 에 경쟁 쓰기를 했다(합성이 이 텍스처를 쓰기 시작하면서 실제 위험이 됐다).
+    static func paperTexture() -> UIImage { sharedPaperTexture }
+
+    private static let sharedPaperTexture: UIImage = makePaperTexture()
+
+    private static func makePaperTexture() -> UIImage {
         let side: CGFloat = 512
         let fmt = UIGraphicsImageRendererFormat.default()
         fmt.scale = 1
@@ -123,10 +130,36 @@ enum PolaroidFilters {
                 ctx.strokePath()
             }
         }
-        cachedPaperTexture = img
         return img
     }
-    private static var cachedPaperTexture: UIImage?
+
+    /// 캡션 crosshatch 엠보스 타일 — 45°/-45° 교차선. 알파 1.5% 의 거의 안 보이는 무늬라
+    /// 매 렌더 수백 개 Path 를 새로 만들 이유가 없다(구 PolaroidFrame 의 Canvas 가 그랬다).
+    /// 정사각 타일을 1회 만들어 화면·합성이 함께 늘여 쓴다 — 두 경로의 무늬가 자동으로 일치한다.
+    static func crossHatchTexture() -> UIImage { sharedCrossHatch }
+
+    private static let sharedCrossHatch: UIImage = {
+        let side: CGFloat = 256
+        // 타일 안 격자 간격 — PolaroidGeometry.hatchStep(캡션 폭의 1/83) 과 같은 밀도.
+        let step = side * PolaroidGeometry.hatchStep
+        let fmt = UIGraphicsImageRendererFormat.default()
+        fmt.scale = 1
+        fmt.opaque = false
+        return UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: fmt).image { rc in
+            let ctx = rc.cgContext
+            ctx.setLineWidth(max(0.25, side * PolaroidGeometry.hatchLine))
+            ctx.setStrokeColor(UIColor.black.withAlphaComponent(0.015).cgColor)
+            var d = -side
+            while d <= side * 2 {
+                ctx.move(to: CGPoint(x: d, y: 0))
+                ctx.addLine(to: CGPoint(x: d + side, y: side))
+                ctx.move(to: CGPoint(x: d, y: side))
+                ctx.addLine(to: CGPoint(x: d + side, y: 0))
+                d += step
+            }
+            ctx.strokePath()
+        }
+    }()
 
     /// 빈티지 에이징 opacity 계산 — 웹 computeVintageOpacity 1:1.
     /// 0~21일에 걸쳐 0~25% 점진적 황변. 같은 timestamp 라도 ±15% 편차 (LCG jitter).

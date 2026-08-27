@@ -108,7 +108,9 @@ struct PhotoCaptureModal: View {
     @State private var flipped: Bool = false
     // P3(d) 사용자 지시 — 뒷면 메모 진입 시 키보드 즉시 표시. MemoEditor 의 focus: 파라미터에
     //   직접 배선한다(합성 View 바깥 .focused() 는 no-op 이 되는 SwiftUI 함정 회피).
-    @FocusState private var memoFocused: Bool
+    //   @FocusState 가 아닌 @State 인 이유: MemoEditor 는 SwiftUI TextEditor 가 아니라
+    //   UITextView 래퍼라 first responder 를 Bool 바인딩으로 직접 구동한다.
+    @State private var memoFocused: Bool = false
     // 뒷면 진입 키보드 지연 표시 예약 — 재플립 시 취소용(a-flip-focus-stale-timer).
     @State private var memoFocusWork: DispatchWorkItem?
     // P4 — 편집 오버레이(폴라로이드 프레임=서명/스티커 컨테이너)의 실제 point 크기.
@@ -117,8 +119,17 @@ struct PhotoCaptureModal: View {
     @State private var currentTool: DecorationTool = .pen
     @State private var penColor: PenColor = .black
     @State private var penWidth: PenWidth = .medium
-    @State private var showShareSheet: Bool = false
-    @State private var compositedImage: UIImage?
+    // MARK: 실행취소 / 다시실행
+    //   앞면 꾸미기(낙서 + 스티커)만 대상. 뒷면 메모는 키보드/시스템 편집 undo 가 따로 있고,
+    //   면을 넘나드는 실행취소는 "무엇이 되돌려졌는지" 읽히지 않아 제외한다.
+    //   커맨드 기록 대신 **상태 스냅샷**을 쌓는다 — 낙서는 PKDrawing Data 한 덩어리라
+    //   역연산을 정의하기 어렵고, 스티커 배열까지 한 번에 묶으면 "마지막에 한 행동"이
+    //   무엇이었든 정확히 한 단계로 되돌아간다(두 개의 undo 스택이 엇갈리는 문제도 없다).
+    @State private var undoStack: [DecorateSnapshot] = []
+    @State private var redoStack: [DecorateSnapshot] = []
+    // 공유는 앨범 상세(PhotoDetailModal)의 `공유` 액션 한 곳에만 있다(웹과 동일).
+    //   캡처 모달에도 share()/showShareSheet 가 있었지만 어디서도 호출되지 않는 죽은
+    //   경로였다 — 진입점 없는 시트 배선은 제거했다.
     @State private var isSaving: Bool = false           // 저장 중 가드 + 인디케이터
     // ae-nav(A) — 꾸미기 파괴 액션 확인 다이얼로그. dirty(서명/스티커/메모 존재) 시에만 노출.
     @State private var showQuitConfirm: Bool = false     // 그만두기(캡처 취소) 확인
@@ -138,6 +149,12 @@ struct PhotoCaptureModal: View {
     #endif
 
     private enum Phase { case capture, decorate }
+
+    /// 앞면 꾸미기 상태 한 벌 — 실행취소 스택의 단위.
+    private struct DecorateSnapshot: Equatable {
+        var signature: Data?
+        var stickers: [Sticker]
+    }
 
     var body: some View {
         ZStack {
@@ -167,11 +184,6 @@ struct PhotoCaptureModal: View {
                 ProgressView()
                     .tint(Color.textSecondary)
                     .allowsHitTesting(false)
-            }
-        }
-        .sheet(isPresented: $showShareSheet) {
-            if let img = compositedImage {
-                PolaroidShareSheet(image: img)
             }
         }
         #if DEBUG
@@ -763,6 +775,17 @@ struct PhotoCaptureModal: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(AppConfig.loc("그만두기"))
                 Spacer()
+                // 실행취소 / 다시실행 — 앞면 꾸미기 전용. 아이콘 박스 없음(디자인 규칙).
+                if !flipped {
+                    HStack(spacing: 2) {
+                        undoButton(.undo, label: AppConfig.loc("실행취소"),
+                                   enabled: !undoStack.isEmpty, action: undoDecorate)
+                        undoButton(.redo, label: AppConfig.loc("다시실행"),
+                                   enabled: !redoStack.isEmpty, action: redoDecorate)
+                    }
+                    .transition(.opacity)
+                }
+                Spacer()
                 // `다시 찍기` — 앞면에서만 노출. 뒷면(메모)에선 숨겨 "이전으로" 후보 경쟁 제거.
                 if !flipped {
                     Button { retakeTapped() } label: {
@@ -780,13 +803,18 @@ struct PhotoCaptureModal: View {
             .padding(.horizontal, 16)
 
             // 폴라로이드 (PolaroidTilt + PolaroidFlip 합성)
-            //   틸트 enabled: !flipped — 뒷면(메모)에선 틸트를 하위뷰로 양보(메모 탭이 편집 진입).
-            //   플립 enabled: !memoFocused — 메모 편집 중엔 드래그 플립 비활성(포커스 탈취 방지).
-            //   (PhotoDetailModal 과 동일한 GestureMask 게이트 규약. 뷰 정체성 유지.)
+            //   틸트 enabled: false — **꾸미기 중엔 자이로·틸트를 완전히 끈다**(사용자 지시).
+            //     카드가 기울면 (a) 서명 획을 그을 때 캔버스가 흔들려 손맛이 어긋나고
+            //     (b) 틸트의 DragGesture(minimumDistance 0)가 PKCanvasView/스티커 드래그와
+            //     경합해 첫 획·첫 이동이 씹힌다. 감상용 틸트는 앨범 상세(PhotoDetailModal)에만.
+            //     autoHint 도 꺼서 진입 wiggle 을 없앤다.
+            //   플립: 앞↔뒤 드래그 제스처는 예외로 살린다(사용자 지시). 자세한 게이트는
+            //     PolaroidFlip 내부 — 수평 우세 드래그만 잡아 메모 편집을 방해하지 않는다.
             PolaroidTilt(content: {
-                PolaroidFlip(flipped: $flipped, enabled: !memoFocused,
+                PolaroidFlip(flipped: $flipped,
+                             onInteractionBegan: { if memoFocused { memoFocused = false } },
                              front: { frontFace }, back: { backFace })
-            }, enabled: !flipped)
+            }, enabled: false, autoHint: false)
             .frame(maxWidth: 320)
             .padding(.vertical, 8)
 
@@ -801,7 +829,7 @@ struct PhotoCaptureModal: View {
                     currentTool: $currentTool,
                     penColor: $penColor,
                     penWidth: $penWidth,
-                    onPickSticker: { stickers.append($0) }
+                    onPickSticker: { addSticker($0) }
                 )
                 .padding(.horizontal, 16)
                 .transition(.opacity)
@@ -887,6 +915,22 @@ struct PhotoCaptureModal: View {
         .animation(.easeInOut(duration: 0.2), value: showRetakeConfirm)
     }
 
+    /// 실행취소/다시실행 아이콘 버튼 — 44pt 터치 타깃, 비활성은 흐리게만(사라지지 않는다).
+    ///   버튼이 있다 없다 하면 위치가 흔들려 연타가 어긋난다. 자리는 유지하고 상태만 바꾼다.
+    private func undoButton(_ icon: PixelIconName, label: String,
+                            enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            PixelIcon(icon, size: 18,
+                      color: enabled ? Color.textSecondary : Color.textTertiary)
+                .frame(width: 44, height: 40)
+                .contentShape(Rectangle())
+                .opacity(enabled ? 1 : 0.35)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+    }
+
     /// ae-nav(A) 플립 pill — 폴라로이드 하단 중앙. PhotoDetailModal.flipButton 과 같은 한 벌.
     private var flipPill: some View {
         Button { toggleFlip() } label: {
@@ -906,6 +950,83 @@ struct PhotoCaptureModal: View {
     private func toggleFlip() {
         if memoFocused { memoFocused = false }
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { flipped.toggle() }
+    }
+
+    // MARK: - 실행취소 / 다시실행
+    //
+    // 규약이 두 갈래인 이유:
+    //  · 스티커 — 조작 **시작 시** pushUndo() 로 현재 상태를 찍고, 끝나면 settleUndo() 로
+    //    "아무것도 안 바뀐 스냅샷"을 되물린다. SwiftUI 제스처 콜백 안의 상태 쓰기는 동기라
+    //    끝나는 시점에 결과를 정확히 읽을 수 있다.
+    //  · 낙서 — PencilKit 은 커밋(drawingDidChange)이 도구 종료 콜백보다 **늦게** 온다.
+    //    그래서 같은 방식을 쓰면 매번 "안 변했다"로 판정돼 실행취소가 죽는다(실측).
+    //    대신 SignatureCanvas 가 커밋 순간에 "직전 데이터"를 넘겨주고, 그걸 그대로 쌓는다.
+
+    /// 스택 상한 — 낙서 Data 가 섞여 있어 무한히 쌓으면 메모리를 먹는다.
+    private static let undoLimit = 24
+
+    private var currentSnapshot: DecorateSnapshot {
+        DecorateSnapshot(signature: signatureData, stickers: stickers)
+    }
+
+    /// 변경 직전 상태를 기록. 새 행동이 생기면 다시실행 분기는 버린다(표준 undo 시맨틱).
+    private func pushUndo() { pushSnapshot(currentSnapshot) }
+
+    private func pushSnapshot(_ snap: DecorateSnapshot) {
+        guard undoStack.last != snap else { return }   // 연속 무변화 푸시 방지
+        undoStack.append(snap)
+        if undoStack.count > Self.undoLimit { undoStack.removeFirst() }
+        redoStack.removeAll()
+    }
+
+    /// 상호작용 종료 정리 — 결과가 직전 스냅샷과 같으면 그 스냅샷을 버린다.
+    ///   (스티커를 탭만 하거나, 획을 긋다 말고 뗀 경우 빈 실행취소가 남는 것을 막는다.)
+    private func settleUndo() {
+        if undoStack.last == currentSnapshot { undoStack.removeLast() }
+    }
+
+    private func applySnapshot(_ snap: DecorateSnapshot) {
+        signatureData = snap.signature
+        stickers = snap.stickers
+        // 사라진 스티커를 계속 선택 상태로 두면 선택 파선이 허공에 남는다.
+        if let sel = selectedSticker, !snap.stickers.contains(where: { $0.id == sel }) {
+            selectedSticker = nil
+        }
+    }
+
+    private func undoDecorate() {
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append(currentSnapshot)
+        applySnapshot(previous)
+        Haptics.play(.light)
+        SoundPlayer.shared.play(.select)
+    }
+
+    private func redoDecorate() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(currentSnapshot)
+        applySnapshot(next)
+        Haptics.play(.light)
+        SoundPlayer.shared.play(.select)
+    }
+
+    /// 스티커 추가 — 항상 최상단(zIndex 최대+1)에 얹고 즉시 선택 상태로 만든다.
+    ///   구 구현은 `stickers.append($0)` 뿐이라 모든 스티커의 zIndex 가 0 이었다.
+    ///   화면 ZStack 은 배열 순서로 겹치는데 저장 합성은 zIndex 로 정렬하므로,
+    ///   동률 정렬이 불안정해 겹친 스티커의 앞뒤가 저장본에서 뒤집힐 수 있었다.
+    private func addSticker(_ sticker: Sticker) {
+        pushUndo()
+        var s = sticker
+        s.zIndex = (stickers.map(\.zIndex).max() ?? 0) + 1
+        // 계단식 배치 — 같은 자리에 계속 쌓이면 여러 장을 붙였을 때 한 덩어리로 보여
+        //   방금 붙인 게 뭔지 알 수 없다. 붙일 때마다 조금씩 어긋나게 놓는다(6장 주기).
+        let step = Double(stickers.count % 6)
+        s.x = min(85, max(15, s.x + step * 5 - 12))
+        s.y = min(85, max(15, s.y + step * 6 - 15))
+        stickers.append(s)
+        selectedSticker = s.id
+        // 방금 붙인 스티커를 바로 만질 수 있게 스티커 도구로 전환된 상태를 유지한다.
+        currentTool = .sticker
     }
 
     /// 꾸미기 dirty 판정 — 서명·스티커·메모 중 하나라도 있으면 파괴 액션에 확인 가드.
@@ -948,19 +1069,26 @@ struct PhotoCaptureModal: View {
                           timestamp: captureTimestamp, variant: frameVariant) { EmptyView() }
                 .id(filteredImage.map(ObjectIdentifier.init))
                 .transition(.opacity)
-            // 스티커 레이어
-            StickerLayer(stickers: $stickers, selectedId: $selectedSticker)
-                .allowsHitTesting(currentTool == .sticker || selectedSticker != nil)
-            // 서명 캔버스 (top layer)
-            if currentTool == .pen || currentTool == .eraser {
-                SignatureCanvas(
-                    signatureData: $signatureData,
-                    penColor: penColor.uiColor,
-                    penWidth: penWidth.stroke,
-                    eraserMode: currentTool == .eraser
-                )
-                .allowsHitTesting(true)
-            }
+            // 스티커 레이어 — 스티커 도구일 때만 조작 가능(펜/지우개 중엔 획을 방해하지 않게).
+            StickerLayer(stickers: $stickers, selectedId: $selectedSticker,
+                         onBeginEdit: { pushUndo() }, onEndEdit: { settleUndo() })
+                .allowsHitTesting(currentTool == .sticker)
+            // 서명 캔버스 (top layer) — **항상 렌더**하고 입력만 도구로 게이트한다.
+            //   구 구현은 `if currentTool == .pen || .eraser` 로 뷰 자체를 떼어내서,
+            //   스티커 도구로 전환하는 순간 이미 그린 서명이 화면에서 사라졌다가
+            //   펜으로 돌아오면 다시 나타났다(저장본엔 들어 있으니 "꾸민 것 ≠ 저장본"의
+            //   가장 큰 원인). 항상 얹어두고 allowsHitTesting 으로만 막는다.
+            SignatureCanvas(
+                signatureData: $signatureData,
+                penColor: penColor.uiColor,
+                penWidth: penWidth.stroke,
+                eraserMode: currentTool == .eraser,
+                onStrokeCommitted: { previous in
+                    // 획이 커밋된 순간, 그 획 **직전** 서명으로 실행취소 항목을 만든다.
+                    pushSnapshot(DecorateSnapshot(signature: previous, stickers: stickers))
+                }
+            )
+            .allowsHitTesting(currentTool == .pen || currentTool == .eraser)
         }
         // P4 좌표 정합 — 오버레이(스티커/서명) 컨테이너를 폴라로이드 프레임과 동일 bounds 로
         //   강제(웹 absolute inset-0). 그리디 자식(GeometryReader/PKCanvasView)이 ZStack 을
@@ -983,22 +1111,17 @@ struct PhotoCaptureModal: View {
     private var backFace: some View {
         ZStack {
             Color.paperCream.clipShape(RoundedRectangle(cornerRadius: 2))
-            VStack(spacing: 0) {
-                // 포커스를 파라미터로 넘겨 실제 내부 TextEditor 의 .focused() 에 직접 연결(합성 View
-                //   바깥 .focused() 는 no-op 이 되는 함정 회피 — PhotoDetailModal 과 동일 규약).
-                MemoEditor(text: $memoText, focus: $memoFocused)
-                    .padding(8)
-                // P3(a/d) 뒷면 힌트 — 캡처 backFace 엔 없던 placeholder. 비어있고 미편집일 때만.
-                //   ae-nav(A) — 문구를 `여기에 오늘 메모를 남겨요`로 통일("~해요" 톤).
-                if memoText.trimmingCharacters(in: .whitespaces).isEmpty && !memoFocused {
-                    Text(AppConfig.loc("여기에 오늘 메모를 남겨요"))
-                        .typography(.micro)
-                        .foregroundStyle(Color.inkWarmText.opacity(0.5))
-                        .padding(.bottom, 10)
-                }
-            }
+            // 포커스를 Bool 바인딩으로 넘겨 MemoEditor 내부 UITextView 의 first responder 를
+            //   직접 구동한다(합성 View 바깥 .focused() 는 no-op 이 되는 함정 회피).
+            // 안내 문구도 MemoEditor 가 첫 괘선 위에 그린다 — 예전엔 카드 맨 아래에 떠서
+            //   "어디에 쓰라는 건지" 안 읽혔다.
+            MemoEditor(text: $memoText,
+                       placeholder: AppConfig.loc("여기에 오늘 메모를 남겨요"),
+                       focus: $memoFocused)
+                .padding(8)
         }
-        .aspectRatio(184.0/223.0, contentMode: .fit)
+        // 앞면과 같은 aspect — variant 4(184/224)에서 뒤집을 때 카드 크기가 튀던 것 정합.
+        .aspectRatio(frameVariant.aspectRatio, contentMode: .fit)
         .shadow(color: .black.opacity(0.1), radius: 4)
     }
 
@@ -1010,8 +1133,17 @@ struct PhotoCaptureModal: View {
         selectedSticker = nil
         signatureData = nil
         memoText = ""
+        memoFocused = false
+        memoFocusWork?.cancel()
+        currentTool = .pen
+        undoStack = []                   // 다른 사진의 이력을 끌고 가지 않는다
+        redoStack = []
         flipped = false
         decorateAppear = false           // 재진입 시 진입 페이드 재트리거
+        // 다음 촬영의 재진입 가드(`guard phase == .capture, !isProcessing`)가 걸리지 않도록
+        //   처리 플래그·플래시 잔상을 확실히 내린다. 남아 있으면 셔터가 먹통이 된다.
+        isProcessing = false
+        flashOpacity = 0
         phase = .capture
     }
 
@@ -1024,15 +1156,17 @@ struct PhotoCaptureModal: View {
         guard let base = filteredImage ?? capturedImage else { return }
         let alreadyFiltered = (filteredImage != nil)
         let ts = captureTimestamp
-        let variantBg = UIColor(Color(hex: frameVariant.backgroundHex))
+        let variant = frameVariant
         let scale = UIScreen.main.scale
         let sigData = signatureData
-        // P4 — 서명을 편집 캔버스 실제 point 크기로 렌더한 뒤 PolaroidComposite 가 600×727 로
-        //   균일 스케일(0,0,600,727)한다. 편집 컨테이너 aspect 가 600:727 로 잠겨 있어(frontFace
-        //   aspect-lock) 왜곡 없이 정합. 폴백(레이아웃 전)은 600×727(구 동작).
+        // P4 — 서명을 편집 캔버스 실제 point 크기로 렌더한 뒤 PolaroidComposite 가 캔버스
+        //   전체로 균일 스케일한다. 편집 컨테이너 aspect 가 프레임과 같게 잠겨 있어(frontFace
+        //   aspect-lock) 왜곡 없이 정합. 폴백(레이아웃 전)은 합성 캔버스 크기 그대로.
+        let canvasSize = CGSize(width: PolaroidComposite.width,
+                                height: PolaroidComposite.canvasHeight(for: variant))
         let editorSize: CGSize = (polaroidEditorSize.width > 1 && polaroidEditorSize.height > 1)
             ? polaroidEditorSize
-            : CGSize(width: 600, height: 727)
+            : canvasSize
         let compositeStickers = stickers.map {
             CompositeSticker(
                 id: $0.id.uuidString,
@@ -1055,7 +1189,7 @@ struct PhotoCaptureModal: View {
                 timestamp: ts,
                 signatureImage: sigImage,
                 stickers: compositeStickers,
-                frameBg: variantBg,
+                variant: variant,
                 applyFilter: !alreadyFiltered
             )
             DispatchQueue.main.async { completion(composited) }
@@ -1064,24 +1198,16 @@ struct PhotoCaptureModal: View {
 
     private func save() {
         guard !isSaving else { return }   // 더블탭 가드 (웹 isSavingRef)
+        // 사진이 없으면 composite 이 조용히 early-return 해서 isSaving 이 true 로 굳고
+        // 저장 버튼이 영구 비활성이 된다(도달 드묾, 안전망).
+        guard filteredImage != nil || capturedImage != nil else { return }
         isSaving = true
         Haptics.play(.success)
         composite { img in
-            self.compositedImage = img
             self.isSaving = false
             // 내부 표준 순서 — (image, signature, memo, stickers).
             // B 형 init 의 onSave 는 init 에서 normalize 어댑터로 변환된다.
             self.onSaveImpl(img, self.signatureData, self.memoText, self.stickers)
-        }
-    }
-
-    private func share() {
-        guard !isSaving else { return }
-        isSaving = true
-        composite { img in
-            self.compositedImage = img
-            self.isSaving = false
-            self.showShareSheet = true
         }
     }
 

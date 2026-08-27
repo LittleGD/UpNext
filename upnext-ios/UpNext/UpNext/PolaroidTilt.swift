@@ -101,8 +101,24 @@ struct PolaroidTilt<Content: View>: View {
                 including: enabled ? .all : .subviews
             )
             .onAppear {
+                guard enabled else { return }
                 if autoHint { runAutoHint() }
                 startGyro()
+            }
+            // enabled 가 런타임에 바뀌면(앞↔뒤 플립 등) 자이로도 같이 켜고 끈다.
+            //   구 구현은 onAppear 에서 무조건 startGyro() 라 enabled=false 여도
+            //   CMMotionManager 가 60Hz 로 계속 돌며 매 프레임 withAnimation(.spring) 을
+            //   호출했다(회전은 0 으로 렌더돼 화면엔 안 보이지만 배터리·CPU 는 그대로 소모).
+            .onChange(of: enabled) { on in
+                if on {
+                    startGyro()
+                } else {
+                    motion.stopDeviceMotionUpdates()
+                    neutralPitch = nil
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                        rotX = 0; rotY = 0
+                    }
+                }
             }
             .onDisappear {
                 motion.stopDeviceMotionUpdates()
@@ -139,10 +155,12 @@ struct PolaroidTilt<Content: View>: View {
     }
 
     private func startGyro() {
-        guard motion.isDeviceMotionAvailable else { return }
+        guard enabled, motion.isDeviceMotionAvailable else { return }
+        guard !motion.isDeviceMotionActive else { return }   // 중복 start 방지
         motion.deviceMotionUpdateInterval = 1.0 / 60.0
         motion.startDeviceMotionUpdates(to: .main) { data, _ in
-            guard let d = data, !dragging else { return }
+            // enabled 가 꺼진 뒤 도착한 늦은 콜백은 무시(정지 요청과 레이스).
+            guard enabled, let d = data, !dragging else { return }
             let pitch = d.attitude.pitch
             let roll = d.attitude.roll
             if neutralPitch == nil { neutralPitch = pitch }

@@ -2780,6 +2780,29 @@
         }
       }
     },
+    "UpNext 로고 스티커": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UpNext logo sticker"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UpNext ロゴステッカー"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UpNext 标志贴纸"
+          }
+        }
+      }
+    },
     "UpNext 시작하기": {
       "extractionState": "manual",
       "localizations": {
@@ -2799,6 +2822,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "开始 UpNext"
+          }
+        }
+      }
+    },
+    "UpNext 폴라로이드": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UpNext Polaroid"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UpNext ポラロイド"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UpNext 拍立得"
           }
         }
       }
@@ -28644,6 +28690,29 @@
         }
       }
     },
+    "다시실행": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "やり直す"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重做"
+          }
+        }
+      }
+    },
     "다음": {
       "extractionState": "manual",
       "localizations": {
@@ -34543,6 +34612,29 @@
         }
       }
     },
+    "사진을 불러오지 못했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't load the photo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真を読み込めませんでした。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法加载照片。"
+          }
+        }
+      }
+    },
     "삭제": {
       "extractionState": "manual",
       "localizations": {
@@ -37243,6 +37335,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "失败"
+          }
+        }
+      }
+    },
+    "실행취소": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元に戻す"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撤销"
           }
         }
       }

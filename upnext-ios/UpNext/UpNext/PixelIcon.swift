@@ -80,6 +80,7 @@ enum PixelIconName: String, CaseIterable {
     case trash          = "Trash"        // pixelarticons에 trash 없음 → delete.svg 대체
     case treePine       = "TreePine"     // R3 마감 — 플레이 탭 (NAV_ICONS.playground)
     case trophy         = "Trophy"
+    case undo           = "Undo"         // 사진 꾸미기 실행취소 (pixelarticons undo.svg)
     case user           = "User"
     case users          = "Users"        // R3 마감 — 듀오 2인 불꽃 (person.2 대체)
     case warningDiamond = "WarningDiamond"
