@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import PolaroidTilt from "@/components/growth/PolaroidTilt";
+import RarityBackdrop from "@/components/cards/RarityBackdrop";
+import FortuneDrawIntro from "@/components/flame/FortuneDrawIntro";
+import {
+  FORTUNE_AUTO_OPEN_EVENT,
+  FORTUNE_AUTO_OPEN_KEY,
+} from "@/components/flame/FortunePromptModal";
 import { isAdAvailable, showRewardedAd } from "@/lib/ads";
 import {
   computeDailyFortune,
@@ -15,6 +21,7 @@ import {
 } from "@/lib/fortune";
 import { cardTitle } from "@/i18n";
 import { useGameStore } from "@/store/useGameStore";
+import { useUIStore } from "@/store/useUIStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useSound } from "@/hooks/useSound";
@@ -38,12 +45,20 @@ export default function FortuneCard() {
   const unlockedCardIds = useGameStore((s) => s.progress.unlockedCardIds);
   const { t, language } = useTranslation();
   const { play } = useSound();
+  const prefersReducedMotion = useReducedMotion();
+  // 오버레이가 떠 있는 동안 하단 네비를 숨긴다 (useUIStore 주석 참고)
+  const setFortuneOverlayOpen = useUIStore((s) => s.setFortuneOverlayOpen);
 
   // SSR/웹 프로덕션 안전: 마운트 후에만 판정 (네이티브 브리지 의존)
   const [available, setAvailable] = useState(false);
   const [phase, setPhase] = useState<"idle" | "loading" | "fail">("idle");
   const [revealed, setRevealed] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
+  // 뽑기 연출 재생 중 — 끝나면 폴라로이드로 넘어간다. 그날 첫 공개에만 true.
+  const [drawing, setDrawing] = useState(false);
+  // 뽑기 연출 직후에는 폴라로이드 오버레이의 스크림 페이드인을 건너뛴다.
+  // 두 스크림이 겹쳐 페이드하면 배경이 잠깐 두 겹으로 어두워져 끊겨 보인다.
+  const [skipOverlayEnter, setSkipOverlayEnter] = useState(false);
   // localStorage 는 마운트 후에만 읽는다 — SSR 에서는 salt 가 없어 계산을 미룬다.
   const [salt, setSalt] = useState<string | null>(null);
   const failTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,21 +79,28 @@ export default function FortuneCard() {
     [],
   );
 
+  // 네비 숨김 — cleanup 으로 반드시 false 를 돌려놓는다. 언마운트(탭 이동)나
+  // 렌더 도중 에러로 오버레이가 사라져도 네비가 영영 숨은 채 남으면 안 된다.
+  useEffect(() => {
+    setFortuneOverlayOpen(overlayOpen);
+    return () => setFortuneOverlayOpen(false);
+  }, [overlayOpen, setFortuneOverlayOpen]);
+
   const fortune = useMemo<DailyFortune | null>(
     () => (salt ? computeDailyFortune(today, salt, unlockedCardIds) : null),
     [salt, today, unlockedCardIds],
   );
 
-  if (!available) return null;
-
-  // 해금 카드가 하나도 없으면 뽑을 게 없다 — 안내만 두고 광고 진입을 막는다.
-  const empty = salt !== null && fortune === null;
-
-  const handleTap = async () => {
+  // 자동 열기 effect(아래)가 참조하므로 early return 위에 둔다 — 평소 CTA 와
+  // 완전히 같은 경로를 재사용해야 광고 옵트인 흐름이 하나로 유지된다.
+  const handleTap = useCallback(async () => {
     if (phase === "loading") return;
     play("select");
-    // 이미 열었으면 광고 없이 다시 보여준다
+    // 이미 열었으면 광고 없이 다시 보여준다 — 재열람은 뽑기 연출을 건너뛰고
+    // 곧장 폴라로이드로 간다(같은 연출을 하루에 몇 번씩 다시 보게 하지 않는다).
     if (revealed) {
+      setDrawing(false);
+      setSkipOverlayEnter(false);
       setOverlayOpen(true);
       return;
     }
@@ -94,6 +116,10 @@ export default function FortuneCard() {
       markFortuneRevealed(today);
       setRevealed(true);
       setPhase("idle");
+      // 그날 첫 공개에만 뽑기 연출을 앞에 붙인다. reduced motion 이면 통째로 건너뛴다.
+      const withDraw = !prefersReducedMotion;
+      setDrawing(withDraw);
+      setSkipOverlayEnter(withDraw);
       setOverlayOpen(true);
       play("confirm");
     } else if (result === "unavailable") {
@@ -109,7 +135,45 @@ export default function FortuneCard() {
       // 중도 이탈 — 조용히 원상 복귀
       setPhase("idle");
     }
-  };
+  }, [phase, play, revealed, today, prefersReducedMotion]);
+
+  // 진입 팝업("지금 열기")의 자동 열기 신호를 소비한다 — FortunePromptModal 의 계약.
+  // 광고 판정(available)과 오늘의 기운 계산(fortune)이 끝난 뒤에만 읽는다.
+  // 신호는 1회성이라 읽는 즉시 지운다: 날짜가 어긋났거나 뽑을 카드가 없으면
+  // 값만 지우고 조용히 흘린다(다음 렌더마다 광고가 불쑥 뜨지 않게).
+  useEffect(() => {
+    if (!available || salt === null) return;
+
+    const consume = () => {
+      let signal: string | null = null;
+      try {
+        signal = sessionStorage.getItem(FORTUNE_AUTO_OPEN_KEY);
+      } catch {
+        return; // sessionStorage 차단 환경 — 유저가 CTA 를 직접 누르면 된다
+      }
+      if (!signal) return;
+      try {
+        sessionStorage.removeItem(FORTUNE_AUTO_OPEN_KEY);
+      } catch {
+        // 제거 실패해도 아래 today 비교가 다음 날엔 걸러낸다
+      }
+      // 자정 롤오버 사이 — 소비만 하고 자동 열기는 안 한다
+      if (signal !== today) return;
+      if (fortune === null) return; // 해금 카드 없음 = 죽은 CTA
+      void handleTap();
+    };
+
+    // 다른 탭에서 /flame 으로 넘어온 경우는 이 마운트 시점 1회로 잡히고,
+    // 이미 /flame 에 있던 경우는 이벤트로 잡힌다.
+    consume();
+    window.addEventListener(FORTUNE_AUTO_OPEN_EVENT, consume);
+    return () => window.removeEventListener(FORTUNE_AUTO_OPEN_EVENT, consume);
+  }, [available, salt, today, fortune, handleTap]);
+
+  if (!available) return null;
+
+  // 해금 카드가 하나도 없으면 뽑을 게 없다 — 안내만 두고 광고 진입을 막는다.
+  const empty = salt !== null && fortune === null;
 
   const caption = empty
     ? t("fortune.empty")
@@ -198,14 +262,28 @@ export default function FortuneCard() {
           있어서 제자리에 두면 fixed 가 컨테이너 기준으로 갇혀 콘텐츠 뒤에 깔린다. */}
       {typeof document !== "undefined" &&
         createPortal(
-          <AnimatePresence>
-            {overlayOpen && fortune && (
-              <FortuneOverlay
-                fortune={fortune}
-                onClose={() => setOverlayOpen(false)}
+          <>
+            {/* 뽑기 연출 → 폴라로이드. 연출은 AnimatePresence 밖에 둔다 —
+                끝나는 순간 같은 스크림 위에서 딱 바꿔치기해야 이어져 보인다. */}
+            {overlayOpen && drawing && fortune && (
+              <FortuneDrawIntro
+                colorHex={fortune.color.hex}
+                onComplete={() => setDrawing(false)}
               />
             )}
-          </AnimatePresence>,
+            <AnimatePresence>
+              {overlayOpen && !drawing && fortune && (
+                <FortuneOverlay
+                  fortune={fortune}
+                  skipEnter={skipOverlayEnter}
+                  onClose={() => {
+                    setOverlayOpen(false);
+                    setSkipOverlayEnter(false);
+                  }}
+                />
+              )}
+            </AnimatePresence>
+          </>,
           document.body,
         )}
     </>
@@ -227,9 +305,12 @@ const INK_FAINT = "#9a9a94";
  */
 function FortuneOverlay({
   fortune,
+  skipEnter,
   onClose,
 }: {
   fortune: DailyFortune;
+  /** 뽑기 연출이 이미 같은 스크림을 깔아 뒀을 때 true — 스크림 페이드인을 생략한다 */
+  skipEnter?: boolean;
   onClose: () => void;
 }) {
   const { t, language } = useTranslation();
@@ -250,13 +331,17 @@ function FortuneOverlay({
       role="dialog"
       aria-modal="true"
       aria-label={t("fortune.title")}
-      initial={{ opacity: 0 }}
+      initial={skipEnter ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-8 overflow-hidden"
       onClick={onClose}
     >
+      {/* 오늘 카드의 등급 빛기둥 — 폴라로이드 뒤, 스크림 앞.
+          CSS keyframes + contain 으로 성능 튜닝된 컴포넌트라 그대로 재사용한다. */}
+      <RarityBackdrop rarity={card.rarity} />
+
       {/* 오늘의 색 글로우 — 착지 순간 부풀었다가 가라앉으며 공기를 만든다 */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
@@ -310,122 +395,125 @@ function FortuneOverlay({
           반환하고 활성일 때만 래퍼를 씌우는데, 그 전환이 자식을 리마운트시켜
           던지기 애니메이션이 처음부터 다시 시작된다. 틸트는 자체 래퍼에 transform 을
           걸어 카드의 착지 스프링과 합성되므로 처음부터 켜 두어도 충돌하지 않는다. */}
-      <PolaroidTilt enabled={!prefersReducedMotion} autoHint={false}>
-        {/* 위에서 빠르게 던져져 살짝 튕기며 자리를 잡는다.
-            opacity 는 짧게 끊어 "던졌다" 가 "서서히 나타났다" 로 읽히지 않게 한다. */}
-        <motion.div
-          initial={
-            prefersReducedMotion
-              ? { opacity: 0, y: 12 }
-              : { y: -560, x: 26, rotate: -16, scale: 1.08, opacity: 0 }
-          }
-          animate={
-            prefersReducedMotion
-              ? { opacity: 1, y: 0 }
-              : { y: 0, x: 0, rotate: -2, scale: 1, opacity: 1 }
-          }
-          exit={{ y: 90, opacity: 0, rotate: 5, transition: { duration: 0.18 } }}
-          transition={
-            prefersReducedMotion
-              ? { duration: 0.2 }
-              : {
-                  type: "spring",
-                  stiffness: 420,
-                  damping: 26,
-                  mass: 0.9,
-                  opacity: { duration: 0.1 },
-                }
-          }
-          className="relative w-[264px] max-w-full bg-[#f2f1ee] rounded-sm p-[10px] shadow-2xl overflow-hidden"
-        >
-          {/* 인화지 위를 한 번 스치는 빛 — 착지 직후 "열린다" 는 신호 */}
-          {!prefersReducedMotion && (
-            <motion.div
-              className="absolute inset-y-0 w-1/2 pointer-events-none"
-              aria-hidden="true"
-              initial={{ x: "-160%" }}
-              animate={{ x: "260%" }}
-              transition={{ delay: 0.44, duration: 0.8, ease: "easeInOut" }}
-              style={{
-                background:
-                  "linear-gradient(100deg, transparent, rgba(255,255,255,0.72), transparent)",
-              }}
-            />
-          )}
-
-          {/* 사진 영역 — 폴라로이드가 현상되듯 어둡고 흐린 상태에서 서서히 잡힌다 */}
-          <div className="relative aspect-[154/157] w-full bg-bg-primary flex items-center justify-center overflow-hidden">
-            <motion.span
-              initial={
-                prefersReducedMotion
-                  ? { opacity: 1 }
-                  : { opacity: 0, scale: 1.18, filter: "blur(9px) brightness(0.25)" }
-              }
-              animate={
-                prefersReducedMotion
-                  ? { opacity: 1 }
-                  : { opacity: 1, scale: 1, filter: "blur(0px) brightness(1)" }
-              }
-              transition={
-                prefersReducedMotion
-                  ? { duration: 0 }
-                  : { delay: 0.5, duration: 0.8, ease: [0.16, 1, 0.3, 1] }
-              }
-            >
-              <PixelIcon name={card.icon} size={56} color={color.hex} />
-            </motion.span>
-            {/* 현상 전 인화지의 잔여 어둠이 걷힌다 */}
+      {/* z-10 — 빛기둥(RarityBackdrop)과 글로우·입자보다 폴라로이드가 항상 앞에 온다 */}
+      <div className="relative z-10">
+        <PolaroidTilt enabled={!prefersReducedMotion} autoHint={false}>
+          {/* 위에서 빠르게 던져져 살짝 튕기며 자리를 잡는다.
+              opacity 는 짧게 끊어 "던졌다" 가 "서서히 나타났다" 로 읽히지 않게 한다. */}
+          <motion.div
+            initial={
+              prefersReducedMotion
+                ? { opacity: 0, y: 12 }
+                : { y: -560, x: 26, rotate: -16, scale: 1.08, opacity: 0 }
+            }
+            animate={
+              prefersReducedMotion
+                ? { opacity: 1, y: 0 }
+                : { y: 0, x: 0, rotate: -2, scale: 1, opacity: 1 }
+            }
+            exit={{ y: 90, opacity: 0, rotate: 5, transition: { duration: 0.18 } }}
+            transition={
+              prefersReducedMotion
+                ? { duration: 0.2 }
+                : {
+                    type: "spring",
+                    stiffness: 420,
+                    damping: 26,
+                    mass: 0.9,
+                    opacity: { duration: 0.1 },
+                  }
+            }
+            className="relative w-[264px] max-w-full bg-[#f2f1ee] rounded-sm p-[10px] shadow-2xl overflow-hidden"
+          >
+            {/* 인화지 위를 한 번 스치는 빛 — 착지 직후 "열린다" 는 신호 */}
             {!prefersReducedMotion && (
               <motion.div
-                className="absolute inset-0 bg-black pointer-events-none"
+                className="absolute inset-y-0 w-1/2 pointer-events-none"
                 aria-hidden="true"
-                initial={{ opacity: 0.92 }}
-                animate={{ opacity: 0 }}
-                transition={{ delay: 0.46, duration: 0.85, ease: "easeOut" }}
+                initial={{ x: "-160%" }}
+                animate={{ x: "260%" }}
+                transition={{ delay: 0.44, duration: 0.8, ease: "easeInOut" }}
+                style={{
+                  background:
+                    "linear-gradient(100deg, transparent, rgba(255,255,255,0.72), transparent)",
+                }}
               />
             )}
-          </div>
 
-          {/* 폴라로이드 하단 캡션 여백 — 네 요소를 순차 공개 */}
-          <div className="pt-3 pb-2 px-0.5 space-y-2.5 text-left">
-            <FortuneRow label={t("fortune.label.card")} delay={step(0)}>
-              <p className="typo-body" style={{ color: INK }}>
-                {cardTitle(card, language)}
-              </p>
-            </FortuneRow>
-
-            <FortuneRow label={t("fortune.label.color")} delay={step(1)}>
-              <span className="flex items-center gap-2">
-                <span
-                  className="flex-shrink-0 w-3.5 h-3.5 rounded-sm"
-                  style={{ backgroundColor: color.hex }}
+            {/* 사진 영역 — 폴라로이드가 현상되듯 어둡고 흐린 상태에서 서서히 잡힌다 */}
+            <div className="relative aspect-[154/157] w-full bg-bg-primary flex items-center justify-center overflow-hidden">
+              <motion.span
+                initial={
+                  prefersReducedMotion
+                    ? { opacity: 1 }
+                    : { opacity: 0, scale: 1.18, filter: "blur(9px) brightness(0.25)" }
+                }
+                animate={
+                  prefersReducedMotion
+                    ? { opacity: 1 }
+                    : { opacity: 1, scale: 1, filter: "blur(0px) brightness(1)" }
+                }
+                transition={
+                  prefersReducedMotion
+                    ? { duration: 0 }
+                    : { delay: 0.5, duration: 0.8, ease: [0.16, 1, 0.3, 1] }
+                }
+              >
+                <PixelIcon name={card.icon} size={56} color={color.hex} />
+              </motion.span>
+              {/* 현상 전 인화지의 잔여 어둠이 걷힌다 */}
+              {!prefersReducedMotion && (
+                <motion.div
+                  className="absolute inset-0 bg-black pointer-events-none"
                   aria-hidden="true"
+                  initial={{ opacity: 0.92 }}
+                  animate={{ opacity: 0 }}
+                  transition={{ delay: 0.46, duration: 0.85, ease: "easeOut" }}
                 />
-                <span className="typo-caption" style={{ color: INK }}>
-                  {color.name[language]}
-                </span>
-              </span>
-            </FortuneRow>
-
-            <FortuneRow label={t("fortune.label.phrase")} delay={step(2)}>
-              <p className="typo-caption" style={{ color: INK }}>
-                {phrase[language]}
-              </p>
-            </FortuneRow>
-
-            <FortuneRow label={t("fortune.label.quote")} delay={step(3)}>
-              <p className="typo-caption" style={{ color: INK_SOFT }}>
-                {quote[language]}
-              </p>
-              {quoteAuthor && (
-                <p className="typo-micro pt-0.5" style={{ color: INK_FAINT }}>
-                  {`· ${quoteAuthor[language]}`}
-                </p>
               )}
-            </FortuneRow>
-          </div>
-        </motion.div>
-      </PolaroidTilt>
+            </div>
+
+            {/* 폴라로이드 하단 캡션 여백 — 네 요소를 순차 공개 */}
+            <div className="pt-3 pb-2 px-0.5 space-y-2.5 text-left">
+              <FortuneRow label={t("fortune.label.card")} delay={step(0)}>
+                <p className="typo-body" style={{ color: INK }}>
+                  {cardTitle(card, language)}
+                </p>
+              </FortuneRow>
+
+              <FortuneRow label={t("fortune.label.color")} delay={step(1)}>
+                <span className="flex items-center gap-2">
+                  <span
+                    className="flex-shrink-0 w-3.5 h-3.5 rounded-sm"
+                    style={{ backgroundColor: color.hex }}
+                    aria-hidden="true"
+                  />
+                  <span className="typo-caption" style={{ color: INK }}>
+                    {color.name[language]}
+                  </span>
+                </span>
+              </FortuneRow>
+
+              <FortuneRow label={t("fortune.label.phrase")} delay={step(2)}>
+                <p className="typo-caption" style={{ color: INK }}>
+                  {phrase[language]}
+                </p>
+              </FortuneRow>
+
+              <FortuneRow label={t("fortune.label.quote")} delay={step(3)}>
+                <p className="typo-caption" style={{ color: INK_SOFT }}>
+                  {quote[language]}
+                </p>
+                {quoteAuthor && (
+                  <p className="typo-micro pt-0.5" style={{ color: INK_FAINT }}>
+                    {`· ${quoteAuthor[language]}`}
+                  </p>
+                )}
+              </FortuneRow>
+            </div>
+          </motion.div>
+        </PolaroidTilt>
+      </div>
       <motion.p
         className="absolute bottom-[calc(env(safe-area-inset-bottom)+40px)] left-0 right-0 text-center typo-caption text-text-tertiary"
         initial={{ opacity: 0 }}

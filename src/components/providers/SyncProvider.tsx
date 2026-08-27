@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGameStore } from "@/store/useGameStore";
@@ -25,8 +26,15 @@ import { AnimatePresence } from "framer-motion";
 import MergeConflictDialog from "@/components/auth/MergeConflictDialog";
 import PatchNotesModal from "@/components/PatchNotesModal";
 import ReviewPromptModal from "@/components/ReviewPromptModal";
+import FortunePromptModal, {
+  markFortuneAutoOpen,
+  markFortunePromptAsked,
+  wasFortunePromptAsked,
+} from "@/components/flame/FortunePromptModal";
 import { LATEST_PATCH } from "@/data/patchNotes";
 import { shouldShowReviewPrompt } from "@/lib/reviewPrompt";
+import { isAdAvailable } from "@/lib/ads";
+import { computeDailyFortune, isFortuneRevealed, readFortuneState } from "@/lib/fortune";
 
 interface ConflictState {
   uid: string;
@@ -70,6 +78,16 @@ function applyCloudSnapshot(
 }
 
 /**
+ * 오늘의 기운 진입 팝업 — 세션당 1회 게이트.
+ *
+ * localStorage 의 "오늘 물어봤는지" 기록(wasFortunePromptAsked)이 주 게이트지만,
+ * 사파리 프라이빗 모드처럼 저장이 통째로 막히는 환경에서도 팝업이 탭 이동마다
+ * 되살아나면 안 된다. 모듈 스코프라 SyncProvider 가 재마운트돼도(Fast Refresh,
+ * 라우트 그룹 전환) 살아남고, 앱을 껐다 켜면 자연스럽게 초기화된다.
+ */
+let fortunePromptShownThisSession = false;
+
+/**
  * requestIdleCallback 래퍼 — FCP/LCP 이후 idle 시점에 콜백 실행
  * → Firebase SDK 파싱이 초기 렌더를 방해하지 않도록 지연
  */
@@ -83,6 +101,7 @@ function whenIdle(fn: () => void) {
 
 export default function SyncProvider({ children }: { children: React.ReactNode }) {
   const setUser = useAuthStore((s) => s.setUser);
+  const router = useRouter();
   const [conflict, setConflict] = useState<ConflictState | null>(null);
   // 패치 노트 모달: 초기 동기화(로컬/클라우드)가 끝나기 전까지는 lastSeenPatchVersion을
   // 신뢰할 수 없으므로 modal을 띄우지 않는다. syncSettled가 true가 되는 시점:
@@ -94,6 +113,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   const syncSettled = useUIStore((s) => s.syncSettled);
   const setSyncSettled = useUIStore((s) => s.setSyncSettled);
   const [showPatchModal, setShowPatchModal] = useState(false);
+  const [showFortunePrompt, setShowFortunePrompt] = useState(false);
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
 
   useEffect(() => {
@@ -333,12 +353,71 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     setShowPatchModal(false);
   };
 
+  // 오늘의 기운 진입 팝업 — 모달 체인의 패치 노트 다음 칸.
+  // 패치 노트와 달리 isSelectionDone 은 게이트하지 않는다. 이 팝업의 목적이
+  // "카드를 뽑기 전에 오늘의 기운부터 확인" 이라, 선택 완료를 기다리면 정작
+  // 앱을 켠 순간(=아직 미드로우)에는 영영 뜨지 않는다.
+  // 스플래시는 게이트한다 — 스플래시가 화면을 덮은 채 모달이 뒤에서 뜨면
+  // 걷히는 순간 이미 떠 있는 것처럼 보여 등장 연출이 통째로 사라진다.
+  const splashActive = useUIStore((s) => s.splashActive);
+  const today = useGameStore((s) => s.daily.date);
+  const unlockedCardIds = useGameStore((s) => s.progress.unlockedCardIds);
+
+  useEffect(() => {
+    if (!syncSettled || conflict || !hasCompletedOnboarding) return;
+    if (splashActive) return;
+    if (showPatchModal) return; // 패치 노트에 양보 — 닫히면 이 effect 가 재실행된다
+    // 세션 1회. 스킵 후 탭을 옮겨 다녀도 다시 뜨지 않는다.
+    if (fortunePromptShownThisSession) return;
+    if (!today) return;
+    // 이미 열었거나(fortune.ts 의 revealedDate) 오늘 이미 물어봤으면 조용히 넘어간다
+    if (isFortuneRevealed(today) || wasFortunePromptAsked(today)) return;
+    // 광고 진입점이 없는 환경(순수 웹 프로덕션)은 FortuneCard 자체가 숨겨져 있어
+    // "지금 열기" 로 보내봐야 빈 화면이다.
+    if (!isAdAvailable()) return;
+    // 해금 카드가 하나도 없으면 열 것이 없다 — "지금 열기" 로 보내봐야 FortuneCard 는
+    // 빈 안내만 띄운다(죽은 CTA 금지). iOS evaluateFortunePrompt 와 같은 판정.
+    if (computeDailyFortune(today, readFortuneState().salt, unlockedCardIds) === null) return;
+
+    // 패치 노트(300ms) 뒤, 앱 평가(1200ms) 앞 — 세 모달이 같은 프레임에 겹치지 않게.
+    const timer = setTimeout(() => {
+      fortunePromptShownThisSession = true;
+      setShowFortunePrompt(true);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [
+    syncSettled,
+    conflict,
+    hasCompletedOnboarding,
+    splashActive,
+    showPatchModal,
+    today,
+    unlockedCardIds,
+  ]);
+
+  // 어느 경로로 닫히든 "오늘 물어봤음" 을 1회 기록한다 — 광고를 중도 이탈해도
+  // 같은 날 팝업이 다시 뜨지 않는다.
+  const handleSkipFortunePrompt = () => {
+    markFortunePromptAsked(today);
+    setShowFortunePrompt(false);
+  };
+
+  // "지금 열기" — 광고는 FortuneCard 가 옵트인으로 받는다. 여기서는 자동 열기
+  // 신호만 남기고 불꽃 탭으로 보낸다 (계약은 FortunePromptModal 상단 주석 참고).
+  const handleConfirmFortunePrompt = () => {
+    markFortunePromptAsked(today);
+    markFortuneAutoOpen(today);
+    setShowFortunePrompt(false);
+    router.push("/flame");
+  };
+
   // 앱 평가 요청 — 챌린지를 완료한 서로 다른 날이 2일에 도달하면 1회.
   // 패치노트와 같은 게이트(동기화 완료·온보딩 완료·카드 선택 중 아님)를 쓰되,
   // 두 모달이 겹치지 않도록 패치노트가 떠 있으면 양보한다.
+  // 오늘의 기운 팝업도 체인상 앞이라 같이 양보한다 (닫히면 이 effect 가 재실행).
   useEffect(() => {
     if (!syncSettled || conflict || !hasCompletedOnboarding) return;
-    if (!isSelectionDone || showPatchModal) return;
+    if (!isSelectionDone || showPatchModal || showFortunePrompt) return;
     if (reviewPromptShownAt) return;
 
     const { progress, daily } = useGameStore.getState();
@@ -353,6 +432,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     hasCompletedOnboarding,
     isSelectionDone,
     showPatchModal,
+    showFortunePrompt,
     reviewPromptShownAt,
     completionHistoryLength,
     todayCompletedCount,
@@ -441,7 +521,15 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {showReviewPrompt && !conflict && !showPatchModal && (
+        {showFortunePrompt && !conflict && !showPatchModal && (
+          <FortunePromptModal
+            onConfirm={handleConfirmFortunePrompt}
+            onSkip={handleSkipFortunePrompt}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showReviewPrompt && !conflict && !showPatchModal && !showFortunePrompt && (
           <ReviewPromptModal onClose={handleCloseReviewPrompt} />
         )}
       </AnimatePresence>

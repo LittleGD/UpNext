@@ -20,6 +20,8 @@ struct FortuneCardView: View {
     let onReveal: (DailyFortune) -> Void
 
     @EnvironmentObject private var store: GameStore
+    /// 진입 팝업("지금 열기") 의 자동 열기 신호 — FortunePromptModal 의 계약.
+    @ObservedObject private var autoOpen = FortuneAutoOpen.shared
 
     private enum Phase { case idle, loading, fail }
 
@@ -60,7 +62,15 @@ struct FortuneCardView: View {
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 14))
         .opacity(isEmpty ? 0.7 : 1)
         .disabled(isEmpty || phase == .loading)
-        .onAppear { load() }
+        .onAppear {
+            load()
+            // 이미 불꽃 탭에 있던 경우 — 신호는 진입 시점에 와 있다.
+            consumeAutoOpen()
+        }
+        // 다른 탭에서 전환해 온 경우 — 뷰가 이미 살아 있어 onAppear 가 안 뜬다.
+        .onChange(of: autoOpen.pending) { pending in
+            if pending { consumeAutoOpen() }
+        }
     }
 
     private var caption: some View {
@@ -108,13 +118,22 @@ struct FortuneCardView: View {
         revealed = Fortune.isRevealed(today: today)
     }
 
+    /// 진입 팝업 "지금 열기" 신호를 받아 사용자가 카드를 직접 탭한 것과 같은 경로를 탄다.
+    /// 신호는 1회성 — 열 수 없는 상태(카드 없음·이미 진행 중)면 조용히 흘린다.
+    /// 여기서 되돌려 두면 다음 렌더마다 다시 시도해 광고가 불쑥 뜰 수 있다.
+    private func consumeAutoOpen() {
+        guard FortuneAutoOpen.shared.consume() else { return }
+        guard fortune != nil, phase != .loading else { return }
+        Task { await tap() }
+    }
+
     private func tap() async {
         guard let fortune, phase != .loading else { return }
         SoundPlayer.shared.play(.select)
 
         // 오늘 이미 열었으면 광고 없이 다시 보여준다 (하루 1회 = 광고 1회).
+        // 재열람은 뽑기 연출 없이 폴라로이드로 바로 간다 — 게이트를 걸지 않는다.
         if revealed {
-            SoundPlayer.shared.play(.polaroidSlide)
             onReveal(fortune)
             return
         }
@@ -123,10 +142,12 @@ struct FortuneCardView: View {
         let result = await AdsService.shared.showRewardedAd(slot: .fortune)
         switch result {
         case .rewarded:
-            Fortune.markRevealed(today: GameStore.todayString())
+            let today = GameStore.todayString()
+            Fortune.markRevealed(today: today)
+            // 그날 첫 공개 — 오버레이가 폴라로이드 앞에 뽑기 연출을 붙인다.
+            FortuneDrawGate.arm(today: today)
             revealed = true
             phase = .idle
-            SoundPlayer.shared.play(.polaroidSlide)
             onReveal(fortune)
         case .unavailable:
             SoundPlayer.shared.play(.cancel)
@@ -149,8 +170,15 @@ struct FortuneCardView: View {
 /// 착지 순간 오늘의 색이 번쩍이며 입자가 흩어진 뒤, 사진이 현상되듯 어둠이 걷힌다.
 /// 웹 FortuneOverlay(src/components/flame/FortuneCard.tsx)와 타이밍을 맞췄다.
 ///
+/// 그날 첫 공개면 그 앞에 뽑기 연출(FortuneDrawView, 1.48초)이 먼저 붙는다.
+/// 같은 날 재열람은 게이트가 비어 있어 폴라로이드로 바로 간다.
+///
+/// 폴라로이드 뒤에는 오늘 카드의 등급 backdrop(RarityBackdrop)이 깔려 광선이
+/// 사방으로 뻗는다 — 카드 상세와 같은 등급 언어라 "귀한 카드" 라는 인상이 이어진다.
+///
 /// SwiftUI 함정: 같은 런루프 틱에서 상태를 켰다 끄면 두 쓰기가 병합돼 애니메이션이
-/// 통째로 사라진다. 번쩍임과 입자는 그래서 틱을 나눠 구동한다.
+/// 통째로 사라진다. 번쩍임과 입자, 뽑기→폴라로이드 인계는 그래서 틱을 나눠 구동한다.
+@MainActor
 struct FortuneRevealOverlay: View {
     let fortune: DailyFortune
     let onClose: () -> Void
@@ -173,6 +201,8 @@ struct FortuneRevealOverlay: View {
     @State private var rowsIn = false
     /// 닫기 힌트
     @State private var hintIn = false
+    /// 뽑기 연출 진행 중 — 그날 첫 공개에만 켜진다
+    @State private var drawing = false
 
     private var lang: Language { store.progress?.language ?? .ko }
     private var accent: Color { Color(hexString: fortune.color.hex) }
@@ -202,6 +232,16 @@ struct FortuneRevealOverlay: View {
             .opacity(thrown ? 1 : 0)
             .ignoresSafeArea()
             .allowsHitTesting(false)
+
+            // 오늘 카드의 등급 빛기둥 — 폴라로이드 뒤, 스크림 앞. 카드 상세(CardDetailModal)와
+            // 같은 컴포넌트라 등급이 높을수록 광선·궤도 입자가 화려해진다.
+            // 뽑기 중에는 띄우지 않는다 — 웹은 뽑기와 폴라로이드가 별개 오버레이라 이 층이
+            // 폴라로이드 쪽에만 있다(iOS 는 한 뷰라 drawing 으로 나눈다).
+            if !drawing {
+                RarityBackdrop(rarity: fortune.card.rarity)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
 
             // 착지 번쩍임
             if flashOn {
@@ -239,15 +279,50 @@ struct FortuneRevealOverlay: View {
                     .opacity(hintIn ? 1 : 0)
                     .padding(.bottom, 40)
             }
+
+            // 뽑기 연출 — 폴라로이드보다 위. 끝나면 스스로 물러난다.
+            if drawing {
+                FortuneDrawView(accent: accent, onFinish: finishDraw)
+            }
         }
         .contentShape(Rectangle())
-        .onTapGesture { onClose() }
-        .onAppear(perform: runReveal)
+        // 뽑기 중 오탭으로 닫히면 광고를 본 보람이 사라진다 — 연출이 끝난 뒤에만 받는다.
+        .onTapGesture { if !drawing { onClose() } }
+        .onAppear(perform: start)
+        .onDisappear {
+            // 네비 복구는 무슨 일이 있어도 여기서 — 중간에 닫히든 정상 종료든 한 곳뿐.
+            store.fortuneOverlayOpen = false
+        }
     }
 
     // MARK: - 연출 구동
 
+    /// 진입점. 하단 네비를 숨기고, 그날 첫 공개면 뽑기부터 시작한다.
+    private func start() {
+        store.fortuneOverlayOpen = true
+
+        // reduceMotion 이면 뽑기를 통째로 건너뛴다(게이트는 소비해 다음에 남지 않게).
+        let firstToday = FortuneDrawGate.consume(today: GameStore.todayString())
+        if firstToday && !reduceMotion {
+            drawing = true
+            return
+        }
+        runReveal()
+    }
+
+    /// 뽑기 → 폴라로이드 인계.
+    ///
+    /// 같은 틱에서 뽑기를 걷고 던지기를 시작하면 두 쓰기가 병합돼 폴라로이드가
+    /// 초기 상태(화면 밖)를 거치지 않고 그냥 나타난다. 한 틱 비워 준다.
+    private func finishDraw() {
+        // 웹 오버레이 진입 페이드(0.18s)와 같은 값 — 뽑기의 잔광이 스크림 위에서
+        // 그대로 이어져 두 장면이 한 화면처럼 읽힌다.
+        withAnimation(.easeOut(duration: 0.18)) { drawing = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { runReveal() }
+    }
+
     private func runReveal() {
+        SoundPlayer.shared.play(.polaroidSlide)
         guard !reduceMotion else {
             // 전정 장애 대응 — 던지기·번쩍임·입자를 모두 건너뛰고 즉시 완성 상태로 둔다.
             thrown = true; developed = true; rowsIn = true; hintIn = true
@@ -334,7 +409,7 @@ struct FortuneRevealOverlay: View {
                 .foregroundStyle(Self.inkSoft)
                 .multilineTextAlignment(.center)
             if let author = FortunePool.author(fortune.quote, lang: lang) {
-                Text(verbatim: "— \(author)")
+                Text(verbatim: "· \(author)")
                     .typography(.micro)
                     .foregroundStyle(Self.inkFaint)
             }
