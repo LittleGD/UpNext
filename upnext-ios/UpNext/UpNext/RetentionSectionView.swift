@@ -14,6 +14,13 @@
 import SwiftUI
 
 struct RetentionSectionView: View {
+    /// 오늘의 기운 공개 콜백.
+    ///   카드 자체는 불꽃 히어로 **바로 아래**에 둔다(맨 아래에 있으면 스크롤을 끝까지
+    ///   내려야 보여서 발견이 안 됐다 — 사용자 지시). 반면 공개 폴라로이드 오버레이는
+    ///   ScrollView 밖 ZStack 에서 띄워야 화면 전체를 덮으므로, 공개 이벤트만 상위
+    ///   (RecordTabView)로 올린다.
+    var onRevealFortune: (DailyFortune) -> Void = { _ in }
+
     @EnvironmentObject private var store: GameStore
     @State private var shownReport: WeeklyReportSummary?
 
@@ -57,6 +64,10 @@ struct RetentionSectionView: View {
         VStack(spacing: 14) {
             FlameHeroCore(streak: state.currentLightStreak, best: state.bestLightStreak,
                           checkedToday: checkedToday, onCheckIn: { store.checkInToday() })
+            // 오늘의 기운 (옵트인 리워드 광고) — 페이지 위계 정점인 불꽃 히어로 바로 아래.
+            //   광고를 띄울 수 없는 환경이면 FortuneCardView 가 통째로 렌더를 생략하므로
+            //   (죽은 CTA 금지) 그때는 히어로 다음에 마일스톤이 바로 붙는다.
+            FortuneCardView { onRevealFortune($0) }
             MilestoneTrack(streak: state.currentLightStreak)
             GuardStatsRow(savers: state.streakSavers, best: state.bestLightStreak,
                           current: state.currentLightStreak)

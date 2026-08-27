@@ -18,10 +18,10 @@ struct RecordTabView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     RitualGreetingHeader()
-                    RetentionSectionView()
-                    // 오늘의 기운 (옵트인 리워드 광고) — 콘텐츠가 끝난 맨 아래 자리.
-                    // 웹 flame/page.tsx 하단 FortuneCard 와 동일 배치.
-                    FortuneCardView { fortune in
+                    // 오늘의 기운 카드는 RetentionSectionView 안(불꽃 히어로 바로 아래)에 있다.
+                    //   여기서는 공개 이벤트만 받아 오버레이를 띄운다 — 오버레이는 ScrollView
+                    //   밖에 있어야 화면 전체를 덮는다(스크롤을 따라 움직이면 안 된다).
+                    RetentionSectionView { fortune in
                         withAnimation(.easeOut(duration: 0.2)) { revealedFortune = fortune }
                     }
                 }

@@ -115,6 +115,12 @@ export default function FlamePage() {
           />
         </motion.div>
 
+        {/* 오늘의 기운 (옵트인 리워드 광고) — 페이지 위계 정점인 불꽃 히어로 바로 아래.
+            맨 아래에 있으면 스크롤을 끝까지 내려야 보여서 발견이 안 됐다(사용자 지시).
+            지원 플랫폼이 아니면 null 렌더라 자체 motion 으로 등장을 처리
+            (stagger 래퍼로 감싸면 웹 프로덕션에서 빈 div 가 space-y 간격을 남긴다). */}
+        <FortuneCard />
+
         <motion.div variants={fadeInUp}>
           <MilestoneTrack streak={retention.currentLightStreak} />
         </motion.div>
@@ -148,11 +154,6 @@ export default function FlamePage() {
             />
           </motion.div>
         )}
-
-        {/* 오늘의 기운 (옵트인 리워드 광고) — 콘텐츠가 끝난 맨 아래 자리.
-            지원 플랫폼이 아니면 null 렌더라 자체 motion 으로 등장을 처리
-            (stagger 래퍼로 감싸면 웹 프로덕션에서 빈 div 가 space-y 간격을 남긴다). */}
-        <FortuneCard />
       </motion.div>
 
       <AnimatePresence>
