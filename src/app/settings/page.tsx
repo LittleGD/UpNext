@@ -481,11 +481,31 @@ export default function SettingsPage() {
         }}
       />
 
-      {/* Phase 12 R12 — 앱 버전 표시 (설정 맨 아래).
-           유저가 버그 제보 / 지원 요청 시 "어느 빌드" 인지 즉시 확인할 수
-           있도록. 작게 dim 처리해 시각 무게 최소. 향후 build metadata
-           (git sha / build date) 확장 가능. */}
-      <section className="pt-2 text-center">
+      {/* Phase 12 R12 — 앱 버전 표시 + 제작자 크레딧 (설정 맨 아래).
+           작게 dim 처리해 시각 무게 최소. 크레딧 문구는 영문 고정 — i18n 카탈로그
+           비대상. 외부 링크는 Capacitor(안드로이드)에서는 시스템 브라우저,
+           웹에서는 새 탭으로 열린다. */}
+      <section className="pt-2 text-center space-y-1.5">
+        <p className="typo-micro text-text-tertiary">Designed &amp; built by Jongmin Lee</p>
+        <p className="typo-micro text-text-secondary">
+          <a
+            href="https://www.linkedin.com/in/jongmin-lee-design/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-accent active:text-accent transition-colors"
+          >
+            LinkedIn
+          </a>
+          <span className="text-text-tertiary opacity-60 mx-2">·</span>
+          <a
+            href="https://www.jongmin.design"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-accent active:text-accent transition-colors"
+          >
+            Portfolio
+          </a>
+        </p>
         <p className="typo-micro text-text-tertiary opacity-60 tabular-nums">
           UpNext v0.2.0
         </p>
