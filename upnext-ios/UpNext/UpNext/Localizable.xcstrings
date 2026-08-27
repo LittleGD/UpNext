@@ -25564,6 +25564,28 @@
         }
       }
     },
+    "가장 작은 일부터 치워보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start by clearing the smallest thing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一番小さいことから片づけてみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先从最小的事清起"
+          }
+        }
+      }
+    },
     "가호": {
       "localizations": {
         "en": {
@@ -26224,6 +26246,28 @@
         }
       }
     },
+    "건강기운": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Body"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体の気配"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体"
+          }
+        }
+      }
+    },
     "건너뛰기": {
       "extractionState": "manual",
       "localizations": {
@@ -26865,6 +26909,28 @@
         }
       }
     },
+    "관계기운": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bonds"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縁の気配"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缘分"
+          }
+        }
+      }
+    },
     "광고 보고 2배 받기": {
       "localizations": {
         "en": {
@@ -26905,6 +26971,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "看广告重抽"
+          }
+        }
+      }
+    },
+    "광고 보고 열기": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch an ad to open"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を見て開く"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看广告解锁"
           }
         }
       }
@@ -27476,6 +27564,28 @@
         }
       }
     },
+    "길": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bright"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "吉"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "吉"
+          }
+        }
+      }
+    },
     "길게 누르면 시작합니다": {
       "extractionState": "manual",
       "localizations": {
@@ -27840,6 +27950,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "执着于未竟论文,在图书馆中游荡的亡灵。"
+          }
+        }
+      }
+    },
+    "끝맺음의 기운이 붙어 있어요. 시작한 것이 마무리로 이어집니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The closing force is with you. What you start tends to finish"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "終わらせる気配がついています。始めたものが仕上げにつながります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有收尾的气场，开始的事容易走到完成"
           }
         }
       }
@@ -28575,6 +28707,28 @@
         }
       }
     },
+    "다른 기운 보기": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See another reading"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "他の気配を見る"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看别的气场"
+          }
+        }
+      }
+    },
     "다시 뽑기": {
       "extractionState": "manual",
       "localizations": {
@@ -29255,6 +29409,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "只抛出无解之问的透明人偶。"
+          }
+        }
+      }
+    },
+    "대길": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Radiant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大吉"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大吉"
           }
         }
       }
@@ -31149,6 +31325,28 @@
         }
       }
     },
+    "리듬이 몸에 배어 있는 시기예요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The rhythm has settled into your body"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リズムが体に染みついている時期です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "节奏已经融进身体的时期"
+          }
+        }
+      }
+    },
     "리롤 · %lld코인": {
       "localizations": {
         "en": {
@@ -31646,6 +31844,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "记住要配对的卡牌..."
+          }
+        }
+      }
+    },
+    "먼저 연락하기 좋은 날이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A good day to reach out first"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先に連絡するのに良い日"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "适合主动联系的一天"
           }
         }
       }
@@ -32199,6 +32419,28 @@
         }
       }
     },
+    "몸이 잘 따라오는 날이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your body is keeping up well today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体がよくついてくる日です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体今天很配合"
+          }
+        }
+      }
+    },
     "몽상의 잔영": {
       "extractionState": "manual",
       "localizations": {
@@ -32337,6 +32579,28 @@
         }
       }
     },
+    "무리하지 말고 가볍게 시작하세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start light, don't push"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無理せず軽く始めて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "别勉强，轻轻开始"
+          }
+        }
+      }
+    },
     "무지의 리치": {
       "extractionState": "manual",
       "localizations": {
@@ -32379,6 +32643,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "无尽滑动"
+          }
+        }
+      }
+    },
+    "물 한 잔과 가벼운 스트레칭으로 이어가세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep it going with water and a light stretch"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水一杯と軽いストレッチで続けて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一杯水加轻度拉伸，继续保持"
           }
         }
       }
@@ -32471,6 +32757,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "拖延时术师"
+          }
+        }
+      }
+    },
+    "미뤄둔 일 하나를 오늘 끝내기 좋은 흐름이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good flow to finish that one postponed task"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先延ばした一つを今日終えるのに良い流れです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "适合今天了结那件拖延的事"
           }
         }
       }
@@ -35666,6 +35974,28 @@
         }
       }
     },
+    "손가락으로 문질러 기운을 드러내세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rub with your finger to reveal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指でこすって気配を現してください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用手指擦开，显现气场"
+          }
+        }
+      }
+    },
     "손재주": {
       "extractionState": "manual",
       "localizations": {
@@ -36144,6 +36474,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "低语苔藓"
+          }
+        }
+      }
+    },
+    "쉼이 다음을 준비하고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest is preparing what comes next"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "休みが次の準備をしています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "休息正在为下一步做准备"
           }
         }
       }
@@ -37566,6 +37918,28 @@
         }
       }
     },
+    "아직 흐름이 잡히기 전이에요. 지금이 그 시작점입니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current hasn't formed yet. This is where it begins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ流れができる前です。ここが始まりです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水流还未成形，此刻就是起点"
+          }
+        }
+      }
+    },
     "안개 정령": {
       "extractionState": "manual",
       "localizations": {
@@ -37585,6 +37959,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "雾之精灵"
+          }
+        }
+      }
+    },
+    "안부 한 줄이 오늘을 바꿔요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One line of hello changes today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ひと言の挨拶が今日を変えます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一句问候就能改变今天"
           }
         }
       }
@@ -37997,6 +38393,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "暗夜小丑"
+          }
+        }
+      }
+    },
+    "어떤 기운을 볼까요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which reading?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "どの気配を見ますか"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看哪个气场？"
           }
         }
       }
@@ -39103,6 +39521,72 @@
         }
       }
     },
+    "오늘은 듣는 쪽이 되어보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today, try being the one who listens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日は聞く側になってみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天试着当倾听的一方"
+          }
+        }
+      }
+    },
+    "오늘은 쉬는 게 최선일 수 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resting may be the best move today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日は休むのが最善かもしれません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天休息也许是最好的选择"
+          }
+        }
+      }
+    },
+    "오늘은 시작만 해도 충분해요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today, starting is enough"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日は始めるだけで十分"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天，开始就够了"
+          }
+        }
+      }
+    },
     "오늘은 여기까지": {
       "extractionState": "manual",
       "localizations": {
@@ -39166,6 +39650,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "打开今日气场"
+          }
+        }
+      }
+    },
+    "오늘의 기운을 모두 확인했어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You've seen all of today's readings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の気配をすべて確認しました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已查看今天全部气场"
           }
         }
       }
@@ -39299,6 +39805,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "今日颜色"
+          }
+        }
+      }
+    },
+    "오늘의 운세와 기운을 확인해보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check today's aura and readings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の運勢と気配を見てみましょう"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来看看今天的运势和气场"
           }
         }
       }
@@ -40584,6 +41112,28 @@
         }
       }
     },
+    "이어온 시간이 지금의 당신을 받치고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The time you've kept is holding you up"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続けてきた時間が今のあなたを支えています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "坚持下来的时间正托着现在的你"
+          }
+        }
+      }
+    },
     "이전": {
       "extractionState": "manual",
       "localizations": {
@@ -41201,6 +41751,28 @@
         }
       }
     },
+    "작은 것 하나를 마무리하면 흐름이 더 단단해져요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish one small thing and the flow firms up"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小さな一つを仕上げると流れが固まります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成一件小事，势头会更稳"
+          }
+        }
+      }
+    },
     "작은 망상 거품": {
       "extractionState": "manual",
       "localizations": {
@@ -41404,6 +41976,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "小齿轮"
+          }
+        }
+      }
+    },
+    "잔잔": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quiet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "静か"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平静"
           }
         }
       }
@@ -41674,6 +42268,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "灰烬中红光明灭"
+          }
+        }
+      }
+    },
+    "재물기운": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wealth"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "財の気配"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "财运"
           }
         }
       }
@@ -42921,6 +43537,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "满足条件时自动触发"
+          }
+        }
+      }
+    },
+    "조금만 더": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Almost there"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もう少し"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "就快好了"
           }
         }
       }
@@ -47133,6 +47771,28 @@
         }
       }
     },
+    "평": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Steady"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平"
+          }
+        }
+      }
+    },
     "평정": {
       "extractionState": "manual",
       "localizations": {
@@ -48185,6 +48845,28 @@
         }
       }
     },
+    "혼자 있는 시간도 관계의 일부예요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time alone is part of connection too"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一人の時間も関係の一部です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "独处也是关系的一部分"
+          }
+        }
+      }
+    },
     "홀로 있는 자에게만 보이는 그림자. 말을 걸면 이미 늦었다.": {
       "extractionState": "manual",
       "localizations": {
@@ -48888,6 +49570,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "力量"
+          }
+        }
+      }
+    },
+    "힘이 한 방향으로 모이고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your strength is gathering in one direction"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "力が一つの方向に集まっています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "力量正朝一个方向汇聚"
           }
         }
       }
