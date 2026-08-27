@@ -22,6 +22,13 @@ import {
   type L10nText,
 } from "@/data/fortunePool";
 import type { ChallengeCard } from "@/types/card";
+import {
+  AURA_KINDS,
+  type AuraKind,
+  type AuraOmen,
+  type AuraReading,
+  type AuraTier,
+} from "@/lib/aura";
 
 export interface DailyFortune {
   /** 오늘의 카드 — 유저가 해금한 카드 중에서만 뽑는다 */
@@ -36,7 +43,7 @@ export interface DailyFortune {
  * FNV-1a 32bit. quotePool 의 simpleHash 보다 분산이 좋아 서로 다른 접두사로
  * 파생 시드를 만들 때 상관관계가 낮다(색·문구·명언이 함께 몰리지 않는다).
  */
-function fnv1a(input: string): number {
+export function fnv1a(input: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < input.length; i++) {
     h ^= input.charCodeAt(i);
@@ -79,17 +86,27 @@ export function computeDailyFortune(
   };
 }
 
-/* ── 로컬 상태 (salt + 공개 여부) ──
+/* ── 로컬 상태 (salt + 공개 여부 + 기운 리딩) ──
    클라우드 동기화하지 않는다. 오늘의 기운은 그날 하루만 의미가 있고,
    기기별로 달라도 문제가 되지 않는 가벼운 상태다. */
 
 const STORAGE_KEY = "upnext_fortune";
 
-interface FortuneState {
+export interface FortuneState {
   /** 기기 고정 salt — 최초 1회 생성 후 불변 */
   salt: string;
   /** 오늘의 기운을 이미 공개한 날짜. 같은 날 재방문 시 광고를 다시 보지 않는다. */
   revealedDate?: string;
+  /** 기운 리딩(재물·관계·건강)을 계산해 고정한 날짜 */
+  auraDate?: string;
+  /** 그날 이미 연 기운 종류. 여기 있으면 광고 없이 다시 볼 수 있다. */
+  auraOpened?: AuraKind[];
+  /**
+   * 첫 리딩을 연 시점에 3종을 한꺼번에 계산해 고정한 값.
+   * 하루 안에서 점수가 흔들리면 "그럴싸함"이 깨진다 — 오전에 본 재물기운이
+   * 오후에 카드를 하나 더 깼다고 달라지면 점이 아니라 대시보드가 된다.
+   */
+  auraSnapshot?: Record<AuraKind, AuraReading>;
 }
 
 function randomSalt(): string {
@@ -102,14 +119,83 @@ function randomSalt(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/* ── 저장값 관용 디코드 ──
+   localStorage 는 다른 버전의 앱·손댄 값·잘린 JSON 이 섞일 수 있다.
+   형태가 조금이라도 어긋나면 그 필드만 버리고(undefined) 나머지는 살린다.
+   기운 리딩이 깨져도 salt 는 반드시 지켜야 한다 — salt 가 바뀌면 오늘의
+   카드가 하루 중간에 바뀐다. */
+
+const AURA_TIERS: AuraTier[] = ["great", "good", "fair", "care"];
+const AURA_OMENS: AuraOmen[] = [
+  "closing",
+  "gathering",
+  "rhythm",
+  "carried",
+  "resting",
+  "unformed",
+];
+
+function isAuraKind(value: unknown): value is AuraKind {
+  return typeof value === "string" && (AURA_KINDS as string[]).includes(value);
+}
+
+/**
+ * 이전 버전이 저장한 리딩(stat·window·evidence 를 담던 형태)은 omen 이 없으므로
+ * 여기서 null 이 되고, 스냅샷 전체가 버려져 오늘치가 새로 계산된다.
+ * 마이그레이션을 따로 두지 않는 이유: 하루짜리 값이라 다시 뽑아도 잃는 게 없다.
+ */
+function decodeReading(value: unknown, kind: AuraKind): AuraReading | null {
+  if (typeof value !== "object" || value === null) return null;
+  const r = value as Record<string, unknown>;
+  const { score } = r;
+  // score 는 화면에 나가지 않지만 tier 를 다시 계산할 근거로 남겨 둔다.
+  if (typeof score !== "number" || !Number.isFinite(score)) return null;
+  if (typeof r.tier !== "string" || !(AURA_TIERS as string[]).includes(r.tier)) return null;
+  if (typeof r.omen !== "string" || !(AURA_OMENS as string[]).includes(r.omen)) return null;
+  return {
+    kind,
+    score,
+    tier: r.tier as AuraTier,
+    omen: r.omen as AuraOmen,
+  };
+}
+
+/** 3종이 모두 온전할 때만 스냅샷으로 인정한다 — 반쪽 스냅샷은 없느니만 못하다. */
+function decodeSnapshot(value: unknown): Record<AuraKind, AuraReading> | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const out = {} as Record<AuraKind, AuraReading>;
+  for (const kind of AURA_KINDS) {
+    const reading = decodeReading(raw[kind], kind);
+    if (!reading) return undefined;
+    out[kind] = reading;
+  }
+  return out;
+}
+
+function decodeOpened(value: unknown): AuraKind[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  // AURA_KINDS 순서로 정규화 — 저장 순서가 UI 순서를 흔들지 않게.
+  const set = new Set(value.filter(isAuraKind));
+  const list = AURA_KINDS.filter((k) => set.has(k));
+  return list.length > 0 ? list : undefined;
+}
+
 export function readFortuneState(): FortuneState {
   if (typeof window === "undefined") return { salt: "ssr" };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<FortuneState>;
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
       if (typeof parsed.salt === "string" && parsed.salt.length > 0) {
-        return { salt: parsed.salt, revealedDate: parsed.revealedDate };
+        return {
+          salt: parsed.salt,
+          revealedDate:
+            typeof parsed.revealedDate === "string" ? parsed.revealedDate : undefined,
+          auraDate: typeof parsed.auraDate === "string" ? parsed.auraDate : undefined,
+          auraOpened: decodeOpened(parsed.auraOpened),
+          auraSnapshot: decodeSnapshot(parsed.auraSnapshot),
+        };
       }
     }
   } catch {
@@ -138,4 +224,73 @@ export function isFortuneRevealed(today: string): boolean {
 export function markFortuneRevealed(today: string): void {
   const state = readFortuneState();
   writeFortuneState({ ...state, revealedDate: today });
+}
+
+/* ── 기운 리딩 상태 ──
+   auraDate 가 오늘이 아니면 열람 기록과 스냅샷을 통째로 버린다.
+   날짜 비교 한 곳(sameDay)만 통과시켜, 자정을 넘긴 어제 값이 오늘 화면에
+   섞여 들어오는 경로를 하나로 좁힌다. */
+
+export interface AuraState {
+  /** 오늘 이미 연 기운. 광고 없이 다시 볼 수 있다. */
+  opened: AuraKind[];
+  /** 오늘 고정된 3종 리딩. 아직 첫 리딩을 열지 않았으면 null. */
+  snapshot: Record<AuraKind, AuraReading> | null;
+}
+
+const EMPTY_AURA: AuraState = { opened: [], snapshot: null };
+
+function forToday(state: FortuneState, today: string): AuraState {
+  if (state.auraDate !== today) return EMPTY_AURA;
+  return { opened: state.auraOpened ?? [], snapshot: state.auraSnapshot ?? null };
+}
+
+/** 오늘 기준 기운 상태 읽기. 날짜가 넘어갔으면 빈 상태를 돌려준다. */
+export function readAuraState(today: string): AuraState {
+  return forToday(readFortuneState(), today);
+}
+
+/**
+ * 첫 리딩을 여는 순간 3종을 한꺼번에 고정한다.
+ * 이미 오늘 스냅샷이 있으면 덮어쓰지 않는다 — 하루 안에서 점수는 불변이다.
+ * @returns 실제로 오늘 유효한 스냅샷 (기존 것이 있으면 그것)
+ */
+export function ensureAuraSnapshot(
+  today: string,
+  compute: () => Record<AuraKind, AuraReading>,
+): Record<AuraKind, AuraReading> {
+  const state = readFortuneState();
+  const current = forToday(state, today);
+  if (current.snapshot) return current.snapshot;
+
+  const snapshot = compute();
+  writeFortuneState({
+    ...state,
+    auraDate: today,
+    // 날짜가 넘어왔다면 어제 열람 기록은 여기서 함께 버려진다.
+    auraOpened: current.opened.length > 0 ? current.opened : undefined,
+    auraSnapshot: snapshot,
+  });
+  return snapshot;
+}
+
+/**
+ * 기운 하나를 연 것으로 기록. 이미 있으면 그대로 둔다.
+ * @returns 기록 후의 열람 목록 (AURA_KINDS 순서)
+ */
+export function markAuraOpened(today: string, kind: AuraKind): AuraKind[] {
+  const state = readFortuneState();
+  const current = forToday(state, today);
+  if (current.opened.includes(kind)) return current.opened;
+
+  const next = AURA_KINDS.filter((k) => k === kind || current.opened.includes(k));
+  writeFortuneState({
+    ...state,
+    auraDate: today,
+    auraOpened: next,
+    // 스냅샷 없이 열람만 기록되는 경로는 없어야 하지만, 만에 하나 그렇게 되면
+    // 다음 ensureAuraSnapshot 이 채운다 (auraDate 는 여기서 이미 오늘로 맞춘다).
+    auraSnapshot: current.snapshot ?? undefined,
+  });
+  return next;
 }

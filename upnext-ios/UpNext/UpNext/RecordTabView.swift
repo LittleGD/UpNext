@@ -12,6 +12,8 @@ import SwiftUI
 struct RecordTabView: View {
     /// 오늘의 기운 공개 → 폴라로이드 오버레이 (오늘의 카드·색·문구·명언 한 벌)
     @State private var revealedFortune: DailyFortune?
+    /// 기운 리딩(재물·관계·건강) 오버레이. 폴라로이드와 같은 이유로 ScrollView 밖에 있다.
+    @State private var auraRequest: AuraOverlayRequest?
 
     var body: some View {
         ZStack {
@@ -21,9 +23,14 @@ struct RecordTabView: View {
                     // 오늘의 기운 카드는 RetentionSectionView 안(불꽃 히어로 바로 아래)에 있다.
                     //   여기서는 공개 이벤트만 받아 오버레이를 띄운다 — 오버레이는 ScrollView
                     //   밖에 있어야 화면 전체를 덮는다(스크롤을 따라 움직이면 안 된다).
-                    RetentionSectionView { fortune in
-                        withAnimation(.easeOut(duration: 0.2)) { revealedFortune = fortune }
-                    }
+                    RetentionSectionView(
+                        onRevealFortune: { fortune in
+                            withAnimation(.easeOut(duration: 0.2)) { revealedFortune = fortune }
+                        },
+                        onOpenAura: { request in
+                            withAnimation(.easeOut(duration: 0.2)) { auraRequest = request }
+                        }
+                    )
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 14)
@@ -36,6 +43,20 @@ struct RecordTabView: View {
                 }
                 .transition(.opacity)
                 .zIndex(10)
+            }
+
+            // 기운 리딩은 폴라로이드를 본 뒤에 열리므로 그 위에 놓는다.
+            if let request = auraRequest {
+                AuraReadingOverlay(reading: request.reading,
+                                   accent: request.accent,
+                                   needsRitual: request.needsRitual,
+                                   allOpened: request.allOpened) {
+                    // 닫기 버튼은 공개 후에만 뜬다 — 여기 왔다는 건 의식을 통과했다는 뜻이다.
+                    request.onFinish()
+                    withAnimation(.easeOut(duration: 0.2)) { auraRequest = nil }
+                }
+                .transition(.opacity)
+                .zIndex(11)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

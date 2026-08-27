@@ -7,6 +7,7 @@ import PixelIcon from "@/components/icons/PixelIcon";
 import PolaroidTilt from "@/components/growth/PolaroidTilt";
 import RarityBackdrop from "@/components/cards/RarityBackdrop";
 import FortuneDrawIntro from "@/components/flame/FortuneDrawIntro";
+import AuraSection from "@/components/flame/AuraSection";
 import {
   FORTUNE_AUTO_OPEN_EVENT,
   FORTUNE_AUTO_OPEN_KEY,
@@ -59,6 +60,9 @@ export default function FortuneCard() {
   // 뽑기 연출 직후에는 폴라로이드 오버레이의 스크림 페이드인을 건너뛴다.
   // 두 스크림이 겹쳐 페이드하면 배경이 잠깐 두 겹으로 어두워져 끊겨 보인다.
   const [skipOverlayEnter, setSkipOverlayEnter] = useState(false);
+  // 기운 리딩 오버레이(AuraSection) 개폐. 네비 숨김은 아래 effect 한 곳에서만
+  // 다루므로, 폴라로이드와 리딩이 서로의 상태를 덮어쓰는 경로가 생기지 않는다.
+  const [auraOverlayOpen, setAuraOverlayOpen] = useState(false);
   // localStorage 는 마운트 후에만 읽는다 — SSR 에서는 salt 가 없어 계산을 미룬다.
   const [salt, setSalt] = useState<string | null>(null);
   const failTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,9 +86,9 @@ export default function FortuneCard() {
   // 네비 숨김 — cleanup 으로 반드시 false 를 돌려놓는다. 언마운트(탭 이동)나
   // 렌더 도중 에러로 오버레이가 사라져도 네비가 영영 숨은 채 남으면 안 된다.
   useEffect(() => {
-    setFortuneOverlayOpen(overlayOpen);
+    setFortuneOverlayOpen(overlayOpen || auraOverlayOpen);
     return () => setFortuneOverlayOpen(false);
-  }, [overlayOpen, setFortuneOverlayOpen]);
+  }, [overlayOpen, auraOverlayOpen, setFortuneOverlayOpen]);
 
   const fortune = useMemo<DailyFortune | null>(
     () => (salt ? computeDailyFortune(today, salt, unlockedCardIds) : null),
@@ -243,6 +247,16 @@ export default function FortuneCard() {
             </span>
             <PixelIcon name="ChevronRight" size={12} color="var(--text-tertiary)" />
           </button>
+        )}
+
+        {/* 폴라로이드를 본 뒤에야 기운 3종을 고를 수 있다 — 오늘의 기운 광고를
+            이미 봤다는 사실이 첫 리딩의 값이 된다. */}
+        {revealed && fortune && (
+          <AuraSection
+            today={today}
+            colorHex={fortune.color.hex}
+            onOverlayChange={setAuraOverlayOpen}
+          />
         )}
 
         {!revealed && !empty && (

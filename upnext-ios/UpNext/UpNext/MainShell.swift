@@ -73,6 +73,10 @@ struct MainTabView: View {
     @State private var showReviewPrompt: Bool = false
     /// 앱 실행 진입 팝업("오늘의 기운이 도착했어요") 표시 — 업데이트 노트 다음 순번.
     @State private var showFortunePrompt: Bool = false
+    /// 오늘의 기운 자동 열기 신호. 진입 팝업의 "지금 열기" 는 아래에서 직접 탭을 옮기지만,
+    /// 챌린지 홈 토스트(FortuneToastView)처럼 탭 상태에 접근할 수 없는 자식이 올린 신호도
+    /// 같은 계약 하나로 불꽃 탭까지 배달하기 위해 셸에서 관찰한다.
+    @ObservedObject private var fortuneAutoOpen = FortuneAutoOpen.shared
 
     /// A-2 — 레벨업 오버레이 전용 표시 state. `pendingLevelUp != nil`(이벤트 존재)를 직접
     /// 게이트로 쓰면, 캡처 cover 디스미스(pendingCapture→nil) 틱에 오버레이가 *애니 없이 팝인*
@@ -316,6 +320,13 @@ struct MainTabView: View {
         // 팩이 먼저 뜨는 경로에서도 오늘의 기운 팝업이 유실되지 않고 뒤이어 뜬다.
         .onChange(of: showPackOpener) { isOpen in
             if !isOpen { chainFortunePrompt() }
+        }
+        // 오늘의 기운 자동 열기 신호가 올라오면 불꽃 탭으로 전환한다. 신호 소비(광고→공개)는
+        // 불꽃 탭의 진입점(FortuneCardView)이 하므로 여기선 이동만. 진입 팝업 "지금 열기" 는
+        // 이미 자기 콜백에서 탭을 옮겨 두므로 `tab != .record` 가드에 걸려 중복 전환이 없다.
+        .onChange(of: fortuneAutoOpen.pending) { pending in
+            guard pending, tab != .record else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) { tab = .record }
         }
         // R-Effects: 챌린지 완료 카운터(daily/extra/super 합산 + 풀클리어 가산) 증가 시 confetti.
         // 단순 completed count 증가만 보지 않고 "풀클리어" 가산점을 함께 보면, 마지막 1장 완료가

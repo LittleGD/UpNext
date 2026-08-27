@@ -66,6 +66,10 @@ const LoginOverlay = dynamic(
   () => import("@/components/auth/LoginOverlay"),
   { ssr: false },
 );
+const FortuneToast = dynamic(
+  () => import("@/components/daily/FortuneToast"),
+  { ssr: false },
+);
 const BurningBorder = dynamic(
   () => import("@/components/effects/BurningBorder"),
   { ssr: false },
@@ -162,6 +166,12 @@ export default function Home() {
       <MeteorShower active={phase === "super" && !superDone} />
 
       <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto">
+        {/* 오늘의 기운 리마인더 — 진입 팝업을 스킵했고 아직 안 본 날에만 내려온다.
+            콘텐츠 컬럼 맨 위, 뽑기 화면 위쪽에 자리를 차지할 뿐 덮지 않는다.
+            표시 조건·하루 1회 게이트는 컴포넌트가 스스로 판단한다.
+            팩 오프너 중에는 연출을 방해하지 않도록 마운트하지 않는다. */}
+        {!isOpeningPack && <FortuneToast />}
+
         {/* P2 — 미로그인 + 진행 누적된 사용자에게 백업 안내. 카드팩 오픈 / 컬렉션
             축하 등 모달이 띄워진 상태에서는 자동으로 가려지므로 항상 마운트 가능.
             TWA 에서는 Capacitor 전환 예고 배너가 백업 배너를 대체한다 (같은 대상,

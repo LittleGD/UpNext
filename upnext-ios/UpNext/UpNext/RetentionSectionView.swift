@@ -20,6 +20,8 @@ struct RetentionSectionView: View {
     ///   ScrollView 밖 ZStack 에서 띄워야 화면 전체를 덮으므로, 공개 이벤트만 상위
     ///   (RecordTabView)로 올린다.
     var onRevealFortune: (DailyFortune) -> Void = { _ in }
+    /// 기운 리딩 오버레이 요청. 폴라로이드와 같은 이유로 표시는 상위(RecordTabView)가 맡는다.
+    var onOpenAura: (AuraOverlayRequest) -> Void = { _ in }
 
     @EnvironmentObject private var store: GameStore
     @State private var shownReport: WeeklyReportSummary?
@@ -67,7 +69,8 @@ struct RetentionSectionView: View {
             // 오늘의 기운 (옵트인 리워드 광고) — 페이지 위계 정점인 불꽃 히어로 바로 아래.
             //   광고를 띄울 수 없는 환경이면 FortuneCardView 가 통째로 렌더를 생략하므로
             //   (죽은 CTA 금지) 그때는 히어로 다음에 마일스톤이 바로 붙는다.
-            FortuneCardView { onRevealFortune($0) }
+            FortuneCardView(onReveal: { onRevealFortune($0) },
+                            onOpenAura: { onOpenAura($0) })
             MilestoneTrack(streak: state.currentLightStreak)
             GuardStatsRow(savers: state.streakSavers, best: state.bestLightStreak,
                           current: state.currentLightStreak)

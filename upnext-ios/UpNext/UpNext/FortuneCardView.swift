@@ -18,6 +18,8 @@ import SwiftUI
 struct FortuneCardView: View {
     /// 오늘의 기운이 열린 순간 호출 — 부모가 공개 폴라로이드를 띄운다.
     let onReveal: (DailyFortune) -> Void
+    /// 기운 리딩(재물·관계·건강)을 열어달라는 요청 — 부모가 ScrollView 밖에서 띄운다.
+    var onOpenAura: (AuraOverlayRequest) -> Void = { _ in }
 
     @EnvironmentObject private var store: GameStore
     /// 진입 팝업("지금 열기") 의 자동 열기 신호 — FortunePromptModal 의 계약.
@@ -35,8 +37,23 @@ struct FortuneCardView: View {
     var body: some View {
         // 광고를 띄울 수 없는 환경이면 카드 자체를 렌더하지 않는다 (죽은 CTA 금지).
         if AdsService.shared.isAvailable {
-            card
+            VStack(spacing: 12) {
+                card
+                // 폴라로이드를 본 뒤에야 기운 3종을 고를 수 있다 — 오늘의 기운 광고를
+                // 이미 봤다는 사실이 첫 리딩의 값이 된다(웹 FortuneCard.tsx 와 같은 자리).
+                if revealed, let fortune {
+                    AuraSectionView(today: auraToday,
+                                    accent: Color(hexString: fortune.color.hex),
+                                    onOpenReading: onOpenAura)
+                }
+            }
         }
+    }
+
+    /// 기운 리딩의 날짜 기준. 웹은 `daily.date` 를 쓴다 — 자정 롤오버를 스토어가
+    /// 이미 반영한 값이라, 시계만 보는 todayString 보다 화면과 어긋날 여지가 적다.
+    private var auraToday: String {
+        store.daily?.date ?? GameStore.todayString()
     }
 
     private var card: some View {

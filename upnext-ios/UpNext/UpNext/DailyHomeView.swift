@@ -174,6 +174,23 @@ struct DailyHomeView: View {
         }
     }
 
+    // MARK: - 오늘의 기운 토스트 (웹 챌린지 페이지 토스트 대응)
+
+    /// 진입 팝업을 스킵한 유저에게 하루 한 번 다시 알리는 상단 토스트.
+    /// 표시 조건·닫기 기록은 전부 FortuneToastView 안에 있고, 여기선 자리와 여백만 정한다.
+    ///
+    /// 자리 — 미드로우(덱 홀드)와 보드 *상단* 에만 둔다. 카드 선택(부채꼴 핸드)은 풀블리드
+    /// 포커스 화면이라 어떤 것도 얹지 않는다(뽑기 흐름을 가리지 않는다는 원칙).
+    ///
+    /// 탭 동작은 광고가 아니라 *이동* 이다 — FortuneAutoOpen 계약(진입 팝업 "지금 열기" 와
+    /// 같은 채널)으로 신호만 올리고, MainShell 이 불꽃 탭으로 전환한 뒤 그 화면의 오늘의 기운
+    /// 진입점이 사용자 탭과 동일한 경로(광고 → 공개)를 실행한다. 토스트는 광고를 부르지 않는다.
+    private func fortuneToast(horizontalInset: CGFloat = 0, topInset: CGFloat = 0) -> some View {
+        FortuneToastView(horizontalInset: horizontalInset, topInset: topInset) {
+            FortuneAutoOpen.shared.request()
+        }
+    }
+
     // MARK: - 상태 1 — 미드로우 (웹 CardDrawScreen state 1 · 덱 홀드)
 
     /// R4 — "카드 뽑기" 버튼 대신 웹의 덱 홀드 드로우 (DeckHoldDraw) 복원.
@@ -182,6 +199,7 @@ struct DailyHomeView: View {
     /// BackupReminderBanner 만 웹 page.tsx(L140) 처럼 상단 조건부 유지(익명 백업 권유).
     private func drawPrompt(_ daily: DailyState, _ s: PhaseSlice) -> some View {
         VStack(spacing: 0) {
+            fortuneToast(horizontalInset: 20, topInset: 12)
             BackupReminderBannerView()
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
@@ -217,6 +235,9 @@ struct DailyHomeView: View {
         let allDone = total > 0 && done >= total
         return ScrollView {
             VStack(spacing: 16) {
+                // 상단 토스트 — 진입 팝업을 스킵했고 오늘의 기운을 아직 안 본 경우에만.
+                // 보드 콘텐츠 위에 겹치지 않고 최상단에 얹혀 카드 완료 흐름을 가리지 않는다.
+                fortuneToast()
                 // 웹 page.tsx(L140) 패리티 — 백업 권유 배너만 보드 상단 조건부.
                 // 리텐션(불꽃/리포트/듀오)·미니게임은 아지트로 이전됨.
                 BackupReminderBannerView()
