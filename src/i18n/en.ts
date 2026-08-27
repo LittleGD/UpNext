@@ -2428,6 +2428,12 @@ const en: Record<DictKey, string> = {
   "welcome.coins.title": "Welcome Gift",
   "welcome.coins.body": "{coins} coins have arrived. Use them on your first reroll.",
   "welcome.coins.confirm": "Collect",
+
+  // ── 오늘의 기운 진입 팝업 / 뽑기 연출 ──
+  "fortune.prompt.title": "Today's Aura is ready",
+  "fortune.prompt.confirm": "Open now",
+  "fortune.prompt.skip": "Later",
+  "fortune.draw.searching": "Searching for today's card…",
 };
 
 export default en;

@@ -1242,6 +1242,28 @@
         }
       }
     },
+    "%lld코인이 도착했어요. 첫 리롤에 쓸 수 있어요.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld coins have arrived. Use them on your first reroll."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldコインが届きました。最初のリロールに使えます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld金币已到账，可用于第一次重抽。"
+          }
+        }
+      }
+    },
     "'%@' 을(를) 완료로 표시할까요?": {
       "localizations": {
         "en": {
@@ -1404,6 +1426,29 @@
         }
       }
     },
+    "1. 개요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. Overview"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. 概要"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. 概述"
+          }
+        }
+      }
+    },
     "100일 달성 — 전설의 불꽃": {
       "extractionState": "manual",
       "localizations": {
@@ -1492,6 +1537,51 @@
           "stringUnit": {
             "state": "translated",
             "value": "2 回合闪避 100%。"
+          }
+        }
+      }
+    },
+    "2. 수집하는 데이터": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. Data We Collect"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. 収集するデータ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. 收集的数据"
+          }
+        }
+      }
+    },
+    "2배로 받았어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Received 2x"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2倍で受け取りました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已领取双倍"
           }
         }
       }
@@ -1654,6 +1744,29 @@
         }
       }
     },
+    "3. 데이터 이용 목적": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3. How We Use Data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3. データの利用目的"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3. 数据用途"
+          }
+        }
+      }
+    },
     "3라운드 메모리 매치로 카드를 모아요": {
       "localizations": {
         "en": {
@@ -1694,6 +1807,75 @@
           "stringUnit": {
             "state": "translated",
             "value": "3连续配对时机会+1（每回合1次）"
+          }
+        }
+      }
+    },
+    "4. 제3자 제공": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4. Third-Party Sharing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4. 第三者への提供"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4. 第三方共享"
+          }
+        }
+      }
+    },
+    "5. 데이터 삭제와 광고 설정": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5. Data Deletion and Ad Settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5. データの削除と広告設定"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5. 数据删除与广告设置"
+          }
+        }
+      }
+    },
+    "6. 문의": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6. Contact"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6. お問い合わせ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6. 联系方式"
           }
         }
       }
@@ -2617,6 +2799,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "开始 UpNext"
+          }
+        }
+      }
+    },
+    "UpNext(이하 '앱')는 사용자의 개인정보를 소중히 다룹니다. 본 방침은 앱이 어떤 데이터를 수집하고 어떻게 활용하는지 설명합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UpNext (the 'App') values your privacy. This policy explains what data the App collects and how it is used."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UpNext（以下「アプリ」）はユーザーのプライバシーを大切にしています。本ポリシーは、アプリが収集するデータとその利用方法について説明します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UpNext（以下简称'应用'）重视用户的隐私。本政策说明应用收集哪些数据以及如何使用这些数据。"
           }
         }
       }
@@ -25720,6 +25925,29 @@
         }
       }
     },
+    "개인정보 관련 문의는 jmjplearner@gmail.com으로 연락해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For privacy inquiries, please contact us at jmjplearner@gmail.com."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシーに関するお問い合わせは、jmjplearner@gmail.comまでご連絡ください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如有隐私相关问题，请联系 jmjplearner@gmail.com。"
+          }
+        }
+      }
+    },
     "개인정보 처리방침": {
       "extractionState": "manual",
       "localizations": {
@@ -26568,6 +26796,50 @@
         }
       }
     },
+    "광고 보고 2배 받기": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch an ad for 2x"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を見て2倍もらう"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看广告领双倍"
+          }
+        }
+      }
+    },
+    "광고 보고 리롤": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch an ad to reroll"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を見てリロール"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看广告重抽"
+          }
+        }
+      }
+    },
     "광고 불러오는 중…": {
       "localizations": {
         "en": {
@@ -26608,6 +26880,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "看一条广告就是大大的支持"
+          }
+        }
+      }
+    },
+    "광고를 보면 오늘의 카드와 색·문구·명언이 열려요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch an ad to unlock today's card, color, phrase and quote"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を見ると今日のカード・色・ことば・名言が開きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观看广告即可解锁今日卡牌、颜色、话语与名言"
           }
         }
       }
@@ -30740,6 +31034,50 @@
         }
       }
     },
+    "리롤 · %lld코인": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reroll · %lld coins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リロール · %lldコイン"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重抽 · %lld金币"
+          }
+        }
+      }
+    },
+    "리롤은 하루에 한 번만 가능합니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reroll is available once per day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リロールは1日1回だけです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天只能重抽一次"
+          }
+        }
+      }
+    },
     "리셋 (되돌릴 수 없음)": {
       "extractionState": "manual",
       "localizations": {
@@ -33445,6 +33783,28 @@
         }
       }
     },
+    "불러오는 중…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "読み込み中…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载中…"
+          }
+        }
+      }
+    },
     "불씨 하나가 바람을 따라 올라갔다": {
       "extractionState": "manual",
       "localizations": {
@@ -34733,6 +35093,29 @@
         }
       }
     },
+    "설정 화면의 '데이터 초기화' 버튼을 통해 모든 로컬 및 클라우드 데이터를 삭제할 수 있습니다. 앱을 삭제하면 기기 내 데이터가 자동으로 제거됩니다. 유럽경제지역(EEA), 영국, 스위스 이용자에게는 첫 광고를 재생하기 직전에 Google 동의 관리 플랫폼(UMP)의 동의 화면이 표시되며, 여기서 선택한 내용에 따라 개인 맞춤 광고 제공 여부가 결정됩니다. 동의하지 않으면 개인 맞춤 광고가 제공되지 않고 광고 시청 보상 기능을 이용하지 못할 수 있으나, 광고와 무관한 기능은 그대로 이용할 수 있습니다. 선택을 바꾸려면 앱을 삭제하고 다시 설치하면 동의 화면이 다시 표시됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can delete all local and cloud data via the 'Reset Data' button in Settings. Uninstalling the App automatically removes on-device data. Users in the European Economic Area, the United Kingdom, and Switzerland are shown a Google User Messaging Platform (UMP) consent screen right before the first ad plays, and that choice determines whether personalized ads are served. If you decline, personalized ads are not served and ad-based rewards may become unavailable, while everything unrelated to ads keeps working. To change your choice, uninstall and reinstall the App and the consent screen appears again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定画面の「データ初期化」ボタンから、すべてのローカルおよびクラウドデータを削除できます。アプリを削除すると、端末内のデータは自動的に消去されます。欧州経済領域（EEA）・英国・スイスの利用者には、最初の広告を再生する直前にGoogleの同意管理プラットフォーム（UMP）の同意画面が表示され、そこでの選択によってパーソナライズ広告の配信可否が決まります。同意しない場合、パーソナライズ広告は配信されず、広告視聴による報酬機能を利用できないことがありますが、広告と関係のない機能はそのままご利用いただけます。選択を変更したい場合は、アプリを削除して再インストールすると同意画面が再度表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您可以通过设置中的'重置数据'按钮删除所有本地和云端数据。卸载应用会自动删除设备上的数据。对于欧洲经济区（EEA）、英国和瑞士的用户，应用会在首次播放广告前显示Google用户消息平台（UMP）的同意界面，您在该界面的选择决定是否投放个性化广告。若您不同意，将不会投放个性化广告，观看广告获得奖励的功能可能无法使用，但与广告无关的功能仍可正常使用。如需更改选择，卸载并重新安装应用后会再次显示同意界面。"
+          }
+        }
+      }
+    },
     "성공": {
       "extractionState": "manual",
       "localizations": {
@@ -35370,6 +35753,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "蒸汽史莱姆"
+          }
+        }
+      }
+    },
+    "수집된 데이터는 챌린지 기록 저장, 기기 간 동기화, 리더보드 순위 산정, 앱 기능 개선, 그리고 앱 내 광고 제공에 사용됩니다. 광고는 이용자가 직접 선택해 시청하는 보상형 광고이며 자동으로 재생되지 않습니다. 앱은 비개인화 광고를 기본으로 요청하며, 이 경우에도 노출 빈도 제한, 집계 리포팅, 부정 클릭 방지를 위해 기기 식별 정보가 사용될 수 있습니다. 개인 맞춤 광고는 이용자가 동의한 경우에만 제공됩니다. 앱은 개인정보를 판매하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collected data is used to save challenge records, sync across devices, rank the leaderboard, improve App functionality, and serve ads inside the App. Ads are opt-in rewarded ads that you choose to watch, and they never play automatically. The App requests non-personalized ads by default; even then, device identifying information may be used for frequency capping, aggregate reporting, and fraud prevention. Personalized ads are served only where you have given consent. The App does not sell personal information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "収集されたデータは、チャレンジ記録の保存、デバイス間の同期、リーダーボードの順位算定、アプリ機能の改善、およびアプリ内広告の配信に使用されます。広告は利用者が自分で選んで視聴するリワード広告であり、自動的に再生されることはありません。アプリは非パーソナライズ広告を既定として要求しますが、その場合でも表示頻度の制限、集計レポート、不正クリック防止のために端末を識別する情報が使用されることがあります。パーソナライズ広告は、利用者が同意した場合にのみ配信されます。アプリは個人情報を販売しません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收集的数据用于保存挑战记录、跨设备同步、计算排行榜排名、改进应用功能，以及在应用内提供广告。广告是由用户自行选择观看的激励视频广告，不会自动播放。应用默认请求非个性化广告，即便如此，仍可能使用设备识别信息进行展示频次限制、汇总报告和防作弊。只有在用户同意的情况下才会提供个性化广告。应用不会出售个人信息。"
           }
         }
       }
@@ -36424,6 +36830,28 @@
         }
       }
     },
+    "시작 선물": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome Gift"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "はじまりの贈り物"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开局礼物"
+          }
+        }
+      }
+    },
     "시작 체력 70%, 몬스터 공격 +15%": {
       "extractionState": "manual",
       "localizations": {
@@ -37293,6 +37721,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "相册"
+          }
+        }
+      }
+    },
+    "앱은 사용자의 개인정보를 제3자에게 판매하지 않습니다. 단, 다음 서비스 제공자를 사용합니다. Firebase(Google): 로그인, 클라우드 동기화, 리더보드 저장. Google AdMob: 보상형 광고 제공 및 측정. 각 서비스의 개인정보 처리방침이 적용됩니다. 사진 파일은 기기 내부에만 저장되며 외부로 전송되지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The App does not sell your personal information to third parties, but it does use the following service providers. Firebase (Google): sign-in, cloud sync, leaderboard storage. Google AdMob: serving and measuring rewarded ads. Each provider's own privacy policy applies. Photo files are stored only on your device and are never transmitted externally."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリはユーザーの個人情報を第三者に販売しません。ただし、以下のサービス提供者を利用しています。Firebase（Google）: ログイン、クラウド同期、リーダーボードの保存。Google AdMob: リワード広告の配信と測定。各サービスのプライバシーポリシーが適用されます。写真ファイルは端末内にのみ保存され、外部に送信されません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用不会向第三方出售您的个人信息，但会使用以下服务提供商。Firebase（Google）：登录、云同步、排行榜存储。Google AdMob：投放和衡量激励视频广告。各服务的隐私政策同时适用。照片文件仅保存在设备本地，不会向外部传输。"
+          }
+        }
+      }
+    },
+    "앱은 챌린지 진행 상황, 설정값, 사진 등 앱 이용에 필요한 데이터를 기기 내 로컬 저장소에 보관합니다. Apple 또는 Google 로그인을 사용할 경우 이메일 주소와 표시 이름이 인증 목적으로 수집됩니다. 주간 악몽 던전 리더보드에 참여하면 표시 이름·점수·층수·영웅 레벨·클래스가 다른 이용자에게 공개됩니다 (로그인하지 않으면 미참여, 로컬 기록만 유지). 광고를 시청하면 Google AdMob SDK가 기기 및 앱 정보, 대략적인 위치(IP 주소 기반 국가 수준), 광고 상호작용 기록을 수집합니다. 앱은 추적 권한(App Tracking Transparency)을 요청하지 않으므로 기기 광고 식별자(IDFA)에 접근하지 않습니다. 앱은 이름, 생년월일, 나이, 연락처, 정확한 위치 정보를 수집하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The App stores the data it needs to run, such as challenge progress, settings, and photos, in local storage on your device. If you sign in with Apple or Google, your email address and display name are collected for authentication. If you join the weekly Nightmare Dungeon leaderboard, your display name, score, floor, hero level, and class become visible to other players (without signing in you do not participate and records stay on your device). When you watch an ad, the Google AdMob SDK collects device and app information, approximate location (country level, derived from your IP address), and ad interaction records. The App does not request App Tracking Transparency permission, so it does not access your device's advertising identifier (IDFA). The App does not collect your name, date of birth, age, contacts, or precise location."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリはチャレンジの進行状況、設定値、写真など利用に必要なデータを端末内のローカルストレージに保存します。AppleまたはGoogleログインをご利用の場合、認証のためにメールアドレスと表示名が収集されます。週間ナイトメアダンジョンのリーダーボードに参加すると、表示名・スコア・階層・ヒーローレベル・クラスが他の利用者に公開されます（ログインしない場合は不参加となり、記録は端末内にのみ残ります）。広告を視聴すると、Google AdMob SDKが端末およびアプリの情報、おおよその位置情報（IPアドレスに基づく国レベル）、広告の操作履歴を収集します。アプリはApp Tracking Transparencyの追跡許可を求めないため、端末の広告識別子（IDFA）にはアクセスしません。アプリは氏名、生年月日、年齢、連絡先、正確な位置情報を収集しません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用将挑战进度、设置和照片等运行所需的数据保存在设备本地存储中。如果您使用Apple或Google登录，将收集您的电子邮件地址和显示名称用于身份验证。参加每周噩梦地下城排行榜后，您的显示名称、分数、层数、英雄等级和职业将对其他用户公开（未登录则不参与，记录仅保留在设备本地）。观看广告时，Google AdMob SDK会收集设备和应用信息、大致位置（基于IP地址的国家级别）以及广告互动记录。应用不会请求App Tracking Transparency追踪权限，因此不会访问设备的广告标识符（IDFA）。应用不收集姓名、出生日期、年龄、通讯录和精确位置信息。"
           }
         }
       }
@@ -38491,6 +38965,138 @@
         }
       }
     },
+    "오늘의 기운": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's Aura"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の気配"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日气场"
+          }
+        }
+      }
+    },
+    "오늘의 기운 열기": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Today's Aura"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の気配を開く"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开今日气场"
+          }
+        }
+      }
+    },
+    "오늘의 기운을 확인했어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You've seen today's aura"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の気配を確認しました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已查看今日气场"
+          }
+        }
+      }
+    },
+    "오늘의 기운이 도착했어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's Aura is ready"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の気配が届きました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日气场已就绪"
+          }
+        }
+      }
+    },
+    "오늘의 명언": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's Quote"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の名言"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日名言"
+          }
+        }
+      }
+    },
+    "오늘의 문구": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's Phrase"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日のことば"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日话语"
+          }
+        }
+      }
+    },
     "오늘의 불꽃을 천천히 켜볼까요": {
       "extractionState": "manual",
       "localizations": {
@@ -38510,6 +39116,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "慢慢点亮今天的火焰吧"
+          }
+        }
+      }
+    },
+    "오늘의 색": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's Color"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の色"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日颜色"
           }
         }
       }
@@ -38604,6 +39232,28 @@
         }
       }
     },
+    "오늘의 카드": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's Card"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日のカード"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日卡牌"
+          }
+        }
+      }
+    },
     "오늘의 카드를 뽑고 갓생을 이어가세요.": {
       "extractionState": "manual",
       "localizations": {
@@ -38623,6 +39273,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "抽取今日卡片，延续你的充实生活。"
+          }
+        }
+      }
+    },
+    "오늘의 카드를 찾는 중…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searching for today's card…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日のカードを探しています…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在寻找今日卡牌…"
           }
         }
       }
@@ -42413,6 +43085,28 @@
         }
       }
     },
+    "지금 열기": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今すぐ開く"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即打开"
+          }
+        }
+      }
+    },
     "지금 탭!": {
       "extractionState": "manual",
       "localizations": {
@@ -43708,6 +44402,29 @@
         }
       }
     },
+    "최종 수정일: 2026년 8월 26일": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last updated: August 26, 2026"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最終更新日: 2026年8月26日"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最后更新：2026年8月26日"
+          }
+        }
+      }
+    },
     "추가 도전자": {
       "extractionState": "manual",
       "localizations": {
@@ -44390,6 +45107,28 @@
         }
       }
     },
+    "카드를 다시 뽑는 방법을 골라주세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose how to reroll your cards"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カードを引き直す方法を選んでください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择重抽方式"
+          }
+        }
+      }
+    },
     "카드를 다시 뽑으면 현재 6장이 새 카드로 교체돼요.\n다시 뽑기는 하루 한 번만 가능해요.": {
       "extractionState": "manual",
       "localizations": {
@@ -44431,6 +45170,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "翻开卡牌找出相同的一对"
+          }
+        }
+      }
+    },
+    "카드를 모으면 오늘의 기운을 볼 수 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collect cards to unlock Today's Aura"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カードを集めると今日の気配が見られます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收集卡牌后即可查看今日气场"
           }
         }
       }
@@ -47920,701 +48681,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "力量"
-          }
-        }
-      }
-    },
-    "오늘의 기운": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Today's Aura"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日の気配"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日气场"
-          }
-        }
-      }
-    },
-    "광고를 보면 오늘의 카드와 색·문구·명언이 열려요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Watch an ad to unlock today's card, color, phrase and quote"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "広告を見ると今日のカード・色・ことば・名言が開きます"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "观看广告即可解锁今日卡牌、颜色、话语与名言"
-          }
-        }
-      }
-    },
-    "오늘의 기운 열기": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Today's Aura"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日の気配を開く"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "打开今日气场"
-          }
-        }
-      }
-    },
-    "불러오는 중…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading…"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "読み込み中…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "加载中…"
-          }
-        }
-      }
-    },
-    "오늘의 기운을 확인했어요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You've seen today's aura"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日の気配を確認しました"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已查看今日气场"
-          }
-        }
-      }
-    },
-    "오늘의 카드": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Today's Card"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日のカード"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日卡牌"
-          }
-        }
-      }
-    },
-    "오늘의 색": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Today's Color"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日の色"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日颜色"
-          }
-        }
-      }
-    },
-    "오늘의 문구": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Today's Phrase"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日のことば"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日话语"
-          }
-        }
-      }
-    },
-    "오늘의 명언": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Today's Quote"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日の名言"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日名言"
-          }
-        }
-      }
-    },
-    "카드를 모으면 오늘의 기운을 볼 수 있어요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Collect cards to unlock Today's Aura"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "カードを集めると今日の気配が見られます"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "收集卡牌后即可查看今日气场"
-          }
-        }
-      }
-    },
-    "리롤 · %lld코인": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reroll · %lld coins"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "リロール · %lldコイン"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重抽 · %lld金币"
-          }
-        }
-      }
-    },
-    "광고 보고 리롤": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Watch an ad to reroll"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "広告を見てリロール"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "看广告重抽"
-          }
-        }
-      }
-    },
-    "카드를 다시 뽑는 방법을 골라주세요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose how to reroll your cards"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "カードを引き直す方法を選んでください"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请选择重抽方式"
-          }
-        }
-      }
-    },
-    "리롤은 하루에 한 번만 가능합니다": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reroll is available once per day"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "リロールは1日1回だけです"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "每天只能重抽一次"
-          }
-        }
-      }
-    },
-    "광고 보고 2배 받기": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Watch an ad for 2x"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "広告を見て2倍もらう"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "看广告领双倍"
-          }
-        }
-      }
-    },
-    "2배로 받았어요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Received 2x"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "2倍で受け取りました"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已领取双倍"
-          }
-        }
-      }
-    },
-    "시작 선물": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Welcome Gift"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "はじまりの贈り物"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "开局礼物"
-          }
-        }
-      }
-    },
-    "%lld코인이 도착했어요. 첫 리롤에 쓸 수 있어요.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld coins have arrived. Use them on your first reroll."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lldコインが届きました。最初のリロールに使えます。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld金币已到账，可用于第一次重抽。"
-          }
-        }
-      }
-    },
-    "최종 수정일: 2026년 8월 26일": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last updated: August 26, 2026"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "最終更新日: 2026年8月26日"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "最后更新：2026年8月26日"
-          }
-        }
-      }
-    },
-    "1. 개요": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1. Overview"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1. 概要"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1. 概述"
-          }
-        }
-      }
-    },
-    "UpNext(이하 '앱')는 사용자의 개인정보를 소중히 다룹니다. 본 방침은 앱이 어떤 데이터를 수집하고 어떻게 활용하는지 설명합니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "UpNext (the 'App') values your privacy. This policy explains what data the App collects and how it is used."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "UpNext（以下「アプリ」）はユーザーのプライバシーを大切にしています。本ポリシーは、アプリが収集するデータとその利用方法について説明します。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "UpNext（以下简称'应用'）重视用户的隐私。本政策说明应用收集哪些数据以及如何使用这些数据。"
-          }
-        }
-      }
-    },
-    "2. 수집하는 데이터": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "2. Data We Collect"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "2. 収集するデータ"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "2. 收集的数据"
-          }
-        }
-      }
-    },
-    "앱은 챌린지 진행 상황, 설정값, 사진 등 앱 이용에 필요한 데이터를 기기 내 로컬 저장소에 보관합니다. Apple 또는 Google 로그인을 사용할 경우 이메일 주소와 표시 이름이 인증 목적으로 수집됩니다. 주간 악몽 던전 리더보드에 참여하면 표시 이름·점수·층수·영웅 레벨·클래스가 다른 이용자에게 공개됩니다 (로그인하지 않으면 미참여, 로컬 기록만 유지). 광고를 시청하면 Google AdMob SDK가 기기 및 앱 정보, 대략적인 위치(IP 주소 기반 국가 수준), 광고 상호작용 기록을 수집합니다. 앱은 추적 권한(App Tracking Transparency)을 요청하지 않으므로 기기 광고 식별자(IDFA)에 접근하지 않습니다. 앱은 이름, 생년월일, 나이, 연락처, 정확한 위치 정보를 수집하지 않습니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The App stores the data it needs to run, such as challenge progress, settings, and photos, in local storage on your device. If you sign in with Apple or Google, your email address and display name are collected for authentication. If you join the weekly Nightmare Dungeon leaderboard, your display name, score, floor, hero level, and class become visible to other players (without signing in you do not participate and records stay on your device). When you watch an ad, the Google AdMob SDK collects device and app information, approximate location (country level, derived from your IP address), and ad interaction records. The App does not request App Tracking Transparency permission, so it does not access your device's advertising identifier (IDFA). The App does not collect your name, date of birth, age, contacts, or precise location."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "アプリはチャレンジの進行状況、設定値、写真など利用に必要なデータを端末内のローカルストレージに保存します。AppleまたはGoogleログインをご利用の場合、認証のためにメールアドレスと表示名が収集されます。週間ナイトメアダンジョンのリーダーボードに参加すると、表示名・スコア・階層・ヒーローレベル・クラスが他の利用者に公開されます（ログインしない場合は不参加となり、記録は端末内にのみ残ります）。広告を視聴すると、Google AdMob SDKが端末およびアプリの情報、おおよその位置情報（IPアドレスに基づく国レベル）、広告の操作履歴を収集します。アプリはApp Tracking Transparencyの追跡許可を求めないため、端末の広告識別子（IDFA）にはアクセスしません。アプリは氏名、生年月日、年齢、連絡先、正確な位置情報を収集しません。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "应用将挑战进度、设置和照片等运行所需的数据保存在设备本地存储中。如果您使用Apple或Google登录，将收集您的电子邮件地址和显示名称用于身份验证。参加每周噩梦地下城排行榜后，您的显示名称、分数、层数、英雄等级和职业将对其他用户公开（未登录则不参与，记录仅保留在设备本地）。观看广告时，Google AdMob SDK会收集设备和应用信息、大致位置（基于IP地址的国家级别）以及广告互动记录。应用不会请求App Tracking Transparency追踪权限，因此不会访问设备的广告标识符（IDFA）。应用不收集姓名、出生日期、年龄、通讯录和精确位置信息。"
-          }
-        }
-      }
-    },
-    "3. 데이터 이용 목적": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3. How We Use Data"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3. データの利用目的"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3. 数据用途"
-          }
-        }
-      }
-    },
-    "수집된 데이터는 챌린지 기록 저장, 기기 간 동기화, 리더보드 순위 산정, 앱 기능 개선, 그리고 앱 내 광고 제공에 사용됩니다. 광고는 이용자가 직접 선택해 시청하는 보상형 광고이며 자동으로 재생되지 않습니다. 앱은 비개인화 광고를 기본으로 요청하며, 이 경우에도 노출 빈도 제한, 집계 리포팅, 부정 클릭 방지를 위해 기기 식별 정보가 사용될 수 있습니다. 개인 맞춤 광고는 이용자가 동의한 경우에만 제공됩니다. 앱은 개인정보를 판매하지 않습니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Collected data is used to save challenge records, sync across devices, rank the leaderboard, improve App functionality, and serve ads inside the App. Ads are opt-in rewarded ads that you choose to watch, and they never play automatically. The App requests non-personalized ads by default; even then, device identifying information may be used for frequency capping, aggregate reporting, and fraud prevention. Personalized ads are served only where you have given consent. The App does not sell personal information."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "収集されたデータは、チャレンジ記録の保存、デバイス間の同期、リーダーボードの順位算定、アプリ機能の改善、およびアプリ内広告の配信に使用されます。広告は利用者が自分で選んで視聴するリワード広告であり、自動的に再生されることはありません。アプリは非パーソナライズ広告を既定として要求しますが、その場合でも表示頻度の制限、集計レポート、不正クリック防止のために端末を識別する情報が使用されることがあります。パーソナライズ広告は、利用者が同意した場合にのみ配信されます。アプリは個人情報を販売しません。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "收集的数据用于保存挑战记录、跨设备同步、计算排行榜排名、改进应用功能，以及在应用内提供广告。广告是由用户自行选择观看的激励视频广告，不会自动播放。应用默认请求非个性化广告，即便如此，仍可能使用设备识别信息进行展示频次限制、汇总报告和防作弊。只有在用户同意的情况下才会提供个性化广告。应用不会出售个人信息。"
-          }
-        }
-      }
-    },
-    "4. 제3자 제공": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4. Third-Party Sharing"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4. 第三者への提供"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4. 第三方共享"
-          }
-        }
-      }
-    },
-    "앱은 사용자의 개인정보를 제3자에게 판매하지 않습니다. 단, 다음 서비스 제공자를 사용합니다. Firebase(Google): 로그인, 클라우드 동기화, 리더보드 저장. Google AdMob: 보상형 광고 제공 및 측정. 각 서비스의 개인정보 처리방침이 적용됩니다. 사진 파일은 기기 내부에만 저장되며 외부로 전송되지 않습니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The App does not sell your personal information to third parties, but it does use the following service providers. Firebase (Google): sign-in, cloud sync, leaderboard storage. Google AdMob: serving and measuring rewarded ads. Each provider's own privacy policy applies. Photo files are stored only on your device and are never transmitted externally."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "アプリはユーザーの個人情報を第三者に販売しません。ただし、以下のサービス提供者を利用しています。Firebase（Google）: ログイン、クラウド同期、リーダーボードの保存。Google AdMob: リワード広告の配信と測定。各サービスのプライバシーポリシーが適用されます。写真ファイルは端末内にのみ保存され、外部に送信されません。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "应用不会向第三方出售您的个人信息，但会使用以下服务提供商。Firebase（Google）：登录、云同步、排行榜存储。Google AdMob：投放和衡量激励视频广告。各服务的隐私政策同时适用。照片文件仅保存在设备本地，不会向外部传输。"
-          }
-        }
-      }
-    },
-    "5. 데이터 삭제와 광고 설정": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "5. Data Deletion and Ad Settings"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "5. データの削除と広告設定"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "5. 数据删除与广告设置"
-          }
-        }
-      }
-    },
-    "설정 화면의 '데이터 초기화' 버튼을 통해 모든 로컬 및 클라우드 데이터를 삭제할 수 있습니다. 앱을 삭제하면 기기 내 데이터가 자동으로 제거됩니다. 유럽경제지역(EEA), 영국, 스위스 이용자에게는 첫 광고를 재생하기 직전에 Google 동의 관리 플랫폼(UMP)의 동의 화면이 표시되며, 여기서 선택한 내용에 따라 개인 맞춤 광고 제공 여부가 결정됩니다. 동의하지 않으면 개인 맞춤 광고가 제공되지 않고 광고 시청 보상 기능을 이용하지 못할 수 있으나, 광고와 무관한 기능은 그대로 이용할 수 있습니다. 선택을 바꾸려면 앱을 삭제하고 다시 설치하면 동의 화면이 다시 표시됩니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You can delete all local and cloud data via the 'Reset Data' button in Settings. Uninstalling the App automatically removes on-device data. Users in the European Economic Area, the United Kingdom, and Switzerland are shown a Google User Messaging Platform (UMP) consent screen right before the first ad plays, and that choice determines whether personalized ads are served. If you decline, personalized ads are not served and ad-based rewards may become unavailable, while everything unrelated to ads keeps working. To change your choice, uninstall and reinstall the App and the consent screen appears again."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "設定画面の「データ初期化」ボタンから、すべてのローカルおよびクラウドデータを削除できます。アプリを削除すると、端末内のデータは自動的に消去されます。欧州経済領域（EEA）・英国・スイスの利用者には、最初の広告を再生する直前にGoogleの同意管理プラットフォーム（UMP）の同意画面が表示され、そこでの選択によってパーソナライズ広告の配信可否が決まります。同意しない場合、パーソナライズ広告は配信されず、広告視聴による報酬機能を利用できないことがありますが、広告と関係のない機能はそのままご利用いただけます。選択を変更したい場合は、アプリを削除して再インストールすると同意画面が再度表示されます。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "您可以通过设置中的'重置数据'按钮删除所有本地和云端数据。卸载应用会自动删除设备上的数据。对于欧洲经济区（EEA）、英国和瑞士的用户，应用会在首次播放广告前显示Google用户消息平台（UMP）的同意界面，您在该界面的选择决定是否投放个性化广告。若您不同意，将不会投放个性化广告，观看广告获得奖励的功能可能无法使用，但与广告无关的功能仍可正常使用。如需更改选择，卸载并重新安装应用后会再次显示同意界面。"
-          }
-        }
-      }
-    },
-    "6. 문의": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "6. Contact"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "6. お問い合わせ"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "6. 联系方式"
-          }
-        }
-      }
-    },
-    "개인정보 관련 문의는 jmjplearner@gmail.com으로 연락해 주세요.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "For privacy inquiries, please contact us at jmjplearner@gmail.com."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "プライバシーに関するお問い合わせは、jmjplearner@gmail.comまでご連絡ください。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "如有隐私相关问题，请联系 jmjplearner@gmail.com。"
           }
         }
       }

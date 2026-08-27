@@ -2428,6 +2428,12 @@ const zh: Record<DictKey, string> = {
   "welcome.coins.title": "开局礼物",
   "welcome.coins.body": "{coins}金币已到账，可用于第一次重抽。",
   "welcome.coins.confirm": "领取",
+
+  // ── 오늘의 기운 진입 팝업 / 뽑기 연출 ──
+  "fortune.prompt.title": "今日气场已就绪",
+  "fortune.prompt.confirm": "立即打开",
+  "fortune.prompt.skip": "稍后",
+  "fortune.draw.searching": "正在寻找今日卡牌…",
 };
 
 export default zh;

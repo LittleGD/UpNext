@@ -2428,6 +2428,12 @@ const ja: Record<DictKey, string> = {
   "welcome.coins.title": "はじまりの贈り物",
   "welcome.coins.body": "{coins}コインが届きました。最初のリロールに使えます。",
   "welcome.coins.confirm": "受け取る",
+
+  // ── 오늘의 기운 진입 팝업 / 뽑기 연출 ──
+  "fortune.prompt.title": "今日の気配が届きました",
+  "fortune.prompt.confirm": "今すぐ開く",
+  "fortune.prompt.skip": "あとで",
+  "fortune.draw.searching": "今日のカードを探しています…",
 };
 
 export default ja;

@@ -2439,6 +2439,12 @@ const ko = {
   "welcome.coins.title": "시작 선물",
   "welcome.coins.body": "{coins}코인이 도착했어요. 첫 리롤에 쓸 수 있어요.",
   "welcome.coins.confirm": "받기",
+
+  // ── 오늘의 기운 진입 팝업 / 뽑기 연출 ──
+  "fortune.prompt.title": "오늘의 기운이 도착했어요",
+  "fortune.prompt.confirm": "지금 열기",
+  "fortune.prompt.skip": "나중에",
+  "fortune.draw.searching": "오늘의 카드를 찾는 중…",
 } as const;
 
 export type DictKey = keyof typeof ko;
