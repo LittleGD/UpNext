@@ -39632,6 +39632,29 @@
         }
       }
     },
+    "오늘의 기운 · %lld코인": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's Fortune · %lld coins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の運気・%lldコイン"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日运势 · %lld 金币"
+          }
+        }
+      }
+    },
     "오늘의 기운 열기": {
       "localizations": {
         "en": {
@@ -43948,6 +43971,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "现在点！"
+          }
+        }
+      }
+    },
+    "지금은 광고를 볼 수 없어요 · 코인으로 열 수 있어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ads aren't available right now. You can open it with coins."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今は広告を表示できません。コインで開けます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在无法显示广告，可以用金币打开。"
           }
         }
       }

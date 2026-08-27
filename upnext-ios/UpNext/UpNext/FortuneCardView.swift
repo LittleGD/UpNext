@@ -22,30 +22,41 @@ struct FortuneCardView: View {
     var onOpenAura: (AuraOverlayRequest) -> Void = { _ in }
 
     @EnvironmentObject private var store: GameStore
+    @EnvironmentObject private var upHero: UpHeroStore
     /// 진입 팝업("지금 열기") 의 자동 열기 신호 — FortunePromptModal 의 계약.
     @ObservedObject private var autoOpen = FortuneAutoOpen.shared
 
-    private enum Phase { case idle, loading, fail }
+    private enum Phase { case idle, loading, noCoins }
 
     @State private var fortune: DailyFortune?
     @State private var revealed = false
     @State private var phase: Phase = .idle
+    /// 이번 세션에서 광고 경로가 실제로 실패했다. 한 번 확인되면 코인 경로로 전환한다.
+    ///   `AdsService.isAvailable` 은 동의 갱신 전 낙관적으로 true 를 돌려주므로 그것만으로는
+    ///   판정할 수 없다. 실제 `.unavailable` 을 받은 뒤에야 확정된다.
+    @State private var adDeadEnd = false
 
     /// 해금 카드가 하나도 없으면(온보딩 직후) 열 것이 없다.
     private var isEmpty: Bool { fortune == nil }
 
+    /// 코인 경로로 열어야 하는 상태.
+    ///   광고를 볼 수 있으면 **광고가 기본 경로**다. 코인은 광고가 불가능할 때만 나타난다.
+    ///   둘을 항상 나란히 보여주면 "코인 아까우니 광고 봐야지"라는 압박이 새로 생긴다.
+    private var usesCoinPath: Bool { adDeadEnd || !AdsService.shared.isAvailable }
+
     var body: some View {
-        // 광고를 띄울 수 없는 환경이면 카드 자체를 렌더하지 않는다 (죽은 CTA 금지).
-        if AdsService.shared.isAvailable {
-            VStack(spacing: 12) {
-                card
-                // 폴라로이드를 본 뒤에야 기운 3종을 고를 수 있다 — 오늘의 기운 광고를
-                // 이미 봤다는 사실이 첫 리딩의 값이 된다(웹 FortuneCard.tsx 와 같은 자리).
-                if revealed, let fortune {
-                    AuraSectionView(today: auraToday,
-                                    accent: Color(hexString: fortune.color.hex),
-                                    onOpenReading: onOpenAura)
-                }
+        // 카드는 **항상** 렌더한다. 예전엔 `AdsService.isAvailable` 이 false 면 통째로
+        //   숨겼는데(죽은 CTA 금지 취지), 그 결과 광고를 구조적으로 못 받는 사용자
+        //   (EEA 동의 거부·미승인 지역·오프라인)는 기능의 **존재조차 몰랐다**.
+        //   이제 코인 경로가 병존하므로 CTA 가 죽지 않는다 — 숨길 이유가 없다.
+        VStack(spacing: 12) {
+            card
+            // 폴라로이드를 본 뒤에야 기운 3종을 고를 수 있다 — 오늘의 기운을
+            // 이미 열었다는 사실이 첫 리딩의 값이 된다(웹 FortuneCard.tsx 와 같은 자리).
+            if revealed, let fortune {
+                AuraSectionView(today: auraToday,
+                                accent: Color(hexString: fortune.color.hex),
+                                onOpenReading: onOpenAura)
             }
         }
     }
@@ -96,16 +107,19 @@ struct FortuneCardView: View {
                 Text("카드를 모으면 오늘의 기운을 볼 수 있어요")
             } else if phase == .loading {
                 Text("불러오는 중…")
-            } else if phase == .fail {
-                Text("지금은 보여줄 광고가 없어요")
+            } else if phase == .noCoins {
+                Text("코인이 부족해요 (\(ShopPrices.fortune) 필요)")
             } else if revealed {
                 Text("오늘의 기운을 확인했어요")
+            } else if usesCoinPath {
+                // 광고를 못 받는 상태 — 왜 코인을 쓰는지 밝혀야 납득이 된다.
+                Text("지금은 광고를 볼 수 없어요 · 코인으로 열 수 있어요")
             } else {
                 Text("광고를 보면 오늘의 카드와 색·문구·명언이 열려요")
             }
         }
         .typography(.caption)
-        .foregroundStyle(phase == .fail ? Color.accentSecondary : Color.textTertiary)
+        .foregroundStyle(phase == .noCoins ? Color.accentSecondary : Color.textTertiary)
     }
 
     @ViewBuilder private var trailing: some View {
@@ -115,7 +129,11 @@ struct FortuneCardView: View {
                 .scaleEffect(0.8)
         } else if !isEmpty && !revealed {
             HStack(spacing: 4) {
-                Text("오늘의 기운 열기")
+                // 코인 경로일 땐 가격을 CTA 에 박아 둔다. 눌러야 차감되므로 기습 결제가 없다
+                //   (리롤의 `리롤 · 100코인` 과 같은 규약).
+                Text(usesCoinPath
+                     ? "오늘의 기운 · \(ShopPrices.fortune)코인"
+                     : "오늘의 기운 열기")
                     .typography(.micro)
                     .foregroundStyle(Color.accentPrimary)
                 PixelIcon(.chevronRight, size: 12, color: Color.accentPrimary)
@@ -144,6 +162,18 @@ struct FortuneCardView: View {
         Task { await tap() }
     }
 
+    /// 공개 확정 — 광고 완주와 코인 결제가 **같은 절차**를 타야 한다.
+    ///   (표시 상태 + 그날 1회 마킹 + 뽑기 연출 예약 + 부모에게 공개 위임)
+    private func openRevealed(_ fortune: DailyFortune) {
+        let today = GameStore.todayString()
+        Fortune.markRevealed(today: today)
+        // 그날 첫 공개 — 오버레이가 폴라로이드 앞에 뽑기 연출을 붙인다.
+        FortuneDrawGate.arm(today: today)
+        revealed = true
+        phase = .idle
+        onReveal(fortune)
+    }
+
     private func tap() async {
         guard let fortune, phase != .loading else { return }
         SoundPlayer.shared.play(.select)
@@ -155,23 +185,35 @@ struct FortuneCardView: View {
             return
         }
 
+        // 코인 경로 — 광고를 못 받는 상태에서만 온다. 가격은 CTA 에 이미 적혀 있고
+        //   이 탭이 곧 결제 확정이다(리롤과 같은 규약: 별도 확인 다이얼로그 없음).
+        if usesCoinPath {
+            guard upHero.spendCoins(ShopPrices.fortune) else {
+                SoundPlayer.shared.play(.cancel)
+                Haptics.play(.warning)
+                phase = .noCoins
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                if phase == .noCoins { phase = .idle }
+                return
+            }
+            openRevealed(fortune)
+            return
+        }
+
         phase = .loading
         let result = await AdsService.shared.showRewardedAd(slot: .fortune)
         switch result {
         case .rewarded:
-            let today = GameStore.todayString()
-            Fortune.markRevealed(today: today)
-            // 그날 첫 공개 — 오버레이가 폴라로이드 앞에 뽑기 연출을 붙인다.
-            FortuneDrawGate.arm(today: today)
-            revealed = true
-            phase = .idle
-            onReveal(fortune)
+            openRevealed(fortune)
         case .unavailable:
+            // 막다른 길이던 자리. 예전엔 "지금은 보여줄 광고가 없어요"를 3초 띄우고
+            //   원복해, 아무리 눌러도 열 수 없는 상태가 무한 반복됐다. 이제 광고 경로가
+            //   실제로 죽었다는 사실을 확정하고 코인 경로로 전환한다 — 다음 탭부터
+            //   CTA 가 `오늘의 기운 · 30코인` 으로 바뀐다. 여기서 코인을 자동 차감하지는
+            //   않는다(사용자가 가격을 보고 한 번 더 눌러야 한다).
             SoundPlayer.shared.play(.cancel)
-            phase = .fail
-            // 3초 뒤 안내 문구 원복 — 탭 자체는 계속 가능
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            if phase == .fail { phase = .idle }
+            adDeadEnd = true
+            phase = .idle
         case .dismissed:
             // 중도 이탈 — 아무 일도 없던 것처럼
             phase = .idle
