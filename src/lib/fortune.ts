@@ -23,6 +23,7 @@ import {
 } from "@/data/fortunePool";
 import type { ChallengeCard } from "@/types/card";
 import {
+  AURA_VARIANTS,
   AURA_KINDS,
   type AuraKind,
   type AuraOmen,
@@ -152,11 +153,18 @@ function decodeReading(value: unknown, kind: AuraKind): AuraReading | null {
   if (typeof score !== "number" || !Number.isFinite(score)) return null;
   if (typeof r.tier !== "string" || !(AURA_TIERS as string[]).includes(r.tier)) return null;
   if (typeof r.omen !== "string" || !(AURA_OMENS as string[]).includes(r.omen)) return null;
+  // variant 는 표현 번호(0~2). 구 스냅샷에는 없으므로 0 으로 보정한다 — 하루짜리 값이라
+  // 마이그레이션 없이 그날만 첫 표현으로 보이면 충분하다.
+  const variant =
+    typeof r.variant === "number" && Number.isInteger(r.variant) && r.variant >= 0
+      ? r.variant % AURA_VARIANTS
+      : 0;
   return {
     kind,
     score,
     tier: r.tier as AuraTier,
     omen: r.omen as AuraOmen,
+    variant,
   };
 }
 

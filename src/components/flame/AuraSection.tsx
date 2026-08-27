@@ -66,7 +66,8 @@ const TIER_KEY: Record<AuraTier, DictKey> = {
  * 조짐 문장. 파라미터 치환이 없다 — 키 하나가 문장 하나다.
  * 실측 신호는 aura.ts 에서 이 키를 고르는 데까지만 쓰이고 화면으로는 넘어오지 않는다.
  */
-const OMEN_KEY: Record<AuraOmen, DictKey> = {
+/** 조짐 문장 — 같은 조짐 안에서도 reading.variant 로 표현이 갈린다. */
+const OMEN_BASE: Record<AuraOmen, string> = {
   closing: "aura.omen.closing",
   gathering: "aura.omen.gathering",
   rhythm: "aura.omen.rhythm",
@@ -75,26 +76,19 @@ const OMEN_KEY: Record<AuraOmen, DictKey> = {
   unformed: "aura.omen.unformed",
 };
 
-const ADVICE_KEY: Record<AuraKind, Record<AuraTier, DictKey>> = {
-  wealth: {
-    great: "aura.advice.wealth.great",
-    good: "aura.advice.wealth.good",
-    fair: "aura.advice.wealth.fair",
-    care: "aura.advice.wealth.care",
-  },
-  relationship: {
-    great: "aura.advice.relationship.great",
-    good: "aura.advice.relationship.good",
-    fair: "aura.advice.relationship.fair",
-    care: "aura.advice.relationship.care",
-  },
-  health: {
-    great: "aura.advice.health.great",
-    good: "aura.advice.health.good",
-    fair: "aura.advice.health.fair",
-    care: "aura.advice.health.care",
-  },
+/** 조언 문장 — 기운·등급에 표현 번호를 더해 키를 만든다. */
+const ADVICE_BASE: Record<AuraKind, string> = {
+  wealth: "aura.advice.wealth",
+  relationship: "aura.advice.relationship",
+  health: "aura.advice.health",
 };
+
+function omenKey(r: AuraReading): DictKey {
+  return `${OMEN_BASE[r.omen]}.${r.variant}` as DictKey;
+}
+function adviceKey(r: AuraReading): DictKey {
+  return `${ADVICE_BASE[r.kind]}.${r.tier}.${r.variant}` as DictKey;
+}
 
 const KIND_ICON: Record<AuraKind, string> = {
   wealth: "Coins",
@@ -459,10 +453,10 @@ function AuraOverlay({
 
               {/* 조짐 — 실측 신호가 고른 문장 한 줄. 수치는 인용하지 않는다. */}
               <p className="typo-caption" style={{ color: INK }}>
-                {t(OMEN_KEY[reading.omen])}
+                {t(omenKey(reading))}
               </p>
               <p className="typo-caption" style={{ color: INK_SOFT }}>
-                {t(ADVICE_KEY[reading.kind][reading.tier])}
+                {t(adviceKey(reading))}
               </p>
             </div>
           </div>

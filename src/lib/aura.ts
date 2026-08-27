@@ -7,6 +7,10 @@
  * 만든다. 데이터는 **어떤 문장을 보여줄지 고르는 데만** 쓴다.
  * 그래서 맞는 말처럼 느껴지되 기계처럼 읽히지 않는다.
  *
+ * 문장 변주: 조짐과 조언은 신호·등급으로 고르므로, 습관이 안정되면 **매일 같은 문장**이
+ * 나온다. 점수만 흔들고 텍스트를 고정하면 유저가 보는 화면은 결국 어제와 같다.
+ * 그래서 같은 조짐·같은 등급 안에서도 날짜 해시로 3가지 표현 중 하나를 고른다.
+ *
  * 하루치 흔들림: 행동 신호만 쓰면 습관이 안정된 유저는 **매일 같은 결과**가 나온다.
  * 그건 점이 아니라 통계표다. 그래서 (날짜 + 기기 salt + 기운) 해시로 ±12 를 더한다.
  * 난수가 아니라 해시라 같은 날이면 값이 고정이고, 행동 신호가 여전히 지배적이라
@@ -54,7 +58,15 @@ export interface AuraReading {
   score: number;
   tier: AuraTier;
   omen: AuraOmen;
+  /**
+   * 같은 조짐·등급 안에서 고를 표현 번호(0~2).
+   * 날짜 해시라 같은 날이면 고정이고, 날이 바뀌면 문장이 달라진다.
+   */
+  variant: number;
 }
+
+/** 조짐·조언 표현 가짓수 */
+export const AURA_VARIANTS = 3;
 
 /** 알고리즘 입력 — 스토어에서 뽑아 온 원시 신호 */
 export interface AuraInput {
@@ -120,6 +132,12 @@ function dailySway(today: string, salt: string | undefined, kind: AuraKind): num
   if (!salt) return 0;
   const h = fnv1a(`sway:${today}:${salt}:${kind}`);
   return (h % (SWAY * 2 + 1)) - SWAY;
+}
+
+/** 같은 조짐 안에서 오늘 쓸 표현 번호. 흔들림과 다른 접두사라 상관관계가 없다. */
+function variantOf(today: string, salt: string | undefined, kind: AuraKind): number {
+  if (!salt) return 0;
+  return fnv1a(`phrase:${today}:${salt}:${kind}`) % AURA_VARIANTS;
 }
 
 function clamp100(n: number): number {
@@ -199,7 +217,7 @@ function wealth(w: Window, input: AuraInput): AuraReading {
   else if (w.fullClearDays >= 3) omen = "closing";
   else if (focus >= 3) omen = "gathering";
   else if (input.streak >= 3) omen = "carried";
-  return { kind: "wealth", score, tier: tierOf(score), omen };
+  return { kind: "wealth", score, tier: tierOf(score), omen, variant: variantOf(input.today, input.salt, "wealth") };
 }
 
 /**
@@ -217,7 +235,7 @@ function relationship(w: Window, input: AuraInput): AuraReading {
   let omen: AuraOmen = "unformed";
   if (focus >= 2) omen = "gathering";
   else if (w.activeDays >= 5) omen = "rhythm";
-  return { kind: "relationship", score, tier: tierOf(score), omen };
+  return { kind: "relationship", score, tier: tierOf(score), omen, variant: variantOf(input.today, input.salt, "relationship") };
 }
 
 /**
@@ -238,7 +256,7 @@ function health(w: Window, input: AuraInput): AuraReading {
   if (w.checkInDays >= 7) omen = "rhythm";
   else if (focus >= 3) omen = "gathering";
   else if (w.saverDays > 0) omen = "resting";
-  return { kind: "health", score, tier: tierOf(score), omen };
+  return { kind: "health", score, tier: tierOf(score), omen, variant: variantOf(input.today, input.salt, "health") };
 }
 
 /** 세 기운을 한 번에. 순서는 항상 재물 → 관계 → 건강. */

@@ -114,7 +114,8 @@ describe("computeAura", () => {
     for (const k of ["wealth", "relationship", "health"] as const) {
       // score 는 내부 계산용이고 화면에 숫자로 내보내지 않는다.
       // stat/window 같은 "실측 수치 전달 필드" 자체를 두지 않아 오용을 원천 차단한다.
-      expect(Object.keys(a[k]).sort()).toEqual(["kind", "omen", "score", "tier"]);
+      // variant 는 표현 번호(0~2)라 측정값이 아니다 — 어떤 문장을 고를지에만 쓴다.
+      expect(Object.keys(a[k]).sort()).toEqual(["kind", "omen", "score", "tier", "variant"]);
     }
   });
 
@@ -193,5 +194,38 @@ describe("computeAura", () => {
     expect(a.wealth.tier === "great" || a.wealth.tier === "good").toBe(true);
     expect(a.relationship.tier).toBe("great");
     expect(a.health.tier).toBe("great");
+  });
+});
+
+describe("문장 변주 (같은 신호라도 매일 같은 문장이 나오면 안 된다)", () => {
+  const steady = { history: [1,2,3,4,5].map((n) => day(n, ["fitness", "social"])), streak: 5 };
+
+  it("같은 조짐이라도 날짜가 바뀌면 표현 번호가 달라진다", () => {
+    const days = ["2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01","2026-09-02"];
+    const variants = days.map((d) => computeAura(base({ ...steady, today: d, salt: "device-1" })).health.variant);
+    expect(new Set(variants).size).toBeGreaterThan(1);
+  });
+
+  it("표현 번호는 항상 0~2", () => {
+    for (let i = 1; i <= 28; i++) {
+      const a = computeAura(base({ ...steady, today: `2026-09-${String(i).padStart(2, "0")}`, salt: "d" }));
+      for (const k of ["wealth","relationship","health"] as const) {
+        expect(a[k].variant).toBeGreaterThanOrEqual(0);
+        expect(a[k].variant).toBeLessThan(3);
+      }
+    }
+  });
+
+  it("같은 날이면 표현이 고정이다", () => {
+    const input = base({ ...steady, today: "2026-08-27", salt: "device-1" });
+    expect(computeAura(input).wealth.variant).toBe(computeAura(input).wealth.variant);
+  });
+
+  it("기운마다 표현이 따로 움직인다", () => {
+    const pairs = ["2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"].map((d) => {
+      const a = computeAura(base({ ...steady, today: d, salt: "device-1" }));
+      return [a.wealth.variant, a.relationship.variant] as const;
+    });
+    expect(pairs.some(([w, r]) => w !== r)).toBe(true);
   });
 });
