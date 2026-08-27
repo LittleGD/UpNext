@@ -10,15 +10,33 @@
 import SwiftUI
 
 struct RecordTabView: View {
+    /// 오늘의 기운 공개 → 폴라로이드 오버레이 (오늘의 카드·색·문구·명언 한 벌)
+    @State private var revealedFortune: DailyFortune?
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                RitualGreetingHeader()
-                RetentionSectionView()
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    RitualGreetingHeader()
+                    RetentionSectionView()
+                    // 오늘의 기운 (옵트인 리워드 광고) — 콘텐츠가 끝난 맨 아래 자리.
+                    // 웹 flame/page.tsx 하단 FortuneCard 와 동일 배치.
+                    FortuneCardView { fortune in
+                        withAnimation(.easeOut(duration: 0.2)) { revealedFortune = fortune }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 96)   // 하단 플로팅 네비 여유
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 96)   // 하단 플로팅 네비 여유
+
+            if let fortune = revealedFortune {
+                FortuneRevealOverlay(fortune: fortune) {
+                    withAnimation(.easeOut(duration: 0.2)) { revealedFortune = nil }
+                }
+                .transition(.opacity)
+                .zIndex(10)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // 앰비언트 노출(요인1) — 화면 루트 투명화. MainShell 바닥의 오로라·별이 관통(웹 main z-[1] 패리티).

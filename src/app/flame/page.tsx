@@ -16,6 +16,7 @@ import CheckInHeatmap from "@/components/flame/CheckInHeatmap";
 import DuoFlameCard from "@/components/flame/DuoFlameCard";
 import WeeklyReportRow from "@/components/flame/WeeklyReportRow";
 import WeeklyReportSheet from "@/components/flame/WeeklyReportSheet";
+import FortuneCard from "@/components/flame/FortuneCard";
 import type { WeeklyReportSummary } from "@/types/retention";
 
 /**
@@ -147,6 +148,11 @@ export default function FlamePage() {
             />
           </motion.div>
         )}
+
+        {/* 오늘의 기운 (옵트인 리워드 광고) — 콘텐츠가 끝난 맨 아래 자리.
+            지원 플랫폼이 아니면 null 렌더라 자체 motion 으로 등장을 처리
+            (stagger 래퍼로 감싸면 웹 프로덕션에서 빈 div 가 space-y 간격을 남긴다). */}
+        <FortuneCard />
       </motion.div>
 
       <AnimatePresence>
