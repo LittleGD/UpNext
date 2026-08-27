@@ -62,6 +62,8 @@ struct MinigameView: View {
     @State private var firstHarvestDone: Bool = false
     /// warded — 다음 저주 1회 무효 (라운드 스코프).
     @State private var wardedReady: Bool = false
+    /// 나가기 확인 프롬프트 — 웹 useMinigameStore.exitConfirmOpen 패리티.
+    @State private var exitConfirmOpen: Bool = false
 
     private enum Phase { case categoryFlash, peek, playing, roundResult, rewardDraft, runResult }
     private enum RoundResult { case pending, success, failed }
@@ -103,6 +105,23 @@ struct MinigameView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .allowsHitTesting(false)
             }
+
+            // 나가기 확인 — 웹 MinigameExitOverlay(requestExit → 프롬프트 → exitRun) 패리티.
+            // 백드롭이 화면 전체를 덮어 뒤 보드로 탭이 새지 않는다(백드롭 탭 = 취소).
+            if exitConfirmOpen {
+                GbConfirm(
+                    title: "런을 종료할까요?",
+                    message: "티켓은 환불되지 않아요",
+                    confirmLabel: "종료",
+                    cancelLabel: "계속하기",
+                    danger: true,
+                    onConfirm: {
+                        exitConfirmOpen = false
+                        finishRun()
+                    },
+                    onCancel: { exitConfirmOpen = false })
+                .transition(.opacity)
+            }
         }
         .onAppear { if board.isEmpty { startRound() } }
     }
@@ -127,7 +146,7 @@ struct MinigameView: View {
                 // 나가기 44×44 (아이콘 박스 금지 — 원형 배경 없는 X)
                 Button {
                     Haptics.play(.selection)
-                    finishRun()
+                    requestExit()
                 } label: {
                     PixelIcon(.cancel, size: 16, color: Color.textSecondary)
                         .frame(width: 44, height: 44)
@@ -729,6 +748,12 @@ struct MinigameView: View {
         matched = []
         lastResult = .pending
         withFlip { phase = .categoryFlash }
+    }
+
+    /// 나가기 요청 — 즉시 종료하지 않고 확인 프롬프트를 띄운다(웹 requestExit).
+    /// 런 중 오탭 한 번으로 판이 끝나던 걸 막는 게 목적. 확인 시 finishRun 으로 합류.
+    private func requestExit() {
+        exitConfirmOpen = true
     }
 
     private func finishRun() {

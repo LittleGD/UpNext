@@ -40,7 +40,7 @@ private struct CampView: View {
     @State private var screen: CampScreen = .home
     /// 웹 playground 의 두 탭 [영웅 / 카드매치] — 아지트 홈 상단 세그먼트.
     @State private var campTab: CampTab = .hero
-    /// 카드매치 런 시트 — startMinigame() 으로 티켓 소비 성공 시 true.
+    /// 카드매치 런(fullScreenCover) — startMinigame() 으로 티켓 소비 성공 시 true.
     @State private var showMinigame = false
 
     /// 아지트 내부 화면 — 웹 CampPlaceholder 의 `view` 상태(home/dungeons/…) 대응.
@@ -107,6 +107,8 @@ private struct CampView: View {
             if campArgs.contains("UITestOpenShop") { screen = .shop }
             if campArgs.contains("UITestOpenGear") { screen = .equipment }
             if campArgs.contains("UITestOpenDungeons") { screen = .dungeons }
+            // 카드매치 탭 바로 진입(런 프레젠테이션 검증용). 티켓은 UITestSeedTickets 로.
+            if campArgs.contains("UITestCampGame") { campTab = .game }
             #else
             let uiTestOpenStats = false
             #endif
@@ -144,7 +146,12 @@ private struct CampView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // 앰비언트 노출(요인1) — 화면 루트 투명화. MainShell 바닥의 오로라·별이 관통(웹 main z-[1] 패리티).
         // 전투(DungeonView)·미니게임(MinigameView) 풀스크린은 별도 몰입 배경이라 불투명 유지.
-        .sheet(isPresented: $showMinigame) { MinigameView() }
+        // 카드매치 런은 fullScreenCover — .sheet 는 아래로 드래그하면 시트째 내려가며
+        // 런이 강제 종료된다(티켓은 이미 소모, 획득 XP/카드는 awardMinigameWin 을 못 거쳐
+        // 소멸). 보상 화면(roundResult/rewardDraft/runResult)도 같은 프레젠테이션 안이라
+        // '받기' 전에 드래그로 빠지면 보상이 통째로 날아갔다. 종료 경로는 HUD 의 X
+        // (finishRun = 부분 정산) 와 결과 화면 '받기' 두 개만 남긴다.
+        .fullScreenCover(isPresented: $showMinigame) { MinigameView() }
     }
 
     // MARK: 영웅 탭 — nameplate → 중앙 hero+분위기 → CTA → (하단) 일일 리텐션.
@@ -171,7 +178,7 @@ private struct CampView: View {
 
     // MARK: 카드매치 탭 — 웹 MinigameHome.tsx 패리티.
     //  타이틀+subtitle → 티켓 카운터 카드 → 전체폭 Play hero CTA → (티켓0)빈상태 →
-    //  통계 그리드(runs/best) → How-to-play 3줄. 런은 시트.
+    //  통계 그리드(runs/best) → How-to-play 3줄. 런은 fullScreenCover(드래그 dismiss 차단).
 
     private var gameTab: some View {
         let tickets = store.progress?.tickets ?? 0

@@ -26428,6 +26428,29 @@
         }
       }
     },
+    "계속하기": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続ける"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续玩"
+          }
+        }
+      }
+    },
     "계정": {
       "extractionState": "manual",
       "localizations": {
@@ -30714,6 +30737,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "游玩结束奖励翻倍"
+          }
+        }
+      }
+    },
+    "런을 종료할까요?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End this run?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ランを終了しますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束本局吗？"
           }
         }
       }
@@ -42764,6 +42810,29 @@
         }
       }
     },
+    "종료": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End Run"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "終了する"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束"
+          }
+        }
+      }
+    },
     "좋은 아침이에요": {
       "extractionState": "manual",
       "localizations": {
@@ -46672,6 +46741,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld张门票 — 卡牌配对"
+          }
+        }
+      }
+    },
+    "티켓은 환불되지 않아요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tickets are not refunded"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チケットは返還されません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "门票不会被退还"
           }
         }
       }
