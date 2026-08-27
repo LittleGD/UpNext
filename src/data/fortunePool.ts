@@ -102,7 +102,7 @@ export const FORTUNE_PHRASES: Record<Category, L10nText[]> = {
   ],
   learning: [
     { ko: "한 페이지가 어제와 다른 사람을 만듭니다", en: "One page makes you different from yesterday", ja: "一ページが昨日と違う自分をつくる", zh: "一页书造就与昨天不同的你" },
-    { ko: "모르는 것을 적어두면 반은 배운 겁니다", en: "Write down what you don't know — that's half of learning", ja: "分からないことを書けば半分は学んだこと", zh: "写下不懂的，就学会了一半" },
+    { ko: "모르는 것을 적어두면 반은 배운 겁니다", en: "Write down what you don't know: that's half of learning", ja: "分からないことを書けば半分は学んだこと", zh: "写下不懂的，就学会了一半" },
     { ko: "오늘 붙잡은 문장이 오래 남습니다", en: "The sentence you catch today stays long", ja: "今日つかまえた一文は長く残る", zh: "今天抓住的句子会留得很久" },
     { ko: "이해는 늦게 오지만 반드시 옵니다", en: "Understanding comes late, but it comes", ja: "理解は遅れて来るが必ず来る", zh: "理解来得晚，但一定会来" },
   ],
@@ -125,7 +125,7 @@ export const FORTUNE_PHRASES: Record<Category, L10nText[]> = {
     { ko: "아무것도 안 한 시간이 내일을 만듭니다", en: "The hour spent doing nothing builds tomorrow", ja: "何もしなかった時間が明日をつくる", zh: "什么都没做的时间造就明天" },
   ],
   trending: [
-    { ko: "남들이 하니까 말고, 궁금하니까 해봅니다", en: "Not because others do it — because you're curious", ja: "みんながやるからではなく、気になるからやる", zh: "不是因为别人做，是因为你好奇" },
+    { ko: "남들이 하니까 말고, 궁금하니까 해봅니다", en: "Not because others do it, but because you're curious", ja: "みんながやるからではなく、気になるからやる", zh: "不是因为别人做，是因为你好奇" },
     { ko: "새로 해본 것만 이야깃거리가 됩니다", en: "Only the new thing becomes a story", ja: "新しく試したことだけが話の種になる", zh: "只有新尝试才会变成谈资" },
     { ko: "오늘의 유행은 내일의 기록입니다", en: "Today's trend is tomorrow's record", ja: "今日の流行は明日の記録", zh: "今天的流行是明天的记录" },
     { ko: "어색한 첫 시도가 가장 선명하게 남습니다", en: "The awkward first try stays sharpest", ja: "ぎこちない最初の一回が一番鮮明に残る", zh: "笨拙的第一次留下最清晰的印象" },

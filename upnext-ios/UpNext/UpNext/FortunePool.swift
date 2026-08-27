@@ -83,7 +83,7 @@ enum FortunePool {
         ],
         "learning": [
             ["한 페이지가 어제와 다른 사람을 만듭니다", "One page makes you different from yesterday", "一ページが昨日と違う自分をつくる", "一页书造就与昨天不同的你"],
-            ["모르는 것을 적어두면 반은 배운 겁니다", "Write down what you don't know — that's half of learning", "分からないことを書けば半分は学んだこと", "写下不懂的，就学会了一半"],
+            ["모르는 것을 적어두면 반은 배운 겁니다", "Write down what you don't know: that's half of learning", "分からないことを書けば半分は学んだこと", "写下不懂的，就学会了一半"],
             ["오늘 붙잡은 문장이 오래 남습니다", "The sentence you catch today stays long", "今日つかまえた一文は長く残る", "今天抓住的句子会留得很久"],
             ["이해는 늦게 오지만 반드시 옵니다", "Understanding comes late, but it comes", "理解は遅れて来るが必ず来る", "理解来得晚，但一定会来"],
         ],
@@ -106,7 +106,7 @@ enum FortunePool {
             ["아무것도 안 한 시간이 내일을 만듭니다", "The hour spent doing nothing builds tomorrow", "何もしなかった時間が明日をつくる", "什么都没做的时间造就明天"],
         ],
         "trending": [
-            ["남들이 하니까 말고, 궁금하니까 해봅니다", "Not because others do it — because you're curious", "みんながやるからではなく、気になるからやる", "不是因为别人做，是因为你好奇"],
+            ["남들이 하니까 말고, 궁금하니까 해봅니다", "Not because others do it, but because you're curious", "みんながやるからではなく、気になるからやる", "不是因为别人做，是因为你好奇"],
             ["새로 해본 것만 이야깃거리가 됩니다", "Only the new thing becomes a story", "新しく試したことだけが話の種になる", "只有新尝试才会变成谈资"],
             ["오늘의 유행은 내일의 기록입니다", "Today's trend is tomorrow's record", "今日の流行は明日の記録", "今天的流行是明天的记录"],
             ["어색한 첫 시도가 가장 선명하게 남습니다", "The awkward first try stays sharpest", "ぎこちない最初の一回が一番鮮明に残る", "笨拙的第一次留下最清晰的印象"],
