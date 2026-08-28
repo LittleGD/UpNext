@@ -6,6 +6,7 @@ import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGameStore } from "@/store/useGameStore";
 import { useRetentionStore } from "@/store/useRetentionStore";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useDuoStore } from "@/store/useDuoStore";
 import { useUIStore } from "@/store/useUIStore";
 import {
@@ -15,13 +16,16 @@ import {
   getCloudData,
   setSyncReady,
   flushPendingSync,
+  normalizeUpHeroState,
+  hasUpHeroFootprint,
 } from "@/lib/sync";
 import { compareProgress } from "@/lib/progressCompare";
 import { freshRetentionState } from "@/lib/retention";
-import { saveToStorage } from "@/lib/storage";
+import { loadFromStorage, saveToStorage } from "@/lib/storage";
 import type { AuthUser } from "@/types/auth";
 import type { UserProgress, DailyState } from "@/types/game";
 import type { RetentionState } from "@/types/retention";
+import type { CloudUpHeroState } from "@/lib/sync";
 import { AnimatePresence } from "framer-motion";
 import MergeConflictDialog from "@/components/auth/MergeConflictDialog";
 import PatchNotesModal from "@/components/PatchNotesModal";
@@ -45,6 +49,8 @@ interface ConflictState {
   cloudDaily: DailyState;
   // null = 클라우드 문서에 retention 필드 없음 (iOS 미체크인 계정)
   cloudRetention: RetentionState | null;
+  // null = 클라우드 문서에 uphero 필드 없음 (Up Hero 를 만진 적 없는 계정)
+  cloudUpHero: CloudUpHeroState | null;
 }
 
 /**
@@ -66,15 +72,48 @@ function shouldAdoptCloudRetention(cloud: RetentionState): boolean {
   return cloud.lastCheckInDate !== undefined && cloud.lastCheckInDate >= localLast;
 }
 
+/**
+ * 업로드용 Up Hero 페이로드. 스토어가 아직 hydrate 되지 않았을 수 있으므로
+ * (아지트/홈을 거치지 않은 세션) 영속본인 localStorage 를 진실원으로 읽는다.
+ * 흔적이 없으면 uploadLocalData 가 키를 생략해 클라우드 값을 보존한다.
+ */
+function localUpHeroPayload(): CloudUpHeroState {
+  return normalizeUpHeroState(loadFromStorage<unknown>("uphero"));
+}
+
+/**
+ * 클라우드 Up Hero 채택 — 병합은 한 방향만 한다. 로컬에 흔적이 없고(신규 설치 /
+ * 쿠키 삭제 / TWA→Capacitor 전환) 클라우드에 실제 진행이 있을 때만 내려받는다.
+ * 로컬에 흔적이 있으면 로컬이 이긴다: 코인·인벤토리는 단조 증가 축이 아니라
+ * (쓰면 줄고 팔면 사라진다) compareProgress 류 벡터 비교로 "앞선 쪽" 을 고를 수 없다.
+ *
+ * 로컬 판정을 `loadFromStorage("uphero") === null` 로 두지 않는 이유:
+ * useUpHeroStore.initialize 가 schemaVersion 마이그레이션 경로에서 기본값을 곧바로
+ * persist 한다. 홈/뽑기 화면(CardDrawScreen)이 마운트되며 초기화가 먼저 돌면 키는
+ * "있지만 빈" 상태가 되고, 그걸 로컬 데이터로 오인하면 새 기기 로그인 때 클라우드
+ * 영웅 데이터를 빈 값으로 덮어쓴다. 그래서 키 존재가 아니라 흔적으로 판정한다.
+ *
+ * 클라우드 쪽 흔적도 확인한다: 빈 클라우드 값을 채택하면 _setFromCloud 가 isLoaded 를
+ * 세워 initialize 의 heroStartLevel seed 를 건너뛰게 만든다 (챌린지 Lv 41 신규 유저의
+ * 영웅 Lv 가 1 이 아니라 41 이 되는 회귀).
+ */
+function adoptCloudUpHero(uphero: CloudUpHeroState | null): void {
+  if (!uphero || !hasUpHeroFootprint(uphero)) return;
+  if (hasUpHeroFootprint(loadFromStorage<unknown>("uphero"))) return;
+  useUpHeroStore.getState()._setFromCloud(uphero);
+}
+
 function applyCloudSnapshot(
   progress: UserProgress,
   daily: DailyState,
   retention: RetentionState | null,
+  uphero: CloudUpHeroState | null,
 ): void {
   useGameStore.getState()._setFromCloud(progress, daily);
   if (retention && shouldAdoptCloudRetention(retention)) {
     useRetentionStore.getState()._setFromCloud(retention);
   }
+  adoptCloudUpHero(uphero);
 }
 
 /**
@@ -181,6 +220,8 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
               if (cloudData.retention) {
                 useRetentionStore.getState()._setFromCloud(cloudData.retention);
               }
+              // Up Hero(코인·영웅·인벤)도 같이 복원 — 로컬에 흔적이 없을 때만 채택한다.
+              adoptCloudUpHero(cloudData.uphero);
             } else if (store.isLocalEmpty && !cloudData) {
               // 진짜 신규 유저 — 기본값 저장
               saveToStorage("progress", store.progress);
@@ -188,17 +229,23 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
               useGameStore.setState({ isLocalEmpty: false });
             } else if (!cloudData) {
               if (store.hasCompletedOnboarding) {
-                // retention 포함 여부(lastCheckInDate 게이트)는 uploadLocalData 가 판단
+                // retention/uphero 포함 여부(체크인 기록·흔적 게이트)는 uploadLocalData 가 판단
                 await uploadLocalData(
                   firebaseUser.uid,
                   store.progress,
                   store.daily,
                   useRetentionStore.getState().retention,
+                  localUpHeroPayload(),
                 );
               }
             } else {
               if (!store.hasCompletedOnboarding) {
-                applyCloudSnapshot(cloudData.progress, cloudData.daily, cloudData.retention);
+                applyCloudSnapshot(
+                  cloudData.progress,
+                  cloudData.daily,
+                  cloudData.retention,
+                  cloudData.uphero,
+                );
               } else {
                 // 데일리 진행 + 미니게임 진행(runs/xp/unlocked) + 추가/슈퍼 챌린지를
                 // 벡터 비교해서 "strictly ahead"인 쪽을 자동 채택, 서로 앞서는 필드가
@@ -207,7 +254,12 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
                 // 조용히 덮어쓰는 데이터 손실 버그를 일으켰다.
                 const result = compareProgress(store.progress, cloudData.progress);
                 if (result === "equal" || result === "bAhead") {
-                  applyCloudSnapshot(cloudData.progress, cloudData.daily, cloudData.retention);
+                  applyCloudSnapshot(
+                    cloudData.progress,
+                    cloudData.daily,
+                    cloudData.retention,
+                    cloudData.uphero,
+                  );
                 } else if (result === "aAhead") {
                   // P0 — compareProgress 는 retention 을 비교하지 않으므로 progress 가
                   // 앞선다고 retention 까지 로컬이 앞선 게 아니다 (iOS 체크인 위주 사용
@@ -218,11 +270,15 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
                   if (cloudData.retention && shouldAdoptCloudRetention(cloudData.retention)) {
                     useRetentionStore.getState()._setFromCloud(cloudData.retention);
                   }
+                  // Up Hero 도 같은 순서 — 로컬이 비어 있으면 먼저 클라우드를 채택하고,
+                  // 그 결과를 다시 올린다 (채택 후엔 로컬 = 클라우드라 업로드가 무해).
+                  adoptCloudUpHero(cloudData.uphero);
                   await uploadLocalData(
                     firebaseUser.uid,
                     store.progress,
                     store.daily,
                     useRetentionStore.getState().retention,
+                    localUpHeroPayload(),
                   );
                 } else {
                   // 진짜 conflict — 양쪽이 서로 다른 축에서 앞서 있음
@@ -234,6 +290,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
                     cloudProgress: cloudData.progress,
                     cloudDaily: cloudData.daily,
                     cloudRetention: cloudData.retention,
+                    cloudUpHero: cloudData.uphero,
                   });
                   return;
                 }
@@ -479,6 +536,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
       conflict.localProgress,
       conflict.localDaily,
       conflict.localRetention,
+      localUpHeroPayload(),
     );
     setSyncReady(true);
     await startListener(conflict.uid, applyCloudSnapshot);
@@ -496,6 +554,10 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     useRetentionStore
       .getState()
       ._setFromCloud(conflict.cloudRetention ?? freshRetentionState());
+    // Up Hero 는 여기서도 한 방향 규칙을 지킨다 (로컬에 흔적이 없을 때만 채택).
+    // 병합 다이얼로그는 챌린지 진행도만 비교해 보여주므로, 유저의 "클라우드" 선택을
+    // "이 기기의 코인·인벤토리를 버려도 좋다" 는 동의로 해석하지 않는다.
+    adoptCloudUpHero(conflict.cloudUpHero);
     setSyncReady(true);
     await startListener(conflict.uid, applyCloudSnapshot);
     setConflict(null);

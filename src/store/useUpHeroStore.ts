@@ -89,6 +89,7 @@ import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { useGameStore, getTodayString } from "./useGameStore";
 import { t } from "@/i18n";
 import type { Language } from "@/types/game";
+import type { CloudUpHeroState } from "@/lib/sync";
 
 /**
  * Phase 5a.3 / 5b.2 / 9d / 11a / 11c — 저장 스키마 현재 버전.
@@ -201,6 +202,15 @@ function totalPassCount(passes: Partial<Record<DungeonId, number>>): number {
 
 interface UpHeroActions {
   initialize(): void;
+
+  /**
+   * 클라우드 데이터로 로컬 상태 교체 (syncToCloud 트리거 안 함).
+   *   호출측(SyncProvider)이 normalizeUpHeroState 로 관용 디코드를 마친 값을 준다.
+   *   페이로드에 없는 키는 건드리지 않는다 — currentSession 은 동기화 대상이 아니므로
+   *   진행 중 던전이 있으면 그대로 살아남는다.
+   *   병합 규칙(로컬에 흔적이 없을 때만 채택)은 SyncProvider 소유.
+   */
+  _setFromCloud(state: CloudUpHeroState): void;
 
   /** Phase 14 security — 로그아웃 시 in-memory state 초기화 (reload fallback). */
   resetForSignOut(): void;
@@ -1796,6 +1806,27 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       pickPersisted({ ...state, inventory: newInventory, hero: newHero, coins: newCoins }),
     );
     return { ok: false, reason: "destroyed", lostItemName: lostName, lostBaseId };
+  },
+
+  _setFromCloud: (state) => {
+    set({
+      ...state,
+      // 시작 선물은 계정 단위 1회 — 클라우드가 "이미 받음" 이면 로컬 예약을 거둔다.
+      // (그대로 두면 오버레이가 떴다가 claimWelcomeGrant 가 0 을 반환해 빈손으로 닫힌다.)
+      ...(state.welcomeGrantClaimed ? { pendingWelcomeGrant: null } : {}),
+      isLoaded: true,
+    });
+    // localStorage 직접 저장: saveToStorage 를 거치면 syncToCloud 가 다시
+    // 호출되어 echo 루프가 된다 (useRetentionStore._setFromCloud 와 동일 패턴).
+    // pickPersisted 로 다시 뽑는 이유 — 동기화 대상이 아닌 currentSession 은
+    // 로컬 값을 그대로 유지해야 하므로 페이로드가 아니라 병합 결과를 저장한다.
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("upnext_uphero", JSON.stringify(pickPersisted(get())));
+      } catch {
+        // storage full / private mode: 메모리 상태만 유지
+      }
+    }
   },
 
   resetForSignOut: () => {
