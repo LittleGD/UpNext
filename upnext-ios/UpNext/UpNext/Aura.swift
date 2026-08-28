@@ -62,6 +62,9 @@ struct AuraReading: Codable, Hashable {
     let score: Int
     let tier: AuraTier
     let omen: AuraOmen
+    /// 같은 조짐·등급 안에서 고를 표현 번호(0~2). 날짜 해시라 같은 날이면 고정이다.
+    /// 구 스냅샷에는 없어 기본값 0 으로 디코드된다(하루짜리 값이라 마이그레이션 불필요).
+    var variant: Int = 0
 }
 
 /// 3종 한 벌. 웹 `Record<AuraKind, AuraReading>` 과 같은 JSON 모양으로 직렬화된다.
@@ -197,6 +200,16 @@ enum Aura {
         return Int(h % UInt32(sway * 2 + 1)) - sway
     }
 
+    /// 조짐·조언 표현 가짓수. 웹 `AURA_VARIANTS`.
+    static let auraVariants = 3
+
+    /// 같은 조짐 안에서 오늘 쓸 표현 번호. 흔들림과 다른 접두사라 상관관계가 없다.
+    /// 웹 `variantOf` 와 같은 해시·같은 결과.
+    private static func variantOf(_ today: String, _ salt: String?, _ kind: AuraKind) -> Int {
+        guard let salt, !salt.isEmpty else { return 0 }
+        return Int(Fortune.fnv1a("phrase:\(today):\(salt):\(kind.rawValue)") % UInt32(auraVariants))
+    }
+
     /// 0~100 으로 자르기. 웹 `clamp100`(입력이 이미 정수라 반올림은 항등).
     private static func clamp100(_ n: Int) -> Int {
         max(0, min(100, n))
@@ -280,7 +293,8 @@ enum Aura {
         else if w.fullClearDays >= 3 { omen = .closing }
         else if focus >= 3 { omen = .gathering }
         else if input.streak >= 3 { omen = .carried }
-        return AuraReading(kind: .wealth, score: score, tier: tier(of: score), omen: omen)
+        return AuraReading(kind: .wealth, score: score, tier: tier(of: score), omen: omen,
+                           variant: variantOf(input.today, input.salt, .wealth))
     }
 
     /// 관계기운 — 잇는 힘. 소통 카드와 2인 불꽃에서 나온다.
@@ -296,7 +310,8 @@ enum Aura {
         var omen: AuraOmen = .unformed
         if focus >= 2 { omen = .gathering }
         else if w.activeDays >= 5 { omen = .rhythm }
-        return AuraReading(kind: .relationship, score: score, tier: tier(of: score), omen: omen)
+        return AuraReading(kind: .relationship, score: score, tier: tier(of: score), omen: omen,
+                           variant: variantOf(input.today, input.salt, .relationship))
     }
 
     /// 건강기운 — 지키는 힘. 몸 카드와 체크인 규칙성에서 나온다.
@@ -315,7 +330,8 @@ enum Aura {
         if w.checkInDays >= 7 { omen = .rhythm }
         else if focus >= 3 { omen = .gathering }
         else if w.saverDays > 0 { omen = .resting }
-        return AuraReading(kind: .health, score: score, tier: tier(of: score), omen: omen)
+        return AuraReading(kind: .health, score: score, tier: tier(of: score), omen: omen,
+                           variant: variantOf(input.today, input.salt, .health))
     }
 }
 

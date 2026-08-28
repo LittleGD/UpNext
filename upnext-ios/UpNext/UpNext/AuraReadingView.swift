@@ -45,39 +45,112 @@ enum AuraCopy {
 
     /// 조짐 — 파라미터가 없는 리터럴 한 줄. 실측 수치는 여기까지 오지 않는다.
     /// 웹 `aura.omen.*` 와 같은 문장이며, 보간이 없어 번역이 어순에 자유롭다.
-    static func omen(_ omen: AuraOmen) -> Text {
-        switch omen {
-        case .closing:
-            return Text("끝맺음의 기운이 붙어 있어요. 시작한 것이 마무리로 이어집니다")
-        case .gathering:
-            return Text("힘이 한 방향으로 모이고 있어요")
-        case .rhythm:
-            return Text("리듬이 몸에 배어 있는 시기예요")
-        case .carried:
-            return Text("이어온 시간이 지금의 당신을 받치고 있어요")
-        case .resting:
-            return Text("쉼이 다음을 준비하고 있어요")
-        case .unformed:
-            return Text("아직 흐름이 잡히기 전이에요. 지금이 그 시작점입니다")
-        }
+    /// 조짐 문장 — 같은 조짐 안에서도 reading.variant 로 표현이 갈린다.
+    static func omen(_ reading: AuraReading) -> Text {
+        let table: [AuraOmen: [Text]] = [
+            .closing: [
+            Text("끝맺음의 기운이 붙어 있어요. 시작한 것이 마무리로 이어집니다"),
+            Text("매듭이 잘 지어지는 결이에요"),
+            Text("벌여둔 것들이 제자리를 찾아가는 때예요"),
+        ],
+            .gathering: [
+            Text("힘이 한 방향으로 모이고 있어요"),
+            Text("흩어져 있던 것이 한 곳으로 당겨집니다"),
+            Text("초점이 좁아지는 시기예요. 깊어지기 좋습니다"),
+        ],
+            .rhythm: [
+            Text("리듬이 몸에 배어 있는 시기예요"),
+            Text("애쓰지 않아도 박자가 맞아떨어져요"),
+            Text("반복이 당신 편에 서 있어요"),
+        ],
+            .carried: [
+            Text("이어온 시간이 지금의 당신을 받치고 있어요"),
+            Text("지나온 날들이 발밑에 깔려 있어요"),
+            Text("쌓아둔 것이 조용히 일하고 있어요"),
+        ],
+            .resting: [
+            Text("쉼이 다음을 준비하고 있어요"),
+            Text("비워둔 자리에 힘이 고이는 중이에요"),
+            Text("멈춘 것이 아니라 물러나 있는 거예요"),
+        ],
+            .unformed: [
+            Text("아직 흐름이 잡히기 전이에요. 지금이 그 시작점입니다"),
+            Text("백지에 가까운 날이에요. 무엇을 그려도 됩니다"),
+            Text("결이 정해지지 않았어요. 오늘의 선택이 결을 만듭니다"),
+        ],
+        ]
+        guard let variants = table[reading.omen], !variants.isEmpty else { return Text("") }
+        return variants[min(max(reading.variant, 0), variants.count - 1)]
     }
 
     /// 조언 — 낮은 점수에도 "지금부터 할 수 있다" 로만 쓴다.
+    /// 조언 문장 — 기운·등급에 표현 번호를 더해 고른다.
     static func advice(_ reading: AuraReading) -> Text {
-        switch (reading.kind, reading.tier) {
-        case (.wealth, .great):  return Text("미뤄둔 일 하나를 오늘 끝내기 좋은 흐름이에요")
-        case (.wealth, .good):   return Text("작은 것 하나를 마무리하면 흐름이 더 단단해져요")
-        case (.wealth, .fair):   return Text("가장 작은 일부터 치워보세요")
-        case (.wealth, .care):   return Text("오늘은 시작만 해도 충분해요")
-        case (.relationship, .great): return Text("먼저 연락하기 좋은 날이에요")
-        case (.relationship, .good):  return Text("안부 한 줄이 오늘을 바꿔요")
-        case (.relationship, .fair):  return Text("오늘은 듣는 쪽이 되어보세요")
-        case (.relationship, .care):  return Text("혼자 있는 시간도 관계의 일부예요")
-        case (.health, .great):  return Text("몸이 잘 따라오는 날이에요")
-        case (.health, .good):   return Text("물 한 잔과 가벼운 스트레칭으로 이어가세요")
-        case (.health, .fair):   return Text("무리하지 말고 가볍게 시작하세요")
-        case (.health, .care):   return Text("오늘은 쉬는 게 최선일 수 있어요")
-        }
+        let table: [String: [Text]] = [
+            "wealth.great": [
+            Text("미뤄둔 일 하나를 오늘 끝내기 좋은 흐름이에요"),
+            Text("가장 무거운 것부터 손대도 되는 날이에요"),
+            Text("벌여둔 것을 하나 접어보세요"),
+        ],
+            "wealth.good": [
+            Text("작은 것 하나를 마무리하면 흐름이 더 단단해져요"),
+            Text("오늘 한 칸만 더 나아가 보세요"),
+            Text("어제 멈춘 자리에서 이어가면 됩니다"),
+        ],
+            "wealth.fair": [
+            Text("가장 작은 일부터 치워보세요"),
+            Text("책상 위 하나만 정리해도 충분해요"),
+            Text("오늘은 완성보다 착수가 중요해요"),
+        ],
+            "wealth.care": [
+            Text("오늘은 시작만 해도 충분해요"),
+            Text("아무것도 못 해도 내일이 사라지지 않아요"),
+            Text("한 줄만 적어두고 덮어도 좋아요"),
+        ],
+            "relationship.great": [
+            Text("먼저 연락하기 좋은 날이에요"),
+            Text("오래 미룬 안부를 꺼내도 좋아요"),
+            Text("당신이 여는 쪽이 되면 잘 풀려요"),
+        ],
+            "relationship.good": [
+            Text("안부 한 줄이 오늘을 바꿔요"),
+            Text("고맙다는 말을 아끼지 마세요"),
+            Text("짧게라도 답을 보내두면 좋아요"),
+        ],
+            "relationship.fair": [
+            Text("오늘은 듣는 쪽이 되어보세요"),
+            Text("설명하기보다 물어보는 게 나아요"),
+            Text("말을 줄이면 오해도 줄어요"),
+        ],
+            "relationship.care": [
+            Text("혼자 있는 시간도 관계의 일부예요"),
+            Text("답하지 않아도 되는 날이 있어요"),
+            Text("멀어진 게 아니라 쉬는 중이에요"),
+        ],
+            "health.great": [
+            Text("몸이 잘 따라오는 날이에요"),
+            Text("평소보다 한 걸음 더 가도 괜찮아요"),
+            Text("숨이 깊어지는 걸 느껴보세요"),
+        ],
+            "health.good": [
+            Text("물 한 잔과 가벼운 스트레칭으로 이어가세요"),
+            Text("어깨를 한 번 내려보세요"),
+            Text("오늘은 조금 일찍 눕는 걸 목표로"),
+        ],
+            "health.fair": [
+            Text("무리하지 말고 가볍게 시작하세요"),
+            Text("절반만 해도 오늘은 성공이에요"),
+            Text("몸이 보내는 신호를 먼저 들으세요"),
+        ],
+            "health.care": [
+            Text("오늘은 쉬는 게 최선일 수 있어요"),
+            Text("눕는 것도 오늘의 할 일이에요"),
+            Text("회복은 아무것도 안 할 때 일어나요"),
+        ],
+        ]
+        let key = "\(reading.kind.rawValue).\(reading.tier.rawValue)"
+        guard let variants = table[key], !variants.isEmpty else { return Text("") }
+        return variants[min(max(reading.variant, 0), variants.count - 1)]
     }
 }
 
@@ -266,7 +339,7 @@ struct AuraReadingOverlay: View {
                 .frame(height: 1)
                 .padding(.vertical, 16)
 
-            AuraCopy.omen(reading.omen)
+            AuraCopy.omen(reading)
                 .typography(.caption)
                 .foregroundStyle(AuraPaper.inkSoft)
                 .fixedSize(horizontal: false, vertical: true)
