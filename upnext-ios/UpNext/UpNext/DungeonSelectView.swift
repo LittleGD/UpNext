@@ -113,7 +113,8 @@ struct DungeonSelectView: View {
                     .foregroundStyle(GBPalette.light)
                     .opacity(0.75)
             }
-            .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
+            // 그룹 등고(패턴 A) — 2열 행의 두 카드가 항상 같은 높이.
+            .unCardCell(minHeight: CardHeights.dungeonCell, alignment: .topLeading)
             .padding(.horizontal, 12)
             .padding(.vertical, 14)
             // themeColor 틴트 배경 (보더 금지 규칙 — 보더 대신 옅은 색 wash).

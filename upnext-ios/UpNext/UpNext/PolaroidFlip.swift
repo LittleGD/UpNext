@@ -12,25 +12,31 @@ import SwiftUI
 
 struct PolaroidFlip<Front: View, Back: View>: View {
     @Binding var flipped: Bool
-    /// 드래그 플립 제스처 활성 여부. 웹 PolaroidFlip 의 onPointerDown 은 `textarea/input/
-    /// button` 위 터치면 드래그 진입을 아예 안 한다(target.closest passthrough). iOS 는
-    /// 그 예외를 외부 플래그로 근사 이식 — 뒷면 메모 편집 중(enabled == false)엔 제스처를
-    /// 통째로 떼어, 메모 영역 터치가 의도치 않은 플립/포커스 탈취를 일으키지 않게 한다.
+    /// 드래그 플립 제스처 활성 여부. 기본 true — **앞면·뒷면 양쪽에서** 스와이프로 뒤집는다.
+    /// (구 구현은 뒷면이면 무조건 제스처를 하위뷰로 넘겨, 뒷면 메모에서 앞면으로 돌아오는
+    ///  스와이프가 영영 먹지 않았다. 이제 "수평 우세 드래그"만 잡아 메모 편집과 공존한다.)
     var enabled: Bool = true
+    /// 드래그 플립이 실제로 시작될 때 1회 호출 — 호출부가 키보드를 내리는 데 쓴다.
+    var onInteractionBegan: (() -> Void)?
     let front: () -> Front
     let back: () -> Back
 
     init(
         flipped: Binding<Bool>,
         enabled: Bool = true,
+        onInteractionBegan: (() -> Void)? = nil,
         @ViewBuilder front: @escaping () -> Front,
         @ViewBuilder back: @escaping () -> Back
     ) {
         self._flipped = flipped
         self.enabled = enabled
+        self.onInteractionBegan = onInteractionBegan
         self.front = front
         self.back = back
     }
+
+    /// 플립 판정을 시작하기 위한 최소 수평 이동. 탭(0px)·세로 스크롤과 확실히 구분되는 값.
+    private let hSlop: CGFloat = 14
 
     @State private var dragDeg: Double = 0
     @State private var dragging: Bool = false
@@ -41,16 +47,14 @@ struct PolaroidFlip<Front: View, Back: View>: View {
 
     var body: some View {
         // 웹 PolaroidFlip 의 onPointerDown target.closest("textarea,input,button,…") passthrough
-        // 근사 이식. iOS 는 per-target bailout 이 없으므로, "메모(뒷면)가 보이거나(flipped)
-        // 편집 중(enabled==false)"이면 드래그 플립을 하위뷰(TextEditor)로 양보한다.
+        // 근사 이식. iOS 엔 per-target bailout 이 없으므로 **제스처 성격**으로 구분한다:
+        //   - 수평 우세 드래그(|dx| > |dy|, dx ≥ 14pt) → 플립. 카드를 넘기는 동작.
+        //   - 탭 / 세로 드래그 / 짧은 이동 → 하위뷰(TextEditor·캔버스)로 통과. 편집·캐럿 이동.
+        // 그래서 뒷면(메모)에서도 스와이프로 앞면에 돌아올 수 있다.
         //   핵심: `.gesture` 는 항상 부착하고 GestureMask 로만 게이트한다. if/else 로 제스처를
         //   붙였다 뗐다 하면 뷰 정체성이 바뀌어 하위 TextEditor 가 재생성 → 편집 진입 순간
-        //   포커스가 소실되는 SwiftUI 함정에 빠진다(실측 확인). mask 만 바꾸면 정체성이 유지돼
-        //   포커스가 살아있고, `.subviews` 는 이 제스처를 무력화하고 하위뷰 이벤트를 통과시킨다.
-        //   - 뒷면(flipped): 텍스트 탭이 TextEditor 로 전달돼 편집 진입 + 의도치 않은 플립 방지.
-        //     (뒷면→앞면 복귀는 "View Photo" 버튼. 웹도 textarea 위 드래그는 플립 안 됨.)
-        //   - 앞면(!flipped, !editing): 정상 드래그 플립.
-        faces.gesture(flipGesture, including: (enabled && !flipped) ? .all : .subviews)
+        //   포커스가 소실되는 SwiftUI 함정에 빠진다(실측 확인).
+        faces.gesture(flipGesture, including: enabled ? .all : .subviews)
     }
 
     private var faces: some View {
@@ -72,12 +76,18 @@ struct PolaroidFlip<Front: View, Back: View>: View {
         DragGesture(minimumDistance: 6)
             .onChanged { g in
                 if !dragging {
+                    // 수평 우세 판정 — 세로 드래그·짧은 이동은 하위뷰(메모 캐럿/선택) 몫으로 둔다.
+                    guard abs(g.translation.width) >= hSlop,
+                          abs(g.translation.width) > abs(g.translation.height) else { return }
                     dragging = true
                     startTime = Date()
+                    onInteractionBegan?()   // 메모 키보드 내리기 등
                 }
                 dragDeg = (g.translation.width / 150) * 90
             }
             .onEnded { g in
+                // 플립 드래그로 승격되지 않은 터치(탭·세로 드래그)는 아무것도 하지 않는다.
+                guard dragging else { dragDeg = 0; return }
                 let elapsed = Date().timeIntervalSince(startTime ?? Date())
                 let velocity = elapsed > 0 ? Double(g.translation.width) / elapsed : 0
                 // 웹 수치 파리티 — flick 임계값 1.8px/ms(=1800px/s, 터치). 웹 PolaroidFlip.tsx:133

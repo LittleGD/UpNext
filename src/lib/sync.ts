@@ -3,9 +3,20 @@
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { ALL_CARDS } from "@/data/cards";
 import { normalizeRetentionState, stripUndefined } from "@/lib/retention";
+import { createDefaultHero, DUNGEON_BY_CLASS } from "@/types/uphero";
 import type { DailyState, UserProgress } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
 import type { RetentionState } from "@/types/retention";
+import type {
+  ClassType,
+  DungeonId,
+  DungeonProgress,
+  EquipSlot,
+  Equipment,
+  Hero,
+  HeroBaseStats,
+  UpHeroState,
+} from "@/types/uphero";
 import type { Unsubscribe } from "firebase/firestore";
 
 // 카드 ID → ChallengeCard 매핑
@@ -82,6 +93,329 @@ export function dehydrateDaily(daily: DailyState): Record<string, unknown> {
   };
 }
 
+// --- Up Hero (갓생 영웅) 클라우드 스키마 ---
+
+/**
+ * 클라우드에 싣는 Up Hero 페이로드 — 로컬 persist 스키마(useUpHeroStore 의
+ * pickPersisted)에서 currentSession 만 뺀 형태.
+ *
+ * currentSession 을 빼는 이유: 진행 중 던전 로그가 SESSION_LOG_PERSIST_CAP(400)
+ * 줄까지 쌓여 Firestore 문서 1MB 한도와 모바일 대역폭을 위협한다. 세션은 기기 로컬
+ * 상태로 두고(다른 기기에서 이어할 이유도 없다), 결산이 끝나면 코인/인벤/도감으로
+ * 남으므로 동기화 손실도 없다.
+ */
+export type CloudUpHeroState = Partial<
+  Pick<
+    UpHeroState,
+    | "hero"
+    | "inventory"
+    | "coins"
+    | "passes"
+    | "dungeons"
+    | "codex"
+    | "cosmetics"
+    | "lastIdleAccrualAt"
+    | "lastSeenAt"
+    | "heroStartLevel"
+    | "shopDaily"
+    | "ngPlusLevel"
+    | "weeklyVariant"
+    | "schemaVersion"
+    | "hasSeenCampTutorial"
+    | "welcomeGrantClaimed"
+  >
+>;
+
+/** 장비 슬롯 전체 — 디코드 검증 + 클라우드 인코딩의 빈 슬롯 지우기에 순회용. */
+const EQUIP_SLOTS: EquipSlot[] = ["weapon", "armor", "accessory", "talisman"];
+
+// 관용 디코드 프리미티브 — retention.ts 와 같은 계약 (타입 불일치는 throw 대신 undefined).
+// 정수로 한정하지 않는다: 강화 stat 가산이 0.5 단위로 남을 수 있다.
+function asFinite(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+function asText(v: unknown): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
+function asBool(v: unknown): boolean | undefined {
+  return typeof v === "boolean" ? v : undefined;
+}
+
+function asRecord(v: unknown): Record<string, unknown> | undefined {
+  return typeof v === "object" && v !== null && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : undefined;
+}
+
+// 도감/스킬 목록은 원소 단위로 걸러낸다 — 하나 깨졌다고 수십 개 기록을 통째로 버리지 않는다.
+function asTextArray(v: unknown): string[] | undefined {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : undefined;
+}
+
+function asFiniteArray(v: unknown): number[] | undefined {
+  return Array.isArray(v)
+    ? v.filter((x): x is number => typeof x === "number" && Number.isFinite(x))
+    : undefined;
+}
+
+/** stat 맵 — 숫자 아닌 값은 버린다. NaN 하나가 전투/스탯 계산 전체로 번지는 걸 막는다. */
+function normalizeStats(raw: unknown): Partial<HeroBaseStats> {
+  const r = asRecord(raw);
+  if (!r) return {};
+  const out: Partial<HeroBaseStats> = {};
+  for (const [key, value] of Object.entries(r)) {
+    const n = asFinite(value);
+    if (n !== undefined) out[key as keyof HeroBaseStats] = n;
+  }
+  return out;
+}
+
+/**
+ * Equipment 1개 디코드. 식별에 필요한 최소 필드만 검증하고 나머지 필드는 원본을 보존한다.
+ * 화이트리스트로 재조립하면 Equipment 에 나중에 추가되는 필드(photoId, enhanceLevel
+ * 처럼 계속 늘어난다)가 클라우드 왕복에서 조용히 사라진다.
+ * @returns 필수 필드가 깨졌으면 null — 호출측이 그 원소만 버린다.
+ */
+function normalizeEquipment(raw: unknown): Equipment | null {
+  const r = asRecord(raw);
+  if (!r) return null;
+  const id = asText(r.id);
+  const type = asText(r.type);
+  if (id === undefined || type === undefined) return null;
+  if (!EQUIP_SLOTS.includes(type as EquipSlot)) return null;
+  const item = { ...r } as unknown as Equipment;
+  item.name = asText(r.name) ?? id;
+  item.stats = normalizeStats(r.stats);
+  return item;
+}
+
+/**
+ * Hero 관용 디코드 — 알 수 없는 필드는 보존하고, 게임 로직이 숫자/열거형으로 신뢰하는
+ * 필드만 기본값으로 교정한다 (useUpHeroStore.initialize 의 defaults deep merge 와 같은 계약).
+ */
+function normalizeHero(raw: unknown): Hero {
+  const defaults = createDefaultHero();
+  const r = asRecord(raw);
+  if (!r) return defaults;
+  const hero = { ...defaults, ...r } as Hero;
+  hero.name = asText(r.name) ?? defaults.name;
+  hero.hp = asFinite(r.hp) ?? defaults.hp;
+  hero.maxHp = asFinite(r.maxHp) ?? defaults.maxHp;
+  hero.appearanceVariant = asFinite(r.appearanceVariant) ?? defaults.appearanceVariant;
+  hero.classType =
+    typeof r.classType === "string" && r.classType in DUNGEON_BY_CLASS
+      ? (r.classType as ClassType)
+      : null;
+  hero.baseStats = { ...defaults.baseStats, ...normalizeStats(r.baseStats) };
+  // 빈 슬롯은 키 자체를 생략한다 (클라우드 인코딩이 실어 보내는 명시적 null 도 여기서 걸러짐).
+  const equippedRaw = asRecord(r.equipped) ?? {};
+  const equipped: Hero["equipped"] = {};
+  for (const slot of EQUIP_SLOTS) {
+    const item = normalizeEquipment(equippedRaw[slot]);
+    if (item) equipped[slot] = item;
+  }
+  hero.equipped = equipped;
+  // 옵셔널 — 키가 있는데 깨진 경우만 교정한다 (없으면 그대로 생략).
+  if ("autoSkillEnabled" in r) hero.autoSkillEnabled = asBool(r.autoSkillEnabled) ?? true;
+  if ("learnedSkills" in r) hero.learnedSkills = asTextArray(r.learnedSkills) ?? [];
+  if ("skillPoints" in r) hero.skillPoints = asFinite(r.skillPoints) ?? 0;
+  return hero;
+}
+
+function normalizeDungeons(raw: unknown): Partial<Record<DungeonId, DungeonProgress>> {
+  const r = asRecord(raw);
+  if (!r) return {};
+  const out: Partial<Record<DungeonId, DungeonProgress>> = {};
+  for (const [id, value] of Object.entries(r)) {
+    const p = asRecord(value);
+    if (!p) continue;
+    const floorReached = asFinite(p.floorReached) ?? 0;
+    out[id as DungeonId] = {
+      ...(p as unknown as DungeonProgress),
+      dungeonId: (asText(p.dungeonId) ?? id) as DungeonId,
+      floorReached,
+      // initialize 의 backfill 과 동일 — 없으면 floorReached 로 채운다.
+      bestFloorReached: asFinite(p.bestFloorReached) ?? floorReached,
+      bossesDefeated: asFiniteArray(p.bossesDefeated) ?? [],
+    };
+  }
+  return out;
+}
+
+function normalizeCodex(raw: unknown): UpHeroState["codex"] {
+  const r = asRecord(raw) ?? {};
+  return {
+    monsters: asTextArray(r.monsters) ?? [],
+    equipment: asTextArray(r.equipment) ?? [],
+    bosses: asTextArray(r.bosses) ?? [],
+  };
+}
+
+function normalizePasses(raw: unknown): UpHeroState["passes"] {
+  const r = asRecord(raw);
+  if (!r) return {};
+  const out: UpHeroState["passes"] = {};
+  for (const [id, value] of Object.entries(r)) {
+    const n = asFinite(value);
+    // 0 도 키를 남긴다: setDoc(merge) 는 중첩 맵을 키 단위로 병합하므로 키를 빼면
+    // 클라우드에 남아 있던 예전 잔고가 되살아난다.
+    if (n === undefined) continue;
+    out[id as DungeonId] = Math.max(0, Math.floor(n));
+  }
+  return out;
+}
+
+function normalizeCosmetics(raw: unknown): UpHeroState["cosmetics"] {
+  const r = asRecord(raw);
+  if (!r) return {};
+  const out: UpHeroState["cosmetics"] = {};
+  const tentColor = asText(r.tentColor);
+  if (tentColor !== undefined) out.tentColor = tentColor;
+  const campfire = asText(r.campfire);
+  if (campfire !== undefined) out.campfire = campfire;
+  return out;
+}
+
+// 날짜가 없으면 의미 없는 카운터 — 키를 생략해 initialize 가 오늘 날짜로 다시 seed 하게 둔다.
+function normalizeShopDaily(raw: unknown): UpHeroState["shopDaily"] {
+  const r = asRecord(raw);
+  const date = r ? asText(r.date) : undefined;
+  if (!r || date === undefined) return undefined;
+  const shopDaily: NonNullable<UpHeroState["shopDaily"]> = {
+    date,
+    passesBought: Math.max(0, Math.floor(asFinite(r.passesBought) ?? 0)),
+  };
+  const coinPouchClaimed = asBool(r.coinPouchClaimed);
+  if (coinPouchClaimed !== undefined) shopDaily.coinPouchClaimed = coinPouchClaimed;
+  return shopDaily;
+}
+
+// week/affixId 가 깨졌으면 키를 생략 — initialize 가 이번 주 affix 를 새로 뽑는다.
+function normalizeWeeklyVariant(raw: unknown): UpHeroState["weeklyVariant"] {
+  const r = asRecord(raw);
+  const week = r ? asText(r.week) : undefined;
+  const affixId = r ? asText(r.affixId) : undefined;
+  if (!r || week === undefined || affixId === undefined) return undefined;
+  const variant: NonNullable<UpHeroState["weeklyVariant"]> = {
+    week,
+    affixId,
+    clearedDungeons: (asTextArray(r.clearedDungeons) ?? []) as DungeonId[],
+    bestScore: Math.max(0, asFinite(r.bestScore) ?? 0),
+  };
+  const lastUploadedAt = asFinite(r.lastUploadedAt);
+  if (lastUploadedAt !== undefined) variant.lastUploadedAt = lastUploadedAt;
+  return variant;
+}
+
+/**
+ * "이 스냅샷에 Up Hero 를 만진 흔적이 있는가" 판정.
+ * useUpHeroStore.initialize 의 hasPlayedUpHero 와 같은 기준(인벤/도감/세션/던전/
+ * 탐험권/코인/꾸미기)이다. 두 곳에서 쓴다:
+ *  - 업로드 게이트: 빈 상태를 올려 클라우드의 코인·인벤을 0/[] 로 덮지 않게
+ *    (retention 의 lastCheckInDate 게이트와 같은 방어선)
+ *  - 복원 게이트: 흔적 없는 클라우드 값을 채택해 로컬 seed 를 망가뜨리지 않게
+ */
+export function hasUpHeroFootprint(raw: unknown): boolean {
+  const r = asRecord(raw);
+  if (!r) return false;
+  if (Array.isArray(r.inventory) && r.inventory.length > 0) return true;
+  const codex = asRecord(r.codex);
+  if (codex) {
+    for (const key of ["monsters", "bosses", "equipment"]) {
+      const list = codex[key];
+      if (Array.isArray(list) && list.length > 0) return true;
+    }
+  }
+  // currentSession 은 클라우드 페이로드엔 없지만 로컬 저장본 판정에는 쓰인다.
+  if (r.currentSession != null) return true;
+  const dungeons = asRecord(r.dungeons);
+  if (dungeons && Object.keys(dungeons).length > 0) return true;
+  const passes = asRecord(r.passes);
+  if (passes && Object.values(passes).some((n) => (asFinite(n) ?? 0) > 0)) return true;
+  if ((asFinite(r.coins) ?? 0) > 0) return true;
+  const cosmetics = asRecord(r.cosmetics);
+  if (cosmetics && Object.keys(cosmetics).length > 0) return true;
+  return false;
+}
+
+/**
+ * 클라우드/로컬 Up Hero 스냅샷을 관용적으로 디코드 (normalizeRetentionState 와 같은 계약).
+ * 필드 하나가 깨져도 나머지는 살리고 깨진 필드만 기본값으로 채운다 — 손상 하나로
+ * 코인·영웅·인벤토리 전체를 버리는 일이 없어야 한다.
+ *
+ * 클라우드로 나가는 쓰기도 이 함수를 통과시킨다: 로컬/원격이 같은 와이어 포맷을 쓰고,
+ * 오염된 로컬 저장본이 그대로 업로드되지 않으며, currentSession 은 읽지 않으므로
+ * 통과만으로 제거된다.
+ */
+export function normalizeUpHeroState(raw: unknown): CloudUpHeroState {
+  const r = asRecord(raw) ?? {};
+  const state: CloudUpHeroState = {
+    hero: normalizeHero(r.hero),
+    inventory: Array.isArray(r.inventory)
+      ? r.inventory
+          .map((item) => normalizeEquipment(item))
+          .filter((item): item is Equipment => item !== null)
+      : [],
+    coins: Math.max(0, Math.floor(asFinite(r.coins) ?? 0)),
+    passes: normalizePasses(r.passes),
+    dungeons: normalizeDungeons(r.dungeons),
+    codex: normalizeCodex(r.codex),
+    cosmetics: normalizeCosmetics(r.cosmetics),
+    // 값이 깨졌으면 now — 과거 timestamp 를 지어내 거대한 idle reward 를 만들지 않는다.
+    lastIdleAccrualAt: asFinite(r.lastIdleAccrualAt) ?? Date.now(),
+    ngPlusLevel: Math.max(0, Math.floor(asFinite(r.ngPlusLevel) ?? 0)),
+    hasSeenCampTutorial: asBool(r.hasSeenCampTutorial) ?? false,
+    welcomeGrantClaimed: asBool(r.welcomeGrantClaimed) ?? false,
+  };
+  // 옵셔널 — 값이 없으면 키를 생략한다. "필드 부재 = 로컬 유지" 계약(_setFromCloud)
+  // 을 지키려면 undefined 를 실어 보내면 안 된다.
+  const lastSeenAt = asFinite(r.lastSeenAt);
+  if (lastSeenAt !== undefined) state.lastSeenAt = lastSeenAt;
+  const schemaVersion = asFinite(r.schemaVersion);
+  if (schemaVersion !== undefined) state.schemaVersion = schemaVersion;
+  const shopDaily = normalizeShopDaily(r.shopDaily);
+  if (shopDaily !== undefined) state.shopDaily = shopDaily;
+  const weeklyVariant = normalizeWeeklyVariant(r.weeklyVariant);
+  if (weeklyVariant !== undefined) state.weeklyVariant = weeklyVariant;
+
+  // heroStartLevel — 영웅 레벨의 기준점 (영웅 Lv = 챌린지 Lv - heroStartLevel + 1).
+  // 값이 없는데 플레이 흔적이 있으면 legacy 저장본이므로 1 로 채운다. initialize 의
+  // `hasPlayedUpHero ? 1 : curLevel` 판정과 같은 결론이며, 이걸 생략하면 복원한 기기의
+  // heroStartLevel(신규 seed = 현재 챌린지 Lv)이 남아 영웅 Lv 가 1 로 주저앉는다.
+  const heroStartLevel = asFinite(r.heroStartLevel);
+  if (heroStartLevel !== undefined) {
+    state.heroStartLevel = Math.max(1, Math.floor(heroStartLevel));
+  } else if (hasUpHeroFootprint(state)) {
+    state.heroStartLevel = 1;
+  }
+  return state;
+}
+
+/**
+ * 클라우드 쓰기 직전 인코딩 — 맵 필드의 "빈 자리" 를 명시적 null/false 로 채운다.
+ *
+ * setDoc(merge: true) 는 중첩 맵을 키 단위로 병합한다. 장비를 해제해 hero.equipped
+ * 에서 키가 사라지면 클라우드엔 예전 키가 그대로 남아, 복원한 기기에서 유령 장비가
+ * 되살아난다 (인벤토리에도 있고 장착도 돼 있는 상태). 빈 슬롯을 null 로 실어 지운다.
+ * shopDaily.coinPouchClaimed 도 같은 이유 — 날짜가 바뀌며 키가 빠지면 어제의 true 가
+ * 남아 오늘 코인 주머니를 못 받는다.
+ * 디코드(normalizeUpHeroState)는 null 슬롯/false 를 정상 처리한다.
+ */
+function encodeUpHeroForCloud(state: CloudUpHeroState): Record<string, unknown> {
+  const payload: Record<string, unknown> = { ...state };
+  if (state.hero) {
+    const equipped: Record<string, unknown> = {};
+    for (const slot of EQUIP_SLOTS) equipped[slot] = state.hero.equipped?.[slot] ?? null;
+    payload.hero = { ...state.hero, equipped };
+  }
+  if (state.shopDaily) {
+    payload.shopDaily = { coinPouchClaimed: false, ...state.shopDaily };
+  }
+  return payload;
+}
+
 // --- SyncManager ---
 
 let unsubscribe: Unsubscribe | null = null;
@@ -130,12 +464,14 @@ async function getFirestoreMod() {
 //   retention 인자 (트랙 2-1): 문서에 retention 필드가 없거나 null 이면 null 을
 //   전달한다. null 은 "필드 부재 = 로컬 유지" 신호 (iOS cloudRetention ?? retention
 //   폴백과 동일). 존재하면 normalizeRetentionState 관용 디코드를 거친 값.
+//   uphero 인자도 같은 계약 — 채택 여부는 SyncProvider 가 판단한다 (한 방향 병합).
 export async function startListener(
   uid: string,
   onCloudUpdate: (
     progress: UserProgress,
     daily: DailyState,
     retention: RetentionState | null,
+    uphero: CloudUpHeroState | null,
   ) => void,
 ): Promise<void> {
   if (!isFirebaseConfigured) return;
@@ -173,7 +509,8 @@ export async function startListener(
         // retention 손상은 progress 동기화를 막지 않는다: isValidProgress 와 달리
         // per-field 관용 디코드로 항상 사용 가능한 상태를 만든다.
         const retention = data.retention == null ? null : normalizeRetentionState(data.retention);
-        onCloudUpdate(progress, daily, retention);
+        const uphero = data.uphero == null ? null : normalizeUpHeroState(data.uphero);
+        onCloudUpdate(progress, daily, retention, uphero);
       } finally {
         isUpdatingFromCloud = false;
       }
@@ -221,6 +558,15 @@ export function syncToCloud(key: string, value: unknown): void {
     // Firestore JS SDK 가 throw 한다. 키 생략이 iOS Swift 의 nil 생략과 같은
     // 와이어 포맷을 만든다 (src/lib/retention.ts 참고).
     pendingSyncData.retention = stripUndefined(value);
+  } else if (key === "uphero") {
+    // 진행 중 던전 세션(currentSession)은 싣지 않는다 — normalizeUpHeroState 가 그
+    // 필드를 읽지 않으므로 통과시키는 것만으로 빠진다 (CloudUpHeroState 주석 참고).
+    const uphero = normalizeUpHeroState(value);
+    // 흔적 없는 빈 상태는 올리지 않는다: merge 로 클라우드의 코인·인벤을 0/[] 로
+    // 덮는 위험만 있고 이득이 없다 (retention 의 lastCheckInDate 게이트와 같은 방어선).
+    // 아지트를 한 번도 안 연 세션에서 initialize 가 기본값을 저장하는 경로가 실제로 있다.
+    if (!hasUpHeroFootprint(uphero)) return;
+    pendingSyncData.uphero = encodeUpHeroForCloud(uphero);
   }
 
   // 로컬에 pending write가 있음을 표시 — 이 동안 stale cloud snapshot 무시
@@ -333,6 +679,7 @@ export async function uploadLocalData(
   progress: UserProgress,
   daily: DailyState,
   retention?: RetentionState,
+  uphero?: CloudUpHeroState,
 ): Promise<void> {
   if (!isFirebaseConfigured) return;
 
@@ -344,6 +691,13 @@ export async function uploadLocalData(
   // 값을 보존한다 (fresh 상태 업로드가 iOS 불꽃 스트릭을 0 으로 덮는 것 방지).
   const includeRetention =
     retention !== undefined && retention.lastCheckInDate !== undefined;
+
+  // Up Hero 도 같은 원리 — 흔적(코인/인벤/도감/던전/탐험권)이 없는 빈 상태면 키를
+  // 생략해 클라우드의 영웅 데이터를 merge 로 덮지 않는다.
+  const upheroPayload =
+    uphero !== undefined && hasUpHeroFootprint(uphero)
+      ? stripUndefined(encodeUpHeroForCloud(uphero))
+      : null;
 
   hasLocalPendingWrite = true;
   try {
@@ -358,6 +712,7 @@ export async function uploadLocalData(
         progress: stripUndefined(progress),
         daily: stripUndefined(dehydrateDaily(daily)),
         ...(includeRetention ? { retention: stripUndefined(retention) } : {}),
+        ...(upheroPayload ? { uphero: upheroPayload } : {}),
         onboardingComplete: true,
         meta: {
           createdAt: serverTimestamp(),
@@ -396,12 +751,17 @@ export function isValidProgress(data: unknown): data is UserProgress {
  *    업로드하면 merge 라도 progress/daily/retention 이 로컬 값으로 덮인다)
  */
 export type CloudDataResult =
-  | { progress: UserProgress; daily: DailyState; retention: RetentionState | null }
+  | {
+      progress: UserProgress;
+      daily: DailyState;
+      retention: RetentionState | null;
+      uphero: CloudUpHeroState | null;
+    }
   | "notFound"
   | "invalid";
 
 // 클라우드에 기존 데이터가 있는지 확인
-//   retention: 필드 부재/null 이면 null (로컬 유지 신호), 존재하면 관용 디코드 값.
+//   retention / uphero: 필드 부재/null 이면 null (로컬 유지 신호), 존재하면 관용 디코드 값.
 export async function getCloudData(uid: string): Promise<CloudDataResult> {
   if (!isFirebaseConfigured) return "notFound";
 
@@ -421,6 +781,7 @@ export async function getCloudData(uid: string): Promise<CloudDataResult> {
     progress: data.progress as UserProgress,
     daily: hydrateDaily((data.daily as Record<string, unknown>) || {}),
     retention: data.retention == null ? null : normalizeRetentionState(data.retention),
+    uphero: data.uphero == null ? null : normalizeUpHeroState(data.uphero),
   };
 }
 

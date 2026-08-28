@@ -521,7 +521,10 @@ private struct OnboardingStarterPack: View {
                     .foregroundStyle(isSel ? Color.bgPrimary.opacity(0.7) : Color.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // 그룹 바닥값(패턴 B) — 설명 줄 수(1~2줄)가 갈리면 3장이 들쭉날쭉해진다.
+            // 세로 스택이라 행 등고는 못 쓰고, 바닥값만 깐다(더 길면 그대로 자란다).
+            .frame(maxWidth: .infinity, minHeight: CardHeights.onboardingPackRow,
+                   alignment: .leading)
             .padding(16)
             .background(isSel ? Color.accentPrimary : Color.bgSurface,
                         in: RoundedRectangle(cornerRadius: 12))
@@ -579,7 +582,8 @@ private struct OnboardingStarterPack: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
         }
-        .frame(maxWidth: .infinity)
+        // 그룹 등고(패턴 A) — 제목 1줄/2줄이 섞인 3열 행을 같은 높이로.
+        .unCardCell(minHeight: CardHeights.onboardingRevealCell)
         .padding(.vertical, 12)
         .padding(.horizontal, 6)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))

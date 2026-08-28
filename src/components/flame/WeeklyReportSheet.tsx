@@ -95,8 +95,9 @@ export default function WeeklyReportSheet({ report, onClose }: WeeklyReportSheet
           {report.weekStart} - {report.weekEnd}
         </p>
 
-        {/* 2x2 지표 그리드 */}
-        <div className="grid grid-cols-2 gap-2.5 mt-4">
+        {/* 2x2 지표 등고 — "사용함/미사용" 처럼 값·라벨 길이가 제각각이라
+            두 행의 높이가 어긋났다. auto-rows-fr 로 가장 큰 타일 기준 통일. */}
+        <div className="grid grid-cols-2 auto-rows-fr gap-2.5 mt-4">
           <MetricTile
             icon="Fire"
             value={t("flame.unit.days", { n: report.checkInCount })}

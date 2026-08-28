@@ -21,6 +21,9 @@ struct SignatureCanvas: UIViewRepresentable {
     var penWidth: CGFloat = 2.0
     var eraserMode: Bool = false
     var background: UIColor = .clear
+    /// 획이 하나 커밋될 때 1회 — **그 획을 긋기 직전의 데이터**를 넘긴다.
+    ///   호출부는 이 값을 실행취소 스택에 그대로 쌓으면 된다.
+    var onStrokeCommitted: ((Data?) -> Void)?
 
     func makeUIView(context: Context) -> PKCanvasView {
         let canvas = PKCanvasView()
@@ -38,11 +41,26 @@ struct SignatureCanvas: UIViewRepresentable {
         if let data = signatureData, let drawing = try? PKDrawing(data: data) {
             canvas.drawing = drawing
         }
+        context.coordinator.lastEmitted = signatureData
         return canvas
     }
 
     func updateUIView(_ canvas: PKCanvasView, context: Context) {
+        context.coordinator.parent = self
         configureTool(canvas)
+        // 외부에서 signatureData 가 바뀐 경우(실행취소/다시실행) 캔버스에 반영한다.
+        //   판별 기준은 "이 캔버스가 마지막으로 내보낸 값"이다. 매번 drawing 을 직렬화해
+        //   비교하면 비싸고, 무조건 재대입하면 그리는 중에 획이 끊긴다.
+        //   재대입은 델리게이트를 다시 부르므로 isApplyingExternal 로 되먹임을 끊는다.
+        guard signatureData != context.coordinator.lastEmitted else { return }
+        context.coordinator.isApplyingExternal = true
+        if let data = signatureData, let drawing = try? PKDrawing(data: data) {
+            canvas.drawing = drawing
+        } else {
+            canvas.drawing = PKDrawing()      // nil = 전부 지운 상태
+        }
+        context.coordinator.lastEmitted = signatureData
+        context.coordinator.isApplyingExternal = false
     }
 
     private func configureTool(_ canvas: PKCanvasView) {
@@ -65,10 +83,43 @@ struct SignatureCanvas: UIViewRepresentable {
 
     class Coordinator: NSObject, PKCanvasViewDelegate {
         var parent: SignatureCanvas
+        /// 이 캔버스가 마지막으로 바깥에 내보낸 데이터 — 외부 변경(실행취소) 판별 기준.
+        var lastEmitted: Data?
+        /// 외부 변경을 캔버스에 반영하는 중 — 델리게이트 되먹임 차단.
+        var isApplyingExternal = false
+        /// 진행 중인 획을 긋기 **직전**의 데이터. didBeginUsingTool 에서 잡아둔다.
+        var pendingUndoBase: Data?
+        /// 이번 도구 사용에 대한 실행취소 항목을 아직 안 만들었다.
+        var hasPendingUndo = false
+
         init(_ p: SignatureCanvas) { parent = p }
 
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-            parent.signatureData = canvasView.drawing.dataRepresentation()
+            guard !isApplyingExternal else { return }
+            let data = canvasView.drawing.dataRepresentation()
+            // 실행취소 항목은 **실제로 그림이 바뀐 이 순간** 만든다(획당 1개).
+            //   시작/종료 콜백 타이밍에 기대지 않으므로 순서 경쟁이 원천 차단된다.
+            if hasPendingUndo {
+                hasPendingUndo = false
+                parent.onStrokeCommitted?(pendingUndoBase)
+            }
+            lastEmitted = data
+            parent.signatureData = data
+        }
+
+        // 실행취소 기준점 — 획을 긋기 직전의 데이터를 잡아둔다. 여기서는 **아무것도 밀지 않는다**.
+        //
+        // ⚠️ PencilKit 콜백 순서(실측 로그): begin(strokes=0) → end(strokes=0) → didChange(strokes=1).
+        //   즉 didEndUsingTool 시점에도 방금 그은 획이 아직 drawing 에 없다. 예전 구현은
+        //   begin 에서 스냅샷을 찍고 end 에서 "변한 게 없으면 취소"를 했는데, end 가 커밋보다
+        //   **먼저** 오니 매번 "안 변했다"로 판정해 스냅샷을 되물렸다 → 실행취소가 통째로 죽었다.
+        //   (다음 틱으로 미뤄도 didChange 가 그보다 늦게 와서 여전히 경쟁이었다.)
+        //   그래서 지금은 "커밋된 순간"인 drawingDidChange 에서만 항목을 만든다.
+        //   여기서 base 를 덮어써도 안전하다 — 아무것도 안 그린 탭이었다면 그 사이 데이터가
+        //   바뀌지 않았으므로 lastEmitted 가 여전히 올바른 직전 상태다.
+        func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
+            pendingUndoBase = lastEmitted
+            hasPendingUndo = true
         }
     }
 }

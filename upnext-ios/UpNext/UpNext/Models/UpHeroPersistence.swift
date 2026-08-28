@@ -41,6 +41,7 @@ struct PersistedUpHeroState: Codable {
     var weeklyVariant: WeeklyVariant?
     var schemaVersion: Int?
     var hasSeenCampTutorial: Bool?
+    var welcomeGiftClaimed: Bool?
     // currentSession 은 전투 슬라이스에서 Optional 필드로 추가 (구 저장 파일 호환).
 }
 
@@ -64,6 +65,7 @@ extension PersistedUpHeroState {
         weeklyVariant = s.weeklyVariant
         schemaVersion = s.schemaVersion
         hasSeenCampTutorial = s.hasSeenCampTutorial
+        welcomeGiftClaimed = s.welcomeGiftClaimed
     }
 
     /// 영속 스냅샷 → 살아있는 상태 (hydrate). currentSession 은 nil, transient 필드는
@@ -87,6 +89,8 @@ extension PersistedUpHeroState {
             weeklyVariant: weeklyVariant,
             schemaVersion: schemaVersion,
             hasSeenCampTutorial: hasSeenCampTutorial,
+            welcomeGiftClaimed: welcomeGiftClaimed,
+            pendingWelcomeGift: nil,   // initialize() 가 미수령이면 다시 예약한다
             idleReward: nil,
             pendingClassAwaken: nil,
             pendingClassChoice: nil,

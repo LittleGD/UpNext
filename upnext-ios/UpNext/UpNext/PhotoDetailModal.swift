@@ -24,16 +24,25 @@ struct PhotoDetailModal: View {
 
     @State private var flipped = false
     @State private var memoDraft: String = ""
-    @State private var memoEditing = false
     @State private var showDeleteConfirm = false
-    @State private var showShareSheet = false
-    @State private var shareImage: UIImage?
+    /// 공유 대상 — `.sheet(item:)` 로 띄운다. `.sheet(isPresented:)` 는 content 클로저가
+    ///   직전 body 평가본을 캡처해, 이미지가 아직 nil 인 **빈 시트**가 먼저 떴다
+    ///   ("공유를 누르면 처음에 아무 화면도 안 뜬다"의 원인). item: 은 값이 확정된
+    ///   뒤에만 시트를 만들어 이 레이스가 구조적으로 불가능하다.
+    @State private var shareItem: SharePayload?
     @State private var entered = false
+    /// 표시용 풀사이즈 합성본 — onAppear 에서 1회만 로드해 들고 있는다.
+    ///   구 구현은 `frontFace` 가 body 안에서 `growth.image(for:)` 를 직접 불렀다. 앞면에선
+    ///   틸트 자이로가 60Hz 로 @State 를 갱신하므로 body 도 초당 60회 재평가되고, NSCache 가
+    ///   축출된 순간부터는 매 프레임 1200×1454 JPEG 를 디스크에서 다시 디코드하게 된다.
+    @State private var photo: UIImage?
     @State private var memoSaveTask: Task<Void, Never>?
     // 부적 의식 실패 피드백(코인 부족·이미 바인딩) — 웹 PhotoTalismanPicker onNotify 토스트
     // 패턴 이식. 이 값이 있으면 하단 토스트를 띄운다. 실패를 침묵으로 버리던 결함 수정.
     @State private var talismanToast: String?
-    @FocusState private var memoFocused: Bool
+    // MemoEditor 는 UITextView 래퍼라 `.focused()` 로는 first responder 가 안 잡힌다.
+    //   Bool 바인딩으로 직접 구동한다(PhotoCaptureModal 과 동일 규약).
+    @State private var memoFocused: Bool = false
 
     private let polaroidAspect: CGFloat = 184.0 / 223.0
     // 05-modal-design — 로컬 #e88b7a 하드코딩을 GB 팔레트 단일 출처로 교체(GB_ENEMY).
@@ -62,11 +71,12 @@ struct PhotoDetailModal: View {
             if showDeleteConfirm { deleteConfirm }
             if let toast = talismanToast { talismanToastView(toast) }
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let img = shareImage { PolaroidShareSheet(image: img) }
+        .sheet(item: $shareItem) { payload in
+            PolaroidShareSheet(image: payload.image, filename: payload.filename)
         }
         .onAppear {
             memoDraft = meta.memo
+            if photo == nil { photo = growth.image(for: meta.id) }
             withAnimation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.82)) {
                 entered = true
             }
@@ -75,7 +85,6 @@ struct PhotoDetailModal: View {
             #endif
         }
         .onChange(of: memoFocused) { focused in
-            memoEditing = focused
             if !focused { flushMemo() }
         }
         .onChange(of: memoDraft) { newValue in
@@ -119,15 +128,15 @@ struct PhotoDetailModal: View {
     // MARK: - 폴라로이드 (틸트 + 플립)
 
     private var polaroid: some View {
-        // 웹 PolaroidTilt/PolaroidFlip 의 textarea passthrough 근사 이식.
-        //   틸트(enabled: !flipped): 메모(뒷면)가 보일 때는 틸트를 하위뷰로 양보해야 메모 영역
-        //     탭이 TextEditor 로 전달돼 편집에 진입할 수 있다. 앞면(사진)에서만 틸트 활성.
-        //     (틸트 제스처는 minimumDistance 0 이라 켜져 있으면 메모 탭을 가로채 포커스가 실패한다.)
-        //   플립(enabled: !memoEditing): 편집 중엔 드래그 플립 비활성(내부에서 flipped 도 함께 검사).
-        // 두 컴포넌트 모두 제스처를 GestureMask 로만 게이트해 뷰 정체성을 유지 → 편집 진입 시
-        // memoFocused 가 살아있어 memoEditing 이 정상 구동된다.
+        // 앨범 상세는 '감상' 화면이라 앞면에서만 틸트(자이로+드래그)를 켠다.
+        //   뒷면(메모)에선 틸트를 하위뷰로 양보해야 메모 탭이 편집으로 들어간다
+        //   (틸트 제스처는 minimumDistance 0 이라 켜져 있으면 탭을 가로챈다).
+        //   꾸미기 화면(PhotoCaptureModal)은 틸트를 아예 끈다 — 그쪽은 '편집' 화면.
+        // 플립은 앞·뒤 양쪽에서 살아있다. PolaroidFlip 이 수평 우세 드래그만 잡아
+        //   메모 탭·캐럿 이동과 공존하므로, 뒷면에서 스와이프로 앞면에 돌아올 수 있다.
         PolaroidTilt(content: {
-            PolaroidFlip(flipped: $flipped, enabled: !memoEditing,
+            PolaroidFlip(flipped: $flipped,
+                         onInteractionBegan: { if memoFocused { memoFocused = false } },
                          front: { frontFace }, back: { backFace })
         }, enabled: !flipped)
         .frame(maxWidth: 300)
@@ -136,7 +145,7 @@ struct PhotoDetailModal: View {
 
     private var frontFace: some View {
         Group {
-            if let img = growth.image(for: meta.id) {
+            if let img = photo {
                 Image(uiImage: img)
                     .resizable()
                     .scaledToFit()
@@ -154,19 +163,13 @@ struct PhotoDetailModal: View {
     private var backFace: some View {
         ZStack {
             Color.paperCream.clipShape(RoundedRectangle(cornerRadius: 4))
-            VStack(spacing: 0) {
-                // 포커스를 합성 View(MemoEditor) 바깥에 `.focused()` 로 붙이면 SwiftUI 에서
-                // no-op → memoFocused 가 영원히 false 로 죽던 함정 제거. 이제 focus 를
-                // 파라미터로 넘겨 실제 내부 TextEditor 의 `.focused()` 에 직접 연결한다.
-                MemoEditor(text: $memoDraft, focus: $memoFocused)
-                    .padding(14)
-                if memoDraft.trimmingCharacters(in: .whitespaces).isEmpty && !memoEditing {
-                    Text("탭하여 메모를 남겨요")
-                        .typography(.micro)
-                        .foregroundStyle(Color.inkWarmText.opacity(0.5))
-                        .padding(.bottom, 14)
-                }
-            }
+            // 포커스는 Bool 바인딩으로 MemoEditor 내부 UITextView 의 first responder 를 직접
+            //   구동한다. 안내 문구도 MemoEditor 가 첫 괘선 위에 그린다(구 구현은 카드 맨
+            //   아래에 떠 있어 "어디에 쓰라는 건지" 읽히지 않았다).
+            MemoEditor(text: $memoDraft,
+                       placeholder: AppConfig.loc("탭하여 메모를 남겨요"),
+                       focus: $memoFocused)
+                .padding(14)
         }
         .aspectRatio(polaroidAspect, contentMode: .fit)
         .shadow(color: .black.opacity(0.25), radius: 10, y: 5)
@@ -253,11 +256,16 @@ struct PhotoDetailModal: View {
     // MARK: - 액션 구현
 
     private func share() {
-        guard let img = growth.image(for: meta.id) else { return }
+        guard let img = photo ?? growth.image(for: meta.id) else {
+            // 파일이 아직 안 써졌거나 유실 — 침묵 대신 사유를 알린다.
+            Haptics.play(.warning)
+            showTalismanToast(AppConfig.loc("사진을 불러오지 못했어요"))
+            return
+        }
         SoundPlayer.shared.play(.select)
         Haptics.play(.selection)
-        shareImage = img
-        showShareSheet = true
+        flushMemo()
+        shareItem = SharePayload(image: img, filename: "upnext-\(meta.date).jpg")
     }
 
     private func makeTalisman() {

@@ -3,8 +3,9 @@
 // JSON.parse로 문자열을 다시 객체로 변환하여 불러옴
 //
 // 클라우드 동기화 대상 키 (saveToStorage 가 sync.ts syncToCloud 로 라우팅):
-//   progress / daily / onboarding_complete / retention (트랙 2-1)
-// 그 외 키(growth, uphero 등)는 로컬 전용으로 저장만 된다.
+//   progress / daily / onboarding_complete / retention (트랙 2-1) / uphero
+//   uphero 는 currentSession 을 뺀 페이로드만 올라간다 (sync.ts CloudUpHeroState).
+// 그 외 키(growth 등)는 로컬 전용으로 저장만 된다.
 
 import { syncToCloud } from "@/lib/sync";
 

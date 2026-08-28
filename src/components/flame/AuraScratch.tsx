@@ -1,0 +1,192 @@
+"use client";
+
+import { useCallback, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useTranslation } from "@/hooks/useTranslation";
+
+/**
+ * 문지르기 의식 — 리딩을 덮은 가림막을 손가락으로 문질러 드러낸다.
+ *
+ * 왜 캔버스가 아닌가: 픽셀 단위 지우개는 이 연출에 과하다. 필요한 건
+ * "내 손으로 걷어냈다"는 감각이지 정교한 자국이 아니다. 거친 셀 격자(7×5)면
+ * 저사양 기기에서도 프레임을 흘리지 않고, 픽셀아트 톤과도 맞는다.
+ *
+ * 접근성: prefers-reduced-motion 이면 탭 1회로 즉시 공개한다. 문지르기를
+ * 강제하면 운동 장애가 있는 유저는 기능 자체를 쓸 수 없다. 키보드는
+ * Enter/Space 로 같은 경로를 탄다(가림막 자체가 button 이다).
+ */
+
+const COLS = 7;
+const ROWS = 5;
+const TOTAL = COLS * ROWS;
+/** 이 비율만큼 지나가면 공개. 낮으면 의식이 안 되고, 높으면 노동이 된다. */
+const REVEAL_RATIO = 0.45;
+/** 안내 문구가 "조금만 더" 로 바뀌는 지점 */
+const ALMOST_RATIO = 0.3;
+
+const CELLS = Array.from({ length: TOTAL }, (_, i) => i);
+
+function clamp(value: number, min: number, max: number): number {
+  return value < min ? min : value > max ? max : value;
+}
+
+export default function AuraScratch({
+  colorHex,
+  onReveal,
+}: {
+  /** 오늘의 색 — 가림막 은박에 섞어 폴라로이드와 한 벌로 읽히게 한다 */
+  colorHex: string;
+  /** 공개 임계치 도달. 정확히 1회만 호출된다. */
+  onReveal: () => void;
+}) {
+  const { t } = useTranslation();
+  const prefersReducedMotion = useReducedMotion();
+
+  const rootRef = useRef<HTMLButtonElement>(null);
+  // 렌더용 state 와 별개로 ref 를 둔다 — pointermove 는 setState 반영을 기다릴
+  // 여유가 없어서, 같은 프레임에 들어온 두 이벤트가 서로의 갱신을 덮어쓴다.
+  const markedRef = useRef<Set<number>>(new Set());
+  const [marked, setMarked] = useState<ReadonlySet<number>>(() => new Set<number>());
+  const doneRef = useRef(false);
+  const draggingRef = useRef(false);
+
+  const reveal = useCallback(() => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onReveal();
+  }, [onReveal]);
+
+  const markAt = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = rootRef.current;
+      if (!el || doneRef.current) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      const col = clamp(Math.floor(((clientX - rect.left) / rect.width) * COLS), 0, COLS - 1);
+      const row = clamp(Math.floor(((clientY - rect.top) / rect.height) * ROWS), 0, ROWS - 1);
+      const index = row * COLS + col;
+      if (markedRef.current.has(index)) return;
+
+      markedRef.current.add(index);
+      setMarked(new Set(markedRef.current));
+      if (markedRef.current.size >= TOTAL * REVEAL_RATIO) reveal();
+    },
+    [reveal],
+  );
+
+  const endDrag = useCallback((pointerId?: number) => {
+    draggingRef.current = false;
+    if (pointerId === undefined) return;
+    try {
+      rootRef.current?.releasePointerCapture(pointerId);
+    } catch {
+      // 이미 해제된 포인터 — 무시
+    }
+  }, []);
+
+  const ratio = marked.size / TOTAL;
+  // reduced motion 경로는 문지르기를 요구하지 않으므로 진행 문구도 쓰지 않는다.
+  const hint =
+    // reduced motion 이면 문지르기가 아니라 탭 1회로 열린다. 그때도 "문질러라"고
+    // 안내하면 **되지 않는 동작을 시키는 상태**라, 스크린리더 사용자는 경로를 못 찾는다.
+    prefersReducedMotion
+      ? t("aura.ritual.tap")
+      : ratio >= ALMOST_RATIO
+        ? t("aura.ritual.almost")
+        : t("aura.ritual.hint");
+
+  // 셀마다 큰 그라디언트의 자기 조각만 비춘다 — 35장이 모여 한 장의 은박이 된다.
+  const tiles = useMemo(
+    () =>
+      CELLS.map((index) => {
+        const col = index % COLS;
+        const row = Math.floor(index / COLS);
+        return {
+          index,
+          position: `${(col / (COLS - 1)) * 100}% ${(row / (ROWS - 1)) * 100}%`,
+        };
+      }),
+    [],
+  );
+
+  return (
+    <motion.div
+      className="absolute inset-0 z-10"
+      exit={{ opacity: 0, scale: 1.03 }}
+      transition={{ duration: prefersReducedMotion ? 0.12 : 0.3, ease: "easeOut" }}
+    >
+      <button
+        ref={rootRef}
+        type="button"
+        aria-label={hint}
+        className="absolute inset-0 overflow-hidden rounded-sm"
+        style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
+        onPointerDown={(e) => {
+          if (prefersReducedMotion) return;
+          draggingRef.current = true;
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // 캡처 실패해도 엘리먼트 위에서는 move 가 계속 들어온다
+          }
+          markAt(e.clientX, e.clientY);
+        }}
+        onPointerMove={(e) => {
+          if (!draggingRef.current) return;
+          markAt(e.clientX, e.clientY);
+        }}
+        onPointerUp={(e) => endDrag(e.pointerId)}
+        onPointerCancel={(e) => endDrag(e.pointerId)}
+        onClick={() => {
+          // 탭 1회 공개는 reduced motion 전용. 그렇지 않으면 문지르기가 장식이 된다.
+          if (prefersReducedMotion) reveal();
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          // 포인터가 없는 입력에는 문지를 방법이 없다 — 키 입력은 항상 즉시 공개.
+          e.preventDefault();
+          reveal();
+        }}
+      >
+        <span
+          className="absolute inset-0 grid"
+          aria-hidden="true"
+          style={{
+            gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+            gridTemplateRows: `repeat(${ROWS}, 1fr)`,
+          }}
+        >
+          {tiles.map(({ index, position }) => {
+            const off = marked.has(index);
+            return (
+              <span
+                key={index}
+                style={{
+                  backgroundImage: `linear-gradient(132deg, ${colorHex}66, #16161a 46%, #24242a 62%, ${colorHex}3d)`,
+                  backgroundSize: `${COLS * 100}% ${ROWS * 100}%`,
+                  backgroundPosition: position,
+                  opacity: off ? 0 : 1,
+                  transform: off ? "scale(0.82)" : "scale(1)",
+                  transition: prefersReducedMotion
+                    ? "none"
+                    : "opacity 240ms ease-out, transform 240ms ease-out",
+                }}
+              />
+            );
+          })}
+        </span>
+      </button>
+
+      {/* 안내는 가림막 밖(아래)에 둔다 — 안에 두면 가운데 셀이 걷히는 순간
+          글자가 인화지 위에 떠 읽기 힘들어진다. */}
+      <p
+        className="absolute left-0 right-0 top-full mt-4 text-center typo-caption text-text-secondary pointer-events-none"
+        aria-hidden="true"
+      >
+        {hint}
+      </p>
+    </motion.div>
+  );
+}

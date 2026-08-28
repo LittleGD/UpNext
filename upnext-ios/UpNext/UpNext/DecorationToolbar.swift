@@ -128,19 +128,27 @@ struct DecorationToolbar: View {
                 }
                 .buttonStyle(.plain)
             }
-            // UpNext 로고
+            // UpNext 로고 — 스와치가 **실제로 붙는 모양**(흰 카드 + 워드마크)을 그대로 보여준다.
+            //   구 "U↗" 텍스트는 배치 결과와 달라 무엇이 붙는지 예측할 수 없었다.
             Button {
                 onPickSticker(Sticker(type: .image, content: "upnext-logo", x: 50, y: 50))
                 Haptics.play(.selection)
             } label: {
-                Text("U↗")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(Color.accentPrimary)
+                Image("Wordmark")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(Color(hex: 0x212727))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 4)
+                    .frame(width: 42, height: 18)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 4))
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                     .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(AppConfig.loc("UpNext 로고 스티커"))
         }
     }
 

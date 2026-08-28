@@ -45,6 +45,10 @@ export default function BottomNav() {
   // 스플래시가 화면을 덮고 있는 동안은 네비 자체를 unmount → splash 끝나는 순간
   // 첫 mount 으로 enter 애니메이션(y:30→0 rise) 이 자연스럽게 재생됨.
   const splashActive = useUIStore((s) => s.splashActive);
+  // 오늘의 기운 오버레이(뽑기 연출 + 폴라로이드)가 화면을 덮는 동안 네비 숨김 —
+  // 던전(hideForUpHero) 과 같은 취급. 연출 위에 네비가 겹치면 몰입이 깨지고,
+  // 오버레이는 /flame 밖(포털)에 뜨므로 pathname 으로는 걸러낼 수 없다.
+  const fortuneOverlayOpen = useUIStore((s) => s.fortuneOverlayOpen);
 
   // 선택 리뷰 화면(선택 완료 but 미확정)에서 네비 숨김
   const maxCards = MODE_CARD_COUNT[progress.mode];
@@ -99,6 +103,7 @@ export default function BottomNav() {
     hideForPack ||
     hideForMinigame ||
     hideForUpHero ||
+    fortuneOverlayOpen ||
     splashActive ||
     capturePhase !== "idle"
   )

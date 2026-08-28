@@ -18,7 +18,7 @@
   "splashScreenFadeOutDuration": 0,
   "signingKey": {
     "path": "/Users/jmlee/Documents/UpNext/android-twa/android.keystore",
-    "alias": "android"
+    "alias": "upnext"
   },
   "appVersionName": "1.1.0",
   "appVersionCode": 2,

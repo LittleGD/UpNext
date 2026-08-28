@@ -2,6 +2,9 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useGameStore } from "@/store/useGameStore";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { SHOP_PRICES } from "@/types/uphero";
+import { isAdAvailable, showRewardedAd } from "@/lib/ads";
 import { MODE_CARD_COUNT, PHASE_MIN_CARDS, PHASE_MAX_CARDS } from "@/types/game";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import type { ChallengeCard } from "@/types/card";
@@ -42,6 +45,16 @@ export default function CardDrawScreen() {
   const deselectPhaseCard = useGameStore((s) => s.deselectPhaseCard);
   const confirmPhaseSelection = useGameStore((s) => s.confirmPhaseSelection);
 
+  // 리롤 유료화 — 갓생 코인은 Up Hero store 소유. 홈 화면에서는 아지트를 거치지
+  //   않으면 hydrate 가 안 돼 잔액이 0 으로 보이므로 여기서 idempotent 하게 로드한다
+  //   (initialize 는 isLoaded 가드가 있어 중복 호출이 안전).
+  const heroCoins = useUpHeroStore((s) => s.coins);
+  const heroLoaded = useUpHeroStore((s) => s.isLoaded);
+  const initUpHero = useUpHeroStore((s) => s.initialize);
+  useEffect(() => {
+    if (!heroLoaded) initUpHero();
+  }, [heroLoaded, initUpHero]);
+
   const { play } = useSound();
   const { t, language } = useTranslation();
   const isMd = useMediaQuery("(min-width: 768px)");
@@ -76,7 +89,10 @@ export default function CardDrawScreen() {
   // 일반 setter + 외부 ref 가드 패턴이 안전함.
   const previewExitingRef = useRef(false);
   const previewExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 리롤 선택 모달 — "100코인" / "광고 보고 리롤" 두 경로를 고르게 한다.
   const [showRerollConfirm, setShowRerollConfirm] = useState(false);
+  // 광고 경로 진행 상태. loading = 광고 로드/재생 중, fail = 노출할 광고가 없었음.
+  const [rerollAdState, setRerollAdState] = useState<"idle" | "loading" | "fail">("idle");
   const handScrollRef = useRef<HTMLDivElement>(null);
 
   // 덱 홀드 인터랙션 상태
@@ -147,6 +163,57 @@ export default function CardDrawScreen() {
     },
     [phaseSelectedCards, selectCard, selectPhaseCard, phase, play]
   );
+
+  // ── 리롤 ──
+  // 결제(코인 차감 또는 광고 시청)가 끝난 뒤의 공통 연출. 진행 중이던 프리뷰
+  // exit 타이머를 취소하고 새 6장 카드 플립 사운드를 순차 재생한다.
+  const applyReroll = useCallback(
+    (payment: "coins" | "ad") => {
+      if (previewExitTimerRef.current) {
+        clearTimeout(previewExitTimerRef.current);
+        previewExitTimerRef.current = null;
+      }
+      previewExitingRef.current = false;
+      setPreviewExitDir(null);
+      const ok = rerollCards(payment);
+      if (!ok) return false;
+      play("packOpen");
+      setShowRerollConfirm(false);
+      setRerollAdState("idle");
+      setPreviewId(null);
+      for (let i = 0; i < 6; i++) {
+        setTimeout(() => play("cardFlip"), i * 80);
+      }
+      return true;
+    },
+    [rerollCards, play],
+  );
+
+  // 코인 경로 — 잔액이 모자라면 store 가 false 를 돌려주고 아무 일도 일어나지 않는다.
+  const handleRerollWithCoins = useCallback(() => {
+    if (heroCoins < SHOP_PRICES.reroll) return;
+    if (!applyReroll("coins")) play("cancel");
+  }, [heroCoins, applyReroll, play]);
+
+  // 광고 경로 — 항상 유저가 직접 누른 경우에만 재생(옵트인). 끝까지 본 경우에만 리롤.
+  const handleRerollWithAd = useCallback(async () => {
+    if (rerollAdState === "loading") return;
+    play("select");
+    setRerollAdState("loading");
+    const result = await showRewardedAd("reroll");
+    if (result === "rewarded") {
+      applyReroll("ad");
+      return;
+    }
+    // dismissed(중도 이탈) 는 조용히 원복, unavailable 은 안내 문구를 남긴다.
+    setRerollAdState(result === "unavailable" ? "fail" : "idle");
+  }, [rerollAdState, applyReroll, play]);
+
+  const closeRerollModal = useCallback(() => {
+    if (rerollAdState === "loading") return; // 광고 재생 중에는 닫히지 않게
+    setShowRerollConfirm(false);
+    setRerollAdState("idle");
+  }, [rerollAdState]);
 
   // 덱 홀드 핸들러
   const startHold = useCallback(() => {
@@ -833,17 +900,20 @@ export default function CardDrawScreen() {
               {t("daily.select.hint")}
             </p>
 
-            {/* 리롤 버튼 (daily에서만) */}
+            {/* 리롤 버튼 (daily에서만) — 라벨에 코인 가격을 미리 노출해
+                모달을 열기 전에 비용을 알 수 있게 한다. */}
             {phase === "daily" && !daily.rerollUsed && !daily.isSelectionComplete && (
               <motion.button
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                onClick={() => { play("select"); setShowRerollConfirm(true); }}
+                onClick={() => { play("select"); setRerollAdState("idle"); setShowRerollConfirm(true); }}
                 className="pointer-events-auto flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-bg-elevated/90 backdrop-blur-md text-text-tertiary hover:text-text-secondary transition-colors grid-border mt-2"
               >
                 <PixelIcon name="Reload" size={16} />
-                <span className="typo-caption">{t("daily.draw.reroll")}</span>
+                <span className="typo-caption">
+                  {t("daily.draw.rerollCost", { cost: SHOP_PRICES.reroll })}
+                </span>
               </motion.button>
             )}
           </motion.div>
@@ -912,7 +982,8 @@ export default function CardDrawScreen() {
         )}
       </AnimatePresence>
 
-      {/* 리롤 확인 모달 */}
+      {/* 리롤 선택 모달 — 코인 결제와 광고 시청 중 하나를 고른다.
+          광고는 항상 옵트인이며, 코인 경로가 없어지는 일은 없다. */}
       <AnimatePresence>
         {showRerollConfirm && (
           <motion.div
@@ -920,7 +991,7 @@ export default function CardDrawScreen() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
-            onClick={() => setShowRerollConfirm(false)}
+            onClick={closeRerollModal}
           >
             <motion.div
               initial={{ y: 100, opacity: 0 }}
@@ -934,39 +1005,62 @@ export default function CardDrawScreen() {
                 <PixelIcon name="Reload" size={24} color="var(--accent-primary)" />
                 <h3 className="typo-heading text-text-primary">{t("daily.draw.reroll")}</h3>
               </div>
-              <p className="typo-body text-text-secondary text-center whitespace-pre-line">
-                {t("daily.draw.rerollConfirm")}
+              <p className="typo-body text-text-secondary text-center">
+                {t("daily.draw.rerollChoose")}
               </p>
-              <div className="flex justify-center gap-3">
+
+              <div className="flex flex-col gap-2">
+                {/* 코인 경로 — 잔액 부족이면 비활성 + 사유 안내 */}
+                <motion.button
+                  whileTap={heroCoins >= SHOP_PRICES.reroll ? { scale: 0.97 } : undefined}
+                  disabled={heroCoins < SHOP_PRICES.reroll || rerollAdState === "loading"}
+                  onClick={handleRerollWithCoins}
+                  className="flex items-center justify-center gap-2 px-6 min-h-[48px] py-3 rounded-md bg-accent text-bg-primary typo-body disabled:opacity-40"
+                >
+                  <PixelIcon name="Coins" size={16} />
+                  <span>{t("daily.draw.rerollCost", { cost: SHOP_PRICES.reroll })}</span>
+                </motion.button>
+                {heroCoins < SHOP_PRICES.reroll && (
+                  <p className="typo-caption text-text-tertiary text-center">
+                    {t("daily.draw.rerollNoCoins")}
+                  </p>
+                )}
+
+                {/* 광고 경로 — 광고를 쓸 수 없는 환경(순수 웹 브라우저)에서는 숨긴다 */}
+                {isAdAvailable() && (
+                  <motion.button
+                    whileTap={rerollAdState === "loading" ? undefined : { scale: 0.97 }}
+                    disabled={rerollAdState === "loading"}
+                    onClick={handleRerollWithAd}
+                    className="flex items-center justify-center gap-2 px-6 min-h-[48px] py-3 rounded-md bg-bg-surface text-text-primary typo-body disabled:opacity-60"
+                  >
+                    <PixelIcon name="Play" size={16} />
+                    <span>
+                      {rerollAdState === "loading"
+                        ? t("daily.draw.rerollAdLoading")
+                        : t("daily.draw.rerollAd")}
+                    </span>
+                  </motion.button>
+                )}
+                {rerollAdState === "fail" && (
+                  <p className="typo-caption text-text-tertiary text-center">
+                    {t("daily.draw.rerollAdFail")}
+                  </p>
+                )}
+              </div>
+
+              <p className="typo-caption text-text-tertiary text-center">
+                {t("daily.draw.rerollOnceADay")}
+              </p>
+
+              <div className="flex justify-center">
                 <motion.button
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => { play("select"); setShowRerollConfirm(false); }}
-                  className="px-6 min-h-[48px] py-3 rounded-md bg-bg-surface text-text-secondary typo-body"
+                  disabled={rerollAdState === "loading"}
+                  onClick={() => { play("select"); closeRerollModal(); }}
+                  className="px-6 min-h-[48px] py-3 rounded-md text-text-secondary typo-body disabled:opacity-40"
                 >
                   {t("common.cancel")}
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => {
-                    play("packOpen");
-                    // 진행 중인 프리뷰 exit 타이머 취소
-                    if (previewExitTimerRef.current) {
-                      clearTimeout(previewExitTimerRef.current);
-                      previewExitTimerRef.current = null;
-                    }
-                    previewExitingRef.current = false;
-                    setPreviewExitDir(null);
-                    rerollCards();
-                    setShowRerollConfirm(false);
-                    setPreviewId(null);
-                    // Play card flip sounds for new cards
-                    for (let i = 0; i < 6; i++) {
-                      setTimeout(() => play("cardFlip"), i * 80);
-                    }
-                  }}
-                  className="px-6 min-h-[48px] py-3 rounded-md bg-accent text-bg-primary typo-body"
-                >
-                  {t("daily.draw.reroll")}
                 </motion.button>
               </div>
             </motion.div>

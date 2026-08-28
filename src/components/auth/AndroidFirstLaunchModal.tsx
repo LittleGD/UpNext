@@ -96,6 +96,11 @@ export default function AndroidFirstLaunchModal({ onLogin }: AndroidFirstLaunchM
             <p className="typo-caption text-text-secondary leading-snug">
               {t("androidFirstLaunch.body2")}
             </p>
+            {/* 이미 로그인 없이 넘어간 사용자를 위한 사후 구제 안내 —
+                Chrome 에 예전 데이터가 남아있을 수 있다는 복구 경로 고지 */}
+            <p className="typo-caption text-text-tertiary leading-snug">
+              {t("androidFirstLaunch.recoveryHint")}
+            </p>
 
             <div className="flex flex-col gap-2 mt-2">
               <button

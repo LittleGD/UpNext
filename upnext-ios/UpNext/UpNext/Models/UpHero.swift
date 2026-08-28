@@ -591,6 +591,11 @@ struct UpHeroState: Equatable {
     var weeklyVariant: WeeklyVariant?
     var schemaVersion: Int?           // Phase 5a.3 — 저장 스키마 버전
     var hasSeenCampTutorial: Bool?
+    /// 시작 선물(100코인) 을 이미 받았는지. 최초 1회 지급 후 true 로 고정.
+    var welcomeGiftClaimed: Bool?
+    /// 시작 선물 예약분 — 미수령이면 코인 수, 수령했으면 nil.
+    /// 오버레이의 "받기" 를 눌러야 실제 지급된다(연출을 못 본 채 소모되는 걸 막는다).
+    var pendingWelcomeGift: Int?           // transient — persist X
     var idleReward: IdleRewardSnapshot?    // transient — persist X
     var pendingClassAwaken: ClassType?     // transient — persist X
     var pendingClassChoice: PendingClassChoice?  // transient — persist X
@@ -606,7 +611,13 @@ enum ShopPrices {
     static let cardPackFull = 800    // 5장 (level-up pack)
     static let enhance = 30
     static let fastForward = 20
-    static let reroll = 50
+    /// 리롤 — 하루 1회 상한은 그대로 두고 무료에서 유료로 전환(광고 시청 경로 병존).
+    static let reroll = 100
+    /// 오늘의 기운 — 광고를 못 받는 사용자를 위한 대체 경로. 순수 코스메틱이라 enhance(30)와
+    ///   같은 티어에 둔다. 리롤(100)보다 크게 낮은 이유: 이건 일회성 구매가 아니라 **매일**
+    ///   부과되는 비용이다(EEA 동의 거부·미승인 지역·오프라인은 구조적으로 광고를 못 받는다).
+    ///   데일리 코인 주머니가 20~160(평균 ~90)이라 30이면 탈출구로 실제 기능한다.
+    static let fortune = 30
     static let expeditionPass = 80   // Phase 11a — 탐험권 1장
 }
 

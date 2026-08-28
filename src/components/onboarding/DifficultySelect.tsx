@@ -47,7 +47,9 @@ export default function DifficultySelect({ onSelect }: DifficultySelectProps) {
           </p>
         </motion.div>
 
-        <div className="space-y-3">
+        {/* 선택지 등고 — 난이도 설명 줄 수가 언어별로 달라 높이가 어긋나던 것을
+            grid + auto-rows-fr 로 가장 큰 카드 기준 통일. */}
+        <div className="grid auto-rows-fr gap-3">
           {difficulties.map((diff) => (
             <motion.button
               key={diff.key}
@@ -56,6 +58,7 @@ export default function DifficultySelect({ onSelect }: DifficultySelectProps) {
               onClick={() => { play("select"); setSelected(diff.key); }}
               className={`
                 w-full text-left p-4 rounded-lg transition-all
+                flex flex-col justify-center
                 ${
                   selected === diff.key
                     ? "bg-accent text-bg-primary"

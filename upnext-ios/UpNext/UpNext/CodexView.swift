@@ -248,8 +248,8 @@ struct MonsterCodexCard: View {
             }
         }
         .padding(8)
-        .frame(maxWidth: .infinity)
-        .frame(minHeight: 100)
+        // 그룹 등고(패턴 A) — 발견/미발견(파워 별 표시 유무)이 섞인 3열 행을 맞춘다.
+        .unCardCell(minHeight: CardHeights.codexCell)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -301,8 +301,8 @@ struct EquipmentCodexCard: View {
                 .foregroundStyle(Color.textTertiary)
         }
         .padding(8)
-        .frame(maxWidth: .infinity)
-        .frame(minHeight: 100)
+        // 그룹 등고(패턴 A) — 이름이 2줄인 장비가 있어도 3열 행 높이가 하나로 맞는다.
+        .unCardCell(minHeight: CardHeights.codexCell)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
     }
 }

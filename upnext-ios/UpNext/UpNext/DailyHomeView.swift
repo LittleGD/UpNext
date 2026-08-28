@@ -174,6 +174,23 @@ struct DailyHomeView: View {
         }
     }
 
+    // MARK: - 오늘의 기운 토스트 (웹 챌린지 페이지 토스트 대응)
+
+    /// 진입 팝업을 스킵한 유저에게 하루 한 번 다시 알리는 상단 토스트.
+    /// 표시 조건·닫기 기록은 전부 FortuneToastView 안에 있고, 여기선 자리와 여백만 정한다.
+    ///
+    /// 자리 — 미드로우(덱 홀드)와 보드 *상단* 에만 둔다. 카드 선택(부채꼴 핸드)은 풀블리드
+    /// 포커스 화면이라 어떤 것도 얹지 않는다(뽑기 흐름을 가리지 않는다는 원칙).
+    ///
+    /// 탭 동작은 광고가 아니라 *이동* 이다 — FortuneAutoOpen 계약(진입 팝업 "지금 열기" 와
+    /// 같은 채널)으로 신호만 올리고, MainShell 이 불꽃 탭으로 전환한 뒤 그 화면의 오늘의 기운
+    /// 진입점이 사용자 탭과 동일한 경로(광고 → 공개)를 실행한다. 토스트는 광고를 부르지 않는다.
+    private func fortuneToast(horizontalInset: CGFloat = 0, topInset: CGFloat = 0) -> some View {
+        FortuneToastView(horizontalInset: horizontalInset, topInset: topInset) {
+            FortuneAutoOpen.shared.request()
+        }
+    }
+
     // MARK: - 상태 1 — 미드로우 (웹 CardDrawScreen state 1 · 덱 홀드)
 
     /// R4 — "카드 뽑기" 버튼 대신 웹의 덱 홀드 드로우 (DeckHoldDraw) 복원.
@@ -182,6 +199,7 @@ struct DailyHomeView: View {
     /// BackupReminderBanner 만 웹 page.tsx(L140) 처럼 상단 조건부 유지(익명 백업 권유).
     private func drawPrompt(_ daily: DailyState, _ s: PhaseSlice) -> some View {
         VStack(spacing: 0) {
+            fortuneToast(horizontalInset: 20, topInset: 12)
             BackupReminderBannerView()
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
@@ -217,6 +235,9 @@ struct DailyHomeView: View {
         let allDone = total > 0 && done >= total
         return ScrollView {
             VStack(spacing: 16) {
+                // 상단 토스트 — 진입 팝업을 스킵했고 오늘의 기운을 아직 안 본 경우에만.
+                // 보드 콘텐츠 위에 겹치지 않고 최상단에 얹혀 카드 완료 흐름을 가리지 않는다.
+                fortuneToast()
                 // 웹 page.tsx(L140) 패리티 — 백업 권유 배너만 보드 상단 조건부.
                 // 리텐션(불꽃/리포트/듀오)·미니게임은 아지트로 이전됨.
                 BackupReminderBannerView()
@@ -234,8 +255,13 @@ struct DailyHomeView: View {
                     nextChallengePrompt(daily.challengePhase)
                 }
                 VStack(spacing: 12) {
+                    // 그룹 바닥값은 *맞출 상대가 있을 때만* 건다. 1장짜리 보드(노멀 난이도)에
+                    // 걸면 완료 카드에 빈 공간만 남고 통일 효과는 없다.
+                    let floor = s.selected.count > 1 ? CardHeights.dailyBoardCard : 0
                     ForEach(s.selected) { card in
-                        boardCard(card, completed: s.completedIds.contains(card.id))
+                        boardCard(card,
+                                  completed: s.completedIds.contains(card.id),
+                                  minHeight: floor)
                     }
                 }
             }
@@ -274,7 +300,8 @@ struct DailyHomeView: View {
         UNButton(title, variant: .secondary, tint: .accentPrimary, action: action)
     }
 
-    private func boardCard(_ card: ChallengeCard, completed: Bool) -> some View {
+    private func boardCard(_ card: ChallengeCard, completed: Bool,
+                           minHeight: CGFloat) -> some View {
         Button {
             confirmCard = card
         } label: {
@@ -315,7 +342,11 @@ struct DailyHomeView: View {
                         .padding(.top, 4)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // 그룹 바닥값(패턴 B) — 완료 카드는 "탭하여 완료" 버튼이 빠져 약 45pt 짧아진다.
+            // 미완료 카드 높이를 바닥값으로 깔아 보드 리듬을 맞춘다. 설명이 길어 더 큰
+            // 카드는 그대로 자란다(잘림 없음). 세로 스택이라 행 등고(패턴 A) 는 못 쓴다.
+            // minHeight 0 = 카드가 1장뿐인 보드 (맞출 상대 없음 → 자연 높이).
+            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
             .padding(16)
             // 완료 카드: 배경만 죽이고(웹 DailyBoard 패리티) 완료 배지/내용은 풀불투명 유지.
             // 등급 표면 텍스처(요인2c) — 웹 DailyBoard L400 RarityTexture 오버레이 복원.

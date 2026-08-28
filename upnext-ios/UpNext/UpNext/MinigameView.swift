@@ -62,6 +62,8 @@ struct MinigameView: View {
     @State private var firstHarvestDone: Bool = false
     /// warded — 다음 저주 1회 무효 (라운드 스코프).
     @State private var wardedReady: Bool = false
+    /// 나가기 확인 프롬프트 — 웹 useMinigameStore.exitConfirmOpen 패리티.
+    @State private var exitConfirmOpen: Bool = false
 
     private enum Phase { case categoryFlash, peek, playing, roundResult, rewardDraft, runResult }
     private enum RoundResult { case pending, success, failed }
@@ -103,6 +105,23 @@ struct MinigameView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .allowsHitTesting(false)
             }
+
+            // 나가기 확인 — 웹 MinigameExitOverlay(requestExit → 프롬프트 → exitRun) 패리티.
+            // 백드롭이 화면 전체를 덮어 뒤 보드로 탭이 새지 않는다(백드롭 탭 = 취소).
+            if exitConfirmOpen {
+                GbConfirm(
+                    title: "런을 종료할까요?",
+                    message: "티켓은 환불되지 않아요",
+                    confirmLabel: "종료",
+                    cancelLabel: "계속하기",
+                    danger: true,
+                    onConfirm: {
+                        exitConfirmOpen = false
+                        finishRun()
+                    },
+                    onCancel: { exitConfirmOpen = false })
+                .transition(.opacity)
+            }
         }
         .onAppear { if board.isEmpty { startRound() } }
     }
@@ -127,7 +146,7 @@ struct MinigameView: View {
                 // 나가기 44×44 (아이콘 박스 금지 — 원형 배경 없는 X)
                 Button {
                     Haptics.play(.selection)
-                    finishRun()
+                    requestExit()
                 } label: {
                     PixelIcon(.cancel, size: 16, color: Color.textSecondary)
                         .frame(width: 44, height: 44)
@@ -510,6 +529,8 @@ struct MinigameView: View {
                 statTile(AppConfig.loc("맞춘 짝"), CountUpNumber(target: matchedPairs, durationMs: 700))
                 statTile(AppConfig.loc("남은 기회"), CountUpNumber(target: hearts, durationMs: 500))
             }
+            // 등고 확정 — 바깥 제안이 아니라 두 타일의 이상 높이로(GuardStatsRow 규약).
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 40)
             Spacer()
             Button {
@@ -532,12 +553,18 @@ struct MinigameView: View {
         }
     }
 
+    /// 웹 MinigameRoundResult 패리티 — 두 타일 등고(auto-rows-fr) + 숫자 하단 정렬(mt-auto).
+    /// 라벨이 언어별로 1줄/2줄이 갈려도 카드 높이와 숫자 베이스라인이 같이 맞는다.
     private func statTile<V: View>(_ label: String, _ value: V) -> some View {
-        VStack(spacing: 6) {
+        // spacing 0 + Spacer(minLength: 6) — 기본 간격 6pt 는 그대로 두고, 남는 높이만
+        // 스페이서가 먹어 숫자를 아래로 민다(spacing 6 + Spacer 를 겹치면 간격이 12pt 로 벌어진다).
+        VStack(spacing: 0) {
             Text(label).typography(.caption).foregroundStyle(Color.textTertiary)
+                .multilineTextAlignment(.center)
+            Spacer(minLength: 6)
             value.typography(.heading).foregroundStyle(Color.textPrimary).monospacedDigit()
         }
-        .frame(maxWidth: .infinity)
+        .unCardCell(minHeight: CardHeights.minigameStatTile)
         .padding(.vertical, 16)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
     }
@@ -729,6 +756,12 @@ struct MinigameView: View {
         matched = []
         lastResult = .pending
         withFlip { phase = .categoryFlash }
+    }
+
+    /// 나가기 요청 — 즉시 종료하지 않고 확인 프롬프트를 띄운다(웹 requestExit).
+    /// 런 중 오탭 한 번으로 판이 끝나던 걸 막는 게 목적. 확인 시 finishRun 으로 합류.
+    private func requestExit() {
+        exitConfirmOpen = true
     }
 
     private func finishRun() {

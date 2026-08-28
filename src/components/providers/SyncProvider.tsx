@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGameStore } from "@/store/useGameStore";
 import { useRetentionStore } from "@/store/useRetentionStore";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useDuoStore } from "@/store/useDuoStore";
 import { useUIStore } from "@/store/useUIStore";
 import {
@@ -14,19 +16,29 @@ import {
   getCloudData,
   setSyncReady,
   flushPendingSync,
+  normalizeUpHeroState,
+  hasUpHeroFootprint,
 } from "@/lib/sync";
 import { compareProgress } from "@/lib/progressCompare";
 import { freshRetentionState } from "@/lib/retention";
-import { saveToStorage } from "@/lib/storage";
+import { loadFromStorage, saveToStorage } from "@/lib/storage";
 import type { AuthUser } from "@/types/auth";
 import type { UserProgress, DailyState } from "@/types/game";
 import type { RetentionState } from "@/types/retention";
+import type { CloudUpHeroState } from "@/lib/sync";
 import { AnimatePresence } from "framer-motion";
 import MergeConflictDialog from "@/components/auth/MergeConflictDialog";
 import PatchNotesModal from "@/components/PatchNotesModal";
 import ReviewPromptModal from "@/components/ReviewPromptModal";
+import FortunePromptModal, {
+  markFortuneAutoOpen,
+  markFortunePromptAsked,
+  wasFortunePromptAsked,
+} from "@/components/flame/FortunePromptModal";
 import { LATEST_PATCH } from "@/data/patchNotes";
 import { shouldShowReviewPrompt } from "@/lib/reviewPrompt";
+import { isAdAvailable } from "@/lib/ads";
+import { computeDailyFortune, isFortuneRevealed, readFortuneState } from "@/lib/fortune";
 
 interface ConflictState {
   uid: string;
@@ -37,6 +49,8 @@ interface ConflictState {
   cloudDaily: DailyState;
   // null = 클라우드 문서에 retention 필드 없음 (iOS 미체크인 계정)
   cloudRetention: RetentionState | null;
+  // null = 클라우드 문서에 uphero 필드 없음 (Up Hero 를 만진 적 없는 계정)
+  cloudUpHero: CloudUpHeroState | null;
 }
 
 /**
@@ -58,16 +72,59 @@ function shouldAdoptCloudRetention(cloud: RetentionState): boolean {
   return cloud.lastCheckInDate !== undefined && cloud.lastCheckInDate >= localLast;
 }
 
+/**
+ * 업로드용 Up Hero 페이로드. 스토어가 아직 hydrate 되지 않았을 수 있으므로
+ * (아지트/홈을 거치지 않은 세션) 영속본인 localStorage 를 진실원으로 읽는다.
+ * 흔적이 없으면 uploadLocalData 가 키를 생략해 클라우드 값을 보존한다.
+ */
+function localUpHeroPayload(): CloudUpHeroState {
+  return normalizeUpHeroState(loadFromStorage<unknown>("uphero"));
+}
+
+/**
+ * 클라우드 Up Hero 채택 — 병합은 한 방향만 한다. 로컬에 흔적이 없고(신규 설치 /
+ * 쿠키 삭제 / TWA→Capacitor 전환) 클라우드에 실제 진행이 있을 때만 내려받는다.
+ * 로컬에 흔적이 있으면 로컬이 이긴다: 코인·인벤토리는 단조 증가 축이 아니라
+ * (쓰면 줄고 팔면 사라진다) compareProgress 류 벡터 비교로 "앞선 쪽" 을 고를 수 없다.
+ *
+ * 로컬 판정을 `loadFromStorage("uphero") === null` 로 두지 않는 이유:
+ * useUpHeroStore.initialize 가 schemaVersion 마이그레이션 경로에서 기본값을 곧바로
+ * persist 한다. 홈/뽑기 화면(CardDrawScreen)이 마운트되며 초기화가 먼저 돌면 키는
+ * "있지만 빈" 상태가 되고, 그걸 로컬 데이터로 오인하면 새 기기 로그인 때 클라우드
+ * 영웅 데이터를 빈 값으로 덮어쓴다. 그래서 키 존재가 아니라 흔적으로 판정한다.
+ *
+ * 클라우드 쪽 흔적도 확인한다: 빈 클라우드 값을 채택하면 _setFromCloud 가 isLoaded 를
+ * 세워 initialize 의 heroStartLevel seed 를 건너뛰게 만든다 (챌린지 Lv 41 신규 유저의
+ * 영웅 Lv 가 1 이 아니라 41 이 되는 회귀).
+ */
+function adoptCloudUpHero(uphero: CloudUpHeroState | null): void {
+  if (!uphero || !hasUpHeroFootprint(uphero)) return;
+  if (hasUpHeroFootprint(loadFromStorage<unknown>("uphero"))) return;
+  useUpHeroStore.getState()._setFromCloud(uphero);
+}
+
 function applyCloudSnapshot(
   progress: UserProgress,
   daily: DailyState,
   retention: RetentionState | null,
+  uphero: CloudUpHeroState | null,
 ): void {
   useGameStore.getState()._setFromCloud(progress, daily);
   if (retention && shouldAdoptCloudRetention(retention)) {
     useRetentionStore.getState()._setFromCloud(retention);
   }
+  adoptCloudUpHero(uphero);
 }
+
+/**
+ * 오늘의 기운 진입 팝업 — 세션당 1회 게이트.
+ *
+ * localStorage 의 "오늘 물어봤는지" 기록(wasFortunePromptAsked)이 주 게이트지만,
+ * 사파리 프라이빗 모드처럼 저장이 통째로 막히는 환경에서도 팝업이 탭 이동마다
+ * 되살아나면 안 된다. 모듈 스코프라 SyncProvider 가 재마운트돼도(Fast Refresh,
+ * 라우트 그룹 전환) 살아남고, 앱을 껐다 켜면 자연스럽게 초기화된다.
+ */
+let fortunePromptShownThisSession = false;
 
 /**
  * requestIdleCallback 래퍼 — FCP/LCP 이후 idle 시점에 콜백 실행
@@ -83,6 +140,7 @@ function whenIdle(fn: () => void) {
 
 export default function SyncProvider({ children }: { children: React.ReactNode }) {
   const setUser = useAuthStore((s) => s.setUser);
+  const router = useRouter();
   const [conflict, setConflict] = useState<ConflictState | null>(null);
   // 패치 노트 모달: 초기 동기화(로컬/클라우드)가 끝나기 전까지는 lastSeenPatchVersion을
   // 신뢰할 수 없으므로 modal을 띄우지 않는다. syncSettled가 true가 되는 시점:
@@ -94,6 +152,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   const syncSettled = useUIStore((s) => s.syncSettled);
   const setSyncSettled = useUIStore((s) => s.setSyncSettled);
   const [showPatchModal, setShowPatchModal] = useState(false);
+  const [showFortunePrompt, setShowFortunePrompt] = useState(false);
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
 
   useEffect(() => {
@@ -161,6 +220,8 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
               if (cloudData.retention) {
                 useRetentionStore.getState()._setFromCloud(cloudData.retention);
               }
+              // Up Hero(코인·영웅·인벤)도 같이 복원 — 로컬에 흔적이 없을 때만 채택한다.
+              adoptCloudUpHero(cloudData.uphero);
             } else if (store.isLocalEmpty && !cloudData) {
               // 진짜 신규 유저 — 기본값 저장
               saveToStorage("progress", store.progress);
@@ -168,17 +229,23 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
               useGameStore.setState({ isLocalEmpty: false });
             } else if (!cloudData) {
               if (store.hasCompletedOnboarding) {
-                // retention 포함 여부(lastCheckInDate 게이트)는 uploadLocalData 가 판단
+                // retention/uphero 포함 여부(체크인 기록·흔적 게이트)는 uploadLocalData 가 판단
                 await uploadLocalData(
                   firebaseUser.uid,
                   store.progress,
                   store.daily,
                   useRetentionStore.getState().retention,
+                  localUpHeroPayload(),
                 );
               }
             } else {
               if (!store.hasCompletedOnboarding) {
-                applyCloudSnapshot(cloudData.progress, cloudData.daily, cloudData.retention);
+                applyCloudSnapshot(
+                  cloudData.progress,
+                  cloudData.daily,
+                  cloudData.retention,
+                  cloudData.uphero,
+                );
               } else {
                 // 데일리 진행 + 미니게임 진행(runs/xp/unlocked) + 추가/슈퍼 챌린지를
                 // 벡터 비교해서 "strictly ahead"인 쪽을 자동 채택, 서로 앞서는 필드가
@@ -187,7 +254,12 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
                 // 조용히 덮어쓰는 데이터 손실 버그를 일으켰다.
                 const result = compareProgress(store.progress, cloudData.progress);
                 if (result === "equal" || result === "bAhead") {
-                  applyCloudSnapshot(cloudData.progress, cloudData.daily, cloudData.retention);
+                  applyCloudSnapshot(
+                    cloudData.progress,
+                    cloudData.daily,
+                    cloudData.retention,
+                    cloudData.uphero,
+                  );
                 } else if (result === "aAhead") {
                   // P0 — compareProgress 는 retention 을 비교하지 않으므로 progress 가
                   // 앞선다고 retention 까지 로컬이 앞선 게 아니다 (iOS 체크인 위주 사용
@@ -198,11 +270,15 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
                   if (cloudData.retention && shouldAdoptCloudRetention(cloudData.retention)) {
                     useRetentionStore.getState()._setFromCloud(cloudData.retention);
                   }
+                  // Up Hero 도 같은 순서 — 로컬이 비어 있으면 먼저 클라우드를 채택하고,
+                  // 그 결과를 다시 올린다 (채택 후엔 로컬 = 클라우드라 업로드가 무해).
+                  adoptCloudUpHero(cloudData.uphero);
                   await uploadLocalData(
                     firebaseUser.uid,
                     store.progress,
                     store.daily,
                     useRetentionStore.getState().retention,
+                    localUpHeroPayload(),
                   );
                 } else {
                   // 진짜 conflict — 양쪽이 서로 다른 축에서 앞서 있음
@@ -214,6 +290,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
                     cloudProgress: cloudData.progress,
                     cloudDaily: cloudData.daily,
                     cloudRetention: cloudData.retention,
+                    cloudUpHero: cloudData.uphero,
                   });
                   return;
                 }
@@ -333,12 +410,71 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     setShowPatchModal(false);
   };
 
+  // 오늘의 기운 진입 팝업 — 모달 체인의 패치 노트 다음 칸.
+  // 패치 노트와 달리 isSelectionDone 은 게이트하지 않는다. 이 팝업의 목적이
+  // "카드를 뽑기 전에 오늘의 기운부터 확인" 이라, 선택 완료를 기다리면 정작
+  // 앱을 켠 순간(=아직 미드로우)에는 영영 뜨지 않는다.
+  // 스플래시는 게이트한다 — 스플래시가 화면을 덮은 채 모달이 뒤에서 뜨면
+  // 걷히는 순간 이미 떠 있는 것처럼 보여 등장 연출이 통째로 사라진다.
+  const splashActive = useUIStore((s) => s.splashActive);
+  const today = useGameStore((s) => s.daily.date);
+  const unlockedCardIds = useGameStore((s) => s.progress.unlockedCardIds);
+
+  useEffect(() => {
+    if (!syncSettled || conflict || !hasCompletedOnboarding) return;
+    if (splashActive) return;
+    if (showPatchModal) return; // 패치 노트에 양보 — 닫히면 이 effect 가 재실행된다
+    // 세션 1회. 스킵 후 탭을 옮겨 다녀도 다시 뜨지 않는다.
+    if (fortunePromptShownThisSession) return;
+    if (!today) return;
+    // 이미 열었거나(fortune.ts 의 revealedDate) 오늘 이미 물어봤으면 조용히 넘어간다
+    if (isFortuneRevealed(today) || wasFortunePromptAsked(today)) return;
+    // 광고 진입점이 없는 환경(순수 웹 프로덕션)은 FortuneCard 자체가 숨겨져 있어
+    // "지금 열기" 로 보내봐야 빈 화면이다.
+    if (!isAdAvailable()) return;
+    // 해금 카드가 하나도 없으면 열 것이 없다 — "지금 열기" 로 보내봐야 FortuneCard 는
+    // 빈 안내만 띄운다(죽은 CTA 금지). iOS evaluateFortunePrompt 와 같은 판정.
+    if (computeDailyFortune(today, readFortuneState().salt, unlockedCardIds) === null) return;
+
+    // 패치 노트(300ms) 뒤, 앱 평가(1200ms) 앞 — 세 모달이 같은 프레임에 겹치지 않게.
+    const timer = setTimeout(() => {
+      fortunePromptShownThisSession = true;
+      setShowFortunePrompt(true);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [
+    syncSettled,
+    conflict,
+    hasCompletedOnboarding,
+    splashActive,
+    showPatchModal,
+    today,
+    unlockedCardIds,
+  ]);
+
+  // 어느 경로로 닫히든 "오늘 물어봤음" 을 1회 기록한다 — 광고를 중도 이탈해도
+  // 같은 날 팝업이 다시 뜨지 않는다.
+  const handleSkipFortunePrompt = () => {
+    markFortunePromptAsked(today);
+    setShowFortunePrompt(false);
+  };
+
+  // "지금 열기" — 광고는 FortuneCard 가 옵트인으로 받는다. 여기서는 자동 열기
+  // 신호만 남기고 불꽃 탭으로 보낸다 (계약은 FortunePromptModal 상단 주석 참고).
+  const handleConfirmFortunePrompt = () => {
+    markFortunePromptAsked(today);
+    markFortuneAutoOpen(today);
+    setShowFortunePrompt(false);
+    router.push("/flame");
+  };
+
   // 앱 평가 요청 — 챌린지를 완료한 서로 다른 날이 2일에 도달하면 1회.
   // 패치노트와 같은 게이트(동기화 완료·온보딩 완료·카드 선택 중 아님)를 쓰되,
   // 두 모달이 겹치지 않도록 패치노트가 떠 있으면 양보한다.
+  // 오늘의 기운 팝업도 체인상 앞이라 같이 양보한다 (닫히면 이 effect 가 재실행).
   useEffect(() => {
     if (!syncSettled || conflict || !hasCompletedOnboarding) return;
-    if (!isSelectionDone || showPatchModal) return;
+    if (!isSelectionDone || showPatchModal || showFortunePrompt) return;
     if (reviewPromptShownAt) return;
 
     const { progress, daily } = useGameStore.getState();
@@ -353,6 +489,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     hasCompletedOnboarding,
     isSelectionDone,
     showPatchModal,
+    showFortunePrompt,
     reviewPromptShownAt,
     completionHistoryLength,
     todayCompletedCount,
@@ -399,6 +536,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
       conflict.localProgress,
       conflict.localDaily,
       conflict.localRetention,
+      localUpHeroPayload(),
     );
     setSyncReady(true);
     await startListener(conflict.uid, applyCloudSnapshot);
@@ -416,6 +554,10 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     useRetentionStore
       .getState()
       ._setFromCloud(conflict.cloudRetention ?? freshRetentionState());
+    // Up Hero 는 여기서도 한 방향 규칙을 지킨다 (로컬에 흔적이 없을 때만 채택).
+    // 병합 다이얼로그는 챌린지 진행도만 비교해 보여주므로, 유저의 "클라우드" 선택을
+    // "이 기기의 코인·인벤토리를 버려도 좋다" 는 동의로 해석하지 않는다.
+    adoptCloudUpHero(conflict.cloudUpHero);
     setSyncReady(true);
     await startListener(conflict.uid, applyCloudSnapshot);
     setConflict(null);
@@ -441,7 +583,15 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {showReviewPrompt && !conflict && !showPatchModal && (
+        {showFortunePrompt && !conflict && !showPatchModal && (
+          <FortunePromptModal
+            onConfirm={handleConfirmFortunePrompt}
+            onSkip={handleSkipFortunePrompt}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showReviewPrompt && !conflict && !showPatchModal && !showFortunePrompt && (
           <ReviewPromptModal onClose={handleCloseReviewPrompt} />
         )}
       </AnimatePresence>

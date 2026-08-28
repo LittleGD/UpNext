@@ -121,11 +121,7 @@ struct SettingsView: View {
             dataResetSection()
             infoSection()
 
-            Text("UpNext v0.1.0")
-                .typography(.micro)
-                .foregroundStyle(Color.textTertiary)
-                .opacity(0.6)
-                .frame(maxWidth: .infinity)
+            creditSection()
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
@@ -472,6 +468,39 @@ struct SettingsView: View {
             .background(Color.bgSurface)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
+    }
+
+    // MARK: - 제작자 크레딧 + 버전
+
+    /// 설정 맨 아래 제작자 크레딧과 앱 버전. 버전 표기와 같은 톤(micro/tertiary)으로
+    /// 조용하게, 링크만 textSecondary 로 한 단계 밝혀 탭 가능함을 암시.
+    /// 영문 고정 문구 — Text(verbatim:) 으로 로컬라이즈 카탈로그 비대상.
+    private func creditSection() -> some View {
+        VStack(spacing: 6) {
+            Text(verbatim: "Designed & built by Jongmin Lee")
+                .typography(.micro)
+                .foregroundStyle(Color.textTertiary)
+            HStack(spacing: 8) {
+                Link(destination: URL(string: "https://www.linkedin.com/in/jongmin-lee-design/")!) {
+                    Text(verbatim: "LinkedIn")
+                        .foregroundStyle(Color.textSecondary)
+                }
+                Text(verbatim: "·")
+                    .foregroundStyle(Color.textTertiary)
+                    .opacity(0.6)
+                Link(destination: URL(string: "https://www.jongmin.design")!) {
+                    Text(verbatim: "Portfolio")
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            .typography(.micro)
+            Text(verbatim: "UpNext v0.1.0")
+                .typography(.micro)
+                .foregroundStyle(Color.textTertiary)
+                .opacity(0.6)
+                .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - 공통 행 / 헬퍼

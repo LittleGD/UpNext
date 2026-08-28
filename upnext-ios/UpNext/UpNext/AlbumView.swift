@@ -158,15 +158,20 @@ struct AlbumView: View {
                     }
 
                     // 캡션 — 친 좌상단 한 곳에만 (메모 > 제목 > 날짜).
-                    Text(polaroidCaption(meta))
-                        .typography(.micro)
-                        .foregroundStyle(Color.inkWarmText.opacity(0.85))
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.85)
-                        .multilineTextAlignment(.leading)
-                        .frame(width: photoW, height: max(0, h - chinTop - h * 0.035),
-                               alignment: .topLeading)
-                        .offset(x: sideM, y: chinTop + h * 0.02)
+                    //   서명/낙서가 있는 챌린지 로그엔 얹지 않는다: 저장본 친 영역에 이미
+                    //   사용자의 손글씨가 구워져 있어, 그 위에 캡션을 인쇄하면 두 글자가
+                    //   겹쳐 둘 다 읽히지 않는다(꾸민 것과 앨범이 달라 보이던 원인 중 하나).
+                    if !hasBakedSignature(meta) {
+                        Text(polaroidCaption(meta))
+                            .typography(.micro)
+                            .foregroundStyle(Color.inkWarmText.opacity(0.85))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .multilineTextAlignment(.leading)
+                            .frame(width: photoW, height: max(0, h - chinTop - h * 0.035),
+                                   alignment: .topLeading)
+                            .offset(x: sideM, y: chinTop + h * 0.02)
+                    }
 
                     // 아날로그 종이 그레인 — 큰 PolaroidFrame 표시와 같은 캐시 텍스처.
                     Image(uiImage: PolaroidFilters.paperTexture())
@@ -251,6 +256,11 @@ struct AlbumView: View {
             .allowsHitTesting(false)
         }
         .frame(width: w, height: h)
+    }
+
+    /// 저장본 친 영역에 이미 서명/낙서가 구워져 있는가 — 챌린지 로그(합성본)만 해당.
+    private func hasBakedSignature(_ meta: PhotoMeta) -> Bool {
+        meta.kind == .challengeLog && meta.signatureData != nil
     }
 
     private func polaroidCaption(_ meta: PhotoMeta) -> String {

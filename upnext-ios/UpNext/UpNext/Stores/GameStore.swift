@@ -135,6 +135,12 @@ final class GameStore: ObservableObject {
 
     /// LoginOverlay 표시 여부. 익명 모드 + 첫 카드 드로 후 1회 권유 (웹 login_prompt_seen).
     /// `dismissLoginPrompt()` 또는 성공 로그인 시 false. 별도 phase 아닌 *overlay 플래그*.
+    /// 오늘의 기운 오버레이(뽑기 연출 + 폴라로이드)가 떠 있는 동안 true.
+    /// MainShell 이 이 값으로 하단 네비를 숨긴다. 전체 화면 연출이라 네비가 함께
+    /// 보이면 몰입이 깨진다(던전의 hideNavForDungeon 과 같은 취급).
+    /// 웹 useUIStore.fortuneOverlayOpen 대응.
+    @Published var fortuneOverlayOpen: Bool = false
+
     @Published var showLoginOverlay: Bool = false
 
     /// MergeConflictDialog 표시 데이터. 익명 → 로그인 시 둘 다 진척이 있고 strictly-ahead
@@ -864,10 +870,32 @@ final class GameStore: ObservableObject {
         SoundPlayer.shared.play(.cardFlip)
     }
 
+    /// 리롤 결제 수단. 웹 rerollCards(payment) 와 동일한 두 갈래 — AdMob 정책상
+    /// 광고가 유일한 경로가 되면 안 되므로 코인 경로가 항상 병존한다.
+    enum RerollPayment {
+        case coins   // ShopPrices.reroll(100) 코인 차감
+        case ad      // 리워드 광고 완주 — 시청 판정은 호출부(뷰)가 끝낸 뒤 들어온다
+    }
+
+    /// 리롤 결과. 웹 rerollCards 반환값 대응.
+    enum RerollResult {
+        case ok
+        case unavailable   // 오늘 이미 리롤했거나 선택 확정됨 (버튼이 이미 숨겨진 상태)
+        case noCoins       // 코인 경로인데 잔액 부족 — 광고 경로 안내로 유도
+    }
+
     /// 리롤 — 하루 1회, 선택 미확정 시. 웹 rerollCards.
-    func rerollCards() {
-        guard let p = progress, let current = daily else { return }
-        guard !current.rerollUsed, !current.isSelectionComplete else { return }
+    /// 코인 경로는 여기서 UpHeroStore 코인을 차감하고, 광고 경로는 호출부가 광고를
+    /// 끝까지 본 것(.rewarded)을 확인한 뒤에만 넘어온다 — 스토어가 광고 SDK 를 모르게 둔다.
+    /// 결제/광고와 무관하게 하루 1회 상한(rerollUsed)은 그대로다.
+    @discardableResult
+    func rerollCards(payment: RerollPayment) -> RerollResult {
+        guard let p = progress, let current = daily else { return .unavailable }
+        guard !current.rerollUsed, !current.isSelectionComplete else { return .unavailable }
+        // 코인 차감은 카드를 새로 뽑기 직전에 — 실패하면 리롤 자체가 없던 일이 된다.
+        if payment == .coins {
+            guard upHero.spendCoins(ShopPrices.reroll) else { return .noCoins }
+        }
         let unlocked = CardCatalog.allCards.filter { p.unlockedCardIds.contains($0.id) }
         let drawn = Deck.drawCards(unlocked: unlocked)
         mutateDaily { d in
@@ -876,6 +904,7 @@ final class GameStore: ObservableObject {
         }
         Haptics.play(.medium)
         SoundPlayer.shared.play(.cardFlip)
+        return .ok
     }
 
     /// 드로우 결과 반영 — 패널티 시 6장 중 1장 랜덤 잠금 + 자동 선택. drawDailyCards/rerollCards 공통.
@@ -1470,6 +1499,8 @@ final class GameStore: ObservableObject {
             // 캐시된 영웅 이름을 강제 언어 풀의 결정론 이름으로 — 스크린샷 언어 일관성.
             store.upHero.renameHero(UpHeroRules.heroNamePools[forcedLang ?? .ko]?.first ?? "레오")
         }
+        // 카드매치(미니게임) 검증 — 티켓을 가득 채워 플레이 CTA 를 활성화한다.
+        if args.contains("UITestSeedTickets") { p.tickets = GameConstants.minigameTicketCap }
         // 도감 발견 표시 검증 — 실제 전투 기록 경로로 codex 를 시드(몬스터/보스 발견).
         if args.contains("UITestSeedCodex") {
             p.level = 35

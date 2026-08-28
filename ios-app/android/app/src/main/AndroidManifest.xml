@@ -56,6 +56,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- AdMob 앱 ID (도와주기 리워드 광고) — 미선언 시 Mobile Ads SDK 초기화가 크래시한다.
+             광고 단위 ID 는 웹 코드(src/lib/ads.ts)에서 지정. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-7625755758671333~7939537449" />
     </application>
 
     <!-- Permissions -->

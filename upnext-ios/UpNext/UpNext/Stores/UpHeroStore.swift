@@ -75,6 +75,12 @@ final class UpHeroStore: ObservableObject {
         }
         s.lastSeenAt = now              // 시계 rewind 감지 기준 — 매 진입 갱신
 
+        // 시작 선물 예약 — 아직 안 받았으면 매 부팅 다시 예약한다(수령 전에 앱을 껐어도
+        // 다음 실행에서 연출이 다시 뜬다). 실제 지급은 claimWelcomeGift() 가 한다.
+        if s.welcomeGiftClaimed != true {
+            s.pendingWelcomeGift = Self.welcomeGiftCoins
+        }
+
         state = s
         persist()
         return grantedXP
@@ -467,21 +473,49 @@ final class UpHeroStore: ObservableObject {
 
     /// 데일리 코인 주머니 — 하루 1회 무료, [coinPouchMin, coinPouchMax](20...160) 균등 랜덤
     /// 코인 지급. 오늘 이미 수령했으면 실패. 웹 useUpHeroStore.ts:1582-1608 `claimCoinPouch`.
+    ///
+    /// multiplier: 지급 배수. 기본 1(무료 수령), 2 는 리워드 광고를 끝까지 본 경우.
+    ///   광고 시청 판정은 호출부(ShopView)가 하고 여기는 배수만 받는다 — 스토어가
+    ///   광고 SDK 를 알 필요가 없다(GameStore.rerollCards 의 광고 경로와 같은 규약).
+    ///   하루 1회 상한은 배수와 무관하게 동일하다.
     /// 반환: (성공 여부, 지급 코인 — 실패 시 0).
     @discardableResult
-    func claimCoinPouch() -> (ok: Bool, coins: Int) {
+    func claimCoinPouch(multiplier: Int = 1) -> (ok: Bool, coins: Int) {
         let today = AppClock.todayString()
         var daily = (state.shopDaily?.date == today)
             ? state.shopDaily!
             : ShopDaily(date: today, passesBought: 0, coinPouchClaimed: nil)
         guard daily.coinPouchClaimed != true else { return (false, 0) }
         let rolled = Int.random(in: UpHeroRules.coinPouchMin...UpHeroRules.coinPouchMax)  // 20...160
+        let granted = rolled * max(1, multiplier)
         daily.coinPouchClaimed = true
         mutate { s in
-            s.coins += rolled
+            s.coins += granted
             s.shopDaily = daily
         }
-        return (true, rolled)
+        return (true, granted)
+    }
+
+    // MARK: - 시작 선물 (신규 유저 최초 1회 100코인)
+
+    /// 신규 유저 시작 선물 코인. 첫 리롤(ShopPrices.reroll=100) 1회분.
+    static let welcomeGiftCoins = 100
+
+    /// 시작 선물 수령 — initialize() 가 예약해 둔 pendingWelcomeGift 를 실제 코인으로
+    /// 지급하고 플래그를 확정 persist 한다. 예약이 없으면 no-op.
+    /// 오버레이 표시 여부는 호출부(MainShell)가 state.pendingWelcomeGift 로 판단한다.
+    /// 웹 useUpHeroStore.claimWelcomeGrant 동치.
+    @discardableResult
+    func claimWelcomeGift() -> Int {
+        guard let amount = state.pendingWelcomeGift, state.welcomeGiftClaimed != true else {
+            return 0
+        }
+        mutate { s in
+            s.coins += amount
+            s.welcomeGiftClaimed = true
+            s.pendingWelcomeGift = nil
+        }
+        return amount
     }
 
     func grantSkillPoints(_ points: Int) {
@@ -810,6 +844,8 @@ final class UpHeroStore: ObservableObject {
             weeklyVariant: nil,
             schemaVersion: nil,
             hasSeenCampTutorial: false,
+            welcomeGiftClaimed: false,  // 최초 1회 지급 전 — claimWelcomeGift 가 true 로
+            pendingWelcomeGift: nil,    // transient — initialize 에서 예약
             idleReward: nil,            // transient
             pendingClassAwaken: nil,    // transient
             pendingClassChoice: nil,    // transient

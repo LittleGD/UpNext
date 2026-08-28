@@ -112,7 +112,8 @@ struct BuffDrawPanel: View {
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
             }
-            .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+            // 그룹 등고(패턴 A) — 제목 1줄/2줄 카드가 같은 행에서 같은 높이가 된다.
+            .unCardCell(minHeight: CardHeights.buffCell, alignment: .topLeading)
             .padding(12)
             .background(selected ? Color.accentPrimary.opacity(0.16) : Color.bgSurface,
                         in: RoundedRectangle(cornerRadius: 10))

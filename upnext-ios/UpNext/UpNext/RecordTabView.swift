@@ -10,15 +10,63 @@
 import SwiftUI
 
 struct RecordTabView: View {
+    /// 오늘의 기운 공개 → 폴라로이드 오버레이 (오늘의 카드·색·문구·명언 한 벌)
+    @State private var revealedFortune: DailyFortune?
+    /// 기운 리딩(재물·관계·건강) 오버레이. 폴라로이드와 같은 이유로 ScrollView 밖에 있다.
+    ///   요청은 폴라로이드 오버레이 안의 기운 고르기에서 올라온다 — 리딩은 그 위를 덮는다.
+    @State private var auraRequest: AuraOverlayRequest?
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                RitualGreetingHeader()
-                RetentionSectionView()
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    RitualGreetingHeader()
+                    // 오늘의 기운 카드는 RetentionSectionView 안(불꽃 히어로 바로 아래)에 있다.
+                    //   여기서는 공개 이벤트만 받아 오버레이를 띄운다 — 오버레이는 ScrollView
+                    //   밖에 있어야 화면 전체를 덮는다(스크롤을 따라 움직이면 안 된다).
+                    RetentionSectionView(
+                        onRevealFortune: { fortune in
+                            withAnimation(.easeOut(duration: 0.2)) { revealedFortune = fortune }
+                        },
+                        onOpenAura: { request in
+                            withAnimation(.easeOut(duration: 0.2)) { auraRequest = request }
+                        }
+                    )
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 96)   // 하단 플로팅 네비 여유
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 96)   // 하단 플로팅 네비 여유
+
+            if let fortune = revealedFortune {
+                // 기운 3종 고르기는 이 오버레이 안(폴라로이드 아래)에 있다.
+                // 요청은 여기로 올라와 리딩 오버레이가 그 위(zIndex 11)에 얹힌다.
+                FortuneRevealOverlay(
+                    fortune: fortune,
+                    onOpenAura: { request in
+                        withAnimation(.easeOut(duration: 0.2)) { auraRequest = request }
+                    },
+                    onClose: {
+                        withAnimation(.easeOut(duration: 0.2)) { revealedFortune = nil }
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(10)
+            }
+
+            // 기운 리딩은 폴라로이드를 본 뒤에 열리므로 그 위에 놓는다.
+            if let request = auraRequest {
+                AuraReadingOverlay(reading: request.reading,
+                                   accent: request.accent,
+                                   needsRitual: request.needsRitual,
+                                   allOpened: request.allOpened) {
+                    // 닫기 버튼은 공개 후에만 뜬다 — 여기 왔다는 건 의식을 통과했다는 뜻이다.
+                    request.onFinish()
+                    withAnimation(.easeOut(duration: 0.2)) { auraRequest = nil }
+                }
+                .transition(.opacity)
+                .zIndex(11)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // 앰비언트 노출(요인1) — 화면 루트 투명화. MainShell 바닥의 오로라·별이 관통(웹 main z-[1] 패리티).

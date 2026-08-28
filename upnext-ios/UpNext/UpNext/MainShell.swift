@@ -71,6 +71,12 @@ struct MainTabView: View {
     /// 패치 노트 모달 표시 — onAppear 에서 lastSeenPatchVersion 비교 후 true.
     @State private var showPatchNotes: Bool = false
     @State private var showReviewPrompt: Bool = false
+    /// 앱 실행 진입 팝업("오늘의 기운이 도착했어요") 표시 — 업데이트 노트 다음 순번.
+    @State private var showFortunePrompt: Bool = false
+    /// 오늘의 기운 자동 열기 신호. 진입 팝업의 "지금 열기" 는 아래에서 직접 탭을 옮기지만,
+    /// 챌린지 홈 토스트(FortuneToastView)처럼 탭 상태에 접근할 수 없는 자식이 올린 신호도
+    /// 같은 계약 하나로 불꽃 탭까지 배달하기 위해 셸에서 관찰한다.
+    @ObservedObject private var fortuneAutoOpen = FortuneAutoOpen.shared
 
     /// A-2 — 레벨업 오버레이 전용 표시 state. `pendingLevelUp != nil`(이벤트 존재)를 직접
     /// 게이트로 쓰면, 캡처 cover 디스미스(pendingCapture→nil) 틱에 오버레이가 *애니 없이 팝인*
@@ -83,6 +89,10 @@ struct MainTabView: View {
 
     /// 마지막으로 본 패치 노트 버전 — UserDefaults 영속. 신규 버전 노트가 있으면 모달 1회 표시.
     @AppStorage("lastSeenPatchVersion") private var lastSeenPatchVersion: String = ""
+
+    /// 진입 팝업을 "나중에" 로 넘긴 날짜("YYYY-MM-DD"). 그날은 다시 묻지 않는다.
+    /// (Fortune 의 revealedDate 와 별개 — 열지 *않기로* 한 선택도 하루 유효해야 한다.)
+    @AppStorage("fortunePromptDeclinedDate") private var fortunePromptDeclinedDate: String = ""
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -121,7 +131,9 @@ struct MainTabView: View {
             // 웹 BottomNav.tsx:81-102 hideForUpHero(return null) + playground/page.tsx:36-49 immersive
             // 풀스크린 규약 이식. 이로써 (a) 전투 중 탭 이탈 차단 (b) DungeonView 선택지/포기 footer 를
             // 가리던 겹침 제거 → 필수 선택 게이트가 다시 보이고 전투 루프가 정지하지 않는다.
-            if !hideNavForDungeon {
+            // 오늘의 기운 오버레이(뽑기 연출 + 폴라로이드)도 같은 취급 — 전체 화면 연출 위에
+            // 네비가 떠 있으면 몰입이 깨지고 폴라로이드 하단이 가린다(웹 fortuneOverlayOpen 패리티).
+            if !hideNavForDungeon && !store.fortuneOverlayOpen {
                 BottomNav(selected: $tab)
             }
 
@@ -161,6 +173,16 @@ struct MainTabView: View {
                 .transition(.opacity)
             }
 
+            // 시작 선물 — 신규 유저 최초 1회 100코인 + 축하 연출. bootstrapUpHero 의
+            // initialize 가 예약(pendingWelcomeGift)하고, "받기" 를 눌러야 실제 지급된다
+            // (연출을 못 본 채 플래그만 소모되는 걸 막는다 — 웹 WelcomeCoinsOverlay 동치).
+            // 카드팩 오프너(fullScreenCover)가 떠 있으면 그 아래에 대기했다가 드러난다.
+            if let gift = upHero.state.pendingWelcomeGift {
+                WelcomeGiftOverlay(coins: gift) { upHero.claimWelcomeGift() }
+                    .zIndex(115)
+                    .transition(.opacity)
+            }
+
             // R-Effects: PatchNotesModal — 새 버전 노트가 있을 때 자동 1회 표시.
             // dismiss 시 lastSeenPatchVersion 을 현재 최신으로 갱신해 다시 안 나타남.
             if showPatchNotes {
@@ -169,6 +191,9 @@ struct MainTabView: View {
                     onDismiss: {
                         lastSeenPatchVersion = currentPatchVersion
                         showPatchNotes = false
+                        // 웹 SyncProvider 의 모달 체인 — 업데이트 노트를 닫으면 다음 순번인
+                        // 오늘의 기운 팝업을 재평가한다(둘이 겹치지 않고 이어서 뜬다).
+                        chainFortunePrompt()
                     }
                 )
                 .zIndex(110)
@@ -181,8 +206,37 @@ struct MainTabView: View {
                 ReviewPromptModal(onDismiss: {
                     store.markReviewPromptShown()
                     showReviewPrompt = false
+                    chainFortunePrompt()
                 })
                 .zIndex(105)
+                .transition(.opacity)
+            }
+
+            // 앱 실행 진입 팝업 — "오늘의 기운이 도착했어요". 업데이트 노트(110)·평가 요청(105)
+            // 다음 순번이라 그 둘이 떠 있는 동안은 아예 뜨지 않고(evaluateFortunePrompt 게이트),
+            // 닫히면 chainFortunePrompt 가 이어서 띄운다. zIndex 는 그 사이(108).
+            if showFortunePrompt {
+                FortunePromptModal(
+                    onConfirm: {
+                        showFortunePrompt = false
+                        // 어느 경로로 닫히든 "오늘 물어봤음" 을 기록한다 — 광고를 중도
+                        // 이탈하면 isRevealed 가 안 찍혀서, 이게 없으면 같은 날 앱을
+                        // 다시 켤 때 또 묻는다(웹 markFortunePromptAsked 와 같은 규약).
+                        fortunePromptDeclinedDate = GameStore.todayString()
+                        // 불꽃 탭으로 이동 + 자동 열기 신호 — 실제 광고/공개는 불꽃 탭의
+                        // 오늘의 기운 진입점이 사용자 탭과 같은 경로로 실행한다.
+                        FortuneAutoOpen.shared.request()
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                            tab = .record
+                        }
+                    },
+                    onSkip: {
+                        showFortunePrompt = false
+                        // 오늘은 다시 묻지 않는다(다음 날 진입부터 재개).
+                        fortunePromptDeclinedDate = GameStore.todayString()
+                    }
+                )
+                .zIndex(108)
                 .transition(.opacity)
             }
 
@@ -208,6 +262,8 @@ struct MainTabView: View {
         // A-2 — 오버레이 애니는 전용 state 를 따른다(구: pendingLevelUp != nil → 팝인 발화 실패).
         .animation(.easeOut(duration: 0.25), value: showLevelUpOverlay)
         .animation(.easeOut(duration: 0.25), value: showPatchNotes)
+        .animation(.easeOut(duration: 0.25), value: showFortunePrompt)
+        .animation(.easeOut(duration: 0.25), value: upHero.state.pendingWelcomeGift)
         // A-2 — 레벨업 이벤트/캡처 상태 변화를 관찰해 오버레이 표시 타이밍을 조정.
         .onChange(of: store.pendingLevelUp) { event in
             evaluateLevelUpOverlay(hasEvent: event != nil, capturing: growth.pendingCapture != nil)
@@ -248,6 +304,7 @@ struct MainTabView: View {
             syncPackOpener()
             evaluatePatchNotes()
             evaluateReviewPrompt()
+            evaluateFortunePrompt()
             lastCompletedScore = currentCompletedScore
         }
         // 챌린지 완료 직후에도 재평가 — 앱을 켜둔 채 2일차 완료를 찍는 경로에서
@@ -258,6 +315,18 @@ struct MainTabView: View {
         // 재평가해, 온보딩 직후 "로그인 권유 먼저 → 닫은 뒤 카드팩 개봉" 순서(웹 패리티)를 만든다.
         .onChange(of: store.showLoginOverlay) { isShowing in
             if !isShowing { syncPackOpener() }
+        }
+        // 카드팩 개봉(fullScreenCover)이 닫히면 진입 팝업을 재평가 — 온보딩 직후처럼
+        // 팩이 먼저 뜨는 경로에서도 오늘의 기운 팝업이 유실되지 않고 뒤이어 뜬다.
+        .onChange(of: showPackOpener) { isOpen in
+            if !isOpen { chainFortunePrompt() }
+        }
+        // 오늘의 기운 자동 열기 신호가 올라오면 불꽃 탭으로 전환한다. 신호 소비(광고→공개)는
+        // 불꽃 탭의 진입점(FortuneCardView)이 하므로 여기선 이동만. 진입 팝업 "지금 열기" 는
+        // 이미 자기 콜백에서 탭을 옮겨 두므로 `tab != .record` 가드에 걸려 중복 전환이 없다.
+        .onChange(of: fortuneAutoOpen.pending) { pending in
+            guard pending, tab != .record else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) { tab = .record }
         }
         // R-Effects: 챌린지 완료 카운터(daily/extra/super 합산 + 풀클리어 가산) 증가 시 confetti.
         // 단순 completed count 증가만 보지 않고 "풀클리어" 가산점을 함께 보면, 마지막 1장 완료가
@@ -427,6 +496,50 @@ struct MainTabView: View {
         guard let progress = store.progress, let daily = store.daily else { return }
         guard ReviewPromptService.shouldShow(progress: progress, daily: daily) else { return }
         showReviewPrompt = true
+    }
+
+    /// 앱 실행 진입 팝업("오늘의 기운이 도착했어요") 노출 평가.
+    /// 웹 SyncProvider 의 모달 체인(업데이트 노트 → 오늘의 기운) iOS 대응.
+    ///
+    /// 조건 — 온보딩 완료(MainTabView 는 `.ready` 에서만 마운트된다) + 오늘 미공개
+    /// + 광고 가용 + 다른 모달·오버레이 부재 + 앱 실행당 1회 + 오늘 "나중에" 를 고르지 않음.
+    private func evaluateFortunePrompt() {
+        #if DEBUG
+        // UITest 런치에선 자동 노출을 막아 다른 화면 검증을 가리지 않게 한다(패치 노트와 동일).
+        if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("UITest") }) { return }
+        #endif
+        // 앱 실행당 1회 — @State 는 MainTabView 재생성(로그아웃→로그인) 시 초기화되므로
+        // 실행 수명 싱글턴에 기록한다.
+        guard !FortuneAutoOpen.shared.askedThisLaunch, !showFortunePrompt else { return }
+        // 다른 모달·오버레이에 양보 — 닫히는 시점에 chainFortunePrompt 가 재평가한다.
+        guard !showPatchNotes, !showReviewPrompt else { return }
+        guard !store.showLoginOverlay, store.mergeConflict == nil,
+              store.pendingLevelUp == nil, !store.fortuneOverlayOpen,
+              !store.collectionCelebration, growth.pendingCapture == nil,
+              upHero.state.pendingWelcomeGift == nil else { return }
+        // 카드팩 개봉은 fullScreenCover 라 zIndex 로 못 이긴다 — 이미 떠 있거나 곧 뜰
+        // (syncPackOpener 가 다음 런루프에 present) 상황이면 팝업이 가려진 채 소비된다.
+        guard !showPackOpener, pendingPackCount == 0 else { return }
+
+        let today = GameStore.todayString()
+        guard fortunePromptDeclinedDate != today else { return }
+        guard !Fortune.isRevealed(today: today) else { return }
+        guard AdsService.shared.isAvailable else { return }
+        // 해금 카드가 하나도 없으면 열 것이 없다 — 죽은 CTA 금지
+        // (FortuneCardView 의 isEmpty 판정과 같은 근거).
+        guard Fortune.compute(dateKey: today,
+                              salt: Fortune.salt,
+                              unlockedCardIds: store.progress?.unlockedCardIds ?? []) != nil
+        else { return }
+
+        FortuneAutoOpen.shared.askedThisLaunch = true
+        showFortunePrompt = true
+    }
+
+    /// 앞 순번 모달이 닫힌 뒤 진입 팝업을 이어서 띄운다. 디스미스 트랜잭션과 등장 애니가
+    /// 같은 틱을 공유하지 않도록 한 박자 미룬다(레벨업 오버레이의 지연 표시와 같은 이유).
+    private func chainFortunePrompt() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { evaluateFortunePrompt() }
     }
 
     /// 미개봉 카드팩 수 (레벨업 팩 + 보너스 카드).
