@@ -16,7 +16,7 @@
  *  - 버튼 문구는 "제공되는 보상"만 서술한다. 개발자 응원·후원·도와주기 류 표현은 정책 위반.
  *
  * 그 밖의 정책 결정 (docs/AdMob 광고 셋업-2026-08-25.md):
- *  - 실제 광고 단위는 NEXT_PUBLIC_ADS_ENV 를 명시적으로 켠 배포에서만 사용. 그 외엔
+ *  - 실제 광고 단위는 프로덕션 도메인(PROD_AD_HOST)에서만 사용. 로컬·프리뷰 배포는
  *    전부 구글 공식 테스트 ID (실제 광고 셀프 클릭은 AdMob 계정 정지 사유).
  *  - EEA/UK/스위스 동의는 UMP 로 처리. 부팅 시가 아니라 광고를 실제로 띄우는
  *    순간에 lazy 하게 물어본다 (동의 폼이 앱 첫 인상을 가리지 않도록).
@@ -26,6 +26,19 @@ import { isAndroidNative } from "@/lib/platform";
 
 export type AdSlot = "reroll" | "coinPouch" | "fortune";
 export type AdResult = "rewarded" | "dismissed" | "unavailable";
+
+/**
+ * 실광고를 켜는 유일한 호스트. 웹 프로덕션 배포 도메인이자, Capacitor iOS/안드로이드
+ * 앱이 리모트로 로드하는 주소다 (ios-app/capacitor.config.ts 의 server.url).
+ *
+ * 왜 호스트로 게이트하나:
+ *  - 배포 환경변수를 넣을 수 없는 상황에서도 프로덕션에서만 실광고가 켜져야 한다.
+ *  - localhost, Vercel 프리뷰(*.vercel.app 브랜치 별칭)는 호스트가 달라 자동으로
+ *    테스트 광고로 떨어진다. 개발자가 자기 광고를 눌러도 무효 트래픽이 되지 않는다.
+ *  - Capacitor 안드로이드 스토어 빌드는 이 도메인을 그대로 로드하므로, 앱에 아무 설정을
+ *    넣지 않아도 실광고가 자동으로 켜진다.
+ */
+const PROD_AD_HOST = "up-next-phi.vercel.app";
 
 /**
  * 슬롯별 AdMob 안드로이드 보상형 광고 단위.
@@ -40,21 +53,43 @@ const PROD_REWARD_AD_IDS: Record<AdSlot, string> = {
 /** 구글 공식 안드로이드 보상형 테스트 광고 단위 */
 const TEST_REWARD_AD_ID = "ca-app-pub-3940256099942544/5224354917";
 
+export type AdUnitMode = "production" | "test";
+
 /**
- * 실광고 단위 사용 조건은 NEXT_PUBLIC_ADS_ENV="production" 하나뿐이다.
+ * 실광고 단위를 쓸지 테스트 단위를 쓸지 결정한다. 우선순위는 세 단계.
+ *
+ *  1. NEXT_PUBLIC_ADS_ENV="production" : 실광고 (호스트와 무관한 명시 오버라이드)
+ *  2. NEXT_PUBLIC_ADS_ENV="test"       : 테스트 광고 (프로덕션 호스트에서도 강제, QA 탈출구)
+ *  3. env 미설정                        : 호스트가 PROD_AD_HOST 일 때만 실광고, 그 외 전부 테스트
  *
  * NODE_ENV 를 쓰지 않는 이유: Vercel 프리뷰 배포도, 로컬 `next build && next start` 도
  * NODE_ENV 는 production 이다. 그 빌드로 개발자가 자기 광고를 클릭하는 순간
  * 무효 트래픽으로 잡히고, 최악의 경우 AdMob 계정이 정지된다.
  *
- * 계약: env 가 없으면 어떤 빌드에서든(프리뷰든 프로덕션이든) 구글 공식 테스트 단위.
- * 실광고는 배포 환경변수에 NEXT_PUBLIC_ADS_ENV=production 을 직접 넣어야만 켜진다.
- * (NEXT_PUBLIC_ 접두사라 빌드 시점에 인라인된다. 값을 바꾸면 재배포가 필요하다)
+ * hostname 은 window 가 없는 SSR 경로에서 undefined 로 들어오고, 그때는 테스트 단위로
+ * 떨어진다 (판정은 순수 함수라 테스트에서 세 분기를 그대로 검증한다).
+ */
+export function resolveAdUnitMode(
+  adsEnv: string | undefined,
+  hostname: string | undefined,
+): AdUnitMode {
+  if (adsEnv === "production") return "production";
+  if (adsEnv === "test") return "test";
+  return hostname === PROD_AD_HOST ? "production" : "test";
+}
+
+/**
+ * 슬롯에 실제로 요청할 광고 단위 ID.
+ *
+ * 모듈 로드 시점 상수가 아니라 호출 시점에 평가한다. 이 모듈은 SSR 로도 import 되므로
+ * 로드 시점에는 window 가 없을 수 있고, 실제 광고 호출은 항상 클라이언트에서 일어난다.
+ * (NEXT_PUBLIC_ 접두사는 빌드 시점에 인라인된다. 값을 바꾸면 재배포가 필요하다)
  */
 function adUnitId(slot: AdSlot): string {
-  return process.env.NEXT_PUBLIC_ADS_ENV === "production"
-    ? PROD_REWARD_AD_IDS[slot]
-    : TEST_REWARD_AD_ID;
+  const hostname =
+    typeof window === "undefined" ? undefined : window.location.hostname;
+  const mode = resolveAdUnitMode(process.env.NEXT_PUBLIC_ADS_ENV, hostname);
+  return mode === "production" ? PROD_REWARD_AD_IDS[slot] : TEST_REWARD_AD_ID;
 }
 
 /**
