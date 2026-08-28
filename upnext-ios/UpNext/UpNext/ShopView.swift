@@ -212,7 +212,8 @@ struct ShopView: View {
                     .monospacedDigit()
                     .foregroundStyle(canBuy ? GBPalette.lightest : GBPalette.light)
             }
-            .frame(maxWidth: .infinity, minHeight: 56)
+            // 그룹 등고(패턴 A) — 4열 행 8칸이 항상 같은 높이.
+            .unCardCell(minHeight: CardHeights.shopPassCell)
             .background(GBPalette.dark.opacity(canBuy ? 0.55 : 0.25), in: RoundedRectangle(cornerRadius: 8))
             .opacity(canBuy ? 1 : 0.55)
         }

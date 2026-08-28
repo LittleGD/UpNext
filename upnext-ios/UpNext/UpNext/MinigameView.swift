@@ -529,6 +529,8 @@ struct MinigameView: View {
                 statTile(AppConfig.loc("맞춘 짝"), CountUpNumber(target: matchedPairs, durationMs: 700))
                 statTile(AppConfig.loc("남은 기회"), CountUpNumber(target: hearts, durationMs: 500))
             }
+            // 등고 확정 — 바깥 제안이 아니라 두 타일의 이상 높이로(GuardStatsRow 규약).
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 40)
             Spacer()
             Button {
@@ -551,12 +553,18 @@ struct MinigameView: View {
         }
     }
 
+    /// 웹 MinigameRoundResult 패리티 — 두 타일 등고(auto-rows-fr) + 숫자 하단 정렬(mt-auto).
+    /// 라벨이 언어별로 1줄/2줄이 갈려도 카드 높이와 숫자 베이스라인이 같이 맞는다.
     private func statTile<V: View>(_ label: String, _ value: V) -> some View {
-        VStack(spacing: 6) {
+        // spacing 0 + Spacer(minLength: 6) — 기본 간격 6pt 는 그대로 두고, 남는 높이만
+        // 스페이서가 먹어 숫자를 아래로 민다(spacing 6 + Spacer 를 겹치면 간격이 12pt 로 벌어진다).
+        VStack(spacing: 0) {
             Text(label).typography(.caption).foregroundStyle(Color.textTertiary)
+                .multilineTextAlignment(.center)
+            Spacer(minLength: 6)
             value.typography(.heading).foregroundStyle(Color.textPrimary).monospacedDigit()
         }
-        .frame(maxWidth: .infinity)
+        .unCardCell(minHeight: CardHeights.minigameStatTile)
         .padding(.vertical, 16)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
     }

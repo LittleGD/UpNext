@@ -395,8 +395,12 @@ export default function DailyBoard() {
         </div>
       </div>
 
-      {/* Challenge cards — large, spacious, refined */}
-      <div className="space-y-5">
+      {/* Challenge cards — large, spacious, refined.
+           같은 보드 안의 카드들은 등고. 카드 설명이 1줄/2줄로 갈리면 높이가
+           들쭉날쭉해 보였는데, grid + auto-rows-fr 로 가장 큰 카드에 맞춰
+           행 높이를 맞춘다 (고정 px 아님 → 폰트 확대·언어별 길이에도 안 잘림).
+           남는 공간은 본문 블록이 flex-1 로 흡수하고 CTA 바는 항상 바닥. */}
+      <div className="grid auto-rows-fr gap-5">
         {phaseSelectedCards.map((card, index) => {
           const isCompleted = phaseCompletedIds.includes(card.id);
           const rarity = RARITY_CONFIG[card.rarity];
@@ -430,6 +434,7 @@ export default function DailyBoard() {
               }
               className={`
                 daily-card-btn relative w-full text-left rounded-2xl overflow-hidden transition-colors
+                flex flex-col
                 ${isCompleted
                   ? "bg-bg-surface/40"
                   : "bg-bg-elevated hover:bg-bg-hover cursor-pointer"
@@ -439,7 +444,7 @@ export default function DailyBoard() {
             >
               {/* Top accent line */}
               <div
-                className="h-[2px] w-full"
+                className="h-[2px] w-full shrink-0"
                 style={{
                   background: isCompleted
                     ? "var(--bg-elevated)"
@@ -450,7 +455,7 @@ export default function DailyBoard() {
               {/* Rarity texture overlay */}
               {!isCompleted && <RarityTexture rarity={card.rarity} borderRadius={16} />}
 
-              <div className="px-6 pt-6 pb-0 flex flex-col gap-5">
+              <div className="px-6 pt-6 pb-0 flex flex-col gap-5 flex-1">
                 {/* Top row: icon + meta */}
                 <div className="flex items-start justify-between">
                   <div className={`
@@ -510,7 +515,7 @@ export default function DailyBoard() {
 
               {/* CTA bar */}
               <div className={`
-                mx-6 mb-5 mt-4 py-3 rounded-xl text-center typo-body transition-colors
+                mx-6 mb-5 mt-4 py-3 rounded-xl text-center typo-body transition-colors shrink-0
                 ${isCompleted
                   ? "bg-bg-elevated text-text-tertiary"
                   : "bg-bg-elevated text-accent"

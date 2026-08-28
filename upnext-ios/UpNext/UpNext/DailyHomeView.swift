@@ -255,8 +255,13 @@ struct DailyHomeView: View {
                     nextChallengePrompt(daily.challengePhase)
                 }
                 VStack(spacing: 12) {
+                    // 그룹 바닥값은 *맞출 상대가 있을 때만* 건다. 1장짜리 보드(노멀 난이도)에
+                    // 걸면 완료 카드에 빈 공간만 남고 통일 효과는 없다.
+                    let floor = s.selected.count > 1 ? CardHeights.dailyBoardCard : 0
                     ForEach(s.selected) { card in
-                        boardCard(card, completed: s.completedIds.contains(card.id))
+                        boardCard(card,
+                                  completed: s.completedIds.contains(card.id),
+                                  minHeight: floor)
                     }
                 }
             }
@@ -295,7 +300,8 @@ struct DailyHomeView: View {
         UNButton(title, variant: .secondary, tint: .accentPrimary, action: action)
     }
 
-    private func boardCard(_ card: ChallengeCard, completed: Bool) -> some View {
+    private func boardCard(_ card: ChallengeCard, completed: Bool,
+                           minHeight: CGFloat) -> some View {
         Button {
             confirmCard = card
         } label: {
@@ -336,7 +342,11 @@ struct DailyHomeView: View {
                         .padding(.top, 4)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // 그룹 바닥값(패턴 B) — 완료 카드는 "탭하여 완료" 버튼이 빠져 약 45pt 짧아진다.
+            // 미완료 카드 높이를 바닥값으로 깔아 보드 리듬을 맞춘다. 설명이 길어 더 큰
+            // 카드는 그대로 자란다(잘림 없음). 세로 스택이라 행 등고(패턴 A) 는 못 쓴다.
+            // minHeight 0 = 카드가 1장뿐인 보드 (맞출 상대 없음 → 자연 높이).
+            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
             .padding(16)
             // 완료 카드: 배경만 죽이고(웹 DailyBoard 패리티) 완료 배지/내용은 풀불투명 유지.
             // 등급 표면 텍스처(요인2c) — 웹 DailyBoard L400 RarityTexture 오버레이 복원.

@@ -444,7 +444,9 @@ struct CollectionView: View {
                     .foregroundStyle(Color.textTertiary)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+        // 그룹 등고(패턴 A) — 같은 행의 2열 셀이 가장 큰 셀 높이로 맞춰진다.
+        // 해금 셀(제목 2줄)과 잠금 셀(아이콘+한 줄)의 높이 차가 여기서 사라진다.
+        .unCardCell(minHeight: CardHeights.collectionCell, alignment: .topLeading)
         .padding(12)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
         .opacity(unlocked ? 1 : 0.5)

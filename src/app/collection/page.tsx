@@ -357,7 +357,9 @@ function CardsTab({
               variants={staggerContainer}
               initial="hidden"
               animate="visible"
-              className="grid grid-cols-2 md:grid-cols-3 gap-3 pb-2"
+              /* 카드 제목이 1~2줄로 갈려 행마다 높이가 달랐다. auto-rows-fr 로
+                 그리드 전체를 가장 큰 셀 높이에 맞춘다 (고정 px 아님 → 잘림 없음). */
+              className="grid grid-cols-2 md:grid-cols-3 auto-rows-fr gap-3 pb-2"
             >
               {cards.map((card) => {
                 const isUnlocked = unlockedSet.has(card.id);

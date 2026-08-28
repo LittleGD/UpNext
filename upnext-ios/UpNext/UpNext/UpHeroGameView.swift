@@ -251,10 +251,12 @@ private struct CampView: View {
                 }
 
                 // 통계 그리드 (runs / best)
+                // 그룹 등고(패턴 A + fixedSize) — 라벨이 언어별로 1줄/2줄이 갈려도 두 카드 높이 동일.
                 HStack(spacing: 12) {
                     statCard(AppConfig.loc("플레이 횟수"), store.progress?.minigameRunsPlayed ?? 0)
                     statCard(AppConfig.loc("최고 매치"), store.progress?.minigameBestMatches ?? 0)
                 }
+                .fixedSize(horizontal: false, vertical: true)
 
                 // How-to-play 3줄
                 VStack(alignment: .leading, spacing: 10) {
@@ -288,7 +290,8 @@ private struct CampView: View {
             Text(label).typography(.caption).foregroundStyle(Color.textTertiary)
             Text("\(value)").typography(.heading).foregroundStyle(Color.textPrimary).monospacedDigit()
         }
-        .frame(maxWidth: .infinity)
+        // 그룹 등고(패턴 A) — 라벨 줄 수가 갈려도 두 통계 카드가 같은 높이.
+        .unCardCell(minHeight: CardHeights.statCard)
         .padding(.vertical, 16)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
     }
@@ -438,8 +441,9 @@ private struct CampView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
-            .frame(height: 52)
-            .frame(maxWidth: .infinity)
+            // 그룹 등고(패턴 A) — 2×2 타일이 같은 행에서 같은 높이.
+            // 고정 height 였던 자리 — 긴 번역/Dynamic Type/iPad 에서 라벨이 잘리던 것도 해소.
+            .unCardCell(minHeight: CardHeights.campTile)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)

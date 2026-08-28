@@ -620,7 +620,8 @@ private struct RevealCard: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
         }
-        .frame(maxWidth: .infinity, minHeight: 84)
+        // 그룹 등고(패턴 A) — 제목 1줄/2줄이 섞인 3열 행을 같은 높이로.
+        .unCardCell(minHeight: CardHeights.packRevealCell)
         .padding(.vertical, 10)
         .padding(.horizontal, 6)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))

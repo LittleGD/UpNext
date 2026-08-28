@@ -59,7 +59,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
         </motion.p>
 
         {/* 카드 그리드 — 3x2 */}
-        <div className="grid grid-cols-3 gap-3 mt-2 w-full">
+        <div className="grid grid-cols-3 auto-rows-fr gap-3 mt-2 w-full">
           {cards.map((card, i) => {
             const rarity = RARITY_CONFIG[card.rarity];
             return (
@@ -129,7 +129,11 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
           </p>
         </motion.div>
 
-        <div className="space-y-3">
+        {/* 선택지 3장 등고 — 설명 줄 수(언어별 1~2줄)에 따라 높이가 들쭉날쭉해
+            보이던 것을 grid + auto-rows-fr 로 가장 큰 카드에 맞춰 통일한다.
+            고정 px 가 아니라 콘텐츠 최대치를 따라가므로 폰트 확대·번역 길이에도
+            잘리지 않는다. */}
+        <div className="grid auto-rows-fr gap-3">
           {STARTER_PACKS.map((pack) => {
             const packName = getPackName(pack, language);
             const packDesc = getPackDesc(pack, language);
@@ -141,6 +145,7 @@ export default function StarterPackSelect({ onSelect }: StarterPackSelectProps) 
                 onClick={() => { play("select"); setSelectedPack(pack.id); }}
                 className={`
                   w-full text-left rounded-lg transition-all p-4
+                  flex flex-col justify-center
                   ${
                     selectedPack === pack.id
                       ? "bg-accent text-bg-primary"

@@ -413,7 +413,10 @@ export default function SettingsPage() {
       {/* ── 내 기록 ── */}
       <section className="space-y-2">
         <h3 className="typo-heading uppercase tracking-wider px-1">{t("settings.stats.heading")}</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {/* 스탯 4장 등고 — 라벨이 언어별로 1~2줄로 갈려 행마다 높이가 달랐다.
+            auto-rows-fr 는 가장 큰 셀을 기준으로 모든 행을 맞추므로 고정 px 없이
+            통일되고, 내용이 길어지면 행 자체가 커져 잘리지 않는다. */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 auto-rows-fr">
           <StatCard label={t("settings.stats.currentStreak")} value={`${progress.currentStreak}${t("settings.stats.days")}`} icon="Zap" color="var(--accent-primary)" />
           <StatCard label={t("settings.stats.longestStreak")} value={`${progress.longestStreak}${t("settings.stats.days")}`} icon="Trophy" color="var(--rarity-legend)" />
           <StatCard label={t("settings.stats.totalXP")} value={`${progress.xp || 0} XP`} icon="Sparkle" color="var(--accent-cyan)" />

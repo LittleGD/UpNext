@@ -182,8 +182,9 @@ struct EquipmentInventoryView: View {
                 Text("비어 있음")
                     .typography(.micro).foregroundStyle(Color.textTertiary.opacity(0.5))
             }
-            .frame(height: 120)
-            .frame(maxWidth: .infinity)
+            // 그룹 등고(패턴 A) — 빈 슬롯과 장착 카드가 같은 행에서 같은 높이.
+            // 고정 height 였던 자리 — Dynamic Type/iPad 에서 라벨이 잘리던 것도 함께 해소.
+            .unCardCell(minHeight: CardHeights.equipmentCell)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -271,8 +272,9 @@ struct EquipmentSlotCard: View {
                     .lineLimit(1)
             }
             .padding(8)
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: 120)
+            // 그룹 등고(패턴 A) — 이름 2줄·강화 배지 유무로 갈리던 셀 높이를 행 단위로 통일.
+            // 빈 슬롯 카드(EquipmentInventoryView.slotCard)와 같은 바닥값이라 2×2 행이 맞는다.
+            .unCardCell(minHeight: CardHeights.equipmentCell)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)

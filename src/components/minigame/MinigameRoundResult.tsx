@@ -53,20 +53,21 @@ export default function MinigameRoundResult() {
         {t(headingKey)}
       </motion.h2>
 
-      <motion.div variants={fadeInUp} className="grid grid-cols-2 gap-4 w-full max-w-xs">
-        <div className="bg-bg-surface rounded-lg p-4 grid-border text-center">
+      {/* 지표 2장 등고 + 숫자 베이스라인 정렬 (요약 화면과 동일 규칙) */}
+      <motion.div variants={fadeInUp} className="grid grid-cols-2 auto-rows-fr gap-4 w-full max-w-xs">
+        <div className="bg-bg-surface rounded-lg p-4 grid-border text-center flex flex-col">
           <p className="typo-caption text-text-tertiary mb-1">
             {t("minigame.summary.totalMatches")}
           </p>
-          <p className="typo-heading text-text-primary tabular-nums">
+          <p className="typo-heading text-text-primary tabular-nums mt-auto">
             {totalMatchedDisplay}
           </p>
         </div>
-        <div className="bg-bg-surface rounded-lg p-4 grid-border text-center">
+        <div className="bg-bg-surface rounded-lg p-4 grid-border text-center flex flex-col">
           <p className="typo-caption text-text-tertiary mb-1">
             {t("minigame.hud.chances")}
           </p>
-          <p className="typo-heading text-text-primary tabular-nums">
+          <p className="typo-heading text-text-primary tabular-nums mt-auto">
             {chancesLeftDisplay}
           </p>
         </div>

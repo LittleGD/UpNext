@@ -55,24 +55,27 @@ export default function MinigameResultSummary() {
         {t("minigame.summary.heading")}
       </motion.h2>
 
-      <motion.div variants={fadeInUp} className="grid grid-cols-3 gap-3 w-full max-w-sm">
-        <div className="bg-bg-surface rounded-lg p-3 grid-border text-center">
+      {/* 지표 3장 등고 + 숫자 베이스라인 정렬 — "Total Matches" 처럼 긴 라벨만
+           2줄로 접히면 숫자 높이가 어긋나 보인다. auto-rows-fr 로 타일 높이를
+           맞추고 숫자에 mt-auto 를 줘 바닥 기준으로 나란히 놓는다. */}
+      <motion.div variants={fadeInUp} className="grid grid-cols-3 auto-rows-fr gap-3 w-full max-w-sm">
+        <div className="bg-bg-surface rounded-lg p-3 grid-border text-center flex flex-col">
           <p className="typo-caption text-text-tertiary mb-1">
             {t("minigame.summary.totalMatches")}
           </p>
-          <p className="typo-heading text-text-primary">{runStats.totalMatches}</p>
+          <p className="typo-heading text-text-primary mt-auto">{runStats.totalMatches}</p>
         </div>
-        <div className="bg-bg-surface rounded-lg p-3 grid-border text-center">
+        <div className="bg-bg-surface rounded-lg p-3 grid-border text-center flex flex-col">
           <p className="typo-caption text-text-tertiary mb-1">
             {t("minigame.summary.skillMatches")}
           </p>
-          <p className="typo-heading text-accent-secondary">{runStats.skillMatches}</p>
+          <p className="typo-heading text-accent-secondary mt-auto">{runStats.skillMatches}</p>
         </div>
-        <div className="bg-bg-surface rounded-lg p-3 grid-border text-center">
+        <div className="bg-bg-surface rounded-lg p-3 grid-border text-center flex flex-col">
           <p className="typo-caption text-text-tertiary mb-1">
             {t("minigame.summary.curseMatches")}
           </p>
-          <p className="typo-heading text-accent-fushia">{runStats.curseMatches}</p>
+          <p className="typo-heading text-accent-fushia mt-auto">{runStats.curseMatches}</p>
         </div>
       </motion.div>
 
