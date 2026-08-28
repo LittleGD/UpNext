@@ -16,8 +16,8 @@
  *  - 버튼 문구는 "제공되는 보상"만 서술한다. 개발자 응원·후원·도와주기 류 표현은 정책 위반.
  *
  * 그 밖의 정책 결정 (docs/AdMob 광고 셋업-2026-08-25.md):
- *  - 프로덕션 빌드에서만 실제 광고 단위 사용. 개발 중엔 구글 공식 테스트 ID
- *    (실제 광고 셀프 클릭은 AdMob 계정 정지 사유).
+ *  - 실제 광고 단위는 NEXT_PUBLIC_ADS_ENV 를 명시적으로 켠 배포에서만 사용. 그 외엔
+ *    전부 구글 공식 테스트 ID (실제 광고 셀프 클릭은 AdMob 계정 정지 사유).
  *  - EEA/UK/스위스 동의는 UMP 로 처리. 부팅 시가 아니라 광고를 실제로 띄우는
  *    순간에 lazy 하게 물어본다 (동의 폼이 앱 첫 인상을 가리지 않도록).
  *  - 개인화 동의를 받았으면 npa 를 붙이지 않는다 (비개인화 고정은 eCPM 손실).
@@ -40,10 +40,41 @@ const PROD_REWARD_AD_IDS: Record<AdSlot, string> = {
 /** 구글 공식 안드로이드 보상형 테스트 광고 단위 */
 const TEST_REWARD_AD_ID = "ca-app-pub-3940256099942544/5224354917";
 
+/**
+ * 실광고 단위 사용 조건은 NEXT_PUBLIC_ADS_ENV="production" 하나뿐이다.
+ *
+ * NODE_ENV 를 쓰지 않는 이유: Vercel 프리뷰 배포도, 로컬 `next build && next start` 도
+ * NODE_ENV 는 production 이다. 그 빌드로 개발자가 자기 광고를 클릭하는 순간
+ * 무효 트래픽으로 잡히고, 최악의 경우 AdMob 계정이 정지된다.
+ *
+ * 계약: env 가 없으면 어떤 빌드에서든(프리뷰든 프로덕션이든) 구글 공식 테스트 단위.
+ * 실광고는 배포 환경변수에 NEXT_PUBLIC_ADS_ENV=production 을 직접 넣어야만 켜진다.
+ * (NEXT_PUBLIC_ 접두사라 빌드 시점에 인라인된다. 값을 바꾸면 재배포가 필요하다)
+ */
 function adUnitId(slot: AdSlot): string {
-  return process.env.NODE_ENV === "production"
+  return process.env.NEXT_PUBLIC_ADS_ENV === "production"
     ? PROD_REWARD_AD_IDS[slot]
     : TEST_REWARD_AD_ID;
+}
+
+/**
+ * AdMob 테스트 기기 등록 옵션. NEXT_PUBLIC_ADMOB_TEST_DEVICES 에 기기 광고 ID 를
+ * 콤마로 구분해 넣으면 그 기기는 실광고 단위를 요청해도 테스트 광고를 받는다
+ * (실 단위로만 재현되는 문제를 실기기에서 확인할 때 쓰는 안전장치).
+ *
+ * 미설정이면 undefined 를 돌려 옵션 자체를 넘기지 않는다 (플러그인 기본 동작 유지).
+ */
+function testDeviceOptions():
+  | { initializeForTesting: true; testingDevices: string[] }
+  | undefined {
+  const raw = process.env.NEXT_PUBLIC_ADMOB_TEST_DEVICES;
+  if (!raw) return undefined;
+  const testingDevices = raw
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  if (testingDevices.length === 0) return undefined;
+  return { initializeForTesting: true, testingDevices };
 }
 
 /**
@@ -117,6 +148,8 @@ async function runRewardedAd(adId: string): Promise<AdResult> {
         // 이 앱은 App Store 9+ 등급이다. 플러그인이 지원하는 가장 낮은 상한인
         // General("G", 전체 이용가) 로 고정해 등급 초과 광고를 아예 받지 않는다.
         maxAdContentRating: MaxAdContentRating.General,
+        // 테스트 기기가 등록돼 있을 때만 키 두 개가 붙는다.
+        ...testDeviceOptions(),
       });
       initialized = true;
     }
