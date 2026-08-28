@@ -371,7 +371,7 @@ function FortuneOverlay({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 overflow-hidden bg-black/80 backdrop-blur-md"
     >
       {/* 배경 연출 층 — 스크롤 레이어 밖에 둔다. 기운 선택으로 내려갈 때 빛과
           입자까지 따라 흐르면 착지의 잔상이 아니라 배경 이미지가 된다.
