@@ -43,6 +43,19 @@ enum AuraCopy {
         }
     }
 
+    /// 등급의 **문자열** 판. 접근성 값처럼 다른 문장 안에 끼워 넣을 때만 쓴다.
+    /// 화면에 그릴 때는 위의 `tier(_:)`(Text 판)를 쓴다 — Text 를 Text 리터럴 키 안에
+    /// 보간할 수는 없고, 반대로 String 을 그냥 `Text(...)` 에 넘기면 Text(String)
+    /// 오버로드가 잡혀 카탈로그를 타지 않는다.
+    static func tierName(_ tier: AuraTier) -> String {
+        switch tier {
+        case .great: return AppConfig.loc("대길")
+        case .good: return AppConfig.loc("길")
+        case .fair: return AppConfig.loc("평")
+        case .care: return AppConfig.loc("잔잔")
+        }
+    }
+
     /// 조짐 — 파라미터가 없는 리터럴 한 줄. 실측 수치는 여기까지 오지 않는다.
     /// 웹 `aura.omen.*` 와 같은 문장이며, 보간이 없어 번역이 어순에 자유롭다.
     /// 조짐 문장 — 같은 조짐 안에서도 reading.variant 로 표현이 갈린다.
@@ -177,6 +190,8 @@ enum AuraPaper {
 @MainActor
 struct AuraPickPanel: View {
     let state: AuraState
+    /// 오늘의 색 — 열린 칸의 등급을 이 색으로 찍는다(웹 AuraSection 의 `colorHex`).
+    let accent: Color
     /// 광고 대기 중인 기운 (스피너 표시)
     let loading: AuraKind?
     let onPick: (AuraKind) -> Void
@@ -215,6 +230,15 @@ struct AuraPickPanel: View {
         let busy = loading == kind
         // 열림=체크, 잠김=자물쇠, 지금 열 수 있음=반짝임. 문구 없이 아이콘 하나로 상태가 갈린다.
         let icon: PixelIconName = opened ? .check : (locked ? .lock : .sparkle)
+        // 이미 연 기운은 오늘의 등급을 칸에 그대로 찍는다(웹 AuraSection 과 같은 계약).
+        // 아이콘만 두면 "뭘 봤는지"가 남지 않아 확인하려면 다시 열어야 한다.
+        let tier: AuraTier? = opened ? state.snapshot?[kind].tier : nil
+        // "이미 봤다"의 흐릿함은 아이콘과 이름에만 건다. 칸 전체에 걸면 방금 더한 등급까지
+        // 같이 흐려지는데, 등급은 오늘의 색(24종)으로 찍히는 텍스트라 어두운 색에서 곧바로
+        // 본문 대비 4.5:1 아래로 떨어진다(#F037A5 3.16:1, #8A7BFF 3.48:1 … 7/24 미달).
+        // 흐리게 할 것은 "다 본 칸"이라는 신호이지, 보러 온 정보가 아니다.
+        // 웹 AuraSection 이 잠금 흐림을 이름 텍스트에만 거는 것과 같은 처리다.
+        let seenDim: Double = opened ? 0.72 : 1
 
         return Button {
             onPick(kind)
@@ -225,15 +249,34 @@ struct AuraPickPanel: View {
                         .tint(Color.textTertiary)
                         .scaleEffect(0.7)
                         .frame(height: 16)
+                        .opacity(seenDim)
+                        // 상태는 아래 accessibilityValue 한 곳에서만 읽힌다.
+                        .accessibilityHidden(true)
                 } else {
                     PixelIcon(icon, size: 16,
                               color: (opened || locked) ? Color.textTertiary : Color.accentPrimary)
                         .frame(height: 16)
+                        .opacity(seenDim)
+                        .accessibilityHidden(true)
                 }
                 AuraCopy.name(kind)
                     .typography(.caption)
                     .foregroundStyle(Color.textPrimary)
                     .multilineTextAlignment(.center)
+                    .opacity(seenDim)
+                // 상태 줄 — 웹의 `min-h-[18px]` 자리. 열린 칸만 등급을 찍고 나머지는 빈
+                // 자리로 남긴다. 늘 같은 높이를 차지해야 하나를 열어도 세 칸이 함께
+                // 튀어오르지 않는다(열림 여부로 줄 높이가 바뀌면 레이아웃이 흔들린다).
+                ZStack {
+                    if let tier {
+                        AuraCopy.tier(tier)
+                            .typography(.micro)
+                            .foregroundStyle(accent)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(minHeight: 18)
+                .accessibilityHidden(true)
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 6)
@@ -243,8 +286,27 @@ struct AuraPickPanel: View {
         }
         .buttonStyle(UNPressStyle())
         .background(Color.bgSurface.opacity(0.92), in: RoundedRectangle(cornerRadius: 12))
-        .opacity(opened ? 0.72 : 1)
         .disabled(loading != nil)
+        // 상태는 **화면에 문구를 늘리지 않고** 여기로만 싣는다. 아이콘·스피너·등급 줄을
+        // 다 숨겨 놨으므로 라벨은 기운 이름 하나로 남고, 열림/잠김/무료/대기가 값으로 갈린다.
+        // (문구를 화면에 되살리는 것은 금지 — 대체 채널은 접근성 값뿐이다.)
+        .accessibilityValue(Self.a11yValue(opened: opened, locked: locked, busy: busy, tier: tier))
+    }
+
+    /// VoiceOver 전용 상태 문구. 화면에는 절대 나오지 않는다.
+    /// 세 상태(열림·잠김·무료)가 같게 읽히던 자리 — 값이 없으면 커서가 세 칸을 똑같이 읽어
+    /// "이미 본 것"과 "광고를 봐야 하는 것"을 구분할 수 없다.
+    private static func a11yValue(opened: Bool, locked: Bool,
+                                  busy: Bool, tier: AuraTier?) -> Text {
+        if busy { return Text("광고를 불러오는 중이에요") }
+        if opened {
+            guard let tier else { return Text("이미 확인했어요") }
+            // 보간 인자는 미리 인앱 언어로 해석해 넘긴다. Text(String) 오버로드에 걸리지
+            // 않도록 리터럴 키 안에서만 보간한다.
+            return Text("이미 확인했어요, 오늘의 결과는 \(AuraCopy.tierName(tier))")
+        }
+        if locked { return Text("잠겨 있어요, 광고를 보면 열려요") }
+        return Text("지금 바로 열 수 있어요")
     }
 }
 
@@ -308,6 +370,10 @@ struct AuraReadingOverlay: View {
             }
             .padding(.horizontal, 28)
         }
+        // 리딩이 떠 있는 동안 VoiceOver 커서를 여기 가둔다. 이 오버레이는 항상 최상단이라
+        // 조건 없이 건다 — 아래 폴라로이드 쪽이 자기 모달 스코프를 내려놓는다
+        // (FortuneRevealOverlay.auraOpen). 모달 형제가 둘이면 스코프가 성립하지 않는다.
+        .accessibilityAddTraits(.isModal)
         .onAppear {
             guard !needsRitual else { return }
             // 재열람은 의식 없이 바로. 같은 틱에서 두 상태를 함께 켜면 애니메이션이

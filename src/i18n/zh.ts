@@ -2450,6 +2450,10 @@ const zh: Record<DictKey, string> = {
   "aura.ritual.almost": "就快好了",
   "aura.done": "已查看今天全部气场",
   "aura.back": "看别的气场",
+  // 접근성 전용 — 화면에는 그리지 않는다. 자물쇠/등급만 보이는 칩의
+  // 접근 이름에 상태를 합성하는 데만 쓴다(AuraSection).
+  "aura.locked.a11y": "已锁定",
+  "aura.opened.a11y": "已查看",
   "fortune.toast.message": "来看看今天的运势和气场",
   "fortune.toast.dismiss": "关闭",
 

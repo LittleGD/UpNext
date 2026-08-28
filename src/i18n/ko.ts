@@ -2461,6 +2461,10 @@ const ko = {
   "aura.ritual.almost": "조금만 더",
   "aura.done": "오늘의 기운을 모두 확인했어요",
   "aura.back": "다른 기운 보기",
+  // 접근성 전용 — 화면에는 그리지 않는다. 자물쇠/등급만 보이는 칩의
+  // 접근 이름에 상태를 합성하는 데만 쓴다(AuraSection).
+  "aura.locked.a11y": "잠김",
+  "aura.opened.a11y": "확인함",
   "fortune.toast.message": "오늘의 운세와 기운을 확인해보세요",
   "fortune.toast.dismiss": "닫기",
 

@@ -269,8 +269,31 @@ struct FortuneRevealOverlay: View {
     /// 뽑기 연출 진행 중 — 그날 첫 공개에만 켜진다
     @State private var drawing = false
 
+    /// 기운 3종이 **다 보이게 된** 시점. 히트테스트 게이트 전용.
+    @State private var rowsTappable = false
+    /// 닫기 버튼이 **다 보이게 된** 시점. 히트테스트 게이트 전용.
+    @State private var hintTappable = false
+    /// 기운 리딩 오버레이가 이 오버레이 **위**에 떠 있는지.
+    /// VoiceOver 모달 스코프를 최상단 하나로 유지하는 데만 쓴다 — 둘 다 무조건 `.isModal`
+    /// 이면 같은 ZStack 에 모달 형제가 둘이 되어 스코프가 어디에도 걸리지 않는다.
+    @State private var auraOpen = false
+
+    // ⚠️ 히트테스트를 `rowsIn`·`hintIn` 으로 열지 마라. 둘 다
+    // `withAnimation(.easeOut(...).delay(_:)) { flag = true }` 안에서 켜지는데, delay 가
+    // 미루는 것은 **값의 보간뿐**이라 상태 자체는 호출 즉시 true 가 된다. 그 플래그로
+    // 게이트를 걸면 아직 완전히 투명한 기운 칩과 닫기 버튼이 연출 시작과 동시에 눌린다
+    // (오탭 한 번이 광고를 본 보람을 지운다). 그래서 "다 보이는 순간"을 타이머로 따로
+    // 잡아 그때 상호작용을 연다. reduceMotion 경로는 연출이 없으니 즉시 연다.
+
     private var lang: Language { store.progress?.language ?? .ko }
     private var accent: Color { Color(hexString: fortune.color.hex) }
+
+    /// 리딩이 위에 떠 있으면 모달 스코프를 그쪽에 넘긴다. 삼항 결과를 그대로 넘기면
+    /// 타입 추론이 모호해질 수 있어 빈 집합을 먼저 못 박는다.
+    private var modalTraits: AccessibilityTraits {
+        let none: AccessibilityTraits = []
+        return auraOpen ? none : .isModal
+    }
 
     private static let paper = Color(red: 0.949, green: 0.945, blue: 0.933)  // #f2f1ee
     private static let inkStrong = Color(red: 0.165, green: 0.165, blue: 0.157) // #2a2a28
@@ -339,6 +362,10 @@ struct FortuneRevealOverlay: View {
                 FortuneDrawView(accent: accent, onFinish: finishDraw)
             }
         }
+        // VoiceOver 커서를 오버레이 안에 가둔다. 없으면 커서가 뒤로 새어 확인 다이얼로그가
+        // 없는 듀오 "나가기" 같은 버튼에 닿는다. 리딩 오버레이가 위에 떠 있는 동안에는
+        // 내려놓는다 — 모달 형제가 둘이면 스코프가 성립하지 않는다.
+        .accessibilityAddTraits(modalTraits)
         .onAppear(perform: start)
         .onDisappear {
             // 네비 복구는 무슨 일이 있어도 여기서 — 중간에 닫히든 정상 종료든 한 곳뿐.
@@ -369,11 +396,15 @@ struct FortuneRevealOverlay: View {
 
                     // 캡션이 다 들어온 뒤에야 기운 3종이 붙는다. 폴라로이드를 이미
                     // 봤다는 사실이 첫 리딩의 값이 된다(웹과 같은 계약).
+                    // 페이드가 끝나기 전에는 히트테스트를 받지 않는다. transition(.opacity)
+                    // 진행 중에도 SwiftUI 는 투명한 뷰를 그대로 히트테스트하므로,
+                    // `if rowsIn` 만으로는 "보이지 않는 칩이 눌리는" 창이 열린다.
                     if rowsIn {
                         AuraSectionView(today: auraToday,
                                         accent: accent,
-                                        onOpenReading: onOpenAura)
+                                        onOpenReading: openAura)
                             .transition(.opacity)
+                            .allowsHitTesting(rowsTappable && !drawing)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -404,7 +435,24 @@ struct FortuneRevealOverlay: View {
             .padding(.bottom, 28)
         }
         .opacity(hintIn ? 1 : 0)
-        .allowsHitTesting(hintIn && !drawing)
+        .allowsHitTesting(hintTappable && !drawing)
+    }
+
+    /// 기운 리딩 요청을 탭 루트로 올리면서, 리딩이 떠 있는 동안에는 이 오버레이의
+    /// VoiceOver 모달 스코프를 내려놓는다. `onFinish` 는 리딩이 닫힌 유일한 경로라
+    /// 여기에 복구를 얹으면 스코프가 새지 않는다.
+    private func openAura(_ request: AuraOverlayRequest) {
+        auraOpen = true
+        onOpenAura(AuraOverlayRequest(
+            reading: request.reading,
+            accent: request.accent,
+            needsRitual: request.needsRitual,
+            allOpened: request.allOpened,
+            onFinish: {
+                auraOpen = false
+                request.onFinish()
+            }
+        ))
     }
 
     /// 기운 리딩의 날짜 기준. 웹은 `daily.date` 를 쓴다 — 자정 롤오버를 스토어가
@@ -444,6 +492,7 @@ struct FortuneRevealOverlay: View {
         guard !reduceMotion else {
             // 전정 장애 대응 — 던지기·번쩍임·입자를 모두 건너뛰고 즉시 완성 상태로 둔다.
             thrown = true; developed = true; rowsIn = true; hintIn = true
+            rowsTappable = true; hintTappable = true
             return
         }
 
@@ -452,6 +501,11 @@ struct FortuneRevealOverlay: View {
         withAnimation(.easeOut(duration: 0.85).delay(0.46)) { developed = true }
         withAnimation(.easeOut(duration: 0.45).delay(0.62)) { rowsIn = true }
         withAnimation(.easeIn(duration: 0.30).delay(1.30)) { hintIn = true }
+
+        // 상호작용은 각자의 페이드가 **끝난 뒤에** 연다(위 ⚠️ 주석 참조).
+        //   기운 3종: 0.62 + 0.45 = 1.07초, 닫기: 1.30 + 0.30 = 1.60초.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.07) { rowsTappable = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.60) { hintTappable = true }
 
         // 번쩍임: 켜는 틱과 끄는 틱을 분리해야 병합되지 않는다.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {

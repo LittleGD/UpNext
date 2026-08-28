@@ -27107,6 +27107,28 @@
         }
       }
     },
+    "광고를 불러오는 중이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading ad"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を読み込み中です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载广告"
+          }
+        }
+      }
+    },
     "광장 시장": {
       "extractionState": "manual",
       "localizations": {
@@ -41639,6 +41661,50 @@
         }
       }
     },
+    "이미 확인했어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already viewed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認済みです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已查看"
+          }
+        }
+      }
+    },
+    "이미 확인했어요, 오늘의 결과는 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already viewed, today's reading is %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認済みです。今日の結果は%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已查看，今天的结果是%@"
+          }
+        }
+      }
+    },
     "이번 런에 보강된 카드 %lld장": {
       "extractionState": "manual",
       "localizations": {
@@ -42593,6 +42659,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "平静"
+          }
+        }
+      }
+    },
+    "잠겨 있어요, 광고를 보면 열려요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locked, watch an ad to open"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロック中です。広告を見ると開きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已锁定，观看广告即可解锁"
           }
         }
       }
@@ -44497,6 +44585,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "立即造成 80 固定伤害 + 接下来 3 回合攻击 +50%。"
+          }
+        }
+      }
+    },
+    "지금 바로 열 수 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available to open now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今すぐ開けます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在即可打开"
           }
         }
       }

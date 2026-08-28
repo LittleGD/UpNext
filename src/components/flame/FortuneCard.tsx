@@ -327,11 +327,33 @@ function FortuneOverlay({
   const { t, language } = useTranslation();
   const prefersReducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
+  // 진입 포커스 — 기본값(첫 focusable)은 화면 밖 기운 칩이라 스크린리더가
+  // 폴라로이드를 통째로 건너뛴다. 본문 래퍼를 먼저 읽히고 Tab 으로 내려가게 한다.
+  const polaroidRef = useRef<HTMLDivElement>(null);
   // 기운 리딩이 이 위에 떠 있는 동안은 Esc 를 넘겨준다 — 한 번의 Esc 로 두 겹이
   // 한꺼번에 닫히면 유저는 리딩만 닫으려다 폴라로이드까지 잃는다.
   const [auraOpen, setAuraOpen] = useState(false);
   // Esc 닫기 / focus trap / scroll lock / focus 복원
-  useModalA11y(containerRef, onClose, { noEscape: auraOpen });
+  useModalA11y(containerRef, onClose, { noEscape: auraOpen, initialFocus: polaroidRef });
+
+  /**
+   * 기운 블록 입력 게이트. 등장 애니메이션은 opacity 0 으로 시작해 1.1초 뒤에야
+   * 페이드인하는데, 그동안에도 블록은 레이아웃에 남아 히트테스트를 통과한다.
+   * 폴라로이드가 날아드는 사이 화면 하단(방금 사라진 네비 자리)을 탭하면 보이지도
+   * 않는 칩이 눌려 그날 무료 기운 1장이 소모되거나 리워드 광고가 재생됐다.
+   *
+   * 애니메이션이 끝난 뒤에만 입력을 받는다. onAnimationComplete 가 주 경로이고,
+   * 콜백이 유실돼 칩이 영영 죽는 일이 없도록 같은 길이의 타이머를 보조로 둔다.
+   * reduced motion 이면 지연이 0 이라 곧바로 열린다.
+   */
+  const [auraInteractive, setAuraInteractive] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(
+      () => setAuraInteractive(true),
+      prefersReducedMotion ? 420 : 1520,
+    );
+    return () => clearTimeout(id);
+  }, [prefersReducedMotion]);
 
   const { card, color, phrase, quote } = fortune;
   // 실존 인물 인용에만 author 가 채워진다. 앱 오리지널 문구는 undefined 라 아무것도 그리지 않는다.
@@ -451,7 +473,9 @@ function FortuneOverlay({
                       opacity: { duration: 0.1 },
                     }
               }
-              className="relative w-[264px] max-w-full bg-[#f2f1ee] rounded-sm p-[10px] shadow-2xl overflow-hidden"
+              ref={polaroidRef}
+              tabIndex={-1}
+              className="relative w-[264px] max-w-full bg-[#f2f1ee] rounded-sm p-[10px] shadow-2xl overflow-hidden outline-none"
             >
               {/* 인화지 위를 한 번 스치는 빛 — 착지 직후 "열린다" 는 신호 */}
               {!prefersReducedMotion && (
@@ -551,7 +575,10 @@ function FortuneOverlay({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: prefersReducedMotion ? 0 : 1.1, duration: 0.35 }}
-          className="mx-auto w-[264px] max-w-full pb-[calc(env(safe-area-inset-bottom)+32px)]"
+          onAnimationComplete={() => setAuraInteractive(true)}
+          className={`mx-auto w-[264px] max-w-full pb-[calc(env(safe-area-inset-bottom)+32px)] ${
+            auraInteractive ? "" : "pointer-events-none"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
           <AuraSection today={today} colorHex={color.hex} onOverlayChange={setAuraOpen} />
@@ -563,7 +590,7 @@ function FortuneOverlay({
             onClick={onClose}
             className="press-affordance mt-5 w-full rounded-xl bg-bg-elevated py-2.5"
           >
-            <span className="typo-caption text-text-tertiary">{t("fortune.close")}</span>
+            <span className="typo-caption text-text-secondary">{t("fortune.close")}</span>
           </button>
         </motion.div>
       </div>

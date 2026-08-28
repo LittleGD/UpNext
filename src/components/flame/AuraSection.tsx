@@ -164,14 +164,20 @@ export default function AuraSection({
    * 열람 기록은 광고를 본 순간 남기므로(문지르다 나가도 값을 지키려고),
    * 그것만으로는 "이미 봤다"와 "받아만 뒀다"를 구분할 수 없다.
    * 이 세션 안에서는 여기로 구분해 의식을 다시 보여준다.
+   *
+   * ref 가 아니라 state 다 — 칩의 등급 표시도 이 구분을 따라야 하는데,
+   * ref 는 바뀌어도 리렌더를 부르지 않아 칩이 옛 상태로 남는다.
    */
-  const pendingRitualRef = useRef<Set<AuraKind>>(new Set());
+  const [pendingRitual, setPendingRitual] = useState<ReadonlySet<AuraKind>>(
+    () => new Set(),
+  );
 
   if (store.day !== today) {
     // 날짜가 넘어갔다 — readAuraState 가 어제 기록을 걸러 빈 값을 돌려준다.
     const state = readAuraState(today);
     setStore({ day: today, opened: state.opened, snapshot: state.snapshot });
     setView(null);
+    setPendingRitual(new Set());
   }
 
   const { opened, snapshot } = store;
@@ -215,11 +221,18 @@ export default function AuraSection({
       const nextOpened = markAuraOpened(today, kind);
       setStore({ day: today, opened: nextOpened, snapshot: snap });
       // 처음 여는 기운만 의식을 거친다. 재열람은 곧장 결과로.
-      const ritual = !opened.includes(kind) || pendingRitualRef.current.has(kind);
-      if (ritual) pendingRitualRef.current.add(kind);
+      const ritual = !opened.includes(kind) || pendingRitual.has(kind);
+      if (ritual) {
+        setPendingRitual((prev) => {
+          if (prev.has(kind)) return prev;
+          const next = new Set(prev);
+          next.add(kind);
+          return next;
+        });
+      }
       setView({ kind, ritual });
     },
-    [history, retention, duoActive, today, opened],
+    [history, retention, duoActive, today, opened, pendingRitual],
   );
 
   const handlePick = useCallback(
@@ -275,17 +288,32 @@ export default function AuraSection({
       <div className="mt-2.5 grid grid-cols-3 items-stretch gap-2">
         {AURA_KINDS.map((kind) => {
           const isOpened = opened.includes(kind);
+          // 등급은 "볼 권리를 얻었다"가 아니라 "실제로 걷어냈다"에서만 드러난다.
+          // 광고만 보고 Esc 로 리딩을 닫으면 의식이 그대로 남는데, 그 사이 칩에
+          // 등급이 먼저 찍히면 다시 열었을 때 아는 답을 문지르게 된다.
+          const revealed = isOpened && !pendingRitual.has(kind);
           const locked = !isOpened && opened.length > 0;
           const loading = phase.kind === "loading" && phase.target === kind;
+          const name = t(NAME_KEY[kind]);
+          /**
+           * 화면 문구 없이 자물쇠 하나로 잠금을 알리는 자리라, 상태가 접근 이름에
+           * 전혀 실리지 않았다(아이콘은 이름에 0을 기여한다). 보이는 것은 그대로
+           * 두고 접근 이름에만 상태를 합성한다 — 화면에는 새 문구가 늘지 않는다.
+           */
+          const label =
+            revealed && snapshot
+              ? `${name}, ${t(TIER_KEY[snapshot[kind].tier])}, ${t("aura.opened.a11y")}`
+              : locked
+                ? `${name}, ${t("aura.locked.a11y")}`
+                : name;
           return (
             <button
               key={kind}
               type="button"
               onClick={() => void handlePick(kind)}
               disabled={phase.kind === "loading" || !ready}
-              className={`press-affordance flex h-full flex-col items-center gap-1.5 rounded-xl bg-bg-elevated px-2 py-3 disabled:opacity-60 ${
-                locked ? "opacity-75" : ""
-              }`}
+              aria-label={label}
+              className="press-affordance flex h-full flex-col items-center gap-1.5 rounded-xl bg-bg-elevated px-2 py-3 disabled:opacity-60"
             >
               <motion.span
                 animate={loading ? { opacity: [1, 0.35, 1] } : { opacity: 1 }}
@@ -300,18 +328,29 @@ export default function AuraSection({
                   color={isOpened ? colorHex : "var(--text-tertiary)"}
                 />
               </motion.span>
-              <span className="typo-micro text-text-primary text-center">
-                {t(NAME_KEY[kind])}
+              {/* 잠금의 흐릿함은 이름 텍스트에만 건다. 버튼 전체에 걸면 자물쇠까지
+                  함께 흐려지는데(2.24:1), 문구를 걷어낸 지금 자물쇠는 잠금을 알리는
+                  유일한 시각 신호라 비-텍스트 대비 3:1 아래로 내려가면 안 된다. */}
+              <span
+                className={`typo-micro text-text-primary text-center ${
+                  locked ? "opacity-75" : ""
+                }`}
+              >
+                {name}
               </span>
               {/* 상태 줄 — 늘 같은 자리를 차지한다. 잠금은 문구 없이 자물쇠만 두고,
-                  탭하면 광고가 뜬다는 사실은 눌러 보면 알게 된다. */}
-              <span className="flex min-h-[18px] items-center justify-center">
-                {isOpened && snapshot ? (
+                  탭하면 광고가 뜬다는 사실은 눌러 보면 알게 된다.
+                  내용은 위 aria-label 이 이미 담고 있어 접근성 트리에서 감춘다. */}
+              <span
+                className="flex min-h-[18px] items-center justify-center"
+                aria-hidden="true"
+              >
+                {revealed && snapshot ? (
                   <span className="typo-micro text-center" style={{ color: colorHex }}>
                     {t(TIER_KEY[snapshot[kind].tier])}
                   </span>
                 ) : locked ? (
-                  <PixelIcon name="Lock" size={12} color="var(--text-tertiary)" />
+                  <PixelIcon name="Lock" size={12} color="var(--text-secondary)" />
                 ) : null}
               </span>
             </button>
@@ -331,7 +370,14 @@ export default function AuraSection({
                 reading={reading}
                 colorHex={colorHex}
                 ritual={view.ritual}
-                onRevealed={() => pendingRitualRef.current.delete(view.kind)}
+                onRevealed={() =>
+                  setPendingRitual((prev) => {
+                    if (!prev.has(view.kind)) return prev;
+                    const next = new Set(prev);
+                    next.delete(view.kind);
+                    return next;
+                  })
+                }
                 onClose={() => setView(null)}
               />
             )}

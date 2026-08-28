@@ -2450,6 +2450,10 @@ const en: Record<DictKey, string> = {
   "aura.ritual.almost": "Almost there",
   "aura.done": "You've seen all of today's readings",
   "aura.back": "See another reading",
+  // 접근성 전용 — 화면에는 그리지 않는다. 자물쇠/등급만 보이는 칩의
+  // 접근 이름에 상태를 합성하는 데만 쓴다(AuraSection).
+  "aura.locked.a11y": "Locked",
+  "aura.opened.a11y": "Revealed",
   "fortune.toast.message": "Check today's aura and readings",
   "fortune.toast.dismiss": "Dismiss",
 
