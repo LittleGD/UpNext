@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useGameStore } from "@/store/useGameStore";
 import type { GameMode } from "@/types/game";
 import type { Category } from "@/types/card";
@@ -15,6 +16,7 @@ import AccordionSection from "@/components/ui/AccordionSection";
 import LanguageToggle from "@/components/ui/LanguageToggle";
 import { useAuthStore } from "@/store/useAuthStore";
 import { deleteCloudData } from "@/lib/sync";
+import { isAndroidTwa } from "@/lib/platform";
 import GbConfirm from "@/components/uphero/GbConfirm";
 import { motion, AnimatePresence } from "framer-motion";
 import { springSnappy } from "@/lib/motion";
@@ -40,6 +42,22 @@ const CATEGORY_ORDER: Category[] = [
   "fitness", "nutrition", "mindfulness", "learning", "social", "productivity", "wellness", "trending",
 ];
 
+// TWA 감지 — src/app/page.tsx 179-184행과 동일한 uSES 패턴 (SSR-safe,
+// referrer/localStorage 스냅샷이라 세션 중 불변). 홈에서만 뜨던 마이그레이션
+// 배너를 설정 화면 상단에도 노출해 발견성을 높인다.
+const subscribeNoop = () => () => {};
+const getIsTwaSnapshot = () => isAndroidTwa();
+const getIsTwaServerSnapshot = () => false;
+
+const AndroidMigrationBanner = dynamic(
+  () => import("@/components/auth/AndroidMigrationBanner"),
+  { ssr: false },
+);
+const LoginOverlay = dynamic(
+  () => import("@/components/auth/LoginOverlay"),
+  { ssr: false },
+);
+
 export default function SettingsPage() {
   const initialize = useGameStore((s) => s.initialize);
   const isLoaded = useGameStore((s) => s.isLoaded);
@@ -63,6 +81,12 @@ export default function SettingsPage() {
   // Phase 13 review dev cleanup — window.confirm 대신 커스텀 GbConfirm 다이얼로그.
   //   pixel-art 디자인 시스템 일관성 + i18n 제목/본문 명확 표기.
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [showLoginOverlay, setShowLoginOverlay] = useState(false);
+  const isTwaClient = useSyncExternalStore(
+    subscribeNoop,
+    getIsTwaSnapshot,
+    getIsTwaServerSnapshot,
+  );
 
   useEffect(() => {
     if (!isLoaded) initialize();
@@ -118,6 +142,12 @@ export default function SettingsPage() {
   return (
     <div className="px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+96px)] max-w-lg md:max-w-xl lg:max-w-2xl mx-auto space-y-5">
       <h2 className="typo-title text-text-primary">{t("settings.title")}</h2>
+
+      {/* ── Capacitor 전환 예고 배너 — TWA 에서만, 홈과 같은 대상·게이트.
+            계정 화면 진입 지점이라 홈보다 여기서 로그인 전환율이 더 높을 수 있음. ── */}
+      {isTwaClient && (
+        <AndroidMigrationBanner onLogin={() => setShowLoginOverlay(true)} />
+      )}
 
       {/* ── 비로그인 경고 ── */}
       {!authUser && progress.totalDaysCompleted > 0 && (
@@ -557,6 +587,13 @@ export default function SettingsPage() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 마이그레이션 배너 CTA → 로그인 오버레이 (홈과 동일 컴포넌트 재사용) ── */}
+      <AnimatePresence>
+        {showLoginOverlay && (
+          <LoginOverlay onDismiss={() => setShowLoginOverlay(false)} />
         )}
       </AnimatePresence>
     </div>
