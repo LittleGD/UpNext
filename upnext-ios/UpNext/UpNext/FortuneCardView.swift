@@ -309,7 +309,13 @@ struct FortuneRevealOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.6).ignoresSafeArea()
+            // 스크림 — 뒤 불꽃 탭을 흐리고 어둡게. 웹 `bg-black/80 backdrop-blur-md` 대응.
+            // Material 이 실제 블러를 만들고 그 위 검정이 밝기를 눌러 준다
+            // (CardDrawScreen·CardDetailModal 과 같은 패턴).
+            // 아래 글로우·빛기둥은 이 층 **위**라 스크림을 올려도 흐려지지 않는다.
+            Rectangle().fill(.ultraThinMaterial)
+                .overlay(Color.black.opacity(0.62))
+                .ignoresSafeArea()
 
             // 오늘의 색 글로우 — 착지와 함께 부풀었다 가라앉는다
             RadialGradient(
