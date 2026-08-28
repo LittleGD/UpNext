@@ -59,9 +59,16 @@ enum CardHeights {
     static let statCard: CGFloat = 52
     /// 미니게임 라운드 결과 지표 타일 2칸 (라벨 + 카운트업 숫자).
     static let minigameStatTile: CGFloat = 52
-    /// 오늘의 기운 — 재물·관계·건강 고르기 칩 3칸 (아이콘 + 이름 + 등급/자물쇠).
-    /// 이름이 2줄로 접히는 언어에서도 셋이 함께 늘어난다.
-    static let auraPickChip: CGFloat = 74
+    /// 오늘의 기운 — 재물·관계·건강 고르기 칩 3칸.
+    ///
+    /// 실제 iOS 렌더는 세 줄이다: 상태 아이콘(16pt 프레임) + 기운 이름(caption) +
+    /// 상태 줄(등급 또는 빈 자리, 최소 18pt). 웹 AuraSection 은 자물쇠를 상태 줄에 두지만
+    /// iOS 는 아이콘 슬롯에서 열림/잠김/열 수 있음을 가른다 — 줄 수와 자리는 같다.
+    ///
+    /// 바닥값 근거(ko/en, phone, 이름 1줄): 세로 패딩 12*2 + 16 + 6 + 18(caption 15pt 행높이)
+    /// + 6 + 18(상태 줄) = 88. ja/zh 는 CJK 보정으로, iPad 는 padSize 로 더 커지고,
+    /// 이름이 2줄로 접히는 언어에서는 세 칸이 함께 늘어난다(바닥값이라 잘리지 않는다).
+    static let auraPickChip: CGFloat = 88
 
     // MARK: 세로 리스트 그룹 (패턴 B — 바닥값만)
 

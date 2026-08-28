@@ -69,7 +69,7 @@ struct AuraSectionView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            AuraPickPanel(state: state, loading: loading) { kind in
+            AuraPickPanel(state: state, accent: accent, loading: loading) { kind in
                 Task { await pick(kind) }
             }
             .disabled(!ready)
