@@ -27041,28 +27041,6 @@
         }
       }
     },
-    "광고 보고 열기": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Watch an ad to open"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "広告を見て開く"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "看广告解锁"
-          }
-        }
-      }
-    },
     "광고 불러오는 중…": {
       "localizations": {
         "en": {
@@ -38881,28 +38859,6 @@
         }
       }
     },
-    "어떤 기운을 볼까요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Which reading?"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "どの気配を見ますか"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "看哪个气场？"
-          }
-        }
-      }
-    },
     "어떤 유행이든 몇 초 만에 따라 하는 모사꾼.": {
       "extractionState": "manual",
       "localizations": {
@@ -41588,6 +41544,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "用这些卡牌开始"
+          }
+        }
+      }
+    },
+    "이루고 싶은 것을 생각하며 궁금한 기운을 확인해보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold what you want in mind, then choose a reading"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "叶えたいことを思い浮かべて、気になる気配を選んでください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想着你想实现的事，选一个想看的气场"
           }
         }
       }

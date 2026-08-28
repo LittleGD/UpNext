@@ -11,6 +11,10 @@
 //  공개 오버레이는 RecordTabView 가 ZStack 으로 띄운다 (카드 내부에 두면 ScrollView 에
 //  갇혀 전체 화면을 못 덮는다) — onReveal 콜백으로 위임.
 //
+//  기운 3종(재물·관계·건강)은 카드 아래가 아니라 **공개 오버레이 안**, 폴라로이드
+//  바로 아래에 붙는다. 불꽃 탭에는 오늘의 기운 카드 한 장만 남고, 리딩은 폴라로이드를
+//  본 흐름 그대로 이어진다 — "오늘의 기운을 본 자리"가 한 곳으로 모인다.
+//
 
 import SwiftUI
 
@@ -18,7 +22,10 @@ import SwiftUI
 struct FortuneCardView: View {
     /// 오늘의 기운이 열린 순간 호출 — 부모가 공개 폴라로이드를 띄운다.
     let onReveal: (DailyFortune) -> Void
-    /// 기운 리딩(재물·관계·건강)을 열어달라는 요청 — 부모가 ScrollView 밖에서 띄운다.
+    /// 기운 리딩 요청 통로 — **지금은 카드가 쓰지 않는다.**
+    ///   기운 3종이 공개 오버레이(FortuneRevealOverlay) 안으로 옮겨 가면서, 요청은
+    ///   오버레이가 직접 탭 루트로 올린다. 호출부(RetentionSectionView)의 시그니처를
+    ///   지키려고 자리만 남겨 뒀다 — 그쪽이 정리되면 함께 지운다.
     var onOpenAura: (AuraOverlayRequest) -> Void = { _ in }
 
     @EnvironmentObject private var store: GameStore
@@ -49,22 +56,9 @@ struct FortuneCardView: View {
         //   숨겼는데(죽은 CTA 금지 취지), 그 결과 광고를 구조적으로 못 받는 사용자
         //   (EEA 동의 거부·미승인 지역·오프라인)는 기능의 **존재조차 몰랐다**.
         //   이제 코인 경로가 병존하므로 CTA 가 죽지 않는다 — 숨길 이유가 없다.
-        VStack(spacing: 12) {
-            card
-            // 폴라로이드를 본 뒤에야 기운 3종을 고를 수 있다 — 오늘의 기운을
-            // 이미 열었다는 사실이 첫 리딩의 값이 된다(웹 FortuneCard.tsx 와 같은 자리).
-            if revealed, let fortune {
-                AuraSectionView(today: auraToday,
-                                accent: Color(hexString: fortune.color.hex),
-                                onOpenReading: onOpenAura)
-            }
-        }
-    }
-
-    /// 기운 리딩의 날짜 기준. 웹은 `daily.date` 를 쓴다 — 자정 롤오버를 스토어가
-    /// 이미 반영한 값이라, 시계만 보는 todayString 보다 화면과 어긋날 여지가 적다.
-    private var auraToday: String {
-        store.daily?.date ?? GameStore.todayString()
+        // 기운 3종은 여기 붙지 않는다 — 폴라로이드 오버레이 안으로 옮겼다.
+        // 탭에는 오늘의 기운 카드 한 장만 남는다.
+        card
     }
 
     private var card: some View {
@@ -235,11 +229,23 @@ struct FortuneCardView: View {
 /// 폴라로이드 뒤에는 오늘 카드의 등급 backdrop(RarityBackdrop)이 깔려 광선이
 /// 사방으로 뻗는다 — 카드 상세와 같은 등급 언어라 "귀한 카드" 라는 인상이 이어진다.
 ///
+/// 폴라로이드 아래에는 기운 3종 고르기(AuraSectionView)가 이어 붙는다. 사진이 현상된
+/// 뒤에 나타나 "오늘의 기운을 봤으니 이제 하나 골라 보라"는 순서가 그대로 읽힌다.
+/// 내용이 화면보다 길어질 수 있어 **오버레이 안쪽에** 스크롤을 둔다 — 오버레이 자체는
+/// 여전히 탭의 ScrollView 밖(RecordTabView ZStack)에 있어야 화면 전체를 덮는다.
+///
+/// 닫기: 스크롤과 겹치지 않도록 배경 전체 탭 대신 **폴라로이드 탭 + 하단 닫기 버튼**을
+/// 쓴다. ScrollView 는 빈 영역의 탭까지 삼키므로 뒤에 깔린 스크림에 제스처를 달아 봐야
+/// 반응하지 않는다 — 있는 척하는 어포던스가 제일 나쁘다.
+///
 /// SwiftUI 함정: 같은 런루프 틱에서 상태를 켰다 끄면 두 쓰기가 병합돼 애니메이션이
 /// 통째로 사라진다. 번쩍임과 입자, 뽑기→폴라로이드 인계는 그래서 틱을 나눠 구동한다.
 @MainActor
 struct FortuneRevealOverlay: View {
     let fortune: DailyFortune
+    /// 기운 리딩(재물·관계·건강) 오버레이를 열어달라는 요청 — 탭 루트가 이 오버레이
+    /// **위** z 순서로 띄운다(리딩이 폴라로이드를 덮어야 한 흐름으로 읽힌다).
+    var onOpenAura: (AuraOverlayRequest) -> Void = { _ in }
     let onClose: () -> Void
 
     @EnvironmentObject private var store: GameStore
@@ -324,34 +330,87 @@ struct FortuneRevealOverlay: View {
                 .allowsHitTesting(false)
             }
 
-            polaroid
-                .rotationEffect(.degrees(thrown ? -2 : -16))
-                .scaleEffect(thrown ? 1 : 1.08)
-                .offset(x: thrown ? 0 : 26, y: thrown ? 0 : -560)
-                .opacity(thrown ? 1 : 0)
+            scrollingContent
 
-            VStack {
-                Spacer()
-                Text("탭해서 닫기")
-                    .typography(.caption)
-                    .foregroundStyle(Color.textTertiary)
-                    .opacity(hintIn ? 1 : 0)
-                    .padding(.bottom, 40)
-            }
+            closeBar
 
             // 뽑기 연출 — 폴라로이드보다 위. 끝나면 스스로 물러난다.
             if drawing {
                 FortuneDrawView(accent: accent, onFinish: finishDraw)
             }
         }
-        .contentShape(Rectangle())
-        // 뽑기 중 오탭으로 닫히면 광고를 본 보람이 사라진다 — 연출이 끝난 뒤에만 받는다.
-        .onTapGesture { if !drawing { onClose() } }
         .onAppear(perform: start)
         .onDisappear {
             // 네비 복구는 무슨 일이 있어도 여기서 — 중간에 닫히든 정상 종료든 한 곳뿐.
             store.fortuneOverlayOpen = false
         }
+    }
+
+    // MARK: - 본문 (폴라로이드 + 기운 3종)
+
+    /// 폴라로이드와 기운 고르기를 한 흐름으로 세운 스크롤 본문.
+    ///
+    /// 짧을 때는 가운데, 길어지면 스크롤. `minHeight: geo.size.height` 한 줄이 두
+    /// 상태를 모두 처리한다 — 기운 섹션이 붙기 전 폴라로이드가 위로 붙어 버리면
+    /// 공개 연출의 무대가 무너진다.
+    private var scrollingContent: some View {
+        GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 22) {
+                    polaroid
+                        .rotationEffect(.degrees(thrown ? -2 : -16))
+                        .scaleEffect(thrown ? 1 : 1.08)
+                        .offset(x: thrown ? 0 : 26, y: thrown ? 0 : -560)
+                        .opacity(thrown ? 1 : 0)
+                        .contentShape(Rectangle())
+                        // 사진을 탭하면 닫힌다(기존 배경 탭의 자리). 뽑기 중에는 받지
+                        // 않는다 — 오탭으로 닫히면 광고를 본 보람이 사라진다.
+                        .onTapGesture { if !drawing { onClose() } }
+
+                    // 캡션이 다 들어온 뒤에야 기운 3종이 붙는다. 폴라로이드를 이미
+                    // 봤다는 사실이 첫 리딩의 값이 된다(웹과 같은 계약).
+                    if rowsIn {
+                        AuraSectionView(today: auraToday,
+                                        accent: accent,
+                                        onOpenReading: onOpenAura)
+                            .transition(.opacity)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                // 하단 고정 닫기 버튼에 마지막 줄이 가리지 않도록
+                .padding(.bottom, 92)
+                .frame(maxWidth: .infinity, minHeight: geo.size.height)
+            }
+            .scrollIndicators(.hidden)
+        }
+    }
+
+    /// 하단 고정 닫기. 스크롤이 붙은 화면에서 "어디를 눌러야 닫히나"를 남겨두면
+    /// 유저가 갇힌다 — 연출이 끝나는 시점에 확실한 출구 하나를 띄운다.
+    private var closeBar: some View {
+        VStack {
+            Spacer()
+            Button { onClose() } label: {
+                Text("닫기")
+                    .typography(.caption)
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.vertical, 11)
+                    .padding(.horizontal, 26)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(UNPressStyle())
+            .background(Color.bgSurface.opacity(0.92), in: RoundedRectangle(cornerRadius: 12))
+            .padding(.bottom, 28)
+        }
+        .opacity(hintIn ? 1 : 0)
+        .allowsHitTesting(hintIn && !drawing)
+    }
+
+    /// 기운 리딩의 날짜 기준. 웹은 `daily.date` 를 쓴다 — 자정 롤오버를 스토어가
+    /// 이미 반영한 값이라, 시계만 보는 todayString 보다 화면과 어긋날 여지가 적다.
+    private var auraToday: String {
+        store.daily?.date ?? GameStore.todayString()
     }
 
     // MARK: - 연출 구동

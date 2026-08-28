@@ -13,6 +13,7 @@ struct RecordTabView: View {
     /// 오늘의 기운 공개 → 폴라로이드 오버레이 (오늘의 카드·색·문구·명언 한 벌)
     @State private var revealedFortune: DailyFortune?
     /// 기운 리딩(재물·관계·건강) 오버레이. 폴라로이드와 같은 이유로 ScrollView 밖에 있다.
+    ///   요청은 폴라로이드 오버레이 안의 기운 고르기에서 올라온다 — 리딩은 그 위를 덮는다.
     @State private var auraRequest: AuraOverlayRequest?
 
     var body: some View {
@@ -38,9 +39,17 @@ struct RecordTabView: View {
             }
 
             if let fortune = revealedFortune {
-                FortuneRevealOverlay(fortune: fortune) {
-                    withAnimation(.easeOut(duration: 0.2)) { revealedFortune = nil }
-                }
+                // 기운 3종 고르기는 이 오버레이 안(폴라로이드 아래)에 있다.
+                // 요청은 여기로 올라와 리딩 오버레이가 그 위(zIndex 11)에 얹힌다.
+                FortuneRevealOverlay(
+                    fortune: fortune,
+                    onOpenAura: { request in
+                        withAnimation(.easeOut(duration: 0.2)) { auraRequest = request }
+                    },
+                    onClose: {
+                        withAnimation(.easeOut(duration: 0.2)) { revealedFortune = nil }
+                    }
+                )
                 .transition(.opacity)
                 .zIndex(10)
             }

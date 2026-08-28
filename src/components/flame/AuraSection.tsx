@@ -265,12 +265,14 @@ export default function AuraSection({
   const reading = view && snapshot ? snapshot[view.kind] : null;
 
   return (
-    <div className="mt-4">
-      <p className="typo-micro text-text-tertiary">
+    <div className="w-full">
+      <p className="typo-micro text-text-tertiary text-center">
         {allOpened ? t("aura.done") : t("aura.pick.title")}
       </p>
 
-      <div className="mt-2 grid grid-cols-3 gap-2">
+      {/* items-stretch + h-full — 세 장의 높이를 가장 큰 것에 맞춘다. 등급 라벨이
+          한 줄이든 두 줄이든 카드 높이는 같아야 나란히 놓인 한 벌로 읽힌다. */}
+      <div className="mt-2.5 grid grid-cols-3 items-stretch gap-2">
         {AURA_KINDS.map((kind) => {
           const isOpened = opened.includes(kind);
           const locked = !isOpened && opened.length > 0;
@@ -281,7 +283,9 @@ export default function AuraSection({
               type="button"
               onClick={() => void handlePick(kind)}
               disabled={phase.kind === "loading" || !ready}
-              className="press-affordance flex flex-col items-center gap-1.5 rounded-xl bg-bg-elevated px-2 py-3 disabled:opacity-60"
+              className={`press-affordance flex h-full flex-col items-center gap-1.5 rounded-xl bg-bg-elevated px-2 py-3 disabled:opacity-60 ${
+                locked ? "opacity-75" : ""
+              }`}
             >
               <motion.span
                 animate={loading ? { opacity: [1, 0.35, 1] } : { opacity: 1 }}
@@ -299,17 +303,16 @@ export default function AuraSection({
               <span className="typo-micro text-text-primary text-center">
                 {t(NAME_KEY[kind])}
               </span>
-              <span
-                className="typo-micro text-center"
-                style={{
-                  color: isOpened && snapshot ? colorHex : "var(--text-tertiary)",
-                }}
-              >
-                {isOpened && snapshot
-                  ? t(TIER_KEY[snapshot[kind].tier])
-                  : locked
-                    ? t("aura.locked.cta")
-                    : ""}
+              {/* 상태 줄 — 늘 같은 자리를 차지한다. 잠금은 문구 없이 자물쇠만 두고,
+                  탭하면 광고가 뜬다는 사실은 눌러 보면 알게 된다. */}
+              <span className="flex min-h-[18px] items-center justify-center">
+                {isOpened && snapshot ? (
+                  <span className="typo-micro text-center" style={{ color: colorHex }}>
+                    {t(TIER_KEY[snapshot[kind].tier])}
+                  </span>
+                ) : locked ? (
+                  <PixelIcon name="Lock" size={12} color="var(--text-tertiary)" />
+                ) : null}
               </span>
             </button>
           );
@@ -317,7 +320,7 @@ export default function AuraSection({
       </div>
 
       {phase.kind === "fail" && (
-        <p className="mt-2 typo-micro text-text-tertiary">{t("fortune.fail")}</p>
+        <p className="mt-2 typo-micro text-text-tertiary text-center">{t("fortune.fail")}</p>
       )}
 
       {typeof document !== "undefined" &&
@@ -383,6 +386,8 @@ function AuraOverlay({
   const name = t(NAME_KEY[reading.kind]);
   const tone = TIER_STYLE[reading.tier];
 
+  // z-[60] — 리딩은 오늘의 기운 폴라로이드 오버레이(z-50) 위에 떠야 한다.
+  // 둘 다 body 포털이라 같은 z 를 쓰면 DOM 삽입 순서에 앞뒤를 맡기게 된다.
   return (
     <motion.div
       ref={containerRef}
@@ -393,7 +398,7 @@ function AuraOverlay({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/60 px-8 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden bg-black/60 px-8 backdrop-blur-sm"
     >
       {/* 오늘의 색 글로우 — 폴라로이드 오버레이와 같은 공기 */}
       <div

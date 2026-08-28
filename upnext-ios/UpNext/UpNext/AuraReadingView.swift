@@ -165,8 +165,15 @@ enum AuraPaper {
 
 // MARK: - 기운 고르기 패널
 
-/// 폴라로이드 아래에 붙는 3종 선택. 첫 칸은 무료라 CTA 를 붙이지 않고,
-/// 이미 하나라도 열었으면 남은 칸에 "광고 보고 열기" 를 명시한다(옵트인 원칙).
+/// 폴라로이드 아래에 붙는 3종 선택.
+///
+/// 첫 칸은 무료(폴라로이드 광고값)고, 그 뒤 칸은 광고를 봐야 열린다. 잠금은 **자물쇠
+/// 아이콘 하나로만** 말한다 — 칸마다 광고 문구를 박아 두면 세 칸이 광고 진열대로 읽히고,
+/// 옵트인이라는 사실보다 "광고를 봐라"는 인상이 앞선다. 광고는 눌러야만 뜬다는 계약은
+/// 그대로다(누르기 전에는 아무것도 재생되지 않는다).
+///
+/// 세 칸의 높이는 항상 같다. 언어에 따라 기운 이름이 두 줄로 접히면 칸 하나만 키가
+/// 커져 줄이 어긋나는데, 나란한 선택지에서 크기 차이는 곧 위계로 읽힌다.
 @MainActor
 struct AuraPickPanel: View {
     let state: AuraState
@@ -174,31 +181,40 @@ struct AuraPickPanel: View {
     let loading: AuraKind?
     let onPick: (AuraKind) -> Void
 
+
+    private static let pickTitle: LocalizedStringKey = "이루고 싶은 것을 생각하며 궁금한 기운을 확인해보세요"
+    private static let doneTitle: LocalizedStringKey = "오늘의 기운을 모두 확인했어요"
+
     var body: some View {
         VStack(spacing: 12) {
-            Text("어떤 기운을 볼까요")
+            // 웹 AuraSection 과 같은 계약 — 한 줄이 상태에 따라 갈린다(aura.done / aura.pick.title).
+            // 두 줄을 겹쳐 쓰면 다 본 뒤에도 고르라는 말이 남아 안내가 서로 부딪힌다.
+            // LocalizedStringKey 로 못 박는다. 삼항의 결과를 그냥 넘기면 Text(String)
+            // 오버로드가 잡혀 카탈로그를 타지 않고 한국어가 그대로 나간다.
+            Text(state.allOpened ? Self.doneTitle : Self.pickTitle)
                 .typography(.caption)
-                .foregroundStyle(Color.textSecondary)
+                .foregroundStyle(state.allOpened ? Color.textTertiary : Color.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 10) {
+            // .top 정렬 + 칸의 maxHeight: .infinity — 가장 큰 칸이 줄 높이를 정하고
+            // 나머지 둘이 거기에 맞춰 늘어난다.
+            HStack(alignment: .top, spacing: 10) {
                 ForEach(AuraKind.allCases, id: \.self) { kind in
                     chip(kind)
                 }
             }
-
-            if state.allOpened {
-                Text("오늘의 기운을 모두 확인했어요")
-                    .typography(.micro)
-                    .foregroundStyle(Color.textTertiary)
-            }
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private func chip(_ kind: AuraKind) -> some View {
         let opened = state.opened.contains(kind)
-        // 첫 리딩은 이미 폴라로이드 광고를 봤으니 무료. 그 다음부터 광고를 안내한다.
-        let needsAd = !opened && !state.opened.isEmpty
+        // 첫 리딩은 이미 폴라로이드 광고를 봤으니 무료. 그 다음부터는 잠긴다.
+        let locked = !opened && !state.opened.isEmpty
         let busy = loading == kind
+        // 열림=체크, 잠김=자물쇠, 지금 열 수 있음=반짝임. 문구 없이 아이콘 하나로 상태가 갈린다.
+        let icon: PixelIconName = opened ? .check : (locked ? .lock : .sparkle)
 
         return Button {
             onPick(kind)
@@ -210,24 +226,19 @@ struct AuraPickPanel: View {
                         .scaleEffect(0.7)
                         .frame(height: 16)
                 } else {
-                    PixelIcon(opened ? .check : .sparkle, size: 16,
-                              color: opened ? Color.textTertiary : Color.accentPrimary)
+                    PixelIcon(icon, size: 16,
+                              color: (opened || locked) ? Color.textTertiary : Color.accentPrimary)
                         .frame(height: 16)
                 }
                 AuraCopy.name(kind)
                     .typography(.caption)
                     .foregroundStyle(Color.textPrimary)
-                if needsAd && !busy {
-                    Text("광고 보고 열기")
-                        .typography(.micro)
-                        .foregroundStyle(Color.textTertiary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
+                    .multilineTextAlignment(.center)
             }
-            .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
             .padding(.horizontal, 6)
+            // 세 칸을 같은 높이로 — 줄에서 가장 큰 칸이 기준이 된다.
+            .frame(maxWidth: .infinity, minHeight: CardHeights.auraPickChip, maxHeight: .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(UNPressStyle())
