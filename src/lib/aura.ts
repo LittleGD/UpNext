@@ -318,6 +318,57 @@ export function auraCautionIndex(today: string, salt: string | undefined, kind: 
   return fnv1a("caution:" + today + "|" + salt + "|" + kind) % AURA_HINT_COUNT;
 }
 
+/* ── 타로 — 리딩 결과 화면의 "선택" 한 조각 ──
+   제시 3장은 결정론(같은 날 같은 기기 = 같은 3장)이지만, 그중 무엇을 뒤집을지는
+   유저 몫이다. 선택은 하루 고정으로 저장된다(fortune.ts auraTarot — 재선택 불가). */
+
+/**
+ * 타로 덱 크기. TAROT_DECK.length(src/data/tarotPool.ts)와 일치해야 한다 —
+ * tarotPool 이 이 파일의 AuraTier 를 쓰므로 순환 import 를 피해 상수로 둔다.
+ * (aura.test.ts 가 둘의 일치를 회귀로 잡는다.)
+ */
+export const TAROT_CARD_COUNT = 40;
+
+/**
+ * 오늘 이 기운에 제시할 타로 3장(카드 id, 서로 다름 보장).
+ * **웹/iOS 가 정수 연산까지 동일해야 하는 확정 스펙** — 임의 개선 금지.
+ * while 재배치는 방어선이다: tarot0/1/2 접두사의 한 글자 차이가 FNV-1a 해시의
+ * 홀짝을 바꿔 실전에서는 세 값이 이미 서로 다르지만, 스펙은 가정에 기대지 않는다.
+ * salt 없으면(SSR 등) [0,1,2] 폴백.
+ */
+export function auraTarotOffer(
+  today: string,
+  salt: string | undefined,
+  kind: AuraKind,
+): [number, number, number] {
+  if (!salt) return [0, 1, 2];
+  const base = today + "|" + salt + "|" + kind;
+  const a = fnv1a("tarot0:" + base) % TAROT_CARD_COUNT;
+  let b = fnv1a("tarot1:" + base) % TAROT_CARD_COUNT;
+  while (b === a) b = (b + 1) % TAROT_CARD_COUNT;
+  let c = fnv1a("tarot2:" + base) % TAROT_CARD_COUNT;
+  while (c === a || c === b) c = (c + 1) % TAROT_CARD_COUNT;
+  return [a, b, c];
+}
+
+/** 조언 표현 가짓수 — 조짐(AURA_VARIANTS=3)과 달리 조언은 6종으로 늘렸다. */
+export const AURA_ADVICE_VARIANTS = 6;
+
+/**
+ * 조언 변주 인덱스 (aura.advice.{kind}.{tier}.{0..5}).
+ * AuraReading.variant(0..2)에서 분리 — variant 는 스냅샷 디코드 하위호환이 걸린
+ * 스키마라 범위를 못 늘리고, 조언만 별도 해시로 6종을 돈다. 조짐과 접두사가
+ * 달라 상관관계가 없다. salt 없으면 0.
+ */
+export function auraAdviceVariant(
+  today: string,
+  salt: string | undefined,
+  kind: AuraKind,
+): number {
+  if (!salt) return 0;
+  return fnv1a("advicevar:" + today + "|" + salt + "|" + kind) % AURA_ADVICE_VARIANTS;
+}
+
 /** 세 기운을 한 번에. 순서는 항상 재물 → 관계 → 건강. */
 export function computeAura(input: AuraInput): Record<AuraKind, AuraReading> {
   const w = summarize(input);

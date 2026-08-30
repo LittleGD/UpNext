@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  computeAura, rollTier, auraHintIndex, auraCautionIndex,
-  AURA_WINDOW_DAYS, AURA_HINT_COUNT, type AuraInput, type AuraTier, type AuraKind,
+  computeAura, rollTier, auraHintIndex, auraCautionIndex, auraTarotOffer, auraAdviceVariant,
+  AURA_WINDOW_DAYS, AURA_HINT_COUNT, TAROT_CARD_COUNT, AURA_ADVICE_VARIANTS,
+  type AuraInput, type AuraTier, type AuraKind,
 } from "./aura";
+import { TAROT_DECK } from "@/data/tarotPool";
 import { ALL_CARDS } from "@/data/cards";
 import type { Category } from "@/types/card";
 import type { DayRecord } from "@/types/game";
@@ -312,5 +314,84 @@ describe("실마리·흘려보낼 것 선택 인덱스", () => {
       (t) => auraHintIndex(t, "device-1", "wealth") !== auraCautionIndex(t, "device-1", "wealth"),
     );
     expect(differs).toBe(true);
+  });
+});
+
+/**
+ * 타로 제시 — 3장은 하늘(해시)이 고르고, 무엇을 뒤집을지는 유저가 고른다.
+ * 정수 연산까지 웹/iOS 동일해야 하는 확정 스펙 — 픽스처는 iOS XCTest 와 공유한다.
+ */
+describe("타로 제시 3장 (auraTarotOffer)", () => {
+  const KINDS: AuraKind[] = ["wealth", "relationship", "health"];
+
+  it("결정론 + 서로 다른 3장 + 0..39 정수", () => {
+    for (const today of calendar(60)) {
+      for (const k of KINDS) {
+        const o = auraTarotOffer(today, "device-1", k);
+        expect(auraTarotOffer(today, "device-1", k)).toEqual(o);
+        expect(new Set(o).size).toBe(3);
+        for (const id of o) {
+          expect(Number.isInteger(id)).toBe(true);
+          expect(id).toBeGreaterThanOrEqual(0);
+          expect(id).toBeLessThan(TAROT_CARD_COUNT);
+        }
+      }
+    }
+  });
+
+  it("salt 없으면 [0,1,2] 폴백", () => {
+    expect(auraTarotOffer("2026-08-27", undefined, "wealth")).toEqual([0, 1, 2]);
+  });
+
+  it("날짜·기운이 바뀌면 제시가 달라진다", () => {
+    const byDay = calendar(10).map((t) => auraTarotOffer(t, "device-1", "wealth").join(","));
+    expect(new Set(byDay).size).toBeGreaterThan(1);
+    const byKind = KINDS.map((k) => auraTarotOffer("2026-08-27", "device-1", k).join(","));
+    expect(new Set(byKind).size).toBe(3);
+  });
+
+  /**
+   * 패리티 픽스처 — iOS XCTest 가 같은 3벌을 하드코딩한다. 값이 어긋나면
+   * 웹/iOS 정수 연산이 갈라진 것이니 스펙부터 다시 대조할 것.
+   */
+  it("패리티 픽스처 — 고정 (today, salt, kind) → 3장", () => {
+    expect(auraTarotOffer("2026-08-27", "device-1", "wealth")).toEqual([23, 14, 25]);
+    expect(auraTarotOffer("2026-09-01", "salt-A", "relationship")).toEqual([39, 18, 25]);
+    expect(auraTarotOffer("2027-01-01", "zz", "health")).toEqual([10, 31, 8]);
+  });
+
+  it("TAROT_CARD_COUNT 는 실제 덱 크기·id 배열과 일치한다 (순환 import 회피 상수의 드리프트 방지)", () => {
+    expect(TAROT_DECK.length).toBe(TAROT_CARD_COUNT);
+    TAROT_DECK.forEach((card, i) => expect(card.id).toBe(i));
+  });
+});
+
+describe("조언 변주 (auraAdviceVariant — 조짐 variant 와 분리된 6종)", () => {
+  it("항상 0..5 이고 결정론적이다", () => {
+    for (const today of calendar(30)) {
+      for (const k of ["wealth", "relationship", "health"] as const) {
+        const v = auraAdviceVariant(today, "device-1", k);
+        expect(Number.isInteger(v)).toBe(true);
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThan(AURA_ADVICE_VARIANTS);
+        expect(auraAdviceVariant(today, "device-1", k)).toBe(v);
+      }
+    }
+  });
+
+  it("salt 없으면 0", () => {
+    expect(auraAdviceVariant("2026-08-27", undefined, "wealth")).toBe(0);
+  });
+
+  it("6종을 두루 돈다 (조짐 3종 범위 밖의 값도 나온다)", () => {
+    const seen = new Set(calendar(120).map((t) => auraAdviceVariant(t, "device-1", "wealth")));
+    expect(seen.size).toBe(AURA_ADVICE_VARIANTS);
+  });
+
+  /** 패리티 픽스처 — auraTarotOffer 픽스처와 같은 3벌 입력을 iOS XCTest 와 공유. */
+  it("패리티 픽스처 — 고정 (today, salt, kind) → 변주 번호", () => {
+    expect(auraAdviceVariant("2026-08-27", "device-1", "wealth")).toBe(0);
+    expect(auraAdviceVariant("2026-09-01", "salt-A", "relationship")).toBe(2);
+    expect(auraAdviceVariant("2027-01-01", "zz", "health")).toBe(5);
   });
 });

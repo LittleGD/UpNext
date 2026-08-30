@@ -25,6 +25,7 @@ import type { ChallengeCard } from "@/types/card";
 import {
   AURA_VARIANTS,
   AURA_KINDS,
+  TAROT_CARD_COUNT,
   type AuraKind,
   type AuraOmen,
   type AuraReading,
@@ -108,6 +109,11 @@ export interface FortuneState {
    * 오후에 카드를 하나 더 깼다고 달라지면 점이 아니라 대시보드가 된다.
    */
   auraSnapshot?: Record<AuraKind, AuraReading>;
+  /**
+   * 그날 각 기운에서 뒤집은 타로 카드 id(0..39). 선택은 유저 몫이지만 하루 고정 —
+   * 재선택 불가. auraDate 롤오버 시 열람 기록·스냅샷과 함께 소거된다.
+   */
+  auraTarot?: Partial<Record<AuraKind, number>>;
 }
 
 function randomSalt(): string {
@@ -181,6 +187,25 @@ function decodeSnapshot(value: unknown): Record<AuraKind, AuraReading> | undefin
   return out;
 }
 
+/**
+ * 타로 선택 관용 디코드 — 0..39 정수만 인정하고 어긋난 항목은 그 기운만 버린다.
+ * 덱이 줄어드는 일은 없지만(id 불변 계약) 손댄 저장값이 화면 인덱싱을 깨면 안 된다.
+ */
+function decodeTarot(value: unknown): Partial<Record<AuraKind, number>> | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const out: Partial<Record<AuraKind, number>> = {};
+  let any = false;
+  for (const kind of AURA_KINDS) {
+    const v = raw[kind];
+    if (typeof v === "number" && Number.isInteger(v) && v >= 0 && v < TAROT_CARD_COUNT) {
+      out[kind] = v;
+      any = true;
+    }
+  }
+  return any ? out : undefined;
+}
+
 function decodeOpened(value: unknown): AuraKind[] | undefined {
   if (!Array.isArray(value)) return undefined;
   // AURA_KINDS 순서로 정규화 — 저장 순서가 UI 순서를 흔들지 않게.
@@ -203,6 +228,7 @@ export function readFortuneState(): FortuneState {
           auraDate: typeof parsed.auraDate === "string" ? parsed.auraDate : undefined,
           auraOpened: decodeOpened(parsed.auraOpened),
           auraSnapshot: decodeSnapshot(parsed.auraSnapshot),
+          auraTarot: decodeTarot(parsed.auraTarot),
         };
       }
     }
@@ -244,13 +270,24 @@ export interface AuraState {
   opened: AuraKind[];
   /** 오늘 고정된 3종 리딩. 아직 첫 리딩을 열지 않았으면 null. */
   snapshot: Record<AuraKind, AuraReading> | null;
+  /** 오늘 각 기운에서 뒤집은 타로 카드 id. 없는 기운은 아직 미선택. */
+  tarot: Partial<Record<AuraKind, number>>;
 }
 
-const EMPTY_AURA: AuraState = { opened: [], snapshot: null };
+const EMPTY_AURA: AuraState = { opened: [], snapshot: null, tarot: {} };
 
 function forToday(state: FortuneState, today: string): AuraState {
   if (state.auraDate !== today) return EMPTY_AURA;
-  return { opened: state.auraOpened ?? [], snapshot: state.auraSnapshot ?? null };
+  return {
+    opened: state.auraOpened ?? [],
+    snapshot: state.auraSnapshot ?? null,
+    tarot: state.auraTarot ?? {},
+  };
+}
+
+/** 오늘 자 타로 선택이 하나라도 있는지 — 롤오버 때 빈 객체를 저장하지 않기 위한 판별 */
+function hasTarot(tarot: Partial<Record<AuraKind, number>>): boolean {
+  return AURA_KINDS.some((k) => tarot[k] !== undefined);
 }
 
 /** 오늘 기준 기운 상태 읽기. 날짜가 넘어갔으면 빈 상태를 돌려준다. */
@@ -275,9 +312,10 @@ export function ensureAuraSnapshot(
   writeFortuneState({
     ...state,
     auraDate: today,
-    // 날짜가 넘어왔다면 어제 열람 기록은 여기서 함께 버려진다.
+    // 날짜가 넘어왔다면 어제 열람 기록·타로 선택은 여기서 함께 버려진다.
     auraOpened: current.opened.length > 0 ? current.opened : undefined,
     auraSnapshot: snapshot,
+    auraTarot: hasTarot(current.tarot) ? current.tarot : undefined,
   });
   return snapshot;
 }
@@ -299,6 +337,33 @@ export function markAuraOpened(today: string, kind: AuraKind): AuraKind[] {
     // 스냅샷 없이 열람만 기록되는 경로는 없어야 하지만, 만에 하나 그렇게 되면
     // 다음 ensureAuraSnapshot 이 채운다 (auraDate 는 여기서 이미 오늘로 맞춘다).
     auraSnapshot: current.snapshot ?? undefined,
+    auraTarot: hasTarot(current.tarot) ? current.tarot : undefined,
   });
   return next;
+}
+
+/**
+ * 타로 선택을 기록한다. 그날 그 기운의 선택은 하루 고정 — 이미 있으면 덮지 않는다.
+ * (탭 두 번·경쟁 렌더가 와도 첫 선택이 이긴다. 재선택 불가는 UI 약속이 아니라
+ * 저장 계층의 계약이다.)
+ *
+ * @returns 오늘 이 기운에 고정된 카드 id. 기존 선택이 있으면 그 값이다.
+ */
+export function markAuraTarot(today: string, kind: AuraKind, cardId: number): number {
+  const state = readFortuneState();
+  const current = forToday(state, today);
+  const existing = current.tarot[kind];
+  if (existing !== undefined) return existing;
+  // 저장 계약은 관용 디코드와 같다 — 0..39 정수만. 밖의 값은 기록하지 않고 그대로
+  // 돌려준다(UI 는 auraTarotOffer 산출값만 넘기므로 실전에서 걸릴 일은 없는 방어선).
+  if (!Number.isInteger(cardId) || cardId < 0 || cardId >= TAROT_CARD_COUNT) return cardId;
+  writeFortuneState({
+    ...state,
+    auraDate: today,
+    // 날짜가 넘어온 첫 기록이라면 어제 열람·스냅샷은 여기서 함께 버려진다.
+    auraOpened: current.opened.length > 0 ? current.opened : undefined,
+    auraSnapshot: current.snapshot ?? undefined,
+    auraTarot: { ...current.tarot, [kind]: cardId },
+  });
+  return cardId;
 }
