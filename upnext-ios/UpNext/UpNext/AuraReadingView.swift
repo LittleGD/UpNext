@@ -159,74 +159,117 @@ enum AuraCopy {
     }
 
     /// 조언 — 낮은 점수에도 "지금부터 할 수 있다" 로만 쓴다.
-    /// 조언 문장 — 기운·등급에 표현 번호를 더해 고른다.
-    static func advice(_ reading: AuraReading) -> Text {
+    /// 조언 문장 — 기운·등급에 조언 전용 변주(0..5, `Aura.adviceVariant`)를 더해 고른다.
+    /// `AuraReading.variant`(0..2)는 조짐 몫이고, 조언은 별도 해시가 6종을 돈다 —
+    /// 같은 등급이 이어져도 조언까지 어제와 같은 문장이 나오는 날을 줄인다
+    /// (웹 aura.advice.{kind}.{tier}.{0..5} 대응).
+    static func advice(_ reading: AuraReading, variant: Int) -> Text {
         let table: [String: [Text]] = [
             "wealth.great": [
             Text("미뤄둔 일 하나를 오늘 끝내기 좋은 흐름이에요"),
             Text("가장 무거운 것부터 손대도 되는 날이에요"),
             Text("벌여둔 것을 하나 접어보세요"),
+            Text("오래 망설인 제안을 오늘 꺼내도 괜찮아요"),
+            Text("판을 조금 키워도 감당되는 날이에요"),
+            Text("생각만 하던 일을 오늘 시작해도 좋아요"),
         ],
             "wealth.good": [
             Text("작은 것 하나를 마무리하면 흐름이 더 단단해져요"),
             Text("오늘 한 칸만 더 나아가 보세요"),
             Text("어제 멈춘 자리에서 이어가면 됩니다"),
+            Text("다듬다 만 부분을 오늘 매만져 보세요"),
+            Text("탄력이 붙었을 때 조금만 더 밀어보세요"),
+            Text("지금 하는 방식 그대로 밀고 가도 좋아요"),
         ],
             "wealth.fair": [
             Text("가장 작은 일부터 치워보세요"),
             Text("책상 위 하나만 정리해도 충분해요"),
             Text("오늘은 완성보다 착수가 중요해요"),
+            Text("새 일을 벌이기보다 있는 것을 돌봐 주세요"),
+            Text("쓰던 것을 손보는 데 오늘을 써도 좋아요"),
+            Text("나가는 것과 들어오는 것을 가만히 살펴보세요"),
         ],
             "wealth.care": [
             Text("오늘은 시작만 해도 충분해요"),
             Text("아무것도 못 해도 내일이 사라지지 않아요"),
             Text("한 줄만 적어두고 덮어도 좋아요"),
+            Text("큰 결정은 하루만 미뤄두어도 늦지 않아요"),
+            Text("덜어낸 만큼 내일이 가벼워져요"),
+            Text("오늘은 지키는 것만으로도 잘한 거예요"),
         ],
             "relationship.great": [
             Text("먼저 연락하기 좋은 날이에요"),
             Text("오래 미룬 안부를 꺼내도 좋아요"),
             Text("당신이 여는 쪽이 되면 잘 풀려요"),
+            Text("마음에 둔 말을 오늘 전해도 좋아요"),
+            Text("새로운 자리에 나가보기 좋은 날이에요"),
+            Text("먼저 웃는 쪽이 되어보세요"),
         ],
             "relationship.good": [
             Text("안부 한 줄이 오늘을 바꿔요"),
             Text("고맙다는 말을 아끼지 마세요"),
             Text("짧게라도 답을 보내두면 좋아요"),
+            Text("들은 이야기를 기억했다가 되물어 보세요"),
+            Text("칭찬은 내일로 미루지 마세요"),
+            Text("밥 한 끼를 청해보기 좋은 날이에요"),
         ],
             "relationship.fair": [
             Text("오늘은 듣는 쪽이 되어보세요"),
             Text("설명하기보다 물어보는 게 나아요"),
             Text("말을 줄이면 오해도 줄어요"),
+            Text("결론을 서두르지 말고 한 박자 쉬어보세요"),
+            Text("오늘은 맞장구만으로도 충분해요"),
+            Text("보내기 전에 한 번 더 읽어보면 좋아요"),
         ],
             "relationship.care": [
             Text("혼자 있는 시간도 관계의 일부예요"),
             Text("답하지 않아도 되는 날이 있어요"),
             Text("멀어진 게 아니라 쉬는 중이에요"),
+            Text("무리해서 맞추지 않아도 괜찮아요"),
+            Text("거리를 두는 것도 마음을 지키는 방법이에요"),
+            Text("오늘의 서운함은 오늘 판단하지 않아도 돼요"),
         ],
             "health.great": [
             Text("몸이 잘 따라오는 날이에요"),
             Text("평소보다 한 걸음 더 가도 괜찮아요"),
             Text("숨이 깊어지는 걸 느껴보세요"),
+            Text("미뤄둔 운동을 다시 꺼내기 좋은 날이에요"),
+            Text("햇빛 아래를 걷는 시간을 늘려보세요"),
+            Text("몸이 원하는 만큼 움직여도 괜찮아요"),
         ],
             "health.good": [
             Text("물 한 잔과 가벼운 스트레칭으로 이어가세요"),
             Text("어깨를 한 번 내려보세요"),
             Text("오늘은 조금 일찍 눕는 걸 목표로"),
+            Text("계단을 만나면 반갑게 올라보세요"),
+            Text("허리를 펴고 먼 곳을 한 번 바라보세요"),
+            Text("따뜻한 것을 챙겨 마시며 이어가세요"),
         ],
             "health.fair": [
             Text("무리하지 말고 가볍게 시작하세요"),
             Text("절반만 해도 오늘은 성공이에요"),
             Text("몸이 보내는 신호를 먼저 들으세요"),
+            Text("오늘은 속도를 지키는 게 실력이에요"),
+            Text("허기와 피로가 오기 전에 미리 챙기세요"),
+            Text("가볍게 걷는 정도면 오늘은 충분해요"),
         ],
             "health.care": [
             Text("오늘은 쉬는 게 최선일 수 있어요"),
             Text("눕는 것도 오늘의 할 일이에요"),
             Text("회복은 아무것도 안 할 때 일어나요"),
+            Text("몸이 쉬자고 하면 이유를 묻지 마세요"),
+            Text("따뜻하게 하고 하루를 일찍 접어도 좋아요"),
+            Text("오늘 아낀 힘은 사라지지 않고 쌓여요"),
         ],
         ]
         let key = "\(reading.kind.rawValue).\(reading.tier.rawValue)"
         guard let variants = table[key], !variants.isEmpty else { return Text("") }
-        return variants[min(max(reading.variant, 0), variants.count - 1)]
+        return variants[min(max(variant, 0), variants.count - 1)]
     }
+
+    /// 타로 UI 라벨 — 웹 aura.tarot.prompt / aura.tarot.locked.
+    static let tarotPrompt = Text("마음이 머무는 카드를 한 장 뒤집어보세요")
+    static let tarotLocked = Text("오늘 뽑은 카드는 내일까지 함께합니다")
 
     /// 섹션 라벨 — 웹 aura.hint.label / aura.caution.label.
     static let hintLabel = Text("오늘의 실마리")
@@ -462,8 +505,25 @@ struct AuraReadingOverlay: View {
     /// 공개 이펙트 — "문질러 드러난 순간"에만 튄다. 재열람 마운트에서 또 터지면
     /// 보상 연출이 헐값이 되고, 등급 차등(잔잔~대길)의 의미도 무뎌진다(웹 fx state).
     @State private var fxTier: AuraTier?
+    /// 오늘 이 기운에서 뒤집은 타로 카드 id. 미선택이면 nil. 저장(AuraStore)이 진실의
+    /// 원천이고 이 상태는 그 반영이다 — markTarot 은 이미 있으면 덮지 않고 기존 값을
+    /// 돌려주므로(하루 고정), 화면은 그 반환값을 그대로 따라간다(웹 handleTarotPick).
+    @State private var tarotCardId: Int?
 
-    /// 실마리·흘려보낼 것의 날짜 시드 — 스냅샷이 고정된 날짜(auraDate).
+    init(reading: AuraReading, accent: Color, needsRitual: Bool,
+         allOpened: Bool, onBack: @escaping () -> Void) {
+        self.reading = reading
+        self.accent = accent
+        self.needsRitual = needsRitual
+        self.allOpened = allOpened
+        self.onBack = onBack
+        // 재진입 마운트는 이미 뒤집힌 채로 서야 한다(웹 initial={false} 계약).
+        // onAppear 에서 읽으면 첫 프레임에 엎어진 면이 한 번 비쳤다 바뀌므로 init 에서 읽는다.
+        let day = AuraStore.snapshotDay() ?? GameStore.todayString()
+        _tarotCardId = State(initialValue: AuraStore.state(today: day).tarot[reading.kind])
+    }
+
+    /// 실마리·흘려보낼 것·타로 제시의 날짜 시드 — 스냅샷이 고정된 날짜(auraDate).
     /// 이 오버레이는 ensureSnapshot 직후에만 뜨므로 웹의 `daily.date` 와 같은 값이다.
     private var readingDay: String { AuraStore.snapshotDay() ?? GameStore.todayString() }
 
@@ -475,46 +535,60 @@ struct AuraReadingOverlay: View {
                 .contentShape(Rectangle())
                 .onTapGesture { }
 
-            VStack(spacing: 18) {
-                card
-                    .overlay {
-                        if !revealed {
-                            AuraRitualCover(accent: accent, onReveal: reveal)
-                        }
-                    }
-                    .overlay {
-                        // 공개 이펙트 — 카드 안에서만 논다. 카드 밖으로 튀면
-                        // 인화지의 물성(한 장의 사진)이 깨진다(웹 RevealFx 와 같은 계약).
-                        if let tier = fxTier {
-                            AuraRevealFx(tier: tier, accent: accent, reduced: reduceMotion)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
-                    .shadow(color: .black.opacity(0.45), radius: 24, y: 10)
+            // 타로가 붙어 카드가 길어졌다 — 작은 화면에서는 해설 문단까지 열리면 한
+            // 화면을 넘는다. 짧을 때는 minHeight 로 가운데에 서고(기존 레이아웃 그대로),
+            // 넘칠 때만 스크롤이 생긴다(FortuneCardView 의 minHeight 패턴).
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(spacing: 18) {
+                        card
+                            .overlay {
+                                if !revealed {
+                                    AuraRitualCover(accent: accent, onReveal: reveal)
+                                }
+                            }
+                            .overlay {
+                                // 공개 이펙트 — 카드 안에서만 논다. 카드 밖으로 튀면
+                                // 인화지의 물성(한 장의 사진)이 깨진다(웹 RevealFx 와 같은 계약).
+                                if let tier = fxTier {
+                                    AuraRevealFx(tier: tier, accent: accent, reduced: reduceMotion)
+                                        .allowsHitTesting(false)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                            .shadow(color: .black.opacity(0.45), radius: 24, y: 10)
 
-                if revealed {
-                    VStack(spacing: 8) {
-                        if allOpened {
-                            Text("오늘의 기운을 모두 확인했어요")
-                                .typography(.micro)
-                                .foregroundStyle(Color.textTertiary)
+                        if revealed {
+                            VStack(spacing: 8) {
+                                if allOpened {
+                                    Text("오늘의 기운을 모두 확인했어요")
+                                        .typography(.micro)
+                                        .foregroundStyle(Color.textTertiary)
+                                }
+                                Button { onBack() } label: {
+                                    Text("다른 기운 보기")
+                                        .typography(.caption)
+                                        .foregroundStyle(Color.textSecondary)
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 18)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(UNPressStyle())
+                            }
+                            .opacity(settled ? 1 : 0)
                         }
-                        Button { onBack() } label: {
-                            Text("다른 기운 보기")
-                                .typography(.caption)
-                                .foregroundStyle(Color.textSecondary)
-                                .padding(.vertical, 10)
-                                .padding(.horizontal, 18)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(UNPressStyle())
                     }
-                    .opacity(settled ? 1 : 0)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 24)
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height)
                 }
+                .scrollIndicators(.hidden)
+                // 문지르는 동안에는 스크롤을 끈다 — minimumDistance 0 드래그(문지르기)와
+                // 스크롤이 터치를 다투면 의식이 뚝뚝 끊긴다. 긴 내용(해설 문단)은 공개
+                // 후에만 생기므로 그때 열면 충분하다.
+                .scrollDisabled(!revealed)
             }
-            .padding(.horizontal, 28)
         }
         // 리딩이 떠 있는 동안 VoiceOver 커서를 여기 가둔다. 이 오버레이는 항상 최상단이라
         // 조건 없이 건다 — 아래 폴라로이드 쪽이 자기 모달 스코프를 내려놓는다
@@ -554,6 +628,21 @@ struct AuraReadingOverlay: View {
         }
     }
 
+    /// 타로 선택 — 저장이 진실의 원천이다. markTarot 은 이미 있으면 덮지 않고 기존 값을
+    /// 돌려주므로(하루 고정), 화면 상태는 그 반환값을 그대로 따라간다(웹 handleTarotPick).
+    /// 뒤집기 0.55s(웹 rotateY ease [0.16,1,0.3,1]) / reduced-motion 은 0.25s 페이드 교차.
+    private func pickTarot(_ cardId: Int) {
+        guard revealed, tarotCardId == nil else { return }
+        SoundPlayer.shared.play(.cardFlip)
+        Haptics.play(.light)   // 웹 triggerHaptic("cardFlip") == light 임팩트
+        let fixed = AuraStore.markTarot(today: readingDay, kind: reading.kind, cardId: cardId)
+        withAnimation(reduceMotion
+                      ? .easeOut(duration: 0.25)
+                      : .timingCurve(0.16, 1, 0.3, 1, duration: 0.55)) {
+            tarotCardId = fixed
+        }
+    }
+
     // MARK: 리딩 카드 (인화지)
 
     private var card: some View {
@@ -587,7 +676,8 @@ struct AuraReadingOverlay: View {
             }
 
             staggered(order: 1) {
-                AuraCopy.advice(reading)
+                AuraCopy.advice(reading, variant: Aura.adviceVariant(
+                    today: readingDay, salt: Fortune.salt, kind: reading.kind))
                     .typography(.body)
                     .foregroundStyle(AuraPaper.inkStrong)
                     .fixedSize(horizontal: false, vertical: true)
@@ -622,6 +712,24 @@ struct AuraReadingOverlay: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.top, 12)
+            }
+
+            // 타로 — 읽어 내려가는 리듬의 마지막 박자. 제시 3장은 결정론(tarotOffer)이지만
+            // 무엇을 뒤집을지는 여기서 유일하게 유저 몫이다(하루 고정, 재선택 불가).
+            staggered(order: 4) {
+                AuraTarotBlock(
+                    offer: Aura.tarotOffer(today: readingDay, salt: Fortune.salt,
+                                           kind: reading.kind),
+                    selectedId: tarotCardId,
+                    tier: reading.tier,
+                    accent: accent,
+                    // 가림막을 걷어낸 뒤에만 만질 수 있다(히트테스트 게이트). opacity 0 으로
+                    // 숨어 있는 동안 탭이 새면 공개 의식이 무의미해진다(웹 active=revealed).
+                    active: revealed,
+                    reduced: reduceMotion,
+                    onPick: pickTarot
+                )
+                .padding(.top, 14)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -868,6 +976,204 @@ struct AuraRitualCover: View {
         }
         let delay: Double = reduceMotion ? 0.02 : 0.26
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { onReveal() }
+    }
+}
+
+// MARK: - 타로 (리딩의 마지막 박자 — 유일하게 유저가 고르는 한 장)
+
+/// 타로 3장 + 선택 해설(웹 TarotBlock 1:1). 제시 3장은 결정론(Aura.tarotOffer)이지만
+/// 무엇을 뒤집을지는 유저 몫이고, 선택은 하루 고정이다(AuraStore.markTarot — 재선택 불가).
+/// 엎어진 면은 필름 프레임 결, 뒤집힌 면은 미니 폴라로이드 — 오늘의 색은 여기서도
+/// 사진 영역(어두운 바탕)에만 싣는다.
+@MainActor
+struct AuraTarotBlock: View {
+    /// 오늘 이 기운에 제시된 카드 id 3장 — Aura.tarotOffer 산출, 서로 다름 보장
+    let offer: [Int]
+    /// 오늘 이미 뒤집은 카드 id. 미선택이면 nil.
+    let selectedId: Int?
+    /// 해설은 그날 그 기운의 등급을 따른다 — readings[tier]
+    let tier: AuraTier
+    let accent: Color
+    /// 가림막을 걷어낸 뒤에만 만질 수 있다(히트테스트 게이트)
+    let active: Bool
+    let reduced: Bool
+    let onPick: (Int) -> Void
+
+    /// 인앱 언어 raw("ko"/"en"/"ja"/"zh"). TarotPool 은 카탈로그 키가 아니라
+    /// 4언어 인라인 콘텐츠(fortunePool 선례)라 이 값으로 직접 고른다.
+    private var lang: String {
+        AppConfig.sharedDefaults?.string(forKey: AppConfig.languageKey) ?? "ko"
+    }
+
+    /// 빈 문자열이면 ko 폴백 — 콘텐츠가 뒤 단계에서 채워지는 기간의 방어(웹 l10n).
+    private func name(_ card: TarotCard) -> String {
+        let s = TarotPool.name(card, lang: lang)
+        return s.isEmpty ? (card.name.first ?? "") : s
+    }
+
+    private func readingText(_ card: TarotCard) -> String {
+        let s = TarotPool.reading(card, tier: tier, lang: lang)
+        return s.isEmpty ? TarotPool.reading(card, tier: tier, lang: "ko") : s
+    }
+
+    /// 저장이 0..39 를 보장하지만(관용 디코드) 인덱싱 한 번은 방어적으로.
+    private var selected: TarotCard? {
+        guard let selectedId else { return nil }
+        return TarotPool.card(forId: selectedId)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            (selected != nil ? AuraCopy.tarotLocked : AuraCopy.tarotPrompt)
+                .typography(.micro)
+                .foregroundStyle(AuraPaper.inkFaint)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(Array(offer.enumerated()), id: \.element) { i, cardId in
+                    if let card = TarotPool.card(forId: cardId) {
+                        AuraTarotFlipCard(
+                            card: card,
+                            name: name(card),
+                            up: selectedId == cardId,
+                            dimmed: selected != nil && selectedId != cardId,
+                            disabled: !active || selected != nil,
+                            accent: accent,
+                            reduced: reduced,
+                            index: i,
+                            onPick: { onPick(cardId) }
+                        )
+                    }
+                }
+            }
+            .padding(.top, 6)
+
+            // 해설 — 카드가 뒤집히고 한 박자 뒤에 떠오른다(웹 delay 0.3). 등급별 해설이라
+            // 같은 카드도 그날 하늘(tier)에 따라 다르게 읽힌다. 재진입 마운트는 초기
+            // 콘텐츠라 transition 이 돌지 않는다(웹 initial={false} 계약).
+            if let selected {
+                Text(verbatim: readingText(selected))
+                    .typography(.caption)
+                    .foregroundStyle(AuraPaper.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+                    .transition(reduced
+                        ? .opacity.animation(.easeOut(duration: 0.2).delay(0.1))
+                        : .opacity.combined(with: .offset(y: 6))
+                            .animation(.easeOut(duration: 0.45).delay(0.3)))
+            }
+        }
+    }
+}
+
+/// 뒤집히는 타로 카드 한 장(웹 TarotFlipCard 1:1). 앞뒤 두 면을 반대 각도로 겹쳐
+/// 회전시키고, 90° 를 지나며 opacity 를 교차해 뒷면 비침을 막는다.
+/// reduced-motion 은 회전 없이 페이드 교차만. 애니메이션 트랜잭션은 호출부
+/// (pickTarot 의 withAnimation)가 건다 — 재진입 마운트는 트랜잭션이 없어 무애니메이션.
+@MainActor
+struct AuraTarotFlipCard: View {
+    let card: TarotCard
+    /// 현재 언어로 해석된 카드 이름(빈 값 ko 폴백까지 끝난 문자열)
+    let name: String
+    let up: Bool
+    /// 다른 카드가 선택됨 — 흐리게, 재선택 불가
+    let dimmed: Bool
+    let disabled: Bool
+    let accent: Color
+    let reduced: Bool
+    /// 제시 순서(0..2) — 엎어진 면의 접근성 라벨("엎어진 카드 N")에만 쓴다
+    let index: Int
+    let onPick: () -> Void
+
+    /// 필름 프레임의 먹색 — 웹 #20201e.
+    private static let filmBase = Color(red: 0.125, green: 0.125, blue: 0.118)
+    /// 미니 폴라로이드의 인화지 — 웹 #e9e8e4. 큰 카드(#f2f1ee)보다 반 톤 어둡다.
+    private static let miniPaper = Color(red: 0.914, green: 0.910, blue: 0.894)
+
+    var body: some View {
+        Button(action: onPick) {
+            ZStack {
+                if reduced {
+                    // reduced-motion — 뒤집기 대신 페이드 교차(웹 0.25s 경로).
+                    back.opacity(up ? 0 : 1)
+                    front.opacity(up ? 1 : 0)
+                } else {
+                    back
+                        .rotation3DEffect(.degrees(up ? 180 : 0),
+                                          axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+                        .opacity(up ? 0 : 1)
+                    front
+                        .rotation3DEffect(.degrees(up ? 0 : -180),
+                                          axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+                        .opacity(up ? 1 : 0)
+                }
+            }
+            .aspectRatio(5.0 / 7.0, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(UNPressStyle())
+        .disabled(disabled)
+        // 흐림은 "다른 카드가 뽑혔다"는 신호 — 웹 transition-opacity 300ms.
+        .opacity(dimmed ? 0.4 : 1)
+        .animation(.easeOut(duration: 0.3), value: dimmed)
+        // 뒤집힌 카드는 이름으로, 엎어진 카드는 자리 번호로 읽힌다. 선택이 끝난 뒤의
+        // 잠금은 disabled 상태가 이미 전달한다(VoiceOver "흐리게 표시됨").
+        .accessibilityLabel(Text(verbatim:
+            up ? name : AppConfig.loc("엎어진 카드") + " \(index + 1)"))
+    }
+
+    /// 엎어진 면 — 필름 프레임 결. 위아래 퍼포레이션이 "같은 롤의 한 프레임"을 말한다.
+    private var back: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Self.filmBase)
+            VStack {
+                perforation
+                Spacer()
+                perforation
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            PixelIcon(.sparkle, size: 16, color: accent)
+                .opacity(0.75)
+        }
+    }
+
+    /// 퍼포레이션 한 줄 — 4점이 양끝 정렬로 흩어진다(웹 justify-between).
+    private var perforation: some View {
+        HStack(spacing: 0) {
+            ForEach(0..<4, id: \.self) { i in
+                if i > 0 { Spacer(minLength: 0) }
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(AuraPaper.paper.opacity(0.2))
+                    .frame(width: 3, height: 3)
+            }
+        }
+    }
+
+    /// 뒤집힌 면 — 미니 폴라로이드. 오늘의 색은 사진 영역(어두운 바탕)에만 싣는다.
+    private var front: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Color.bgPrimary
+                RadialGradient(colors: [accent, .clear],
+                               center: .center, startRadius: 0, endRadius: 56)
+                    .opacity(0.3)
+                PixelIcon(PixelIconName.resolve(card.icon), size: 20, color: accent)
+            }
+            .clipped()
+            Text(verbatim: name)
+                .typography(.micro)
+                .foregroundStyle(AuraPaper.inkSoft)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.top, 3)
+                .padding(.bottom, 2)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(4)
+        .background(Self.miniPaper, in: RoundedRectangle(cornerRadius: 2))
     }
 }
 

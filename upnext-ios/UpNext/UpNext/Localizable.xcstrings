@@ -25540,6 +25540,28 @@
         }
       }
     },
+    "가볍게 걷는 정도면 오늘은 충분해요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A light walk is plenty for today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軽く歩くくらいで今日は十分"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻轻走走，今天就够了"
+          }
+        }
+      }
+    },
     "가볍게 시작 — 하루 카드 1장": {
       "extractionState": "manual",
       "localizations": {
@@ -26175,6 +26197,28 @@
         }
       }
     },
+    "거리를 두는 것도 마음을 지키는 방법이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keeping some distance also protects the heart"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "距離を置くのも心を守る方法です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持距离，也是护住心的办法"
+          }
+        }
+      }
+    },
     "건강": {
       "extractionState": "manual",
       "localizations": {
@@ -26404,6 +26448,28 @@
         }
       }
     },
+    "결론을 서두르지 말고 한 박자 쉬어보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Don't rush the conclusion. Take a beat"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結論を急がず、ひと呼吸置いてみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "别急着下结论，缓一拍"
+          }
+        }
+      }
+    },
     "결심을 갉아먹는 안개 같은 존재.": {
       "extractionState": "manual",
       "localizations": {
@@ -26534,6 +26600,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "身边的暖意正朝一个人收窄，适合往深处走"
+          }
+        }
+      }
+    },
+    "계단을 만나면 반갑게 올라보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you meet stairs, take them gladly"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "階段に出会ったら喜んで上ってみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遇到楼梯，就当它是邀请"
           }
         }
       }
@@ -28175,6 +28263,28 @@
         }
       }
     },
+    "나가는 것과 들어오는 것을 가만히 살펴보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quietly watch what goes out and what comes in"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出ていくものと入ってくるものを静かに眺めてみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "静静看看进的和出的"
+          }
+        }
+      }
+    },
     "나중에": {
       "localizations": {
         "en": {
@@ -28944,6 +29054,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "夜深了"
+          }
+        }
+      }
+    },
+    "다듬다 만 부분을 오늘 매만져 보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give that half-polished part another pass today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手を入れかけた部分を今日整えてみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把修到一半的地方，今天再打磨一下"
           }
         }
       }
@@ -30085,6 +30217,28 @@
         }
       }
     },
+    "덜어낸 만큼 내일이 가벼워져요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you set down today lightens tomorrow"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "減らしたぶんだけ明日が軽くなります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "减去多少，明天就轻多少"
+          }
+        }
+      }
+    },
     "데이터": {
       "extractionState": "manual",
       "localizations": {
@@ -30907,6 +31061,28 @@
         }
       }
     },
+    "들은 이야기를 기억했다가 되물어 보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recall what they told you and ask about it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聞いた話を覚えておいて、また尋ねてみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记住听过的事，回头问一句"
+          }
+        }
+      }
+    },
     "등잔 뒤에서 흔들리는 그림자. 돌아보면 이미 다른 곳에 있다.": {
       "extractionState": "manual",
       "localizations": {
@@ -30995,6 +31171,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "不喜欢这个设计"
+          }
+        }
+      }
+    },
+    "따뜻하게 하고 하루를 일찍 접어도 좋아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stay warm and wrap the day up early"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "温かくして一日を早めに畳んでもいい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "穿暖一点，今天可以早点收工"
+          }
+        }
+      }
+    },
+    "따뜻한 것을 챙겨 마시며 이어가세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep going with something warm to drink"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "温かいものを飲みながら続けて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记得喝点热的，慢慢继续"
           }
         }
       }
@@ -31926,6 +32146,28 @@
         }
       }
     },
+    "마음에 둔 말을 오늘 전해도 좋아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good day to say the thing you've been holding"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "胸に置いた言葉を今日伝えてもいい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放在心里的话，今天可以说出来"
+          }
+        }
+      }
+    },
     "마음의 메아리": {
       "extractionState": "manual",
       "localizations": {
@@ -31968,6 +32210,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "心如圆珠般圆融。"
+          }
+        }
+      }
+    },
+    "마음이 머무는 카드를 한 장 뒤집어보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn over the card your heart lingers on"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心がとまるカードをめくってみてください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻开心里想选的那张牌"
           }
         }
       }
@@ -32284,6 +32548,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "适合主动联系的一天"
+          }
+        }
+      }
+    },
+    "먼저 웃는 쪽이 되어보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try being the first one to smile"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先に笑う側になってみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "试着做先微笑的那个人"
           }
         }
       }
@@ -33079,6 +33365,28 @@
         }
       }
     },
+    "몸이 쉬자고 하면 이유를 묻지 마세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When your body asks to rest, don't ask why"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体が休もうと言うなら理由を聞かないで"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体说想休息，就别问为什么"
+          }
+        }
+      }
+    },
     "몸이 스스로 속도를 낮추고 있어요. 따라가 주는 게 회복입니다": {
       "localizations": {
         "en": {
@@ -33097,6 +33405,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "身体自己在放慢，跟上它就是恢复"
+          }
+        }
+      }
+    },
+    "몸이 원하는 만큼 움직여도 괜찮아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move as much as your body asks for"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体が望むだけ動いても大丈夫"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体想动多少，就动多少"
           }
         }
       }
@@ -33305,6 +33635,28 @@
         }
       }
     },
+    "무리해서 맞추지 않아도 괜찮아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You don't have to bend yourself to fit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無理に合わせなくても大丈夫"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不必勉强迁就"
+          }
+        }
+      }
+    },
     "무지의 리치": {
       "extractionState": "manual",
       "localizations": {
@@ -33505,6 +33857,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "拖着没给的回应，正在找它的归处"
+          }
+        }
+      }
+    },
+    "미뤄둔 운동을 다시 꺼내기 좋은 날이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good day to dust off that shelved workout"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先延ばした運動を再開するのに良い日"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "适合重新拾起搁置的锻炼"
           }
         }
       }
@@ -33988,6 +34362,28 @@
         }
       }
     },
+    "밥 한 끼를 청해보기 좋은 날이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good day to suggest sharing a meal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "食事に誘ってみるのに良い日"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "适合约人吃顿饭的日子"
+          }
+        }
+      }
+    },
     "방어 자세": {
       "extractionState": "manual",
       "localizations": {
@@ -34399,6 +34795,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "发送"
+          }
+        }
+      }
+    },
+    "보내기 전에 한 번 더 읽어보면 좋아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worth one more read before you send it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送る前にもう一度読み返すといい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发出去之前，再读一遍"
           }
         }
       }
@@ -36233,6 +36651,28 @@
         }
       }
     },
+    "새 일을 벌이기보다 있는 것을 돌봐 주세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tend what you have instead of opening something new"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しく広げるより今あるものの世話を"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先照看手上的，别急着开新摊"
+          }
+        }
+      }
+    },
     "새 카드 %lld장 해금!": {
       "localizations": {
         "en": {
@@ -36346,6 +36786,28 @@
         }
       }
     },
+    "새로운 자리에 나가보기 좋은 날이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A good day to show up somewhere new"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しい集まりに顔を出すのに良い日"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "适合去新场合露个面的日子"
+          }
+        }
+      }
+    },
     "새벽 호수 위를 떠도는 흰 실. 지나간 자리엔 쓸쓸함만 남는다.": {
       "extractionState": "manual",
       "localizations": {
@@ -36365,6 +36827,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "飘荡于破晓湖面的白丝。所过之处,唯余寂寥。"
+          }
+        }
+      }
+    },
+    "생각만 하던 일을 오늘 시작해도 좋아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The thing you've only thought about can start today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "考えるだけだったことを今日始めてもいい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "那件只在心里想的事，今天可以开始"
           }
         }
       }
@@ -38882,6 +39366,28 @@
         }
       }
     },
+    "쓰던 것을 손보는 데 오늘을 써도 좋아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today is well spent mending what you already use"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使ってきたものの手入れに今日を使ってもいい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天可以用来修补正在用的东西"
+          }
+        }
+      }
+    },
     "아기 당근": {
       "extractionState": "manual",
       "localizations": {
@@ -39898,6 +40404,28 @@
         }
       }
     },
+    "엎어진 카드": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face-down card"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伏せられたカード"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背面朝上的牌"
+          }
+        }
+      }
+    },
     "여기는 영웅의 집이에요. 탐험 준비를 하고, 장비를 정돈하고, 코인을 관리하는 공간입니다.": {
       "extractionState": "manual",
       "localizations": {
@@ -40836,6 +41364,28 @@
         }
       }
     },
+    "오늘 뽑은 카드는 내일까지 함께합니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's card stays with you until tomorrow"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日のカードは明日まであなたと一緒です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天抽到的牌会陪你到明天"
+          }
+        }
+      }
+    },
     "오늘 스치는 안부에 평소보다 한 마디를 더 얹어보세요. 거기서 문이 열립니다": {
       "localizations": {
         "en": {
@@ -40854,6 +41404,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "今天的问候多添一句，门就从那里开"
+          }
+        }
+      }
+    },
+    "오늘 아낀 힘은 사라지지 않고 쌓여요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The strength you spare today stays saved up"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日惜しんだ力は消えずに積もります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天省下的力气不会消失，会攒起来"
           }
         }
       }
@@ -41017,6 +41589,50 @@
         }
       }
     },
+    "오늘은 맞장구만으로도 충분해요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today, just nodding along is enough"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日は相づちだけで十分"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天，附和几句就足够"
+          }
+        }
+      }
+    },
+    "오늘은 속도를 지키는 게 실력이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today, keeping your pace is the skill"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日は速度を守るのが腕前です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天，稳住节奏就是本事"
+          }
+        }
+      }
+    },
     "오늘은 쉬는 게 최선일 수 있어요": {
       "localizations": {
         "en": {
@@ -41124,6 +41740,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "今天的目标是早点躺下"
+          }
+        }
+      }
+    },
+    "오늘은 지키는 것만으로도 잘한 거예요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Just holding steady counts as a good day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日は守るだけでも上出来です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天守住就已经很好"
           }
         }
       }
@@ -41346,6 +41984,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "今日颜色"
+          }
+        }
+      }
+    },
+    "오늘의 서운함은 오늘 판단하지 않아도 돼요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's hurt doesn't need today's verdict"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日のさみしさに今日結論を出さなくていい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天的委屈，不用今天定论"
           }
         }
       }
@@ -41636,6 +42296,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "拖了许久的疲惫，正找到自己的出口"
+          }
+        }
+      }
+    },
+    "오래 망설인 제안을 오늘 꺼내도 괜찮아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That long-hesitated proposal can come out today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "長くためらった提案を今日切り出してもいい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "那个犹豫已久的提议，今天可以说出口"
           }
         }
       }
@@ -46065,6 +46747,28 @@
         }
       }
     },
+    "지금 하는 방식 그대로 밀고 가도 좋아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The way you're doing it now is worth keeping"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今のやり方のまま進めていい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照现在的做法继续走就好"
+          }
+        }
+      }
+    },
     "지금은 광고를 볼 수 없어요 · 코인으로 열 수 있어요": {
       "extractionState": "manual",
       "localizations": {
@@ -48019,6 +48723,28 @@
         }
       }
     },
+    "칭찬은 내일로 미루지 마세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Don't save the compliment for tomorrow"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ほめ言葉は明日に回さないで"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "夸人的话别留到明天"
+          }
+        }
+      }
+    },
     "칭호": {
       "extractionState": "manual",
       "localizations": {
@@ -48900,6 +49626,28 @@
         }
       }
     },
+    "큰 결정은 하루만 미뤄두어도 늦지 않아요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Big decisions can wait a day without being late"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大きな決めごとは一日置いても遅くありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大的决定，推迟一天也不迟"
+          }
+        }
+      }
+    },
     "큰일보다 잠깐이면 끝나는 일부터 손대세요. 작게 끝낸 하나가 물꼬를 틉니다": {
       "localizations": {
         "en": {
@@ -49101,6 +49849,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "时域之符"
+          }
+        }
+      }
+    },
+    "탄력이 붙었을 때 조금만 더 밀어보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "While the momentum's here, push just a bit more"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "弾みがついたうちにもう少しだけ押してみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "趁着势头，再轻轻推一把"
           }
         }
       }
@@ -49919,6 +50689,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "出售 (+%lld 金币)"
+          }
+        }
+      }
+    },
+    "판을 조금 키워도 감당되는 날이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A day you can handle playing a little bigger"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "少し大きく構えても受け止められる日"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "步子迈大一点，今天也接得住"
           }
         }
       }
@@ -51104,6 +51896,28 @@
         }
       }
     },
+    "햇빛 아래를 걷는 시간을 늘려보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linger a little longer walking in the sun"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日ざしの下を歩く時間を増やしてみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "多留点时间走在阳光下"
+          }
+        }
+      }
+    },
     "향기의 부적": {
       "extractionState": "manual",
       "localizations": {
@@ -51146,6 +51960,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "以香气蛊惑敌人。"
+          }
+        }
+      }
+    },
+    "허기와 피로가 오기 전에 미리 챙기세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eat and rest before hunger and fatigue arrive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空腹と疲れが来る前に先手を打って"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在饿和累找上门之前，先照顾自己"
+          }
+        }
+      }
+    },
+    "허리를 펴고 먼 곳을 한 번 바라보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Straighten up and look at something far away"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背筋を伸ばして遠くを一度眺めてみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "挺直腰，望一眼远处"
           }
         }
       }

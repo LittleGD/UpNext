@@ -275,6 +275,40 @@ enum Aura {
                    % UInt32(hintCount))
     }
 
+    // MARK: - 타로 (리딩 결과 화면의 "선택" 한 조각)
+
+    /// 타로 덱 크기. `TarotPool.deck.count` 와 일치해야 한다(웹 `TAROT_CARD_COUNT` —
+    /// 웹도 순환 import 를 피해 상수로 둔다). AuraRollTests 가 둘의 일치를 회귀로 잡는다.
+    static let tarotCardCount = 40
+
+    /// 오늘 이 기운에 제시할 타로 3장(카드 id, 서로 다름 보장). 웹 `auraTarotOffer` —
+    /// **웹/iOS 가 정수 연산까지 동일해야 하는 확정 스펙.** 임의 개선 금지.
+    /// while 재배치는 방어선이다: tarot0/1/2 접두사의 한 글자 차이가 FNV-1a 해시의
+    /// 홀짝을 바꿔 실전에서는 세 값이 이미 서로 다르지만, 스펙은 가정에 기대지 않는다.
+    /// salt 없으면(테스트·검증용) [0, 1, 2] 폴백.
+    static func tarotOffer(today: String, salt: String?, kind: AuraKind) -> [Int] {
+        guard let salt, !salt.isEmpty else { return [0, 1, 2] }
+        let base = today + "|" + salt + "|" + kind.rawValue
+        let a = Int(Fortune.fnv1a("tarot0:" + base) % UInt32(tarotCardCount))
+        var b = Int(Fortune.fnv1a("tarot1:" + base) % UInt32(tarotCardCount))
+        while b == a { b = (b + 1) % tarotCardCount }
+        var c = Int(Fortune.fnv1a("tarot2:" + base) % UInt32(tarotCardCount))
+        while c == a || c == b { c = (c + 1) % tarotCardCount }
+        return [a, b, c]
+    }
+
+    /// 조언 표현 가짓수 — 조짐(auraVariants=3)과 달리 조언은 6종. 웹 `AURA_ADVICE_VARIANTS`.
+    static let adviceVariants = 6
+
+    /// 조언 변주 인덱스 (0..5). 웹 `auraAdviceVariant` — `AuraReading.variant`(0..2)에서
+    /// 분리했다: variant 는 스냅샷 디코드 하위호환이 걸린 스키마라 범위를 못 늘리고,
+    /// 조언만 별도 해시로 6종을 돈다. 조짐과 접두사가 달라 상관관계가 없다. salt 없으면 0.
+    static func adviceVariant(today: String, salt: String?, kind: AuraKind) -> Int {
+        guard let salt, !salt.isEmpty else { return 0 }
+        return Int(Fortune.fnv1a("advicevar:" + today + "|" + salt + "|" + kind.rawValue)
+                   % UInt32(adviceVariants))
+    }
+
     // MARK: - 관측 창 집계
 
     /// 창 안의 집계. 웹 `Window` interface.
@@ -395,8 +429,11 @@ struct AuraState {
     var opened: [AuraKind]
     /// 오늘 고정된 3종 리딩. 아직 첫 리딩을 열지 않았으면 nil.
     var snapshot: AuraSnapshot?
+    /// 오늘 각 기운에서 뒤집은 타로 카드 id(0..39). 없는 기운은 아직 미선택.
+    /// 선택은 유저 몫이지만 하루 고정 — 재선택 불가(웹 `auraTarot`).
+    var tarot: [AuraKind: Int] = [:]
 
-    static let empty = AuraState(opened: [], snapshot: nil)
+    static let empty = AuraState(opened: [], snapshot: nil, tarot: [:])
 
     var allOpened: Bool { opened.count >= AuraKind.allCases.count }
 }
@@ -458,6 +495,38 @@ enum AuraStore {
         return obj
     }
 
+    /// 타로 선택 관용 디코드 — 0..39 정수만 인정하고 어긋난 항목은 그 기운만 버린다.
+    /// 덱이 줄어드는 일은 없지만(id 불변 계약) 손댄 저장값이 화면 인덱싱을 깨면 안 된다.
+    /// 웹 `decodeTarot` 과 같은 계약(Number.isInteger + 0..39 범위).
+    private static func decodeTarot(_ value: Any?) -> [AuraKind: Int] {
+        guard let raw = value as? [String: Any] else { return [:] }
+        var out: [AuraKind: Int] = [:]
+        for kind in AuraKind.allCases {
+            guard let v = raw[kind.rawValue], !(v is Bool),
+                  let id = v as? Int,
+                  id >= 0, id < Aura.tarotCardCount else { continue }
+            out[kind] = id
+        }
+        return out
+    }
+
+    /// 타로 선택을 JSON 딕셔너리로. 비어 있으면 nil — 웹이 `hasTarot` 로 빈 객체를
+    /// 저장하지 않는 것과 같은 계약이다(롤오버 때 빈 흔적을 남기지 않는다).
+    private static func encodeTarot(_ tarot: [AuraKind: Int]) -> [String: Any]? {
+        guard !tarot.isEmpty else { return nil }
+        return Dictionary(uniqueKeysWithValues: tarot.map { ($0.key.rawValue, $0.value) })
+    }
+
+    /// 오늘 자 타로 선택을 raw 에 반영. 있으면 쓰고 없으면 **지운다** — auraDate 를
+    /// 오늘로 올리면서 어제 선택을 남겨두면 그 값이 오늘 것으로 승격된다.
+    private static func applyTarot(_ tarot: [AuraKind: Int], to raw: inout [String: Any]) {
+        if let encoded = encodeTarot(tarot) {
+            raw["auraTarot"] = encoded
+        } else {
+            raw.removeValue(forKey: "auraTarot")
+        }
+    }
+
     // MARK: 공개 API
 
     /// 스냅샷이 고정된 날짜(auraDate). 리딩 오버레이가 실마리·흘려보낼 것 인덱스의
@@ -472,7 +541,8 @@ enum AuraStore {
         let raw = readRaw()
         guard let date = raw["auraDate"] as? String, date == today else { return .empty }
         return AuraState(opened: decodeOpened(raw["auraOpened"]),
-                         snapshot: decodeSnapshot(raw["auraSnapshot"]))
+                         snapshot: decodeSnapshot(raw["auraSnapshot"]),
+                         tarot: decodeTarot(raw["auraTarot"]))
     }
 
     /// 첫 리딩을 여는 순간 3종을 한꺼번에 고정한다.
@@ -497,6 +567,8 @@ enum AuraStore {
         } else {
             raw.removeValue(forKey: "auraSnapshot")
         }
+        // 날짜가 넘어왔다면 어제 타로 선택도 여기서 함께 버려진다(current 가 이미 오늘 것만 담는다).
+        applyTarot(current.tarot, to: &raw)
         writeRaw(raw)
         return snapshot
     }
@@ -521,7 +593,40 @@ enum AuraStore {
         } else {
             raw.removeValue(forKey: "auraSnapshot")
         }
+        applyTarot(current.tarot, to: &raw)
         writeRaw(raw)
         return next
+    }
+
+    /// 타로 선택을 기록한다. 그날 그 기운의 선택은 하루 고정 — 이미 있으면 덮지 않는다.
+    /// (탭 두 번·경쟁 렌더가 와도 첫 선택이 이긴다. 재선택 불가는 UI 약속이 아니라
+    /// 저장 계층의 계약이다. 웹 `markAuraTarot` 과 같은 규칙.)
+    ///
+    /// - Returns: 오늘 이 기운에 고정된 카드 id. 기존 선택이 있으면 그 값이다.
+    @discardableResult
+    static func markTarot(today: String, kind: AuraKind, cardId: Int) -> Int {
+        let current = state(today: today)
+        if let existing = current.tarot[kind] { return existing }
+        // 저장 계약은 관용 디코드와 같다 — 0..39 정수만. 밖의 값은 기록하지 않고 그대로
+        // 돌려준다(UI 는 tarotOffer 산출값만 넘기므로 실전에서 걸릴 일은 없는 방어선).
+        guard cardId >= 0, cardId < Aura.tarotCardCount else { return cardId }
+        var raw = readRaw()
+        raw["auraDate"] = today
+        // 날짜가 넘어온 첫 기록이라면 어제 열람·스냅샷은 여기서 함께 버려진다.
+        if current.opened.isEmpty {
+            raw.removeValue(forKey: "auraOpened")
+        } else {
+            raw["auraOpened"] = current.opened.map(\.rawValue)
+        }
+        if let snapshot = current.snapshot, let encoded = encodeSnapshot(snapshot) {
+            raw["auraSnapshot"] = encoded
+        } else {
+            raw.removeValue(forKey: "auraSnapshot")
+        }
+        var tarot = current.tarot
+        tarot[kind] = cardId
+        applyTarot(tarot, to: &raw)
+        writeRaw(raw)
+        return cardId
     }
 }
