@@ -64,6 +64,11 @@ struct UpNextApp: App {
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
                     store.reconcileForToday()
+                } else if phase == .background {
+                    // 백그라운드 진입 — 디바운스 창(300ms) 안의 pending write 를 즉시
+                    // 착수시킨다 (웹 pagehide flushPendingSync 대응). Up Hero 변경 직후
+                    // suspend 돼도 Firestore 오프라인 큐에 실려 eventually 전송된다.
+                    store.flushPendingSync()
                 }
             }
             // 14-completion-delay(선택) — 첫 렌더 후 사운드 프리웜(완료/레벨업 버퍼 합성 +

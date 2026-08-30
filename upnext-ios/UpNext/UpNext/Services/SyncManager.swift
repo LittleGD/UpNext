@@ -22,8 +22,10 @@ import Combine
 import FirebaseFirestore
 
 /// getCloudData 결과 — "문서 없음" 과 "조회 실패" 를 명확히 구분한다.
+///   uphero: 필드 부재/손상 시 nil (= "로컬 유지" 신호). 채택 여부(한 방향 병합)는
+///   GameStore.adoptCloudUpHero 가 판단한다 — 웹 SyncProvider 와 동일한 소유권.
 enum CloudLoad {
-    case loaded(progress: UserProgress, daily: DailyState, retention: RetentionState?)
+    case loaded(progress: UserProgress, daily: DailyState, retention: RetentionState?, uphero: CloudUpHeroState?)
     case notFound   // 문서 자체가 없음 — 신규 계정
     case failed     // 네트워크/권한 오류 또는 손상 문서 — 기존 데이터 보호 위해 덮어쓰면 안 됨
 }
@@ -43,7 +45,7 @@ final class SyncManager: ObservableObject {
     @Published private(set) var status: SyncStatus = .idle
 
     /// 클라우드 변경을 로컬 상태로 반영하는 콜백 (Phase 4 에서 store 연결).
-    private var onCloudUpdate: ((UserProgress, DailyState, RetentionState?) -> Void)?
+    private var onCloudUpdate: ((UserProgress, DailyState, RetentionState?, CloudUpHeroState?) -> Void)?
 
     private var listener: ListenerRegistration?
     private var currentUid: String?
@@ -61,6 +63,9 @@ final class SyncManager: ObservableObject {
     private var pendingDaily: DailyDoc?
     private var pendingRetention: RetentionState?
     private var pendingOnboarding: Bool?
+    // Up Hero — setData 로 바로 넣을 수 있게 인코딩 완료 형태로 보관.
+    // (JSONEncoder 경유라 XCTest 가 검증하는 웹 와이어 포맷과 동일 — UpHeroCloudSchema.)
+    private var pendingUpHero: [String: Any]?
 
     private var debounceTask: Task<Void, Never>?
     private var retryTask: Task<Void, Never>?
@@ -78,7 +83,7 @@ final class SyncManager: ObservableObject {
 
     func startListener(
         uid: String,
-        onCloudUpdate: @escaping (UserProgress, DailyState, RetentionState?) -> Void
+        onCloudUpdate: @escaping (UserProgress, DailyState, RetentionState?, CloudUpHeroState?) -> Void
     ) {
         stopListener()
         currentUid = uid
@@ -105,6 +110,7 @@ final class SyncManager: ObservableObject {
         pendingDaily = nil
         pendingRetention = nil
         pendingOnboarding = nil
+        pendingUpHero = nil
         hasLocalPendingWrite = false
         status = .idle
     }
@@ -129,7 +135,10 @@ final class SyncManager: ObservableObject {
         let daily = FirestoreSchema.hydrateDaily(
             userDoc.daily ?? emptyDailyDoc(),
             catalog: { CardCatalog.card(id: $0) })
-        onCloudUpdate?(progress, daily, userDoc.retention)
+        // uphero 는 UserDoc 밖에서 별도 관용 디코드 — 손상돼도 progress 동기화를
+        // 막지 않는다 (nil = "필드 부재/손상 → 로컬 유지" 신호, 웹과 동일).
+        let uphero = CloudUpHeroState.decodeFirestore(snapshot.get("uphero"))
+        onCloudUpdate?(progress, daily, userDoc.retention, uphero)
         isUpdatingFromCloud = false
     }
 
@@ -151,6 +160,28 @@ final class SyncManager: ObservableObject {
         enqueue { self.pendingOnboarding = complete }
     }
 
+    /// Up Hero 로컬 변경 → 클라우드 (웹 syncToCloud("uphero")).
+    /// currentSession 은 CloudUpHeroState 가 읽지 않으므로 통과만으로 빠진다.
+    /// 흔적 없는 빈 상태는 올리지 않는다: setData(merge) 로 클라우드의 코인·인벤을
+    /// 0/[] 로 덮는 위험만 있고 이득이 없다 (retention lastCheckInDate 게이트와 동일 방어선).
+    func syncUpHero(_ state: UpHeroState) {
+        let cloud = CloudUpHeroState(state)
+        guard cloud.hasFootprint, let payload = cloud.firestoreValue() else { return }
+        enqueue { self.pendingUpHero = payload }
+    }
+
+    /// 디바운스를 기다리지 않고 pending write 를 즉시 flush (웹 flushPendingSync).
+    /// scenePhase .background 진입 훅용 — 변경 직후 300ms 창 안에서 suspend 되면
+    /// write 착수가 늦어지는 문제를 줄인다 (Firestore iOS 는 오프라인 큐가 있어
+    /// 착수만 하면 재시작 후에도 eventually 전송된다).
+    func flushNow() {
+        debounceTask?.cancel()
+        debounceTask = nil
+        guard hasPending else { return }
+        let uid = currentUid
+        Task { [weak self] in await self?.flushSync(expectedUid: uid) }
+    }
+
     private func enqueue(_ mutate: () -> Void) {
         guard let queuedUid = currentUid, !isUpdatingFromCloud, isSyncReady else { return }
         mutate()
@@ -164,7 +195,8 @@ final class SyncManager: ObservableObject {
     }
 
     private var hasPending: Bool {
-        pendingProgress != nil || pendingDaily != nil || pendingRetention != nil || pendingOnboarding != nil
+        pendingProgress != nil || pendingDaily != nil || pendingRetention != nil
+            || pendingOnboarding != nil || pendingUpHero != nil
     }
 
     /// `expectedUid` 는 enqueue 시점의 uid — 디바운스 300ms 동안 로그아웃→재로그인이
@@ -180,6 +212,7 @@ final class SyncManager: ObservableObject {
             pendingDaily = nil
             pendingRetention = nil
             pendingOnboarding = nil
+            pendingUpHero = nil
             hasLocalPendingWrite = false
             return
         }
@@ -190,7 +223,9 @@ final class SyncManager: ObservableObject {
         let sentDaily = pendingDaily
         let sentRetention = pendingRetention
         let sentOnboarding = pendingOnboarding
-        guard sentProgress != nil || sentDaily != nil || sentRetention != nil || sentOnboarding != nil else {
+        let sentUpHero = pendingUpHero
+        guard sentProgress != nil || sentDaily != nil || sentRetention != nil
+                || sentOnboarding != nil || sentUpHero != nil else {
             hasLocalPendingWrite = false
             return
         }
@@ -198,6 +233,7 @@ final class SyncManager: ObservableObject {
         pendingDaily = nil
         pendingRetention = nil
         pendingOnboarding = nil
+        pendingUpHero = nil
         status = .syncing
 
         var payload: [String: Any] = [
@@ -218,6 +254,9 @@ final class SyncManager: ObservableObject {
             }
             if let o = sentOnboarding {
                 payload["onboardingComplete"] = o
+            }
+            if let u = sentUpHero {
+                payload["uphero"] = u
             }
         } catch {
             // 인코딩 실패 — 같은 값을 재시도해도 실패하므로 전송분은 버린다.
@@ -242,6 +281,7 @@ final class SyncManager: ObservableObject {
             if pendingDaily == nil { pendingDaily = sentDaily }
             if pendingRetention == nil { pendingRetention = sentRetention }
             if pendingOnboarding == nil { pendingOnboarding = sentOnboarding }
+            if pendingUpHero == nil { pendingUpHero = sentUpHero }
             hasLocalPendingWrite = true
             scheduleRetry()
         }
@@ -275,12 +315,20 @@ final class SyncManager: ObservableObject {
     // MARK: - 초기 업로드 / 조회 / 삭제
 
     /// 로컬 데이터를 클라우드에 최초 업로드 (웹 uploadLocalData). 디바운스 우회.
-    func uploadLocalData(uid: String, progress: UserProgress, daily: DailyState, retention: RetentionState) async {
+    ///   uphero: 흔적(코인/인벤/도감/던전/탐험권/꾸미기)이 없는 빈 상태면 키를 생략해
+    ///   클라우드의 영웅 데이터를 merge 로 덮지 않는다 (웹과 동일 게이트).
+    func uploadLocalData(
+        uid: String,
+        progress: UserProgress,
+        daily: DailyState,
+        retention: RetentionState,
+        uphero: CloudUpHeroState? = nil
+    ) async {
         hasLocalPendingWrite = true
         status = .syncing
         let docRef = Firestore.firestore().collection(usersCollection).document(uid)
         do {
-            let payload: [String: Any] = [
+            var payload: [String: Any] = [
                 "progress": try Firestore.Encoder().encode(progress),
                 "daily": try Firestore.Encoder().encode(FirestoreSchema.dehydrateDaily(daily)),
                 "retention": try Firestore.Encoder().encode(retention),
@@ -291,6 +339,9 @@ final class SyncManager: ObservableObject {
                     "lastDeviceId": Self.deviceId(),
                 ],
             ]
+            if let uphero, uphero.hasFootprint, let upheroPayload = uphero.firestoreValue() {
+                payload["uphero"] = upheroPayload
+            }
             // merge: true — `notFound` 경로(신규 계정) 에선 효과 동일하나, 다른 기기가
             // getCloudData ↔ setData 사이에 fields 를 써넣은 경우 그 fields 를 보존한다
             // (no-merge 면 통째 덮어쓰기 = 데이터 손실).
@@ -323,7 +374,8 @@ final class SyncManager: ObservableObject {
             let daily = FirestoreSchema.hydrateDaily(
                 userDoc.daily ?? emptyDailyDoc(),
                 catalog: { CardCatalog.card(id: $0) })
-            return .loaded(progress: progress, daily: daily, retention: userDoc.retention)
+            let uphero = CloudUpHeroState.decodeFirestore(snapshot.get("uphero"))
+            return .loaded(progress: progress, daily: daily, retention: userDoc.retention, uphero: uphero)
         } catch {
             return .failed   // 손상 문서 — 신규 취급해 덮어쓰면 기존 데이터 유실
         }

@@ -30,6 +30,10 @@ struct MergeConflictData: Equatable {
     let cloudProgress: UserProgress
     let cloudDaily: DailyState
     let cloudRetention: RetentionState?
+    /// nil = 클라우드 문서에 uphero 필드 없음 (Up Hero 를 만진 적 없는 계정).
+    /// 다이얼로그는 챌린지 진행도만 비교해 보여주므로 Up Hero 는 선택과 무관하게
+    /// 한 방향 병합(로컬 흔적 없을 때만 채택)을 지킨다 — 웹 SyncProvider 와 동일.
+    let cloudUpHero: CloudUpHeroState?
 
     /// 추천 분기 — 웹 MergeConflictDialog: `cloudDays >= localDays` 면 "cloud" 추천.
     /// 동률 시 cloud 우선 (백업의 신뢰성).
@@ -252,6 +256,13 @@ final class GameStore: ObservableObject {
             return
         }
         #endif
+        // Up Hero 영속화 → 클라우드 업로드 배선 (웹 saveToStorage → syncToCloud("uphero")).
+        // SyncManager 가 uid/isSyncReady/isUpdatingFromCloud/흔적 게이트를 모두 판단하므로
+        // 익명·부트스트랩 중·클라우드 채택 echo 는 여기서 걱정하지 않는다.
+        upHero.onPersist = { [weak self] state in
+            self?.sync.syncUpHero(state)
+        }
+
         // Auth 상태 변화를 단일 진입점에서 처리 — 로그인 시 부트스트랩, 로그아웃 시 클리어.
         auth.$state
             .sink { [weak self] state in
@@ -394,7 +405,8 @@ final class GameStore: ObservableObject {
                 uid: conflict.uid,
                 progress: conflict.localProgress,
                 daily: conflict.localDaily,
-                retention: conflict.localRetention ?? RetentionState.fresh(today: Self.todayString()))
+                retention: conflict.localRetention ?? RetentionState.fresh(today: Self.todayString()),
+                uphero: localUpHeroPayload())
             // Codex adversarial #2 — await 동안 로그아웃/계정전환 시 stale task.
             // 현재 부트스트랩된 계정이 여전히 이 conflict 의 uid 일 때만 live sync·ready 부착.
             // (bootstrap L306 의 동일 가드 패턴. 어긋나면 폐기.)
@@ -423,6 +435,10 @@ final class GameStore: ObservableObject {
         daily = conflict.cloudDaily
         retention = conflict.cloudRetention ?? RetentionState.fresh(today: Self.todayString())
         LocalProgressCacheStore.clear()
+        // Up Hero 는 여기서도 한 방향 규칙을 지킨다 (로컬에 흔적이 없을 때만 채택).
+        // 유저의 "클라우드" 선택은 챌린지 진행도 비교에 대한 답이므로, "이 기기의
+        // 코인·인벤토리를 버려도 좋다" 는 동의로 해석하지 않는다 (웹과 동일).
+        adoptCloudUpHero(conflict.cloudUpHero)
         // 16-reroll-missing — 머지(클라우드 선택) 후에도 오늘 날짜로 리셋 강제.
         reconcileForToday(syncChanges: false)
         startLiveSync(uid: conflict.uid)
@@ -470,7 +486,7 @@ final class GameStore: ObservableObject {
         guard bootstrappedUid == uid else { return }
 
         switch result {
-        case let .loaded(cloudProgress, cloudDaily, cloudRetention):
+        case let .loaded(cloudProgress, cloudDaily, cloudRetention, cloudUpHero):
             // R1 — 머지 분기 (High #2 픽스: AND 로 *진짜 충돌* 만 다이얼로그).
             //   양쪽 모두 진척 있을 때만 사용자에게 위임. 한쪽이 비어있으면 자동 결정.
             //   한쪽만 진척 있는 케이스:
@@ -481,7 +497,8 @@ final class GameStore: ObservableObject {
                 mergeConflict = MergeConflictData(
                     uid: uid,
                     localProgress: lp, localDaily: ld, localRetention: localRetention,
-                    cloudProgress: cloudProgress, cloudDaily: cloudDaily, cloudRetention: cloudRetention)
+                    cloudProgress: cloudProgress, cloudDaily: cloudDaily,
+                    cloudRetention: cloudRetention, cloudUpHero: cloudUpHero)
                 AuthFunnel.log(.mergeShown, [
                     "local_days": "\(lp.totalDaysCompleted)",
                     "cloud_days": "\(cloudProgress.totalDaysCompleted)",
@@ -494,7 +511,12 @@ final class GameStore: ObservableObject {
             if hadLocalProgress, let lp = localProgress, let ld = localDaily,
                hasMeaningfulProgress(lp) && !hasMeaningfulProgress(cloudProgress) {
                 let lr = localRetention ?? RetentionState.fresh(today: Self.todayString())
-                await sync.uploadLocalData(uid: uid, progress: lp, daily: ld, retention: lr)
+                // Up Hero 는 progress 승부와 독립 — 로컬이 비어 있으면 먼저 클라우드를
+                // 채택하고 그 결과를 다시 올린다 (채택 후엔 로컬 = 클라우드라 무해, 웹과 동일 순서).
+                adoptCloudUpHero(cloudUpHero)
+                await sync.uploadLocalData(
+                    uid: uid, progress: lp, daily: ld, retention: lr,
+                    uphero: localUpHeroPayload())
                 LocalProgressCacheStore.clear()
                 // 16-reroll-missing — 로컬 daily(ld)를 채택하는 경로. 업로드는 이미 끝났으니
                 //   syncChanges:false 로 중복 write 를 막고, 날짜 리셋만 강제한다(다음 자연
@@ -511,6 +533,10 @@ final class GameStore: ObservableObject {
             daily = cloudDaily
             retention = cloudRetention ?? RetentionState.fresh(today: Self.todayString())
             LocalProgressCacheStore.clear()  // 이젠 Firestore 가 진실 — 캐시 제거
+            // Up Hero(코인·영웅·인벤) 복원 — 로컬에 흔적이 없을 때만 채택 (한 방향 병합).
+            // bootstrapUpHero(initialize) 보다 먼저: 채택되면 isLoaded 가 서 있어
+            // heroStartLevel 재시드/idle 정산을 건너뛴다 (웹 _setFromCloud 와 동일).
+            adoptCloudUpHero(cloudUpHero)
             reconcileForToday(syncChanges: false)
             startLiveSync(uid: uid)
             phase = .ready
@@ -523,7 +549,9 @@ final class GameStore: ObservableObject {
             // 클라우드 비어있고 익명 진행 있음 → 익명 데이터를 클라우드에 업로드 (충돌 없음).
             if hadLocalProgress, let lp = localProgress, let ld = localDaily {
                 let lr = localRetention ?? RetentionState.fresh(today: Self.todayString())
-                await sync.uploadLocalData(uid: uid, progress: lp, daily: ld, retention: lr)
+                await sync.uploadLocalData(
+                    uid: uid, progress: lp, daily: ld, retention: lr,
+                    uphero: localUpHeroPayload())
                 LocalProgressCacheStore.clear()
                 // 16-reroll-missing — 클라우드 미존재 + 로컬 업로드 경로도 날짜 리셋 강제.
                 reconcileForToday(syncChanges: false)
@@ -547,22 +575,61 @@ final class GameStore: ObservableObject {
     /// 라이브 리스너 시작 (다른 기기 변경 수신) + 로컬 write 허용.
     /// bootstrap(.loaded) 와 finishOnboarding 이 공유.
     private func startLiveSync(uid: String) {
-        sync.startListener(uid: uid) { [weak self] cloudProgress, cloudDaily, cloudRetention in
-            self?.applyCloudUpdate(cloudProgress, cloudDaily, cloudRetention)
+        sync.startListener(uid: uid) { [weak self] cloudProgress, cloudDaily, cloudRetention, cloudUpHero in
+            self?.applyCloudUpdate(cloudProgress, cloudDaily, cloudRetention, cloudUpHero)
         }
         sync.setSyncReady(true)
         syncAllIfReady()
+    }
+
+    // MARK: - Up Hero 클라우드 동기화 (웹 SyncProvider adoptCloudUpHero / localUpHeroPayload)
+
+    /// 클라우드 Up Hero 채택 — 병합은 한 방향만 한다. 로컬에 흔적이 없고(신규 설치 /
+    /// 재설치 / 로그아웃 후 재로그인) 클라우드에 실제 진행이 있을 때만 내려받는다.
+    /// 로컬에 흔적이 있으면 로컬이 이긴다: 코인·인벤토리는 단조 증가 축이 아니라
+    /// (쓰면 줄고 팔면 사라진다) compareProgress 류 벡터 비교로 "앞선 쪽" 을 고를 수 없다.
+    ///
+    /// 로컬 판정을 "저장 파일 존재" 로 두지 않는 이유: initialize 가 부팅 시 기본값을
+    /// 곧바로 persist 하므로 파일은 "있지만 빈" 상태가 된다. 그걸 로컬 데이터로 오인하면
+    /// 새 기기 로그인 때 클라우드 영웅 데이터를 채택하지 못한다 — 그래서 흔적으로 판정
+    /// (웹 커밋 9c2bf93 에서 실측된 회귀의 iOS 대응).
+    ///
+    /// 클라우드 쪽 흔적도 확인한다: 빈 클라우드 값을 채택하면 isLoaded 가 서서
+    /// initialize 의 heroStartLevel seed 를 건너뛰게 만든다 (챌린지 Lv 41 신규 유저의
+    /// 영웅 Lv 가 41 시작점을 잃는 회귀).
+    private func adoptCloudUpHero(_ cloud: CloudUpHeroState?) {
+        guard let cloud, cloud.hasFootprint else { return }
+        guard !upHero.state.hasUpHeroFootprint else { return }
+        upHero.adoptCloudState(cloud)
+    }
+
+    /// 업로드용 Up Hero 페이로드 — 흔적 게이트는 uploadLocalData/syncUpHero 가 판단.
+    private func localUpHeroPayload() -> CloudUpHeroState {
+        CloudUpHeroState(upHero.state)
+    }
+
+    /// scenePhase .background 진입 훅 — 디바운스 창(300ms) 안의 pending write 를
+    /// 즉시 착수시킨다 (웹 pagehide 의 flushPendingSync 대응).
+    func flushPendingSync() {
+        sync.flushNow()
     }
 
     /// 라이브 리스너가 전달한 클라우드 변경을 로컬에 반영.
     /// SyncManager.handleSnapshot 이 3중 가드(hasPendingWrites/isUpdatingFromCloud/
     /// hasLocalPendingWrite)를 통과시킨 변경만 전달한다.
     /// (웹 _setFromCloud 의 dailyProgressScore 단조 stale 가드는 다음 슬라이스에서 보강.)
-    private func applyCloudUpdate(_ cloudProgress: UserProgress, _ cloudDaily: DailyState, _ cloudRetention: RetentionState?) {
+    private func applyCloudUpdate(
+        _ cloudProgress: UserProgress,
+        _ cloudDaily: DailyState,
+        _ cloudRetention: RetentionState?,
+        _ cloudUpHero: CloudUpHeroState?
+    ) {
         // 다기기 sync 의 level 점프는 풀스크린 축하 대상 아님 — 한 step 만 mute.
         suppressNextLevelUp = true
         progress = GameRules.normalizeXpLevel(cloudProgress).progress
         retention = cloudRetention ?? retention ?? RetentionState.fresh(today: Self.todayString())
+        // Up Hero 도 같은 한 방향 병합 — 첫 채택 이후엔 로컬 흔적이 생겨 no-op.
+        adoptCloudUpHero(cloudUpHero)
         // stale 가드 — 같은 날짜인데 클라우드 daily 의 진행 점수가 로컬보다 낮으면
         //   (리오더돼 늦게 도착한 오래된 snapshot) daily 를 덮어쓰지 않는다.
         //   웹 _setFromCloud 의 dailyProgressScore 단조 비교.
@@ -836,7 +903,9 @@ final class GameStore: ObservableObject {
             // 로그인 사용자 — 클라우드 업로드 + 라이브 동기화.
             phase = .loading
             Task {
-                await sync.uploadLocalData(uid: uid, progress: p, daily: d, retention: r)
+                await sync.uploadLocalData(
+                    uid: uid, progress: p, daily: d, retention: r,
+                    uphero: localUpHeroPayload())
                 guard bootstrappedUid == uid else { return }  // 업로드 중 로그아웃 — 폐기
                 startLiveSync(uid: uid)
                 phase = .ready
