@@ -57,42 +57,104 @@ enum AuraCopy {
     }
 
     /// 조짐 — 파라미터가 없는 리터럴 한 줄. 실측 수치는 여기까지 오지 않는다.
-    /// 웹 `aura.omen.*` 와 같은 문장이며, 보간이 없어 번역이 어순에 자유롭다.
-    /// 조짐 문장 — 같은 조짐 안에서도 reading.variant 로 표현이 갈린다.
+    /// 키는 기운별로 갈린다(웹 aura.omen.{kind}.{omen}.{variant}) — 같은 "모임"의
+    /// 조짐도 재물과 관계에서 다른 문장으로 읽혀야 세 리딩이 복붙으로 안 보인다.
+    /// 같은 조짐 안에서도 reading.variant 로 표현이 갈린다.
     static func omen(_ reading: AuraReading) -> Text {
-        let table: [AuraOmen: [Text]] = [
-            .closing: [
-            Text("끝맺음의 기운이 붙어 있어요. 시작한 것이 마무리로 이어집니다"),
-            Text("매듭이 잘 지어지는 결이에요"),
-            Text("벌여둔 것들이 제자리를 찾아가는 때예요"),
+        let table: [String: [Text]] = [
+            "wealth.closing": [
+            Text("매듭의 기운이 손끝에 와 있어요. 오래 끈 일이 오늘 끝을 허락합니다"),
+            Text("벌여둔 장부가 정리되려는 결이에요. 셈이 맞아떨어지는 날"),
+            Text("시작한 일이 마무리 쪽으로 기울어요. 끝낸 자리에 다음 것이 들어옵니다"),
         ],
-            .gathering: [
-            Text("힘이 한 방향으로 모이고 있어요"),
-            Text("흩어져 있던 것이 한 곳으로 당겨집니다"),
-            Text("초점이 좁아지는 시기예요. 깊어지기 좋습니다"),
+            "wealth.gathering": [
+            Text("흩어져 있던 몫이 한 곳으로 모이는 중이에요"),
+            Text("일의 초점이 좁아지고 있어요. 하나에 깊게 들어가기 좋습니다"),
+            Text("여기저기 걸쳐둔 힘이 당신 책상 위로 당겨지고 있어요"),
         ],
-            .rhythm: [
-            Text("리듬이 몸에 배어 있는 시기예요"),
-            Text("애쓰지 않아도 박자가 맞아떨어져요"),
-            Text("반복이 당신 편에 서 있어요"),
+            "wealth.rhythm": [
+            Text("손에 익은 박자가 일을 끌고 가는 시기예요"),
+            Text("애쓰지 않아도 일머리가 돌아가는 결이에요"),
+            Text("매일 반복해온 그 순서가 오늘의 밑천이 됩니다"),
         ],
-            .carried: [
-            Text("이어온 시간이 지금의 당신을 받치고 있어요"),
-            Text("지나온 날들이 발밑에 깔려 있어요"),
-            Text("쌓아둔 것이 조용히 일하고 있어요"),
+            "wealth.carried": [
+            Text("쌓아온 것이 이자처럼 조용히 붙고 있어요"),
+            Text("지난날 해둔 일이 지금 값을 하는 중이에요"),
+            Text("묵혀둔 공이 헛되지 않았어요. 발밑이 든든합니다"),
         ],
-            .resting: [
-            Text("쉼이 다음을 준비하고 있어요"),
-            Text("비워둔 자리에 힘이 고이는 중이에요"),
-            Text("멈춘 것이 아니라 물러나 있는 거예요"),
+            "wealth.resting": [
+            Text("곳간을 닫아두는 것도 재물의 일이에요. 지금은 지키는 때"),
+            Text("멈춘 게 아니에요. 다음 일의 값을 매기는 중입니다"),
+            Text("비워둔 손에 다음 몫이 들어올 자리가 생겼어요"),
         ],
-            .unformed: [
-            Text("아직 흐름이 잡히기 전이에요. 지금이 그 시작점입니다"),
-            Text("백지에 가까운 날이에요. 무엇을 그려도 됩니다"),
-            Text("결이 정해지지 않았어요. 오늘의 선택이 결을 만듭니다"),
+            "wealth.unformed": [
+            Text("아직 셈이 시작되기 전이에요. 첫 줄을 적는 사람이 판을 잡습니다"),
+            Text("빈 장부 같은 날이에요. 무엇을 적어도 첫 기록이 됩니다"),
+            Text("일의 결이 아직 무르네요. 오늘 만지는 대로 모양이 잡힙니다"),
+        ],
+            "relationship.closing": [
+            Text("오래 걸려 있던 마음 하나가 매듭을 원하고 있어요"),
+            Text("미뤄둔 대답이 제자리를 찾아가는 결이에요"),
+            Text("어긋났던 사이가 정리 쪽으로 기울어요. 화해든 마침표든 가벼워집니다"),
+        ],
+            "relationship.gathering": [
+            Text("흩어졌던 사람들이 당신 쪽으로 모이는 기운이에요"),
+            Text("연락의 실들이 한 곳으로 당겨지고 있어요. 오늘 닿는 인연이 진합니다"),
+            Text("곁의 온기가 한 사람에게로 좁혀지는 시기예요. 깊어지기 좋습니다"),
+        ],
+            "relationship.rhythm": [
+            Text("주고받는 박자가 잘 맞는 시기예요. 말이 곱게 얹힙니다"),
+            Text("애쓰지 않아도 대화가 굴러가는 결이에요"),
+            Text("늘 하던 안부가 오늘은 더 멀리 갑니다"),
+        ],
+            "relationship.carried": [
+            Text("그동안 건넨 마음들이 당신 곁을 지키고 있어요"),
+            Text("오래된 인연이 조용히 힘이 되어주는 날이에요"),
+            Text("지켜온 약속들이 보이지 않는 울타리가 되어 있어요"),
+        ],
+            "relationship.resting": [
+            Text("잠시 혼자인 시간도 관계가 숨을 고르는 방식이에요"),
+            Text("멀어진 게 아니라 각자의 자리에서 쉬는 중이에요"),
+            Text("비워둔 곁에 새 사람이 앉을 자리가 마련되고 있어요"),
+        ],
+            "relationship.unformed": [
+            Text("아직 이름 붙지 않은 인연이 근처를 지나고 있어요"),
+            Text("관계의 결이 무른 날이에요. 오늘 건네는 말이 모양을 만듭니다"),
+            Text("백지 같은 사이일수록 첫 획이 오래 남는 때예요"),
+        ],
+            "health.closing": [
+            Text("몸이 하루를 잘 닫으려 하고 있어요. 끝맺는 잠이 보약이 됩니다"),
+            Text("오래 끌던 피로가 빠져나갈 문을 찾은 결이에요"),
+            Text("미뤄둔 회복이 마무리되는 시기예요. 몸이 제자리를 찾습니다"),
+        ],
+            "health.gathering": [
+            Text("흩어졌던 기력이 몸 가운데로 모이고 있어요"),
+            Text("숨이 한곳으로 고이는 중이에요. 깊게 쉬기 좋은 날"),
+            Text("몸의 초점이 또렷해지는 시기예요. 움직임에 힘이 실립니다"),
+        ],
+            "health.rhythm": [
+            Text("몸의 박자가 맞아 들어가는 시기예요. 자고 깨는 결이 곱습니다"),
+            Text("애쓰지 않아도 걸음이 가벼운 날이에요"),
+            Text("반복해온 습관이 몸 안에서 당신 편을 들고 있어요"),
+        ],
+            "health.carried": [
+            Text("돌봐온 시간이 뼈대처럼 당신을 받치고 있어요"),
+            Text("지난 계절의 관리가 지금의 체력으로 돌아오는 중이에요"),
+            Text("쌓아둔 잠과 걸음이 조용히 일하고 있어요"),
+        ],
+            "health.resting": [
+            Text("몸이 스스로 속도를 낮추고 있어요. 따라가 주는 게 회복입니다"),
+            Text("멈춘 게 아니라 아무는 중이에요"),
+            Text("비워둔 하루가 다음 체력을 빚고 있어요"),
+        ],
+            "health.unformed": [
+            Text("몸의 흐름이 아직 잡히기 전이에요. 오늘 들인 습관이 결이 됩니다"),
+            Text("컨디션이 백지 같은 날이에요. 무엇을 얹느냐에 달렸습니다"),
+            Text("리듬이 아직 정해지지 않았어요. 첫 끼와 첫 걸음이 하루를 그립니다"),
         ],
         ]
-        guard let variants = table[reading.omen], !variants.isEmpty else { return Text("") }
+        let key = "\(reading.kind.rawValue).\(reading.omen.rawValue)"
+        guard let variants = table[key], !variants.isEmpty else { return Text("") }
         return variants[min(max(reading.variant, 0), variants.count - 1)]
     }
 
@@ -164,6 +226,74 @@ enum AuraCopy {
         let key = "\(reading.kind.rawValue).\(reading.tier.rawValue)"
         guard let variants = table[key], !variants.isEmpty else { return Text("") }
         return variants[min(max(reading.variant, 0), variants.count - 1)]
+    }
+
+    /// 섹션 라벨 — 웹 aura.hint.label / aura.caution.label.
+    static let hintLabel = Text("오늘의 실마리")
+    static let cautionLabel = Text("흘려보낼 것")
+
+    /// 오늘의 실마리 — 기운별 6종(웹 aura.hint.{kind}.{i}), 인덱스는 Aura.hintIndex.
+    static func hint(_ kind: AuraKind, _ index: Int) -> Text {
+        let table: [AuraKind: [Text]] = [
+            .wealth: [
+            Text("오전의 첫 한 시간, 책상 위 가장 오래 묵은 일 하나가 유난히 잘 풀립니다"),
+            Text("해 지기 전에 끝낸 일 하나가 내일의 짐을 반으로 줄여줍니다"),
+            Text("가방 속 영수증을 정리하다 잊고 있던 몫을 발견할 수 있어요"),
+            Text("점심 무렵 떠오르는 생각 하나를 적어두세요. 나중에 값을 합니다"),
+            Text("큰일보다 잠깐이면 끝나는 일부터 손대세요. 작게 끝낸 하나가 물꼬를 틉니다"),
+            Text("잠들기 전 내일 할 일의 첫 줄만 적어두면 아침 기운이 그 줄을 따라옵니다"),
+        ],
+            .relationship: [
+            Text("해 지기 전, 가장 오래 미룬 연락 하나가 길을 엽니다"),
+            Text("오늘 스치는 안부에 평소보다 한 마디를 더 얹어보세요. 거기서 문이 열립니다"),
+            Text("점심시간에 떠오르는 얼굴이 있다면 그 사람이 오늘의 인연입니다"),
+            Text("먼저 고맙다고 말하는 쪽에 좋은 기운이 붙는 날이에요"),
+            Text("익숙한 장소에서 뜻밖의 대화가 시작될 수 있어요. 귀를 열어두세요"),
+            Text("밤이 오기 전에 보낸 짧은 답장 하나가 오래 남을 인연을 붙잡습니다"),
+        ],
+            .health: [
+            Text("아침의 첫 물 한 잔이 오늘 몸의 물길을 정합니다"),
+            Text("오후에 몸이 무거워지면 그늘보다 햇빛 쪽으로 잠깐 걸어보세요"),
+            Text("어깨가 먼저 신호를 보내는 날이에요. 알아챈 순간 한 번 내려놓으면 됩니다"),
+            Text("한 정거장 먼저 내려 걷는 길에 좋은 기운이 깔려 있어요"),
+            Text("해가 있는 동안 몸을 움직여두면 밤잠이 값을 합니다"),
+            Text("잠들기 전 불을 일찍 끄는 것만으로 내일 아침의 결이 달라집니다"),
+        ],
+        ]
+        guard let variants = table[kind], !variants.isEmpty else { return Text("") }
+        return variants[min(max(index, 0), variants.count - 1)]
+    }
+
+    /// 흘려보낼 것 — 기운별 6종(웹 aura.caution.{kind}.{i}), 인덱스는 Aura.cautionIndex.
+    static func caution(_ kind: AuraKind, _ index: Int) -> Text {
+        let table: [AuraKind: [Text]] = [
+            .wealth: [
+            Text("오늘 다 끝내야 한다는 조급함은 흘려보내세요. 흐름은 이어집니다"),
+            Text("남의 속도와 비교하는 마음을 내려놓으세요. 당신의 셈은 따로 갑니다"),
+            Text("이미 지나간 선택을 다시 셈하는 일은 오늘 몫이 아니에요"),
+            Text("한 번에 크게 이루려는 마음은 잠시 접어두세요. 작게 굴러가는 게 오늘의 길입니다"),
+            Text("손대지 못한 일에 대한 자책은 두고 가세요. 자리는 사라지지 않습니다"),
+            Text("완벽하게 정리하고 시작하려는 마음을 흘려보내세요. 지금 그대로 시작해도 됩니다"),
+        ],
+            .relationship: [
+            Text("읽고 답 없는 침묵의 의미를 재지 마세요. 그저 바쁜 날일 때가 많습니다"),
+            Text("모두에게 좋은 사람이려는 마음은 오늘 내려놓아도 됩니다"),
+            Text("그때 그 말을 곱씹는 일은 흘려보내세요. 상대는 이미 지나갔습니다"),
+            Text("누가 먼저 연락하나 재는 마음을 두고 가세요. 무게만 남습니다"),
+            Text("멀어지는 인연을 억지로 붙잡으려는 힘을 빼보세요. 남을 것은 남습니다"),
+            Text("오늘의 침묵을 서운함으로 번역하지 마세요. 쉼표일 뿐입니다"),
+        ],
+            .health: [
+            Text("어제 못 잔 잠에 대한 걱정은 내려놓으세요. 오늘 밤이 갚을 기회입니다"),
+            Text("몸이 무거운 날 스스로를 게으르다 부르는 버릇은 흘려보내세요"),
+            Text("한 번에 되돌리려는 조급함을 내려놓으세요. 회복은 조용히 옵니다"),
+            Text("남들만큼 해야 한다는 기준은 오늘 문밖에 두고 오세요"),
+            Text("잠들기 전 화면을 붙드는 손을 오늘은 한 박자 먼저 놓아보세요"),
+            Text("아픈 곳을 자꾸 확인하는 마음을 쉬게 하세요. 몸은 제 일을 하고 있습니다"),
+        ],
+        ]
+        guard let variants = table[kind], !variants.isEmpty else { return Text("") }
+        return variants[min(max(index, 0), variants.count - 1)]
     }
 }
 
@@ -329,6 +459,13 @@ struct AuraReadingOverlay: View {
     @State private var revealed = false
     /// 공개 후 본문이 떠오르는 단계 — 의식 직후 한 틱 뒤에 켠다.
     @State private var settled = false
+    /// 공개 이펙트 — "문질러 드러난 순간"에만 튄다. 재열람 마운트에서 또 터지면
+    /// 보상 연출이 헐값이 되고, 등급 차등(잔잔~대길)의 의미도 무뎌진다(웹 fx state).
+    @State private var fxTier: AuraTier?
+
+    /// 실마리·흘려보낼 것의 날짜 시드 — 스냅샷이 고정된 날짜(auraDate).
+    /// 이 오버레이는 ensureSnapshot 직후에만 뜨므로 웹의 `daily.date` 와 같은 값이다.
+    private var readingDay: String { AuraStore.snapshotDay() ?? GameStore.todayString() }
 
     var body: some View {
         ZStack {
@@ -343,6 +480,15 @@ struct AuraReadingOverlay: View {
                     .overlay {
                         if !revealed {
                             AuraRitualCover(accent: accent, onReveal: reveal)
+                        }
+                    }
+                    .overlay {
+                        // 공개 이펙트 — 카드 안에서만 논다. 카드 밖으로 튀면
+                        // 인화지의 물성(한 장의 사진)이 깨진다(웹 RevealFx 와 같은 계약).
+                        if let tier = fxTier {
+                            AuraRevealFx(tier: tier, accent: accent, reduced: reduceMotion)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 3))
@@ -388,7 +534,20 @@ struct AuraReadingOverlay: View {
     /// 의식 통과 — 덮개가 걷힌 뒤 본문이 떠오른다.
     private func reveal() {
         SoundPlayer.shared.play(.polaroidSlide)
-        Haptics.play(.medium)
+        // 공개 햅틱은 성공 패턴(웹 handleReveal 의 complete→success). reduced-motion
+        // 탭 폴백도 이 함수를 그대로 타므로 그 경로에서도 유지된다. great 만 한 박자
+        // 뒤 한 번 더 — "대길"의 무게를 손끝으로 반복해 준다(웹 220ms).
+        Haptics.play(.success)
+        if reading.tier == .great {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                Haptics.play(.success)
+            }
+        }
+        // 공개 이펙트 — 수명이 다하면 노드를 내려 렌더 부하를 없앤다(웹 FX_LIFETIME_MS).
+        fxTier = reading.tier
+        DispatchQueue.main.asyncAfter(deadline: .now() + AuraRevealFx.lifetime) {
+            fxTier = nil
+        }
         withAnimation(.easeOut(duration: reduceMotion ? 0.01 : 0.32)) { revealed = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
             withAnimation(.easeOut(duration: 0.34)) { settled = true }
@@ -400,6 +559,8 @@ struct AuraReadingOverlay: View {
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 기운 이름은 머리말이다. 오늘의 답은 그 아래 등급 한 단어.
+            // 이름·등급은 문지르기 중에도 걷힌 칸 틈으로 보인다 — 의식의 보상은 등급이고,
+            // 문장들은 공개 후에 순서대로 온다(웹: 가림막 아래에서도 보인다).
             AuraCopy.name(reading.kind)
                 .typography(.caption)
                 .foregroundStyle(AuraPaper.inkSoft)
@@ -416,16 +577,52 @@ struct AuraReadingOverlay: View {
                 .frame(height: 1)
                 .padding(.vertical, 16)
 
-            AuraCopy.omen(reading)
-                .typography(.caption)
-                .foregroundStyle(AuraPaper.inkSoft)
-                .fixedSize(horizontal: false, vertical: true)
+            // 정보 위계: 조짐 > 조언 > 실마리 > 흘려보낼 것 (웹과 같은 순서·같은 stagger).
+            // 조짐 — 실측 신호가 고른 문장 한 줄. 수치는 인용하지 않는다.
+            staggered(order: 0) {
+                AuraCopy.omen(reading)
+                    .typography(.caption)
+                    .foregroundStyle(AuraPaper.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
-            AuraCopy.advice(reading)
-                .typography(.body)
-                .foregroundStyle(AuraPaper.inkStrong)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 10)
+            staggered(order: 1) {
+                AuraCopy.advice(reading)
+                    .typography(.body)
+                    .foregroundStyle(AuraPaper.inkStrong)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 10)
+            }
+
+            // 오늘의 실마리 — 라벨은 옅은 잉크로 급을 낮추고 본문이 조언보다 아래 선다.
+            staggered(order: 2) {
+                VStack(alignment: .leading, spacing: 3) {
+                    AuraCopy.hintLabel
+                        .typography(.micro)
+                        .foregroundStyle(AuraPaper.inkFaint)
+                    AuraCopy.hint(reading.kind, Aura.hintIndex(
+                        today: readingDay, salt: Fortune.salt, kind: reading.kind))
+                        .typography(.caption)
+                        .foregroundStyle(AuraPaper.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 14)
+            }
+
+            // 흘려보낼 것 — 가장 낮은 위계. 내려놓으라는 말이라 목소리도 낮춘다.
+            staggered(order: 3) {
+                VStack(alignment: .leading, spacing: 3) {
+                    AuraCopy.cautionLabel
+                        .typography(.micro)
+                        .foregroundStyle(AuraPaper.inkFaint)
+                    AuraCopy.caution(reading.kind, Aura.cautionIndex(
+                        today: readingDay, salt: Fortune.salt, kind: reading.kind))
+                        .typography(.caption)
+                        .foregroundStyle(AuraPaper.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 12)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(22)
@@ -433,6 +630,23 @@ struct AuraReadingOverlay: View {
         // 의식을 통과하기 전에는 VoiceOver 에도 내용이 새지 않게 한다
         // (대체 경로는 덮개의 accessibilityAction 이 담당한다).
         .accessibilityHidden(!revealed)
+    }
+
+    /// 읽어 내려가는 점괘 리듬 — 공개 후 0.3s 간격으로 문장이 순서대로 떠오른다
+    /// (웹 block(order): delay 0.3 + order*0.3). 문지르는 동안엔 opacity 0 으로만
+    /// 숨겨 카드 높이가 흔들리지 않고, 걷힌 칸 틈으로 문장이 미리 새지 않는다.
+    /// reduceMotion: 이동 없이 짧은 페이드(웹 0.05 + order*0.1)로 강등.
+    private func staggered<Content: View>(
+        order: Int, @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .opacity(settled ? 1 : 0)
+            .offset(y: settled || reduceMotion ? 0 : 7)
+            .animation(
+                .easeOut(duration: reduceMotion ? 0.2 : 0.45)
+                    .delay((reduceMotion ? 0.05 : 0.3)
+                           + Double(order) * (reduceMotion ? 0.1 : 0.3)),
+                value: settled)
     }
 
     /// 인화지 바탕 + 위쪽에 스민 오늘의 색. 폴라로이드와 같은 액센트를 옅게 흘려
@@ -469,8 +683,23 @@ struct AuraRitualCover: View {
     /// 공개 임계치 — 너무 높으면 노동이 되고, 너무 낮으면 의식이 되지 않는다.
     private static let threshold: Double = 0.45
 
+    /// 문지르기 틱 최소 간격(s). 이보다 잦으면 진동이 뭉개져 소음이 된다(웹 TICK_MIN_MS).
+    private static let tickMinInterval: TimeInterval = 0.04
+    /// 틱 하나가 요구하는 이동 거리(pt). 시간·거리 둘 다 채워야 틱이 나간다(웹 TICK_MIN_DIST).
+    private static let tickMinDistance: CGFloat = 24
+    /// 공개 임계 대비 이 비율(80%)을 넘으면 한 단계 무거운 틱으로 "임박"을 알린다(웹 NEAR_TICK_RATIO).
+    private static let nearTickRatio = 0.8
+
     @State private var visited: Set<Int> = []
     @State private var finished = false
+
+    // 문지르기 틱 스로틀 — 시간과 이동거리 둘 다 본다. 시간만 보면 제자리에서 떠는
+    // 손가락에도 틱이 나가고, 거리만 보면 빠른 스와이프 한 번에 틱이 몰려 진동이
+    // 한 덩어리로 뭉개진다(웹 AuraScratch 의 scratchTick 과 같은 규칙).
+    @State private var lastTickAt: TimeInterval = 0
+    @State private var lastPoint: CGPoint?
+    @State private var tickDistance: CGFloat = 0
+    @State private var nearTicked = false
 
     private var progress: Double {
         Double(visited.count) / Double(Self.cols * Self.rows)
@@ -512,7 +741,15 @@ struct AuraRitualCover: View {
             // 접근성 대체 경로 — 문지르기를 못 하는 유저도 같은 결과에 닿아야 한다.
             .modifier(RevealInput(reduceMotion: reduceMotion,
                                   onTap: finish,
-                                  onRub: { point in rub(point, cellW: cellW, cellH: cellH) }))
+                                  onRub: { point in rub(point, cellW: cellW, cellH: cellH) },
+                                  onRubEnd: endRub))
+        }
+        // 제스처 시작과 재생 사이 지연을 없앤다 — 문지르기 틱(selection)·임박 틱(light)·
+        // 공개 성공 패턴(success)을 미리 워밍한다(Apple 권장 prepare 패턴).
+        .onAppear {
+            Haptics.prepare(.selection)
+            Haptics.prepare(.light)
+            Haptics.prepare(.success)
         }
         .accessibilityElement(children: .ignore)
         // VoiceOver 는 문지르기가 아니라 활성화 제스처로 연다 — 라벨도 그 동작을 말한다.
@@ -526,6 +763,7 @@ struct AuraRitualCover: View {
         let reduceMotion: Bool
         let onTap: () -> Void
         let onRub: (CGPoint) -> Void
+        let onRubEnd: () -> Void
 
         func body(content: Content) -> some View {
             if reduceMotion {
@@ -534,6 +772,7 @@ struct AuraRitualCover: View {
                 content.gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in onRub(value.location) }
+                        .onEnded { _ in onRubEnd() }
                 )
             }
         }
@@ -572,14 +811,51 @@ struct AuraRitualCover: View {
     /// 손가락이 지나간 칸을 기록. 임계치를 넘으면 나머지가 한꺼번에 걷힌다.
     private func rub(_ point: CGPoint, cellW: CGFloat, cellH: CGFloat) {
         guard !finished, cellW > 0, cellH > 0 else { return }
+        scratchTick(point)
         let col = Int(point.x / cellW)
         let row = Int(point.y / cellH)
         guard col >= 0, col < Self.cols, row >= 0, row < Self.rows else { return }
         let index = row * Self.cols + col
         guard !visited.contains(index) else { return }
         visited.insert(index)
-        Haptics.play(.selection, intensity: 0.6)
+
+        // 임박 신호 — selection 보다 한 단계 무거운 light 임팩트. 공개 직전의
+        // "거의 다 왔다"를 손끝으로 먼저 알린다. 정확히 1회(웹 nearTicked 와 동일).
+        let goal = Double(Self.cols * Self.rows) * Self.threshold
+        let count = Double(visited.count)
+        if !nearTicked, count >= goal * Self.nearTickRatio, count < goal {
+            nearTicked = true
+            Haptics.play(.light)
+        }
         if progress >= Self.threshold { finish() }
+    }
+
+    /// 문지르기 틱 — 은박이 손끝에서 갈리는 "사각사각"의 촉각 버전.
+    /// 첫 접촉은 즉답 틱 하나, 이후에는 시간(40ms)·거리(24pt)를 둘 다 채워야 나간다.
+    /// Haptics.play 가 설정의 hapticEnabled 게이트를 이미 문다(웹 hapticEnabled 대응).
+    private func scratchTick(_ point: CGPoint) {
+        guard let last = lastPoint else {
+            // 첫 접촉 틱 — "여기가 문질러지는 곳"이라는 즉답. 이후 틱의 기준점도 여기.
+            lastPoint = point
+            tickDistance = 0
+            lastTickAt = Date.timeIntervalSinceReferenceDate
+            Haptics.play(.selection)
+            return
+        }
+        lastPoint = point
+        tickDistance += hypot(point.x - last.x, point.y - last.y)
+        let now = Date.timeIntervalSinceReferenceDate
+        guard tickDistance >= Self.tickMinDistance,
+              now - lastTickAt >= Self.tickMinInterval else { return }
+        tickDistance = 0
+        lastTickAt = now
+        Haptics.play(.selection)
+    }
+
+    /// 손을 뗀 순간 — 다음 접촉이 다시 "첫 접촉"이 되도록 스로틀 기준점을 비운다.
+    private func endRub() {
+        lastPoint = nil
+        tickDistance = 0
     }
 
     private func finish() {
@@ -613,5 +889,223 @@ enum AuraFlow {
             today: today,
             salt: Fortune.salt
         )
+    }
+}
+
+// MARK: - 공개 이펙트 (등급 차등)
+
+/// 등급이 하늘의 답이라면, 이펙트는 그 답의 크기다 — 웹 RevealFx 의 SwiftUI 판.
+/// care=어스름 가라앉음(입자 없음), fair=반짝임 5점, good=입자 링 10개+글로우,
+/// great=흰 플래시+글로우 펄스+입자 버스트 14개. 전부 1회성 장식이라 호출부가
+/// allowsHitTesting(false)·accessibilityHidden(true)를 걸고, lifetime 뒤 노드를 내린다.
+/// reduceMotion 은 등급별 세기만 다른 글로우 페이드로 강등(웹과 같은 규칙).
+/// 프로젝트 관례를 따라 KeyframeAnimator 대신 @State + withAnimation 스텝 체인.
+struct AuraRevealFx: View {
+    let tier: AuraTier
+    let accent: Color
+    let reduced: Bool
+
+    /// 이펙트가 화면에 머무는 시간(s). 웹 FX_LIFETIME_MS(1900) 와 동일.
+    static let lifetime: TimeInterval = 1.9
+
+    var body: some View {
+        if reduced {
+            // reduced-motion 강등 — 움직임 없이 글로우가 한 번 부풀었다 잦아드는 페이드.
+            // 등급 차이는 페이드의 세기로만 남긴다(웹 peak 0.5/0.36/0.24/0.14).
+            let peak: Double = switch tier {
+            case .great: 0.5
+            case .good: 0.36
+            case .fair: 0.24
+            case .care: 0.14
+            }
+            AuraFadePulse(peak: peak, up: 0.33, down: 0.77) {
+                RadialGradient(colors: [accent, .clear],
+                               center: .center, startRadius: 0, endRadius: 150)
+            }
+        } else {
+            switch tier {
+            case .care: AuraCareFx(accent: accent)
+            case .fair: AuraFairFx(accent: accent)
+            case .good: AuraGoodFx(accent: accent)
+            case .great: AuraGreatFx(accent: accent)
+            }
+        }
+    }
+}
+
+/// 두 박자 페이드 — 나타났다(up) 사라진다(down). 웹 keyframes [0, peak, 0] 의 근사.
+private struct AuraFadePulse<Content: View>: View {
+    let peak: Double
+    let up: TimeInterval
+    let down: TimeInterval
+    var delay: TimeInterval = 0
+    @ViewBuilder var content: () -> Content
+
+    @State private var level: Double = 0
+
+    var body: some View {
+        content()
+            .opacity(level)
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    withAnimation(.easeInOut(duration: up)) { level = peak }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + up) {
+                        withAnimation(.easeInOut(duration: down)) { level = 0 }
+                    }
+                }
+            }
+    }
+}
+
+/// 중심에서 흩어지는 입자 하나 — 이동은 강한 easeOut(웹 [0.16,1,0.3,1]), 밝기는 in-out.
+private struct AuraFxParticle: View {
+    let color: Color
+    let glow: Color
+    let size: CGFloat
+    /// 목적지 오프셋(중심 기준)
+    let target: CGSize
+    let duration: TimeInterval
+    let delay: TimeInterval
+
+    @State private var flown = false
+    @State private var lit = false
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .shadow(color: glow, radius: size * 1.5)
+            .shadow(color: glow.opacity(0.65), radius: size * 3)
+            .scaleEffect(flown ? 1 : 0.4)
+            .offset(flown ? target : .zero)
+            .opacity(lit ? 1 : 0)
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    withAnimation(.timingCurve(0.16, 1, 0.3, 1, duration: duration)) {
+                        flown = true
+                    }
+                    withAnimation(.easeOut(duration: duration * 0.3)) { lit = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + duration * 0.45) {
+                        withAnimation(.easeIn(duration: duration * 0.55)) { lit = false }
+                    }
+                }
+            }
+    }
+}
+
+/// care — 차분한 가라앉음. 어스름이 한 번 내려앉았다 걷힌다. 입자 없음.
+/// "나쁨"의 연출이 아니라 "고요함"의 연출이어야 한다(운세가 아니라 렌즈).
+private struct AuraCareFx: View {
+    let accent: Color
+    @State private var dropped = false
+
+    /// 어스름의 먹색 — 웹 #16161a.
+    private static let dusk = Color(red: 0.086, green: 0.086, blue: 0.102)
+
+    var body: some View {
+        ZStack {
+            AuraFadePulse(peak: 0.3, up: 0.6, down: 0.9) {
+                LinearGradient(colors: [.clear, Self.dusk],
+                               startPoint: .top, endPoint: .bottom)
+            }
+            .offset(y: dropped ? 8 : -10)
+            AuraFadePulse(peak: 0.18, up: 0.68, down: 0.82) {
+                RadialGradient(colors: [accent, .clear],
+                               center: UnitPoint(x: 0.5, y: 0.62),
+                               startRadius: 0, endRadius: 140)
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.5)) { dropped = true }
+        }
+    }
+}
+
+/// fair — 잔잔한 반짝임. 몇 점이 순서대로 깜빡이고 만다.
+/// 좌표는 결정론적 고정(%) — 리렌더마다 흔들리지 않는다(웹 FX_TWINKLES).
+private struct AuraFairFx: View {
+    let accent: Color
+
+    private static let twinkles: [(x: CGFloat, y: CGFloat, s: CGFloat)] = [
+        (0.24, 0.30, 3), (0.68, 0.22, 2), (0.46, 0.60, 3), (0.82, 0.58, 2), (0.32, 0.74, 2),
+    ]
+
+    var body: some View {
+        GeometryReader { geo in
+            ForEach(Array(Self.twinkles.enumerated()), id: \.offset) { i, t in
+                AuraFadePulse(peak: 1, up: 0.3, down: 0.55, delay: 0.1 + Double(i) * 0.14) {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: t.s, height: t.s)
+                        .shadow(color: accent, radius: t.s * 1.5)
+                        .shadow(color: accent.opacity(0.65), radius: t.s * 3)
+                }
+                .position(x: geo.size.width * t.x, y: geo.size.height * t.y)
+            }
+        }
+    }
+}
+
+/// good — 입자 링. 중심에서 고리 하나가 번져 나간다(웹 rb-frag-emanate 의 1회성 판).
+private struct AuraGoodFx: View {
+    let accent: Color
+    @State private var bloomed = false
+
+    var body: some View {
+        ZStack {
+            // 중심 글로우 — 부풀며 잦아든다 (opacity 0.5→0, scale 0.35→1.5).
+            RadialGradient(colors: [accent.opacity(0.33), accent.opacity(0.13), .clear],
+                           center: .center, startRadius: 0, endRadius: 48)
+                .frame(width: 96, height: 96)
+                .scaleEffect(bloomed ? 1.5 : 0.35)
+                .opacity(bloomed ? 0 : 0.5)
+            // 입자 10개가 반경 62 로 균등하게.
+            ForEach(0..<10, id: \.self) { i in
+                let angle = Double(i) / 10 * 2 * .pi
+                let s: CGFloat = 3 + CGFloat(i % 2)
+                AuraFxParticle(color: accent, glow: accent, size: s,
+                               target: CGSize(width: cos(angle) * 62, height: sin(angle) * 62),
+                               duration: 0.85, delay: 0.05)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            withAnimation(.timingCurve(0.16, 1, 0.3, 1, duration: 0.9)) { bloomed = true }
+        }
+    }
+}
+
+/// great — 버스트 + 빛 번쩍임. 흰 플래시가 먼저 치고, 오늘의 색 글로우가 부풀며,
+/// 입자가 두 겹 반경으로 흩어진다. legend 급 어휘의 1회성 압축(웹과 같은 구성).
+private struct AuraGreatFx: View {
+    let accent: Color
+    @State private var bloomed = false
+
+    var body: some View {
+        ZStack {
+            // 흰 플래시 — 제일 먼저, 짧게 (opacity 0→0.85→0, 0.55s).
+            AuraFadePulse(peak: 0.85, up: 0.1, down: 0.45) {
+                Color.white
+            }
+            // 오늘의 색 글로우 펄스 (opacity 0.8→0, scale 0.3→1.9).
+            RadialGradient(colors: [accent, accent.opacity(0.27), .clear],
+                           center: .center, startRadius: 0, endRadius: 64)
+                .frame(width: 128, height: 128)
+                .scaleEffect(bloomed ? 1.9 : 0.3)
+                .opacity(bloomed ? 0 : 0.8)
+            // 입자 버스트 14개 — 두 겹 반경(58~106), 셋에 하나는 흰 점.
+            ForEach(0..<14, id: \.self) { i in
+                let angle = Double(i) / 14 * 2 * .pi + Double(i % 3) * 0.11
+                let dist = 58.0 + Double(i % 4) * 16
+                let s: CGFloat = 3 + CGFloat(i % 3)
+                AuraFxParticle(color: i % 3 == 0 ? .white : accent, glow: accent, size: s,
+                               target: CGSize(width: cos(angle) * dist, height: sin(angle) * dist),
+                               duration: 1.0, delay: 0.08 + Double(i % 4) * 0.04)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            withAnimation(.timingCurve(0.16, 1, 0.3, 1, duration: 1.1)) { bloomed = true }
+        }
     }
 }

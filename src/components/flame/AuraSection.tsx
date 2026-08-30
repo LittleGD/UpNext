@@ -8,10 +8,11 @@ import AuraScratch from "@/components/flame/AuraScratch";
 import { showRewardedAd } from "@/lib/ads";
 import {
   AURA_KINDS,
+  auraCautionIndex,
+  auraHintIndex,
   computeAura,
   type AuraInput,
   type AuraKind,
-  type AuraOmen,
   type AuraReading,
   type AuraTier,
 } from "@/lib/aura";
@@ -21,6 +22,7 @@ import {
   readAuraState,
   readFortuneState,
 } from "@/lib/fortune";
+import { playSound, triggerHaptic } from "@/lib/sounds";
 import type { DictKey } from "@/i18n";
 import { useGameStore } from "@/store/useGameStore";
 import { useRetentionStore } from "@/store/useRetentionStore";
@@ -65,29 +67,28 @@ const TIER_KEY: Record<AuraTier, DictKey> = {
 /**
  * 조짐 문장. 파라미터 치환이 없다 — 키 하나가 문장 하나다.
  * 실측 신호는 aura.ts 에서 이 키를 고르는 데까지만 쓰이고 화면으로는 넘어오지 않는다.
+ *
+ * 키는 기운별로 갈린다(aura.omen.{kind}.{omen}.{variant}) — 같은 "모임"의 조짐도
+ * 재물과 관계에서 다른 문장으로 읽혀야 세 리딩이 복붙으로 안 보인다.
  */
-/** 조짐 문장 — 같은 조짐 안에서도 reading.variant 로 표현이 갈린다. */
-const OMEN_BASE: Record<AuraOmen, string> = {
-  closing: "aura.omen.closing",
-  gathering: "aura.omen.gathering",
-  rhythm: "aura.omen.rhythm",
-  carried: "aura.omen.carried",
-  resting: "aura.omen.resting",
-  unformed: "aura.omen.unformed",
-};
-
-/** 조언 문장 — 기운·등급에 표현 번호를 더해 키를 만든다. */
-const ADVICE_BASE: Record<AuraKind, string> = {
-  wealth: "aura.advice.wealth",
-  relationship: "aura.advice.relationship",
-  health: "aura.advice.health",
-};
-
 function omenKey(r: AuraReading): DictKey {
-  return `${OMEN_BASE[r.omen]}.${r.variant}` as DictKey;
+  return `aura.omen.${r.kind}.${r.omen}.${r.variant}` as DictKey;
 }
+/** 조언 문장 — 기운·등급에 표현 번호를 더해 키를 만든다. */
 function adviceKey(r: AuraReading): DictKey {
-  return `${ADVICE_BASE[r.kind]}.${r.tier}.${r.variant}` as DictKey;
+  return `aura.advice.${r.kind}.${r.tier}.${r.variant}` as DictKey;
+}
+/**
+ * 오늘의 실마리·흘려보낼 것 — 조짐·조언과 같은 시드 재료(오늘+salt+기운)에서
+ * 결정론적으로 하나를 고른다. 하루 안에서 문구가 바뀌면 리딩의 "그럴싸함"이 무너진다.
+ * 인덱스 계산은 aura.ts 의 auraHintIndex/auraCautionIndex 단일 출처를 쓴다 —
+ * iOS Aura.hintIndex/cautionIndex 와 픽스처로 묶인 함수라 여기서 복제하면 드리프트가 생긴다.
+ */
+function hintKey(kind: AuraKind, today: string, salt: string): DictKey {
+  return `aura.hint.${kind}.${auraHintIndex(today, salt, kind)}` as DictKey;
+}
+function cautionKey(kind: AuraKind, today: string, salt: string): DictKey {
+  return `aura.caution.${kind}.${auraCautionIndex(today, salt, kind)}` as DictKey;
 }
 
 const KIND_ICON: Record<AuraKind, string> = {
@@ -368,6 +369,7 @@ export default function AuraSection({
             {view && reading && (
               <AuraOverlay
                 reading={reading}
+                today={today}
                 colorHex={colorHex}
                 ritual={view.ritual}
                 onRevealed={() =>
@@ -388,18 +390,24 @@ export default function AuraSection({
   );
 }
 
+/** 공개 이펙트가 화면에 머무는 시간(ms). 끝나면 노드를 내려 rAF 부하를 없앤다. */
+const FX_LIFETIME_MS = 1900;
+
 /**
  * 리딩 오버레이 — 폴라로이드와 같은 인화지 위에 올린다.
  * 처음 여는 기운은 가림막을 문질러 드러낸 뒤에야 읽힌다.
  */
 function AuraOverlay({
   reading,
+  today,
   colorHex,
   ritual,
   onRevealed,
   onClose,
 }: {
   reading: AuraReading;
+  /** daily.date — 실마리·흘려보낼 것 선택 시드에 들어간다 */
+  today: string;
   colorHex: string;
   ritual: boolean;
   /** 가림막을 실제로 걷어낸 순간 — 중도 이탈과 구분하려고 따로 알린다 */
@@ -407,20 +415,51 @@ function AuraOverlay({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const { play } = useSound();
   const prefersReducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [revealed, setRevealed] = useState(!ritual);
+  /**
+   * 공개 이펙트는 "문질러 드러난 순간"에만 튄다. 재열람 마운트에서 또 터지면
+   * 보상 연출이 헐값이 되고, 등급 차등(잔잔~대길)의 의미도 무뎌진다.
+   */
+  const [fx, setFx] = useState(false);
+  const fxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const greatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // useSound.play 는 사운드·햅틱을 한 이름으로 묶는데, 공개 순간은 소리(확정음)와
+  // 진동(성공 패턴)의 격이 달라 같은 경로의 재료를 직접 조합한다.
+  const soundEnabled = useGameStore((s) => s.progress.soundEnabled ?? true);
+  const hapticEnabled = useGameStore((s) => s.progress.hapticEnabled ?? true);
 
   // Esc 닫기 / focus trap / scroll lock / focus 복원
   useModalA11y(containerRef, onClose);
 
   const handleReveal = useCallback(() => {
     setRevealed(true);
+    setFx(true);
+    if (fxTimerRef.current) clearTimeout(fxTimerRef.current);
+    fxTimerRef.current = setTimeout(() => setFx(false), FX_LIFETIME_MS);
     onRevealed();
-    play("confirm");
-  }, [onRevealed, play]);
+    if (soundEnabled) playSound("confirm");
+    // 공개 햅틱은 성공 패턴(success). reduced-motion 의 탭 폴백도 이 함수를
+    // 그대로 타므로 그 경로에서도 유지된다. great 만 한 박자 뒤 한 번 더 —
+    // "대길"의 무게를 손끝으로 반복해 준다.
+    if (hapticEnabled) {
+      triggerHaptic("complete");
+      if (reading.tier === "great") {
+        greatTimerRef.current = setTimeout(() => triggerHaptic("complete"), 220);
+      }
+    }
+  }, [onRevealed, soundEnabled, hapticEnabled, reading.tier]);
+
+  useEffect(
+    () => () => {
+      if (fxTimerRef.current) clearTimeout(fxTimerRef.current);
+      if (greatTimerRef.current) clearTimeout(greatTimerRef.current);
+    },
+    [],
+  );
 
   // 공개 직후 결과로 포커스를 옮긴다 — 가림막 버튼이 사라지면 포커스가 body 로
   // 떨어져 스크린리더가 아무것도 읽지 못한다.
@@ -431,6 +470,33 @@ function AuraOverlay({
 
   const name = t(NAME_KEY[reading.kind]);
   const tone = TIER_STYLE[reading.tier];
+
+  // salt 는 기기 고정 — 마운트에 한 번 읽으면 충분하다.
+  const [salt] = useState(() => readFortuneState().salt);
+
+  /**
+   * 읽어 내려가는 점괘 리듬 — 조짐부터 흘려보낼 것까지 순서대로 떠오른다.
+   * 문지르는 동안에는 숨겨 둔다: 가림막 틈으로 문장이 미리 새면 공개가 밋밋해지고,
+   * 걷어낸 순간 등급(제목)만 먼저 보인 뒤 문장이 하나씩 오는 편이 "점괘"답다.
+   * opacity 로만 숨기므로 카드 높이는 문지르는 동안에도 흔들리지 않는다.
+   */
+  const block = (order: number) => ({
+    initial: prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 7 },
+    animate: revealed
+      ? { opacity: 1, y: 0 }
+      : prefersReducedMotion
+        ? { opacity: 0 }
+        : { opacity: 0, y: 7 },
+    transition: revealed
+      ? {
+          duration: prefersReducedMotion ? 0.2 : 0.45,
+          delay:
+            (prefersReducedMotion ? 0.05 : 0.3) +
+            order * (prefersReducedMotion ? 0.1 : 0.3),
+          ease: "easeOut" as const,
+        }
+      : { duration: 0 },
+  });
 
   // z-[60] — 리딩은 오늘의 기운 폴라로이드 오버레이(z-50) 위에 떠야 한다.
   // 둘 다 body 포털이라 같은 z 를 쓰면 DOM 삽입 순서에 앞뒤를 맡기게 된다.
@@ -485,9 +551,20 @@ function AuraOverlay({
                 }}
               />
               <PixelIcon name={KIND_ICON[reading.kind]} size={40} color={colorHex} />
+              {/* 공개 이펙트 — 사진 영역 안에서만 논다. 카드 밖으로 튀면
+                  인화지의 물성(한 장의 사진)이 깨진다. */}
+              {fx && (
+                <RevealFx
+                  tier={reading.tier}
+                  colorHex={colorHex}
+                  reduced={prefersReducedMotion}
+                />
+              )}
             </div>
 
             <div className="space-y-3 px-0.5 pt-3 pb-2 text-left">
+              {/* 기운 이름 + 등급은 가림막 아래에서도 보인다 — 문지르기의 보상은
+                  등급이고, 문장들은 공개 후에 순서대로 온다. */}
               <div>
                 <p className="typo-micro" style={{ color: INK_FAINT }}>
                   {name}
@@ -502,13 +579,31 @@ function AuraOverlay({
                 </p>
               </div>
 
+              {/* 정보 위계: 조짐 > 조언 > 실마리 > 흘려보낼 것.
+                  조짐만 진한 잉크, 나머지는 부드러운 잉크 + 라벨로 급을 낮춘다. */}
               {/* 조짐 — 실측 신호가 고른 문장 한 줄. 수치는 인용하지 않는다. */}
-              <p className="typo-caption" style={{ color: INK }}>
+              <motion.p {...block(0)} className="typo-caption" style={{ color: INK }}>
                 {t(omenKey(reading))}
-              </p>
-              <p className="typo-caption" style={{ color: INK_SOFT }}>
+              </motion.p>
+              <motion.p {...block(1)} className="typo-caption" style={{ color: INK_SOFT }}>
                 {t(adviceKey(reading))}
-              </p>
+              </motion.p>
+              <motion.div {...block(2)}>
+                <p className="typo-micro" style={{ color: INK_FAINT }}>
+                  {t("aura.hint.label" as DictKey)}
+                </p>
+                <p className="mt-0.5 typo-caption" style={{ color: INK_SOFT }}>
+                  {t(hintKey(reading.kind, today, salt))}
+                </p>
+              </motion.div>
+              <motion.div {...block(3)}>
+                <p className="typo-micro" style={{ color: INK_FAINT }}>
+                  {t("aura.caution.label" as DictKey)}
+                </p>
+                <p className="mt-0.5 typo-caption" style={{ color: INK_SOFT }}>
+                  {t(cautionKey(reading.kind, today, salt))}
+                </p>
+              </motion.div>
             </div>
           </div>
 
@@ -533,5 +628,207 @@ function AuraOverlay({
         </motion.button>
       )}
     </motion.div>
+  );
+}
+
+/* ── 공개 이펙트 — 등급이 하늘의 답이라면, 이펙트는 그 답의 크기다 ──
+   RarityBackdrop / FortuneCard 착지 연출의 입자·글로우 어휘를 따르되, 반복 루프가
+   아니라 1회성이므로 framer-motion 으로 돌린다(rAF 부하가 공개 순간에만 그친다).
+   전부 장식이라 aria-hidden + pointer-events-none. */
+
+const FX_RING = Array.from({ length: 10 }, (_, i) => i);
+const FX_BURST = Array.from({ length: 14 }, (_, i) => i);
+/** fair 반짝임 위치(%) — 결정론적 고정 좌표. 리렌더마다 흔들리지 않는다. */
+const FX_TWINKLES = [
+  { x: 24, y: 30, s: 3 },
+  { x: 68, y: 22, s: 2 },
+  { x: 46, y: 60, s: 3 },
+  { x: 82, y: 58, s: 2 },
+  { x: 32, y: 74, s: 2 },
+];
+
+function RevealFx({
+  tier,
+  colorHex,
+  reduced,
+}: {
+  tier: AuraTier;
+  colorHex: string;
+  reduced: boolean;
+}) {
+  if (reduced) {
+    // reduced-motion 강등 — 움직임 없이 글로우가 한 번 부풀었다 잦아드는 페이드.
+    // 등급 차이는 페이드의 세기로만 남긴다.
+    const peak =
+      tier === "great" ? 0.5 : tier === "good" ? 0.36 : tier === "fair" ? 0.24 : 0.14;
+    return (
+      <motion.div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden="true"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, peak, 0] }}
+        transition={{ duration: 1.1, times: [0, 0.3, 1], ease: "easeInOut" }}
+        style={{
+          background: `radial-gradient(70% 90% at 50% 50%, ${colorHex}, transparent 72%)`,
+        }}
+      />
+    );
+  }
+
+  if (tier === "care") {
+    // 차분한 가라앉음 — 어스름이 한 번 내려앉았다 걷힌다. 입자 없음.
+    // "나쁨"의 연출이 아니라 "고요함"의 연출이어야 한다(운세가 아니라 렌즈).
+    return (
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <motion.div
+          className="absolute inset-0"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: [0, 0.3, 0], y: [-10, 4, 8] }}
+          transition={{ duration: 1.5, times: [0, 0.4, 1], ease: "easeInOut" }}
+          style={{ background: "linear-gradient(180deg, transparent 20%, #16161a 100%)" }}
+        />
+        <motion.div
+          className="absolute inset-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.18, 0] }}
+          transition={{ duration: 1.5, times: [0, 0.45, 1], ease: "easeInOut" }}
+          style={{
+            background: `radial-gradient(60% 80% at 50% 62%, ${colorHex}, transparent 70%)`,
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (tier === "fair") {
+    // 잔잔한 반짝임 — 몇 점이 순서대로 깜빡이고 만다.
+    return (
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        {FX_TWINKLES.map(({ x, y, s }, i) => (
+          <motion.span
+            key={i}
+            className="absolute rounded-full"
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: [0, 1, 0], scale: [0.4, 1, 0.5] }}
+            transition={{ duration: 0.85, delay: 0.1 + i * 0.14, ease: "easeInOut" }}
+            style={{
+              left: `${x}%`,
+              top: `${y}%`,
+              width: s,
+              height: s,
+              background: "#fff",
+              boxShadow: `0 0 ${s * 3}px ${colorHex}, 0 0 ${s * 6}px ${colorHex}aa`,
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (tier === "good") {
+    // 입자 링 — 중심에서 고리 하나가 번져 나간다 (rb-frag-emanate 의 1회성 버전).
+    // 주의: framer 가 transform 을 직접 쓰므로 가운데 정렬은 translate 클래스가
+    // 아니라 margin 으로 잡는다(덮어써지면 좌상단 기준으로 틀어진다).
+    return (
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <motion.div
+          className="absolute left-1/2 top-1/2 rounded-full"
+          initial={{ opacity: 0.5, scale: 0.35 }}
+          animate={{ opacity: 0, scale: 1.5 }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            width: 96,
+            height: 96,
+            marginLeft: -48,
+            marginTop: -48,
+            background: `radial-gradient(circle, ${colorHex}55 0%, ${colorHex}22 45%, transparent 70%)`,
+          }}
+        />
+        {FX_RING.map((i) => {
+          const angle = (i / FX_RING.length) * Math.PI * 2;
+          const s = 3 + (i % 2);
+          return (
+            <motion.span
+              key={i}
+              className="absolute left-1/2 top-1/2 rounded-full"
+              initial={{ x: 0, y: 0, opacity: 0, scale: 0.4 }}
+              animate={{
+                x: Math.cos(angle) * 62,
+                y: Math.sin(angle) * 62,
+                opacity: [0, 1, 0],
+                scale: [0.4, 1, 0.6],
+              }}
+              transition={{ duration: 0.85, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                width: s,
+                height: s,
+                marginLeft: -s / 2,
+                marginTop: -s / 2,
+                background: colorHex,
+                boxShadow: `0 0 ${s * 3}px ${colorHex}`,
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  // great — 버스트 + 빛 번쩍임. 흰 플래시가 먼저 치고, 오늘의 색 글로우가 부풀며,
+  // 입자가 두 겹 반경으로 흩어진다. legend 급 어휘의 1회성 압축.
+  return (
+    <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+      <motion.div
+        className="absolute inset-0"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.85, 0] }}
+        transition={{ duration: 0.55, times: [0, 0.18, 1], ease: "easeOut" }}
+        style={{ background: "#fff" }}
+      />
+      <motion.div
+        className="absolute left-1/2 top-1/2 rounded-full"
+        initial={{ opacity: 0.8, scale: 0.3 }}
+        animate={{ opacity: 0, scale: 1.9 }}
+        transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          width: 128,
+          height: 128,
+          marginLeft: -64,
+          marginTop: -64,
+          background: `radial-gradient(circle, ${colorHex} 0%, ${colorHex}44 40%, transparent 70%)`,
+        }}
+      />
+      {FX_BURST.map((i) => {
+        const angle = (i / FX_BURST.length) * Math.PI * 2 + (i % 3) * 0.11;
+        const dist = 58 + (i % 4) * 16;
+        const s = 3 + (i % 3);
+        return (
+          <motion.span
+            key={i}
+            className="absolute left-1/2 top-1/2 rounded-full"
+            initial={{ x: 0, y: 0, opacity: 0, scale: 0.4 }}
+            animate={{
+              x: Math.cos(angle) * dist,
+              y: Math.sin(angle) * dist,
+              opacity: [0, 1, 0],
+              scale: [0.4, 1, 0.5],
+            }}
+            transition={{
+              duration: 1.0,
+              delay: 0.08 + (i % 4) * 0.04,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+            style={{
+              width: s,
+              height: s,
+              marginLeft: -s / 2,
+              marginTop: -s / 2,
+              background: i % 3 === 0 ? "#fff" : colorHex,
+              boxShadow: `0 0 ${s * 3}px ${colorHex}, 0 0 ${s * 6}px ${colorHex}88`,
+            }}
+          />
+        );
+      })}
+    </div>
   );
 }
