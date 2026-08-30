@@ -8,8 +8,10 @@ import AuraScratch from "@/components/flame/AuraScratch";
 import { showRewardedAd } from "@/lib/ads";
 import {
   AURA_KINDS,
+  auraAdviceVariant,
   auraCautionIndex,
   auraHintIndex,
+  auraTarotOffer,
   computeAura,
   type AuraInput,
   type AuraKind,
@@ -19,9 +21,12 @@ import {
 import {
   ensureAuraSnapshot,
   markAuraOpened,
+  markAuraTarot,
   readAuraState,
   readFortuneState,
 } from "@/lib/fortune";
+import { TAROT_DECK, type TarotCard } from "@/data/tarotPool";
+import type { L10nText } from "@/data/fortunePool";
 import { playSound, triggerHaptic } from "@/lib/sounds";
 import type { DictKey } from "@/i18n";
 import { useGameStore } from "@/store/useGameStore";
@@ -74,9 +79,13 @@ const TIER_KEY: Record<AuraTier, DictKey> = {
 function omenKey(r: AuraReading): DictKey {
   return `aura.omen.${r.kind}.${r.omen}.${r.variant}` as DictKey;
 }
-/** 조언 문장 — 기운·등급에 표현 번호를 더해 키를 만든다. */
-function adviceKey(r: AuraReading): DictKey {
-  return `aura.advice.${r.kind}.${r.tier}.${r.variant}` as DictKey;
+/**
+ * 조언 문장 — 기운·등급에 조언 전용 변주(0..5)를 더해 키를 만든다.
+ * AuraReading.variant(0..2)는 조짐 몫이고, 조언은 auraAdviceVariant 가 6종을 돈다 —
+ * 같은 등급이 이어져도 조언까지 어제와 같은 문장이 나오는 날을 줄인다.
+ */
+function adviceKey(r: AuraReading, today: string, salt: string): DictKey {
+  return `aura.advice.${r.kind}.${r.tier}.${auraAdviceVariant(today, salt, r.kind)}` as DictKey;
 }
 /**
  * 오늘의 실마리·흘려보낼 것 — 조짐·조언과 같은 시드 재료(오늘+salt+기운)에서
@@ -153,9 +162,10 @@ export default function AuraSection({
     day: string;
     opened: AuraKind[];
     snapshot: Record<AuraKind, AuraReading> | null;
+    tarot: Partial<Record<AuraKind, number>>;
   }>(() => {
     const state = readAuraState(today);
-    return { day: today, opened: state.opened, snapshot: state.snapshot };
+    return { day: today, opened: state.opened, snapshot: state.snapshot, tarot: state.tarot };
   });
   const [view, setView] = useState<{ kind: AuraKind; ritual: boolean } | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -176,12 +186,12 @@ export default function AuraSection({
   if (store.day !== today) {
     // 날짜가 넘어갔다 — readAuraState 가 어제 기록을 걸러 빈 값을 돌려준다.
     const state = readAuraState(today);
-    setStore({ day: today, opened: state.opened, snapshot: state.snapshot });
+    setStore({ day: today, opened: state.opened, snapshot: state.snapshot, tarot: state.tarot });
     setView(null);
     setPendingRitual(new Set());
   }
 
-  const { opened, snapshot } = store;
+  const { opened, snapshot, tarot } = store;
 
   useEffect(
     () => () => {
@@ -220,7 +230,14 @@ export default function AuraSection({
       const snap = ensureAuraSnapshot(today, () => computeAura(input));
       // 열람 기록은 "볼 권리를 얻은 순간" 남긴다. 문지르다 나가도 광고값은 지킨다.
       const nextOpened = markAuraOpened(today, kind);
-      setStore({ day: today, opened: nextOpened, snapshot: snap });
+      setStore((prev) => ({
+        day: today,
+        opened: nextOpened,
+        snapshot: snap,
+        // 렌더 가드가 롤오버를 먼저 잡아주지만, 혹시 낡은 prev 가 남아 있으면
+        // 어제 타로 선택이 오늘 화면에 얹히지 않게 여기서 한 번 더 거른다.
+        tarot: prev.day === today ? prev.tarot : readAuraState(today).tarot,
+      }));
       // 처음 여는 기운만 의식을 거친다. 재열람은 곧장 결과로.
       const ritual = !opened.includes(kind) || pendingRitual.has(kind);
       if (ritual) {
@@ -270,6 +287,21 @@ export default function AuraSection({
       }
     },
     [phase, play, opened, openReading],
+  );
+
+  /**
+   * 타로 선택 — 저장이 진실의 원천이다. markAuraTarot 은 이미 있으면 덮지 않고
+   * 기존 값을 돌려주므로(하루 고정), 화면 상태는 그 반환값을 그대로 따라간다.
+   */
+  const handleTarotPick = useCallback(
+    (kind: AuraKind, cardId: number) => {
+      const fixed = markAuraTarot(today, kind, cardId);
+      setStore((prev) => {
+        if (prev.day !== today || prev.tarot[kind] === fixed) return prev;
+        return { ...prev, tarot: { ...prev.tarot, [kind]: fixed } };
+      });
+    },
+    [today],
   );
 
   // 리텐션 복원 전이면 체크인 이력이 비어 보인다. 그 상태로 스냅샷을 고정하면
@@ -372,6 +404,8 @@ export default function AuraSection({
                 today={today}
                 colorHex={colorHex}
                 ritual={view.ritual}
+                tarotCardId={tarot[view.kind] ?? null}
+                onPickTarot={(cardId) => handleTarotPick(view.kind, cardId)}
                 onRevealed={() =>
                   setPendingRitual((prev) => {
                     if (!prev.has(view.kind)) return prev;
@@ -402,14 +436,20 @@ function AuraOverlay({
   today,
   colorHex,
   ritual,
+  tarotCardId,
+  onPickTarot,
   onRevealed,
   onClose,
 }: {
   reading: AuraReading;
-  /** daily.date — 실마리·흘려보낼 것 선택 시드에 들어간다 */
+  /** daily.date — 실마리·흘려보낼 것·타로 제시 시드에 들어간다 */
   today: string;
   colorHex: string;
   ritual: boolean;
+  /** 오늘 이 기운에서 이미 뒤집은 카드 id. 미선택이면 null. */
+  tarotCardId: number | null;
+  /** 카드를 뒤집은 순간 — 선택 즉시 저장한다(하루 고정, 재선택 불가) */
+  onPickTarot: (cardId: number) => void;
   /** 가림막을 실제로 걷어낸 순간 — 중도 이탈과 구분하려고 따로 알린다 */
   onRevealed: () => void;
   onClose: () => void;
@@ -586,7 +626,7 @@ function AuraOverlay({
                 {t(omenKey(reading))}
               </motion.p>
               <motion.p {...block(1)} className="typo-caption" style={{ color: INK_SOFT }}>
-                {t(adviceKey(reading))}
+                {t(adviceKey(reading, today, salt))}
               </motion.p>
               <motion.div {...block(2)}>
                 <p className="typo-micro" style={{ color: INK_FAINT }}>
@@ -603,6 +643,19 @@ function AuraOverlay({
                 <p className="mt-0.5 typo-caption" style={{ color: INK_SOFT }}>
                   {t(cautionKey(reading.kind, today, salt))}
                 </p>
+              </motion.div>
+              {/* 타로 — 읽어 내려가는 리듬의 마지막 박자. 제시 3장은 결정론이지만
+                  무엇을 뒤집을지는 여기서 유일하게 유저 몫이다(하루 고정). */}
+              <motion.div {...block(4)}>
+                <TarotBlock
+                  offer={auraTarotOffer(today, salt, reading.kind)}
+                  selectedId={tarotCardId}
+                  tier={reading.tier}
+                  colorHex={colorHex}
+                  active={revealed}
+                  reduced={prefersReducedMotion}
+                  onPick={onPickTarot}
+                />
               </motion.div>
             </div>
           </div>
@@ -628,6 +681,234 @@ function AuraOverlay({
         </motion.button>
       )}
     </motion.div>
+  );
+}
+
+/* ── 타로 — 리딩의 마지막 박자, 유일하게 유저가 고르는 한 장 ──
+   제시 3장은 결정론(auraTarotOffer)이지만 무엇을 뒤집을지는 유저 몫이고,
+   선택은 하루 고정이다(markAuraTarot — 재선택 불가). 엎어진 면은 필름 프레임 결,
+   뒤집힌 면은 미니 폴라로이드 — 오늘의 색은 여기서도 사진 영역(어두운 바탕)에만. */
+
+/**
+ * L10nText 렌더 — fortunePool 소비부(FortuneCard) 선례를 따르되, 콘텐츠가 뒤
+ * 단계에서 채워지는 스켈레톤 기간에 빈 문자열이 오면 ko 로 폴백한다.
+ */
+function l10n(text: L10nText, lang: keyof L10nText): string {
+  return text[lang] || text.ko;
+}
+
+/** 필름 퍼포레이션 구멍 수 — 엎어진 면 위아래 한 줄씩 */
+const TAROT_PERF = [0, 1, 2, 3];
+
+function TarotBlock({
+  offer,
+  selectedId,
+  tier,
+  colorHex,
+  active,
+  reduced,
+  onPick,
+}: {
+  /** 오늘 이 기운에 제시된 카드 id 3장 — auraTarotOffer 산출, 서로 다름 보장 */
+  offer: [number, number, number];
+  /** 오늘 이미 뒤집은 카드 id. 미선택이면 null. */
+  selectedId: number | null;
+  /** 해설은 그날 그 기운의 등급을 따른다 — readings[tier] */
+  tier: AuraTier;
+  colorHex: string;
+  /** 가림막을 걷어낸 뒤에만 만질 수 있다(히트테스트 게이트). opacity 0 으로
+      숨어 있는 동안 탭·포커스가 새면 공개 의식이 무의미해진다. */
+  active: boolean;
+  reduced: boolean;
+  onPick: (cardId: number) => void;
+}) {
+  const { t, language } = useTranslation();
+  const soundEnabled = useGameStore((s) => s.progress.soundEnabled ?? true);
+  const hapticEnabled = useGameStore((s) => s.progress.hapticEnabled ?? true);
+
+  // 저장이 0..39 를 보장하지만(관용 디코드) 인덱싱 한 번은 방어적으로.
+  const selected: TarotCard | null =
+    selectedId !== null ? (TAROT_DECK[selectedId] ?? null) : null;
+
+  const handlePick = (cardId: number) => {
+    if (!active || selected !== null) return;
+    if (soundEnabled) playSound("cardFlip");
+    if (hapticEnabled) triggerHaptic("cardFlip");
+    onPick(cardId);
+  };
+
+  return (
+    <div>
+      <p className="typo-micro" style={{ color: INK_FAINT }}>
+        {selected ? t("aura.tarot.locked") : t("aura.tarot.prompt")}
+      </p>
+      <div className="mt-1.5 grid grid-cols-3 gap-2">
+        {offer.map((cardId, i) => {
+          const card = TAROT_DECK[cardId];
+          const isUp = selectedId === cardId;
+          const dimmed = selected !== null && !isUp;
+          return (
+            <TarotFlipCard
+              key={cardId}
+              card={card}
+              up={isUp}
+              dimmed={dimmed}
+              disabled={!active || selected !== null}
+              colorHex={colorHex}
+              reduced={reduced}
+              label={
+                isUp
+                  ? l10n(card.name, language)
+                  : `${t("aura.tarot.card.a11y")} ${i + 1}${
+                      dimmed ? `, ${t("aura.locked.a11y")}` : ""
+                    }`
+              }
+              onPick={() => handlePick(cardId)}
+            />
+          );
+        })}
+      </div>
+      {/* 해설 — 카드가 뒤집히고 한 박자 뒤에 떠오른다. 등급별 해설이라
+          같은 카드도 그날 하늘(tier)에 따라 다르게 읽힌다. */}
+      <AnimatePresence>
+        {selected && (
+          <motion.p
+            initial={{ opacity: 0, y: reduced ? 0 : 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: reduced ? 0.2 : 0.45,
+              delay: reduced ? 0.1 : 0.3,
+              ease: "easeOut",
+            }}
+            className="mt-2 typo-caption"
+            style={{ color: INK_SOFT }}
+          >
+            {l10n(selected.readings[tier], language)}
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function TarotFlipCard({
+  card,
+  up,
+  dimmed,
+  disabled,
+  colorHex,
+  reduced,
+  label,
+  onPick,
+}: {
+  card: TarotCard;
+  up: boolean;
+  /** 다른 카드가 선택됨 — 흐리게, 재선택 불가 */
+  dimmed: boolean;
+  disabled: boolean;
+  colorHex: string;
+  reduced: boolean;
+  label: string;
+  onPick: () => void;
+}) {
+  const { language } = useTranslation();
+
+  // 엎어진 면 — 필름 프레임 결. 위아래 퍼포레이션이 "같은 롤의 한 프레임"을 말한다.
+  const back = (
+    <span className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-sm bg-[#20201e]">
+      <span className="absolute inset-x-1.5 top-1 flex justify-between" aria-hidden="true">
+        {TAROT_PERF.map((i) => (
+          <span key={i} className="h-[3px] w-[3px] rounded-[1px] bg-[#f2f1ee] opacity-20" />
+        ))}
+      </span>
+      <span className="absolute inset-x-1.5 bottom-1 flex justify-between" aria-hidden="true">
+        {TAROT_PERF.map((i) => (
+          <span key={i} className="h-[3px] w-[3px] rounded-[1px] bg-[#f2f1ee] opacity-20" />
+        ))}
+      </span>
+      <span style={{ opacity: 0.75 }}>
+        <PixelIcon name="Sparkle" size={16} color={colorHex} />
+      </span>
+    </span>
+  );
+
+  // 뒤집힌 면 — 미니 폴라로이드. 오늘의 색은 사진 영역(어두운 바탕)에만 싣는다.
+  const front = (
+    <span className="flex h-full w-full flex-col overflow-hidden rounded-sm bg-[#e9e8e4] p-1">
+      <span className="relative flex flex-1 items-center justify-center overflow-hidden bg-bg-primary">
+        <span
+          className="pointer-events-none absolute inset-0"
+          aria-hidden="true"
+          style={{
+            background: `radial-gradient(70% 90% at 50% 50%, ${colorHex}, transparent 72%)`,
+            opacity: 0.3,
+          }}
+        />
+        <PixelIcon name={card.icon} size={20} color={colorHex} />
+      </span>
+      <span className="block pt-1 pb-0.5 text-center typo-micro" style={{ color: INK_SOFT }}>
+        {l10n(card.name, language)}
+      </span>
+    </span>
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      disabled={disabled}
+      aria-label={label}
+      className={`press-affordance relative aspect-[5/7] w-full transition-opacity duration-300 ${
+        dimmed ? "opacity-40" : ""
+      }`}
+      style={{ perspective: 600 }}
+    >
+      {reduced ? (
+        // reduced-motion — 뒤집기 대신 페이드 교차. initial={false}: 재진입
+        // 마운트에서는 애니메이션 없이 곧장 최종 상태로 선다.
+        <span className="relative block h-full w-full">
+          <motion.span
+            className="absolute inset-0 block"
+            initial={false}
+            animate={{ opacity: up ? 0 : 1 }}
+            transition={{ duration: 0.25 }}
+          >
+            {back}
+          </motion.span>
+          <motion.span
+            className="absolute inset-0 block"
+            initial={false}
+            animate={{ opacity: up ? 1 : 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            {front}
+          </motion.span>
+        </span>
+      ) : (
+        // 3D 뒤집기 — 세션 중 선택 순간에만 돈다(initial={false} 로 재진입 마운트는
+        // 이미 뒤집힌 채 선다). FortuneCard 착지 어휘와 같은 easeOutExpo 계열.
+        <motion.span
+          className="relative block h-full w-full"
+          style={{ transformStyle: "preserve-3d" }}
+          initial={false}
+          animate={{ rotateY: up ? 180 : 0 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <span
+            className="absolute inset-0 block"
+            style={{ backfaceVisibility: "hidden" }}
+          >
+            {back}
+          </span>
+          <span
+            className="absolute inset-0 block"
+            style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+          >
+            {front}
+          </span>
+        </motion.span>
+      )}
+    </button>
   );
 }
 
