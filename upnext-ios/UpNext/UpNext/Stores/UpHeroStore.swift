@@ -30,6 +30,12 @@ final class UpHeroStore: ObservableObject {
     /// Up Hero 전체 상태. 화면은 이걸 구독하고, 변경은 스토어 액션으로만.
     @Published private(set) var state: UpHeroState
 
+    /// 영속화 직후 호출되는 훅 — GameStore 가 SyncManager.syncUpHero 로 배선해
+    /// 의미 있는 변경마다 클라우드 업로드를 디바운스한다 (웹 saveToStorage →
+    /// syncToCloud("uphero") 라우팅 대응). 클라우드 채택(adoptCloudState)은 이 훅을
+    /// 타지 않아 echo 업로드가 없다.
+    var onPersist: ((UpHeroState) -> Void)?
+
     init() {
         // 디스크에 저장된 상태가 있으면 복원, 없으면(최초 실행) 기본 상태.
         state = Self.loadPersisted() ?? Self.makeDefaultState()
@@ -91,12 +97,35 @@ final class UpHeroStore: ObservableObject {
         state.idleReward = nil
     }
 
-    /// 로그아웃 — 메모리 상태를 디스크 저장본 기준으로 다시 맞춘다.
-    /// Up Hero 는 기기 로컬 데이터라 로그아웃해도 저장 파일은 보존한다 (웹 localStorage
-    /// 와 동일). 메모리만 저장본으로 되돌려, 이후 영속화가 어긋난 상태를 덮어쓰지
-    /// 않게 한다. 다음 로그인 시 저장본이 그대로 복원된다.
+    /// 로그아웃 — 계정 경계 리셋. Up Hero 가 클라우드 동기화 대상이 된 이후로는
+    /// 로컬 저장 파일을 보존하면 안 된다: 공유 기기에서 다음 계정이 로그인하면 이전
+    /// 계정의 영웅이 "로컬 흔적" 으로 남아 한 방향 병합에서 이기고, 다음 변경 때
+    /// 새 계정 문서로 업로드되는 cross-account 오염이 생긴다. 데이터는 Firestore 에
+    /// 있으므로 재로그인 시 복원된다 (웹 signOut 의 clearAllAppStorage 와 동일).
+    /// 파일 삭제는 savePersisted 와 같은 serial ioQueue 로 넘겨 in-flight write 가
+    /// 삭제 뒤에 도착해 파일을 되살리는 race 를 막는다 (resetAllData 와 동일 패턴).
     func resetForSignOut() {
-        state = Self.loadPersisted() ?? Self.makeDefaultState()
+        state = Self.makeDefaultState()
+        let url = Self.persistenceURL
+        Self.ioQueue.async { try? FileManager.default.removeItem(at: url) }
+    }
+
+    /// 클라우드 스냅샷 채택 — 병합 규칙(로컬에 흔적이 없을 때만)은 호출측
+    /// (GameStore.adoptCloudUpHero)이 판단한다 (웹 _setFromCloud 와 동일 소유권).
+    /// 페이로드에 없는 로컬 전용 필드는 유지한다: currentSession 은 동기화 대상이
+    /// 아니므로 진행 중 던전이 있으면 그대로 살아남는다. isLoaded 를 세워 이후
+    /// initialize 의 heroStartLevel 재시드/idle 정산을 건너뛴다 (웹과 동일).
+    /// 직접 savePersisted — onPersist 훅을 타지 않아 채택 직후 재업로드 echo 가 없다.
+    func adoptCloudState(_ cloud: CloudUpHeroState) {
+        var s = cloud.toState()
+        s.currentSession = state.currentSession
+        s.pendingDungeon = state.pendingDungeon
+        // 시작 선물은 계정 단위 1회 — 클라우드가 "이미 받음" 이면 로컬 예약을 거둔다.
+        // (그대로 두면 오버레이가 떴다가 claimWelcomeGift 가 빈손으로 닫힌다.)
+        s.pendingWelcomeGift = cloud.welcomeGiftClaimed ? nil : state.pendingWelcomeGift
+        s.isLoaded = true
+        state = s
+        Self.savePersisted(state)
     }
 
     // MARK: - 장비 (웹 equipItem / unequipItem / sellItem / discardItem)
@@ -771,8 +800,10 @@ final class UpHeroStore: ObservableObject {
     // MARK: - 로컬 영속화 (웹 localStorage["uphero"])
 
     /// 현재 상태를 디스크에 저장. 상태를 바꾸는 액션이 호출한다 (best-effort).
+    /// onPersist 훅으로 클라우드 업로드도 함께 디바운스된다 (GameStore 배선).
     private func persist() {
         Self.savePersisted(state)
+        onPersist?(state)
     }
 
     /// 저장 파일 — Application Support/uphero.json.

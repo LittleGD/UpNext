@@ -7,18 +7,23 @@
 //  언어다. "최근 14일 중 9일 불꽃을 켰어요" 같은 문장은 점집을 대시보드로 만든다.
 //  데이터는 **어떤 문장을 보여줄지 고르는 데만** 쓴다(score → tier, 신호 → omen).
 //
-//  하루치 흔들림: 행동 신호만 쓰면 습관이 안정된 유저는 매일 같은 결과가 나온다.
-//  그건 점이 아니라 통계표다. 그래서 (날짜 + 기기 salt + 기운) 해시로 ±12 를 더한다.
-//  난수가 아니라 해시라 같은 날이면 값이 고정이고, 행동 신호가 여전히 지배적이다.
+//  등급 주사위: 행동 신호만 쓰면 습관이 안정된 유저는 **매일 같은 결과**가 나온다.
+//  그건 점이 아니라 통계표다. 그래서 역할을 나눈다 —
+//  **조짐(omen)은 행동의 정직한 거울**이고(신호에서 직접 나온다, 변덕 없음),
+//  **등급(tier)은 행동이 확률을 기울인 하늘의 주사위**다. base 점수(0~100)는
+//  great/good/fair/care 의 확률 가중치를 만들고, (날짜 + 기기 salt + 기운) 해시가
+//  그 가중치 위에서 등급을 뽑는다. "점"의 의외성은 등급이 담당하고,
+//  행동의 인과("요즘 잘하면 대체로 좋게 나온다")는 기울어진 확률이 담당한다.
+//  성실해도 가끔 흐린 날이 오고, 게을러도 가끔 맑은 날이 온다 — 그게 점이다.
 //
 //  결정론: 같은 데이터 + 같은 날 + 같은 salt 면 항상 같은 결과. 난수를 쓰지 않는다.
-//  점수는 첫 리딩을 여는 시점에 3종을 한꺼번에 스냅샷해 저장하므로, 그날 안에서
-//  값이 흔들리지 않는다(오전에 본 재물기운이 오후에 달라지면 점이 아니라 대시보드다).
+//  해시 주사위라 리롤 가챠화가 불가능하다. 점수는 첫 리딩을 여는 시점에 3종을 한꺼번에
+//  스냅샷해 저장하므로, 그날 안에서 값이 흔들리지 않는다.
 //
 //  톤 규칙: 낮은 점수를 꾸짖지 않는다. tier 는 심판이 아니라 날씨다("잔잔"은 나쁨이 아니다).
 //
-//  웹과의 동치: 가중치·임계값·창 길이·카테고리 묶음·tier 경계(80/60/38)·흔들림 폭(±12)·
-//  판정 순서를 그대로 옮겼다. blend 의 반올림도 JS `Math.round` 와 같다
+//  웹과의 동치: 가중치·임계값·창 길이·카테고리 묶음·tier 경계(80/60/38)·등급 확률 롤
+//  (정수 연산까지)·판정 순서를 그대로 옮겼다. blend 의 반올림도 JS `Math.round` 와 같다
 //  (값이 음수가 아니라 `rounded()` 와 동일).
 //
 
@@ -188,18 +193,6 @@ enum Aura {
         return Int(scaled.rounded())
     }
 
-    /// 하루치 흔들림 폭. 신호를 뒤집지 않을 만큼만 — tier 경계를 가끔 넘길 정도. 웹 `SWAY`.
-    private static let sway = 12
-
-    /// (날짜 + salt + 기운) 해시로 -sway...+sway 를 만든다. 웹 `dailySway`.
-    /// 기운마다 다른 값이 나와야 셋이 함께 움직이는 기계적인 인상을 피한다.
-    /// 해시는 `Fortune.fnv1a` 를 그대로 쓴다 — 웹 `fnv1a` 와 같은 함수라 값도 같다.
-    private static func dailySway(_ today: String, _ salt: String?, _ kind: AuraKind) -> Int {
-        guard let salt, !salt.isEmpty else { return 0 }
-        let h = Fortune.fnv1a("sway:\(today):\(salt):\(kind.rawValue)")
-        return Int(h % UInt32(sway * 2 + 1)) - sway
-    }
-
     /// 조짐·조언 표현 가짓수. 웹 `AURA_VARIANTS`.
     static let auraVariants = 3
 
@@ -221,6 +214,99 @@ enum Aura {
         if score >= 60 { return .good }
         if score >= 38 { return .fair }
         return .care
+    }
+
+    /// 등급별 점수 밴드. tier(of: 밴드하한 + 0..폭-1) == 해당 등급이 되도록 잡았다.
+    /// 점수는 저장·회귀용으로만 밴드 안에서 뽑는다 — 화면에는 여전히 안 나간다. 웹 `TIER_BANDS`.
+    private static let tierBands: [AuraTier: (low: Int, width: Int)] = [
+        .great: (low: 80, width: 21), // 80..100
+        .good: (low: 60, width: 20),  // 60..79
+        .fair: (low: 38, width: 22),  // 38..59
+        .care: (low: 0, width: 38),   // 0..37
+    ]
+
+    /// 등급 확률 롤 — **웹/iOS 가 정수 연산까지 동일해야 하는 확정 스펙.**
+    /// (JS `Math.floor` 나눗셈 == Swift Int 나눗셈. 임의 개선 금지 — 곧 플랫폼 불일치다.)
+    ///
+    /// 왜 주사위가 등급을 맡는가: 조짐은 행동의 거울이라 습관이 안정되면 매일 같다.
+    /// 등급마저 행동에서 직접 나오면 이 화면은 어제와 똑같은 성적표가 된다.
+    /// 그래서 행동(base)은 확률을 기울이는 데까지만 관여하고, 최종 등급은
+    /// 결정론적 해시 주사위가 뽑는다. base 0 이어도 great 6%, base 100 이어도 care 5% —
+    /// 하늘은 심판하지 않고, 다만 성실한 쪽으로 기운다.
+    ///
+    /// 해시 시드 구분자는 "|" 다(기존 sway/phrase 의 ":" 와 다름 — 의도된 스펙).
+    /// salt 가 없으면(테스트·검증용) 주사위 없이 base 를 그대로 쓴다. 웹 `rollTier`.
+    static func rollTier(base: Int, today: String, salt: String?,
+                         kind: AuraKind) -> (tier: AuraTier, score: Int) {
+        guard let salt, !salt.isEmpty else { return (tier: tier(of: base), score: base) }
+        let r = Int(Fortune.fnv1a("tier:" + today + "|" + salt + "|" + kind.rawValue) % 1000)
+        let wGreat = 60 + (440 * base) / 100                // 6% → 50%
+        let wGood = 200 + (150 * base) / 100                // 20% → 35%
+        let wCare = max(50, 180 - (130 * base) / 100)       // 18% → 5%
+        let wFair = 1000 - wGreat - wGood - wCare
+        // 누적 순서 great → good → fair → care
+        let rolled: AuraTier
+        if r < wGreat { rolled = .great }
+        else if r < wGreat + wGood { rolled = .good }
+        else if r < wGreat + wGood + wFair { rolled = .fair }
+        else { rolled = .care }
+        let band = tierBands[rolled] ?? (low: 0, width: 38)
+        let score = band.low
+            + Int(Fortune.fnv1a("tierscore:" + today + "|" + salt + "|" + kind.rawValue)
+                  % UInt32(band.width))
+        return (tier: rolled, score: score)
+    }
+
+    /// 오늘의 실마리 / 흘려보낼 것 문구 가짓수. 웹 `AURA_HINT_COUNT`.
+    static let hintCount = 6
+
+    /// 오늘의 실마리 선택 인덱스. 등급 주사위·표현 번호와 다른 접두사라 서로
+    /// 상관관계가 없다. salt 없으면 0. 웹 `auraHintIndex`.
+    static func hintIndex(today: String, salt: String?, kind: AuraKind) -> Int {
+        guard let salt, !salt.isEmpty else { return 0 }
+        return Int(Fortune.fnv1a("hint:" + today + "|" + salt + "|" + kind.rawValue)
+                   % UInt32(hintCount))
+    }
+
+    /// 흘려보낼 것 선택 인덱스. salt 없으면 0. 웹 `auraCautionIndex`.
+    static func cautionIndex(today: String, salt: String?, kind: AuraKind) -> Int {
+        guard let salt, !salt.isEmpty else { return 0 }
+        return Int(Fortune.fnv1a("caution:" + today + "|" + salt + "|" + kind.rawValue)
+                   % UInt32(hintCount))
+    }
+
+    // MARK: - 타로 (리딩 결과 화면의 "선택" 한 조각)
+
+    /// 타로 덱 크기. `TarotPool.deck.count` 와 일치해야 한다(웹 `TAROT_CARD_COUNT` —
+    /// 웹도 순환 import 를 피해 상수로 둔다). AuraRollTests 가 둘의 일치를 회귀로 잡는다.
+    static let tarotCardCount = 40
+
+    /// 오늘 이 기운에 제시할 타로 3장(카드 id, 서로 다름 보장). 웹 `auraTarotOffer` —
+    /// **웹/iOS 가 정수 연산까지 동일해야 하는 확정 스펙.** 임의 개선 금지.
+    /// while 재배치는 방어선이다: tarot0/1/2 접두사의 한 글자 차이가 FNV-1a 해시의
+    /// 홀짝을 바꿔 실전에서는 세 값이 이미 서로 다르지만, 스펙은 가정에 기대지 않는다.
+    /// salt 없으면(테스트·검증용) [0, 1, 2] 폴백.
+    static func tarotOffer(today: String, salt: String?, kind: AuraKind) -> [Int] {
+        guard let salt, !salt.isEmpty else { return [0, 1, 2] }
+        let base = today + "|" + salt + "|" + kind.rawValue
+        let a = Int(Fortune.fnv1a("tarot0:" + base) % UInt32(tarotCardCount))
+        var b = Int(Fortune.fnv1a("tarot1:" + base) % UInt32(tarotCardCount))
+        while b == a { b = (b + 1) % tarotCardCount }
+        var c = Int(Fortune.fnv1a("tarot2:" + base) % UInt32(tarotCardCount))
+        while c == a || c == b { c = (c + 1) % tarotCardCount }
+        return [a, b, c]
+    }
+
+    /// 조언 표현 가짓수 — 조짐(auraVariants=3)과 달리 조언은 6종. 웹 `AURA_ADVICE_VARIANTS`.
+    static let adviceVariants = 6
+
+    /// 조언 변주 인덱스 (0..5). 웹 `auraAdviceVariant` — `AuraReading.variant`(0..2)에서
+    /// 분리했다: variant 는 스냅샷 디코드 하위호환이 걸린 스키마라 범위를 못 늘리고,
+    /// 조언만 별도 해시로 6종을 돈다. 조짐과 접두사가 달라 상관관계가 없다. salt 없으면 0.
+    static func adviceVariant(today: String, salt: String?, kind: AuraKind) -> Int {
+        guard let salt, !salt.isEmpty else { return 0 }
+        return Int(Fortune.fnv1a("advicevar:" + today + "|" + salt + "|" + kind.rawValue)
+                   % UInt32(adviceVariants))
     }
 
     // MARK: - 관측 창 집계
@@ -282,18 +368,18 @@ enum Aura {
     /// 신호: 풀클리어 비율(약속을 끝까지 지킨 날), 생산성·학습 카드 비중, 연속 기록.
     private static func wealth(_ w: Summary, _ input: AuraInput) -> AuraReading {
         let focus = sumCats(w, wealthCats)
-        let base = blend([
+        let base = clamp100(blend([
             (value: ratio(w.fullClearDays, w.days), weight: 3),
             (value: ratio(focus, max(4, w.totalCompleted)), weight: 2),
             (value: ratio(input.streak, 10), weight: 1),
-        ])
-        let score = clamp100(base + dailySway(input.today, input.salt, .wealth))
+        ]))
+        let roll = rollTier(base: base, today: input.today, salt: input.salt, kind: .wealth)
         var omen: AuraOmen = .unformed
         if w.totalCompleted == 0 { omen = .unformed }
         else if w.fullClearDays >= 3 { omen = .closing }
         else if focus >= 3 { omen = .gathering }
         else if input.streak >= 3 { omen = .carried }
-        return AuraReading(kind: .wealth, score: score, tier: tier(of: score), omen: omen,
+        return AuraReading(kind: .wealth, score: roll.score, tier: roll.tier, omen: omen,
                            variant: variantOf(input.today, input.salt, .wealth))
     }
 
@@ -301,16 +387,16 @@ enum Aura {
     /// 표본이 적은 카테고리라 기준을 낮게 잡는다(소통 카드는 매일 나오지 않는다).
     private static func relationship(_ w: Summary, _ input: AuraInput) -> AuraReading {
         let focus = sumCats(w, relationCats)
-        let base = blend([
+        let base = clamp100(blend([
             (value: ratio(focus, 5), weight: 3),
             (value: input.duoActive ? 1 : 0, weight: 2),
             (value: ratio(w.activeDays, w.days), weight: 1),
-        ])
-        let score = clamp100(base + dailySway(input.today, input.salt, .relationship))
+        ]))
+        let roll = rollTier(base: base, today: input.today, salt: input.salt, kind: .relationship)
         var omen: AuraOmen = .unformed
         if focus >= 2 { omen = .gathering }
         else if w.activeDays >= 5 { omen = .rhythm }
-        return AuraReading(kind: .relationship, score: score, tier: tier(of: score), omen: omen,
+        return AuraReading(kind: .relationship, score: roll.score, tier: roll.tier, omen: omen,
                            variant: variantOf(input.today, input.salt, .relationship))
     }
 
@@ -320,17 +406,17 @@ enum Aura {
     private static func health(_ w: Summary, _ input: AuraInput) -> AuraReading {
         let focus = sumCats(w, healthCats)
         let penalty: Double = ratio(w.failedDays, w.days) * 0.5
-        let base = blend([
+        let base = clamp100(blend([
             (value: ratio(focus, 8), weight: 3),
             (value: ratio(w.checkInDays, w.days), weight: 3),
             (value: max(0, 1 - penalty), weight: 1),
-        ])
-        let score = clamp100(base + dailySway(input.today, input.salt, .health))
+        ]))
+        let roll = rollTier(base: base, today: input.today, salt: input.salt, kind: .health)
         var omen: AuraOmen = .unformed
         if w.checkInDays >= 7 { omen = .rhythm }
         else if focus >= 3 { omen = .gathering }
         else if w.saverDays > 0 { omen = .resting }
-        return AuraReading(kind: .health, score: score, tier: tier(of: score), omen: omen,
+        return AuraReading(kind: .health, score: roll.score, tier: roll.tier, omen: omen,
                            variant: variantOf(input.today, input.salt, .health))
     }
 }
@@ -343,8 +429,11 @@ struct AuraState {
     var opened: [AuraKind]
     /// 오늘 고정된 3종 리딩. 아직 첫 리딩을 열지 않았으면 nil.
     var snapshot: AuraSnapshot?
+    /// 오늘 각 기운에서 뒤집은 타로 카드 id(0..39). 없는 기운은 아직 미선택.
+    /// 선택은 유저 몫이지만 하루 고정 — 재선택 불가(웹 `auraTarot`).
+    var tarot: [AuraKind: Int] = [:]
 
-    static let empty = AuraState(opened: [], snapshot: nil)
+    static let empty = AuraState(opened: [], snapshot: nil, tarot: [:])
 
     var allOpened: Bool { opened.count >= AuraKind.allCases.count }
 }
@@ -406,14 +495,54 @@ enum AuraStore {
         return obj
     }
 
+    /// 타로 선택 관용 디코드 — 0..39 정수만 인정하고 어긋난 항목은 그 기운만 버린다.
+    /// 덱이 줄어드는 일은 없지만(id 불변 계약) 손댄 저장값이 화면 인덱싱을 깨면 안 된다.
+    /// 웹 `decodeTarot` 과 같은 계약(Number.isInteger + 0..39 범위).
+    private static func decodeTarot(_ value: Any?) -> [AuraKind: Int] {
+        guard let raw = value as? [String: Any] else { return [:] }
+        var out: [AuraKind: Int] = [:]
+        for kind in AuraKind.allCases {
+            guard let v = raw[kind.rawValue], !(v is Bool),
+                  let id = v as? Int,
+                  id >= 0, id < Aura.tarotCardCount else { continue }
+            out[kind] = id
+        }
+        return out
+    }
+
+    /// 타로 선택을 JSON 딕셔너리로. 비어 있으면 nil — 웹이 `hasTarot` 로 빈 객체를
+    /// 저장하지 않는 것과 같은 계약이다(롤오버 때 빈 흔적을 남기지 않는다).
+    private static func encodeTarot(_ tarot: [AuraKind: Int]) -> [String: Any]? {
+        guard !tarot.isEmpty else { return nil }
+        return Dictionary(uniqueKeysWithValues: tarot.map { ($0.key.rawValue, $0.value) })
+    }
+
+    /// 오늘 자 타로 선택을 raw 에 반영. 있으면 쓰고 없으면 **지운다** — auraDate 를
+    /// 오늘로 올리면서 어제 선택을 남겨두면 그 값이 오늘 것으로 승격된다.
+    private static func applyTarot(_ tarot: [AuraKind: Int], to raw: inout [String: Any]) {
+        if let encoded = encodeTarot(tarot) {
+            raw["auraTarot"] = encoded
+        } else {
+            raw.removeValue(forKey: "auraTarot")
+        }
+    }
+
     // MARK: 공개 API
+
+    /// 스냅샷이 고정된 날짜(auraDate). 리딩 오버레이가 실마리·흘려보낼 것 인덱스의
+    /// 날짜 시드로 쓴다 — 스냅샷과 같은 날을 가리키므로 웹의 `daily.date` 와 어긋나지
+    /// 않는다(오버레이는 ensureSnapshot 직후에만 뜬다).
+    static func snapshotDay() -> String? {
+        readRaw()["auraDate"] as? String
+    }
 
     /// 오늘 기준 기운 상태 읽기. 날짜가 넘어갔으면 빈 상태를 돌려준다.
     static func state(today: String) -> AuraState {
         let raw = readRaw()
         guard let date = raw["auraDate"] as? String, date == today else { return .empty }
         return AuraState(opened: decodeOpened(raw["auraOpened"]),
-                         snapshot: decodeSnapshot(raw["auraSnapshot"]))
+                         snapshot: decodeSnapshot(raw["auraSnapshot"]),
+                         tarot: decodeTarot(raw["auraTarot"]))
     }
 
     /// 첫 리딩을 여는 순간 3종을 한꺼번에 고정한다.
@@ -438,6 +567,8 @@ enum AuraStore {
         } else {
             raw.removeValue(forKey: "auraSnapshot")
         }
+        // 날짜가 넘어왔다면 어제 타로 선택도 여기서 함께 버려진다(current 가 이미 오늘 것만 담는다).
+        applyTarot(current.tarot, to: &raw)
         writeRaw(raw)
         return snapshot
     }
@@ -462,7 +593,40 @@ enum AuraStore {
         } else {
             raw.removeValue(forKey: "auraSnapshot")
         }
+        applyTarot(current.tarot, to: &raw)
         writeRaw(raw)
         return next
+    }
+
+    /// 타로 선택을 기록한다. 그날 그 기운의 선택은 하루 고정 — 이미 있으면 덮지 않는다.
+    /// (탭 두 번·경쟁 렌더가 와도 첫 선택이 이긴다. 재선택 불가는 UI 약속이 아니라
+    /// 저장 계층의 계약이다. 웹 `markAuraTarot` 과 같은 규칙.)
+    ///
+    /// - Returns: 오늘 이 기운에 고정된 카드 id. 기존 선택이 있으면 그 값이다.
+    @discardableResult
+    static func markTarot(today: String, kind: AuraKind, cardId: Int) -> Int {
+        let current = state(today: today)
+        if let existing = current.tarot[kind] { return existing }
+        // 저장 계약은 관용 디코드와 같다 — 0..39 정수만. 밖의 값은 기록하지 않고 그대로
+        // 돌려준다(UI 는 tarotOffer 산출값만 넘기므로 실전에서 걸릴 일은 없는 방어선).
+        guard cardId >= 0, cardId < Aura.tarotCardCount else { return cardId }
+        var raw = readRaw()
+        raw["auraDate"] = today
+        // 날짜가 넘어온 첫 기록이라면 어제 열람·스냅샷은 여기서 함께 버려진다.
+        if current.opened.isEmpty {
+            raw.removeValue(forKey: "auraOpened")
+        } else {
+            raw["auraOpened"] = current.opened.map(\.rawValue)
+        }
+        if let snapshot = current.snapshot, let encoded = encodeSnapshot(snapshot) {
+            raw["auraSnapshot"] = encoded
+        } else {
+            raw.removeValue(forKey: "auraSnapshot")
+        }
+        var tarot = current.tarot
+        tarot[kind] = cardId
+        applyTarot(tarot, to: &raw)
+        writeRaw(raw)
+        return cardId
     }
 }

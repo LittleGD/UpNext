@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { computeDailyFortune } from "./fortune";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  computeDailyFortune,
+  markAuraTarot,
+  readAuraState,
+  readFortuneState,
+} from "./fortune";
 import { ALL_CARDS } from "@/data/cards";
 import { FORTUNE_COLORS, FORTUNE_PHRASES } from "@/data/fortunePool";
 import { QUOTE_POOL } from "@/data/quotePool";
@@ -128,5 +133,86 @@ describe("QUOTE_POOL 확장 무결성", () => {
       if (f?.quote.author) withAuthor++;
     }
     expect(withAuthor).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * 타로 선택 저장 — 선택은 유저 몫이지만 하루 고정(재선택 불가)이고,
+ * auraDate 롤오버 시 열람 기록·스냅샷과 함께 소거된다. jsdom localStorage 사용.
+ */
+describe("auraTarot 상태 (하루 고정·롤오버 소거·관용 디코드)", () => {
+  const KEY = "upnext_fortune";
+
+  /**
+   * vitest 의 전역 localStorage 는 node 의 비활성 스텁이라(jsdom 것이 아니다)
+   * setItem 이 없다. fortune.ts 의 bare localStorage 참조가 실제로 동작하도록
+   * 인메모리 구현을 스텁한다 — 테스트마다 새로 깔아 상태 누수를 막는다.
+   */
+  function memStorage(): Storage {
+    const m = new Map<string, string>();
+    return {
+      getItem: (k: string) => (m.has(k) ? m.get(k)! : null),
+      setItem: (k: string, v: string) => void m.set(k, String(v)),
+      removeItem: (k: string) => void m.delete(k),
+      clear: () => m.clear(),
+      key: (i: number) => [...m.keys()][i] ?? null,
+      get length() {
+        return m.size;
+      },
+    };
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("localStorage", memStorage());
+    localStorage.setItem(KEY, JSON.stringify({ salt: "s" }));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("선택을 저장하고, 같은 날 같은 기운의 재선택은 첫 값이 이긴다", () => {
+    expect(markAuraTarot("2026-08-27", "wealth", 7)).toBe(7);
+    expect(readAuraState("2026-08-27").tarot.wealth).toBe(7);
+    expect(markAuraTarot("2026-08-27", "wealth", 30)).toBe(7);
+    expect(readAuraState("2026-08-27").tarot.wealth).toBe(7);
+  });
+
+  it("기운별로 독립 저장된다", () => {
+    markAuraTarot("2026-08-27", "wealth", 7);
+    markAuraTarot("2026-08-27", "health", 3);
+    expect(readAuraState("2026-08-27").tarot).toEqual({ wealth: 7, health: 3 });
+    expect(readAuraState("2026-08-27").tarot.relationship).toBeUndefined();
+  });
+
+  it("날짜가 넘어가면 어제 선택은 읽히지 않고, 다음 기록이 저장소에서도 밀어낸다", () => {
+    markAuraTarot("2026-08-27", "wealth", 7);
+    expect(readAuraState("2026-08-28").tarot).toEqual({});
+    markAuraTarot("2026-08-28", "wealth", 1);
+    const raw = JSON.parse(localStorage.getItem(KEY)!) as Record<string, unknown>;
+    expect(raw.auraDate).toBe("2026-08-28");
+    expect(raw.auraTarot).toEqual({ wealth: 1 });
+  });
+
+  it("관용 디코드 — 0..39 정수만 인정하고 어긋난 기운만 버린다", () => {
+    localStorage.setItem(KEY, JSON.stringify({
+      salt: "s",
+      auraDate: "2026-08-27",
+      auraTarot: { wealth: 12, relationship: 40, health: "3" },
+    }));
+    expect(readFortuneState().auraTarot).toEqual({ wealth: 12 });
+  });
+
+  it("관용 디코드 — 전부 어긋나면 필드째 버린다", () => {
+    for (const bad of [{ wealth: -1 }, "junk", 3, null, { wealth: 1.5 }]) {
+      localStorage.setItem(KEY, JSON.stringify({ salt: "s", auraDate: "2026-08-27", auraTarot: bad }));
+      expect(readFortuneState().auraTarot).toBeUndefined();
+    }
+  });
+
+  it("범위 밖 cardId 는 기록하지 않는다 (auraTarotOffer 산출값만 오는 경로의 방어선)", () => {
+    markAuraTarot("2026-08-27", "wealth", 40);
+    markAuraTarot("2026-08-27", "wealth", -1);
+    markAuraTarot("2026-08-27", "wealth", 2.5);
+    expect(readAuraState("2026-08-27").tarot).toEqual({});
   });
 });

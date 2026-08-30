@@ -11,13 +11,18 @@
  * 나온다. 점수만 흔들고 텍스트를 고정하면 유저가 보는 화면은 결국 어제와 같다.
  * 그래서 같은 조짐·같은 등급 안에서도 날짜 해시로 3가지 표현 중 하나를 고른다.
  *
- * 하루치 흔들림: 행동 신호만 쓰면 습관이 안정된 유저는 **매일 같은 결과**가 나온다.
- * 그건 점이 아니라 통계표다. 그래서 (날짜 + 기기 salt + 기운) 해시로 ±12 를 더한다.
- * 난수가 아니라 해시라 같은 날이면 값이 고정이고, 행동 신호가 여전히 지배적이라
- * "요즘 잘하고 있으면 대체로 좋게 나온다"는 인과는 유지된다.
+ * 등급 주사위: 행동 신호만 쓰면 습관이 안정된 유저는 **매일 같은 결과**가 나온다.
+ * 그건 점이 아니라 통계표다. 그래서 역할을 나눈다 —
+ * **조짐(omen)은 행동의 정직한 거울**이고(신호에서 직접 나온다, 변덕 없음),
+ * **등급(tier)은 행동이 확률을 기울인 하늘의 주사위**다. base 점수(0~100)는
+ * great/good/fair/care 의 확률 가중치를 만들고, (날짜 + 기기 salt + 기운) 해시가
+ * 그 가중치 위에서 등급을 뽑는다. "점"의 의외성은 등급이 담당하고,
+ * 행동의 인과("요즘 잘하면 대체로 좋게 나온다")는 기울어진 확률이 담당한다.
+ * 성실해도 가끔 흐린 날이 오고, 게을러도 가끔 맑은 날이 온다 — 그게 점이다.
  *
  * 결정론: 같은 데이터 + 같은 날 + 같은 salt 면 항상 같은 결과. 난수를 쓰지 않는다.
- * 점수는 공개 시점에 스냅샷해 저장하므로, 그날 안에서 값이 흔들리지 않는다.
+ * 해시 주사위라 리롤 가챠화가 불가능하다. 점수는 공개 시점에 스냅샷해 저장하므로,
+ * 그날 안에서 값이 흔들리지 않는다.
  *
  * 톤 규칙: 낮은 점수를 꾸짖지 않는다. 갓생앱은 격려가 전제라
  * "못했다"가 아니라 "지금부터 할 수 있다"로 쓴다. tier 는 심판이 아니라 날씨다.
@@ -121,20 +126,7 @@ function blend(parts: { value: number; weight: number }[]): number {
   return Math.round((sum / total) * 100);
 }
 
-/** 하루치 흔들림 폭. 신호를 뒤집지 않을 만큼만 — tier 경계를 가끔 넘길 정도. */
-const SWAY = 12;
-
-/**
- * (날짜 + salt + 기운) 해시로 -SWAY..+SWAY 를 만든다.
- * 기운마다 다른 값이 나와야 셋이 함께 움직이는 기계적인 인상을 피한다.
- */
-function dailySway(today: string, salt: string | undefined, kind: AuraKind): number {
-  if (!salt) return 0;
-  const h = fnv1a(`sway:${today}:${salt}:${kind}`);
-  return (h % (SWAY * 2 + 1)) - SWAY;
-}
-
-/** 같은 조짐 안에서 오늘 쓸 표현 번호. 흔들림과 다른 접두사라 상관관계가 없다. */
+/** 같은 조짐 안에서 오늘 쓸 표현 번호. 주사위와 다른 접두사라 상관관계가 없다. */
 function variantOf(today: string, salt: string | undefined, kind: AuraKind): number {
   if (!salt) return 0;
   return fnv1a(`phrase:${today}:${salt}:${kind}`) % AURA_VARIANTS;
@@ -149,6 +141,52 @@ function tierOf(score: number): AuraTier {
   if (score >= 60) return "good";
   if (score >= 38) return "fair";
   return "care";
+}
+
+/**
+ * 등급별 점수 밴드. tierOf(밴드하한 + 0..폭-1) == 해당 등급이 되도록 잡았다.
+ * 점수는 저장·회귀용으로만 밴드 안에서 뽑는다 — 화면에는 여전히 안 나간다.
+ */
+const TIER_BANDS: Record<AuraTier, { low: number; width: number }> = {
+  great: { low: 80, width: 21 }, // 80..100
+  good: { low: 60, width: 20 },  // 60..79
+  fair: { low: 38, width: 22 },  // 38..59
+  care: { low: 0, width: 38 },   // 0..37
+};
+
+/**
+ * 등급 확률 롤 — **웹/iOS 가 정수 연산까지 동일해야 하는 확정 스펙.**
+ * (Math.floor 나눗셈 == Swift Int 나눗셈. 임의 개선 금지 — 곧 플랫폼 불일치다.)
+ *
+ * 왜 주사위가 등급을 맡는가: 조짐은 행동의 거울이라 습관이 안정되면 매일 같다.
+ * 등급마저 행동에서 직접 나오면 이 화면은 어제와 똑같은 성적표가 된다.
+ * 그래서 행동(base)은 확률을 기울이는 데까지만 관여하고, 최종 등급은
+ * 결정론적 해시 주사위가 뽑는다. base 0 이어도 great 6%, base 100 이어도 care 5% —
+ * 하늘은 심판하지 않고, 다만 성실한 쪽으로 기운다.
+ *
+ * salt 가 없으면(SSR 등) 주사위 없이 base 를 그대로 쓴다.
+ */
+export function rollTier(
+  base: number,
+  today: string,
+  salt: string | undefined,
+  kind: AuraKind,
+): { tier: AuraTier; score: number } {
+  if (!salt) return { tier: tierOf(base), score: base };
+  const r = fnv1a("tier:" + today + "|" + salt + "|" + kind) % 1000;
+  const wGreat = 60 + Math.floor((440 * base) / 100);                 // 6% → 50%
+  const wGood = 200 + Math.floor((150 * base) / 100);                 // 20% → 35%
+  const wCare = Math.max(50, 180 - Math.floor((130 * base) / 100));   // 18% → 5%
+  const wFair = 1000 - wGreat - wGood - wCare;
+  // 누적 순서 great → good → fair → care
+  let tier: AuraTier;
+  if (r < wGreat) tier = "great";
+  else if (r < wGreat + wGood) tier = "good";
+  else if (r < wGreat + wGood + wFair) tier = "fair";
+  else tier = "care";
+  const band = TIER_BANDS[tier];
+  const score = band.low + (fnv1a("tierscore:" + today + "|" + salt + "|" + kind) % band.width);
+  return { tier, score };
 }
 
 /** 관측 창 안의 집계 */
@@ -211,13 +249,14 @@ function wealth(w: Window, input: AuraInput): AuraReading {
     { value: ratio(focus, Math.max(4, w.totalCompleted)), weight: 2 },
     { value: ratio(input.streak, 10), weight: 1 },
   ];
-  const score = clamp100(blend(parts) + dailySway(input.today, input.salt, "wealth"));
+  const base = clamp100(blend(parts));
+  const { tier, score } = rollTier(base, input.today, input.salt, "wealth");
   let omen: AuraOmen = "unformed";
   if (w.totalCompleted === 0) omen = "unformed";
   else if (w.fullClearDays >= 3) omen = "closing";
   else if (focus >= 3) omen = "gathering";
   else if (input.streak >= 3) omen = "carried";
-  return { kind: "wealth", score, tier: tierOf(score), omen, variant: variantOf(input.today, input.salt, "wealth") };
+  return { kind: "wealth", score, tier, omen, variant: variantOf(input.today, input.salt, "wealth") };
 }
 
 /**
@@ -231,11 +270,12 @@ function relationship(w: Window, input: AuraInput): AuraReading {
     { value: input.duoActive ? 1 : 0, weight: 2 },
     { value: ratio(w.activeDays, w.days), weight: 1 },
   ];
-  const score = clamp100(blend(parts) + dailySway(input.today, input.salt, "relationship"));
+  const base = clamp100(blend(parts));
+  const { tier, score } = rollTier(base, input.today, input.salt, "relationship");
   let omen: AuraOmen = "unformed";
   if (focus >= 2) omen = "gathering";
   else if (w.activeDays >= 5) omen = "rhythm";
-  return { kind: "relationship", score, tier: tierOf(score), omen, variant: variantOf(input.today, input.salt, "relationship") };
+  return { kind: "relationship", score, tier, omen, variant: variantOf(input.today, input.salt, "relationship") };
 }
 
 /**
@@ -251,12 +291,82 @@ function health(w: Window, input: AuraInput): AuraReading {
     { value: ratio(w.checkInDays, w.days), weight: 3 },
     { value: Math.max(0, 1 - penalty), weight: 1 },
   ];
-  const score = clamp100(blend(parts) + dailySway(input.today, input.salt, "health"));
+  const base = clamp100(blend(parts));
+  const { tier, score } = rollTier(base, input.today, input.salt, "health");
   let omen: AuraOmen = "unformed";
   if (w.checkInDays >= 7) omen = "rhythm";
   else if (focus >= 3) omen = "gathering";
   else if (w.saverDays > 0) omen = "resting";
-  return { kind: "health", score, tier: tierOf(score), omen, variant: variantOf(input.today, input.salt, "health") };
+  return { kind: "health", score, tier, omen, variant: variantOf(input.today, input.salt, "health") };
+}
+
+/** 오늘의 실마리 / 흘려보낼 것 문구 가짓수 (aura.hint.{kind}.{0..5}, aura.caution.{kind}.{0..5}) */
+export const AURA_HINT_COUNT = 6;
+
+/**
+ * 오늘의 실마리 선택 인덱스 (aura.hint.{kind}.{i}).
+ * 등급 주사위·표현 번호와 다른 접두사라 서로 상관관계가 없다. salt 없으면 0.
+ */
+export function auraHintIndex(today: string, salt: string | undefined, kind: AuraKind): number {
+  if (!salt) return 0;
+  return fnv1a("hint:" + today + "|" + salt + "|" + kind) % AURA_HINT_COUNT;
+}
+
+/** 흘려보낼 것 선택 인덱스 (aura.caution.{kind}.{i}). salt 없으면 0. */
+export function auraCautionIndex(today: string, salt: string | undefined, kind: AuraKind): number {
+  if (!salt) return 0;
+  return fnv1a("caution:" + today + "|" + salt + "|" + kind) % AURA_HINT_COUNT;
+}
+
+/* ── 타로 — 리딩 결과 화면의 "선택" 한 조각 ──
+   제시 3장은 결정론(같은 날 같은 기기 = 같은 3장)이지만, 그중 무엇을 뒤집을지는
+   유저 몫이다. 선택은 하루 고정으로 저장된다(fortune.ts auraTarot — 재선택 불가). */
+
+/**
+ * 타로 덱 크기. TAROT_DECK.length(src/data/tarotPool.ts)와 일치해야 한다 —
+ * tarotPool 이 이 파일의 AuraTier 를 쓰므로 순환 import 를 피해 상수로 둔다.
+ * (aura.test.ts 가 둘의 일치를 회귀로 잡는다.)
+ */
+export const TAROT_CARD_COUNT = 40;
+
+/**
+ * 오늘 이 기운에 제시할 타로 3장(카드 id, 서로 다름 보장).
+ * **웹/iOS 가 정수 연산까지 동일해야 하는 확정 스펙** — 임의 개선 금지.
+ * while 재배치는 방어선이다: tarot0/1/2 접두사의 한 글자 차이가 FNV-1a 해시의
+ * 홀짝을 바꿔 실전에서는 세 값이 이미 서로 다르지만, 스펙은 가정에 기대지 않는다.
+ * salt 없으면(SSR 등) [0,1,2] 폴백.
+ */
+export function auraTarotOffer(
+  today: string,
+  salt: string | undefined,
+  kind: AuraKind,
+): [number, number, number] {
+  if (!salt) return [0, 1, 2];
+  const base = today + "|" + salt + "|" + kind;
+  const a = fnv1a("tarot0:" + base) % TAROT_CARD_COUNT;
+  let b = fnv1a("tarot1:" + base) % TAROT_CARD_COUNT;
+  while (b === a) b = (b + 1) % TAROT_CARD_COUNT;
+  let c = fnv1a("tarot2:" + base) % TAROT_CARD_COUNT;
+  while (c === a || c === b) c = (c + 1) % TAROT_CARD_COUNT;
+  return [a, b, c];
+}
+
+/** 조언 표현 가짓수 — 조짐(AURA_VARIANTS=3)과 달리 조언은 6종으로 늘렸다. */
+export const AURA_ADVICE_VARIANTS = 6;
+
+/**
+ * 조언 변주 인덱스 (aura.advice.{kind}.{tier}.{0..5}).
+ * AuraReading.variant(0..2)에서 분리 — variant 는 스냅샷 디코드 하위호환이 걸린
+ * 스키마라 범위를 못 늘리고, 조언만 별도 해시로 6종을 돈다. 조짐과 접두사가
+ * 달라 상관관계가 없다. salt 없으면 0.
+ */
+export function auraAdviceVariant(
+  today: string,
+  salt: string | undefined,
+  kind: AuraKind,
+): number {
+  if (!salt) return 0;
+  return fnv1a("advicevar:" + today + "|" + salt + "|" + kind) % AURA_ADVICE_VARIANTS;
 }
 
 /** 세 기운을 한 번에. 순서는 항상 재물 → 관계 → 건강. */
