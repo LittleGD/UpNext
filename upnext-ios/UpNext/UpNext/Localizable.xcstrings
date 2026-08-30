@@ -25518,6 +25518,28 @@
         }
       }
     },
+    "가방 속 영수증을 정리하다 잊고 있던 몫을 발견할 수 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sorting the receipts in your bag may turn up a portion you'd forgotten"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鞄の中のレシートを整えると、忘れていた取り分が見つかるかもしれません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "整理包里的票据时，也许会翻出忘掉的那一份"
+          }
+        }
+      }
+    },
     "가볍게 시작 — 하루 카드 1장": {
       "extractionState": "manual",
       "localizations": {
@@ -26405,28 +26427,6 @@
         }
       }
     },
-    "결이 정해지지 않았어요. 오늘의 선택이 결을 만듭니다": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The grain isn't set. Today's choice makes it"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "筋がまだ決まっていません。今日の選択が決めます"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "纹理未定，今天的选择会决定它"
-          }
-        }
-      }
-    },
     "경로 따라가기": {
       "extractionState": "manual",
       "localizations": {
@@ -26512,6 +26512,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "经验值 +30"
+          }
+        }
+      }
+    },
+    "곁의 온기가 한 사람에게로 좁혀지는 시기예요. 깊어지기 좋습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warmth is narrowing toward one person. A good time to go deeper"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そばの温もりが一人へ絞られていく時期です。深めるのに向いています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身边的暖意正朝一个人收窄，适合往深处走"
           }
         }
       }
@@ -26929,6 +26951,28 @@
         }
       }
     },
+    "곳간을 닫아두는 것도 재물의 일이에요. 지금은 지키는 때": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keeping the storehouse closed is also wealth's work. This is a guarding day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蔵を閉めておくのも財の仕事です。いまは守る時"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把仓门关上也是财的功课，眼下宜守"
+          }
+        }
+      }
+    },
     "공유": {
       "extractionState": "manual",
       "localizations": {
@@ -26993,6 +27037,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "缘分"
+          }
+        }
+      }
+    },
+    "관계의 결이 무른 날이에요. 오늘 건네는 말이 모양을 만듭니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shape between you is soft today. The words you offer will set it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "間柄の形が柔らかい日です。今日渡す言葉が形を決めます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关系的纹路还软，今天递出的话会定下形状"
           }
         }
       }
@@ -27329,6 +27395,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "就这样按住"
+          }
+        }
+      }
+    },
+    "그동안 건넨 마음들이 당신 곁을 지키고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The care you've handed out is standing watch beside you"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これまで手渡してきた気持ちが、あなたのそばを守っています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "递出去过的心意，正守在你身边"
+          }
+        }
+      }
+    },
+    "그때 그 말을 곱씹는 일은 흘려보내세요. 상대는 이미 지나갔습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let that one remark go. The other person has already walked on"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あの一言を噛み直すのは流しましょう。相手はもう通り過ぎています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "反复咀嚼那句话就让它去吧，对方已经走过去了"
           }
         }
       }
@@ -28020,28 +28130,6 @@
         }
       }
     },
-    "끝맺음의 기운이 붙어 있어요. 시작한 것이 마무리로 이어집니다": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The closing force is with you. What you start tends to finish"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "終わらせる気配がついています。始めたものが仕上げにつながります"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "有收尾的气场，开始的事容易走到完成"
-          }
-        }
-      }
-    },
     "나": {
       "extractionState": "manual",
       "localizations": {
@@ -28246,6 +28334,28 @@
         }
       }
     },
+    "남들만큼 해야 한다는 기준은 오늘 문밖에 두고 오세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave the bar of keeping up with everyone outside the door today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "人並みにやらねばという物差しは、今日は戸の外に置いて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要跟上别人的那把尺子，今天搁在门外"
+          }
+        }
+      }
+    },
     "남은 기회": {
       "localizations": {
         "en": {
@@ -28287,6 +28397,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "剩余 %.0fs · 答对 %d 个"
+          }
+        }
+      }
+    },
+    "남의 속도와 비교하는 마음을 내려놓으세요. 당신의 셈은 따로 갑니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set down the habit of measuring against someone else's pace. Your count runs on its own"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "人の速さと比べる心は置いていきましょう。あなたの勘定は別で進みます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "别拿别人的速度量自己，你的账另有走法"
           }
         }
       }
@@ -28566,6 +28698,28 @@
         }
       }
     },
+    "누가 먼저 연락하나 재는 마음을 두고 가세요. 무게만 남습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put down the scale that counts who reaches out first. It only adds weight"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "どちらが先に連絡するか量る心は置いていって。重さだけが残ります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计较谁先开口的那杆秤放下吧，留着只添分量"
+          }
+        }
+      }
+    },
     "누구도 읽지 않는 책의 저자. 자신의 이름을 되찾기 위해 싸운다.": {
       "extractionState": "manual",
       "localizations": {
@@ -28722,6 +28876,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "卡顿或崩溃"
+          }
+        }
+      }
+    },
+    "늘 하던 안부가 오늘은 더 멀리 갑니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your usual hello travels further than usual today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "いつもの挨拶が、今日はいつもより遠くまで届きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平常的问候，今天走得比平常远"
           }
         }
       }
@@ -30298,6 +30474,28 @@
         }
       }
     },
+    "돌봐온 시간이 뼈대처럼 당신을 받치고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The care you've given yourself is holding you up like a frame"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "いたわってきた時間が、骨組みのようにあなたを支えています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照看自己的时间，像骨架一样托着你"
+          }
+        }
+      }
+    },
     "돌산 곰": {
       "extractionState": "manual",
       "localizations": {
@@ -31457,24 +31655,24 @@
         }
       }
     },
-    "리듬이 몸에 배어 있는 시기예요": {
+    "리듬이 아직 정해지지 않았어요. 첫 끼와 첫 걸음이 하루를 그립니다": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The rhythm has settled into your body"
+            "value": "The rhythm isn't fixed yet. The first meal and first walk draw the day"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "リズムが体に染みついている時期です"
+            "value": "巡りがまだ定まっていません。最初の一食と一歩が一日を描きます"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "节奏已经融进身体的时期"
+            "value": "节律还没定下，第一餐和第一步会画出这一天"
           }
         }
       }
@@ -31910,24 +32108,24 @@
         }
       }
     },
-    "매듭이 잘 지어지는 결이에요": {
+    "매듭의 기운이 손끝에 와 있어요. 오래 끈 일이 오늘 끝을 허락합니다": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Knots are tying themselves well"
+            "value": "The knot-tying hour has reached your work. Something long unfinished is ready to close"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "結び目がよく締まる流れです"
+            "value": "結び目の気配が手元に来ています。長引いた仕事が終わりを許してくれます"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "是容易打好结的时候"
+            "value": "收尾的气场落在手边，拖了许久的事今天肯让你收场"
           }
         }
       }
@@ -31951,6 +32149,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "每次皆化为不同形态。"
+          }
+        }
+      }
+    },
+    "매일 반복해온 그 순서가 오늘의 밑천이 됩니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The order you repeat every day has become today's capital"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "毎日繰り返してきた順序が、今日の元手になっています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天重复的那套顺序，今天成了你的本钱"
           }
         }
       }
@@ -32024,6 +32244,28 @@
         }
       }
     },
+    "먼저 고맙다고 말하는 쪽에 좋은 기운이 붙는 날이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good fortune sits with whoever says thank you first today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先にありがとうを言う側に、良い気配が寄る日です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先说谢谢的人，今天有好气场跟着"
+          }
+        }
+      }
+    },
     "먼저 연락하기 좋은 날이에요": {
       "localizations": {
         "en": {
@@ -32090,6 +32332,50 @@
         }
       }
     },
+    "멀어지는 인연을 억지로 붙잡으려는 힘을 빼보세요. 남을 것은 남습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loosen your grip on a bond that's drifting. What is meant to stay will stay"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "離れていく縁を無理に掴む力を抜いてみて。残るものは残ります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对渐渐走远的缘分松松手，留得住的自会留下"
+          }
+        }
+      }
+    },
+    "멀어진 게 아니라 각자의 자리에서 쉬는 중이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No one has drifted. You're each resting in your own place"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "離れたのではなく、それぞれの場所で休んでいるだけです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不是疏远，是各自在原地歇着"
+          }
+        }
+      }
+    },
     "멀어진 게 아니라 쉬는 중이에요": {
       "localizations": {
         "en": {
@@ -32135,24 +32421,46 @@
         }
       }
     },
-    "멈춘 것이 아니라 물러나 있는 거예요": {
+    "멈춘 게 아니라 아무는 중이에요": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You haven't stopped. You've stepped back"
+            "value": "You're not stopped. You're mending"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "止まったのではなく、引いているだけです"
+            "value": "止まったのではなく、癒えている途中です"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "不是停下，是退了一步"
+            "value": "不是停了，是在长好"
+          }
+        }
+      }
+    },
+    "멈춘 게 아니에요. 다음 일의 값을 매기는 중입니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You haven't stalled. You're weighing what comes next"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "止まったのではなく、次の値打ちを量っているところです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不是停了，是在掂量下一步的分量"
           }
         }
       }
@@ -32337,6 +32645,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "篝火静静燃烧着"
+          }
+        }
+      }
+    },
+    "모두에게 좋은 사람이려는 마음은 오늘 내려놓아도 됩니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The wish to be good to everyone can be set down today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "誰にでも良い人でいようとする心は、今日は下ろしていい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想对谁都做个好人的心，今天可以放下"
           }
         }
       }
@@ -32639,6 +32969,94 @@
         }
       }
     },
+    "몸의 박자가 맞아 들어가는 시기예요. 자고 깨는 결이 곱습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your body's beat is falling into place. Sleep and waking run smooth"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体の拍子が噛み合ってくる時期です。眠りと目覚めの巡りが整っています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体的拍子对上了，睡与醒的纹路都顺"
+          }
+        }
+      }
+    },
+    "몸의 초점이 또렷해지는 시기예요. 움직임에 힘이 실립니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The body's focus is sharpening. There's force behind your movements"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体の焦点がはっきりしてくる時期です。動きに力が乗ります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体的焦点清晰起来，动作里带着劲"
+          }
+        }
+      }
+    },
+    "몸의 흐름이 아직 잡히기 전이에요. 오늘 들인 습관이 결이 됩니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The body's current hasn't set. Today's habit becomes the grain"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体の流れがまだ定まる前です。今日入れた習慣がそのまま巡りになります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体的水流还没定形，今天养的习惯会成纹路"
+          }
+        }
+      }
+    },
+    "몸이 무거운 날 스스로를 게으르다 부르는 버릇은 흘려보내세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On a day your body runs heavy, let go of the word lazy"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体の重い日に自分を怠け者と呼ぶ癖は流しましょう"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体沉的日子别叫自己懒，把这习惯放走"
+          }
+        }
+      }
+    },
     "몸이 보내는 신호를 먼저 들으세요": {
       "localizations": {
         "en": {
@@ -32661,6 +33079,28 @@
         }
       }
     },
+    "몸이 스스로 속도를 낮추고 있어요. 따라가 주는 게 회복입니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your body is lowering its own pace. Following it is the recovery"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体が自分から速度を落としています。付き合うことが回復です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体自己在放慢，跟上它就是恢复"
+          }
+        }
+      }
+    },
     "몸이 잘 따라오는 날이에요": {
       "localizations": {
         "en": {
@@ -32679,6 +33119,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "身体今天很配合"
+          }
+        }
+      }
+    },
+    "몸이 하루를 잘 닫으려 하고 있어요. 끝맺는 잠이 보약이 됩니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your body wants to close the day well. A finishing sleep works like medicine"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体が一日をうまく閉じようとしています。締めくくりの眠りが薬になります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身体想把这一天好好收尾，一场收工的觉抵得上补药"
           }
         }
       }
@@ -32889,6 +33351,28 @@
         }
       }
     },
+    "묵혀둔 공이 헛되지 않았어요. 발밑이 든든합니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing you stored was wasted. The ground under you is solid"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "寝かせておいた努力は無駄になっていません。足元が固い日です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "存着的努力没有白费，脚下是实的"
+          }
+        }
+      }
+    },
     "물 한 잔과 가벼운 스트레칭으로 이어가세요": {
       "localizations": {
         "en": {
@@ -33003,6 +33487,28 @@
         }
       }
     },
+    "미뤄둔 대답이 제자리를 찾아가는 결이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An answer you've been holding is finding its way home"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先延ばしにした返事が、収まりどころへ向かう気配です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖着没给的回应，正在找它的归处"
+          }
+        }
+      }
+    },
     "미뤄둔 일 하나를 오늘 끝내기 좋은 흐름이에요": {
       "localizations": {
         "en": {
@@ -33021,6 +33527,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "适合今天了结那件拖延的事"
+          }
+        }
+      }
+    },
+    "미뤄둔 회복이 마무리되는 시기예요. 몸이 제자리를 찾습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A recovery you postponed is completing itself. The body finds its place"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "後回しにした回復が仕上がる時期です。体が居場所に戻ります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搁置的恢复正在收尾，身体在归位"
           }
         }
       }
@@ -33324,24 +33852,24 @@
         }
       }
     },
-    "반복이 당신 편에 서 있어요": {
+    "반복해온 습관이 몸 안에서 당신 편을 들고 있어요": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Repetition is on your side"
+            "value": "The habits you've repeated are taking your side from the inside"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "反復があなたの味方です"
+            "value": "繰り返してきた習慣が、体の内側で味方についています"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "重复站在你这边"
+            "value": "重复下来的习惯，正在身体里替你说话"
           }
         }
       }
@@ -33411,6 +33939,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "脚步声渐渐远去"
+          }
+        }
+      }
+    },
+    "밤이 오기 전에 보낸 짧은 답장 하나가 오래 남을 인연을 붙잡습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A short reply sent before nightfall holds onto a bond worth keeping"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "夜が来る前に送った短い返事が、長く残る縁をつなぎ止めます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入夜之前发出的一条短回复，能留住一段值得的缘分"
           }
         }
       }
@@ -33576,24 +34126,24 @@
         }
       }
     },
-    "백지에 가까운 날이에요. 무엇을 그려도 됩니다": {
+    "백지 같은 사이일수록 첫 획이 오래 남는 때예요": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Close to a blank page. You can draw anything"
+            "value": "On a blank page between people, the first stroke stays longest"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "白紙に近い日です。何を描いてもいい"
+            "value": "白紙のような間柄ほど、最初の一筆が長く残ります"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "接近白纸的一天，画什么都行"
+            "value": "越是白纸一样的交情，第一笔越留得久"
           }
         }
       }
@@ -33694,28 +34244,6 @@
         }
       }
     },
-    "벌여둔 것들이 제자리를 찾아가는 때예요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "What you've spread out is finding its place"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "広げたものが収まりどころを見つける時期"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "摊开的东西正各归其位"
-          }
-        }
-      }
-    },
     "벌여둔 것을 하나 접어보세요": {
       "localizations": {
         "en": {
@@ -33734,6 +34262,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "把摊开的收起一件试试"
+          }
+        }
+      }
+    },
+    "벌여둔 장부가 정리되려는 결이에요. 셈이 맞아떨어지는 날": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your ledgers want to settle today. The sums are coming out even"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "帳尻が合っていく流れです。広げた仕事が収まりどころを見つけます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账目要对齐的时候，摊开的事正找到归处"
           }
         }
       }
@@ -34696,24 +35246,68 @@
         }
       }
     },
-    "비워둔 자리에 힘이 고이는 중이에요": {
+    "비워둔 곁에 새 사람이 앉을 자리가 마련되고 있어요": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Strength is pooling in the space you left empty"
+            "value": "The space you've left open is being prepared for someone new"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "空けておいた場所に力が溜まっています"
+            "value": "空けておいた隣に、新しい人の座る場所が整いつつあります"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "力量正积在你留白的地方"
+            "value": "空出来的身边，正在给新的人腾位置"
+          }
+        }
+      }
+    },
+    "비워둔 손에 다음 몫이 들어올 자리가 생겼어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An emptied hand has room for the next portion to land"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空けた手に、次の取り分が入る場所ができました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空出来的手，才接得住下一份"
+          }
+        }
+      }
+    },
+    "비워둔 하루가 다음 체력을 빚고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A day left empty is shaping the strength to come"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空けておいた一日が、次の体力を育てています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空出来的一天，正在酿下一段体力"
           }
         }
       }
@@ -34737,6 +35331,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "空位"
+          }
+        }
+      }
+    },
+    "빈 장부 같은 날이에요. 무엇을 적어도 첫 기록이 됩니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A day like a blank ledger. Whatever you write becomes the first entry"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "白い帳面のような日です。何を書いても最初の記録になります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "像一本空账的日子，写什么都是第一笔"
           }
         }
       }
@@ -36370,6 +36986,50 @@
         }
       }
     },
+    "손대지 못한 일에 대한 자책은 두고 가세요. 자리는 사라지지 않습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave behind the guilt over what you didn't touch. The work isn't going anywhere"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手をつけられなかった仕事への責めは置いていって。場所は消えません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没来得及动手的事，别责怪自己，位置不会消失"
+          }
+        }
+      }
+    },
+    "손에 익은 박자가 일을 끌고 가는 시기예요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your hands know the tempo. The work is carrying itself today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手に馴染んだ拍子が仕事を運んでいく時期です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手熟的节奏正带着事情往前走"
+          }
+        }
+      }
+    },
     "손재주": {
       "extractionState": "manual",
       "localizations": {
@@ -36805,6 +37465,28 @@
         }
       }
     },
+    "숨이 한곳으로 고이는 중이에요. 깊게 쉬기 좋은 날": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your breath is settling into one place. A good day to breathe deep"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "呼吸がひとつ所に落ち着いていきます。深く吸うのに良い日"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "呼吸在往一处沉，适合深深吸一口气的日子"
+          }
+        }
+      }
+    },
     "숯불 잔광": {
       "extractionState": "manual",
       "localizations": {
@@ -36870,28 +37552,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "低语苔藓"
-          }
-        }
-      }
-    },
-    "쉼이 다음을 준비하고 있어요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rest is preparing what comes next"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "休みが次の準備をしています"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "休息正在为下一步做准备"
           }
         }
       }
@@ -37784,6 +38444,28 @@
         }
       }
     },
+    "시작한 일이 마무리 쪽으로 기울어요. 끝낸 자리에 다음 것이 들어옵니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you started is leaning toward done. A finished thing leaves room for the next"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "始めたことが仕上げへ傾いています。終えた場所に次が入ってきます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始的事在往完成倾斜，收好一件，下一件才进得来"
+          }
+        }
+      }
+    },
     "식단": {
       "extractionState": "manual",
       "localizations": {
@@ -38133,24 +38815,46 @@
         }
       }
     },
-    "쌓아둔 것이 조용히 일하고 있어요": {
+    "쌓아둔 잠과 걸음이 조용히 일하고 있어요": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "What you've stacked is quietly working"
+            "value": "The sleep and steps you banked are quietly at work"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "積んだものが静かに働いています"
+            "value": "蓄えた眠りと歩みが、静かに働いています"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "积攒的正在悄悄发挥作用"
+            "value": "存下的睡眠和脚步，正在悄悄干活"
+          }
+        }
+      }
+    },
+    "쌓아온 것이 이자처럼 조용히 붙고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you've built is quietly earning interest"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "積み上げたものが利息のように静かに増えています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "攒下的东西正像利息一样悄悄生长"
           }
         }
       }
@@ -38336,6 +39040,28 @@
         }
       }
     },
+    "아직 셈이 시작되기 전이에요. 첫 줄을 적는 사람이 판을 잡습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The counting hasn't begun. Whoever writes the first line owns the board"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ勘定が始まる前です。最初の一行を書く人が場を握ります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账还没开始算，先落笔的人定格局"
+          }
+        }
+      }
+    },
     "아직 아무도 도전 기록이 없어요. 첫 주자가 되어보세요!": {
       "localizations": {
         "en": {
@@ -38358,24 +39084,68 @@
         }
       }
     },
-    "아직 흐름이 잡히기 전이에요. 지금이 그 시작점입니다": {
+    "아직 이름 붙지 않은 인연이 근처를 지나고 있어요": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The current hasn't formed yet. This is where it begins"
+            "value": "A bond not yet named is passing close by"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "まだ流れができる前です。ここが始まりです"
+            "value": "まだ名前のつかない縁が、近くを通っています"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "水流还未成形，此刻就是起点"
+            "value": "一段还没名字的缘分，正从附近经过"
+          }
+        }
+      }
+    },
+    "아침의 첫 물 한 잔이 오늘 몸의 물길을 정합니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The first glass of water sets the course of your body's day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "朝の最初の一杯の水が、今日の体の流れを決めます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "早晨第一杯水，定下今天身体的水路"
+          }
+        }
+      }
+    },
+    "아픈 곳을 자꾸 확인하는 마음을 쉬게 하세요. 몸은 제 일을 하고 있습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest the urge to keep checking what hurts. Your body is doing its work"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "痛む場所を何度も確かめる心を休ませて。体は自分の仕事をしています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "反复确认哪里不舒服的心让它歇歇，身体在做它的事"
           }
         }
       }
@@ -38655,24 +39425,68 @@
         }
       }
     },
-    "애쓰지 않아도 박자가 맞아떨어져요": {
+    "애쓰지 않아도 걸음이 가벼운 날이에요": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The beat lands without effort"
+            "value": "Your steps are light today without trying"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "力まなくても拍子が合います"
+            "value": "力まなくても足取りが軽い日です"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "不用使劲，拍子也对得上"
+            "value": "不用使劲，脚步也轻的日子"
+          }
+        }
+      }
+    },
+    "애쓰지 않아도 대화가 굴러가는 결이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversation rolls along without effort in this current"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "力まなくても会話が転がっていく気配です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不用费力，对话自己会滚动"
+          }
+        }
+      }
+    },
+    "애쓰지 않아도 일머리가 돌아가는 결이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The workday clicks along without forcing. Let the routine drive"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "力まなくても段取りが回っていく気配です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不用使劲，条理自己就转得动"
           }
         }
       }
@@ -38836,6 +39650,50 @@
         }
       }
     },
+    "어긋났던 사이가 정리 쪽으로 기울어요. 화해든 마침표든 가벼워집니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A strained thread is leaning toward resolution. Either way, it gets lighter"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "こじれた糸が整理へ傾く日です。和解でも区切りでも軽くなります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拧着的关系在往清楚倾斜，和解或收尾都会轻一些"
+          }
+        }
+      }
+    },
+    "어깨가 먼저 신호를 보내는 날이에요. 알아챈 순간 한 번 내려놓으면 됩니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your shoulders will signal first today. The moment you notice, let them drop once"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日は肩が先に合図を送ります。気づいた瞬間に一度下ろせば十分"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天肩膀会先报信，察觉的那一刻放下来一次就好"
+          }
+        }
+      }
+    },
     "어깨를 한 번 내려보세요": {
       "localizations": {
         "en": {
@@ -38972,6 +39830,28 @@
         }
       }
     },
+    "어제 못 잔 잠에 대한 걱정은 내려놓으세요. 오늘 밤이 갚을 기회입니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set down the worry over last night's lost sleep. Tonight is the chance to repay it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨夜の眠りを悔やむ心配は下ろして。今夜が返す機会です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨晚没睡好的懊恼放下吧，今晚就是补回来的机会"
+          }
+        }
+      }
+    },
     "어제와 오늘이 다른": {
       "extractionState": "manual",
       "localizations": {
@@ -39060,6 +39940,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "在这里留下今天的备注"
+          }
+        }
+      }
+    },
+    "여기저기 걸쳐둔 힘이 당신 책상 위로 당겨지고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Threads you left in many places are being drawn back to your desk"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あちこちに残した力が、あなたの机へ引き寄せられています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留在各处的力气，正被拉回你的桌上"
           }
         }
       }
@@ -39175,6 +40077,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "已关联"
+          }
+        }
+      }
+    },
+    "연락의 실들이 한 곳으로 당겨지고 있어요. 오늘 닿는 인연이 진합니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The threads of contact are pulling to one point. Whoever reaches you today matters"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連絡の糸が一点に引き寄せられています。今日届く縁は濃いはず"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "联络的线正收向一处，今天来的缘分分量不轻"
           }
         }
       }
@@ -39800,6 +40724,28 @@
         }
       }
     },
+    "오늘 다 끝내야 한다는 조급함은 흘려보내세요. 흐름은 이어집니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let go of the urge to finish everything today. The current continues"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日中に全部終えたい焦りは流していい。流れは続きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把今天要全部做完的急躁放走，流水还长"
+          }
+        }
+      }
+    },
     "오늘 둘 다 불꽃을 켰어요": {
       "extractionState": "manual",
       "localizations": {
@@ -39886,6 +40832,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "今日火焰已点燃"
+          }
+        }
+      }
+    },
+    "오늘 스치는 안부에 평소보다 한 마디를 더 얹어보세요. 거기서 문이 열립니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add one extra sentence to today's passing hello. A door opens there"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の挨拶にひと言だけ多く添えてみて。そこから扉が開きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天的问候多添一句，门就从那里开"
           }
         }
       }
@@ -40382,6 +41350,28 @@
         }
       }
     },
+    "오늘의 실마리": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's clue"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の糸口"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天的线索"
+          }
+        }
+      }
+    },
     "오늘의 운세와 기운을 확인해보세요": {
       "localizations": {
         "en": {
@@ -40494,6 +41484,28 @@
         }
       }
     },
+    "오늘의 침묵을 서운함으로 번역하지 마세요. 쉼표일 뿐입니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Don't translate today's quiet into hurt. It's only a comma"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の沈黙を寂しさに訳さないで。ただの読点です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "别把今天的安静翻译成冷淡，那只是个逗号"
+          }
+        }
+      }
+    },
     "오늘의 카드": {
       "localizations": {
         "en": {
@@ -40584,6 +41596,50 @@
         }
       }
     },
+    "오래 걸려 있던 마음 하나가 매듭을 원하고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A feeling left hanging wants its knot tied"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "掛かったままの気持ちが、結び目を求めています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "悬着的一份心事，正等一个结"
+          }
+        }
+      }
+    },
+    "오래 끌던 피로가 빠져나갈 문을 찾은 결이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A long-carried tiredness has found its way out"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "長く引きずった疲れが、出口を見つけた気配です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖了许久的疲惫，正找到自己的出口"
+          }
+        }
+      }
+    },
     "오래 미룬 안부를 꺼내도 좋아요": {
       "localizations": {
         "en": {
@@ -40629,6 +41685,28 @@
         }
       }
     },
+    "오래된 인연이 조용히 힘이 되어주는 날이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An old bond is quietly lending you strength today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "古い縁が静かに力を貸してくれる日です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旧缘分今天悄悄借你力气"
+          }
+        }
+      }
+    },
     "오류가 있어요": {
       "extractionState": "manual",
       "localizations": {
@@ -40648,6 +41726,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "遇到了错误"
+          }
+        }
+      }
+    },
+    "오전의 첫 한 시간, 책상 위 가장 오래 묵은 일 하나가 유난히 잘 풀립니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the first hour of the morning, the oldest task on your desk unravels with strange ease"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "朝の最初のひととき、机の上で最も古い仕事が不思議とほどけます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上午头一段时间，桌上压得最久的那件事会格外顺手"
+          }
+        }
+      }
+    },
+    "오후에 몸이 무거워지면 그늘보다 햇빛 쪽으로 잠깐 걸어보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When the afternoon turns heavy, walk toward the sunlight for a while"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "午後に体が重くなったら、日陰より日なたを少し歩いてみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "午后身子发沉的话，往有太阳的那边走一走"
           }
         }
       }
@@ -40855,6 +41977,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "完成的卡牌"
+          }
+        }
+      }
+    },
+    "완벽하게 정리하고 시작하려는 마음을 흘려보내세요. 지금 그대로 시작해도 됩니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Release the need to tidy everything before starting. You may begin as things are"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完璧に片づけてから始めたい気持ちは流して。今のままで始めていい"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想收拾干净再开始的念头放它去，现在这样就可以开始"
           }
         }
       }
@@ -41638,6 +42782,28 @@
         }
       }
     },
+    "이미 지나간 선택을 다시 셈하는 일은 오늘 몫이 아니에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recounting a choice already made is not today's work"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "済んだ選択を数え直すのは、今日の仕事ではありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把做过的选择翻出来重算，不是今天的功课"
+          }
+        }
+      }
+    },
     "이미 최대 강화(+%lld)예요": {
       "extractionState": "manual",
       "localizations": {
@@ -41773,28 +42939,6 @@
         }
       }
     },
-    "이어온 시간이 지금의 당신을 받치고 있어요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The time you've kept is holding you up"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "続けてきた時間が今のあなたを支えています"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "坚持下来的时间正托着现在的你"
-          }
-        }
-      }
-    },
     "이전": {
       "extractionState": "manual",
       "localizations": {
@@ -41905,6 +43049,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "匿名勇者"
+          }
+        }
+      }
+    },
+    "익숙한 장소에서 뜻밖의 대화가 시작될 수 있어요. 귀를 열어두세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An unexpected conversation may start in a familiar place. Keep an ear open"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "見慣れた場所で思いがけない会話が始まるかもしれません。耳を開けておいて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "熟悉的地方也许会冒出意外的谈话，把耳朵留着"
           }
         }
       }
@@ -42020,6 +43186,72 @@
           "stringUnit": {
             "state": "translated",
             "value": "一闪"
+          }
+        }
+      }
+    },
+    "일의 결이 아직 무르네요. 오늘 만지는 대로 모양이 잡힙니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The work is still soft clay. It takes the shape of today's touch"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仕事のかたちはまだ柔らかいところ。今日触れたとおりに定まっていきます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "事情的纹路还软，今天怎么捏就怎么成形"
+          }
+        }
+      }
+    },
+    "일의 초점이 좁아지고 있어요. 하나에 깊게 들어가기 좋습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The work is narrowing to a single point. Go deep on one thing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仕事の焦点が絞られています。一つを深く掘るのに向く日"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "事情的焦点在收窄，适合把一件事做深"
+          }
+        }
+      }
+    },
+    "읽고 답 없는 침묵의 의미를 재지 마세요. 그저 바쁜 날일 때가 많습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Don't weigh the silence after a read message. It's often just a busy day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既読のまま返ってこない意味を量らないで。ただ忙しいだけのことが多いです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "别去掂量已读不回的意思，多半只是那边正忙"
           }
         }
       }
@@ -42748,6 +43980,94 @@
           "stringUnit": {
             "state": "translated",
             "value": "停下来照顾一下今天吧"
+          }
+        }
+      }
+    },
+    "잠들기 전 내일 할 일의 첫 줄만 적어두면 아침 기운이 그 줄을 따라옵니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Write tomorrow's first line before you sleep, and the morning will follow it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "眠る前に明日の最初の一行だけ書いておくと、朝の気配がその行に沿って動きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "睡前写下明天的第一行，早晨的气场会顺着那一行走"
+          }
+        }
+      }
+    },
+    "잠들기 전 불을 일찍 끄는 것만으로 내일 아침의 결이 달라집니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turning the lights off early tonight changes the grain of tomorrow morning"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今夜は早めに灯りを消すだけで、明日の朝の巡りが変わります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今晚早点熄灯，明早的纹路就会不一样"
+          }
+        }
+      }
+    },
+    "잠들기 전 화면을 붙드는 손을 오늘은 한 박자 먼저 놓아보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tonight, let the screen out of your hand one beat earlier than usual"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "眠る前に画面を握る手を、今夜は一拍早く放してみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "睡前抓着屏幕的手，今晚早一拍松开"
+          }
+        }
+      }
+    },
+    "잠시 혼자인 시간도 관계가 숨을 고르는 방식이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time alone is also how a bond catches its breath"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一人の時間も、縁が息を整えるやり方のひとつです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "独处的时间，也是关系在调息"
           }
         }
       }
@@ -44017,6 +45337,50 @@
         }
       }
     },
+    "점심 무렵 떠오르는 생각 하나를 적어두세요. 나중에 값을 합니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Write down the idea that surfaces around midday. It will pay later"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昼ごろ浮かんだ思いつきを書き留めておいて。あとで値打ちが出ます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "晌午冒出来的念头记下来，往后用得上"
+          }
+        }
+      }
+    },
+    "점심시간에 떠오르는 얼굴이 있다면 그 사람이 오늘의 인연입니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If a face comes to mind around lunch, that person is today's thread"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昼どきに浮かぶ顔があれば、その人が今日の縁です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "午间想起谁的脸，那个人就是今天的缘"
+          }
+        }
+      }
+    },
     "접촉한 모든 것에 이름을 새기는 전염성 구슬.": {
       "extractionState": "manual",
       "localizations": {
@@ -44383,6 +45747,28 @@
         }
       }
     },
+    "주고받는 박자가 잘 맞는 시기예요. 말이 곱게 얹힙니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The give-and-take is landing on beat. Words settle kindly today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "やり取りの拍子が合う時期です。言葉が柔らかく届きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "往来的拍子合得上的时期，话说出去落得轻"
+          }
+        }
+      }
+    },
     "주전자가 나지막이 끓고 있다": {
       "extractionState": "manual",
       "localizations": {
@@ -44724,24 +46110,46 @@
         }
       }
     },
-    "지나온 날들이 발밑에 깔려 있어요": {
+    "지난 계절의 관리가 지금의 체력으로 돌아오는 중이에요": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The days behind you are laid under your feet"
+            "value": "Last season's tending is returning as this season's strength"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "過ぎた日々が足元に敷かれています"
+            "value": "前の季節の手入れが、いまの体力になって返ってきています"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "走过的日子铺在脚下"
+            "value": "上个季节的打理，正变成现在的体力回来"
+          }
+        }
+      }
+    },
+    "지난날 해둔 일이 지금 값을 하는 중이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Work done on past days is paying its worth now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "過ぎた日にやっておいた仕事が、いま値を発揮しています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从前做下的功夫，此刻正在见效"
           }
         }
       }
@@ -44879,6 +46287,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "橡皮"
+          }
+        }
+      }
+    },
+    "지켜온 약속들이 보이지 않는 울타리가 되어 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The promises you've kept have become a fence you can't see"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "守ってきた約束が、見えない垣根になっています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "守下来的约定，成了看不见的篱笆"
           }
         }
       }
@@ -45831,28 +47261,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "新手挑战者"
-          }
-        }
-      }
-    },
-    "초점이 좁아지는 시기예요. 깊어지기 좋습니다": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your focus is narrowing. Good time to go deep"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "焦点が狭まる時期です。深めるのに向いています"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "焦点在收窄，适合往深里走"
           }
         }
       }
@@ -47085,6 +48493,28 @@
         }
       }
     },
+    "컨디션이 백지 같은 날이에요. 무엇을 얹느냐에 달렸습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your condition is a blank page today. It depends on what you lay on it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "調子が白紙のような日です。何を載せるかで決まります"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状态像白纸的一天，看你往上放什么"
+          }
+        }
+      }
+    },
     "컬렉션": {
       "extractionState": "manual",
       "localizations": {
@@ -47466,6 +48896,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "暴击"
+          }
+        }
+      }
+    },
+    "큰일보다 잠깐이면 끝나는 일부터 손대세요. 작게 끝낸 하나가 물꼬를 틉니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start with what takes a moment, not what takes a day. One small finish opens the channel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大きな仕事より、すぐ済むものから。小さな完了が水路を開きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先做转眼能完的，小事一收，水路就开了"
           }
         }
       }
@@ -49247,6 +50699,50 @@
         }
       }
     },
+    "한 번에 되돌리려는 조급함을 내려놓으세요. 회복은 조용히 옵니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Release the rush to recover all at once. Healing arrives quietly"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一度に取り戻そうとする焦りは下ろして。回復は静かに来ます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想一下子补回来的急躁放一放，恢复是悄悄来的"
+          }
+        }
+      }
+    },
+    "한 번에 크게 이루려는 마음은 잠시 접어두세요. 작게 굴러가는 게 오늘의 길입니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fold away the wish to win it all at once. Small and rolling is today's road"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一度に大きく成そうとする心は畳んでおいて。小さく転がすのが今日の道です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想一口气做成大事的心先折起来，小步滚动才是今天的路"
+          }
+        }
+      }
+    },
     "한 번에 한 번만 휘두른다": {
       "extractionState": "manual",
       "localizations": {
@@ -49266,6 +50762,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "一次只挥一次。"
+          }
+        }
+      }
+    },
+    "한 정거장 먼저 내려 걷는 길에 좋은 기운이 깔려 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get off one stop early. Good fortune is laid along the longer walk"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ひと駅手前で降りて歩く道に、良い気配が敷かれています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提前一站下车，多走的那段路上铺着好气场"
           }
         }
       }
@@ -49402,6 +50920,72 @@
           "stringUnit": {
             "state": "translated",
             "value": "一起点燃，燃烧更久"
+          }
+        }
+      }
+    },
+    "해 지기 전, 가장 오래 미룬 연락 하나가 길을 엽니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before the sun sets, the message you've delayed longest opens a road"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日が沈む前、いちばん先延ばしにした連絡が道を開きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日落之前，拖得最久的那条联络会打开一条路"
+          }
+        }
+      }
+    },
+    "해 지기 전에 끝낸 일 하나가 내일의 짐을 반으로 줄여줍니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One thing finished before sundown cuts tomorrow's load in half"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日が沈む前に終えた一件が、明日の荷を半分にしてくれます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日落前收掉一件事，明天的担子就轻一半"
+          }
+        }
+      }
+    },
+    "해가 있는 동안 몸을 움직여두면 밤잠이 값을 합니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move while the sun is up, and the night's sleep will repay it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日のあるうちに体を動かしておくと、夜の眠りが応えてくれます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "趁着有太阳把身体动开，夜里的觉会还给你"
           }
         }
       }
@@ -50387,6 +51971,28 @@
         }
       }
     },
+    "흘려보낼 것": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let it pass"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "流していいもの"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该放走的"
+          }
+        }
+      }
+    },
     "흩날리는 낱장": {
       "extractionState": "manual",
       "localizations": {
@@ -50410,24 +52016,68 @@
         }
       }
     },
-    "흩어져 있던 것이 한 곳으로 당겨집니다": {
+    "흩어져 있던 몫이 한 곳으로 모이는 중이에요": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "What was scattered is being drawn to one point"
+            "value": "The scattered earnings of your effort are pooling in one place"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "散らばっていたものが一点に引き寄せられます"
+            "value": "散らばっていた実りが一か所に集まりつつあります"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "散落的正被拉向一处"
+            "value": "散在各处的收成正往一处聚拢"
+          }
+        }
+      }
+    },
+    "흩어졌던 기력이 몸 가운데로 모이고 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scattered strength is pooling back toward your center"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "散らばっていた気力が、体の真ん中に集まっています"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "散掉的气力正往身体中间聚拢"
+          }
+        }
+      }
+    },
+    "흩어졌던 사람들이 당신 쪽으로 모이는 기운이에요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "People who drifted are gathering back toward you"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "離れていた人たちが、あなたの方へ集まる気配です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "散开的人正往你这边聚拢，气场向着你"
           }
         }
       }
@@ -50496,28 +52146,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "力量"
-          }
-        }
-      }
-    },
-    "힘이 한 방향으로 모이고 있어요": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your strength is gathering in one direction"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "力が一つの方向に集まっています"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "力量正朝一个方向汇聚"
           }
         }
       }
