@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
 import AuraScratch from "@/components/flame/AuraScratch";
-import { showRewardedAd } from "@/lib/ads";
+import { isAdAvailable, showRewardedAd } from "@/lib/ads";
 import {
   AURA_KINDS,
   auraAdviceVariant,
@@ -29,8 +29,10 @@ import { TAROT_DECK, type TarotCard } from "@/data/tarotPool";
 import type { L10nText } from "@/data/fortunePool";
 import { playSound, triggerHaptic } from "@/lib/sounds";
 import type { DictKey } from "@/i18n";
+import { SHOP_PRICES } from "@/types/uphero";
 import { useGameStore } from "@/store/useGameStore";
 import { useRetentionStore } from "@/store/useRetentionStore";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useDuoStore } from "@/store/useDuoStore";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -41,9 +43,12 @@ import { useTranslation } from "@/hooks/useTranslation";
  * 기운 3종 리딩 — 폴라로이드를 본 뒤 재물·관계·건강 중 하나를 골라 본다.
  *
  * 규칙:
- *  - 첫 번째는 무료. 오늘의 기운 광고를 이미 봤으니 그 값을 여기서 치른다.
+ *  - 첫 번째는 무료. 오늘의 기운을 이미 열었으니 그 값을 여기서 치른다.
  *  - 나머지 둘은 각각 리워드 광고 1회. 옵트인이며, 중도 이탈은 아무 일도 아니다.
- *  - 이미 연 기운은 그날 안에서 광고 없이 다시 볼 수 있다(재시청 유도 금지).
+ *  - 광고를 재생할 수 없는 환경(브라우저·TWA·동의 거부·오프라인)에서는 대신
+ *    코인(SHOP_PRICES.auraReading)으로 연다. 광고가 유일한 경로가 되면 브라우저
+ *    유저는 영영 하나만 보게 된다 — FortuneCard 와 같은 원칙이다.
+ *  - 이미 연 기운은 그날 안에서 광고도 코인도 없이 다시 볼 수 있다(재시청 유도 금지).
  *
  * 리딩은 첫 기운을 여는 순간 3종을 한꺼번에 계산해 고정한다(fortune.ts).
  * 오전에 본 재물기운이 오후에 카드를 하나 더 깼다고 달라지면 점이 아니라
@@ -127,7 +132,11 @@ const TIER_STYLE: Record<AuraTier, { ink: string; glow: number }> = {
   care: { ink: INK_SOFT, glow: 0.16 },
 };
 
-type Phase = { kind: "idle" } | { kind: "loading"; target: AuraKind } | { kind: "fail" };
+type Phase =
+  | { kind: "idle" }
+  | { kind: "loading"; target: AuraKind }
+  /** 코인 경로인데 잔액이 모자란다 — 3초 안내 후 idle 로 돌아간다 */
+  | { kind: "noCoins" };
 
 export default function AuraSection({
   today,
@@ -151,6 +160,24 @@ export default function AuraSection({
   const retentionInitialize = useRetentionStore((s) => s.initialize);
   const duoActive = useDuoStore((s) => (s.activeDuo?.memberIds.length ?? 0) >= 2);
 
+  // 코인 경로 — 차감은 Up Hero 스토어의 기존 공개 API 를 그대로 쓴다.
+  const spendCoins = useUpHeroStore((s) => s.spendCoins);
+  const heroLoaded = useUpHeroStore((s) => s.isLoaded);
+  const heroInitialize = useUpHeroStore((s) => s.initialize);
+
+  /**
+   * 광고 판정. 이 컴포넌트는 폴라로이드를 본 뒤에만 마운트돼 서버에서 렌더되지
+   * 않으므로(위 store 초기값과 같은 근거) 초기값에서 네이티브 브리지를 읽어도
+   * hydration 이 어긋나지 않는다 — FortuneCard 처럼 effect 로 미룰 이유가 없다.
+   *
+   * `adDeadEnd` 는 이번 세션에서 광고가 **실제로** 실패했다는 확정이다. isAdAvailable()
+   * 은 환경만 보고 낙관적으로 true 를 돌려주므로(동의 거부·no fill·오프라인을 모른다)
+   * 그것만으로는 판정할 수 없다.
+   */
+  const [adAvailable] = useState(() => isAdAvailable());
+  const [adDeadEnd, setAdDeadEnd] = useState(false);
+  const usesCoinPath = adDeadEnd || !adAvailable;
+
   /**
    * 저장된 열람 기록 + 스냅샷. day 를 함께 들고 다녀 자정 롤오버를 렌더 중
    * prev-비교로 잡는다(effect 안 setState 는 cascading render 를 만든다).
@@ -169,7 +196,8 @@ export default function AuraSection({
   });
   const [view, setView] = useState<{ kind: AuraKind; ritual: boolean } | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const failTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 잔액 부족 안내를 3초 뒤 되돌리는 타이머 */
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
    * 권리는 얻었지만 아직 문질러 드러내지는 않은 기운.
    * 열람 기록은 광고를 본 순간 남기므로(문지르다 나가도 값을 지키려고),
@@ -195,7 +223,7 @@ export default function AuraSection({
 
   useEffect(
     () => () => {
-      if (failTimerRef.current) clearTimeout(failTimerRef.current);
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
     },
     [],
   );
@@ -205,6 +233,13 @@ export default function AuraSection({
   useEffect(() => {
     if (!retentionLoaded) retentionInitialize();
   }, [retentionLoaded, retentionInitialize]);
+
+  // 코인 경로에서만 Up Hero 스토어를 깨운다. 홈·아지트를 거치지 않고 /flame 으로
+  // 곧장 들어온 사용자는 잔액이 0 으로 보여, 코인이 있는데도 "부족해요" 를 만난다.
+  // initialize 는 멱등이다(isLoaded 가드). FortuneCard 도 같은 보험을 든다.
+  useEffect(() => {
+    if (usesCoinPath && !heroLoaded) heroInitialize();
+  }, [usesCoinPath, heroLoaded, heroInitialize]);
 
   useEffect(() => {
     onOverlayChange?.(view !== null);
@@ -258,16 +293,34 @@ export default function AuraSection({
       if (phase.kind === "loading") return;
       play("select");
 
-      // 이미 연 기운 · 그날의 첫 기운은 광고 없이 바로 연다.
+      // 이미 연 기운 · 그날의 첫 기운은 대가 없이 바로 연다.
       if (opened.includes(kind) || opened.length === 0) {
         openReading(kind);
         return;
       }
 
-      if (failTimerRef.current) {
-        clearTimeout(failTimerRef.current);
-        failTimerRef.current = null;
+      if (noticeTimerRef.current) {
+        clearTimeout(noticeTimerRef.current);
+        noticeTimerRef.current = null;
       }
+
+      // 코인 경로 — 광고를 못 받는 상태에서만 온다. 가격은 칩 아래 안내줄에 이미
+      // 떠 있고, 이 탭이 곧 결제 확정이다(기습 결제 금지: 값을 보고 누른 탭이다).
+      if (usesCoinPath) {
+        if (!spendCoins(SHOP_PRICES.auraReading)) {
+          play("cancel");
+          setPhase({ kind: "noCoins" });
+          noticeTimerRef.current = setTimeout(() => {
+            noticeTimerRef.current = null;
+            setPhase((prev) => (prev.kind === "noCoins" ? { kind: "idle" } : prev));
+          }, 3000);
+          return;
+        }
+        openReading(kind);
+        play("confirm");
+        return;
+      }
+
       setPhase({ kind: "loading", target: kind });
       const result = await showRewardedAd("fortune");
       if (result === "rewarded") {
@@ -275,18 +328,19 @@ export default function AuraSection({
         openReading(kind);
         play("confirm");
       } else if (result === "unavailable") {
+        // 막다른 길이던 자리 — 예전엔 "지금은 보여줄 광고가 없어요"를 3초 띄우고
+        // 원복해, 아무리 눌러도 열리지 않는 상태가 무한 반복됐다. 이제 광고가 실제로
+        // 죽었음을 확정하고 코인 경로로 전환한다. 여기서 차감하지는 않는다 —
+        // 다음 탭부터 안내줄이 가격을 달고 뜨고, 그걸 보고 다시 눌러야 결제된다.
         play("cancel");
-        setPhase({ kind: "fail" });
-        failTimerRef.current = setTimeout(() => {
-          failTimerRef.current = null;
-          setPhase((prev) => (prev.kind === "fail" ? { kind: "idle" } : prev));
-        }, 3000);
+        setAdDeadEnd(true);
+        setPhase({ kind: "idle" });
       } else {
         // 중도 이탈 — 조용히 원상 복귀. 보상도 소모도 없다.
         setPhase({ kind: "idle" });
       }
     },
-    [phase, play, opened, openReading],
+    [phase, play, opened, openReading, usesCoinPath, spendCoins],
   );
 
   /**
@@ -391,9 +445,19 @@ export default function AuraSection({
         })}
       </div>
 
-      {phase.kind === "fail" && (
-        <p className="mt-2 typo-micro text-text-tertiary text-center">{t("fortune.fail")}</p>
-      )}
+      {/* 안내줄 — 코인 경로의 가격을 **누르기 전에** 알린다. 칩에는 문구를 얹을
+          자리가 없어(자물쇠 하나로 잠금을 알린다) 가격이 여기에 서지 않으면 탭이
+          곧 기습 결제가 된다. 잠긴 칩이 남아 있을 때만 뜬다.
+          잔액 부족은 에러가 아니라 안내다 — 에러색을 쓰지 않는다. */}
+      {phase.kind === "noCoins" ? (
+        <p className="mt-2 typo-micro text-text-tertiary text-center">
+          {t("aura.noCoins", { cost: SHOP_PRICES.auraReading })}
+        </p>
+      ) : usesCoinPath && opened.length > 0 && !allOpened ? (
+        <p className="mt-2 typo-micro text-text-tertiary text-center">
+          {t("aura.coin.hint", { cost: SHOP_PRICES.auraReading })}
+        </p>
+      ) : null}
 
       {typeof document !== "undefined" &&
         createPortal(
@@ -458,6 +522,7 @@ function AuraOverlay({
   const prefersReducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [revealed, setRevealed] = useState(!ritual);
   /**
    * 공개 이펙트는 "문질러 드러난 순간"에만 튄다. 재열람 마운트에서 또 터지면
@@ -505,8 +570,19 @@ function AuraOverlay({
   // 떨어져 스크린리더가 아무것도 읽지 못한다.
   useEffect(() => {
     if (!revealed) return;
-    contentRef.current?.focus();
+    // preventScroll — 이제 카드가 스크롤 레이어 안에 있다. 그냥 focus 하면
+    // 브라우저가 카드를 "보이게" 하려고 스크롤을 옮기는데, 카드가 화면보다
+    // 길면 그 결과로 카드 윗머리가 잘린 채 열린다. 시작은 늘 맨 위여야 한다.
+    contentRef.current?.focus({ preventScroll: true });
   }, [revealed]);
+
+  // 리딩은 언제나 맨 위에서 시작한다 — 마운트에서 한 번, 기운이 바뀌면 다시.
+  // 퇴장 애니메이션 도중에 다음 리딩이 들어오면 AnimatePresence 가 스크롤 레이어
+  // DOM 을 그대로 재사용해 이전 스크롤 위치가 남는데, 그러면 다음 리딩이 해설
+  // 중간부터 열린다. 페인트 전에 되돌려 튐이 보이지 않게 한다.
+  useLayoutEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [reading.kind]);
 
   const name = t(NAME_KEY[reading.kind]);
   const tone = TIER_STYLE[reading.tier];
@@ -550,9 +626,11 @@ function AuraOverlay({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      className="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden bg-black/60 px-8 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] overflow-hidden bg-black/60 backdrop-blur-sm"
     >
-      {/* 오늘의 색 글로우 — 폴라로이드 오버레이와 같은 공기 */}
+      {/* 오늘의 색 글로우 — 폴라로이드 오버레이와 같은 공기.
+          스크롤 레이어 밖에 둔다: 해설을 따라 빛까지 흐르면 공기가 아니라
+          배경 이미지가 된다(FortuneCard 오버레이와 같은 계약). */}
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden="true"
@@ -561,125 +639,152 @@ function AuraOverlay({
         }}
       />
 
-      <div className="relative z-10 w-[264px] max-w-full">
-        <motion.div
-          initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 18, rotate: -1.5 }}
-          animate={{ opacity: 1, y: 0, rotate: -1 }}
-          exit={{ opacity: 0, y: 24, transition: { duration: 0.16 } }}
-          transition={
-            prefersReducedMotion
-              ? { duration: 0.18 }
-              : { type: "spring", stiffness: 380, damping: 28 }
-          }
-          className="relative"
-        >
-          <div
-            ref={contentRef}
-            tabIndex={-1}
-            aria-hidden={!revealed}
-            className="rounded-sm bg-[#f2f1ee] p-[10px] shadow-2xl outline-none"
-          >
-            {/* 사진 영역 — 폴라로이드와 같은 자리에 기운의 상징이 앉는다.
-                오늘의 색은 여기서만 원색으로 쓴다(인화지 위 텍스트로는 안 읽힌다). */}
-            <div className="relative flex aspect-[154/86] w-full items-center justify-center overflow-hidden bg-bg-primary">
+      {/* 스크롤 레이어 — 오버레이는 화면을 다 덮되 넘치는 건 내용뿐이다.
+          1.2.0 에서 실마리·흘려보낼 것·타로가 붙어 카드가 700~840px 가 됐다.
+          예전엔 루트가 overflow-hidden 인 채 가운데 정렬이라 세로 720 미만에서
+          해설 위아래가 잘리고 볼 방법이 없었다(iOS AuraReadingView 의
+          ScrollView + minHeight 패턴을 웹으로 옮긴다).
+          overflow-x-hidden 은 카드 등장 애니메이션의 rotate 가 가로 스크롤을
+          만들지 않게 막고, overscroll-contain 은 스크롤이 아래 폴라로이드
+          오버레이로 새는 것을 막는다. 배경 탭으로 닫는 경로가 없는 오버레이라
+          (닫기는 명시 버튼과 Esc 뿐) 스크롤 제스처와 다툴 닫기가 애초에 없다.
+          문지르기(AuraScratch)는 touch-action:none 이라 스크롤을 가져가지 않는다. */}
+      <div
+        ref={scrollRef}
+        className="relative z-10 h-full overflow-y-auto overflow-x-hidden overscroll-contain px-8"
+      >
+        {/* min-h-full + justify-center — 짧으면 기존처럼 가운데,
+            넘치면 위에서부터 자라며 스크롤이 생긴다. */}
+        <div className="flex min-h-full flex-col items-center justify-center py-8 pb-[calc(env(safe-area-inset-bottom)+24px)]">
+          <div className="w-[264px] max-w-full">
+            <motion.div
+              initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 18, rotate: -1.5 }}
+              animate={{ opacity: 1, y: 0, rotate: -1 }}
+              exit={{ opacity: 0, y: 24, transition: { duration: 0.16 } }}
+              transition={
+                prefersReducedMotion
+                  ? { duration: 0.18 }
+                  : { type: "spring", stiffness: 380, damping: 28 }
+              }
+              className="relative"
+            >
               <div
-                className="pointer-events-none absolute inset-0"
-                aria-hidden="true"
-                style={{
-                  background: `radial-gradient(70% 90% at 50% 50%, ${colorHex}, transparent 72%)`,
-                  opacity: tone.glow,
-                }}
-              />
-              <PixelIcon name={KIND_ICON[reading.kind]} size={40} color={colorHex} />
-              {/* 공개 이펙트 — 사진 영역 안에서만 논다. 카드 밖으로 튀면
-                  인화지의 물성(한 장의 사진)이 깨진다. */}
-              {fx && (
-                <RevealFx
-                  tier={reading.tier}
-                  colorHex={colorHex}
-                  reduced={prefersReducedMotion}
-                />
-              )}
-            </div>
+                ref={contentRef}
+                tabIndex={-1}
+                aria-hidden={!revealed}
+                className="rounded-sm bg-[#f2f1ee] p-[10px] shadow-2xl outline-none"
+              >
+                {/* 사진 영역 — 폴라로이드와 같은 자리에 기운의 상징이 앉는다.
+                    오늘의 색은 여기서만 원색으로 쓴다(인화지 위 텍스트로는 안 읽힌다). */}
+                <div className="relative flex aspect-[154/86] w-full items-center justify-center overflow-hidden bg-bg-primary">
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    aria-hidden="true"
+                    style={{
+                      background: `radial-gradient(70% 90% at 50% 50%, ${colorHex}, transparent 72%)`,
+                      opacity: tone.glow,
+                    }}
+                  />
+                  <PixelIcon name={KIND_ICON[reading.kind]} size={40} color={colorHex} />
+                  {/* 공개 이펙트 — 사진 영역 안에서만 논다. 카드 밖으로 튀면
+                      인화지의 물성(한 장의 사진)이 깨진다. */}
+                  {fx && (
+                    <RevealFx
+                      tier={reading.tier}
+                      colorHex={colorHex}
+                      reduced={prefersReducedMotion}
+                    />
+                  )}
+                </div>
 
-            <div className="space-y-3 px-0.5 pt-3 pb-2 text-left">
-              {/* 기운 이름 + 등급은 가림막 아래에서도 보인다 — 문지르기의 보상은
-                  등급이고, 문장들은 공개 후에 순서대로 온다. */}
-              <div>
-                <p className="typo-micro" style={{ color: INK_FAINT }}>
-                  {name}
-                </p>
-                {/* 등급 라벨이 주인공이다. 옆에 숫자를 붙이는 순간 라벨은
-                    숫자의 캡션으로 격하되고, 유저는 점수를 올리는 게임을 시작한다. */}
-                <p
-                  className="typo-title"
-                  style={{ color: tone.ink, letterSpacing: "0.02em" }}
-                >
-                  {t(TIER_KEY[reading.tier])}
-                </p>
+                <div className="space-y-3 px-0.5 pt-3 pb-2 text-left">
+                  {/* 기운 이름 + 등급은 가림막 아래에서도 보인다 — 문지르기의 보상은
+                      등급이고, 문장들은 공개 후에 순서대로 온다. */}
+                  <div>
+                    <p className="typo-micro" style={{ color: INK_FAINT }}>
+                      {name}
+                    </p>
+                    {/* 등급 라벨이 주인공이다. 옆에 숫자를 붙이는 순간 라벨은
+                        숫자의 캡션으로 격하되고, 유저는 점수를 올리는 게임을 시작한다. */}
+                    <p
+                      className="typo-title"
+                      style={{ color: tone.ink, letterSpacing: "0.02em" }}
+                    >
+                      {t(TIER_KEY[reading.tier])}
+                    </p>
+                  </div>
+
+                  {/* 정보 위계: 조짐 > 조언 > 실마리 > 흘려보낼 것.
+                      조짐만 진한 잉크, 나머지는 부드러운 잉크 + 라벨로 급을 낮춘다. */}
+                  {/* 조짐 — 실측 신호가 고른 문장 한 줄. 수치는 인용하지 않는다. */}
+                  <motion.p {...block(0)} className="typo-caption" style={{ color: INK }}>
+                    {t(omenKey(reading))}
+                  </motion.p>
+                  <motion.p {...block(1)} className="typo-caption" style={{ color: INK_SOFT }}>
+                    {t(adviceKey(reading, today, salt))}
+                  </motion.p>
+                  <motion.div {...block(2)}>
+                    <p className="typo-micro" style={{ color: INK_FAINT }}>
+                      {t("aura.hint.label" as DictKey)}
+                    </p>
+                    <p className="mt-0.5 typo-caption" style={{ color: INK_SOFT }}>
+                      {t(hintKey(reading.kind, today, salt))}
+                    </p>
+                  </motion.div>
+                  <motion.div {...block(3)}>
+                    <p className="typo-micro" style={{ color: INK_FAINT }}>
+                      {t("aura.caution.label" as DictKey)}
+                    </p>
+                    <p className="mt-0.5 typo-caption" style={{ color: INK_SOFT }}>
+                      {t(cautionKey(reading.kind, today, salt))}
+                    </p>
+                  </motion.div>
+                  {/* 타로 — 읽어 내려가는 리듬의 마지막 박자. 제시 3장은 결정론이지만
+                      무엇을 뒤집을지는 여기서 유일하게 유저 몫이다(하루 고정). */}
+                  <motion.div {...block(4)}>
+                    <TarotBlock
+                      offer={auraTarotOffer(today, salt, reading.kind)}
+                      selectedId={tarotCardId}
+                      tier={reading.tier}
+                      colorHex={colorHex}
+                      active={revealed}
+                      reduced={prefersReducedMotion}
+                      onPick={onPickTarot}
+                    />
+                  </motion.div>
+                </div>
               </div>
 
-              {/* 정보 위계: 조짐 > 조언 > 실마리 > 흘려보낼 것.
-                  조짐만 진한 잉크, 나머지는 부드러운 잉크 + 라벨로 급을 낮춘다. */}
-              {/* 조짐 — 실측 신호가 고른 문장 한 줄. 수치는 인용하지 않는다. */}
-              <motion.p {...block(0)} className="typo-caption" style={{ color: INK }}>
-                {t(omenKey(reading))}
-              </motion.p>
-              <motion.p {...block(1)} className="typo-caption" style={{ color: INK_SOFT }}>
-                {t(adviceKey(reading, today, salt))}
-              </motion.p>
-              <motion.div {...block(2)}>
-                <p className="typo-micro" style={{ color: INK_FAINT }}>
-                  {t("aura.hint.label" as DictKey)}
-                </p>
-                <p className="mt-0.5 typo-caption" style={{ color: INK_SOFT }}>
-                  {t(hintKey(reading.kind, today, salt))}
-                </p>
-              </motion.div>
-              <motion.div {...block(3)}>
-                <p className="typo-micro" style={{ color: INK_FAINT }}>
-                  {t("aura.caution.label" as DictKey)}
-                </p>
-                <p className="mt-0.5 typo-caption" style={{ color: INK_SOFT }}>
-                  {t(cautionKey(reading.kind, today, salt))}
-                </p>
-              </motion.div>
-              {/* 타로 — 읽어 내려가는 리듬의 마지막 박자. 제시 3장은 결정론이지만
-                  무엇을 뒤집을지는 여기서 유일하게 유저 몫이다(하루 고정). */}
-              <motion.div {...block(4)}>
-                <TarotBlock
-                  offer={auraTarotOffer(today, salt, reading.kind)}
-                  selectedId={tarotCardId}
-                  tier={reading.tier}
-                  colorHex={colorHex}
-                  active={revealed}
-                  reduced={prefersReducedMotion}
-                  onPick={onPickTarot}
-                />
-              </motion.div>
-            </div>
+              <AnimatePresence>
+                {!revealed && <AuraScratch colorHex={colorHex} onReveal={handleReveal} />}
+              </AnimatePresence>
+            </motion.div>
           </div>
 
-          <AnimatePresence>
-            {!revealed && <AuraScratch colorHex={colorHex} onReveal={handleReveal} />}
-          </AnimatePresence>
-        </motion.div>
+          {/* 닫기 자리 — 스크롤 흐름 안에 둔다(iOS 는 ScrollView 안 VStack).
+              예전엔 루트에 absolute 로 띄워 뒀는데, 카드가 길어지자 카드가
+              만든 쌓임 맥락(relative z-10) 아래로 들어가 인화지에 통째로
+              가려졌다. 375x667 에서는 눌 수도 볼 수도 없는 버튼이었다.
+              높이는 공개 전후로 늘 잡아 둔다: 여기서 자리가 생겼다 없어지면
+              가운데 정렬이 흔들려 가림막을 걷는 순간 카드가 위로 튄다.
+              그 자리는 문지르기 안내 문구(AuraScratch 의 top-full)가 앉는
+              자리이기도 하다. */}
+          <div className="flex min-h-[76px] w-full shrink-0 items-center justify-center">
+            {revealed && (
+              <motion.button
+                type="button"
+                onClick={onClose}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.24 }}
+                className="press-affordance rounded-xl bg-bg-elevated px-5 py-2.5"
+              >
+                <span className="typo-caption text-text-primary">{t("aura.back")}</span>
+              </motion.button>
+            )}
+          </div>
+        </div>
       </div>
-
-      {/* 문지르는 동안에는 닫기 버튼을 숨긴다 — 가림막 바로 아래에 안내 문구가
-          들어와 서로 자리를 다툰다. */}
-      {revealed && (
-        <motion.button
-          type="button"
-          onClick={onClose}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.24 }}
-          className="press-affordance absolute bottom-[calc(env(safe-area-inset-bottom)+40px)] left-1/2 -translate-x-1/2 rounded-xl bg-bg-elevated px-5 py-2.5"
-        >
-          <span className="typo-caption text-text-primary">{t("aura.back")}</span>
-        </motion.button>
-      )}
     </motion.div>
   );
 }
