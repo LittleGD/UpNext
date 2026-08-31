@@ -2416,6 +2416,9 @@ const zh: Record<DictKey, string> = {
   "fortune.label.quote": "今日名言",
   "fortune.empty": "收集卡牌后即可查看今日气场",
   "fortune.close": "关闭",
+  "fortune.coin.desc": "现在无法观看广告 · 可以用金币打开",
+  "fortune.cta.coin": "今日气场 · {cost}金币",
+  "fortune.noCoins": "金币不足（需要{cost}）",
   "daily.draw.rerollCost": "重抽 · {cost}金币",
   "daily.draw.rerollAd": "看广告重抽",
   "daily.draw.rerollChoose": "请选择重抽方式",
@@ -2454,6 +2457,8 @@ const zh: Record<DictKey, string> = {
   // 접근 이름에 상태를 합성하는 데만 쓴다(AuraSection).
   "aura.locked.a11y": "已锁定",
   "aura.opened.a11y": "已查看",
+  "aura.coin.hint": "锁定的气场可用{cost}金币打开",
+  "aura.noCoins": "金币不足（需要{cost}）",
   "fortune.toast.message": "来看看今天的运势和气场",
   "fortune.toast.dismiss": "关闭",
 
@@ -2625,7 +2630,7 @@ const zh: Record<DictKey, string> = {
   "aura.caution.health.2": "想一下子补回来的急躁放一放，恢复是悄悄来的",
   "aura.caution.health.3": "要跟上别人的那把尺子，今天搁在门外",
   "aura.caution.health.4": "睡前抓着屏幕的手，今晚早一拍松开",
-  "aura.caution.health.5": "反复确认哪里不舒服的心让它歇歇，身体在做它的事",
+  "aura.caution.health.5": "催着身体快点的心，今天先松开手，站到照顾它的那一边",
   // 塔罗 — 解读页选牌 UI 文案
   "aura.tarot.prompt": "翻开心里想选的那张牌",
   "aura.tarot.locked": "今天抽到的牌会陪你到明天",

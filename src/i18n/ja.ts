@@ -2416,6 +2416,9 @@ const ja: Record<DictKey, string> = {
   "fortune.label.quote": "今日の名言",
   "fortune.empty": "カードを集めると今日の気配が見られます",
   "fortune.close": "閉じる",
+  "fortune.coin.desc": "今は広告を見られません · コインで開けます",
+  "fortune.cta.coin": "今日の気配 · {cost}コイン",
+  "fortune.noCoins": "コインが足りません（{cost}必要）",
   "daily.draw.rerollCost": "リロール · {cost}コイン",
   "daily.draw.rerollAd": "広告を見てリロール",
   "daily.draw.rerollChoose": "カードを引き直す方法を選んでください",
@@ -2454,6 +2457,8 @@ const ja: Record<DictKey, string> = {
   // 접근 이름에 상태를 합성하는 데만 쓴다(AuraSection).
   "aura.locked.a11y": "ロック中",
   "aura.opened.a11y": "確認済み",
+  "aura.coin.hint": "ロック中の気配はコイン{cost}で開けます",
+  "aura.noCoins": "コインが足りません（{cost}必要）",
   "fortune.toast.message": "今日の運勢と気配を見てみましょう",
   "fortune.toast.dismiss": "閉じる",
 
@@ -2625,7 +2630,7 @@ const ja: Record<DictKey, string> = {
   "aura.caution.health.2": "一度に取り戻そうとする焦りは下ろして。回復は静かに来ます",
   "aura.caution.health.3": "人並みにやらねばという物差しは、今日は戸の外に置いて",
   "aura.caution.health.4": "眠る前に画面を握る手を、今夜は一拍早く放してみて",
-  "aura.caution.health.5": "痛む場所を何度も確かめる心を休ませて。体は自分の仕事をしています",
+  "aura.caution.health.5": "体を急かす気持ちは今日は手放して。労わる側に立ってみて",
   // タロット — リーディング画面のカード選択UIラベル
   "aura.tarot.prompt": "心がとまるカードをめくってみてください",
   "aura.tarot.locked": "今日のカードは明日まであなたと一緒です",
