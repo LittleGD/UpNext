@@ -113,7 +113,10 @@ struct FortuneCardView: View {
             }
         }
         .typography(.caption)
-        .foregroundStyle(phase == .noCoins ? Color.accentSecondary : Color.textTertiary)
+        // 잔액 부족은 에러가 아니라 안내다 — accentSecondary(에러 전용색)를 쓰지 않는다.
+        //   오늘의 기운은 렌즈이지 심판이 아니고, 코인이 모자란 것도 잘못이 아니다.
+        //   웹 FortuneCard.tsx 의 같은 자리와 맞춘다(그쪽도 text-tertiary 한 색이다).
+        .foregroundStyle(Color.textTertiary)
     }
 
     @ViewBuilder private var trailing: some View {
@@ -153,6 +156,11 @@ struct FortuneCardView: View {
     private func consumeAutoOpen() {
         guard FortuneAutoOpen.shared.consume() else { return }
         guard fortune != nil, phase != .loading else { return }
+        // 코인 경로에서는 자동으로 열지 않는다. 팝업의 "지금 열기" 는 광고 옵트인을
+        //   전제로 만든 신호라, 그대로 태우면 사용자가 가격을 보지 못한 채 코인이 빠진다
+        //   (기습 결제 금지). 신호는 이미 소비했으니 카드의 CTA 가 가격을 달고 기다린다.
+        //   웹 FortuneCard.tsx 의 자동 열기 effect 와 같은 가드다.
+        guard !usesCoinPath else { return }
         Task { await tap() }
     }
 

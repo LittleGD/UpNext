@@ -33255,6 +33255,28 @@
         }
       }
     },
+    "몸을 다그치는 마음은 잠시 내려놓으세요. 오늘은 돌보는 쪽에 서보세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put down the urge to hurry your body along. Today, take its side"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体を急かす気持ちは今日は手放して。労わる側に立ってみて"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "催着身体快点的心，今天先松开手，站到照顾它的那一边"
+          }
+        }
+      }
+    },
     "몸의 박자가 맞아 들어가는 시기예요. 자고 깨는 결이 곱습니다": {
       "localizations": {
         "en": {
@@ -39634,28 +39656,6 @@
         }
       }
     },
-    "아픈 곳을 자꾸 확인하는 마음을 쉬게 하세요. 몸은 제 일을 하고 있습니다": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rest the urge to keep checking what hurts. Your body is doing its work"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "痛む場所を何度も確かめる心を休ませて。体は自分の仕事をしています"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "反复确认哪里不舒服的心让它歇歇，身体在做它的事"
-          }
-        }
-      }
-    },
     "안개 정령": {
       "extractionState": "manual",
       "localizations": {
@@ -44595,6 +44595,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "已锁定，观看广告即可解锁"
+          }
+        }
+      }
+    },
+    "잠긴 기운은 코인 %lld으로 열 수 있어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locked auras open for %lld coins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロック中の気配はコイン%lldで開けます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "锁定的气场可用%lld金币打开"
           }
         }
       }

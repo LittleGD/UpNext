@@ -21,8 +21,10 @@ import {
   type DailyFortune,
 } from "@/lib/fortune";
 import { cardTitle } from "@/i18n";
+import { SHOP_PRICES } from "@/types/uphero";
 import { useGameStore } from "@/store/useGameStore";
 import { useUIStore } from "@/store/useUIStore";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useSound } from "@/hooks/useSound";
@@ -36,9 +38,17 @@ import { useTranslation } from "@/hooks/useTranslation";
  *  - 하루 1회. 한 번 열면 그날은 광고 없이 다시 볼 수 있다(재시청 유도 금지).
  *  - 결과는 유저 자신의 덱에서 결정론적으로 뽑는다 (src/lib/fortune.ts).
  *
- * 노출 조건: 광고를 재생할 수 있는 환경에서만 렌더한다. 순수 웹 브라우저
- * 프로덕션은 모바일 광고 SDK 가 없어 카드 자체를 숨긴다. iOS 네이티브 앱은
- * RecordTabView 에 동일 카드를 별도 구현.
+ * 노출 조건: **항상 렌더한다.** 예전에는 `isAdAvailable()` 이 false 면 카드를 통째로
+ * 숨겼는데(죽은 CTA 금지 취지), 그 결과 광고를 구조적으로 못 받는 사용자
+ * (순수 웹 브라우저·TWA·EEA 동의 거부·미승인 지역·오프라인)는 기능의 **존재조차
+ * 몰랐다.** 이제 코인 경로(SHOP_PRICES.fortune)가 병존하므로 CTA 가 죽지 않는다.
+ *
+ * 경로 선택 — 광고가 기본, 코인은 탈출구.
+ *  광고를 볼 수 있으면 광고 CTA 가 그대로 기본 경로다. 코인 CTA 는 광고가 불가능할
+ *  때만 나타난다. 둘을 항상 나란히 두면 "코인 아까우니 광고 봐야지"라는 압박이 새로
+ *  생겨서, 접근성을 고치려다 다른 강요를 만드는 꼴이 된다.
+ *
+ * iOS 네이티브 앱은 FortuneCardView.swift 에 같은 두 경로를 별도 구현.
  */
 export default function FortuneCard() {
   // 데이 롤오버 재렌더 — flame 페이지의 daily.date 구독과 동일 패턴
@@ -50,9 +60,22 @@ export default function FortuneCard() {
   // 오버레이가 떠 있는 동안 하단 네비를 숨긴다 (useUIStore 주석 참고)
   const setFortuneOverlayOpen = useUIStore((s) => s.setFortuneOverlayOpen);
 
-  // SSR/웹 프로덕션 안전: 마운트 후에만 판정 (네이티브 브리지 의존)
+  // 코인 경로 — 잔액 차감은 Up Hero 스토어의 기존 공개 API 를 그대로 쓴다.
+  const spendCoins = useUpHeroStore((s) => s.spendCoins);
+  const heroLoaded = useUpHeroStore((s) => s.isLoaded);
+  const heroInitialize = useUpHeroStore((s) => s.initialize);
+
+  // SSR/웹 프로덕션 안전: 마운트 후에만 판정 (네이티브 브리지 의존).
+  // 초기값 false = 코인 경로. 판정 전 한 프레임 동안 광고 CTA 를 먼저 보여 주면
+  // 정작 광고를 못 받는 다수에게 열리지 않는 문구를 먼저 읽히게 된다.
   const [available, setAvailable] = useState(false);
-  const [phase, setPhase] = useState<"idle" | "loading" | "fail">("idle");
+  /**
+   * 이번 세션에서 광고 경로가 실제로 실패했다. 한 번 확인되면 코인 경로로 전환한다.
+   * `isAdAvailable()` 은 환경만 보고 낙관적으로 true 를 돌려주므로(동의 거부·no fill·
+   * 오프라인을 모른다) 그것만으로는 판정할 수 없다. 실제 "unavailable" 을 받아야 확정된다.
+   */
+  const [adDeadEnd, setAdDeadEnd] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "loading" | "noCoins">("idle");
   const [revealed, setRevealed] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
   // 뽑기 연출 재생 중 — 끝나면 폴라로이드로 넘어간다. 그날 첫 공개에만 true.
@@ -62,12 +85,28 @@ export default function FortuneCard() {
   const [skipOverlayEnter, setSkipOverlayEnter] = useState(false);
   // localStorage 는 마운트 후에만 읽는다 — SSR 에서는 salt 가 없어 계산을 미룬다.
   const [salt, setSalt] = useState<string | null>(null);
-  const failTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noCoinsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setAvailable(isAdAvailable());
     setSalt(readFortuneState().salt);
   }, []);
+
+  /**
+   * 코인 경로로 갈 때만 필요한 상태.
+   *   광고를 볼 수 있으면 **광고가 기본 경로**다. 코인은 광고가 불가능할 때만 나타난다.
+   */
+  const usesCoinPath = adDeadEnd || !available;
+
+  /**
+   * Up Hero 스토어는 홈(뽑기 화면)·아지트에서만 초기화된다. /flame 으로 곧장 들어온
+   * 사용자는 잔액이 0 으로 보여, 코인이 있는데도 "부족해요" 를 만나게 된다.
+   * initialize 는 멱등이라(isLoaded 가드) 다른 화면과 충돌하지 않는다.
+   * 광고 경로에서는 부르지 않는다 — 필요 없는 곳에서 스토어를 깨우지 않는다.
+   */
+  useEffect(() => {
+    if (usesCoinPath && !heroLoaded) heroInitialize();
+  }, [usesCoinPath, heroLoaded, heroInitialize]);
 
   useEffect(() => {
     setRevealed(isFortuneRevealed(today));
@@ -75,7 +114,7 @@ export default function FortuneCard() {
 
   useEffect(
     () => () => {
-      if (failTimerRef.current) clearTimeout(failTimerRef.current);
+      if (noCoinsTimerRef.current) clearTimeout(noCoinsTimerRef.current);
     },
     [],
   );
@@ -93,6 +132,22 @@ export default function FortuneCard() {
     [salt, today, unlockedCardIds],
   );
 
+  /**
+   * 공개 확정 — 광고 완주와 코인 결제가 **같은 절차**를 타야 한다.
+   * (그날 1회 마킹 + 표시 상태 + 뽑기 연출 예약 + 오버레이 열기)
+   */
+  const openRevealed = useCallback(() => {
+    markFortuneRevealed(today);
+    setRevealed(true);
+    setPhase("idle");
+    // 그날 첫 공개에만 뽑기 연출을 앞에 붙인다. reduced motion 이면 통째로 건너뛴다.
+    const withDraw = !prefersReducedMotion;
+    setDrawing(withDraw);
+    setSkipOverlayEnter(withDraw);
+    setOverlayOpen(true);
+    play("confirm");
+  }, [today, prefersReducedMotion, play]);
+
   // 자동 열기 effect(아래)가 참조하므로 early return 위에 둔다 — 평소 CTA 와
   // 완전히 같은 경로를 재사용해야 광고 옵트인 흐름이 하나로 유지된다.
   const handleTap = useCallback(async () => {
@@ -106,45 +161,56 @@ export default function FortuneCard() {
       setOverlayOpen(true);
       return;
     }
-    // 실패 안내 타이머가 남아 있으면 먼저 끊는다 — 3초 뒤 idle 복구가
+    // 안내 타이머가 남아 있으면 먼저 끊는다 — 3초 뒤 idle 복구가
     // 새로 시작한 loading 을 덮어쓰는 것을 막는다.
-    if (failTimerRef.current) {
-      clearTimeout(failTimerRef.current);
-      failTimerRef.current = null;
+    if (noCoinsTimerRef.current) {
+      clearTimeout(noCoinsTimerRef.current);
+      noCoinsTimerRef.current = null;
     }
+
+    // 코인 경로 — 광고를 못 받는 상태에서만 온다. 가격은 CTA 에 이미 적혀 있고
+    // 이 탭이 곧 결제 확정이다(리롤과 같은 규약: 별도 확인 다이얼로그 없음).
+    if (usesCoinPath) {
+      if (!spendCoins(SHOP_PRICES.fortune)) {
+        play("cancel");
+        setPhase("noCoins");
+        // 함수형 갱신 + 타이머 정리로 이중 가드 — 이 타이머가 뒤늦게 깨어나도
+        // 그 사이 다른 상태로 넘어갔다면 아무것도 하지 않는다.
+        noCoinsTimerRef.current = setTimeout(() => {
+          noCoinsTimerRef.current = null;
+          setPhase((prev) => (prev === "noCoins" ? "idle" : prev));
+        }, 3000);
+        return;
+      }
+      openRevealed();
+      return;
+    }
+
     setPhase("loading");
     const result = await showRewardedAd("fortune");
     if (result === "rewarded") {
-      markFortuneRevealed(today);
-      setRevealed(true);
-      setPhase("idle");
-      // 그날 첫 공개에만 뽑기 연출을 앞에 붙인다. reduced motion 이면 통째로 건너뛴다.
-      const withDraw = !prefersReducedMotion;
-      setDrawing(withDraw);
-      setSkipOverlayEnter(withDraw);
-      setOverlayOpen(true);
-      play("confirm");
+      openRevealed();
     } else if (result === "unavailable") {
+      // 막다른 길이던 자리. 예전엔 "지금은 보여줄 광고가 없어요"를 3초 띄우고
+      // 원복해, 아무리 눌러도 열 수 없는 상태가 무한 반복됐다. 이제 광고 경로가
+      // 실제로 죽었다는 사실을 확정하고 코인 경로로 전환한다 — 다음 탭부터 CTA 가
+      // 가격을 달고 나온다. 여기서 코인을 자동 차감하지는 않는다(기습 결제 금지:
+      // 사용자가 가격을 보고 한 번 더 눌러야 한다).
       play("cancel");
-      setPhase("fail");
-      // 함수형 갱신 + 타이머 정리로 이중 가드 — 이 타이머가 뒤늦게 깨어나도
-      // 그 사이 다시 loading 으로 넘어갔다면 아무것도 하지 않는다.
-      failTimerRef.current = setTimeout(() => {
-        failTimerRef.current = null;
-        setPhase((prev) => (prev === "fail" ? "idle" : prev));
-      }, 3000);
+      setAdDeadEnd(true);
+      setPhase("idle");
     } else {
       // 중도 이탈 — 조용히 원상 복귀
       setPhase("idle");
     }
-  }, [phase, play, revealed, today, prefersReducedMotion]);
+  }, [phase, play, revealed, usesCoinPath, spendCoins, openRevealed]);
 
   // 진입 팝업("지금 열기")의 자동 열기 신호를 소비한다 — FortunePromptModal 의 계약.
-  // 광고 판정(available)과 오늘의 기운 계산(fortune)이 끝난 뒤에만 읽는다.
+  // 오늘의 기운 계산(fortune)이 끝난 뒤에만 읽는다.
   // 신호는 1회성이라 읽는 즉시 지운다: 날짜가 어긋났거나 뽑을 카드가 없으면
   // 값만 지우고 조용히 흘린다(다음 렌더마다 광고가 불쑥 뜨지 않게).
   useEffect(() => {
-    if (!available || salt === null) return;
+    if (salt === null) return;
 
     const consume = () => {
       let signal: string | null = null;
@@ -162,6 +228,10 @@ export default function FortuneCard() {
       // 자정 롤오버 사이 — 소비만 하고 자동 열기는 안 한다
       if (signal !== today) return;
       if (fortune === null) return; // 해금 카드 없음 = 죽은 CTA
+      // 코인 경로에서는 자동으로 열지 않는다. 팝업의 "지금 열기" 는 광고 옵트인을
+      // 전제로 만든 신호라, 여기서 그대로 태우면 가격을 보지 못한 채 코인이 빠진다
+      // (기습 결제 금지). 신호는 이미 소비했으니 카드의 CTA 가 가격을 달고 기다린다.
+      if (usesCoinPath) return;
       void handleTap();
     };
 
@@ -170,22 +240,23 @@ export default function FortuneCard() {
     consume();
     window.addEventListener(FORTUNE_AUTO_OPEN_EVENT, consume);
     return () => window.removeEventListener(FORTUNE_AUTO_OPEN_EVENT, consume);
-  }, [available, salt, today, fortune, handleTap]);
+  }, [salt, today, fortune, usesCoinPath, handleTap]);
 
-  if (!available) return null;
-
-  // 해금 카드가 하나도 없으면 뽑을 게 없다 — 안내만 두고 광고 진입을 막는다.
+  // 해금 카드가 하나도 없으면 뽑을 게 없다 — 안내만 두고 진입을 막는다.
   const empty = salt !== null && fortune === null;
 
   const caption = empty
     ? t("fortune.empty")
-    : revealed
-      ? t("fortune.opened")
-      : phase === "loading"
-        ? t("fortune.loading")
-        : phase === "fail"
-          ? t("fortune.fail")
-          : t("fortune.locked.desc");
+    : phase === "loading"
+      ? t("fortune.loading")
+      : phase === "noCoins"
+        ? t("fortune.noCoins", { cost: SHOP_PRICES.fortune })
+        : revealed
+          ? t("fortune.opened")
+          : usesCoinPath
+            ? // 광고를 못 받는 상태 — 왜 코인을 쓰는지 밝혀야 납득이 된다.
+              t("fortune.coin.desc")
+            : t("fortune.locked.desc");
 
   const accent = revealed && fortune ? fortune.color.hex : "var(--accent-primary)";
 
@@ -217,11 +288,9 @@ export default function FortuneCard() {
             <span className="block typo-body text-text-primary">
               {t("fortune.title")}
             </span>
-            <span
-              className={`block typo-caption truncate ${
-                phase === "fail" ? "text-accent-secondary" : "text-text-tertiary"
-              }`}
-            >
+            {/* 잔액 부족은 에러가 아니라 안내다 — accent-secondary(에러색)를 쓰지 않는다.
+                오늘의 기운은 렌즈이지 심판이 아니고, 코인이 모자란 것도 잘못이 아니다. */}
+            <span className="block typo-caption truncate text-text-tertiary">
               {caption}
             </span>
           </span>
@@ -254,8 +323,14 @@ export default function FortuneCard() {
             disabled={phase === "loading"}
             className="press-affordance mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-bg-elevated py-2.5 disabled:opacity-60"
           >
-            {/* 로딩/실패 안내는 위 캡션이 맡는다 — 버튼 라벨은 늘 같은 문구로 고정 */}
-            <span className="typo-caption text-text-primary">{t("fortune.cta")}</span>
+            {/* 로딩/부족 안내는 위 캡션이 맡는다 — 버튼 라벨은 경로에 따라서만 갈린다.
+                코인 경로일 땐 가격을 라벨에 박아 둔다: 눌러야 차감되므로 기습 결제가
+                없다(리롤의 `리롤 · 100코인` 과 같은 규약). */}
+            <span className="typo-caption text-text-primary">
+              {usesCoinPath
+                ? t("fortune.cta.coin", { cost: SHOP_PRICES.fortune })
+                : t("fortune.cta")}
+            </span>
           </button>
         )}
       </motion.div>

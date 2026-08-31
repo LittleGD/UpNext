@@ -2416,6 +2416,9 @@ const en: Record<DictKey, string> = {
   "fortune.label.quote": "Today's Quote",
   "fortune.empty": "Collect cards to unlock Today's Aura",
   "fortune.close": "Close",
+  "fortune.coin.desc": "Ads aren't available here · you can open it with coins",
+  "fortune.cta.coin": "Today's Aura · {cost} coins",
+  "fortune.noCoins": "Not enough coins ({cost} needed)",
   "daily.draw.rerollCost": "Reroll · {cost} coins",
   "daily.draw.rerollAd": "Watch an ad to reroll",
   "daily.draw.rerollChoose": "Choose how to reroll your cards",
@@ -2454,6 +2457,8 @@ const en: Record<DictKey, string> = {
   // 접근 이름에 상태를 합성하는 데만 쓴다(AuraSection).
   "aura.locked.a11y": "Locked",
   "aura.opened.a11y": "Revealed",
+  "aura.coin.hint": "Locked auras open for {cost} coins",
+  "aura.noCoins": "Not enough coins ({cost} needed)",
   "fortune.toast.message": "Check today's aura and readings",
   "fortune.toast.dismiss": "Dismiss",
 
@@ -2625,7 +2630,7 @@ const en: Record<DictKey, string> = {
   "aura.caution.health.2": "Release the rush to recover all at once. Healing arrives quietly",
   "aura.caution.health.3": "Leave the bar of keeping up with everyone outside the door today",
   "aura.caution.health.4": "Tonight, let the screen out of your hand one beat earlier than usual",
-  "aura.caution.health.5": "Rest the urge to keep checking what hurts. Your body is doing its work",
+  "aura.caution.health.5": "Put down the urge to hurry your body along. Today, take its side",
   // Tarot card pick UI labels on the reading screen
   "aura.tarot.prompt": "Turn over the card your heart lingers on",
   "aura.tarot.locked": "Today's card stays with you until tomorrow",

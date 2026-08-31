@@ -2427,6 +2427,11 @@ const ko = {
   "fortune.label.quote": "오늘의 명언",
   "fortune.empty": "카드를 모으면 오늘의 기운을 볼 수 있어요",
   "fortune.close": "닫기",
+  // 코인 경로 — 광고를 재생할 수 없는 환경(브라우저·TWA·동의 거부·오프라인)의 대체 경로.
+  // 광고와 무관한 문구라 보상 서술 규칙에 묶이지 않지만, 톤은 앱과 맞춘다.
+  "fortune.coin.desc": "지금은 광고를 볼 수 없어요 · 코인으로 열 수 있어요",
+  "fortune.cta.coin": "오늘의 기운 · {cost}코인",
+  "fortune.noCoins": "코인이 부족해요 ({cost} 필요)",
   "daily.draw.rerollCost": "리롤 · {cost}코인",
   "daily.draw.rerollAd": "광고 보고 리롤",
   "daily.draw.rerollChoose": "카드를 다시 뽑는 방법을 골라주세요",
@@ -2465,6 +2470,9 @@ const ko = {
   // 접근 이름에 상태를 합성하는 데만 쓴다(AuraSection).
   "aura.locked.a11y": "잠김",
   "aura.opened.a11y": "확인함",
+  // 코인 경로 안내 — 칩 아래 한 줄. 잠긴 칩이 남아 있을 때만 뜬다.
+  "aura.coin.hint": "잠긴 기운은 코인 {cost}으로 열 수 있어요",
+  "aura.noCoins": "코인이 부족해요 ({cost} 필요)",
   "fortune.toast.message": "오늘의 운세와 기운을 확인해보세요",
   "fortune.toast.dismiss": "닫기",
 
@@ -2636,7 +2644,7 @@ const ko = {
   "aura.caution.health.2": "한 번에 되돌리려는 조급함을 내려놓으세요. 회복은 조용히 옵니다",
   "aura.caution.health.3": "남들만큼 해야 한다는 기준은 오늘 문밖에 두고 오세요",
   "aura.caution.health.4": "잠들기 전 화면을 붙드는 손을 오늘은 한 박자 먼저 놓아보세요",
-  "aura.caution.health.5": "아픈 곳을 자꾸 확인하는 마음을 쉬게 하세요. 몸은 제 일을 하고 있습니다",
+  "aura.caution.health.5": "몸을 다그치는 마음은 잠시 내려놓으세요. 오늘은 돌보는 쪽에 서보세요",
   // 타로 — 리딩 결과 화면의 카드 선택 UI 라벨
   "aura.tarot.prompt": "마음이 머무는 카드를 한 장 뒤집어보세요",
   "aura.tarot.locked": "오늘 뽑은 카드는 내일까지 함께합니다",

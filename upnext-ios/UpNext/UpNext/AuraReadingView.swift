@@ -332,7 +332,7 @@ enum AuraCopy {
             Text("한 번에 되돌리려는 조급함을 내려놓으세요. 회복은 조용히 옵니다"),
             Text("남들만큼 해야 한다는 기준은 오늘 문밖에 두고 오세요"),
             Text("잠들기 전 화면을 붙드는 손을 오늘은 한 박자 먼저 놓아보세요"),
-            Text("아픈 곳을 자꾸 확인하는 마음을 쉬게 하세요. 몸은 제 일을 하고 있습니다"),
+            Text("몸을 다그치는 마음은 잠시 내려놓으세요. 오늘은 돌보는 쪽에 서보세요"),
         ],
         ]
         guard let variants = table[kind], !variants.isEmpty else { return Text("") }
