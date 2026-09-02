@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 스플래시: 솔리드 다크 배경 + 중앙 브랜드 로고.
-     풀스크린 래스터(구 Capacitor 기본)는 화면비마다 왜곡되므로 layer-list 로 교체. -->
+<!-- 스플래시(레거시 경로): 솔리드 다크 배경만.
+     Capacitor 8 은 기본적으로 Android 12 SplashScreen API(테마 windowSplashScreen* 속성)를
+     쓰고, 이 드로어블은 그 API 가 실패했을 때의 폴백과 프로그래매틱 show() 에서만 쓰인다.
+     중앙 로고 비트맵은 제거 — 웹 모션 스플래시(U↗ → U↗Next)가 유일한 로고 연출이어야
+     정적 로고 → 모션 로고의 이중 스플래시가 생기지 않는다(iOS 와 동일한 체감). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/splashBackground" />
-    <item>
-        <bitmap
-            android:src="@drawable/splash_logo"
-            android:gravity="center" />
-    </item>
 </layer-list>
