@@ -33,6 +33,13 @@ struct PersistedUpHeroState: Codable {
     var pendingDungeon: PendingDungeonPrep?
     var codex: Codex
     var cosmetics: Cosmetics
+    /// 방지권 2종 보유 개수 (nil = 구 저장본 → 0).
+    var destroyGuards: Int?
+    var downGuards: Int?
+    /// 굴림틀 전투 버프 잔여분 (nil = 없음/만료). 탐험을 건너 이어진다.
+    var combatBuff: CombatBuff?
+    /// 굴림틀 연속 꽝 스트릭 (nil = 구 저장본 → 0). 탐험을 건너 이어진다 (pity).
+    var slotBlankStreak: Int?
     var lastIdleAccrualAt: Int
     var lastSeenAt: Int?
     var heroStartLevel: Int?
@@ -57,6 +64,10 @@ extension PersistedUpHeroState {
         pendingDungeon = s.pendingDungeon
         codex = s.codex
         cosmetics = s.cosmetics
+        destroyGuards = s.destroyGuards
+        downGuards = s.downGuards
+        combatBuff = s.combatBuff?.normalized
+        slotBlankStreak = UpHeroSlot.normalizeBlankStreak(s.slotBlankStreak)
         lastIdleAccrualAt = s.lastIdleAccrualAt
         lastSeenAt = s.lastSeenAt
         heroStartLevel = s.heroStartLevel
@@ -81,6 +92,10 @@ extension PersistedUpHeroState {
             pendingDungeon: pendingDungeon,
             codex: codex,
             cosmetics: cosmetics,
+            destroyGuards: destroyGuards,
+            downGuards: downGuards,
+            combatBuff: combatBuff?.normalized,
+            slotBlankStreak: UpHeroSlot.normalizeBlankStreak(slotBlankStreak),
             lastIdleAccrualAt: lastIdleAccrualAt,
             lastSeenAt: lastSeenAt,
             heroStartLevel: heroStartLevel,

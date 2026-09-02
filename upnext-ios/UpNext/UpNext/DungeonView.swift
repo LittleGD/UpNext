@@ -46,6 +46,12 @@ struct DungeonView: View {
     /// 흘러가던 이벤트 결과를 모달로 보여줘 읽을 시간 보장(rpg 리뷰 P0).
     @State private var choiceResultText: String?
     @State private var choiceResultSummary: String?
+    /// 굴림틀 결과 (웹 SlotMachineModal) — 있으면 일반 결과 모달 대신 드럼 연출을
+    /// 띄우고 tick 을 멈춘다. 결과·지급은 이미 세션에서 끝났고 여기선 표시만 한다.
+    @State private var slotResult: SlotResultPayload?
+    /// 굴림틀 모달 identity — "한 번 더" 로 결과가 연달아 오면 뷰를 새로 만들어
+    /// 드럼이 다시 돌게 한다 (같은 자리의 `if let` 은 @State 를 이어받아 착지 상태로 뜬다).
+    @State private var slotResultSeq = 0
     /// 스프라이트 전투 반응 — 공격 시 lunge(중앙 쪽), 피격 시 recoil(바깥쪽). x offset.
     /// 웹은 attack/hurt 포즈 프레임이 있으나 iOS 는 신규 프레임 없이 transform 으로 반응 재현.
     @State private var heroReact: CGFloat = 0
@@ -95,6 +101,27 @@ struct DungeonView: View {
                         .zIndex(58)
                 }
 
+                // 굴림틀 결과 — 드럼 연출 모달. 일반 결과 모달과 같은 층위(배타적).
+                // blankStreak 는 이 굴림 **뒤**의 상태 스트릭(스토어가 갱신) — 4 면 "다음은
+                // 반드시" 힌트 = 5번째 보장. "한 번 더" 는 오늘 남은 스핀(shopDaily.slotSpins,
+                // 하루 상한)·런 수입이 있을 때만 — 세션이 아니라 스토어의 일일 카운터를 읽는다.
+                if let slotResult {
+                    SlotMachineModal(
+                        result: slotResult,
+                        blankStreak: upHero.state.slotBlankStreak ?? 0,
+                        spinAgain: SlotSpinAgain(
+                            spinsLeft: upHero.slotSpinsLeft,
+                            wallet: session.rewards.coins,
+                            onSpin: {
+                                self.slotResult = nil
+                                upHero.spinSlotAgain()
+                            })
+                    ) { self.slotResult = nil }
+                        .id(slotResultSeq)
+                        .transition(.opacity)
+                        .zIndex(59)
+                }
+
                 // 세션 결산 모달
                 if session.status == .completed {
                     SessionResultModal(session: session) {
@@ -124,6 +151,7 @@ struct DungeonView: View {
         .animation(.easeInOut(duration: 0.2), value: helpOpen)
         .animation(.easeInOut(duration: 0.2), value: bossBannerData != nil)
         .animation(.easeInOut(duration: 0.2), value: choiceResultText != nil)
+        .animation(.easeInOut(duration: 0.2), value: slotResult != nil)
         .onReceive(tick) { _ in
             #if DEBUG
             // UITest 전용 — 자동 전투(조우 선택지 자동 해소). 출시 바이너리엔 비포함.
@@ -133,8 +161,8 @@ struct DungeonView: View {
                 return
             }
             #endif
-            // 보스 배너·선택지 결과 모달 표시 중엔 tick 정지 (읽을 시간 보장).
-            guard !pausedForBoss, choiceResultText == nil else { return }
+            // 보스 배너·선택지 결과·굴림틀 모달 표시 중엔 tick 정지 (읽을 시간 보장).
+            guard !pausedForBoss, choiceResultText == nil, slotResult == nil else { return }
             upHero.advanceCombat()
         }
     }
@@ -486,8 +514,27 @@ struct DungeonView: View {
     @ViewBuilder
     private func choiceOptions(_ session: CombatSession) -> some View {
         if let idx = session.pendingChoiceIndex, session.log.indices.contains(idx),
-           case let .choice(_, _, _, options, _, _, _, _, _, _) = session.log[idx] {
+           case let .choice(prompt, _, _, options, _, _, _, _, _, _) = session.log[idx] {
             VStack(spacing: 8) {
+                // 투명 pity — 굴림틀 선택지 위에 "다음은 반드시 나와요". 롤과 같은 판정
+                // (UpHeroSlot.isPityArmed) 을 읽어 "힌트 떴는데 꽝" 이 구조적으로 불가능하다.
+                if UpHeroSlotEvent.isSlotEvent(prompt),
+                   UpHeroSlot.isPityArmed(blankStreak: upHero.state.slotBlankStreak ?? 0) {
+                    HStack(spacing: 6) {
+                        PixelIcon(.sparkle, size: 12, color: Color.accentPrimary)
+                        Text(AppConfig.loc("uphero.slot.pityHint"))
+                            .typography(.caption)
+                            .foregroundStyle(Color.accentPrimary)
+                    }
+                    .padding(.bottom, 2)
+                    .accessibilityElement(children: .combine)
+                }
+                // 굴림틀 확률 공개 — 스핀 전에 볼 수 있는 작은 토글 (웹 SlotOddsPanel).
+                // 선택지 위에 앉아 펼쳐도 버튼 위치가 아래로만 밀리고 결과 모달·릴 연출과는
+                // 분리돼 있다. 숫자는 전부 UpHeroSlot 계산값.
+                if UpHeroSlotEvent.isSlotEvent(prompt) {
+                    SlotOddsPanel(spinsLeft: upHero.slotSpinsLeft)
+                }
                 ForEach(Array(options.enumerated()), id: \.offset) { i, option in
                     Button {
                         upHero.resolveChoice(i)
@@ -586,7 +633,7 @@ struct DungeonView: View {
         case let .monsterEffect(_, _, narrative, key, params, _):
             if let key { return R(key, params, narrative ?? "") }
             return narrative ?? R("ios.log.monsterEffect", nil, "몬스터 효과 발동")
-        case let .choiceResult(text, _, _, actionLabelKey, actionLabelFallback, resultTextKey, resultTextFallback, _):
+        case let .choiceResult(text, _, _, actionLabelKey, actionLabelFallback, resultTextKey, resultTextFallback, _, _):
             // resultTextKey 우선, 없으면 actionLabelKey(미니게임 legacy 엔트리) — raw text 는 최후 폴백.
             if let resultTextKey { return R(resultTextKey, nil, resultTextFallback ?? text) }
             if let actionLabelKey { return R(actionLabelKey, nil, actionLabelFallback ?? text) }
@@ -720,7 +767,15 @@ struct DungeonView: View {
             if coins > 0 {
                 emitFloat(text: "+\(coins)", variant: .coin, position: heroAnchor())
             }
-        case let .choiceResult(text, effectSummary, summaryData, actionLabelKey, actionLabelFallback, resultTextKey, resultTextFallback, _):
+        case let .choiceResult(text, effectSummary, summaryData, actionLabelKey, actionLabelFallback, resultTextKey, resultTextFallback, slot, _):
+            // 굴림틀 결과는 드럼 연출 모달이 받는다 — 일반 결과 모달과 갈린다.
+            // 소리·햅틱·자동 닫힘은 그쪽이 착지 시점에 직접 건다 (회전 중에 울리면
+            // 결과를 미리 알려주는 셈이라 연출이 죽는다).
+            if let slot {
+                slotResultSeq &+= 1
+                slotResult = slot
+                return
+            }
             // 선택지 결과 — 모달로 표시(tick pause). 2.6s 후 자동 닫힘(웹 autoMs).
             // logText 와 동일하게 resultTextKey → actionLabelKey(미니게임 legacy) 순으로
             // 인앱 언어 해석(원문 text 는 "> 라벨 → 결과" 한국어 조합이라 그대로 쓰면 전

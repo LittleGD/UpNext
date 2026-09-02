@@ -21,6 +21,12 @@ struct CreateSessionOptions {
     var isWeeklyVariant: Bool?
     var weeklyAffixId: String?
     var heroLevel: Int?
+    /// `UpHeroState.combatBuff` 스냅샷. 탐험 밖(굴림틀 보상이 남은 채 탐험이 끝난
+    /// 경우 등)에서 넘어온 버프를 세션 안으로 들여온다.
+    ///
+    /// 세션 안에서는 `session.combatBuff` 가 유일한 진실이고 전투 종료마다 거기서
+    /// 닳는다. 탐험이 끝나면 스토어가 잔여분을 다시 상태로 적어 이어받는다.
+    var combatBuff: CombatBuff?
 }
 
 enum UpHeroSession {
@@ -33,6 +39,39 @@ enum UpHeroSession {
     /// talismanMods 안전 추출. 웹 `sessionMods`.
     private static func sessionMods(_ s: CombatSession) -> TalismanModifiers {
         s.talismanMods ?? TalismanModifiers.empty
+    }
+
+    /// **전투에 쓰이는 영웅 스탯의 단일 출처.** 웹 `sessionStats`.
+    ///
+    /// `computeEffectiveStats` (base + 장비) 위에 세션 한정 `combatBuff` 를 곱한다.
+    /// 이 곱셈은 여기 한 곳에서만 일어난다 — 두 곳에서 곱하면 이중 적용이라
+    /// "+10% 버프가 +21% 로 먹는" 버그가 된다. 전투 계산에 스탯이 필요하면 무조건
+    /// 이 함수를 거칠 것. `computeEffectiveStats` 직접 호출은 표시용(인벤토리 등)에만.
+    ///
+    /// crit / slotBonus 는 곱하지 않는다. crit 은 퍼센트 포인트라 곱하면 의미가
+    /// 달라지고, slotBonus 는 스탯이 아니라 장비 슬롯 수 카운터다.
+    static func sessionStats(_ s: CombatSession) -> HeroBaseStats {
+        let base = UpHeroRules.computeEffectiveStats(s.hero)
+        guard let buff = s.combatBuff, buff.battlesLeft > 0, buff.pct > 0 else { return base }
+        // 세션 층위의 pct 는 퍼센트 포인트다 (10 = +10%). CombatBuff 주석 참고.
+        let m = 1 + buff.pct / 100
+        // jsRound — 웹 Math.round 는 .5 를 +∞ 쪽으로 올린다. Swift 기본 .rounded()
+        // 와는 음수에서 갈리므로, 다른 전투 계산과 같은 헬퍼를 쓴다.
+        var out = base
+        out.str = UpHeroCombat.jsRound(Double(base.str) * m)
+        out.int = UpHeroCombat.jsRound(Double(base.int) * m)
+        out.vit = UpHeroCombat.jsRound(Double(base.vit) * m)
+        out.dex = UpHeroCombat.jsRound(Double(base.dex) * m)
+        out.agi = UpHeroCombat.jsRound(Double(base.agi) * m)
+        return out
+    }
+
+    /// 전투 1회가 끝났을 때 (몬스터 처치) 버프 잔여 횟수 차감. 0 이면 필드째 제거해
+    /// `sessionStats` 가 곧장 base 로 떨어지게 한다. 웹 `consumeCombatBuff`.
+    static func consumeCombatBuff(_ s: inout CombatSession) {
+        guard let buff = s.combatBuff else { return }
+        let left = buff.battlesLeft - 1
+        s.combatBuff = left <= 0 ? nil : CombatBuff(pct: buff.pct, battlesLeft: left)
     }
 
     /// 클래스 자원 획득. 웹 `gainClassResource`.
@@ -133,6 +172,10 @@ enum UpHeroSession {
             flattenDropRarity: nil, restChanceBonus: nil, mysteryFloors: nil,
             startedAt: now())
         session.heroLevel = options?.heroLevel
+        // 잔여 전투 횟수가 남은 버프만 들여온다. 0 이하는 이미 소진된 것이라 버린다.
+        if let carried = options?.combatBuff, carried.battlesLeft > 0 {
+            session.combatBuff = carried
+        }
 
         // 주간 affix 적용 (createSession 직후 mutate).
         if options?.isWeeklyVariant == true, let affixId = options?.weeklyAffixId,
@@ -173,8 +216,12 @@ enum UpHeroSession {
     // MARK: - tickSession
 
     /// 세션 진행 — 다음 step 1개 실행. 웹 `tickSession`.
+    /// `slotSpinsToday` — 오늘 굴림틀을 돌린 횟수 스냅샷 (`UpHeroState.shopDaily.slotSpins`).
+    /// 세션은 스토어를 모르므로 값을 받아 굴림틀 이벤트 등장 게이트(`canSpinSlot`)에 건다.
+    /// 웹 `TickContext.slotSpinsToday`.
     static func tickSession<R: RandomSource>(
-        _ session: CombatSession, flavor: FlavorPool.FlavorData, rng: inout R
+        _ session: CombatSession, flavor: FlavorPool.FlavorData,
+        slotSpinsToday: Int = 0, rng: inout R
     ) -> CombatSession {
         if session.status != .active { return session }
 
@@ -199,7 +246,7 @@ enum UpHeroSession {
         }
 
         let dungeon = Dungeons.all[s.dungeonId]
-        let stats = UpHeroRules.computeEffectiveStats(s.hero)
+        let stats = sessionStats(s)
         let lastEntry = s.log.last
 
         // ── 진행 중 전투 (encounter/combat/skill/monsterEffect) ──
@@ -251,6 +298,8 @@ enum UpHeroSession {
                     s.rewards.xp += gainedXp
                     s.rewards.coins += gainedCoin
                     gainClassResource(&s, event: .victory)
+                    // 전투 1회 종료 — 굴림틀 버프 잔여 횟수 차감 (웹과 같은 지점).
+                    consumeCombatBuff(&s)
 
                     let ngBonus = Double(s.ngPlusLevel ?? 0) * 0.02
                     if monster.isBoss == true {
@@ -263,6 +312,15 @@ enum UpHeroSession {
                             affinitySlot: dungeon?.affinity, rng: &rng)
                         s.log.append(.drop(equipment: eq, timestamp: now()))
                         s.rewards.drops.append(eq)
+                        // 소실방지권 드롭 — 보스만. 상점에서 살 수 없는 물건이라
+                        // 던전이 유일한 공급원이다 (확률 근거는 상수 주석).
+                        if rng.chance(bossDestroyGuardDropChance) {
+                            grantDestroyGuards(&s, 1)
+                            s.log.append(.narrative(
+                                text: "소실방지권을 손에 넣었다",
+                                narrativeKey: "uphero.slot.drop.destroyGuard",
+                                narrativeParams: nil, timestamp: now()))
+                        }
                         if tMods.bossTimeRecover > 0 {
                             _ = consumeTime(&s, delta: tMods.bossTimeRecover)
                         }
@@ -390,8 +448,10 @@ enum UpHeroSession {
         let monsterFreqDelta = UpHeroCombat.getBuffBoost(buffs: s.activeBuffs, type: .monsterFrequency) / 100
         let roll = rng.unit()
         if roll < 0.25 {
+            // slotAvailable — 돌릴 수 없는 굴림틀은 아예 뽑히지 않게 게이트를 넘긴다.
             let ev = FlavorPool.pickEvent(
-                flavor, dungeonId: s.dungeonId, recentPrompts: s.recentEventPrompts ?? [], rng: &rng)
+                flavor, dungeonId: s.dungeonId, recentPrompts: s.recentEventPrompts ?? [],
+                slotAvailable: canSpinSlot(s, slotSpinsToday: slotSpinsToday), rng: &rng)
             let logIdx = s.log.count
             s.log.append(.choice(
                 prompt: ev.prompt, promptKey: ev.promptKey, promptParams: nil,
@@ -439,6 +499,14 @@ enum UpHeroSession {
                     "coins": .number(Double(coins)),
                 ], timestamp: now()))
             s.rewards.coins += coins
+            // 보물상자에 소실방지권이 섞여 나오는 보조 경로 (보스 드롭보다 훨씬 낮다).
+            if rng.chance(treasureDestroyGuardDropChance) {
+                grantDestroyGuards(&s, 1)
+                s.log.append(.narrative(
+                    text: "상자 바닥에 소실방지권이 깔려 있었다",
+                    narrativeKey: "uphero.slot.drop.destroyGuardChest",
+                    narrativeParams: nil, timestamp: now()))
+            }
             _ = consumeTime(&s, delta: -UpHeroCombat.TimeCost.treasure)
             return s
         }
@@ -692,8 +760,12 @@ enum UpHeroSession {
     /// 인덱스/타입/optionIndex 부정합 시 *unchanged session 반환 X* — status 가 `.awaitingChoice`
     /// 로 남아 UI 가 영구 데드락. 대신 active 로 복원하고 pendingChoiceIndex 를 비운다
     /// (선택은 silently 스킵 — 사용자는 다시 전투를 진행할 수 있게).
+    ///
+    /// `slotSpinsToday` — 오늘 굴림 횟수 스냅샷. 굴림틀 선택지의 상한 게이트가 읽는다
+    /// (웹 `ResolveChoiceContext.slotSpinsToday`). 카운터 증가는 세션이 아니라 스토어가
+    /// 한다 (`UpHeroStore.resolveChoice` 가 새 굴림을 감지하면 `shopDaily.slotSpins` +1).
     static func resolveChoice<R: RandomSource>(
-        _ session: CombatSession, optionIndex: Int, rng: inout R
+        _ session: CombatSession, optionIndex: Int, slotSpinsToday: Int = 0, rng: inout R
     ) -> CombatSession {
         guard session.status == .awaitingChoice,
               let choiceIdx = session.pendingChoiceIndex,
@@ -717,7 +789,7 @@ enum UpHeroSession {
                                resultText: outcome.resultText, resultTextKey: outcome.resultTextKey,
                                effects: outcome.effects)
             for effect in outcome.effects {
-                applyChoiceEffect(&s, effect: effect, rng: &rng)
+                applyChoiceEffect(&s, effect: effect, slotSpinsToday: slotSpinsToday, rng: &rng)
                 if s.status == .completed { break }
             }
         } else {
@@ -728,7 +800,7 @@ enum UpHeroSession {
                                    effects: legacyEffects)
             }
             if let effect = option.effect {
-                applyChoiceEffect(&s, effect: effect, rng: &rng)
+                applyChoiceEffect(&s, effect: effect, slotSpinsToday: slotSpinsToday, rng: &rng)
             }
         }
 
@@ -762,12 +834,153 @@ enum UpHeroSession {
             effectSummary: summary.isEmpty ? nil : summary,
             effectSummaryData: hasData ? sd : nil,
             actionLabelKey: labelKey, actionLabelFallback: label,
-            resultTextKey: resultTextKey, resultTextFallback: resultText, timestamp: now()))
+            resultTextKey: resultTextKey, resultTextFallback: resultText,
+            slot: nil, timestamp: now()))
+    }
+
+    // MARK: - 굴림틀 (웹 applyChoiceEffect 의 spinSlot 분기)
+
+    /// 보스 처치 시 소실방지권이 떨어질 확률.
+    ///
+    /// 왜 0.35 인가: 소실방지권은 상점에서 팔지 않는 물건이라 "던전에서 벌어오는"
+    /// 경로가 유일하다. 한 런에서 만나는 보스는 F10 / F20 / F30 셋이라 풀 클리어
+    /// 기대 수급은 약 1.05장. legend 를 +10 까지 올리는 동안 평균 1.8장이 소모되니
+    /// "풀 클리어 두 번이면 legend 한 자루의 보험료" 라는 관계가 선다.
+    static let bossDestroyGuardDropChance = 0.35
+
+    /// 보물상자류 이벤트에서 소실방지권이 섞여 나올 확률.
+    ///
+    /// 왜 0.06 인가: treasure 는 tick 당 10% 로 흔한 편이라 보스 드롭보다 두 자릿수
+    /// 낮게 잡아야 총 수급이 무너지지 않는다. 풀 클리어 한 런의 treasure 조우를
+    /// 대략 8~12회로 보면 기대 0.5~0.7장 — 보스 드롭의 보조 경로 수준이다.
+    static let treasureDestroyGuardDropChance = 0.06
+
+    /// 세션 보상에 소실방지권 n 장 적립. 정산 때 `UpHeroState.destroyGuards` 로 합산.
+    static func grantDestroyGuards(_ s: inout CombatSession, _ count: Int) {
+        guard count > 0 else { return }
+        s.rewards.destroyGuards += count
+    }
+
+    /// 세션 보상에 하락방지권 n 장 적립.
+    static func grantDownGuards(_ s: inout CombatSession, _ count: Int) {
+        guard count > 0 else { return }
+        s.rewards.downGuards += count
+    }
+
+    /// 굴림틀을 지금 돌릴 수 있는가 — 이벤트 등장 게이트이자 효과 적용 게이트.
+    ///
+    /// 두 조건을 본다: (1) 오늘 굴림 횟수(`slotSpinsToday`, `shopDaily.slotSpins` 스냅샷)가
+    /// 하루 상한 미만, (2) 이번 탐험에서 번 코인이 비용 이상. 상한은 세션이 아니라
+    /// 날짜 단위다 — 하루에 탐험을 몇 번 하든 합산 3회. 지갑(`UpHeroState.coins`)이
+    /// 아니라 런 수입(`rewards.coins`)에서 걷는다 — 던전에서 주운 것만 걸 수 있는 닫힌
+    /// 고리다 (웹 `canSpinSlot(session, slotSpinsToday, cost)`).
+    static func canSpinSlot(
+        _ s: CombatSession, slotSpinsToday: Int, cost: Int = UpHeroSlot.spinCost
+    ) -> Bool {
+        if slotSpinsToday >= UpHeroSlot.dailySpinCap { return false }
+        return s.rewards.coins >= cost
+    }
+
+    /// 굴림 결과별 한국어 fallback. i18n key 는 `uphero.slot.result.*`.
+    private static func slotResultFallback(_ id: SlotOutcomeId) -> String {
+        switch id {
+        case .blank:          return "드럼이 제각각 멈췄다. 장치가 조용해진다."
+        case .coinSmall:      return "룬 셋이 맞물리며 동전이 쏟아졌다."
+        case .coinMid:        return "드럼이 깊게 울리더니 동전 무더기가 굴러 나왔다."
+        case .coinJackpot:    return "사당 전체가 울렸다. 동전이 발밑까지 밀려온다."
+        case .rankProtect:    return "드럼 틈에서 낡은 봉인 조각이 떨어졌다."
+        case .destroyProtect: return "재가 엉겨 잿빛 천 한 자락이 되어 흘러나왔다."
+        case .itemBox:        return "바닥 판이 열리며 낡은 상자가 밀려 올라왔다."
+        case .battleBuff:     return "룬빛이 몸에 스며든다. 한동안 힘이 오른다."
+        }
+    }
+
+    /// 굴림 1회 — **결과 확정과 지급을 여기서 끝낸다.**
+    ///
+    /// 드럼 애니메이션은 이미 정해진 결과를 재생하는 표시 계층이라, 연출을
+    /// 건너뛰거나 앱이 죽어도 보상이 어긋나지 않는다. 웹 `spinSlot` 분기와 1:1.
+    private static func applySpinSlot<R: RandomSource>(
+        _ s: inout CombatSession, cost: Int, slotSpinsToday: Int, rng: inout R
+    ) {
+        // 잔액/상한 게이트는 이벤트 등장 단계에서도 걸리지만, 선택 대기 중에
+        // 시간·코인 상태가 바뀔 수 있어 적용 시점에도 한 번 더 본다.
+        guard canSpinSlot(s, slotSpinsToday: slotSpinsToday, cost: cost) else {
+            s.log.append(.choiceResult(
+                text: "> 손잡이를 당긴다 → 드럼은 꿈쩍도 하지 않았다.",
+                effectSummary: nil, effectSummaryData: nil,
+                actionLabelKey: nil, actionLabelFallback: nil,
+                resultTextKey: "uphero.slot.result.unavailable",
+                resultTextFallback: "드럼은 꿈쩍도 하지 않았다.",
+                slot: nil, timestamp: now()))
+            return
+        }
+
+        // 오늘 굴림 횟수는 여기서 올리지 않는다 — 세션은 카운터를 갖지 않고, 스토어가
+        // 이 굴림의 `slot` 페이로드를 보고 `shopDaily.slotSpins` 를 +1 한다.
+        s.rewards.coins -= cost
+
+        let streak = s.slotBlankStreak ?? 0
+        let outcome = UpHeroSlot.rollOutcome(blankStreak: streak, rng: &rng)
+        s.slotBlankStreak = UpHeroSlot.nextBlankStreak(prev: streak, outcome: outcome)
+        let (a, b, c) = UpHeroSlot.renderSymbols(outcome, rng: &rng)
+
+        var coinsWon = 0
+        var destroyGuardsWon = 0
+        var downGuardsWon = 0
+        var buffWon: (pct: Int, battles: Int)?
+
+        switch UpHeroSlot.grant(outcome) {
+        case .none:
+            break
+        case let .coins(amount):
+            s.rewards.coins += amount
+            coinsWon = amount
+        case let .destroyGuards(count):
+            grantDestroyGuards(&s, count)
+            destroyGuardsWon = count
+        case let .downGuards(count):
+            grantDownGuards(&s, count)
+            downGuardsWon = count
+        case .itemBox:
+            // 새 아이템 생성기를 만들지 않는다 — 보스 드롭과 같은 경로를 탄다.
+            let tMods = sessionMods(s)
+            let rarity = EquipmentPool.rollDropRarity(
+                floor: UpHeroSlot.itemBoxFloor(currentFloor: s.currentFloor),
+                legendDropBonus: tMods.legendDropBonus + Double(s.ngPlusLevel ?? 0) * 0.02,
+                flatten: s.flattenDropRarity ?? false, rng: &rng)
+            let eq = EquipmentPool.rollEquipmentDrop(
+                dungeonId: s.dungeonId, floor: s.currentFloor, rarity: rarity,
+                affinitySlot: Dungeons.all[s.dungeonId]?.affinity, rng: &rng)
+            s.log.append(.drop(equipment: eq, timestamp: now()))
+            s.rewards.drops.append(eq)
+        case let .combatBuff(pct, battles):
+            // 덮어쓰기다 — 중첩하지 않는다. 중첩을 허용하면 곱이 쌓여 밸런스가
+            // 순식간에 무너지고, "한 곳에서만 곱한다" 계약도 해석이 모호해진다.
+            s.combatBuff = CombatBuff(pct: Double(pct), battlesLeft: battles)
+            buffWon = (pct, battles)
+        }
+
+        let fallback = slotResultFallback(outcome)
+        s.log.append(.choiceResult(
+            text: "> 손잡이를 당긴다 → \(fallback)",
+            effectSummary: nil,
+            effectSummaryData: coinsWon > 0 ? EffectSummaryData(coins: coinsWon) : nil,
+            actionLabelKey: "uphero.slot.option.spin",
+            actionLabelFallback: "손잡이를 당긴다",
+            resultTextKey: "uphero.slot.result.\(outcome.rawValue)",
+            resultTextFallback: fallback,
+            slot: SlotResultPayload(
+                outcome: outcome, symbols: [a, b, c], cost: cost,
+                coins: coinsWon > 0 ? coinsWon : nil,
+                destroyGuards: destroyGuardsWon > 0 ? destroyGuardsWon : nil,
+                downGuards: downGuardsWon > 0 ? downGuardsWon : nil,
+                buffPct: buffWon?.pct, buffBattles: buffWon?.battles),
+            timestamp: now()))
     }
 
     /// ChoiceEffect 적용. 웹 `applyChoiceEffect`.
     private static func applyChoiceEffect<R: RandomSource>(
-        _ s: inout CombatSession, effect: ChoiceEffect, rng: inout R
+        _ s: inout CombatSession, effect: ChoiceEffect, slotSpinsToday: Int = 0, rng: inout R
     ) {
         switch effect {
         case let .reward(coins, xp, _):
@@ -801,10 +1014,12 @@ enum UpHeroSession {
                 text: "보스의 기운이 느껴진다.",
                 narrativeKey: "uphero.combat.narrative.revealBoss",
                 narrativeParams: nil, timestamp: now()))
+        case let .spinSlot(cost):
+            applySpinSlot(&s, cost: cost, slotSpinsToday: slotSpinsToday, rng: &rng)
         case .fight:
             let encIdx = UpHeroCombat.findLastEncounterIndex(s.log)
             guard encIdx >= 0, case let .encounter(monster, _) = s.log[encIdx] else { return }
-            let stats = UpHeroRules.computeEffectiveStats(s.hero)
+            let stats = sessionStats(s)
             executeCombatRound(&s, monster: monster, stats: stats, rng: &rng)
         case let .startMinigame(minigame, difficulty, successEffects, failEffects):
             let floor = s.currentFloor
@@ -837,7 +1052,7 @@ enum UpHeroSession {
                         "monster": .text(monster.name),
                         "monsterTemplateId": .text(monster.templateId ?? ""),
                     ], timestamp: now()))
-                let stats = UpHeroRules.computeEffectiveStats(s.hero)
+                let stats = sessionStats(s)
                 let outcome = UpHeroCombat.rollEnemyOutcome(
                     monster: monster, stats: stats,
                     dodgeBonus: UpHeroCombat.classDodgeBonus(s.hero.classType),
@@ -886,7 +1101,7 @@ enum UpHeroSession {
             actionLabelFallback: success ? "도전 성공" : "도전 실패",
             resultTextKey: success ? "uphero.combat.minigame.success" : "uphero.combat.minigame.fail",
             resultTextFallback: success ? "도전 성공" : "도전 실패",
-            timestamp: now()))
+            slot: nil, timestamp: now()))
         for e in effects {
             applyChoiceEffect(&s, effect: e, rng: &rng)
             if s.status == .completed { break }

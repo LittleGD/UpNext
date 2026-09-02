@@ -79,7 +79,9 @@ private func upHeroFootprint(
     dungeons: [DungeonId: DungeonProgress],
     passes: [DungeonId: Int],
     coins: Int,
-    cosmetics: Cosmetics
+    cosmetics: Cosmetics,
+    destroyGuards: Int,
+    downGuards: Int
 ) -> Bool {
     if !inventory.isEmpty { return true }
     if !codex.monsters.isEmpty || !codex.bosses.isEmpty || !codex.equipment.isEmpty { return true }
@@ -88,6 +90,10 @@ private func upHeroFootprint(
     if passes.values.contains(where: { $0 > 0 }) { return true }
     if coins > 0 { return true }
     if cosmetics.tentColor != nil || cosmetics.campfire != nil { return true }
+    // 방지권은 코인을 쓰거나 던전을 돌아야만 생긴다 — 보유 자체가 플레이 흔적이다
+    // (웹 hasUpHeroFootprint 의 같은 두 축).
+    if destroyGuards > 0 { return true }
+    if downGuards > 0 { return true }
     return false
 }
 
@@ -96,7 +102,8 @@ extension UpHeroState {
     var hasUpHeroFootprint: Bool {
         upHeroFootprint(
             inventory: inventory, codex: codex, hasSession: currentSession != nil,
-            dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics)
+            dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics,
+            destroyGuards: destroyGuards ?? 0, downGuards: downGuards ?? 0)
     }
 }
 
@@ -112,6 +119,17 @@ struct CloudUpHeroState: Equatable {
     var dungeons: [DungeonId: DungeonProgress]
     var codex: Codex
     var cosmetics: Cosmetics
+    /// 방지권 2종 보유 개수. 와이어 키 "destroyGuards" / "downGuards" — 웹과 바이트 동일.
+    var destroyGuards: Int
+    var downGuards: Int
+    /// 굴림틀 전투 버프. 와이어 키 "combatBuff" (중첩 맵 `{pct, battlesLeft}`).
+    /// 웹은 만료/부재를 `{pct: 0, battlesLeft: 0}` 껍데기로 싣는다 (undefined 가 아니다) —
+    /// 여기서도 non-optional 로 들고 같은 껍데기를 인코딩해야 왕복 바이트가 맞는다.
+    var combatBuff: CloudCombatBuff
+    /// 굴림틀 pity 스트릭. 와이어 키 "slotBlankStreak" (정수 0..1000, 0 도 항상 싣는다).
+    /// 웹 `normalizeSlotBlankStreak` — 부재·손상은 0. 빠뜨리면 화이트리스트 디코드에서
+    /// 조용히 탈락해 웹에서 쌓은 스트릭이 iOS 왕복 뒤 0 으로 덮인다.
+    var slotBlankStreak: Int
     var lastIdleAccrualAt: Int
     var ngPlusLevel: Int
     var hasSeenCampTutorial: Bool
@@ -127,7 +145,8 @@ struct CloudUpHeroState: Equatable {
     var hasFootprint: Bool {
         upHeroFootprint(
             inventory: inventory, codex: codex, hasSession: false,
-            dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics)
+            dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics,
+            destroyGuards: destroyGuards, downGuards: downGuards)
     }
 
     /// 살아있는 로컬 상태 → 클라우드 페이로드 (웹 normalizeUpHeroState 의 클램프 재현).
@@ -140,6 +159,10 @@ struct CloudUpHeroState: Equatable {
         dungeons = s.dungeons
         codex = s.codex
         cosmetics = s.cosmetics
+        destroyGuards = min(UpHeroRules.enhanceGuardMax, max(0, s.destroyGuards ?? 0))
+        downGuards = min(UpHeroRules.enhanceGuardMax, max(0, s.downGuards ?? 0))
+        combatBuff = CloudCombatBuff(s.combatBuff)
+        slotBlankStreak = UpHeroSlot.normalizeBlankStreak(s.slotBlankStreak)
         lastIdleAccrualAt = s.lastIdleAccrualAt
         ngPlusLevel = max(0, s.ngPlusLevel ?? 0)
         hasSeenCampTutorial = s.hasSeenCampTutorial ?? false
@@ -167,6 +190,10 @@ struct CloudUpHeroState: Equatable {
             pendingDungeon: nil,
             codex: codex,
             cosmetics: cosmetics,
+            destroyGuards: destroyGuards,
+            downGuards: downGuards,
+            combatBuff: combatBuff.buff,
+            slotBlankStreak: slotBlankStreak,
             lastIdleAccrualAt: lastIdleAccrualAt,
             lastSeenAt: lastSeenAt,
             heroStartLevel: heroStartLevel,
@@ -186,6 +213,13 @@ extension CloudUpHeroState: Codable {
 
     private enum K: String, CodingKey {
         case hero, inventory, coins, passes, dungeons, codex, cosmetics
+        // 방지권 2종 — 여기에 빠뜨리면 웹↔iOS 왕복에서 보유 개수가 조용히 사라진다.
+        // legacy 는 단일 소모품 시절의 "protectCharms" 로 들어온다 (읽기 전용 폴백).
+        case destroyGuards, downGuards, protectCharms
+        // 굴림틀 전투 버프 — 중첩 맵. 빠뜨리면 왕복에서 조용히 사라진다.
+        case combatBuff
+        // 굴림틀 pity 스트릭 — 정수. 웹과 철자가 같아야 왕복에서 탈락하지 않는다.
+        case slotBlankStreak
         case lastIdleAccrualAt, ngPlusLevel, hasSeenCampTutorial
         case welcomeGiftClaimed = "welcomeGrantClaimed"
         case lastSeenAt, schemaVersion, shopDaily, weeklyVariant, heroStartLevel
@@ -226,6 +260,24 @@ extension CloudUpHeroState: Codable {
             ?? Codex(monsters: [], equipment: [], bosses: [])
         cosmetics = (try? c.decode(CloudCosmetics.self, forKey: .cosmetics))?.cosmetics
             ?? Cosmetics(tentColor: nil, campfire: nil)
+
+        // 방지권 2종 — 없거나 깨졌으면 0. 상한(99)까지 클램프해 손상된 값이 그대로 살지
+        // 않게 한다 (웹 normalizeUpHeroState 의 같은 클램프). legacy `protectCharms`
+        // (단일 보호 소모품 시절 키)는 소실방지권으로 읽어준다 — 그 시절 저장본이 남아
+        // 있어도 보유가 0 으로 증발하지 않게.
+        let guardCap = UpHeroRules.enhanceGuardMax
+        destroyGuards = min(guardCap, max(0,
+            lenientInt(c, .destroyGuards) ?? lenientInt(c, .protectCharms) ?? 0))
+        downGuards = min(guardCap, max(0, lenientInt(c, .downGuards) ?? 0))
+
+        // 굴림틀 전투 버프 — 없거나 깨졌으면 빈 껍데기(0/0). pct [0,100] (퍼센트
+        // 포인트) · battlesLeft [0,20] 클램프는 CombatBuff.normalized 가 웹
+        // normalizeCombatBuff 그대로 건다.
+        combatBuff = (try? c.decode(CloudCombatBuff.self, forKey: .combatBuff)) ?? .empty
+
+        // 굴림틀 pity 스트릭 — 부재·비숫자·NaN 은 0, 소수는 내림, 정수 [0, 1000] 클램프
+        // (웹 normalizeSlotBlankStreak 와 동일).
+        slotBlankStreak = UpHeroSlot.normalizeBlankStreak(lenientInt(c, .slotBlankStreak))
 
         // 값이 깨졌으면 now — 과거 timestamp 를 지어내 거대한 idle reward 를 만들지 않는다.
         lastIdleAccrualAt = lenientInt(c, .lastIdleAccrualAt)
@@ -268,6 +320,17 @@ extension CloudUpHeroState: Codable {
             forKey: .dungeons)
         try c.encode(codex, forKey: .codex)
         try c.encode(CloudCosmetics(cosmetics: cosmetics), forKey: .cosmetics)
+        // 0 도 항상 싣는다 — 키를 빼면 setDoc(merge) 가 클라우드에 남은 예전 개수를
+        // 되살려, 다 쓴 방지권이 기기를 옮길 때마다 부활한다 (passes 와 같은 이유).
+        // legacy `protectCharms` 는 읽기 전용이라 다시 쓰지 않는다.
+        try c.encode(destroyGuards, forKey: .destroyGuards)
+        try c.encode(downGuards, forKey: .downGuards)
+        // 만료돼도 껍데기(0/0)를 싣는다 — 웹이 그렇고, 키를 빼면 merge 가 지난 버프를
+        // 되살려 다 쓴 +10% 가 기기를 옮길 때마다 부활한다.
+        try c.encode(combatBuff, forKey: .combatBuff)
+        // 0 도 항상 싣는다 — 보상 뒤 0 리셋이 merge 에서 빠지면 클라우드의 옛 스트릭이
+        // 되살아나 받을 자격이 없는 pity 가 발동한다.
+        try c.encode(slotBlankStreak, forKey: .slotBlankStreak)
         try c.encode(lastIdleAccrualAt, forKey: .lastIdleAccrualAt)
         try c.encode(ngPlusLevel, forKey: .ngPlusLevel)
         try c.encode(hasSeenCampTutorial, forKey: .hasSeenCampTutorial)
@@ -497,6 +560,37 @@ private struct CloudCodex: Decodable {
 }
 
 /// Cosmetics 래퍼 — 디코드는 관용(웹 normalizeCosmetics), 인코드는 nil 키 생략.
+/// 굴림틀 전투 버프의 클라우드 와이어 래퍼 — 웹 `normalizeCombatBuff` 재현.
+///
+/// 웹은 만료·부재·손상을 전부 `{pct: 0, battlesLeft: 0}` 껍데기로 표현한다
+/// (undefined 가 아니다). 도메인 쪽 `CombatBuff?` 와 와이어 쪽 "항상 있는 맵" 사이를
+/// 여기서 옮겨 준다. 관용 디코드 — 숫자가 아니어도 throw 하지 않고 0 으로 접는다.
+struct CloudCombatBuff: Codable, Equatable {
+    /// nil = 버프 없음 (와이어에서는 0/0 껍데기).
+    var buff: CombatBuff?
+
+    static let empty = CloudCombatBuff(nil)
+
+    init(_ buff: CombatBuff?) { self.buff = buff?.normalized }
+
+    private enum K: String, CodingKey { case pct, battlesLeft }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        // battlesLeft 는 웹이 Math.floor 로 자른다 — 소수가 들어와도 같은 정수가 되게.
+        let pct = (try? c.decode(Double.self, forKey: .pct)) ?? 0
+        let rawLeft = (try? c.decode(Double.self, forKey: .battlesLeft)) ?? 0
+        let left = rawLeft.isFinite ? Int(rawLeft.rounded(.down)) : 0
+        buff = CombatBuff.normalized(pct: pct, battlesLeft: left)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: K.self)
+        try c.encode(buff?.pct ?? 0, forKey: .pct)
+        try c.encode(buff?.battlesLeft ?? 0, forKey: .battlesLeft)
+    }
+}
+
 private struct CloudCosmetics: Codable {
     var cosmetics: Cosmetics
 
@@ -519,12 +613,16 @@ private struct CloudCosmetics: Codable {
 }
 
 /// ShopDaily 래퍼 — date 없으면 의미 없는 카운터라 통째로 버린다 (웹 normalizeShopDaily).
-/// 인코드는 coinPouchClaimed 를 항상 싣는다 (기본 false): 날짜가 바뀌며 키가 빠지면
-/// setDoc(merge) 에 어제의 true 가 남아 오늘 코인 주머니를 못 받는다.
+/// 인코드는 coinPouchClaimed(기본 false)와 slotSpins(기본 0)를 **항상** 싣는다: 날짜가
+/// 바뀌며 키가 빠지면 setDoc(merge) 에 어제의 true / 어제의 횟수가 남아 오늘 코인
+/// 주머니를 못 받거나 굴림틀 상한이 하루 일찍 닫힌다.
+///
+/// slotSpins — 와이어 키 "slotSpins" (웹과 바이트 동일), 관용 디코드: 부재·비숫자·NaN 은
+/// 0, 소수는 내림, 정수 [0, `UpHeroSlot.spinsWireMax`(100)] 클램프 (웹 normalizeSlotSpins).
 private struct CloudShopDaily: Codable {
     var shopDaily: ShopDaily
 
-    private enum K: String, CodingKey { case date, passesBought, coinPouchClaimed }
+    private enum K: String, CodingKey { case date, passesBought, coinPouchClaimed, slotSpins }
 
     init(shopDaily: ShopDaily) { self.shopDaily = shopDaily }
 
@@ -534,7 +632,8 @@ private struct CloudShopDaily: Codable {
         shopDaily = ShopDaily(
             date: date,
             passesBought: max(0, lenientInt(c, .passesBought) ?? 0),
-            coinPouchClaimed: try? c.decode(Bool.self, forKey: .coinPouchClaimed))
+            coinPouchClaimed: try? c.decode(Bool.self, forKey: .coinPouchClaimed),
+            slotSpins: UpHeroSlot.normalizeSpins(lenientInt(c, .slotSpins)))
     }
 
     func encode(to encoder: Encoder) throws {
@@ -542,6 +641,7 @@ private struct CloudShopDaily: Codable {
         try c.encode(shopDaily.date, forKey: .date)
         try c.encode(shopDaily.passesBought, forKey: .passesBought)
         try c.encode(shopDaily.coinPouchClaimed ?? false, forKey: .coinPouchClaimed)
+        try c.encode(UpHeroSlot.normalizeSpins(shopDaily.slotSpins), forKey: .slotSpins)
     }
 }
 
