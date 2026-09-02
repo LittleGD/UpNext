@@ -25,7 +25,15 @@ import type { Equipment } from "@/types/uphero";
 
 export type EnhanceModalVariant =
   | { kind: "success"; newItem: Equipment; prevLevel: number }
+  /** 실패했지만 아무 일도 없었던 경우. 방지권도 소모되지 않았다. */
   | { kind: "keep"; item: Equipment }
+  /**
+   * 방지권이 소실/하락을 막아준 경우 — 이때만 해당 방지권이 1장 줄어들었으므로
+   * 결과 문구도 "무엇을 막았는지" 를 말해야 한다.
+   */
+  | { kind: "guarded"; item: Equipment; guard: "destroy" | "down" }
+  /** 실패로 강화 단계가 1 내려간 경우. prevLevel 은 내려가기 전 레벨. */
+  | { kind: "down"; item: Equipment; prevLevel: number }
   | { kind: "destroyed"; lostItemName: string; lostBaseId?: string };
 
 interface EnhanceResultModalProps {
@@ -197,9 +205,59 @@ function resolveVariant(
       title: t("uphero.enhance.fail.keepTitle"),
       tone: GB_WARN,
       icon: "WarningDiamond",
+      body: <div style={{ color: GB.lightest }}>{localName}</div>,
+      cta: t("uphero.enhance.continue"),
+    };
+  }
+  if (variant.kind === "guarded") {
+    // 방지권이 막아낸 순간. 무엇을 막았는지가 핵심 정보다 — 소실을 막은 것과
+    // 하락을 막은 것은 유저가 다음에 무엇을 아껴야 하는지를 바꾼다.
+    const localName = equipmentNameById(
+      variant.item.baseId ?? "",
+      variant.item.name,
+      language,
+    );
+    const guardName =
+      variant.guard === "destroy"
+        ? t("uphero.guard.destroy.name")
+        : t("uphero.guard.down.name");
+    return {
+      title:
+        variant.guard === "destroy"
+          ? t("uphero.enhance.guarded.destroyTitle")
+          : t("uphero.enhance.guarded.downTitle"),
+      tone: GB.lightest,
+      icon: "Shield",
       body: (
         <>
           <div style={{ color: GB.lightest }}>{localName}</div>
+          <div className="mt-1.5">
+            {t("uphero.enhance.guarded.body", { name: guardName })}
+          </div>
+        </>
+      ),
+      cta: t("uphero.enhance.continue"),
+    };
+  }
+  if (variant.kind === "down") {
+    // 하락. 아이템은 남았지만 단계가 내려갔으므로 "+7 → +6" 을 성공과 같은 형식으로
+    // 보여준다 — 같은 자리에 같은 문법으로 두어야 방향의 차이가 읽힌다.
+    const localName = equipmentNameById(
+      variant.item.baseId ?? "",
+      variant.item.name,
+      language,
+    );
+    const newLevel = variant.item.enhanceLevel ?? Math.max(0, variant.prevLevel - 1);
+    return {
+      title: t("uphero.enhance.down.title"),
+      tone: GB_WARN,
+      icon: "ArrowDown",
+      body: (
+        <>
+          <div style={{ color: GB.lightest }}>{localName}</div>
+          <div className="mt-1.5 tabular-nums">
+            +{variant.prevLevel} → <span style={{ color: GB_WARN }}>+{newLevel}</span>
+          </div>
         </>
       ),
       cta: t("uphero.enhance.continue"),

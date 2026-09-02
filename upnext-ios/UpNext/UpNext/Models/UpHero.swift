@@ -297,6 +297,9 @@ enum ChoiceEffect: Equatable {
         successEffects: [SimpleChoiceEffect],
         failEffects: [SimpleChoiceEffect]
     )
+    /// Phase 15 — 굴림틀 1회. 결과 확정과 지급을 효과 적용 시점에 끝낸다
+    /// (드럼 애니메이션은 표시 계층이라 건너뛰어도 보상이 어긋나지 않는다).
+    case spinSlot(cost: Int)
 }
 
 /// Choice 옵션. 웹 `ChoiceOption`.
@@ -376,7 +379,11 @@ enum LogEntry: Equatable {
     case choiceResult(
         text: String, effectSummary: String?, effectSummaryData: EffectSummaryData?,
         actionLabelKey: String?, actionLabelFallback: String?,
-        resultTextKey: String?, resultTextFallback: String?, timestamp: Int)
+        resultTextKey: String?, resultTextFallback: String?,
+        /// Phase 15 — 굴림틀 결과일 때만 채워진다. 있으면 UI 가 일반 결과 모달 대신
+        /// 드럼 연출 모달을 띄운다 (웹 LogEntry 의 `slot?` 과 같은 자리).
+        slot: SlotResultPayload?,
+        timestamp: Int)
 }
 
 // MARK: - 전투 세션
@@ -386,6 +393,11 @@ struct SessionRewards: Equatable {
     var xp: Int
     var coins: Int
     var drops: [Equipment]
+    /// Phase 15 — 이번 탐험에서 번 방지권. 정산 때 `UpHeroState.destroyGuards` /
+    /// `downGuards` 로 합산된다. 세션 안에서는 여기에만 쌓이므로 탐험을 포기하면
+    /// (웹과 같이) 함께 사라진다.
+    var destroyGuards: Int = 0
+    var downGuards: Int = 0
 }
 
 /// 영웅 공격 배율 지속 효과. 웹 CombatSession.heroAtkBonusRounds.
@@ -467,6 +479,21 @@ struct CombatSession: Equatable {
     var revivePending: Bool?
     var pendingMinigame: PendingMinigame?
     var recentEventPrompts: [String]?    // Phase 12 R1 — 최근 prompt LRU (max 3)
+    /// Phase 15 — 굴림틀 전투 버프. **세션 안에서는 이것이 유일한 진실** 이고
+    /// 전투가 끝날 때마다 여기서 닳는다. 탐험이 끝나면 스토어가 잔여분을
+    /// `UpHeroState.combatBuff` 로 적어 다음 탐험이 이어받는다.
+    /// `pct` 는 퍼센트 포인트다 (10 = +10%). 상태·클라우드 층위도 같은 단위다.
+    var combatBuff: CombatBuff?
+    /// 굴림 횟수는 세션이 세지 않는다 — 하루 상한(`UpHeroSlot.dailySpinCap`)의 진실은
+    /// `UpHeroState.shopDaily.slotSpins` 이고, 스토어가 오늘 값을 스냅샷으로 세션
+    /// 배선(`tickSession` / `resolveChoice` 의 `slotSpinsToday`)에 넘긴다. 예전에 여기
+    /// 있던 `slotSpins` 는 탐험 1회당 3회로 새는 카운터라 제거했다 (웹과 동일).
+    /// 연속 꽝 스트릭의 **운반용 사본**. 진실은 `UpHeroState.slotBlankStreak` 이다 —
+    /// 세션 스코프였을 때는 세션당 상한 3 때문에 임계 5 에 닿지 못해 pity 가 죽어
+    /// 있었다. 스토어(`UpHeroStore.resolveChoice`)가 선택 해소 직전에 상태 값을 여기
+    /// 적어 넘기고, 세션 배선(`applySpinSlot`)은 이 값을 롤 입력으로 읽는다. 결과
+    /// 반영은 스토어가 `UpHeroSlot.nextBlankStreak` 로 상태에 다시 쓴다.
+    var slotBlankStreak: Int?
     var nextHeroDamageMult: Double?      // Phase 6b — 다음 공격 damage 배율
     var forcedDodgeRounds: Int?          // Phase 6b — 강제 dodge 유지 round
     var forcedEnemyMisses: Int?          // Phase 6b — 적 강제 miss 유지 횟수
@@ -548,11 +575,19 @@ struct IdleRewardSnapshot: Equatable {
     var rawElapsedMin: Int
 }
 
-/// 갓생 상점 일일 구매 카운터. 웹 UpHeroState.shopDaily.
+/// 갓생 상점 일일 카운터. 웹 UpHeroState.shopDaily.
+///
+/// `date` 가 오늘(`AppClock.todayString`, 새벽 1시 경계)이 아니면 통째로 새 객체로
+/// 갈린다 (`UpHeroStore.currentShopDaily`) — 탐험권 구매·코인 주머니·굴림틀 횟수가
+/// 같은 날짜 키를 공유해 롤오버 규칙이 한 곳에 있다.
 struct ShopDaily: Equatable {
     var date: String
     var passesBought: Int
     var coinPouchClaimed: Bool?
+    /// 오늘 굴림틀을 돌린 횟수. `UpHeroSlot.dailySpinCap` 상한의 유일한 카운터 —
+    /// 세션이 아니라 여기 살아서 하루에 탐험을 몇 번 하든 합산된다. nil = 0
+    /// (구 저장본·옛 클라우드 문서). 와이어 키 "slotSpins", 정수 [0, 100].
+    var slotSpins: Int?
 }
 
 /// 주간 악몽 던전 진행 상태. 웹 UpHeroState.weeklyVariant.
@@ -583,6 +618,25 @@ struct UpHeroState: Equatable {
     var pendingDungeon: PendingDungeonPrep?
     var codex: Codex
     var cosmetics: Cosmetics
+    /// 소실방지권 보유 개수. **상점에서 팔지 않는다** — 보스 처치 드롭 · 던전 상자 ·
+    /// 슬롯머신 보상으로만 들어온다 (iOS 지급 경로는 전투 슬라이스에서 배선).
+    /// 소모 계약: 강화 실패가 **소실로 판정된 순간에만** 1 감소한다.
+    /// nil = 0 (구 저장본 호환). 와이어 키는 웹과 동일한 "destroyGuards".
+    var destroyGuards: Int?
+    /// 하락방지권 보유 개수. 상점 판매 품목 (ShopPrices.downGuard).
+    /// 소모 계약: 실패가 **하락으로 판정된 순간에만** 1 감소한다. 와이어 키 "downGuards".
+    var downGuards: Int?
+    /// 굴림틀에서 받은 전투 버프의 **탐험 밖 보관소**. 탐험이 끝났는데 잔여 전투가
+    /// 남아 있으면 여기 적혀 다음 탐험으로 이어진다. 만료됐으면 nil — battlesLeft 0
+    /// 짜리 껍데기를 남기지 않는다 (UI 가 "버프 있음" 으로 오인한다).
+    /// 와이어 키 `combatBuff` (중첩 맵). 웹 `UpHeroState.combatBuff`.
+    var combatBuff: CombatBuff?
+    /// 굴림틀 연속 꽝 스트릭 — pity 의 **유일한 진실**. 탐험을 넘어 영속한다.
+    /// 필드가 없는 레거시 저장본은 0 (nil). 정수 [0, `UpHeroSlot.blankStreakMax`] 로
+    /// 접는다 (`UpHeroSlot.normalizeBlankStreak`). 와이어 키 `slotBlankStreak` — 0 이어도
+    /// 키를 항상 싣는다: 보상 뒤 0 리셋이 merge 에서 빠지면 옛 스트릭이 되살아나
+    /// 받을 자격이 없는 pity 가 발동한다. 웹 `UpHeroState.slotBlankStreak`.
+    var slotBlankStreak: Int? = nil
     var lastIdleAccrualAt: Int
     var lastSeenAt: Int?              // Phase 14 — 시계 되감기 탐지용
     var heroStartLevel: Int?          // Phase 9d — 영웅 시작 시점 챌린지 레벨
@@ -601,6 +655,47 @@ struct UpHeroState: Equatable {
     var pendingClassChoice: PendingClassChoice?  // transient — persist X
     var isLoaded: Bool
 }
+
+// MARK: - 강화 결과
+
+/// 강화 실패 시의 3분기 조건부 확률. 셋을 더하면 항상 1 이다. 웹 `EnhanceOutcomeRates`.
+struct EnhanceOutcomeRates: Equatable {
+    /// 아이템이 사라질 확률
+    let destroy: Double
+    /// 강화 단계가 1 내려갈 확률
+    let down: Double
+    /// 아무 일도 없을 확률
+    let keep: Double
+}
+
+/// 이번 강화 시도에 걸 방지권. UI 토글이 그대로 매핑된다. 웹 `EnhanceGuardArm`.
+struct EnhanceGuardArm {
+    /// 소실방지권을 걸지 (보유 0 이면 무시)
+    var destroy: Bool = false
+    /// 하락방지권을 걸지 (보유 0 이면 무시)
+    var down: Bool = false
+}
+
+/// `UpHeroStore.enhanceItem` 반환값. 웹 `EnhanceResult` 유니온 1:1
+/// (success / keep / down / guarded / destroyed / coin / maxed / not-found).
+///
+/// `guarded` 는 방지권이 결과를 막아낸 분기이고, **이 분기에서만** 해당 방지권이
+/// 1장 소모된다. `guard` 가 무엇을 막았는지 말해준다 — "사라질 뻔했다" 와
+/// "내려갈 뻔했다" 는 문구가 달라야 한다.
+enum EnhanceResult {
+    case success(newItem: Equipment, prevLevel: Int)
+    case keep(item: Equipment)
+    /// 실패로 단계가 1 내려갔다. `prevLevel` 은 내려가기 **전** 레벨 (UI 가 "+7 → +6").
+    case down(item: Equipment, prevLevel: Int)
+    case guarded(item: Equipment, guard: EnhanceGuardKind)
+    case destroyed(lostItemName: String)
+    case coinShort(need: Int)
+    case maxed
+    case notFound
+}
+
+/// 방지권 종류. 웹 `guard: "destroy" | "down"`.
+enum EnhanceGuardKind { case destroy, down }
 
 // MARK: - 상점 가격
 
@@ -625,6 +720,12 @@ enum ShopPrices {
     ///   웹 `SHOP_PRICES.auraReading` 과 같은 값.
     static let auraReading = 20
     static let expeditionPass = 80   // Phase 11a — 탐험권 1장
+    /// 하락방지권 1장. 강화 실패로 단계가 내려갈 뻔한 순간에만 소모된다.
+    ///   가격 근거 — 탐험권(80)과 작은 카드팩(200) 사이, 위험 구간의 강화 1회 시도보다
+    ///   싼 자리다. 보험료가 시도비보다 싸야 "위험할 때 켠다" 는 판단이 성립한다.
+    ///   **소실방지권은 여기 없다** — 상점에서 팔지 않고 보스·상자·슬롯에서만 나온다.
+    ///   웹 `SHOP_PRICES.downGuard` 와 같은 값이어야 한다.
+    static let downGuard = 150
 }
 
 // MARK: - 클래스 메타
@@ -773,10 +874,67 @@ enum UpHeroRules {
         .normal: 0, .rare: 0, .unique: 0.02, .legend: 0.04,
     ]
 
-    /// 등급별 실패 시 보존 확률. 웹 `ENHANCE_PRESERVE_BY_RARITY`.
-    static let enhancePreserveByRarity: [Rarity: Double] = [
-        .normal: 0.3, .rare: 0.3, .unique: 0.4, .legend: 0.5,
+    // ── 실패 3분기: 소실 / 하락 / 유지 (구 `enhancePreserveByRarity` 퇴역) ──
+    //
+    // 구 규칙은 **레벨과 무관하게 고정**이었다 (normal/rare 0.3, unique 0.4, legend 0.5).
+    // 즉 +1→+2 에서 실패해도 70% 확률로 아이템이 사라졌고, 그래서 +2 에 닿기도 전에
+    // 벽이 섰다. 장르 관행(메이플 스타포스 0~14성 파괴 0%, 리니지2 +3 까지 안전,
+    // 던파 +12 부터 파괴)은 정확히 반대다 — 저강은 안전하고 위험은 고강에서만 붙는다.
+    // 그리고 그 사이를 채우는 것이 **등급 하락**이다: 사라지지는 않지만 한 단계
+    // 내려가므로 손실감은 주되 판을 엎지 않는다.
+    //
+    // 새 규칙 — 실패하면 셋 중 하나로 갈린다:
+    //   destroy : enhanceDestroyOnFail[L] × enhanceDestroyRarityMult[rarity]
+    //   down    : enhanceDownOnFail[L]
+    //   keep    : 나머지
+    // currentLevel 0..2 (+0→+1 … +2→+3) 는 소실·하락 둘 다 정확히 0 이라 실패해도
+    // 100% 유지다. "거의 없다" 가 아니라 0 으로 못박아야 UI 가 "안전" 이라고 정직하게
+    // 말할 수 있다. 성공률·감쇠·pity·비용 상수는 이 개편에서 건드리지 않았다.
+    //
+    // 두 표는 **실패했을 때** 의 조건부 확률이다. 시도당 확률은 (1 - 성공률) × 이 값.
+
+    /// 실패 시 **소실** 확률의 레벨별 기준값. index = currentLevel (시도 전 레벨).
+    /// 웹 `ENHANCE_DESTROY_ON_FAIL_BY_LEVEL` 과 값이 같아야 한다.
+    static let enhanceDestroyOnFail: [Double] = [
+        0, 0, 0,   // +0→+3 : 완전 안전 구간
+        0.01,      // +3→+4
+        0.02,      // +4→+5
+        0.05,      // +5→+6
+        0.09,      // +6→+7
+        0.14,      // +7→+8
+        0.20,      // +8→+9
+        0.26,      // +9→+10
     ]
+
+    /// 실패 시 **하락**(+L → +L-1) 확률. 소실과 배타적이며 소실 판정이 먼저다.
+    /// 하락에는 등급 보정을 두지 않는다 — 되돌릴 수 있는 손실까지 등급별로 깎으면
+    /// 상위 등급이 사실상 무손실이 된다. 웹 `ENHANCE_DOWN_ON_FAIL_BY_LEVEL`.
+    static let enhanceDownOnFail: [Double] = [
+        0, 0, 0,   // +0→+3 : 완전 안전 구간
+        0.10,      // +3→+4
+        0.15,      // +4→+5
+        0.25,      // +5→+6
+        0.30,      // +6→+7
+        0.35,      // +7→+8
+        0.40,      // +8→+9
+        0.45,      // +9→+10
+    ]
+
+    /// 등급별 **소실** 확률 배율 (0.7 = 원래 소실 확률의 70%). 가산이 아니라 곱인 이유는
+    /// 뺄셈이면 상위 등급이 특정 레벨에서 0 으로 주저앉아 곡선의 형태가 무너지기 때문.
+    /// 웹 `ENHANCE_DESTROY_RARITY_MULT`.
+    static let enhanceDestroyRarityMult: [Rarity: Double] = [
+        .normal: 1.0, .rare: 1.0, .unique: 0.85, .legend: 0.7,
+    ]
+
+    /// 안전 구간의 마지막 currentLevel (inclusive). 웹 `ENHANCE_SAFE_MAX_LEVEL`.
+    /// 이 값 이하에서는 소실·하락이 모두 0 이고, UI 는 위험 문구·방지권 토글을
+    /// 아예 그리지 않는다 — 필요 없는 구간에서 방지권을 권하면 기만이다.
+    static let enhanceSafeMaxLevel = 2
+
+    /// 방지권 1종당 보유 상한 — persist 되는 숫자가 무한히 커지는 걸 막는다
+    /// (enhanceFailStreak 의 100 cap 과 같은 이유). 웹 `ENHANCE_GUARD_MAX`.
+    static let enhanceGuardMax = 99
 
     /// 등급별 비용 배율. 웹 `ENHANCE_COST_RARITY_MULT`.
     static let enhanceCostRarityMult: [Rarity: Double] = [
@@ -899,6 +1057,85 @@ enum UpHeroRules {
         let levelMult = 1.0 + Double(max(0, currentLevel)) * 0.5
         let rarityMult = enhanceCostRarityMult[rarity]!
         return Int((base * levelMult * rarityMult).rounded())
+    }
+
+    /// **실패 시** 3분기 확률의 단일 출처. UI 표기와 스토어 판정이 같은 값을 쓰도록
+    /// 두 곳 모두 이 함수만 호출한다. 방지권은 여기 반영하지 않는다 — 방지권은 확률을
+    /// 바꾸는 게 아니라 "나온 결과를 바꾸는" 장치이고, 소모 판정은 스토어가 한다.
+    /// 웹 `enhanceOutcomeRates`.
+    ///
+    /// - Parameter currentLevel: 강화를 시도하는 시점의 레벨. +3 → +4 시도면 3.
+    static func enhanceOutcomeRates(
+        rarity: Rarity, currentLevel: Int
+    ) -> EnhanceOutcomeRates {
+        let level = max(0, currentLevel)
+        if level <= enhanceSafeMaxLevel {
+            return EnhanceOutcomeRates(destroy: 0, down: 0, keep: 1)
+        }
+        // 표 범위를 넘어선 레벨(방어적)은 마지막 값으로 고정.
+        let idx = min(level, enhanceDestroyOnFail.count - 1)
+        let mult = enhanceDestroyRarityMult[rarity] ?? 1
+        let destroy = min(1.0, max(0.0, enhanceDestroyOnFail[idx] * mult))
+        // 소실 판정이 먼저이므로 하락은 남은 확률 공간을 넘지 못한다.
+        let down = min(min(1.0, max(0.0, enhanceDownOnFail[idx])), 1 - destroy)
+        return EnhanceOutcomeRates(
+            destroy: destroy, down: down, keep: max(0, 1 - destroy - down))
+    }
+
+    /// 강화 **실패 시** 아이템이 그대로 남을 확률 (0-1) = 3분기의 keep.
+    /// 하락은 "남았다" 로 치지 않는다 — 하락도 손실이라 유지와 같은 칸에 묶어 보여주면
+    /// 기만이 된다. 웹 `enhancePreserveRate`.
+    static func enhancePreserveRate(rarity: Rarity, currentLevel: Int) -> Double {
+        enhanceOutcomeRates(rarity: rarity, currentLevel: currentLevel).keep
+    }
+
+    /// 강화 실패 시 소실 확률 (0-1). 방지권을 무시한 "원래 위험". 웹 `enhanceDestroyRate`.
+    static func enhanceDestroyRate(rarity: Rarity, currentLevel: Int) -> Double {
+        enhanceOutcomeRates(rarity: rarity, currentLevel: currentLevel).destroy
+    }
+
+    /// 강화 실패 시 하락 확률 (0-1). 웹 `enhanceDowngradeRate`.
+    static func enhanceDowngradeRate(rarity: Rarity, currentLevel: Int) -> Double {
+        enhanceOutcomeRates(rarity: rarity, currentLevel: currentLevel).down
+    }
+
+    /// 이 레벨에서 소실이 가능한가. UI 가 소실방지권 토글 노출을 판단하는 단일 기준.
+    static func canEnhanceDestroy(rarity: Rarity, currentLevel: Int) -> Bool {
+        enhanceDestroyRate(rarity: rarity, currentLevel: currentLevel) > 0
+    }
+
+    /// 이 레벨에서 하락이 가능한가. UI 가 하락방지권 토글 노출을 판단하는 단일 기준.
+    static func canEnhanceDowngrade(rarity: Rarity, currentLevel: Int) -> Bool {
+        enhanceDowngradeRate(rarity: rarity, currentLevel: currentLevel) > 0
+    }
+
+    /// 완전 안전 구간인가 (실패해도 소실·하락이 둘 다 0). true 면 UI 는 위험 문구·
+    /// 방지권 토글을 아예 그리지 않는다. 웹 `isEnhanceSafeLevel`.
+    static func isEnhanceSafeLevel(rarity: Rarity, currentLevel: Int) -> Bool {
+        let r = enhanceOutcomeRates(rarity: rarity, currentLevel: currentLevel)
+        return r.destroy == 0 && r.down == 0
+    }
+
+    /// 장비의 primary stat key — stats 최대값 키. 동률은 선언 순서로 tie-break.
+    /// 웹 `pickPrimaryStatKey` (useUpHeroStore.ts) 와 같은 순서/규칙.
+    static func pickPrimaryStatKey(_ stats: [StatKey: Int]) -> StatKey? {
+        let order: [StatKey] = [.str, .int, .vit, .dex, .agi, .crit, .slotBonus]
+        var best: StatKey?
+        var bestVal = Int.min
+        for key in order {
+            guard let v = stats[key] else { continue }
+            if v > bestVal { best = key; bestVal = v }
+        }
+        return best
+    }
+
+    /// 이름에서 " +N" / legacy " +" 접미사 제거. 웹 `stripEnhanceSuffix` (정규식 동일:
+    /// `/\s+\+\d*$/`). 강화 성공 시 매번 strip 후 재부여해 "검 +3 +4" 를 막는다.
+    static func stripEnhanceSuffix(_ name: String) -> String {
+        guard let r = name.range(of: "\\s+\\+\\d*$", options: .regularExpression) else {
+            return name
+        }
+        return String(name[name.startIndex..<r.lowerBound])
     }
 
     // ── 영웅 레벨 / 외형 ──────────────────────────────────────────

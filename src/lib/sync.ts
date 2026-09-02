@@ -3,7 +3,12 @@
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { ALL_CARDS } from "@/data/cards";
 import { normalizeRetentionState, stripUndefined } from "@/lib/retention";
-import { createDefaultHero, DUNGEON_BY_CLASS } from "@/types/uphero";
+import { normalizeSlotBlankStreak, normalizeSlotSpins } from "@/lib/upHeroSlot";
+import {
+  createDefaultHero,
+  DUNGEON_BY_CLASS,
+  ENHANCE_GUARD_MAX,
+} from "@/types/uphero";
 import type { DailyState, UserProgress } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
 import type { RetentionState } from "@/types/retention";
@@ -119,6 +124,14 @@ export type CloudUpHeroState = Partial<
     | "heroStartLevel"
     | "shopDaily"
     | "ngPlusLevel"
+    // Phase 15 — 방지권 2종 + 슬롯머신 전투 버프.
+    //   와이어 키 = "destroyGuards" / "downGuards" / "combatBuff".
+    //   iOS 는 CodingKeys 화이트리스트라 같은 키 이름을 반드시 함께 추가해야 한다.
+    | "destroyGuards"
+    | "downGuards"
+    | "combatBuff"
+    // 굴림틀 pity 스트릭. 와이어 키 = "slotBlankStreak" (정수 0..1000).
+    | "slotBlankStreak"
     | "weeklyVariant"
     | "schemaVersion"
     | "hasSeenCampTutorial"
@@ -289,7 +302,38 @@ function normalizeShopDaily(raw: unknown): UpHeroState["shopDaily"] {
   };
   const coinPouchClaimed = asBool(r.coinPouchClaimed);
   if (coinPouchClaimed !== undefined) shopDaily.coinPouchClaimed = coinPouchClaimed;
+  // 오늘 굴림틀 횟수. 와이어 키 = "slotSpins" (정수 0..100). 키가 없는 옛 문서는 0.
+  //   항상 채운다 — 인코드도 항상 실으므로(아래 encodeUpHeroForCloud) 왕복 뒤 모양이 같다.
+  shopDaily.slotSpins = normalizeSlotSpins(r.slotSpins);
   return shopDaily;
+}
+
+/**
+ * Phase 15 — 방지권 개수를 [0, ENHANCE_GUARD_MAX] 정수로 교정.
+ * useUpHeroStore.clampGuards 와 같은 계약이다 (한쪽만 고치지 말 것).
+ */
+function clampGuardCount(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(ENHANCE_GUARD_MAX, Math.floor(n)));
+}
+
+/**
+ * Phase 15 — 슬롯머신 전투 버프.
+ *
+ * 만료됐거나 값이 깨졌으면 **키를 생략하지 않고** {pct:0, battlesLeft:0} 을 싣는다.
+ * setDoc(merge) 는 중첩 맵을 키 단위로 병합하므로, 키를 빼면 클라우드에 남아 있던
+ * 예전 버프가 그대로 살아 기기를 옮길 때마다 부활한다 (hero.equipped 빈 슬롯을
+ * null 로 지우는 것과 같은 이유). 0 껍데기는 읽는 쪽(useUpHeroStore)이 undefined
+ * 로 접는다.
+ */
+function normalizeCombatBuff(raw: unknown): { pct: number; battlesLeft: number } {
+  const r = asRecord(raw);
+  const pct = r ? (asFinite(r.pct) ?? 0) : 0;
+  const left = r ? Math.floor(asFinite(r.battlesLeft) ?? 0) : 0;
+  if (pct <= 0 || left <= 0) return { pct: 0, battlesLeft: 0 };
+  // 상한은 스토어와 같은 값 — 손상된 값이 전투 밸런스를 뒤집지 않게.
+  // pct 는 퍼센트 포인트다 (10 = +10%). 상한 100 = 배율 2배.
+  return { pct: Math.min(100, pct), battlesLeft: Math.min(20, left) };
 }
 
 // week/affixId 가 깨졌으면 키를 생략 — initialize 가 이번 주 affix 를 새로 뽑는다.
@@ -335,6 +379,9 @@ export function hasUpHeroFootprint(raw: unknown): boolean {
   const passes = asRecord(r.passes);
   if (passes && Object.values(passes).some((n) => (asFinite(n) ?? 0) > 0)) return true;
   if ((asFinite(r.coins) ?? 0) > 0) return true;
+  // 방지권은 드롭이나 코인으로만 생긴다 — 보유 자체가 플레이 흔적이다.
+  if ((asFinite(r.destroyGuards) ?? 0) > 0) return true;
+  if ((asFinite(r.downGuards) ?? 0) > 0) return true;
   const cosmetics = asRecord(r.cosmetics);
   if (cosmetics && Object.keys(cosmetics).length > 0) return true;
   return false;
@@ -366,6 +413,21 @@ export function normalizeUpHeroState(raw: unknown): CloudUpHeroState {
     // 값이 깨졌으면 now — 과거 timestamp 를 지어내 거대한 idle reward 를 만들지 않는다.
     lastIdleAccrualAt: asFinite(r.lastIdleAccrualAt) ?? Date.now(),
     ngPlusLevel: Math.max(0, Math.floor(asFinite(r.ngPlusLevel) ?? 0)),
+    // Phase 15 — 방지권 2종. coins 와 같은 이유로 키를 항상 남긴다: 0 에서 키를
+    //   빼면 setDoc(merge) 가 클라우드에 남은 예전 개수를 되살려, 다 쓴 방지권이
+    //   기기를 옮길 때마다 부활한다.
+    //   음수·소수·상한 초과는 여기서 잘라낸다 (useUpHeroStore.clampGuards 와 같은 계약).
+    //   레거시 `protectCharms`(단일 보호 소모품 시절 키)는 소실방지권으로 읽어준다 —
+    //   그 시절 저장본이 남아 있어도 보유가 0 으로 증발하지 않게 한다.
+    destroyGuards: clampGuardCount(
+      asFinite(r.destroyGuards) ?? asFinite(r.protectCharms) ?? 0,
+    ),
+    downGuards: clampGuardCount(asFinite(r.downGuards) ?? 0),
+    combatBuff: normalizeCombatBuff(r.combatBuff),
+    // 굴림틀 pity 스트릭 — 키를 항상 남긴다. 보상 뒤 0 리셋이 merge 에서 빠지면
+    //   클라우드의 옛 스트릭이 되살아나 받을 자격이 없는 pity 가 발동한다.
+    //   레거시(키 없음)·손상 값은 0, 정수 [0, SLOT_BLANK_STREAK_MAX] 로 접는다.
+    slotBlankStreak: normalizeSlotBlankStreak(r.slotBlankStreak),
     hasSeenCampTutorial: asBool(r.hasSeenCampTutorial) ?? false,
     welcomeGrantClaimed: asBool(r.welcomeGrantClaimed) ?? false,
   };
@@ -400,10 +462,13 @@ export function normalizeUpHeroState(raw: unknown): CloudUpHeroState {
  * 에서 키가 사라지면 클라우드엔 예전 키가 그대로 남아, 복원한 기기에서 유령 장비가
  * 되살아난다 (인벤토리에도 있고 장착도 돼 있는 상태). 빈 슬롯을 null 로 실어 지운다.
  * shopDaily.coinPouchClaimed 도 같은 이유 — 날짜가 바뀌며 키가 빠지면 어제의 true 가
- * 남아 오늘 코인 주머니를 못 받는다.
- * 디코드(normalizeUpHeroState)는 null 슬롯/false 를 정상 처리한다.
+ * 남아 오늘 코인 주머니를 못 받는다. shopDaily.slotSpins 도 같다 — 키가 빠지면
+ * 어제 굴린 횟수가 남아 오늘 굴림틀이 상한에 막힌다.
+ * 디코드(normalizeUpHeroState)는 null 슬롯/false/0 을 정상 처리한다.
+ *
+ * export 는 테스트용 — 런타임 호출자는 이 모듈 안(syncToCloud/uploadLocalData)뿐이다.
  */
-function encodeUpHeroForCloud(state: CloudUpHeroState): Record<string, unknown> {
+export function encodeUpHeroForCloud(state: CloudUpHeroState): Record<string, unknown> {
   const payload: Record<string, unknown> = { ...state };
   if (state.hero) {
     const equipped: Record<string, unknown> = {};
@@ -411,7 +476,7 @@ function encodeUpHeroForCloud(state: CloudUpHeroState): Record<string, unknown> 
     payload.hero = { ...state.hero, equipped };
   }
   if (state.shopDaily) {
-    payload.shopDaily = { coinPouchClaimed: false, ...state.shopDaily };
+    payload.shopDaily = { coinPouchClaimed: false, slotSpins: 0, ...state.shopDaily };
   }
   return payload;
 }

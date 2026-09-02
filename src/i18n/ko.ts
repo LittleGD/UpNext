@@ -1117,8 +1117,25 @@ const ko = {
   "uphero.leaderboard.myRankHeading": "내 순위",
   "uphero.leaderboard.close": "닫기",
   "uphero.equip.enhanceCost": "비용 {cost} 코인 (보유 {coins})",
-  "uphero.equip.enhancePreserveHint": "실패 시 {pct}% 확률로 아이템 보존 · 나머지는 소실",
   "uphero.equip.enhancePreserveBadge": "보존 {pct}%",
+  // === Phase 15 — 강화 안전 구간 + 방지권 2종 ===
+  "uphero.guard.destroy.name": "소실방지권",
+  "uphero.guard.down.name": "하락방지권",
+  "uphero.equip.enhanceSafeBadge": "안전",
+  "uphero.equip.enhanceSafeHint": "이 단계는 실패해도 그대로예요",
+  "uphero.equip.enhanceDestroyHint": "실패 시 {pct}% 확률로 아이템 소실",
+  "uphero.equip.enhanceDownHint": "실패 시 {pct}% 확률로 한 단계 하락",
+  "uphero.equip.guard.blockedTag": "· 막힘",
+  "uphero.equip.guard.toggle": "{name} 쓰기 (보유 {n})",
+  "uphero.equip.guard.destroyNone": "{name} 없음 · 보스와 탐험 상자에서 나와요",
+  "uphero.equip.guard.downNone": "{name} 없음 · 상점에서 살 수 있어요",
+  "uphero.enhance.guarded.destroyTitle": "사라질 뻔했다",
+  "uphero.enhance.guarded.downTitle": "내려갈 뻔했다",
+  "uphero.enhance.guarded.body": "{name} 1장을 썼어요 · 단계는 그대로예요",
+  "uphero.enhance.down.title": "한 단계 내려갔다",
+  "uphero.shop.guard.downDesc": "강화 실패로 단계가 내려갈 뻔한 순간에만 1장 소모 · 보유 {held}",
+  "uphero.shop.guard.bought": "{name} 구매 · 보유 {n}",
+  "uphero.shop.guard.full": "보유 한도에 닿았어요 ({max}장)",
 
   // === Misc hero UI (residuals) ===
   "uphero.boss.appearAria": "보스 등장 — 탭해서 건너뛰기",
@@ -1427,6 +1444,51 @@ const ko = {
 
   // === Choice / event UI ===
   "uphero.choice.continue": "계속",
+  /* ── 굴림틀 (rune drum) ─────────────────────────────────────────────
+     던전 분기 이벤트. 등급은 13+ (Simulated Gambling: Infrequent) 를 감수하기로
+     했으므로 "대박"·"아깝다" 류는 허용한다. 다만 도박을 권유하는 톤("한 번 더
+     하면 나온다" 식의 단정)은 피한다. 선택은 유저 몫이다. 근거는
+     src/lib/upHeroSlot.ts 상단 주석. */
+  "uphero.slot.title": "굴림틀",
+  "uphero.slot.stake": "코인 {cost} 소모",
+  "uphero.slot.skip": "건너뛰기",
+  "uphero.slot.aria.skip": "회전 건너뛰기",
+  "uphero.slot.aria.dismiss": "결과 닫기",
+  "uphero.slot.event.prompt":
+    "무너진 사당 안쪽, 룬이 새겨진 드럼 세 개짜리 낡은 굴림틀이 아직 돌아간다.",
+  "uphero.slot.option.spin": "코인 {cost} 을 넣고 손잡이를 당긴다",
+  "uphero.slot.option.skip": "손대지 않고 지나간다",
+  "uphero.slot.result.skip": "먼지 앉은 손잡이를 뒤로 하고 걸음을 옮겼다.",
+  "uphero.slot.result.unavailable": "드럼은 꿈쩍도 하지 않았다.",
+  "uphero.slot.result.blank": "드럼이 제각각 멈췄다. 장치가 조용해진다.",
+  "uphero.slot.result.coinSmall": "룬 셋이 맞물리며 동전이 쏟아졌다.",
+  "uphero.slot.result.coinMid": "드럼이 깊게 울리더니 동전 무더기가 굴러 나왔다.",
+  "uphero.slot.result.coinJackpot": "사당 전체가 울렸다. 동전이 발밑까지 밀려온다.",
+  "uphero.slot.result.rankProtect": "드럼 틈에서 낡은 봉인 조각이 떨어졌다.",
+  "uphero.slot.result.destroyProtect": "재가 엉겨 잿빛 천 한 자락이 되어 흘러나왔다.",
+  "uphero.slot.result.itemBox": "바닥 판이 열리며 낡은 상자가 밀려 올라왔다.",
+  "uphero.slot.result.battleBuff": "룬빛이 몸에 스며든다. 한동안 힘이 오른다.",
+  "uphero.slot.reward.coins": "코인 +{n}",
+  "uphero.slot.reward.destroyGuard": "소실방지권 +{n}",
+  "uphero.slot.reward.downGuard": "하락방지권 +{n}",
+  "uphero.slot.reward.itemBox": "장비 +1",
+  "uphero.slot.reward.buff": "{battles}전투 능력치 +{pct}%",
+  "uphero.slot.drop.destroyGuard": "소실방지권을 손에 넣었다",
+  "uphero.slot.drop.destroyGuardChest": "상자 바닥에 소실방지권이 깔려 있었다",
+  // 연출 카피. pityHint 는 실제 보장(4연속 꽝 뒤 5번째는 반드시 보상)을 그대로 말한다.
+  "uphero.slot.again": "한 번 더",
+  "uphero.slot.spinsLeft": "남은 {n}회",
+  "uphero.slot.nearMiss": "아깝다!",
+  "uphero.slot.big": "대박!",
+  "uphero.slot.pityHint": "다음은 반드시 나와요",
+  "uphero.slot.odds.open": "확률 보기",
+  "uphero.slot.odds.close": "확률 닫기",
+  "uphero.slot.odds.title": "굴림틀 확률",
+  "uphero.slot.odds.blank": "꽝",
+  "uphero.slot.odds.rtp": "환수율 {pct}",
+  "uphero.slot.odds.pityNote": "꽝이 {n}번 이어지면 다음 굴림은 반드시 나와요. 위 표와는 별개로 적용되는 규칙이에요.",
+  "uphero.slot.odds.dailyCap": "하루 {n}회까지",
+  "uphero.slot.lever.aria": "레버 당기기",
   "uphero.choice.effectSummary.xp": "경험치 {sign}{value}",
   "uphero.choice.effectSummary.coins": "코인 {sign}{value}",
   "uphero.choice.effectSummary.hp": "HP {sign}{value}",
@@ -2649,6 +2711,11 @@ const ko = {
   "aura.tarot.prompt": "마음이 머무는 카드를 한 장 뒤집어보세요",
   "aura.tarot.locked": "오늘 뽑은 카드는 내일까지 함께합니다",
   "aura.tarot.card.a11y": "엎어진 카드",
+  // 아지트 — 이벤트 결과 팝업의 톤 라벨 (스크린리더 전용, 결과 앞에 읽힌다)
+  "uphero.choice.result.tone.jackpot": "대박",
+  "uphero.choice.result.tone.boon": "좋은 결과",
+  "uphero.choice.result.tone.neutral": "결과",
+  "uphero.choice.result.tone.bane": "나쁜 결과",
 } as const;
 
 export type DictKey = keyof typeof ko;

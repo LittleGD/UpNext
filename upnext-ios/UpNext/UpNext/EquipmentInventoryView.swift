@@ -20,12 +20,21 @@ struct EquipmentInventoryView: View {
     @State private var actionItem: Equipment?
     @State private var enhancingItem: Equipment?
     @State private var enhanceOutcome: EnhanceRitualOutcome?
+    /// 강화 의식이 끝난 뒤 띄울 결과 문구 (웹 결과 모달 대응 — iOS 는 토스트).
+    @State private var enhanceMessage: String?
     @State private var showTalismanPicker = false
-    // 05-modal-design — 판매/버리기(비가역)만 GbConfirm 재확인. 장착/강화는 즉시 실행 유지.
-    // 웹 EquipmentInventory.tsx 처럼 pending 하나로 두 액션 공유, title/body 만 분기.
+    /// 강화 확인 다이얼로그의 방지권 토글 2종. 다이얼로그를 열 때마다 기본 ON 으로
+    /// 되돌린다 (웹 EquipmentInventory 와 동일) — 소모는 실제로 막아냈을 때만
+    /// 일어나므로 켜둔 채로 두는 것이 유저에게 손해가 아니다.
+    @State private var useDestroyGuard = true
+    @State private var useDownGuard = true
+    @State private var toast: String?
+    // 05-modal-design — 판매/버리기(비가역)는 GbConfirm 재확인. 강화도 이제 확인을 거친다
+    // (성공률·소실/하락 위험·비용·방지권을 보여줘야 하므로 — 웹 GbConfirm 과 같은 자리).
+    // 웹 EquipmentInventory.tsx 처럼 pending 하나로 세 액션 공유, title/body 만 분기.
     @State private var pendingAction: PendingEquipAction?
 
-    private enum EquipConfirmKind { case sell, discard }
+    private enum EquipConfirmKind { case sell, discard, enhance }
     private struct PendingEquipAction: Identifiable {
         let id = UUID()
         let kind: EquipConfirmKind
@@ -52,18 +61,28 @@ struct EquipmentInventoryView: View {
                 PhotoTalismanPicker(onClose: { showTalismanPicker = false })
             }
 
-            // 강화 의식 오버레이
+            // 강화 의식 오버레이. 소리·결과 문구는 연출이 끝난 뒤에 — 2초 연출보다 먼저
+            // 들리면 결과가 스포일된다 (웹 Phase 11b-fix 와 같은 이유).
             if let item = enhancingItem, let outcome = enhanceOutcome {
                 EnhanceRitualOverlay(equipment: item, outcome: outcome) {
                     enhancingItem = nil
                     enhanceOutcome = nil
+                    if outcome == .success {
+                        Haptics.play(.success)
+                        SoundPlayer.shared.play(.collect)
+                    } else {
+                        Haptics.play(.warning)
+                        SoundPlayer.shared.play(.cancel)
+                    }
+                    if let msg = enhanceMessage { showToast(msg) }
+                    enhanceMessage = nil
                 }
                 .transition(.opacity)
                 .zIndex(50)
             }
 
             // 05-modal-design — 판매/버리기 재확인 (danger). 웹 EquipmentInventory.tsx:741~ 문구.
-            if let pending = pendingAction {
+            if let pending = pendingAction, pending.kind != .enhance {
                 GbConfirm(
                     title: pending.kind == .sell
                         ? "\(pending.item.localizedDisplayName) — 판매할까요?"
@@ -82,9 +101,18 @@ struct EquipmentInventoryView: View {
                 .transition(.opacity)
                 .zIndex(60)
             }
+
+            // 강화 재확인 — 성공률·소실/하락 위험·비용, 그리고 위험 구간에서만 방지권 토글.
+            if let pending = pendingAction, pending.kind == .enhance {
+                enhanceConfirm(pending.item)
+                    .transition(.opacity)
+                    .zIndex(60)
+            }
+
+            if let toast { toastView(toast) }
         }
-        // 액션 선택 시트는 장착/강화 즉시 실행 + 판매/버리기 재확인(GbConfirm) 구조로 유지.
-        // (스펙: 장착/강화 는 현 액션시트 안에 유지 가능, 판매/버리기만 GbConfirm 경유.)
+        // 액션 선택 시트 — 장착만 즉시 실행. 강화·판매·버리기는 GbConfirm 재확인을 거친다
+        // (강화는 성공률·소실/하락 위험·방지권을 먼저 보여줘야 하므로 즉시 실행에서 승격).
         .confirmationDialog(
             // 액션시트 타이틀은 raw name(한국어 원문) 대신 현지화 표시명 사용 — 전 언어 정합.
             actionItem?.localizedDisplayName ?? "",
@@ -92,13 +120,18 @@ struct EquipmentInventoryView: View {
             presenting: actionItem
         ) { item in
             Button("장착") { upHero.equipItem(item.id); actionItem = nil }
-            Button("강화 (-100 코인)") {
-                let outcome = upHero.enhanceItem(item.id)
-                enhancingItem = item
-                enhanceOutcome = outcome
-                actionItem = nil
+            // 비용은 등급·현재 레벨에 따라 달라진다 (웹 enhanceCost) — 고정 100 이 아니다.
+            let enhanceLevel = item.enhanceLevel ?? 0
+            if enhanceLevel < UpHeroRules.maxEnhanceLevel {
+                let cost = UpHeroRules.enhanceCost(rarity: item.rarity, currentLevel: enhanceLevel)
+                Button(AppConfig.loc("강화 (−\(cost) 코인)")) {
+                    useDestroyGuard = true   // 열 때마다 기본 ON (웹 onEnhance)
+                    useDownGuard = true
+                    pendingAction = PendingEquipAction(kind: .enhance, item: item)
+                    actionItem = nil
+                }
+                .disabled(upHero.state.coins < cost)
             }
-            .disabled(upHero.state.coins < 100)
             Button("판매 (+\(UpHeroRules.sellPrice[item.rarity] ?? 0) 코인)") {
                 pendingAction = PendingEquipAction(kind: .sell, item: item); actionItem = nil
             }
@@ -107,6 +140,214 @@ struct EquipmentInventoryView: View {
             }
             Button("취소", role: .cancel) { actionItem = nil }
         }
+    }
+
+    // MARK: - 강화 확인 (웹 GbConfirm enhance 분기 1:1)
+
+    /// 강화 확인 다이얼로그에 필요한 파생값. 확률은 전부 `enhanceOutcomeRates` 단일
+    /// 출처에서 나온다 — 표시값과 실제 롤이 어긋나지 않도록 한 곳에서만 뽑는다.
+    private struct EnhancePreview {
+        let level: Int
+        let cost: Int
+        let successPct: Int
+        let destroyPct: Int
+        let downPct: Int
+        /// 실패해도 소실·하락이 둘 다 0 인 완전 안전 구간인가 (현재 레벨 0..2).
+        let safe: Bool
+        let canDestroy: Bool
+        let canDown: Bool
+        let equipped: Bool
+    }
+
+    private func enhancePreview(_ item: Equipment) -> EnhancePreview {
+        let level = item.enhanceLevel ?? 0
+        let rate = UpHeroRules.enhanceSuccessRate(
+            rarity: item.rarity, currentLevel: level,
+            failStreak: item.enhanceFailStreak ?? 0)
+        let rates = UpHeroRules.enhanceOutcomeRates(rarity: item.rarity, currentLevel: level)
+        return EnhancePreview(
+            level: level,
+            cost: UpHeroRules.enhanceCost(rarity: item.rarity, currentLevel: level),
+            successPct: Int((rate * 100).rounded()),
+            destroyPct: Int((rates.destroy * 100).rounded()),
+            downPct: Int((rates.down * 100).rounded()),
+            safe: rates.destroy == 0 && rates.down == 0,
+            canDestroy: rates.destroy > 0,
+            canDown: rates.down > 0,
+            equipped: EquipSlot.allCases.contains {
+                upHero.state.hero.equipped[$0]?.id == item.id
+            })
+    }
+
+    /// 이번 시도에 실제로 걸리는 방지권. 웹 `guardArm` 과 같은 3중 조건 —
+    /// 토글 ON + 보유 1 이상 + 그 결과가 나올 수 있는 레벨. 안전 구간에서는 걸지 않는다
+    /// (걸어도 소모되지 않지만, 애초에 넘기지 않는 편이 계약이 분명하다).
+    private func armedGuards(_ item: Equipment) -> EnhanceGuardArm {
+        let level = item.enhanceLevel ?? 0
+        return EnhanceGuardArm(
+            destroy: useDestroyGuard
+                && (upHero.state.destroyGuards ?? 0) > 0
+                && UpHeroRules.canEnhanceDestroy(rarity: item.rarity, currentLevel: level),
+            down: useDownGuard
+                && (upHero.state.downGuards ?? 0) > 0
+                && UpHeroRules.canEnhanceDowngrade(rarity: item.rarity, currentLevel: level))
+    }
+
+    @ViewBuilder
+    private func enhanceConfirm(_ item: Equipment) -> some View {
+        let p = enhancePreview(item)
+        let destroyHeld = upHero.state.destroyGuards ?? 0
+        let downHeld = upHero.state.downGuards ?? 0
+        GbConfirm(
+            title: "\(item.localizedDisplayName) 강화 (+\(p.level) → +\(p.level + 1))?",
+            message: "\(enhanceBody(item, p))",
+            onBackdropTap: { pendingAction = nil }
+        ) { tint in
+            VStack(alignment: .leading, spacing: 6) {
+                // 해당 결과가 나올 수 있는 레벨에서만 노출한다. 안전 구간에서 권하면
+                // 필요 없는 것을 파는 셈이라 아예 그리지 않는다.
+                // 보유 0 이면 토글 대신 "어디서 구하는지" 안내만 보여준다.
+                if p.canDestroy {
+                    if destroyHeld > 0 {
+                        guardToggle(kind: .destroy, owned: destroyHeld)
+                    } else {
+                        guardNoneHint(AppConfig.loc(
+                            "\(AppConfig.loc("소실방지권")) 없음 · 보스와 탐험 상자에서 나와요"))
+                    }
+                }
+                if p.canDown {
+                    if downHeld > 0 {
+                        guardToggle(kind: .down, owned: downHeld)
+                    } else {
+                        guardNoneHint(AppConfig.loc(
+                            "\(AppConfig.loc("하락방지권")) 없음 · 상점에서 살 수 있어요"))
+                    }
+                }
+                GbConfirmStandardFooter(
+                    confirmLabel: "강화 시도",
+                    cancelLabel: "취소",
+                    tint: tint,
+                    onConfirm: { runEnhance(item) },
+                    onCancel: { pendingAction = nil })
+                .padding(.top, 4)
+            }
+        }
+    }
+
+    /// 위험 안내는 정직하게 — 안전 구간에서는 "그대로예요" 라고 말하고, 위험 구간에서는
+    /// 소실·하락을 **각각** 숫자로 준다. 하락을 유지와 같은 칸에 묶으면 기만이 된다.
+    /// 방지권을 건 줄에는 "막힘" 태그를 붙인다 (웹 blockedTag).
+    private func enhanceBody(_ item: Equipment, _ p: EnhancePreview) -> String {
+        let armed = armedGuards(item)
+        let blocked = AppConfig.loc("· 막힘")
+        var lines: [String] = [AppConfig.loc("성공률 \(p.successPct)%")]
+        if p.safe {
+            lines.append(AppConfig.loc("이 단계는 실패해도 그대로예요"))
+        } else {
+            if p.canDestroy {
+                lines.append(AppConfig.loc("실패 시 \(p.destroyPct)% 확률로 아이템 소실")
+                    + (armed.destroy ? " \(blocked)" : ""))
+            }
+            if p.canDown {
+                lines.append(AppConfig.loc("실패 시 \(p.downPct)% 확률로 한 단계 하락")
+                    + (armed.down ? " \(blocked)" : ""))
+            }
+        }
+        lines.append(AppConfig.loc("비용 \(p.cost) 코인 (보유 \(upHero.state.coins))"))
+        if p.equipped {
+            lines.append(AppConfig.loc("장착 중 — 소실 시 스탯이 즉시 하락합니다"))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// 방지권 사용 토글. 체크/원 아이콘은 SettingsView 라디오와 같은 결(박스 없음).
+    private func guardToggle(kind: EnhanceGuardKind, owned: Int) -> some View {
+        let on = kind == .destroy ? useDestroyGuard : useDownGuard
+        let name = AppConfig.loc(kind == .destroy ? "소실방지권" : "하락방지권")
+        return Button {
+            if kind == .destroy { useDestroyGuard.toggle() } else { useDownGuard.toggle() }
+            Haptics.play(.selection)
+        } label: {
+            HStack(spacing: 8) {
+                PixelIcon(on ? .check : .circle, size: 14,
+                          color: on ? Color.accentPrimary : GBPalette.light)
+                Text(AppConfig.loc("\(name) 쓰기 (보유 \(owned))"))
+                    .typography(.caption)
+                    .foregroundStyle(on ? GBPalette.lightest : GBPalette.light)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func guardNoneHint(_ text: String) -> some View {
+        Text(text)
+            .typography(.micro)
+            .foregroundStyle(GBPalette.light.opacity(0.8))
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func runEnhance(_ item: Equipment) {
+        let result = upHero.enhanceItem(item.id, guards: armedGuards(item))
+        pendingAction = nil
+        switch result {
+        case .success:
+            startRitual(item, .success, AppConfig.loc("강화 성공"))
+        case .keep:
+            startRitual(item, .keep, AppConfig.loc("강화 실패 — 아이템은 남았다"))
+        case .down:
+            startRitual(item, .keep, AppConfig.loc("한 단계 내려갔다"))
+        case .guarded(_, let kind):
+            startRitual(item, .keep, kind == .destroy
+                ? AppConfig.loc("사라질 뻔했다")
+                : AppConfig.loc("내려갈 뻔했다"))
+        case .destroyed:
+            startRitual(item, .destroyed, AppConfig.loc("아이템 소실"))
+        case .coinShort(let need):
+            failToast(AppConfig.loc("코인 부족 (\(need) 필요)"))
+        case .maxed:
+            failToast(AppConfig.loc("이미 최대 강화(+\(UpHeroRules.maxEnhanceLevel))예요"))
+        case .notFound:
+            failToast(AppConfig.loc("아이템을 찾을 수 없음"))
+        }
+    }
+
+    private func startRitual(_ item: Equipment, _ outcome: EnhanceRitualOutcome, _ message: String) {
+        enhancingItem = item
+        enhanceOutcome = outcome
+        enhanceMessage = message
+    }
+
+    /// 시도 자체가 성립하지 않은 경우 — 연출 없이 즉시 알린다 (웹과 동일).
+    private func failToast(_ msg: String) {
+        Haptics.play(.warning)
+        SoundPlayer.shared.play(.cancel)
+        showToast(msg)
+    }
+
+    // MARK: - 토스트 (ShopView 패턴 재사용)
+
+    private func toastView(_ msg: String) -> some View {
+        VStack {
+            Spacer()
+            Text(msg)
+                .typography(.caption)
+                .foregroundStyle(Color.textPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .background(Color.bgElevated, in: Capsule())
+                .padding(.bottom, 40)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func showToast(_ msg: String) {
+        toast = msg
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { if toast == msg { toast = nil } }
     }
 
     // MARK: - 헤더

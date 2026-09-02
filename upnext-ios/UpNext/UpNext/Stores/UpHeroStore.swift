@@ -234,7 +234,9 @@ final class UpHeroStore: ObservableObject {
             activeBuffs: buffs,
             options: CreateSessionOptions(
                 ngPlusLevel: state.ngPlusLevel, isWeeklyVariant: nil,
-                weeklyAffixId: nil, heroLevel: heroLevel),
+                weeklyAffixId: nil, heroLevel: heroLevel,
+                // 굴림틀 전투 버프는 탐험을 건너 이어진다.
+                combatBuff: state.combatBuff),
             rng: &rng)
 
         mutate {
@@ -309,6 +311,23 @@ final class UpHeroStore: ObservableObject {
         mutate { s in
             s.coins += session.rewards.coins
             s.inventory.append(contentsOf: keptDrops)
+            // Phase 15 — 이번 탐험에서 번 방지권을 지갑으로 합산 (상한 99).
+            // 보스 드롭·보물상자·굴림틀이 전부 session.rewards 에 쌓아둔 것이다.
+            if session.rewards.destroyGuards > 0 {
+                s.destroyGuards = min(
+                    UpHeroRules.enhanceGuardMax,
+                    (s.destroyGuards ?? 0) + session.rewards.destroyGuards)
+            }
+            if session.rewards.downGuards > 0 {
+                s.downGuards = min(
+                    UpHeroRules.enhanceGuardMax,
+                    (s.downGuards ?? 0) + session.rewards.downGuards)
+            }
+            // 굴림틀 전투 버프 잔여분을 탐험 밖 보관소로 되쓴다. 세션 층위 pct 는
+            // 퍼센트 포인트(10), 상태 층위는 비율([0,1] 클램프) — CombatBuff 주석 참고.
+            s.combatBuff = session.combatBuff.flatMap {
+                CombatBuff.normalized(pct: $0.pct, battlesLeft: $0.battlesLeft)
+            }
             s.dungeons[session.dungeonId] = newDungeonProgress
             s.codex = newCodex
             if clearedF30Newly, session.isWeeklyVariant != true {
@@ -361,8 +380,11 @@ final class UpHeroStore: ObservableObject {
         var rng = SystemRandom()
         switch session.status {
         case .active:
+            // 굴림틀 이벤트 등장 게이트가 오늘 횟수(shopDaily.slotSpins)를 읽는다 —
+            //   상한에 닿은 날은 굴림틀이 후보에서 빠진다.
             session = UpHeroSession.tickSession(
-                session, flavor: FlavorPool.bundled, rng: &rng)
+                session, flavor: FlavorPool.bundled,
+                slotSpinsToday: Self.slotSpinsToday(state.shopDaily), rng: &rng)
         case .paused:
             // 보스 등장 연출 — 슬라이스 22 는 자동 재개 (인트로 연출은 이후 슬라이스).
             session.status = .active
@@ -386,13 +408,70 @@ final class UpHeroStore: ObservableObject {
     }
 
     /// 이벤트 선택지 해결 — 사용자가 고른 옵션으로 전투를 재개시킨다. 웹 resolveChoice.
-    /// currentSession 만 바꾸므로 persist 생략 (advanceCombat 과 동일).
+    ///
+    /// 굴림틀 pity — 상태 스트릭(`UpHeroState.slotBlankStreak`)이 진실이다. 세션의
+    /// `slotBlankStreak` 는 운반용 사본: 해소 직전에 상태 값을 적어 넘기고(세션 배선
+    /// `applySpinSlot` 이 롤 입력으로 읽는다), 굴림이 실제로 일어났으면 결과로 상태를
+    /// 갱신한다 (보상 0 / 꽝 +1, `UpHeroSlot.nextBlankStreak`). 이 경우엔 persist 해서
+    /// 스트릭이 탐험 종료를 기다리지 않고 클라우드로 나간다. 굴림이 없으면(건너가기·
+    /// 잔액 부족) 스트릭은 건드리지 않고, currentSession 만 바뀌므로 persist 생략.
+    ///
+    /// 오늘 굴림 횟수(`shopDaily.slotSpins`)도 같은 seam — 스냅샷을 넘기고, 굴림이
+    /// 실제로 일어났으면 +1. 세션은 두 카운터 어느 쪽도 갖지 않는다. `spinSlotAgain`
+    /// 도 이 함수로 들어오므로 카운터와 persist 는 한 경로뿐이다.
     func resolveChoice(_ optionIndex: Int) {
-        guard let session = state.currentSession,
+        guard var session = state.currentSession,
               session.status == .awaitingChoice else { return }
+        let streak = UpHeroSlot.normalizeBlankStreak(state.slotBlankStreak)
+        session.slotBlankStreak = streak
+        let spinsToday = Self.slotSpinsToday(state.shopDaily)
         var rng = SystemRandom()
-        state.currentSession = UpHeroSession.resolveChoice(
-            session, optionIndex: optionIndex, rng: &rng)
+        let next = UpHeroSession.resolveChoice(
+            session, optionIndex: optionIndex, slotSpinsToday: spinsToday, rng: &rng)
+        if let spin = Self.findNewSlotSpin(prev: session, next: next) {
+            var daily = Self.currentShopDaily(state.shopDaily)
+            daily.slotSpins = spinsToday + 1
+            mutate {
+                $0.currentSession = next
+                $0.slotBlankStreak = UpHeroSlot.nextBlankStreak(prev: streak, outcome: spin.outcome)
+                $0.shopDaily = daily
+            }
+        } else {
+            state.currentSession = next
+        }
+    }
+
+    /// 굴림틀 1회 굴림이 이번 선택 해소로 일어났는지 — 새로 붙은 로그 엔트리 중
+    /// `slot` 페이로드를 가진 choiceResult 를 찾는다. 잔액/상한 게이트에 막힌 선택은
+    /// slot 페이로드가 없어 nil 이고, 그 경우 스트릭은 건드리지 않는다. 웹 `findNewSlotSpin`.
+    static func findNewSlotSpin(prev: CombatSession, next: CombatSession) -> SlotResultPayload? {
+        guard next.log.count > prev.log.count else { return nil }
+        for i in prev.log.count..<next.log.count {
+            if case let .choiceResult(_, _, _, _, _, _, _, slot?, _) = next.log[i] { return slot }
+        }
+        return nil
+    }
+
+    /// "한 번 더" — 결과 모달에서 선택지 패널을 거치지 않고 굴림틀을 다시 돌린다.
+    ///
+    /// 굴림틀 이벤트를 다시 세팅하고(`.choice` 엔트리 + awaitingChoice) 첫 선택지를
+    /// 곧바로 해소한다 — 스핀 로직·비용·상한·pity 가 전부 `resolveChoice` 한 경로를
+    /// 타므로 두 번째 구현이 생기지 않는다. 게이트는 모달(남은 스핀·지갑)과 여기
+    /// (`canSpinSlot`) 양쪽에 건다: 모달이 뜬 사이 상태가 바뀌어도 코인이 새지 않는다.
+    func spinSlotAgain() {
+        guard var session = state.currentSession,
+              session.status == .active,
+              UpHeroSession.canSpinSlot(
+                  session, slotSpinsToday: Self.slotSpinsToday(state.shopDaily)) else { return }
+        let ev = UpHeroSlotEvent.event
+        session.log.append(.choice(
+            prompt: ev.prompt, promptKey: ev.promptKey, promptParams: nil,
+            options: ev.options, resolvedIndex: nil, variant: nil, timeoutMs: nil,
+            defaultOptionIndex: nil, isMystery: nil, timestamp: Self.nowMillis()))
+        session.pendingChoiceIndex = session.log.count - 1
+        session.status = .awaitingChoice
+        state.currentSession = session
+        resolveChoice(0)
     }
 
     /// R8 — 모든 영웅 데이터 리셋. 로컬 캐시 삭제 + 메모리 상태 초기.
@@ -404,31 +483,159 @@ final class UpHeroStore: ObservableObject {
         Self.ioQueue.async { try? FileManager.default.removeItem(at: url) }
     }
 
-    /// R8 — 장비 강화. 100 코인 소모. 70% success / 20% keep / 10% destroyed.
-    /// 결과는 caller 가 EnhanceRitualOverlay 로 표시. 실제 변경은 outcome 에 따라.
+    /// 장비 강화 — 웹 `useUpHeroStore.enhanceItem` 1:1.
+    ///
+    /// 구 iOS 구현은 등급·레벨을 아예 보지 않고 100 코인 고정 / 70·20·10 롤이었다.
+    /// 이제 웹과 같은 공식을 쓴다:
+    ///   1. inventory → 장착 슬롯 순으로 대상 탐색 (장착 중인 장비도 강화 가능)
+    ///   2. +10 이면 maxed, 코인 부족이면 coinShort — 코인은 건드리지 않고 반환
+    ///   3. 성공률 = enhanceSuccessRate(등급, 현재레벨, 연속실패) — soft pity 포함
+    ///   4. 성공: enhanceLevel +1, 짝수 레벨에서 primary stat +1, 이름 " +N" 재부여,
+    ///      failStreak 리셋
+    ///   5. 실패: enhanceOutcomeRates 로 소실 / 하락 / 유지 3분기. failStreak +1.
+    ///   6. 코인은 성공/실패 무관 차감 (시도 자체의 비용)
+    ///
+    /// **방지권 계약** — `guards` 는 "쓸 의사" 일 뿐이고, 여기가 그 계약의 유일한
+    /// 집행 지점이다:
+    ///   1) 판정은 방지권 보유·장착 여부와 무관하게 원래 확률로 굴린다.
+    ///   2) 결과가 유지면 막을 것이 없으므로 **아무것도 소모하지 않는다**.
+    ///   3) 소실이 났고 소실방지권을 걸었고 보유가 1 이상일 때만 1장 태우고 지킨다.
+    ///   4) 하락도 같은 규칙으로 하락방지권이 막는다.
+    /// 소실과 하락은 배타적이므로 한 시도에서 두 종류가 같이 소모되지 않는다.
+    /// 안전 구간(현재 레벨 0..2)에서는 소실·하락 판정 자체가 나지 않으므로 방지권은
+    /// 절대 줄지 않는다 — UI 는 그 구간에서 토글을 아예 그리지 않는다.
     @discardableResult
-    func enhanceItem(_ itemId: String) -> EnhanceRitualOutcome {
-        guard let idx = state.inventory.firstIndex(where: { $0.id == itemId }) else {
-            return .keep
-        }
-        guard state.coins >= 100 else { return .keep }
-        mutate { $0.coins -= 100 }
-        let roll = Double.random(in: 0..<1)
-        if roll < 0.10 {
-            // destroyed
-            mutate { $0.inventory.removeAll(where: { $0.id == itemId }) }
-            return .destroyed
-        } else if roll < 0.30 {
-            return .keep
+    func enhanceItem(
+        _ itemId: String, guards: EnhanceGuardArm = EnhanceGuardArm()
+    ) -> EnhanceResult {
+        // 1. 대상 탐색 — inventory 우선, 없으면 장착 슬롯 (웹과 같은 순서).
+        var equippedSlot: EquipSlot?
+        var found: Equipment?
+        if let inv = state.inventory.first(where: { $0.id == itemId }) {
+            found = inv
         } else {
-            // success — enhanceLevel +1
-            mutate {
-                var item = $0.inventory[idx]
-                item.enhanceLevel = (item.enhanceLevel ?? 0) + 1
-                $0.inventory[idx] = item
+            for slot in [EquipSlot.weapon, .armor, .accessory, .talisman] {
+                if let e = state.hero.equipped[slot], e.id == itemId {
+                    equippedSlot = slot
+                    found = e
+                    break
+                }
             }
-            return .success
         }
+        guard let item = found else { return .notFound }
+
+        // 2. 상한 / 비용 검증. 둘 다 코인을 차감하지 않는다.
+        let curLevel = item.enhanceLevel ?? 0
+        guard curLevel < UpHeroRules.maxEnhanceLevel else { return .maxed }
+        let cost = UpHeroRules.enhanceCost(rarity: item.rarity, currentLevel: curLevel)
+        guard state.coins >= cost else { return .coinShort(need: cost) }
+
+        // 원래 자리에 새 아이템을 되꽂는/빼는 헬퍼 (웹 replaceItem / removeItem).
+        let slot = equippedSlot
+        func replace(_ s: inout UpHeroState, _ newItem: Equipment) {
+            if let slot {
+                s.hero.equipped[slot] = newItem
+            } else if let idx = s.inventory.firstIndex(where: { $0.id == itemId }) {
+                s.inventory[idx] = newItem
+            }
+        }
+        func remove(_ s: inout UpHeroState) {
+            if let slot {
+                s.hero.equipped[slot] = nil
+            } else {
+                s.inventory.removeAll { $0.id == itemId }
+            }
+        }
+
+        // 3. 성공 판정 — 누적 실패(pity) 반영.
+        let curStreak = item.enhanceFailStreak ?? 0
+        let rate = UpHeroRules.enhanceSuccessRate(
+            rarity: item.rarity, currentLevel: curLevel, failStreak: curStreak)
+
+        if Double.random(in: 0..<1) < rate {
+            // 4. 성공 — 짝수 레벨에서만 primary stat +1 ("스킬이 주 보상" 원칙).
+            let newLevel = curLevel + 1
+            var newStats = item.stats
+            if newLevel % 2 == 0, let primary = UpHeroRules.pickPrimaryStatKey(newStats) {
+                newStats[primary] = (newStats[primary] ?? 0) + 1
+            }
+            var newItem = item
+            newItem.name = UpHeroRules.stripEnhanceSuffix(item.name) + " +\(newLevel)"
+            newItem.stats = newStats
+            newItem.enhanceLevel = newLevel
+            newItem.enhanceFailStreak = 0
+            mutate { s in
+                s.coins -= cost
+                replace(&s, newItem)
+            }
+            return .success(newItem: newItem, prevLevel: curLevel)
+        }
+
+        // 5. 실패 — 소실 / 하락 / 유지 3분기. 확률은 enhanceOutcomeRates 단일 출처에서
+        //    온다 (UI 표기와 같은 값). 누적 구간 한 번의 롤로 셋을 가른다 — 두 번 굴리면
+        //    두 표의 확률이 조건부로 얽혀 UI 에 적어둔 숫자와 실제가 달라진다.
+        let rates = UpHeroRules.enhanceOutcomeRates(
+            rarity: item.rarity, currentLevel: curLevel)
+        let outcomeRoll = Double.random(in: 0..<1)
+        let rolled: EnhanceGuardKind? =
+            outcomeRoll < rates.destroy ? .destroy
+            : outcomeRoll < rates.destroy + rates.down ? .down
+            : nil   // nil = 유지
+
+        let heldDestroy = min(UpHeroRules.enhanceGuardMax, max(0, state.destroyGuards ?? 0))
+        let heldDown = min(UpHeroRules.enhanceGuardMax, max(0, state.downGuards ?? 0))
+        let guardedDestroy = rolled == .destroy && guards.destroy && heldDestroy > 0
+        let guardedDown = rolled == .down && guards.down && heldDown > 0
+
+        // 실패 공통 — failStreak +1 (다음 시도에 pity 보너스). 웹과 동일한 100 cap.
+        let nextStreak = min(100, curStreak + 1)
+
+        if rolled == nil || guardedDestroy || guardedDown {
+            var kept = item
+            kept.enhanceFailStreak = nextStreak
+            mutate { s in
+                s.coins -= cost
+                if guardedDestroy { s.destroyGuards = heldDestroy - 1 }
+                if guardedDown { s.downGuards = heldDown - 1 }
+                replace(&s, kept)
+            }
+            if guardedDestroy { return .guarded(item: kept, guard: .destroy) }
+            if guardedDown { return .guarded(item: kept, guard: .down) }
+            return .keep(item: kept)
+        }
+
+        if rolled == .down {
+            // 하락 — 성공 경로의 정확한 역연산이어야 한다. 성공은 "새 레벨이 짝수일 때
+            //   primary stat +1" 이었으므로, 없어지는 레벨(curLevel)이 짝수면 그때 붙은
+            //   +1 을 같은 키에서 뺀다. 성공 직후에도 그 키가 여전히 최대값이라
+            //   pickPrimaryStatKey 는 같은 키를 돌려준다 — 그래서 왕복이 닫힌다.
+            //   성공 규칙을 바꾸면 여기도 같이 바꿀 것.
+            let newLevel = max(0, curLevel - 1)
+            var newStats = item.stats
+            if curLevel % 2 == 0, curLevel > 0,
+               let primary = UpHeroRules.pickPrimaryStatKey(item.stats) {
+                // 0 미만으로는 내리지 않는다 — 손상된 저장본이 음수 스탯을 만들지 않게.
+                newStats[primary] = max(0, (newStats[primary] ?? 0) - 1)
+            }
+            let baseName = UpHeroRules.stripEnhanceSuffix(item.name)
+            var newItem = item
+            newItem.name = newLevel >= 1 ? "\(baseName) +\(newLevel)" : baseName
+            newItem.stats = newStats
+            newItem.enhanceLevel = newLevel
+            newItem.enhanceFailStreak = nextStreak
+            mutate { s in
+                s.coins -= cost
+                replace(&s, newItem)
+            }
+            return .down(item: newItem, prevLevel: curLevel)
+        }
+
+        let lostName = item.name
+        mutate { s in
+            s.coins -= cost
+            remove(&s)
+        }
+        return .destroyed(lostItemName: lostName)
     }
 
     /// R8 — 미니게임 결과 해소. UI 가 호출 — success/fail 에 따라 successEffects/failEffects 적용.
@@ -474,6 +681,33 @@ final class UpHeroStore: ObservableObject {
 
     // MARK: - 상점 구매 (22-shop-tickets — 웹 purchasePass / claimCoinPouch 1:1 이식)
 
+    // MARK: - 일일 카운터 (웹 currentShopDaily / slotSpinsToday / slotSpinsLeft)
+
+    /// 오늘 기준 `shopDaily`. 날짜(`AppClock.todayString`, 새벽 1시 경계)가 바뀌었으면
+    /// 모든 일일 카운터(passesBought / coinPouchClaimed / slotSpins)가 비어 있는 새
+    /// 객체다. 탐험권 구매·코인 주머니·굴림틀이 전부 이 하나를 읽어 롤오버 규칙을
+    /// 한 곳에 둔다. 웹 `currentShopDaily`.
+    static func currentShopDaily(_ shopDaily: ShopDaily?, today: String = AppClock.todayString()) -> ShopDaily {
+        if let shopDaily, shopDaily.date == today { return shopDaily }
+        return ShopDaily(date: today, passesBought: 0, coinPouchClaimed: nil, slotSpins: nil)
+    }
+
+    /// 오늘 굴림틀을 돌린 횟수 (`shopDaily.slotSpins`, 날짜 롤오버·구 저장본 부재 = 0).
+    /// 세션 배선(`canSpinSlot`)에 넘기는 스냅샷이자 UI 가 "남은 횟수" 를 셈하는 근거.
+    /// 세션이 아니라 여기 두어 하루에 탐험을 몇 번 하든 합산된다. 웹 `slotSpinsToday`.
+    static func slotSpinsToday(_ shopDaily: ShopDaily?, today: String = AppClock.todayString()) -> Int {
+        UpHeroSlot.normalizeSpins(currentShopDaily(shopDaily, today: today).slotSpins)
+    }
+
+    /// 오늘 남은 굴림 횟수. `UpHeroSlot.dailySpinCap - slotSpinsToday`, 0 미만은 0.
+    /// 웹 `slotSpinsLeft`.
+    static func slotSpinsLeft(_ shopDaily: ShopDaily?, today: String = AppClock.todayString()) -> Int {
+        max(0, UpHeroSlot.dailySpinCap - slotSpinsToday(shopDaily, today: today))
+    }
+
+    /// 뷰용 — 오늘 남은 굴림 횟수 (선택지 패널·결과 모달 "한 번 더" 게이트가 읽는다).
+    var slotSpinsLeft: Int { Self.slotSpinsLeft(state.shopDaily) }
+
     /// 탐험권 구매 결과. 웹 `purchasePass` 반환값("ok"/"no-coin"/"daily-cap"/"pass-cap") 대응.
     enum PurchasePassResult { case ok, noCoin, dailyCap, passCap }
 
@@ -484,10 +718,7 @@ final class UpHeroStore: ObservableObject {
     func purchasePass(_ dungeonId: DungeonId) -> PurchasePassResult {
         let price = ShopPrices.expeditionPass                 // 80
         guard state.coins >= price else { return .noCoin }
-        let today = AppClock.todayString()
-        var daily = (state.shopDaily?.date == today)
-            ? state.shopDaily!
-            : ShopDaily(date: today, passesBought: 0, coinPouchClaimed: nil)
+        var daily = Self.currentShopDaily(state.shopDaily)
         guard daily.passesBought < UpHeroRules.dailyPassPurchaseCap else { return .dailyCap }   // 8
         let current = state.passes[dungeonId] ?? 0
         guard current < UpHeroRules.passCapPerCategory else { return .passCap }                 // 20
@@ -500,6 +731,50 @@ final class UpHeroStore: ObservableObject {
         return .ok
     }
 
+    /// 방지권 구매 결과. 웹 `purchaseDownGuard` 의 boolean 을 사유까지 나눈 것.
+    enum PurchaseGuardResult { case ok, noCoin, atCap }
+
+    /// 하락방지권 1장 구매 — ShopPrices.downGuard(150) 코인. 보유 상한 99.
+    /// 탐험권과 달리 일일 구매 제한은 없다 — 어차피 하락 순간에만 닳는 보험이라
+    /// 사재기해도 얻는 이득이 "안 내려간다" 뿐이고, 코인 자체가 상한 역할을 한다.
+    /// **소실방지권은 상점에서 팔지 않는다** (보스·상자·슬롯 드롭 전용).
+    @discardableResult
+    func purchaseDownGuard() -> PurchaseGuardResult {
+        let price = ShopPrices.downGuard
+        let owned = min(UpHeroRules.enhanceGuardMax, max(0, state.downGuards ?? 0))
+        guard owned < UpHeroRules.enhanceGuardMax else { return .atCap }
+        guard state.coins >= price else { return .noCoin }
+        mutate { s in
+            s.coins -= price
+            s.downGuards = owned + 1
+        }
+        return .ok
+    }
+
+    /// 방지권 지급 — 보스 처치 드롭 · 던전 상자 · 슬롯머신이 쓰는 유일한 입구.
+    /// 웹 `grantEnhanceGuards`. 음수는 무시하고 상한을 넘는 만큼은 버린다.
+    /// - Returns: 실제로 늘어난 개수 (상한에 걸려 일부만 들어갔을 수 있다).
+    ///
+    /// 지금 iOS 에는 이 함수를 호출하는 곳이 없다 — 드롭 경로(보스/상자/슬롯)는 웹에서도
+    /// 전투·슬롯 슬라이스에 속하고 아직 iOS 로 포팅되지 않았다. 소실방지권은 그때까지
+    /// 웹에서 벌어 클라우드 왕복으로 넘어온 분만 iOS 에서 쓸 수 있다.
+    @discardableResult
+    func grantEnhanceGuards(destroy: Int = 0, down: Int = 0) -> (destroy: Int, down: Int) {
+        let wantDestroy = max(0, destroy)
+        let wantDown = max(0, down)
+        guard wantDestroy > 0 || wantDown > 0 else { return (0, 0) }
+        let cap = UpHeroRules.enhanceGuardMax
+        let curDestroy = min(cap, max(0, state.destroyGuards ?? 0))
+        let curDown = min(cap, max(0, state.downGuards ?? 0))
+        let nextDestroy = min(cap, curDestroy + wantDestroy)
+        let nextDown = min(cap, curDown + wantDown)
+        mutate { s in
+            s.destroyGuards = nextDestroy
+            s.downGuards = nextDown
+        }
+        return (nextDestroy - curDestroy, nextDown - curDown)
+    }
+
     /// 데일리 코인 주머니 — 하루 1회 무료, [coinPouchMin, coinPouchMax](20...160) 균등 랜덤
     /// 코인 지급. 오늘 이미 수령했으면 실패. 웹 useUpHeroStore.ts:1582-1608 `claimCoinPouch`.
     ///
@@ -510,10 +785,7 @@ final class UpHeroStore: ObservableObject {
     /// 반환: (성공 여부, 지급 코인 — 실패 시 0).
     @discardableResult
     func claimCoinPouch(multiplier: Int = 1) -> (ok: Bool, coins: Int) {
-        let today = AppClock.todayString()
-        var daily = (state.shopDaily?.date == today)
-            ? state.shopDaily!
-            : ShopDaily(date: today, passesBought: 0, coinPouchClaimed: nil)
+        var daily = Self.currentShopDaily(state.shopDaily)
         guard daily.coinPouchClaimed != true else { return (false, 0) }
         let rolled = Int.random(in: UpHeroRules.coinPouchMin...UpHeroRules.coinPouchMax)  // 20...160
         let granted = rolled * max(1, multiplier)
@@ -818,7 +1090,21 @@ final class UpHeroStore: ObservableObject {
         guard let data = try? Data(contentsOf: persistenceURL),
               let persisted = try? JSONDecoder().decode(PersistedUpHeroState.self, from: data)
         else { return nil }
-        return persisted.toState()
+        var restored = persisted.toState()
+        // 방지권 2종 — 필드가 없는 구 저장본은 0, 음수·상한 초과 저장본은 교정한다
+        // (웹 useUpHeroStore.clampGuards 와 같은 계약).
+        let cap = UpHeroRules.enhanceGuardMax
+        restored.destroyGuards = min(cap, max(0, restored.destroyGuards ?? 0))
+        restored.downGuards = min(cap, max(0, restored.downGuards ?? 0))
+        // 오늘 굴림 횟수 — 구 저장본은 키가 없어 nil(=0), 손상 값은 [0, 100] 으로 접는다
+        // (웹 loadFromStorage 의 normalizeSlotSpins 와 같은 계약). 날짜 롤오버는 읽는
+        // 쪽(currentShopDaily)이 처리하므로 여기서 날짜를 건드리지 않는다.
+        if let daily = restored.shopDaily {
+            var fixed = daily
+            fixed.slotSpins = UpHeroSlot.normalizeSpins(daily.slotSpins)
+            restored.shopDaily = fixed
+        }
+        return restored
     }
 
     /// 디스크 IO 전용 serial 큐 — encode + atomic write 를 메인스레드 밖에서 수행.
@@ -867,6 +1153,8 @@ final class UpHeroStore: ObservableObject {
             pendingDungeon: nil,
             codex: Codex(monsters: [], equipment: [], bosses: []),
             cosmetics: Cosmetics(tentColor: nil, campfire: nil),
+            destroyGuards: 0,
+            downGuards: 0,
             lastIdleAccrualAt: now,
             lastSeenAt: now,
             heroStartLevel: nil,        // initialize 에서 seed (슬라이스 16~)

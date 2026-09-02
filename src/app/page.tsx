@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { useUIStore } from "@/store/useUIStore";
 import { loadFromStorage } from "@/lib/storage";
-import { isAndroidTwa } from "@/lib/platform";
+import { isAndroidTwa, isNative } from "@/lib/platform";
 import CardDrawScreen from "@/components/daily/CardDrawScreen";
 import DailyBoard from "@/components/daily/DailyBoard";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
@@ -12,9 +12,13 @@ import SplashScreen from "@/components/onboarding/SplashScreen";
 import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
 
+// "앱으로 설치되어 실행 중" 판정 — 모션 스플래시 표시 조건.
+// PWA(display-mode) · iOS 홈화면(navigator.standalone) · Capacitor WebView(isNative) 를 모두 포함.
+// Capacitor 안드로이드는 display-mode 매칭에 의존하지 않고 명시적으로 포함해야 안전하다.
 function isStandalone() {
   if (typeof window === "undefined") return false;
-  return window.matchMedia("(display-mode: standalone)").matches
+  return isNative()
+    || window.matchMedia("(display-mode: standalone)").matches
     || (navigator as unknown as { standalone?: boolean }).standalone === true;
 }
 
@@ -101,10 +105,14 @@ export default function Home() {
     getIsTwaSnapshot,
     getIsTwaServerSnapshot,
   );
-  // PWA/TWA → 앱 열 때마다 모션 스플래시 표시 (세션당 1회).
-  // 서버·첫 hydration 은 standalone=false 로 평가 → OnboardingFlow/DailyBoard 가 렌더 시도되지만,
+  // PWA/TWA/Capacitor → 앱 열 때마다 모션 스플래시 표시 (세션당 1회).
+  // 서버·첫 hydration 은 standalone=false 로 평가 → SSR HTML 은 OnboardingFlow 이고,
   // hydration 완료 직후 getSnapshot=true 로 전환되며 splashDismissed=false 이면 스플래시로 교체.
-  // TWA native splash(fadeout=0)가 web load 까지 화면을 가리므로 1프레임 딜레이는 인지 불가 (< 16ms).
+  // 그 사이 OnboardingFlow 가 한 프레임 페인트될 수 있다. 이 프레임을 가리는 것은 네이티브 셸의 책임:
+  //   - TWA: 시스템 스플래시가 web load 까지 화면을 덮는다.
+  //   - Capacitor 안드로이드: launchShowDuration(3000) 으로 붙잡아 둔 네이티브 스플래시를
+  //     NativeSplashHide 가 splashActive=true 순간에 걷어낸다(0 이면 이 프레임이 그대로 노출된다).
+  //   - 일반 브라우저: standalone=false 라 스플래시 자체를 쓰지 않으므로 해당 없음.
   const standalone = useSyncExternalStore(
     subscribeNoop,
     getStandaloneSnapshot,

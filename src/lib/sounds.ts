@@ -31,7 +31,15 @@ export type SoundName =
   | "rewardChoose"
   | "cameraShutter"
   | "polaroidSlide"
-  | "treeGrow";
+  | "treeGrow"
+  // 굴림틀 (Up Hero slot). 결과는 롤 시점에 확정돼 있고 아래 소리는 표시 계층이다.
+  | "slotLever"
+  | "slotTick"
+  | "slotStop"
+  | "slotThud"
+  | "slotWinSmall"
+  | "slotWinMid"
+  | "slotWinBig";
 
 let audioCtx: AudioContext | null = null;
 
@@ -501,6 +509,88 @@ const sounds: Record<SoundName, () => void> = {
     // Gentle triangle harmony on final note
     createOsc(ctx, 330, t + 0.2, 0.18, MASTER_VOLUME * 0.3, "triangle");
   },
+
+  /* ── 굴림틀 ──────────────────────────────────────────────────────────
+     새 에셋 없이 기존 칩튠 프리미티브(square/triangle osc + sweep) 재조합. */
+
+  /** Lever pull — 70ms, mechanical clack: metal tick + low body */
+  slotLever() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    createOsc(ctx, 1800, t, 0.015, MASTER_VOLUME * 0.5);
+    createOsc(ctx, 220, t + 0.005, 0.05, MASTER_VOLUME * 0.7, "triangle");
+    createOsc(ctx, 90, t + 0.01, 0.06, MASTER_VOLUME * 0.5, "triangle");
+  },
+
+  /** Suspense tick — 18ms, quiet high click. Fired repeatedly while reel 3 slows. */
+  slotTick() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    createOsc(ctx, 1100, t, 0.018, MASTER_VOLUME * 0.3);
+  },
+
+  /** Reel landing — 50ms, wooden stop */
+  slotStop() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    createOsc(ctx, 420, t, 0.035, MASTER_VOLUME * 0.45);
+    createOsc(ctx, 160, t, 0.05, MASTER_VOLUME * 0.5, "triangle");
+  },
+
+  /** Blank — 180ms, low dull thud. No pitch fall (that reads as "error"). */
+  slotThud() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    const body = ctx.createOscillator();
+    const gain = ctx.createGain();
+    body.type = "triangle";
+    body.frequency.setValueAtTime(110, t);
+    body.frequency.exponentialRampToValueAtTime(70, t + 0.16);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(MASTER_VOLUME * 0.8, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    body.connect(gain);
+    gain.connect(ctx.destination);
+    body.start(t);
+    body.stop(t + 0.2);
+    createOsc(ctx, 55, t, 0.12, MASTER_VOLUME * 0.45, "triangle");
+  },
+
+  /** Small win — 160ms, two bright notes */
+  slotWinSmall() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    createOsc(ctx, 784, t, 0.07);              // G5
+    createOsc(ctx, 1047, t + 0.07, 0.09);      // C6
+    createOsc(ctx, 523, t, 0.16, MASTER_VOLUME * 0.3, "triangle");
+  },
+
+  /** Mid win — 380ms, four-note jingle + shimmer */
+  slotWinMid() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    const notes = [659, 784, 1047, 1319]; // E5 G5 C6 E6
+    notes.forEach((f, i) => createOsc(ctx, f, t + i * 0.08, 0.09));
+    createOsc(ctx, 1568, t + 0.3, 0.1, MASTER_VOLUME * 0.45, "triangle");
+    createOsc(ctx, 392, t, 0.36, MASTER_VOLUME * 0.25, "triangle");
+  },
+
+  /** Big win — 900ms, boom + rising fanfare + held top note */
+  slotWinBig() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // Boom underneath the first note
+    createOsc(ctx, 60, t, 0.2, MASTER_VOLUME * 0.7, "triangle");
+    const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+    notes.forEach((f, i) => createOsc(ctx, f, t + i * 0.09, 0.1));
+    // Held top with harmony
+    createOsc(ctx, 1319, t + 0.36, 0.42, MASTER_VOLUME * 0.85);
+    createOsc(ctx, 784, t + 0.36, 0.42, MASTER_VOLUME * 0.35, "triangle");
+    createOsc(ctx, 523, t + 0.36, 0.42, MASTER_VOLUME * 0.25, "triangle");
+    // Sparkle pings on the tail
+    createOsc(ctx, 2093, t + 0.62, 0.05, MASTER_VOLUME * 0.3);
+    createOsc(ctx, 1760, t + 0.74, 0.05, MASTER_VOLUME * 0.22);
+  },
 };
 
 export function playSound(name: SoundName): void {
@@ -540,6 +630,14 @@ const VIBRATION_PATTERNS: Record<SoundName, number[] | null> = {
   cameraShutter: [8],
   polaroidSlide: [15],
   treeGrow:      [10, 30, 10],
+  // 굴림틀
+  slotLever:     [30],
+  slotTick:      [8],            // MIN 클램프로 25ms. 서스펜스 동안 반복.
+  slotStop:      [12],
+  slotThud:      [25],
+  slotWinSmall:  [20],
+  slotWinMid:    [15, 60, 15],
+  slotWinBig:    [25, 50, 25, 50, 40],
 };
 
 const MIN_VIBRATION_MS = 25;
@@ -565,6 +663,10 @@ function normalizePattern(pattern: number[]): number[] {
  * - "success":   UINotificationFeedbackGenerator(.success) — 완료/달성
  * - "warning":   UINotificationFeedbackGenerator(.warning) — 부정적 이벤트
  * - "celebration": Heavy → 100ms 후 Success — 레벨업 등 "큰 보상" 컴파운드
+ * - "rigid":     레버 당김. UIImpactFeedbackStyle.rigid 의도 — Capacitor Haptics 엔
+ *                rigid 가 없어 Heavy 로 근사한다. 네이티브 SwiftUI 는 .rigid 를 쓸 것.
+ * - "double":    Medium ×2 (90ms 간격) — 굴림틀 mid 티어
+ * - "triple":    Heavy ×2 → Success (90ms 간격) — 굴림틀 big 티어
  */
 type HapticIntent =
   | "selection"
@@ -573,7 +675,10 @@ type HapticIntent =
   | "heavy"
   | "success"
   | "warning"
-  | "celebration";
+  | "celebration"
+  | "rigid"
+  | "double"
+  | "triple";
 
 const HAPTIC_INTENT: Record<SoundName, HapticIntent | null> = {
   // 선택 — UI 탐색
@@ -618,6 +723,16 @@ const HAPTIC_INTENT: Record<SoundName, HapticIntent | null> = {
 
   // 햅틱 없음
   ambientFloat:  null,
+
+  // 굴림틀 — 스펙: 레버 rigid 1회 / 서스펜스 펄스 / 꽝 light 1회 /
+  //   small medium / mid 더블 / big 트리플
+  slotLever:     "rigid",
+  slotTick:      "selection",
+  slotStop:      "light",
+  slotThud:      "light",
+  slotWinSmall:  "medium",
+  slotWinMid:    "double",
+  slotWinBig:    "triple",
 };
 
 async function triggerNativeHaptic(intent: HapticIntent): Promise<void> {
@@ -648,6 +763,22 @@ async function triggerNativeHaptic(intent: HapticIntent): Promise<void> {
         // setTimeout 안 잡고 두 호출 사이에 await 짧게 걸어 약간 더 자연스럽게
         await Haptics.impact({ style: ImpactStyle.Heavy });
         await new Promise((r) => setTimeout(r, 110));
+        await Haptics.notification({ type: NotificationType.Success });
+        return;
+      case "rigid":
+        // Capacitor 에 rigid 가 없다. 짧고 단단한 느낌은 Heavy 가 가장 가깝다.
+        await Haptics.impact({ style: ImpactStyle.Heavy });
+        return;
+      case "double":
+        await Haptics.impact({ style: ImpactStyle.Medium });
+        await new Promise((r) => setTimeout(r, 90));
+        await Haptics.impact({ style: ImpactStyle.Medium });
+        return;
+      case "triple":
+        await Haptics.impact({ style: ImpactStyle.Heavy });
+        await new Promise((r) => setTimeout(r, 90));
+        await Haptics.impact({ style: ImpactStyle.Heavy });
+        await new Promise((r) => setTimeout(r, 90));
         await Haptics.notification({ type: NotificationType.Success });
         return;
     }

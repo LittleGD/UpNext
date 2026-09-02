@@ -45,8 +45,16 @@ const config: CapacitorConfig = {
       skipNativeAuth: true,
       providers: ['apple.com', 'google.com'],
     },
+    // 콜드 스타트 체감을 iOS(빈 다크 → 모션 스플래시)와 맞추기 위한 설정.
+    // Capacitor 8 안드로이드는 Android 12 SplashScreen API(setKeepOnScreenCondition)로
+    // 시스템 스플래시를 그대로 붙잡아 두므로, 여기서 0 을 주면 WebView 의 원격 로드·SSR·
+    // 하이드레이션(온보딩 첫 화면 1프레임 번쩍)이 전부 노출된다.
+    // launchShowDuration 3000 = 오프라인·느린 망에서도 안전한 상한. 웹은 모션 스플래시가
+    // 마운트되는 순간 NativeSplashHide(src/components/native)가 SplashScreen.hide() 로
+    // 즉시 걷어내므로 실제 체감은 "웹 준비 즉시, 아니면 3초 뒤".
+    // launchFadeOutDuration 0: 다크(#0A0A0A) → 다크 위 모션이라 페이드가 필요 없다.
     SplashScreen: {
-      launchShowDuration: 0,
+      launchShowDuration: 3000,
       launchAutoHide: true,
       launchFadeOutDuration: 0,
       backgroundColor: '#0A0A0A',

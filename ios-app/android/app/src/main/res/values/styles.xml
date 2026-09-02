@@ -22,5 +22,10 @@
         <item name="android:background">@drawable/splash</item>
         <!-- API 31+ 시스템 스플래시 — 기본 밝은 배경 대신 브랜드 다크 배경 -->
         <item name="windowSplashScreenBackground">@color/splashBackground</item>
+        <!-- 미지정 시 런처 아이콘(별표)이 시스템 스플래시 중앙에 뜬다. 투명 드로어블로 비워
+             iOS 와 같은 "빈 다크 → 웹 모션 스플래시" 흐름을 만든다. Capacitor 8 은 이 시스템
+             스플래시를 setKeepOnScreenCondition 으로 붙잡아 두므로(launchShowDuration) 웹이
+             준비될 때까지 보이는 화면이 바로 이것이다. -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_transparent</item>
     </style>
 </resources>

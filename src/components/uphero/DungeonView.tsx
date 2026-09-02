@@ -16,7 +16,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { useUpHeroStore, slotSpinsLeft } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import {
@@ -39,6 +39,7 @@ import GbConfirm from "./GbConfirm";
 import NumberRoll from "./NumberRoll";
 import DungeonAtmosphere from "./DungeonAtmosphere";
 import ChoiceResultModal from "./ChoiceResultModal";
+import SlotMachineModal from "./SlotMachineModal";
 import ClassResourceBar from "./ClassResourceBar";
 import SkillBar from "./SkillBar";
 import MinigameModal from "./MinigameModal";
@@ -74,6 +75,8 @@ function findActiveChoiceResult(session: CombatSession | null, seenUpTo: number)
       actionLabelFallback: entry.actionLabelFallback,
       resultTextKey: entry.resultTextKey,
       resultTextFallback: entry.resultTextFallback,
+      // 굴림틀 결과면 일반 결과 모달 대신 드럼 연출이 받는다.
+      slot: entry.slot ?? null,
     };
   }
   return null;
@@ -86,6 +89,11 @@ export default function DungeonView() {
   // Phase 12e — 미니게임 결과 해소 action.
   const resolveMinigame = useUpHeroStore((s) => s.resolveMinigame);
   const abandonSession = useUpHeroStore((s) => s.abandonSession);
+  // 굴림틀 — 이 굴림 **뒤**의 영속 스트릭(스토어가 갱신)과 "한 번 더" 액션.
+  const slotBlankStreak = useUpHeroStore((s) => s.slotBlankStreak);
+  // 오늘 굴림 횟수는 세션이 아니라 shopDaily 에 산다 (하루 상한, 탐험을 넘어 합산).
+  const shopDaily = useUpHeroStore((s) => s.shopDaily);
+  const spinSlotAgain = useUpHeroStore((s) => s.spinSlotAgain);
   // Phase 9d — 영웅 전용 레벨 사용. variant 결정 등.
   const gameLevel = useGameStore((s) => s.progress.level);
   const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
@@ -903,7 +911,30 @@ export default function DungeonView() {
             "> {label} → {result}" narrative 가 새로 push 되는 순간 감지돼 2.6s 표시.
             열려있는 동안 tick 은 pause (useEffect dep). 유저는 "계속" 로 즉시 진행 가능.
             Phase 11c R4 — effectSummary 로 구체 수치 노출 (XP/코인/시간/HP 변화). */}
-      {activeChoiceResult && (
+      {/* 굴림틀 결과 — 드럼 연출 모달이 일반 결과 모달을 대신한다.
+             결과는 이미 확정·지급된 상태로 로그에 실려 오고, 모달은 그리기만 한다. */}
+      {activeChoiceResult?.slot && (
+        <SlotMachineModal
+          // 로그 idx 를 key 로 — "한 번 더" 로 새 결과가 오면 새 인스턴스(레버·드럼 초기화).
+          key={activeChoiceResult.idx}
+          result={activeChoiceResult.slot}
+          coins={activeChoiceResult.summaryData?.coins}
+          // 스트릭 4 면 "다음은 반드시 나와요" = 5번째 보장. 롤과 같은 판정(isSlotPityArmed).
+          blankStreak={slotBlankStreak}
+          // "한 번 더" 는 오늘 남은 스핀·런 수입이 있을 때만 모달이 CTA 를 그린다.
+          spinAgain={{
+            spinsLeft: slotSpinsLeft(shopDaily),
+            wallet: session.rewards.coins,
+            onSpin: () => {
+              setChoiceSeenUpTo(activeChoiceResult.idx);
+              spinSlotAgain();
+            },
+          }}
+          onDismiss={() => setChoiceSeenUpTo(activeChoiceResult.idx)}
+        />
+      )}
+
+      {activeChoiceResult && !activeChoiceResult.slot && (
         <ChoiceResultModal
           text={activeChoiceResult.text}
           summary={activeChoiceResult.summary}

@@ -18,7 +18,8 @@ import {
   SHOP_PRICES,
   SELL_PRICE,
   MAX_ENHANCE_LEVEL,
-  ENHANCE_PRESERVE_BY_RARITY,
+  ENHANCE_GUARD_MAX,
+  enhanceOutcomeRates,
   DAILY_PASS_PURCHASE_CAP,
   COIN_POUCH_MIN,
   COIN_POUCH_MAX,
@@ -48,8 +49,17 @@ import {
   tickSession as stepSession,
   resolveChoice as applyChoice,
   abandonSession as abandon,
+  canSpinSlot,
 } from "@/lib/upHeroCombat";
+import { SLOT_EVENT } from "@/data/flavor/slot";
 import { drawBuffCards } from "@/lib/buffDraw";
+import {
+  SLOT_DAILY_SPIN_CAP,
+  normalizeSlotBlankStreak,
+  nextSlotBlankStreak,
+  normalizeSlotSpins,
+  type SlotOutcomeId,
+} from "@/lib/upHeroSlot";
 import {
   calculateKeptDrops,
   calculateBossesDefeated,
@@ -236,6 +246,12 @@ interface UpHeroActions {
   enterDungeon(dungeonId: DungeonId): boolean; // false = 탐험권 부족
   tickSession(): void;
   resolveChoice(optionIndex: number): void;
+  /**
+   * 굴림틀 "한 번 더" — 결과 모달의 CTA. 활성 세션에 굴림틀 choice 엔트리를 다시
+   * 꽂고 즉시 0번(당긴다)으로 해소한다. 상한·잔액 게이트(`canSpinSlot`)에 막히면
+   * 아무 일도 하지 않는다. iOS `UpHeroStore.spinSlotAgain` 1:1.
+   */
+  spinSlotAgain(): void;
   resumeSession(): void; // 보스 연출 종료 후 호출 — status "paused" → "active"
   abandonSession(): void;
   acknowledgeSessionEnd(): void; // 결산 modal 닫은 후 currentSession = null 로
@@ -393,20 +409,72 @@ interface UpHeroActions {
   claimCoinPouch(multiplier?: 1 | 2): { ok: true; coins: number } | { ok: false };
 
   /**
+   * Phase 15 — 하락방지권 1장 구매. 코인이 모자라거나 보유 상한
+   * (ENHANCE_GUARD_MAX) 에 닿았으면 false 로 아무것도 바꾸지 않는다.
+   *
+   * 소실방지권에는 대응하는 구매 액션이 **없다**. 드롭 전용이라 상점 경로를 아예
+   * 만들지 않는 것이 그 규칙의 유일하게 확실한 집행 방법이다.
+   */
+  purchaseDownGuard(): boolean;
+
+  /**
+   * Phase 15 — 방지권 지급. 보스 처치 드롭 · 던전 이벤트(보물상자) · 슬롯머신이
+   * 쓰는 유일한 입구다. 음수·비정수는 무시하고, 상한을 넘는 만큼은 버린다.
+   * @returns 실제로 늘어난 개수 (상한에 걸려 일부만 들어갔을 수 있다).
+   */
+  grantEnhanceGuards(grant: { destroy?: number; down?: number }): {
+    destroy: number;
+    down: number;
+  };
+
+  /**
+   * Phase 15 — 슬롯머신 "다음 N 전투 능력치 +X%" 버프 부여.
+   * 이미 버프가 있으면 더 좋은 쪽(pct 우선, 같으면 battlesLeft 큰 쪽)으로 갱신한다.
+   * 겹쳐 쌓지 않는 이유: 슬롯을 연타해 배율을 무한히 부풀리는 구멍을 막기 위해서다.
+   */
+  grantCombatBuff(pct: number, battles: number): void;
+
+  /**
    * Phase 11a — 장비 +N 강화 (기존 2→1 합성 대체).
    * 단일 아이템 + 코인 → 확률적으로 enhanceLevel +1. 최대 +10.
-   * 실패 시 ENHANCE_PRESERVE_BY_RARITY[rarity] 확률로 아이템 보존, 그 외엔 소실.
+   * 실패 시 enhanceOutcomeRates(rarity, level) 로 소실 / 하락 / 유지 3분기.
    * 성공률 / 코인 비용 공식은 types/uphero.ts 의 enhanceSuccessRate / enhanceCost 참고.
+   *
+   * @param guards 이번 시도에 걸 방지권 (기본 둘 다 false).
+   *   **소모 계약**: 방지권은 그 결과가 **실제로 나서 막아낸 순간에만** 1장 소모된다.
+   *   성공했거나, 실패했지만 그냥 유지로 끝났으면 소모하지 않는다. 보유가 0 이면
+   *   true 를 넘겨도 무시된다 (조용히 진행 — UI 가 먼저 토글을 막는 게 정상 경로).
+   *   소실과 하락은 배타적이라 한 번의 시도에서 두 종류가 동시에 소모되는 일은 없다.
    *
    * UI 는 이 반환값 기반으로 Ritual overlay + Result modal 분기.
    */
-  enhanceItem(id: string): EnhanceResult;
+  enhanceItem(id: string, guards?: EnhanceGuardArm): EnhanceResult;
 }
 
-/** Phase 11a — 강화 결과 discriminated union. UI 는 이 타입 기반 3-way 분기. */
+/** Phase 15 — 이번 강화 시도에 걸 방지권. UI 토글이 그대로 매핑된다. */
+export interface EnhanceGuardArm {
+  /** 소실방지권을 걸지 (보유 0 이면 무시) */
+  destroy?: boolean;
+  /** 하락방지권을 걸지 (보유 0 이면 무시) */
+  down?: boolean;
+}
+
+/** Phase 11a — 강화 결과 discriminated union. UI 는 이 타입 기반 분기. */
 export type EnhanceResult =
   | { ok: true; reason: "success"; newItem: Equipment; prevLevel: number }
+  /** 실패했지만 아무 일도 없었다. 방지권도 소모되지 않았다. */
   | { ok: false; reason: "keep"; item: Equipment }
+  /**
+   * 실패로 강화 단계가 1 내려갔다. prevLevel 은 내려가기 **전** 레벨이라
+   * UI 가 "+7 → +6" 을 그릴 수 있다. item 은 내려간 뒤의 아이템이다.
+   */
+  | { ok: false; reason: "down"; item: Equipment; prevLevel: number }
+  /**
+   * 방지권이 결과를 막아냈다. guard 가 무엇을 막았는지 말해준다 —
+   * "소실될 뻔했다" 와 "하락할 뻔했다" 는 연출이 달라야 한다.
+   * 이 분기에서만 해당 방지권이 1장 소모된다.
+   */
+  | { ok: false; reason: "guarded"; item: Equipment; guard: "destroy" | "down" }
   | { ok: false; reason: "destroyed"; lostItemName: string; lostBaseId?: string }
   | { ok: false; reason: "coin"; cost: number }
   | { ok: false; reason: "maxed" }
@@ -422,6 +490,39 @@ type UpHeroStore = UpHeroState & UpHeroActions;
  *   화면 표시 동안에는 in-memory log 가 full 로 유지됨 (persist 시에만 절삭).
  */
 export const SESSION_LOG_PERSIST_CAP = 400;
+
+/**
+ * Phase 15 — 방지권 개수를 [0, ENHANCE_GUARD_MAX] 정수로 교정.
+ * 저장본/클라우드에서 올 수 있는 undefined·음수·소수·NaN·상한 초과를 한 곳에서 막는다.
+ */
+function clampGuards(n: unknown): number {
+  if (typeof n !== "number" || !Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(ENHANCE_GUARD_MAX, Math.floor(n)));
+}
+
+/**
+ * Phase 15 — 전투 버프를 정규화. 만료(battlesLeft ≤ 0)거나 값이 깨졌으면
+ * undefined 로 접는다 — 껍데기를 남기면 UI 가 "버프 있음" 으로 오인한다.
+ *
+ * **pct 는 퍼센트 포인트다 (10 = +10%).** 세션 층위(`sessionStats`)가
+ * `1 + pct/100` 으로 곱하므로 상태·와이어·세션이 전부 같은 단위여야 한다.
+ * 예전 이 자리의 상한은 `Math.min(1, pct)` 였는데, 그러면 슬롯이 주는 pct=10 이
+ * 탐험을 넘길 때 1 로 접혀 다음 탐험에서 +10% 가 아니라 **+1%** 로 먹었다
+ * (`grantCombatBuff` → `completeSession` → 다음 `createSession` 경로).
+ * 상한 100 은 바로 아래 주석이 원래 의도했던 "배율 2배(+100%)" 와 같은 값이다.
+ */
+function normalizeCombatBuff(raw: unknown): UpHeroState["combatBuff"] {
+  if (typeof raw !== "object" || raw === null) return undefined;
+  const r = raw as { pct?: unknown; battlesLeft?: unknown };
+  const pct = typeof r.pct === "number" && Number.isFinite(r.pct) ? r.pct : 0;
+  const left =
+    typeof r.battlesLeft === "number" && Number.isFinite(r.battlesLeft)
+      ? Math.floor(r.battlesLeft)
+      : 0;
+  if (pct <= 0 || left <= 0) return undefined;
+  // 상한: 배율 2배(+100% = pct 100) / 20 전투. 손상된 값이 전투 밸런스를 뒤집지 않게.
+  return { pct: Math.min(100, pct), battlesLeft: Math.min(20, left) };
+}
 
 /**
  * 저장할 state 추출 — 함수는 제외. pendingDungeon 은 transient (persist 안 함).
@@ -445,6 +546,10 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     schemaVersion,
     hasSeenCampTutorial,
     welcomeGrantClaimed,
+    destroyGuards,
+    downGuards,
+    combatBuff,
+    slotBlankStreak,
   } = s;
   // Phase 13 review C#2 — session.log tail-slice 로 persist payload 감축.
   const trimmedSession =
@@ -472,7 +577,55 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     schemaVersion,
     hasSeenCampTutorial,
     welcomeGrantClaimed,
+    destroyGuards,
+    downGuards,
+    combatBuff,
+    slotBlankStreak,
   };
+}
+
+/**
+ * 굴림틀 1회 굴림이 이번 선택 해소로 일어났는지 — 새로 붙은 로그 엔트리 중
+ * `slot` 페이로드를 가진 choiceResult 를 찾는다. 잔액/상한 게이트에 막힌 선택은
+ * slot 페이로드가 없어 null 이고, 그 경우 스트릭은 건드리지 않는다.
+ */
+function findNewSlotSpin(
+  prev: CombatSession,
+  next: CombatSession,
+): { outcome: SlotOutcomeId } | null {
+  for (let i = prev.log.length; i < next.log.length; i += 1) {
+    const e = next.log[i];
+    if (e.type === "choiceResult" && e.slot) return e.slot;
+  }
+  return null;
+}
+
+/**
+ * 오늘 기준 `shopDaily`. 날짜(`getTodayString`, 새벽 1시 경계)가 바뀌었으면 모든
+ * 일일 카운터(passesBought / coinPouchClaimed / slotSpins)가 비어 있는 새 객체다.
+ * 탐험권 구매·코인 주머니·굴림틀이 전부 이 하나를 읽어 롤오버 규칙을 한 곳에 둔다.
+ */
+export function currentShopDaily(
+  shopDaily: UpHeroState["shopDaily"],
+): NonNullable<UpHeroState["shopDaily"]> {
+  const today = getTodayString();
+  return shopDaily && shopDaily.date === today
+    ? shopDaily
+    : { date: today, passesBought: 0 };
+}
+
+/**
+ * 오늘 굴림틀을 돌린 횟수 (`shopDaily.slotSpins`, 날짜 롤오버·레거시 부재 = 0).
+ * 전투 레이어(`canSpinSlot`)에 넘기는 스냅샷이자 UI 가 "남은 횟수" 를 셈하는 근거.
+ * 세션이 아니라 여기 두어 하루에 탐험을 몇 번 하든 합산된다.
+ */
+export function slotSpinsToday(shopDaily: UpHeroState["shopDaily"]): number {
+  return normalizeSlotSpins(currentShopDaily(shopDaily).slotSpins);
+}
+
+/** 오늘 남은 굴림 횟수. `SLOT_DAILY_SPIN_CAP - slotSpinsToday`, 0 미만은 0. */
+export function slotSpinsLeft(shopDaily: UpHeroState["shopDaily"]): number {
+  return Math.max(0, SLOT_DAILY_SPIN_CAP - slotSpinsToday(shopDaily));
 }
 
 export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
@@ -493,6 +646,13 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   shopDaily: undefined,
   // Phase 11c — 초기 0 (미해금). F30 보스 처치 시 +1.
   ngPlusLevel: 0,
+  // Phase 15 — 방지권 2종. 소실방지권은 드롭/이벤트/슬롯으로만, 하락방지권은 상점으로도.
+  destroyGuards: 0,
+  downGuards: 0,
+  // Phase 15 — 슬롯머신 전투 버프. 없으면 undefined (껍데기를 남기지 않는다).
+  combatBuff: undefined,
+  // 굴림틀 pity 스트릭 — 탐험을 넘어 영속. 0 = 연속 꽝 없음.
+  slotBlankStreak: 0,
   // Phase 11c — 초기 undefined. initialize 에서 이번 주 id 로 seed/갱신.
   weeklyVariant: undefined,
   idleReward: null,
@@ -634,13 +794,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     //   이후 합법적인 offline 누적 window 를 clock rewind 시점부터 다시 시작.
     const newLastIdleAt = idleReward || clockRewound ? now : lastIdleAt;
 
-    // Phase 11a — shopDaily seed. date 가 오늘과 다르면 passesBought=0 리셋.
-    const today = getTodayString();
-    const prevShopDaily = saved?.shopDaily;
-    const shopDaily =
-      prevShopDaily && prevShopDaily.date === today
-        ? prevShopDaily
-        : { date: today, passesBought: 0 };
+    // Phase 11a — shopDaily seed. date 가 오늘과 다르면 passesBought=0 리셋
+    //   (coinPouchClaimed·slotSpins 도 함께 비워진다). 같은 날이면 굴림틀 횟수만
+    //   손상 값 방어로 [0,100] 정수로 접는다 — 레거시 저장본(필드 없음)은 0.
+    const dailyBase = currentShopDaily(saved?.shopDaily);
+    const shopDaily = { ...dailyBase, slotSpins: normalizeSlotSpins(dailyBase.slotSpins) };
 
     // Phase 11c — weeklyVariant seed. 이번 주 id 와 saved.week 비교해 자동 리셋.
     //   매주 월요일 첫 진입 시 새 affix pick + clearedDungeons 비움.
@@ -681,6 +839,14 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       heroStartLevel,
       shopDaily,
       ngPlusLevel: saved?.ngPlusLevel ?? 0,
+      // Phase 15 — 필드가 없는 기존 저장본은 0 (미보유). 음수·소수·상한 초과 저장본도
+      //   여기서 교정한다. 0 으로 읽히는 것 자체는 기존 강화 진행에 영향이 없다 —
+      //   방지권은 순수 추가 기능이고, 미보유면 예전과 똑같이 동작한다.
+      destroyGuards: clampGuards(saved?.destroyGuards),
+      downGuards: clampGuards(saved?.downGuards),
+      combatBuff: normalizeCombatBuff(saved?.combatBuff),
+      // 굴림틀 pity 스트릭 — 필드가 없는 기존 저장본은 0. 손상 값은 [0,1000] 정수로.
+      slotBlankStreak: normalizeSlotBlankStreak(saved?.slotBlankStreak),
       weeklyVariant,
       idleReward,
       pendingClassAwaken: null, // transient
@@ -1201,7 +1367,13 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       buffs,
       // Phase 11c — NG+ 스냅샷 전달. weekly variant 는 별도 action 으로만 진입.
       // heroLevel 전달 — 초보자 버프 판정 용 (Lv<5 + 층≤10).
-      { ngPlusLevel: state.ngPlusLevel ?? 0, heroLevel: heroLvl },
+      {
+        ngPlusLevel: state.ngPlusLevel ?? 0,
+        heroLevel: heroLvl,
+        // 굴림틀 전투 버프는 탐험을 건너 이어진다. 세션 안에서는 session.combatBuff
+        //   가 유일한 진실이고, 정산 때 남은 횟수를 다시 여기로 적어 넣는다.
+        combatBuff: state.combatBuff,
+      },
     );
     const newState = {
       passes: updatedPasses,
@@ -1231,6 +1403,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const session = buildSession(dungeonId, leveledHero, startFloor, undefined, {
       ngPlusLevel: state.ngPlusLevel ?? 0,
       heroLevel: heroLvl,
+      combatBuff: state.combatBuff,
     });
     const newState = {
       passes: updatedPasses,
@@ -1267,6 +1440,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       isWeeklyVariant: true,
       weeklyAffixId: state.weeklyVariant.affixId,
       heroLevel: heroLvl,
+      combatBuff: state.combatBuff,
     });
     set({ currentSession: session });
     saveToStorage(
@@ -1280,7 +1454,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const state = get();
     if (!state.currentSession) return;
     if (state.currentSession.status !== "active") return;
-    const next = stepSession(state.currentSession);
+    // 굴림틀 이벤트 등장 게이트가 오늘 횟수(shopDaily.slotSpins)를 읽는다 —
+    //   상한에 닿은 날은 굴림틀이 후보에서 빠진다.
+    const next = stepSession(state.currentSession, {
+      slotSpinsToday: slotSpinsToday(state.shopDaily),
+    });
     set({ currentSession: next });
     // 세션 진행 중 자주 저장되면 부담 — 상태 전환 (pause/awaitingChoice/completed) 시에만 persist
     if (next.status !== "active") {
@@ -1296,13 +1474,54 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     //   effect 가 중복 적용되던 버그. applyChoice 내부에도 check 있지만 store level
     //   early-return 이 안전함.
     if (state.currentSession.status !== "awaitingChoice") return;
-    const next = applyChoice(state.currentSession, optionIndex);
-    set({ currentSession: next });
+    // 굴림틀 pity — 상태 스트릭을 롤 입력으로 넘기고, 굴림이 실제로 일어났으면
+    //   결과로 상태를 갱신한다 (보상 0 / 꽝 +1). 세션은 스트릭을 갖지 않는다.
+    //   여기서 바로 persist 되므로 스트릭은 탐험 종료를 기다리지 않고 클라우드로 나간다.
+    //   오늘 굴림 횟수(shopDaily.slotSpins)도 같은 seam — 스냅샷을 넘기고, 굴림이
+    //   실제로 일어났으면 +1. 세션은 두 카운터 어느 쪽도 갖지 않는다.
+    const streak = normalizeSlotBlankStreak(state.slotBlankStreak);
+    const spinsToday = slotSpinsToday(state.shopDaily);
+    const next = applyChoice(state.currentSession, optionIndex, {
+      slotBlankStreak: streak,
+      slotSpinsToday: spinsToday,
+    });
+    const spin = findNewSlotSpin(state.currentSession, next);
+    const newState = spin
+      ? {
+          currentSession: next,
+          slotBlankStreak: nextSlotBlankStreak(streak, spin.outcome),
+          shopDaily: { ...currentShopDaily(state.shopDaily), slotSpins: spinsToday + 1 },
+        }
+      : { currentSession: next };
+    set(newState);
     // Phase 12 R3 — persist 추가. 선택 직후 새로고침 시 reward/effects 손실 방지.
-    saveToStorage(
-      STORAGE_KEY,
-      pickPersisted({ ...state, currentSession: next }),
-    );
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...newState }));
+  },
+
+  spinSlotAgain() {
+    const state = get();
+    const s = state.currentSession;
+    // 결과 모달이 떠 있는 동안 세션은 active 로 돌아와 있다(tick 은 뷰가 멈춘다).
+    //   상한·런 수입 게이트는 여기서 한 번, applyChoice 의 spinSlot 분기에서 또 한 번.
+    if (!s || s.status !== "active" || !canSpinSlot(s, slotSpinsToday(state.shopDaily))) return;
+    const armed: CombatSession = {
+      ...s,
+      log: [
+        ...s.log,
+        {
+          type: "choice",
+          prompt: SLOT_EVENT.prompt,
+          promptKey: SLOT_EVENT.promptKey,
+          options: SLOT_EVENT.options,
+          timestamp: Date.now(),
+        },
+      ],
+      status: "awaitingChoice",
+      pendingChoiceIndex: s.log.length,
+    };
+    set({ currentSession: armed });
+    // 스트릭 입력·갱신·persist 는 전부 resolveChoice 가 맡는다 — 규칙을 두 곳에 두지 않는다.
+    get().resolveChoice(0);
   },
 
   resumeSession() {
@@ -1452,6 +1671,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // state commit + persist — 업로드 microtask 보다 먼저 실행 보장.
     const newCoins = state.coins + session.rewards.coins;
     const newInventory = [...state.inventory, ...keptDrops];
+    // 탐험 중 모은 방지권 정산. 보스 드롭·보물상자·굴림틀이 session.rewards 에
+    //   쌓아둔 것을 여기서 한 번에 합산한다. 상한 초과분은 조용히 잘린다.
+    const newDestroyGuards = Math.min(
+      ENHANCE_GUARD_MAX,
+      clampGuards(state.destroyGuards) + (session.rewards.destroyGuards ?? 0),
+    );
+    const newDownGuards = Math.min(
+      ENHANCE_GUARD_MAX,
+      clampGuards(state.downGuards) + (session.rewards.downGuards ?? 0),
+    );
+    // 전투 버프 잔여 횟수를 세션에서 되받는다. 전투마다 닳는 곳은 전투 로직
+    //   한 곳뿐이고 (upHeroCombat.consumeCombatBuff), 여기서는 결과만 옮긴다.
+    const newCombatBuff = normalizeCombatBuff(session.combatBuff);
     const newState = {
       coins: newCoins,
       inventory: newInventory,
@@ -1459,6 +1691,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       codex,
       ngPlusLevel: newNgPlusLevel,
       weeklyVariant: newWeeklyVariant,
+      destroyGuards: newDestroyGuards,
+      downGuards: newDownGuards,
+      combatBuff: newCombatBuff,
       currentSession: null,
     };
     set(newState);
@@ -1571,6 +1806,57 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     return true;
   },
 
+  purchaseDownGuard() {
+    const state = get();
+    const price = SHOP_PRICES.downGuard;
+    if (state.coins < price) return false;
+    const cur = clampGuards(state.downGuards);
+    // 상한에서 구매를 막는다 — 코인만 빼가고 개수가 안 오르는 결제는 없어야 한다.
+    if (cur >= ENHANCE_GUARD_MAX) return false;
+    const newCoins = state.coins - price;
+    const next = cur + 1;
+    set({ coins: newCoins, downGuards: next });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, coins: newCoins, downGuards: next }),
+    );
+    return true;
+  },
+
+  grantEnhanceGuards({ destroy = 0, down = 0 }) {
+    const state = get();
+    const wantDestroy = Number.isFinite(destroy) ? Math.max(0, Math.floor(destroy)) : 0;
+    const wantDown = Number.isFinite(down) ? Math.max(0, Math.floor(down)) : 0;
+    if (wantDestroy === 0 && wantDown === 0) return { destroy: 0, down: 0 };
+    const curDestroy = clampGuards(state.destroyGuards);
+    const curDown = clampGuards(state.downGuards);
+    // 상한을 넘는 만큼은 버린다. 지급 실패가 아니라 "가득 찼다" 이므로 조용히 자른다.
+    const nextDestroy = Math.min(ENHANCE_GUARD_MAX, curDestroy + wantDestroy);
+    const nextDown = Math.min(ENHANCE_GUARD_MAX, curDown + wantDown);
+    set({ destroyGuards: nextDestroy, downGuards: nextDown });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, destroyGuards: nextDestroy, downGuards: nextDown }),
+    );
+    return { destroy: nextDestroy - curDestroy, down: nextDown - curDown };
+  },
+
+  grantCombatBuff(pct, battles) {
+    const state = get();
+    const next = normalizeCombatBuff({ pct, battlesLeft: battles });
+    if (!next) return;
+    const cur = normalizeCombatBuff(state.combatBuff);
+    // 겹치지 않는다 — 더 좋은 쪽만 남긴다 (pct 우선, 같으면 남은 전투 수).
+    if (cur) {
+      const curBetter =
+        cur.pct > next.pct ||
+        (cur.pct === next.pct && cur.battlesLeft >= next.battlesLeft);
+      if (curBetter) return;
+    }
+    set({ combatBuff: next });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, combatBuff: next }));
+  },
+
   addCoins(n) {
     if (!Number.isFinite(n) || n <= 0) return;
     const state = get();
@@ -1614,13 +1900,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const price = SHOP_PRICES.expeditionPass;
     if (state.coins < price) return "no-coin";
 
-    // daily reset 체크 — date 가 바뀌었으면 shopDaily.passesBought 0 으로 리셋해서
-    //   새 cap 기준으로 판정.
-    const today = getTodayString();
-    const daily =
-      state.shopDaily && state.shopDaily.date === today
-        ? state.shopDaily
-        : { date: today, passesBought: 0 };
+    // daily reset 체크 — date 가 바뀌었으면 shopDaily 카운터가 0 으로 리셋돼
+    //   새 cap 기준으로 판정 (currentShopDaily).
+    const daily = currentShopDaily(state.shopDaily);
     if (daily.passesBought >= DAILY_PASS_PURCHASE_CAP) return "daily-cap";
 
     // 던전별 cap (PASS_CAP_PER_CATEGORY=20) 체크
@@ -1647,11 +1929,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
   claimCoinPouch(multiplier = 1) {
     const state = get();
-    const today = getTodayString();
-    const daily =
-      state.shopDaily && state.shopDaily.date === today
-        ? state.shopDaily
-        : { date: today, passesBought: 0 };
+    const daily = currentShopDaily(state.shopDaily);
     if (daily.coinPouchClaimed) return { ok: false };
 
     // [MIN, MAX] 균등 정수 랜덤 — inclusive 양 끝.
@@ -1676,7 +1954,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     return { ok: true, coins: rolled };
   },
 
-  enhanceItem(id) {
+  enhanceItem(id, guards = {}) {
+    const useDestroyGuard = guards.destroy === true;
+    const useDownGuard = guards.down === true;
     // Phase 11a 재작성 — 단일 아이템 + 코인 → 확률적 +1 level 시도.
     //
     // 흐름:
@@ -1776,26 +2056,101 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       return { ok: true, reason: "success", newItem, prevLevel: curLevel };
     }
 
-    // 실패 — 코인은 어쨌든 차감. 보존 확률은 rarity 별 다름.
-    const preserved = rng() < ENHANCE_PRESERVE_BY_RARITY[item.rarity];
+    // 실패 — 코인은 어쨌든 차감. 실패의 결과는 소실 / 하락 / 유지 3분기다.
+    //   확률은 enhanceOutcomeRates 단일 출처에서 온다 (UI 표기와 같은 값).
+    //   currentLevel 0..2 는 셋 다 keep=1 이라 안전 구간이다.
+    //
+    // Phase 15 방지권 계약 — 여기가 그 계약의 유일한 집행 지점이다:
+    //   1) 판정은 방지권 보유·장착 여부와 무관하게 원래 확률로 굴린다.
+    //   2) 결과가 유지면 막을 것이 없으므로 **아무것도 소모하지 않는다**.
+    //   3) 소실이 났고 소실방지권을 걸었고 보유가 1 이상일 때만 1장 태우고 지킨다.
+    //   4) 하락도 같은 규칙으로 하락방지권이 막는다.
+    // 소실과 하락은 배타적이므로 한 시도에서 두 종류가 같이 소모되지 않는다.
+    const rates = enhanceOutcomeRates(item.rarity, curLevel);
+    // 누적 구간 한 번의 롤로 3분기를 가른다 — 두 번 굴리면 두 표의 확률이
+    // 조건부로 얽혀 UI 에 적어둔 숫자와 실제가 달라진다.
+    const outcomeRoll = rng();
+    const rolled: "destroy" | "down" | "keep" =
+      outcomeRoll < rates.destroy
+        ? "destroy"
+        : outcomeRoll < rates.destroy + rates.down
+          ? "down"
+          : "keep";
+
+    const heldDestroyGuards = clampGuards(state.destroyGuards);
+    const heldDownGuards = clampGuards(state.downGuards);
+    const guardedDestroy =
+      rolled === "destroy" && useDestroyGuard && heldDestroyGuards > 0;
+    const guardedDown = rolled === "down" && useDownGuard && heldDownGuards > 0;
+    const nextDestroyGuards = guardedDestroy
+      ? heldDestroyGuards - 1
+      : heldDestroyGuards;
+    const nextDownGuards = guardedDown ? heldDownGuards - 1 : heldDownGuards;
     const newCoins = state.coins - cost;
-    if (preserved) {
-      // 아이템 그대로 + failStreak +1 (다음 시도에 pity 보너스 적용).
-      //   Phase 14 code-review Medium #14 — pity 포뮬러는 streak 15~20 에서 이미
-      //   100% 포화이므로 이 이상 값은 의미 없이 persisted 숫자만 증가. 100 cap
-      //   으로 UI overflow / future type drift 방지.
-      const newItem: Equipment = {
-        ...item,
-        enhanceFailStreak: Math.min(100, curStreak + 1),
-      };
+
+    // 실패 공통 — failStreak +1 (다음 시도에 pity 보너스 적용).
+    //   Phase 14 code-review Medium #14 — pity 포뮬러는 streak 15~20 에서 이미
+    //   100% 포화이므로 이 이상 값은 의미 없이 persisted 숫자만 증가. 100 cap
+    //   으로 UI overflow / future type drift 방지.
+    const nextStreak = Math.min(100, curStreak + 1);
+
+    if (rolled === "keep" || guardedDestroy || guardedDown) {
+      const newItem: Equipment = { ...item, enhanceFailStreak: nextStreak };
       const { inventory: newInventory, hero: newHero } = replaceItem(newItem);
-      set({ coins: newCoins, inventory: newInventory, hero: newHero });
-      saveToStorage(
-        STORAGE_KEY,
-        pickPersisted({ ...state, coins: newCoins, inventory: newInventory, hero: newHero }),
-      );
+      const patch = {
+        coins: newCoins,
+        inventory: newInventory,
+        hero: newHero,
+        destroyGuards: nextDestroyGuards,
+        downGuards: nextDownGuards,
+      };
+      set(patch);
+      saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
+      if (guardedDestroy) {
+        return { ok: false, reason: "guarded", item: newItem, guard: "destroy" };
+      }
+      if (guardedDown) {
+        return { ok: false, reason: "guarded", item: newItem, guard: "down" };
+      }
       return { ok: false, reason: "keep", item: newItem };
     }
+
+    if (rolled === "down") {
+      // 하락 — 성공 경로의 정확한 역연산이어야 한다. 성공은 "새 레벨이 짝수일 때
+      //   primary stat +1" 이었으므로, 없어지는 레벨(curLevel)이 짝수면 그때 붙은
+      //   +1 을 같은 키에서 뺀다. 성공 직후에도 그 키가 여전히 최대값이라
+      //   (증가시킨 키가 최대였고 +1 로 더 커졌다) pickPrimaryStatKey 는 같은 키를
+      //   돌려준다 — 그래서 왕복이 닫힌다. 성공 규칙을 바꾸면 여기도 같이 바꿀 것.
+      const newLevel = Math.max(0, curLevel - 1);
+      const newStats: Equipment["stats"] = { ...item.stats };
+      if (curLevel % 2 === 0 && curLevel > 0) {
+        const primaryKey = pickPrimaryStatKey(item.stats);
+        if (primaryKey) {
+          // 0 미만으로는 내리지 않는다 — 손상된 저장본이 음수 스탯을 만들지 않게.
+          newStats[primaryKey] = Math.max(0, (newStats[primaryKey] ?? 0) - 1);
+        }
+      }
+      const baseName = stripEnhanceSuffix(item.name);
+      const newItem: Equipment = {
+        ...item,
+        name: newLevel >= 1 ? `${baseName} +${newLevel}` : baseName,
+        stats: newStats,
+        enhanceLevel: newLevel,
+        enhanceFailStreak: nextStreak,
+      };
+      const { inventory: newInventory, hero: newHero } = replaceItem(newItem);
+      const patch = {
+        coins: newCoins,
+        inventory: newInventory,
+        hero: newHero,
+        destroyGuards: nextDestroyGuards,
+        downGuards: nextDownGuards,
+      };
+      set(patch);
+      saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
+      return { ok: false, reason: "down", item: newItem, prevLevel: curLevel };
+    }
+
     // 소실 — inventory 혹은 equipped slot 에서 제거.
     const { inventory: newInventory, hero: newHero } = removeItem();
     const lostName = item.name;
@@ -1811,6 +2166,14 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   _setFromCloud: (state) => {
     set({
       ...state,
+      // Phase 15 — 방지권/버프는 클라우드에서 온 값도 로컬과 같은 계약으로 접는다.
+      //   와이어는 만료된 버프를 {pct:0,battlesLeft:0} 껍데기로 실어 보내므로
+      //   (merge 로 되살아나는 걸 막으려고) 여기서 undefined 로 되돌려야 한다.
+      destroyGuards: clampGuards(state.destroyGuards),
+      downGuards: clampGuards(state.downGuards),
+      combatBuff: normalizeCombatBuff(state.combatBuff),
+      // 굴림틀 pity 스트릭 — 키가 없는 옛 문서는 0. 손상 값은 같은 계약으로 접는다.
+      slotBlankStreak: normalizeSlotBlankStreak(state.slotBlankStreak),
       // 시작 선물은 계정 단위 1회 — 클라우드가 "이미 받음" 이면 로컬 예약을 거둔다.
       // (그대로 두면 오버레이가 떴다가 claimWelcomeGrant 가 0 을 반환해 빈손으로 닫힌다.)
       ...(state.welcomeGrantClaimed ? { pendingWelcomeGrant: null } : {}),
@@ -1846,6 +2209,10 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       heroStartLevel: undefined,
       shopDaily: undefined,
       ngPlusLevel: 0,
+      destroyGuards: 0,
+      downGuards: 0,
+      combatBuff: undefined,
+      slotBlankStreak: 0,
       weeklyVariant: undefined,
       idleReward: null,
       pendingClassAwaken: null,

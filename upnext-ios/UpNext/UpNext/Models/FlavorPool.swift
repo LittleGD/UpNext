@@ -53,10 +53,22 @@ enum FlavorPool {
 
     /// 던전 고유 60% / 범용 40% 이벤트 pick. recentPrompts LRU 로 연속 반복 완화.
     /// 웹 `pickEvent`.
+    ///
+    /// - Parameter slotAvailable: 굴림틀을 후보에 넣어도 되는가. 호출자(세션 로직)가
+    ///   코인 잔액과 굴림 상한을 보고 판정해 넘긴다. false 면 굴림틀은 아예 뽑히지
+    ///   않는다 — 돌릴 수 없는 장치를 띄우면 "선택지 없는 선택지" 가 되기 때문이다.
     static func pickEvent<R: RandomSource>(
         _ flavor: FlavorData, dungeonId: DungeonId,
-        recentPrompts: [String] = [], rng: inout R
+        recentPrompts: [String] = [], slotAvailable: Bool = false, rng: inout R
     ) -> DungeonEvent {
+        // 굴림틀은 던전/범용 pool 어디에도 넣지 않고 여기서 따로 저울질한다. pool 에
+        // 섞으면 던전마다 등장률이 갈리고 (pool 크기가 제각각) LRU 필터에 휩쓸려
+        // 확률이 흐려진다. 상한·잔액 게이트도 pool 안에서는 표현할 수 없다.
+        if slotAvailable, !recentPrompts.contains(UpHeroSlotEvent.prompt),
+           rng.chance(UpHeroSlotEvent.chance) {
+            return UpHeroSlotEvent.event
+        }
+
         let useDungeon = rng.chance(0.6)
         let pool = useDungeon ? (flavor.eventPool[dungeonId.rawValue] ?? []) : flavor.universalEvents
         let maxExclude = max(1, pool.count - 1)

@@ -41,6 +41,7 @@ struct ShopView: View {
                     VStack(spacing: 10) {
                         coinPouchSection
                         expeditionPassSection
+                        downGuardItem
                         shopItem(name: AppConfig.loc("작은 카드팩"), desc: AppConfig.loc("새 카드 1장"),
                                  price: ShopPrices.cardPackSmall) {
                             store.buyCardPack(full: false)
@@ -244,6 +245,43 @@ struct ShopView: View {
         }
     }
 
+    // MARK: - 하락방지권 (강화 하락 보험)
+
+    /// 기존 상점 셀(shopItem)과 같은 결. 다른 점은 아이콘(방패)과 보유 개수 표시뿐 —
+    /// 소비 아이템이라 "몇 장 있는지" 가 구매 판단의 핵심 정보다.
+    /// **소실방지권은 상점에 없다** — 보스·탐험 상자·슬롯 드롭 전용이라 팔지 않는다.
+    private var downGuardItem: some View {
+        let owned = upHero.state.downGuards ?? 0
+        let atCap = owned >= UpHeroRules.enhanceGuardMax
+        return shopItem(
+            name: AppConfig.loc("하락방지권"),
+            desc: AppConfig.loc("강화 실패로 단계가 내려갈 뻔한 순간에만 1장 소모 · 보유 \(owned)"),
+            price: ShopPrices.downGuard,
+            icon: .shield,
+            soldOut: atCap
+        ) {
+            buyDownGuard()
+        }
+    }
+
+    private func buyDownGuard() {
+        switch upHero.purchaseDownGuard() {
+        case .ok:
+            Haptics.play(.success)
+            SoundPlayer.shared.play(.collect)
+            showToast(AppConfig.loc(
+                "\(AppConfig.loc("하락방지권")) 구매 · 보유 \(upHero.state.downGuards ?? 0)"))
+        case .noCoin:
+            Haptics.play(.warning)
+            SoundPlayer.shared.play(.cancel)
+            showToast(AppConfig.loc("코인이 부족해요"))
+        case .atCap:
+            Haptics.play(.warning)
+            SoundPlayer.shared.play(.cancel)
+            showToast(AppConfig.loc("보유 한도에 닿았어요 (\(UpHeroRules.enhanceGuardMax)장)"))
+        }
+    }
+
     // MARK: - 토스트 (PhotoTalismanPicker.swift 패턴 재사용)
 
     private func toastView(_ msg: String) -> some View {
@@ -264,10 +302,12 @@ struct ShopView: View {
     // MARK: - 상점 항목 (기존 카드팩 — 슬라이스 25)
 
     private func shopItem(name: String, desc: String, price: Int,
+                          icon: PixelIconName = .gift,
+                          soldOut: Bool = false,
                           buy: @escaping () -> Void) -> some View {
-        let affordable = upHero.state.coins >= price
+        let affordable = upHero.state.coins >= price && !soldOut
         return HStack(spacing: 12) {
-            PixelIcon(.gift, size: 20, color: Color.accentPrimary)
+            PixelIcon(icon, size: 20, color: Color.accentPrimary)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)

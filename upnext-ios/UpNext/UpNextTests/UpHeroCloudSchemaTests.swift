@@ -77,13 +77,17 @@ final class UpHeroCloudSchemaTests: XCTestCase {
       },
       "codex": { "monsters": ["슬라임"], "equipment": ["iron_sword"], "bosses": [] },
       "cosmetics": { "tentColor": "#CDF564" },
+      "destroyGuards": 2,
+      "downGuards": 1,
+      "combatBuff": { "pct": 10, "battlesLeft": 3 },
+      "slotBlankStreak": 2,
       "lastIdleAccrualAt": 1756400000000,
       "ngPlusLevel": 1,
       "hasSeenCampTutorial": true,
       "welcomeGrantClaimed": true,
       "lastSeenAt": 1756400001000,
       "schemaVersion": 5,
-      "shopDaily": { "coinPouchClaimed": false, "date": "2026-08-28", "passesBought": 1 },
+      "shopDaily": { "coinPouchClaimed": false, "date": "2026-08-28", "passesBought": 1, "slotSpins": 2 },
       "weeklyVariant": {
         "week": "2026-W35",
         "affixId": "frenzy",
@@ -133,9 +137,121 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         XCTAssertEqual(decoded.cosmetics.tentColor, "#CDF564")
         XCTAssertTrue(decoded.welcomeGiftClaimed)                // ← "welcomeGrantClaimed"
         XCTAssertEqual(decoded.shopDaily?.coinPouchClaimed, false)
+        XCTAssertEqual(decoded.shopDaily?.slotSpins, 2)          // 와이어 키 "slotSpins"
         XCTAssertEqual(decoded.weeklyVariant?.clearedDungeons, [.fitness])
         XCTAssertEqual(decoded.heroStartLevel, 3)
+        XCTAssertEqual(decoded.destroyGuards, 2)
+        XCTAssertEqual(decoded.downGuards, 1)
+        XCTAssertEqual(decoded.combatBuff.buff, CombatBuff(pct: 10, battlesLeft: 3))
+        XCTAssertEqual(decoded.slotBlankStreak, 2)
         XCTAssertTrue(decoded.hasFootprint)
+    }
+
+    // MARK: - 굴림틀 pity 스트릭 (와이어 키 "slotBlankStreak")
+    //
+    // 웹 `normalizeSlotBlankStreak`: 부재·비숫자·NaN → 0, 소수 내림, 정수 [0, 1000].
+    // 0 이어도 키를 항상 싣는다 — 보상 뒤 0 리셋이 merge 에서 빠지면 클라우드의 옛
+    // 스트릭이 되살아나 받을 자격이 없는 pity 가 발동한다.
+
+    private func decodeStreak(_ json: String) throws -> Int {
+        try JSONDecoder()
+            .decode(CloudUpHeroState.self, from: Data(json.utf8))
+            .slotBlankStreak
+    }
+
+    func testSlotBlankStreakLenientDecodeMatchesWeb() throws {
+        XCTAssertEqual(try decodeStreak("{}"), 0)                                   // 레거시(키 없음)
+        XCTAssertEqual(try decodeStreak(#"{"slotBlankStreak":4}"#), 4)
+        XCTAssertEqual(try decodeStreak(#"{"slotBlankStreak":3.9}"#), 3)            // 내림
+        XCTAssertEqual(try decodeStreak(#"{"slotBlankStreak":-2}"#), 0)             // 음수 → 0
+        XCTAssertEqual(try decodeStreak(#"{"slotBlankStreak":5000}"#), 1000)        // 상한
+        XCTAssertEqual(try decodeStreak(#"{"slotBlankStreak":"four"}"#), 0)         // 비숫자
+        XCTAssertEqual(try decodeStreak(#"{"slotBlankStreak":null}"#), 0)
+    }
+
+    func testSlotBlankStreakAlwaysEncodedEvenWhenZero() throws {
+        let empty = try JSONDecoder().decode(CloudUpHeroState.self, from: Data("{}".utf8))
+        let payload = try XCTUnwrap(empty.firestoreValue())
+        XCTAssertEqual(payload["slotBlankStreak"] as? Int, 0, "0 이어도 키를 실어야 한다")
+    }
+
+    /// 상태 → 클라우드 → 상태 왕복에서 값이 살아남고, 스트릭만으로는 흔적이 아니다.
+    func testSlotBlankStreakRoundTripsThroughCloudWire() throws {
+        var state = UpHeroStore.makeDefaultState()
+        state.coins = 10
+        state.slotBlankStreak = 4
+        let payload = try XCTUnwrap(CloudUpHeroState(state).firestoreValue())
+        XCTAssertEqual(payload["slotBlankStreak"] as? Int, 4, "와이어 키가 빠졌다")
+
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let back = try JSONDecoder().decode(CloudUpHeroState.self, from: data)
+        XCTAssertEqual(back.slotBlankStreak, 4)
+        XCTAssertEqual(back.toState().slotBlankStreak, 4)
+
+        let onlyStreak = try JSONDecoder().decode(
+            CloudUpHeroState.self, from: Data(#"{"slotBlankStreak":4}"#.utf8))
+        XCTAssertFalse(onlyStreak.hasFootprint, "스트릭만으로는 플레이 흔적이 아니다")
+    }
+
+    // MARK: - 굴림틀 전투 버프 (와이어 키 "combatBuff")
+    //
+    // 아래 기대값은 웹 `normalizeUpHeroState` 를 실제로 돌려 뽑은 것이다
+    // (2026-08-31). 웹은 만료·부재·손상을 전부 `{pct:0, battlesLeft:0}` 껍데기로
+    // 표현하고 undefined 를 쓰지 않는다 — iOS 도 같아야 왕복이 성립한다.
+
+    private func decodeBuff(_ json: String) throws -> CloudCombatBuff {
+        try JSONDecoder()
+            .decode(CloudUpHeroState.self, from: Data(json.utf8))
+            .combatBuff
+    }
+
+    /// pct 상한 100 (= 배율 2배, 퍼센트 포인트), battlesLeft 상한 20 —
+    /// 웹 normalizeCombatBuff 와 동일.
+    func testCombatBuffClampsMatchWeb() throws {
+        // 굴림틀이 실제로 주는 값(10)은 상한에 걸리지 않고 그대로 통과해야 한다.
+        // 예전 상한 1 은 이걸 1 로 접어 다음 탐험에서 +10% 를 +1% 로 만들었다.
+        let normal = try decodeBuff(#"{"combatBuff":{"pct":10,"battlesLeft":3}}"#)
+        XCTAssertEqual(normal.buff, CombatBuff(pct: 10, battlesLeft: 3))
+
+        // 웹: { pct: 9999, battlesLeft: 99 } → { pct: 100, battlesLeft: 20 }
+        let capped = try decodeBuff(#"{"combatBuff":{"pct":9999,"battlesLeft":99}}"#)
+        XCTAssertEqual(capped.buff, CombatBuff(pct: 100, battlesLeft: 20))
+
+        // 웹: battlesLeft 는 Math.floor — 2.9 → 2
+        let floored = try decodeBuff(#"{"combatBuff":{"pct":0.25,"battlesLeft":2.9}}"#)
+        XCTAssertEqual(floored.buff, CombatBuff(pct: 0.25, battlesLeft: 2))
+    }
+
+    /// 만료·부재·손상은 전부 "버프 없음". 껍데기를 도메인으로 새어 보내지 않는다.
+    func testCombatBuffFoldsExpiredAndCorruptToNil() throws {
+        XCTAssertNil(try decodeBuff(#"{"combatBuff":{"pct":10,"battlesLeft":0}}"#).buff)
+        XCTAssertNil(try decodeBuff(#"{"combatBuff":{"pct":0,"battlesLeft":3}}"#).buff)
+        XCTAssertNil(try decodeBuff(#"{"combatBuff":"nope"}"#).buff)
+        XCTAssertNil(try decodeBuff("{}").buff)
+    }
+
+    /// **0 이어도 키를 싣는다.** 빼면 setDoc(merge) 가 클라우드에 남은 지난 버프를
+    /// 되살려, 다 쓴 +10% 가 기기를 옮길 때마다 부활한다 (passes 와 같은 이유).
+    func testCombatBuffAlwaysEncodedEvenWhenEmpty() throws {
+        let decoded = try decodeBuff("{}")
+        XCTAssertNil(decoded.buff)
+
+        let empty = try JSONDecoder().decode(CloudUpHeroState.self, from: Data("{}".utf8))
+        let payload = try XCTUnwrap(empty.firestoreValue())
+        let buff = try XCTUnwrap(payload["combatBuff"] as? [String: Any],
+                                 "combatBuff 키가 페이로드에서 빠졌다")
+        XCTAssertEqual(buff["pct"] as? Double, 0)
+        XCTAssertEqual(buff["battlesLeft"] as? Int, 0)
+    }
+
+    /// 버프만으로는 "플레이 흔적" 이 되지 않는다 — 웹 hasUpHeroFootprint 축에
+    /// combatBuff 가 없다. 빈 상태를 올려 클라우드를 덮는 사고를 막는 게이트다.
+    func testCombatBuffAloneIsNotFootprint() throws {
+        let decoded = try JSONDecoder().decode(
+            CloudUpHeroState.self,
+            from: Data(#"{"combatBuff":{"pct":0.5,"battlesLeft":9}}"#.utf8))
+        XCTAssertEqual(decoded.combatBuff.buff, CombatBuff(pct: 0.5, battlesLeft: 9))
+        XCTAssertFalse(decoded.hasFootprint)
     }
 
     // MARK: - 관용 디코드 (웹 normalizeUpHeroState)
@@ -189,7 +305,8 @@ final class UpHeroCloudSchemaTests: XCTestCase {
     // MARK: - 인코딩 계약 (웹 encodeUpHeroForCloud)
 
     /// setDoc(merge) 병합 누수 방어 — 빈 장비 슬롯·미전직은 명시적 null,
-    /// shopDaily.coinPouchClaimed 는 기본 false, currentSession 은 실리지 않는다.
+    /// shopDaily.coinPouchClaimed 는 기본 false, shopDaily.slotSpins 는 기본 0,
+    /// currentSession 은 실리지 않는다.
     func testEncodeFillsMergeHoles() throws {
         var state = UpHeroStore.makeDefaultState()
         state.coins = 50
@@ -205,6 +322,7 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         XCTAssertTrue(hero["classType"] is NSNull)
         let shopDaily = try XCTUnwrap(payload["shopDaily"] as? [String: Any])
         XCTAssertEqual(shopDaily["coinPouchClaimed"] as? Bool, false)
+        XCTAssertEqual(shopDaily["slotSpins"] as? Int, 0, "빠지면 merge 에 어제 횟수가 남는다")
         XCTAssertNil(payload["currentSession"])
         XCTAssertNil(payload["pendingDungeon"])
         // 와이어 키 — welcomeGrantClaimed 로 나가야 웹이 읽는다.
