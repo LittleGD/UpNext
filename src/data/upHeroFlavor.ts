@@ -25,6 +25,7 @@ import { PRODUCTIVITY_EVENTS } from "./flavor/productivity";
 import { WELLNESS_EVENTS } from "./flavor/wellness";
 import { TRENDING_EVENTS } from "./flavor/trending";
 import { UNIVERSAL_EVENTS } from "./flavor/universal";
+import { SLOT_EVENT, SLOT_EVENT_CHANCE } from "./flavor/slot";
 
 /** 재export — narrative / treasure pool (legacy fallback) + i18n key arrays */
 export {
@@ -173,7 +174,16 @@ export { CAMP_AMBIENCE_KEYS };
 export function pickEvent(
   sessionOrDungeon:
     | DungeonId
-    | { dungeonId: DungeonId; recentEventPrompts?: string[] },
+    | {
+        dungeonId: DungeonId;
+        recentEventPrompts?: string[];
+        /**
+         * 굴림틀을 후보에 넣어도 되는가. 호출자(전투 로직)가 코인 잔액과 굴림
+         * 상한을 보고 판정해 넘긴다. false 면 굴림틀은 아예 뽑히지 않는다 —
+         * 돌릴 수 없는 장치를 띄우면 "선택지 없는 선택지" 가 되기 때문이다.
+         */
+        slotAvailable?: boolean;
+      },
 ): DungeonEvent {
   const dungeonId =
     typeof sessionOrDungeon === "string"
@@ -183,6 +193,17 @@ export function pickEvent(
     typeof sessionOrDungeon === "string"
       ? []
       : (sessionOrDungeon.recentEventPrompts ?? []);
+  const slotAvailable =
+    typeof sessionOrDungeon === "string"
+      ? false
+      : (sessionOrDungeon.slotAvailable ?? false);
+
+  // 굴림틀은 던전/범용 pool 어디에도 넣지 않고 여기서 따로 저울질한다. pool 에
+  //   섞으면 던전마다 등장률이 갈리고 (던전 pool 크기가 제각각) LRU 필터에
+  //   휩쓸려 확률이 흐려진다. 상한·잔액 게이트도 pool 안에서는 표현할 수 없다.
+  if (slotAvailable && !recent.includes(SLOT_EVENT.prompt)) {
+    if (Math.random() < SLOT_EVENT_CHANCE) return SLOT_EVENT;
+  }
 
   const useDungeon = Math.random() < 0.6;
   const pool = useDungeon ? EVENT_POOL[dungeonId] : UNIVERSAL_EVENTS;

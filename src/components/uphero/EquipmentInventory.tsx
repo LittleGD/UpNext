@@ -23,7 +23,10 @@ import {
   getEffectiveHeroLevel,
   enhanceSuccessRate,
   enhanceCost,
-  ENHANCE_PRESERVE_BY_RARITY,
+  enhanceOutcomeRates,
+  canEnhanceDestroy,
+  canEnhanceDowngrade,
+  isEnhanceSafeLevel,
   MAX_ENHANCE_LEVEL,
   SELL_PRICE,
   CLASS_THEME_COLOR,
@@ -51,6 +54,74 @@ import PixelIcon from "@/components/icons/PixelIcon";
 //   631줄 + PhotoMeta/DUNGEONS import → 장비 탭 첫 진입에서 번들링 제외.
 const PhotoTalismanPicker = lazy(() => import("./PhotoTalismanPicker"));
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
+
+/**
+ * i18n 템플릿에서 값 한 개를 강조 span 으로 감싸기 위한 분할 헬퍼.
+ *
+ * 호출부는 t() 에 실제 값 대신 sentinel 을 넣고, 돌아온 문자열을 sentinel 기준으로
+ * 앞/뒤로 자른 다음 그 사이에 span 을 끼운다.
+ *
+ * **주의 (2026-08 버그의 원인)**: 템플릿이 이미 단위 기호를 갖고 있다
+ * (`"성공률 {pct}%"`, `"비용 {cost} 코인"`). 그러니 span 안에는 **숫자만** 넣어야
+ * 한다. 여기에 단위를 덧붙이면 템플릿에 남아 있던 기호와 겹쳐 `86%%` 가 된다.
+ * 단위는 잘려나온 뒷부분(after)이 그대로 들고 있으므로 화면에서는 이어져 보인다.
+ *
+ * String.prototype.split 대신 indexOf 를 쓰는 이유: 토큰이 두 번 이상 나오는
+ * 템플릿에서 split 의 [before, after] 구조 분해가 나머지 조각을 조용히 버린다.
+ */
+function splitAtToken(text: string, token: string): [string, string] {
+  const idx = text.indexOf(token);
+  if (idx < 0) return [text, ""];
+  return [text.slice(0, idx), text.slice(idx + token.length)];
+}
+
+/**
+ * Phase 15 — 강화 확인 다이얼로그의 방지권 토글 한 줄.
+ *
+ * 보유가 0 이면 토글 자체를 그리지 않는다 — 누를 수 없는 체크박스는 "살 수도 있나"
+ * 를 묻게 만들 뿐이라, 그 자리에 구하는 경로를 한 줄로 대신 적는다.
+ * 최소 터치 타깃 40px 은 다른 다이얼로그 컨트롤과 같은 값이다.
+ */
+function GuardToggle({
+  held,
+  armed,
+  onToggle,
+  label,
+  emptyLabel,
+}: {
+  held: number;
+  armed: boolean;
+  onToggle: () => void;
+  label: string;
+  emptyLabel: string;
+}) {
+  if (held <= 0) {
+    return <span style={{ color: GB.light, opacity: 0.8 }}>{emptyLabel}</span>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={armed}
+      className="typo-caption inline-flex items-center gap-1.5 rounded"
+      style={{
+        minHeight: 40,
+        padding: "6px 8px",
+        marginTop: 2,
+        background: "transparent",
+        border: "none",
+        color: armed ? GB.lightest : GB.light,
+      }}
+    >
+      <PixelIcon
+        name={armed ? "CheckboxOn" : "Checkbox"}
+        size={14}
+        color={armed ? GB.lightest : GB.light}
+      />
+      {label}
+    </button>
+  );
+}
 
 /** Phase 9a / 11a — 판매/버리기/강화 확인 dialog pending state.
  *   enhance 는 이제 단일 아이템 + 비용 + 성공률 snapshot. */
@@ -117,6 +188,9 @@ export default function EquipmentInventory({
   const sellItem = useUpHeroStore((s) => s.sellItem);
   const discardItem = useUpHeroStore((s) => s.discardItem);
   const enhanceItem = useUpHeroStore((s) => s.enhanceItem);
+  // Phase 15 — 방지권 2종 보유 개수.
+  const destroyGuards = useUpHeroStore((s) => s.destroyGuards ?? 0);
+  const downGuards = useUpHeroStore((s) => s.downGuards ?? 0);
   // Phase 9d — 영웅 전용 레벨.
   const gameLevel = useGameStore((s) => s.progress.level);
   const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
@@ -131,6 +205,13 @@ export default function EquipmentInventory({
   const [tab, setTab] = useState<"bag" | "photo" | "enhance">("bag");
   /** Phase 9a — GbConfirm 으로 교체된 판매/버리기/합성 pending state. */
   const [pending, setPending] = useState<PendingAction | null>(null);
+  /**
+   * Phase 15 — 이번 강화 시도에 방지권을 걸지 여부 (2종 독립).
+   * 확인 다이얼로그를 열 때마다 기본 ON 으로 되돌린다 (onEnhance). 소모는 실제로
+   * 막아냈을 때만 일어나므로 켜둔 채로 두는 것이 유저에게 손해가 아니다.
+   */
+  const [armDestroyGuard, setArmDestroyGuard] = useState(true);
+  const [armDownGuard, setArmDownGuard] = useState(true);
 
   /** Phase 8a — 사진 부적 탭 카운트용 */
   const photoMetas = useGrowthStore((s) => s.photoMetas);
@@ -207,7 +288,19 @@ export default function EquipmentInventory({
       //
       // Phase 11c R1 — exhaustive switch 로 재구성. 새로운 EnhanceResult 분기가
       //   추가될 때 TS 에러 로 포착되도록 default 에 assertExhaustive 패턴.
-      const result: EnhanceResult = enhanceItem(pending.item.id);
+      // Phase 15 — 안전 구간(소실·하락 0)에서는 방지권을 걸지 않는다. 걸어도 판정이
+      //   안 나므로 소모되지 않지만, 애초에 넘기지 않는 편이 계약이 분명하다.
+      const lvl = pending.item.enhanceLevel ?? 0;
+      const result: EnhanceResult = enhanceItem(pending.item.id, {
+        destroy:
+          armDestroyGuard &&
+          destroyGuards > 0 &&
+          canEnhanceDestroy(pending.item.rarity, lvl),
+        down:
+          armDownGuard &&
+          downGuards > 0 &&
+          canEnhanceDowngrade(pending.item.rarity, lvl),
+      });
 
       // coin/maxed/not-found 는 ritual 없이 즉시 toast — 상호작용 abort
       if (!result.ok) {
@@ -240,6 +333,13 @@ export default function EquipmentInventory({
       } else if (result.reason === "keep") {
         outcome = "keep";
         modal = { kind: "keep", item: result.item };
+      } else if (result.reason === "guarded") {
+        // 방지권이 막아냈다. 연출은 "유지" 쪽 색을 쓰되 모달이 무엇을 막았는지 말한다.
+        outcome = "keep";
+        modal = { kind: "guarded", item: result.item, guard: result.guard };
+      } else if (result.reason === "down") {
+        outcome = "keep";
+        modal = { kind: "down", item: result.item, prevLevel: result.prevLevel };
       } else if (result.reason === "destroyed") {
         outcome = "destroyed";
         modal = {
@@ -309,6 +409,9 @@ export default function EquipmentInventory({
     const cost = enhanceCost(item.rarity, level);
     // Phase 11c R4 — pity streak 반영된 성공률 표시.
     const rate = enhanceSuccessRate(item.rarity, level, item.enhanceFailStreak ?? 0);
+    // 다이얼로그를 열 때마다 방지권 토글을 기본 ON 으로 되돌린다.
+    setArmDestroyGuard(true);
+    setArmDownGuard(true);
     setPending({ kind: "enhance", item, cost, successRate: rate });
   };
 
@@ -678,7 +781,22 @@ export default function EquipmentInventory({
                               pity ×{streak}
                             </span>
                           )}
-                          <span>{t("uphero.equip.enhancePreserveBadge", { pct: Math.round(ENHANCE_PRESERVE_BY_RARITY[item.rarity] * 100) })}</span>
+                          {/* Phase 15 — 안전 구간(+0→+3)은 "유지 100%" 대신 "안전"
+                              으로 말한다. 100% 라는 숫자를 확률처럼 늘어놓으면
+                              나머지 구간의 숫자와 같은 무게로 읽혀 오히려 흐릿해진다. */}
+                          {isEnhanceSafeLevel(item.rarity, level) ? (
+                            <span style={{ color: GB.lightest }}>
+                              {t("uphero.equip.enhanceSafeBadge")}
+                            </span>
+                          ) : (
+                            <span>
+                              {t("uphero.equip.enhancePreserveBadge", {
+                                pct: Math.round(
+                                  enhanceOutcomeRates(item.rarity, level).keep * 100,
+                                ),
+                              })}
+                            </span>
+                          )}
                           {/* Phase 11c R4 R2 — 장착 중 배지. 실패-소실 시 즉시 스탯 감소 안내. */}
                           {isEquipped && (
                             <span
@@ -778,34 +896,66 @@ export default function EquipmentInventory({
           ) : pending?.kind === "enhance" ? (
             <>
               {(() => {
-                // Phase 12 i18n — "성공률 N%" 의 N% 만 강조 색으로 묶기.
+                // Phase 12 i18n — "성공률 N%" 의 숫자만 강조 색으로 묶기.
+                // 2026-08 버그 수정: 템플릿이 이미 "%" 를 갖고 있으므로 span 안에는
+                //   숫자만 넣는다. 예전엔 여기서 `{pct}%` 를 렌더해 "86%%" 가 됐다.
+                //   "%" 는 잘려나온 after 가 그대로 들고 있어 화면에선 이어져 보인다.
                 const pct = Math.round(pending.successRate * 100);
-                const txt = t("uphero.equip.confirm.successRate", {
-                  pct: "__PCT__",
-                });
-                const [before, after] = txt.split("__PCT__");
+                const [before, after] = splitAtToken(
+                  t("uphero.equip.confirm.successRate", { pct: "__PCT__" }),
+                  "__PCT__",
+                );
                 return (
                   <>
                     {before}
-                    <span style={{ color: GB.lightest }}>{pct}%</span>
+                    <span style={{ color: GB.lightest }}>{pct}</span>
                     {after}
                   </>
                 );
               })()}
               <br />
-              {t("uphero.equip.enhancePreserveHint", {
-                pct: Math.round(
-                  ENHANCE_PRESERVE_BY_RARITY[pending.item.rarity] * 100,
-                ),
-              })}
+              {/* Phase 15 — 위험 안내는 정직하게. 안전 구간에서는 소실·하락이 둘 다
+                  0 이므로 "실패해도 그대로" 라고만 말하고, 위험 구간에서만 실패 시의
+                  소실/하락 확률을 각각 숫자로 보여준다. 방지권을 걸어 그 결과가
+                  막히는 항목은 같은 줄에서 "막힘" 으로 표시한다 — 확률은 그대로
+                  굴러가지만 결과가 바뀌므로, 숫자를 지우는 대신 상태를 덧붙인다. */}
+              {(() => {
+                const lvl = pending.item.enhanceLevel ?? 0;
+                if (isEnhanceSafeLevel(pending.item.rarity, lvl)) {
+                  return (
+                    <span style={{ color: GB.lightest }}>
+                      {t("uphero.equip.enhanceSafeHint")}
+                    </span>
+                  );
+                }
+                const rates = enhanceOutcomeRates(pending.item.rarity, lvl);
+                const destroyBlocked = armDestroyGuard && destroyGuards > 0;
+                const downBlocked = armDownGuard && downGuards > 0;
+                const pct = (n: number) => Math.round(n * 100);
+                return (
+                  <>
+                    <span style={{ color: destroyBlocked ? GB.light : GB_WARN }}>
+                      {t("uphero.equip.enhanceDestroyHint", {
+                        pct: pct(rates.destroy),
+                      })}
+                      {destroyBlocked && ` ${t("uphero.equip.guard.blockedTag")}`}
+                    </span>
+                    <br />
+                    <span style={{ color: downBlocked ? GB.light : GB_WARN }}>
+                      {t("uphero.equip.enhanceDownHint", { pct: pct(rates.down) })}
+                      {downBlocked && ` ${t("uphero.equip.guard.blockedTag")}`}
+                    </span>
+                  </>
+                );
+              })()}
               <br />
               {(() => {
-                // Phase 12 i18n — cost 숫자만 강조.
-                const txt = t("uphero.equip.enhanceCost", {
-                  cost: "__COST__",
-                  coins,
-                });
-                const [before, after] = txt.split("__COST__");
+                // Phase 12 i18n — cost 숫자만 강조. (템플릿의 "코인"/"C" 단위는
+                //   after 가 들고 있으므로 span 에는 숫자만.)
+                const [before, after] = splitAtToken(
+                  t("uphero.equip.enhanceCost", { cost: "__COST__", coins }),
+                  "__COST__",
+                );
                 return (
                   <>
                     {before}
@@ -814,6 +964,49 @@ export default function EquipmentInventory({
                   </>
                 );
               })()}
+              {/* Phase 15 — 방지권 토글 2종. 그 결과가 실제로 날 수 있는 레벨에서만
+                  노출한다. 안전 구간에서 권하면 필요 없는 것을 파는 셈이라 아예
+                  그리지 않는다. 보유 0 이면 토글 대신 구하는 경로만 한 줄 안내한다. */}
+              {canEnhanceDestroy(
+                pending.item.rarity,
+                pending.item.enhanceLevel ?? 0,
+              ) && (
+                <>
+                  <br />
+                  <GuardToggle
+                    held={destroyGuards}
+                    armed={armDestroyGuard}
+                    onToggle={() => setArmDestroyGuard((v) => !v)}
+                    label={t("uphero.equip.guard.toggle", {
+                      name: t("uphero.guard.destroy.name"),
+                      n: destroyGuards,
+                    })}
+                    emptyLabel={t("uphero.equip.guard.destroyNone", {
+                      name: t("uphero.guard.destroy.name"),
+                    })}
+                  />
+                </>
+              )}
+              {canEnhanceDowngrade(
+                pending.item.rarity,
+                pending.item.enhanceLevel ?? 0,
+              ) && (
+                <>
+                  <br />
+                  <GuardToggle
+                    held={downGuards}
+                    armed={armDownGuard}
+                    onToggle={() => setArmDownGuard((v) => !v)}
+                    label={t("uphero.equip.guard.toggle", {
+                      name: t("uphero.guard.down.name"),
+                      n: downGuards,
+                    })}
+                    emptyLabel={t("uphero.equip.guard.downNone", {
+                      name: t("uphero.guard.down.name"),
+                    })}
+                  />
+                </>
+              )}
               {/* Phase 11c R4 R2 — equipped 장비 강화 시 추가 경고 (소실 → 스탯 즉시 하락). */}
               {(["weapon", "armor", "accessory", "talisman"] as const).some(
                 (s) => hero.equipped[s]?.id === pending.item.id,

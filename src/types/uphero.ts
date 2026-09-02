@@ -11,6 +11,13 @@
 import type { Language } from "./game";
 
 import type { Category, Rarity } from "./card";
+/**
+ * 굴림틀(rune drum) 결과 타입. 확률 테이블의 단일 출처는 `@/lib/upHeroSlot` 이라
+ * 여기서는 **타입만** 빌려온다. `import type` 은 컴파일에서 완전히 지워지므로
+ * upHeroSlot ↔ types/uphero 사이에 런타임 순환 import 는 생기지 않는다
+ * (upHeroSlot 도 `Rarity` 를 type-only 로만 가져간다).
+ */
+import type { SlotOutcomeId, SlotSymbol } from "@/lib/upHeroSlot";
 
 /** 던전 ID = 챌린지 카테고리 (8개 1:1 매핑) */
 export type DungeonId = Category;
@@ -292,6 +299,17 @@ export type ChoiceEffect =
   | { kind: "time"; delta: number }
   /** 일반 몬스터 encounter 에서 "싸운다" — 즉시 전투 round 시작 */
   | { kind: "fight" }
+  /**
+   * 굴림틀 이벤트에서 "코인을 넣고 돌린다".
+   *
+   * 결과는 이 효과를 적용하는 **순간 서버(전투 로직) 에서 확정** 되고 지급까지
+   * 끝난다. 드럼 애니메이션은 이미 확정된 결과를 재생할 뿐이라 연출을 건너뛰거나
+   * 앱이 죽어도 보상이 어긋나지 않는다. 확률 테이블은 `@/lib/upHeroSlot`.
+   *
+   * `cost` 코인이 이번 탐험에서 번 코인(`rewards.coins`)에서 빠진다. 지갑이
+   * 아니라 런 수입에서 걷는 이유는 upHeroSlot 상단 주석 참조.
+   */
+  | { kind: "spinSlot"; cost: number }
   /**
    * 일반 몬스터 encounter 에서 "도망간다" — agi/level 기반 확률 성공.
    * 성공 시 전투 없이 다음 floor. 실패 시 전투 시작 + 한 턴 반격 허용.
@@ -583,6 +601,23 @@ export type LogEntry =
       actionLabelFallback?: string;
       resultTextKey?: string;
       resultTextFallback?: string;
+      /**
+       * 굴림틀 결과. 있으면 DungeonView 가 일반 결과 모달 대신 드럼 연출
+       * (`SlotMachineModal`) 을 띄운다. `symbols` 는 이미 확정된 결과를 그대로
+       * 옮긴 세 룬이라 컴포넌트는 다시 굴리지 않는다 — 표시 전용.
+       */
+      slot?: {
+        outcome: SlotOutcomeId;
+        symbols: [SlotSymbol, SlotSymbol, SlotSymbol];
+        /** 굴림에 들어간 코인. 결과 화면이 순손익을 정직하게 보여주기 위해 남긴다. */
+        cost: number;
+        /** 이 굴림으로 받은 소실방지권 장수 (0 이면 없음). */
+        destroyGuards?: number;
+        /** 이 굴림으로 받은 하락방지권 장수 (0 이면 없음). */
+        downGuards?: number;
+        /** 이 굴림으로 붙은 전투 버프 (없으면 undefined). */
+        buff?: { pct: number; battles: number };
+      };
       timestamp: number;
     };
 
@@ -601,7 +636,19 @@ export interface CombatSession {
   log: LogEntry[];
   /** 세션 시작 시점 영웅 스냅샷 (장비 변경 영향 없게) */
   hero: Hero;
-  rewards: { xp: number; coins: number; drops: Equipment[] };
+  rewards: {
+    xp: number;
+    coins: number;
+    drops: Equipment[];
+    /**
+     * 이 탐험에서 얻은 소실방지권 장수. 보스 처치 드롭 / 보물상자 / 굴림틀에서
+     * 쌓이고 세션 정산(`completeSession`) 때 `UpHeroState.destroyGuards` 로
+     * 합산된다. 필드가 없는 legacy 세이브는 0 으로 읽힌다.
+     */
+    destroyGuards?: number;
+    /** 이 탐험에서 얻은 하락방지권 장수. 정산 때 `UpHeroState.downGuards` 로 합산. */
+    downGuards?: number;
+  };
   status: CombatSessionStatus;
   /** awaitingChoice 시 대기 중 choice 의 log index */
   pendingChoiceIndex?: number;
@@ -676,6 +723,18 @@ export interface CombatSession {
    *   연속 뽑히지 않도록 배제. 같은 세션에서 "수상한 상인" 이 3번 연속 나오던 현상 완화.
    */
   recentEventPrompts?: string[];
+  /**
+   * 굴림틀 보상 "다음 N 전투 동안 능력치 +pct%".
+   *
+   * 스탯에 곱하는 지점은 `upHeroCombat.sessionStats()` **한 곳뿐** 이다. 다른
+   * 곳에서 또 곱하면 이중 적용되니 새 소비자를 붙일 땐 반드시 그 헬퍼를 쓸 것.
+   * `battlesLeft` 는 몬스터 처치(victory) 마다 1 줄고 0 이 되면 필드째 지워진다.
+   *
+   * 세션 스코프인 이유: 버프는 굴림틀 이벤트 직후 같은 탐험 안에서 소진되는 게
+   * 정상 경로다. 탐험을 넘겨 물려주려면 `UpHeroState` 로 승격하고 sync 스키마
+   * (웹 CloudUpHeroState + iOS UpHeroCloudSchema CodingKeys 양쪽) 를 함께 넓혀야 한다.
+   */
+  combatBuff?: { pct: number; battlesLeft: number };
   /**
    * Phase 6b — 다음 영웅 공격 damage 배율 (warrior 강타 등).
    * 1 이상 — 공격 발생 후 reset (1 로 돌아감).
@@ -863,18 +922,73 @@ export interface UpHeroState {
    * date 는 getTodayString() (새벽 1시 기준) 포맷.
    * passesBought: 오늘 산 탐험권 개수 (DAILY_PASS_PURCHASE_CAP=2 까지).
    * coinPouchClaimed: 오늘 데일리 코인 주머니 수령 여부 (기본 false).
+   * slotSpins: 오늘 굴림틀을 돌린 횟수 (`SLOT_DAILY_SPIN_CAP` 상한). 세션이 아니라
+   *   여기 두어 하루에 탐험을 몇 번 하든 합산된다. 필드가 없는 레거시 저장본은 0.
+   *   굴림 상한·pity 스트릭(`slotBlankStreak`) 둘 다 세션(`CombatSession`) 밖에 산다 —
+   *   스토어가 스냅샷을 전투 레이어에 넘기고 결과 엔트리를 보고 갱신한다.
+   *   클라우드 와이어 키도 그대로 `slotSpins` (정수 0..100, 항상 인코드).
+   *   iOS `UpHeroCloudSchema` CodingKeys 와 철자를 맞출 것.
    * 다른 daily reset 이 추가되면 여기에 필드 누적.
    */
   shopDaily?: {
     date: string;
     passesBought: number;
     coinPouchClaimed?: boolean;
+    slotSpins?: number;
   };
   /**
    * Phase 11c — F30 보스 처치 시 +1. 다음 세션부터 난이도 × (1 + 0.5 × n)
    * 로 상향되며 legend drop 확률도 상승. 0 / undefined = 미해금.
    */
   ngPlusLevel?: number;
+  /**
+   * Phase 15 — 소실방지권 보유 개수. **상점에서 팔지 않는다.**
+   * 보스 처치 드롭 · 던전 이벤트(보물상자류) · 슬롯머신 보상으로만 들어온다.
+   *
+   * 필드가 없는 기존 저장본은 0 으로 읽힌다 (undefined = 미보유). 개수는 항상
+   * 0 이상 정수이며 ENHANCE_GUARD_MAX 로 상한을 둔다.
+   *
+   * 소모 계약: 강화에 실패했고, 그 실패가 **소실로 판정된 순간에만** 1 감소한다.
+   * 성공했거나, 실패했지만 유지/하락으로 끝났으면 소모하지 않는다.
+   *
+   * 클라우드 왕복 와이어 키도 그대로 `destroyGuards` 다. iOS 는 CodingKeys
+   * 화이트리스트라 이름이 한 글자만 어긋나도 왕복에서 조용히 탈락한다 —
+   * iOS `UpHeroCloudSchema` 의 같은 키와 철자를 반드시 맞출 것.
+   */
+  destroyGuards?: number;
+  /**
+   * Phase 15 — 하락방지권 보유 개수. **상점 판매 품목**이다
+   * (SHOP_PRICES.downGuard). 소실방지권과 달리 코인으로 살 수 있다.
+   *
+   * 소모 계약: 실패가 **하락으로 판정된 순간에만** 1 감소한다.
+   * 와이어 키 `downGuards`.
+   */
+  downGuards?: number;
+  /**
+   * Phase 15 — 슬롯머신 보상 "다음 N 전투 동안 능력치 +X%" 의 잔여 상태.
+   *   pct:        상승률, 퍼센트 포인트 (10 = +10%). 0 이하면 버프 없음과 같다.
+   *               세션 층위(`CombatSession.combatBuff`)와 **같은 단위**다 —
+   *               두 층위를 오갈 때 변환하지 않는다.
+   *   battlesLeft: 남은 전투 수. 전투 시작마다 1 감소, 0 이면 만료.
+   * 만료됐거나 없으면 undefined 다 — battlesLeft 0 짜리 껍데기를 남기지 않는다.
+   * 와이어 키 `combatBuff` (중첩 맵).
+   */
+  combatBuff?: { pct: number; battlesLeft: number };
+  /**
+   * 굴림틀 연속 꽝 스트릭 (pity 카운터). **탐험을 넘어 영속**한다.
+   *
+   * `SLOT_PITY_THRESHOLD - 1` (= 4) 에 닿으면 다음 굴림은 꽝을 뺀 표로 굴려
+   * 반드시 보상이 나오고, 보상이 나오면 0 으로 돌아간다. 갱신 지점은
+   * `useUpHeroStore.resolveChoice` 한 곳 — 세션(`CombatSession`)은 이 값을 갖지
+   * 않고 롤 입력으로만 받는다.
+   *
+   * 필드가 없는 레거시 저장본은 0 이다. 정수 [0, SLOT_BLANK_STREAK_MAX] 로
+   * 접는다 (`normalizeSlotBlankStreak`). 와이어 키 `slotBlankStreak` — 0 이어도
+   * 키를 항상 싣는다: 보상 뒤 0 리셋이 merge 에서 빠지면 옛 스트릭이 되살아나
+   * 받을 자격이 없는 pity 가 발동한다. iOS `UpHeroCloudSchema` CodingKeys 에
+   * 같은 철자로 있어야 왕복에서 탈락하지 않는다.
+   */
+  slotBlankStreak?: number;
   /**
    * Phase 11c — 주간 악몽 던전 진행 상태.
    * week: ISO week id (예: "2026-W16"). 바뀌면 자동 리셋.
@@ -1001,6 +1115,21 @@ export const SHOP_PRICES = {
   auraReading: 20,
   /** Phase 11a — 탐험권 1장 가격 (던전 무관 고정). */
   expeditionPass: 80,
+  /**
+   * Phase 15 — 하락방지권 1장. 강화 실패가 **하락**으로 판정된 순간에만
+   * 소모되어 강화 단계를 지킨다.
+   *
+   * 왜 150 인가: 탐험권(80)과 보너스 카드팩(200) 사이, 위험 구간의 강화 1회 시도
+   * 보다 싼 자리다. 보험료가 한 번의 시도보다 싸야 "위험할 때 켠다" 는 판단이
+   * 성립한다. 이 기능이 나온 계기가 "지나치게 어렵다" 는 피드백이므로 가격이
+   * 두 번째 벽이 되면 안 된다.
+   *
+   * **소실방지권(destroyGuards)은 여기 없다.** 상점에서 팔지 않고 보스 처치·던전
+   * 이벤트·슬롯머신으로만 나온다 — 돈으로 사는 순간 고강 구간의 긴장이 사라진다.
+   *
+   * iOS `ShopPrices.downGuard` 와 같은 값이어야 한다.
+   */
+  downGuard: 150,
 } as const;
 
 /**
@@ -1098,8 +1227,10 @@ export function computeWeeklyScore(
 /** 강화 가능 최대 레벨 (inclusive). */
 export const MAX_ENHANCE_LEVEL = 10;
 
-// Phase 11c R2 — 이전 `ENHANCE_PRESERVE_ON_FAIL` 상수 제거. 전면 `ENHANCE_PRESERVE_BY_RARITY`
-// 사용 (rarity 별 차등 보존: normal/rare 30%, unique 40%, legend 50%).
+// Phase 11c R2 — 이전 `ENHANCE_PRESERVE_ON_FAIL` 상수 제거.
+// Phase 15 — 그 후계인 `ENHANCE_PRESERVE_BY_RARITY`(레벨 무관 고정 보존률) 도 퇴역.
+//   레벨 기반 `enhancePreserveRate(rarity, currentLevel, hasProtect)` 로 대체됐다.
+//   아래 ENHANCE_DESTROY_ON_FAIL_BY_LEVEL 주석에 근거를 남겼다.
 
 /**
  * 등급별 base 성공률 (+0 → +1). 백분율 0-100.
@@ -1145,12 +1276,162 @@ const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
   legend: 0.04, // +4%p / fail
 };
 
-export const ENHANCE_PRESERVE_BY_RARITY: Record<Rarity, number> = {
-  normal: 0.3,
-  rare: 0.3,
-  unique: 0.4,
-  legend: 0.5,
+/* ── Phase 15 — 실패를 소실 / 하락 / 유지 3분기로 재설계 ────────────────────
+ *
+ * 무엇이 문제였나: 직전 모델 `ENHANCE_PRESERVE_BY_RARITY` 는 레벨과 무관하게
+ * 보존률이 고정(normal/rare 30%, unique 40%, legend 50%)이었다. 즉 +1 → +2
+ * 실패에서도 70% 확률로 아이템이 사라졌다. 성장의 첫 계단부터 벽이 서 있었다.
+ *
+ * 장르 관행: 강화는 "저강 구간은 안전, 고강 구간부터 위험" 이 표준이다.
+ * 메이플 스타포스는 0~14성 파괴 0%, 리니지2 는 +3 까지 안전, 던파는 +12 부터
+ * 파괴가 붙는다. 그리고 그 사이 구간을 채우는 것이 **등급 하락**이다 — 아이템이
+ * 사라지지는 않지만 한 단계 내려가므로, 손실감은 주되 판을 엎지는 않는다.
+ *
+ * 새 모델 (MAX_ENHANCE_LEVEL=10 에 맞춰 축약):
+ *   실패했을 때 아래 셋 중 하나로 갈린다.
+ *     destroy : ENHANCE_DESTROY_ON_FAIL_BY_LEVEL[L] × ENHANCE_DESTROY_RARITY_MULT[rarity]
+ *     down    : ENHANCE_DOWN_ON_FAIL_BY_LEVEL[L]
+ *     keep    : 나머지
+ *   currentLevel 0..2 (= +0→+1 부터 +2→+3) 는 destroy·down 둘 다 정확히 0 이라
+ *   실패해도 100% 유지된다. "거의 없다" 가 아니라 0 으로 못박는다 — 그래야 UI 가
+ *   이 구간을 "안전" 이라고 정직하게 말할 수 있다.
+ *
+ * 성공률·감쇠·pity·비용 상수는 이 개편에서 건드리지 않았다. 바뀐 것은 실패의
+ * 결과뿐이다.
+ *
+ * 아래 두 표는 **실패했을 때** 의 조건부 확률이다. 시도당 확률은 (1 - 성공률) ×
+ * 이 값이라 훨씬 낮다. 예: normal +5 는 실패율 20% × 소실 5% = 시도당 1.0%.
+ * index = currentLevel (0..9). +9→+10 이 마지막 시도라 index 9 까지만 쓴다.
+ */
+export const ENHANCE_DESTROY_ON_FAIL_BY_LEVEL: readonly number[] = [
+  0, 0, 0, // +0→+3: 완전 안전 구간.
+  0.01, // +3→+4
+  0.02, // +4→+5
+  0.05, // +5→+6
+  0.09, // +6→+7
+  0.14, // +7→+8
+  0.2, // +8→+9
+  0.26, // +9→+10
+];
+
+/**
+ * 실패 시 **등급 하락**(+L → +L-1) 확률. 소실과 배타적이며, 소실 판정이 먼저다.
+ * 하락은 등급 보정을 두지 않는다 — 비용이 비싼 legend 를 봐주는 것은 "사라지는"
+ * 쪽에서 이미 하고 있고(ENHANCE_DESTROY_RARITY_MULT), 되돌릴 수 있는 손실까지
+ * 등급별로 깎으면 상위 등급이 사실상 무손실이 된다.
+ */
+export const ENHANCE_DOWN_ON_FAIL_BY_LEVEL: readonly number[] = [
+  0, 0, 0, // +0→+3: 완전 안전 구간.
+  0.1, // +3→+4
+  0.15, // +4→+5
+  0.25, // +5→+6
+  0.3, // +6→+7
+  0.35, // +7→+8
+  0.4, // +8→+9
+  0.45, // +9→+10
+];
+
+/**
+ * 안전 구간의 마지막 currentLevel (inclusive). 이 값 이하에서는 소실·하락이 모두 0.
+ * UI 가 "위험 문구·방지권 토글을 노출할지" 판단할 때도 이 경계를 쓴다 — 필요 없는
+ * 구간에서 방지권을 권하면 기만이다.
+ */
+export const ENHANCE_SAFE_MAX_LEVEL = 2;
+
+/**
+ * 등급별 소실 확률 배율 (0.7 = 원래 소실 확률의 70%).
+ *
+ * 왜 가산이 아니라 곱인가: 뺄셈으로 깎으면 상위 등급이 특정 레벨에서 소실 확률
+ * 0 으로 주저앉아 "고강 구간엔 위험이 있다" 는 곡선의 형태가 무너진다. 곱으로
+ * 깎으면 등급 간 순서와 단조 증가가 모두 유지된다.
+ *
+ * 등급이 높을수록 깎아주는 이유는 비용이다. ENHANCE_COST_RARITY_MULT 가 legend 를
+ * ×4 로 매기므로 같은 소실 확률이면 legend 쪽 손실만 극단적으로 커진다.
+ */
+export const ENHANCE_DESTROY_RARITY_MULT: Record<Rarity, number> = {
+  normal: 1,
+  rare: 1,
+  unique: 0.85,
+  legend: 0.7,
 };
+
+/** 강화 실패 시의 3분기 조건부 확률. 셋을 더하면 항상 1 이다. */
+export interface EnhanceOutcomeRates {
+  /** 아이템이 사라질 확률 */
+  destroy: number;
+  /** 강화 단계가 1 내려갈 확률 */
+  down: number;
+  /** 아무 일도 없을 확률 */
+  keep: number;
+}
+
+/**
+ * **실패 시** 3분기 확률의 단일 출처. UI 표기와 스토어 판정이 같은 값을 쓰도록
+ * 두 곳 모두 이 함수만 호출한다. 방지권은 여기 반영하지 않는다 — 방지권은 확률을
+ * 바꾸는 게 아니라 "나온 결과를 바꾸는" 장치이고, 소모 판정도 스토어가 한다.
+ *
+ * @param currentLevel 강화를 시도하는 시점의 레벨. +3 → +4 시도면 3.
+ */
+export function enhanceOutcomeRates(
+  rarity: Rarity,
+  currentLevel: number,
+): EnhanceOutcomeRates {
+  const level = Math.max(0, Math.floor(currentLevel));
+  if (level <= ENHANCE_SAFE_MAX_LEVEL) return { destroy: 0, down: 0, keep: 1 };
+  // 표 범위를 넘어선 레벨(방어적)은 마지막 값으로 고정.
+  const idx = Math.min(level, ENHANCE_DESTROY_ON_FAIL_BY_LEVEL.length - 1);
+  const mult = ENHANCE_DESTROY_RARITY_MULT[rarity] ?? 1;
+  const destroy = clamp01((ENHANCE_DESTROY_ON_FAIL_BY_LEVEL[idx] ?? 0) * mult);
+  // 소실 판정이 먼저이므로 하락은 남은 확률 공간을 넘지 못한다.
+  const down = Math.min(clamp01(ENHANCE_DOWN_ON_FAIL_BY_LEVEL[idx] ?? 0), 1 - destroy);
+  return { destroy, down, keep: Math.max(0, 1 - destroy - down) };
+}
+
+function clamp01(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+}
+
+/**
+ * 강화 **실패 시** 아이템이 그대로 남을 확률 (0-1). = 3분기의 keep.
+ * 하락은 "남았다" 로 치지 않는다 — 하락도 손실이라 유저에게 유지와 같은 칸에
+ * 묶어 보여주면 기만이 된다.
+ */
+export function enhancePreserveRate(rarity: Rarity, currentLevel: number): number {
+  return enhanceOutcomeRates(rarity, currentLevel).keep;
+}
+
+/** 강화 실패 시 소실 확률 (0-1). 방지권을 무시한 "원래 위험" 이다. */
+export function enhanceDestroyRate(rarity: Rarity, currentLevel: number): number {
+  return enhanceOutcomeRates(rarity, currentLevel).destroy;
+}
+
+/** 강화 실패 시 하락 확률 (0-1). */
+export function enhanceDowngradeRate(rarity: Rarity, currentLevel: number): number {
+  return enhanceOutcomeRates(rarity, currentLevel).down;
+}
+
+/** 이 레벨에서 소실이 가능한가. UI 가 소실방지권 토글 노출을 판단하는 단일 기준. */
+export function canEnhanceDestroy(rarity: Rarity, currentLevel: number): boolean {
+  return enhanceDestroyRate(rarity, currentLevel) > 0;
+}
+
+/** 이 레벨에서 하락이 가능한가. UI 가 하락방지권 토글 노출을 판단하는 단일 기준. */
+export function canEnhanceDowngrade(rarity: Rarity, currentLevel: number): boolean {
+  return enhanceDowngradeRate(rarity, currentLevel) > 0;
+}
+
+/**
+ * 완전 안전 구간인가 (실패해도 소실·하락이 둘 다 0).
+ * UI 는 이 값이 true 면 위험 문구·방지권 토글을 **아예 그리지 않는다**.
+ */
+export function isEnhanceSafeLevel(rarity: Rarity, currentLevel: number): boolean {
+  const rates = enhanceOutcomeRates(rarity, currentLevel);
+  return rates.destroy === 0 && rates.down === 0;
+}
+
+/** 방지권 1종당 보유 가능한 최대 개수. UI overflow / 저장본 이상치 방어. */
+export const ENHANCE_GUARD_MAX = 99;
 
 /** 등급별 비용 배율 (base coin × level 증분 × 이 값). */
 export const ENHANCE_COST_RARITY_MULT: Record<Rarity, number> = {

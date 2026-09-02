@@ -36,6 +36,16 @@ import {
   pickRestWithKey,
 } from "@/data/upHeroFlavor";
 import { pickMysteryEvent } from "@/data/flavor/mystery";
+import {
+  SLOT_DAILY_SPIN_CAP,
+  SLOT_GRANTS,
+  SLOT_SPIN_COST,
+  normalizeSlotBlankStreak,
+  renderSymbols,
+  rollSlotOutcome,
+  slotItemBoxFloor,
+  type SlotOutcomeId,
+} from "@/lib/upHeroSlot";
 import { rollEquipmentDrop, rollDropRarity } from "@/data/upHeroEquipment";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import {
@@ -100,6 +110,15 @@ export interface CreateSessionOptions {
    *   미전달 시 undefined → 레거시 동작 (버프 해제 상태) 유지.
    */
   heroLevel?: number;
+  /**
+   * `UpHeroState.combatBuff` 스냅샷. 탐험 밖(굴림틀 보상이 남은 채 탐험이 끝난
+   * 경우 등) 에서 넘어온 버프를 세션 안으로 들여온다.
+   *
+   * 세션 안에서는 `session.combatBuff` 가 유일한 진실이고 전투 종료마다
+   * 여기서 닳는다. 탐험이 끝나면 스토어가 `session.combatBuff` 를 다시
+   * `UpHeroState.combatBuff` 로 적어 잔여 횟수를 이어받는다.
+   */
+  combatBuff?: { pct: number; battlesLeft: number };
 }
 
 export function createSession(
@@ -158,6 +177,11 @@ export function createSession(
     isWeeklyVariant: options?.isWeeklyVariant,
     weeklyAffixId: options?.weeklyAffixId,
     heroLevel: options?.heroLevel,
+    // 잔여 전투 횟수가 남은 버프만 들여온다. 0 이하는 이미 소진된 것이라 버린다.
+    combatBuff:
+      options?.combatBuff && options.combatBuff.battlesLeft > 0
+        ? { ...options.combatBuff }
+        : undefined,
     startedAt: Date.now(),
   };
 
@@ -290,6 +314,127 @@ export function amplifyChoiceOptions(
 function sessionMods(s: CombatSession): TalismanModifiers {
   return s.talismanMods ?? emptyTalismanMods();
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * 굴림틀 보상 — 전투 버프 / 소실방지권 드롭
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * **전투에 쓰이는 영웅 스탯의 단일 출처.**
+ *
+ * `computeEffectiveStats` (base + 장비) 위에 세션 한정 `combatBuff` 를 곱한다.
+ * 이 곱셈은 여기 한 곳에서만 일어난다 — 두 곳에서 곱하면 이중 적용이라
+ * "+10% 버프가 +21% 로 먹는" 버그가 된다. 전투 계산에 스탯이 필요하면 무조건
+ * 이 함수를 거칠 것. `computeEffectiveStats` 직접 호출은 표시용 (인벤토리 등)
+ * 에만 남긴다.
+ *
+ * crit / slotBonus 는 곱하지 않는다. crit 은 퍼센트 포인트라 곱하면 의미가
+ * 달라지고, slotBonus 는 스탯이 아니라 장비 슬롯 수 카운터다.
+ */
+function sessionStats(s: CombatSession): HeroBaseStats {
+  const base = computeEffectiveStats(s.hero);
+  const buff = s.combatBuff;
+  if (!buff || buff.battlesLeft <= 0 || buff.pct <= 0) return base;
+  const m = 1 + buff.pct / 100;
+  return {
+    ...base,
+    str: Math.round(base.str * m),
+    int: Math.round(base.int * m),
+    vit: Math.round(base.vit * m),
+    dex: Math.round(base.dex * m),
+    agi: Math.round(base.agi * m),
+  };
+}
+
+/**
+ * 전투 1회가 끝났을 때 (몬스터 처치) 버프 잔여 횟수 차감. 0 이면 필드째 제거해
+ * `sessionStats` 가 곧장 base 로 떨어지게 한다.
+ */
+function consumeCombatBuff(s: CombatSession): void {
+  if (!s.combatBuff) return;
+  const left = s.combatBuff.battlesLeft - 1;
+  if (left <= 0) s.combatBuff = undefined;
+  else s.combatBuff = { ...s.combatBuff, battlesLeft: left };
+}
+
+/**
+ * 보스 처치 시 소실방지권이 떨어질 확률.
+ *
+ * 왜 0.35 인가: 소실방지권은 이제 상점에서만 살 수 있는 물건이 아니라 "던전에서
+ * 벌어오는" 물건이어야 한다. 한 런에서 만나는 보스는 F10 / F20 / F30 셋이라
+ * 풀 클리어 기대 수급은 약 1.05장이다. 시뮬레이션상 legend 를 +10 까지 올리는
+ * 동안 평균 1.8장이 소모되니, "풀 클리어 두 번이면 legend 한 자루의 보험료가
+ * 대략 채워진다" 는 관계가 성립한다. 상점(150C)을 무의미하게 만들 만큼 후하지
+ * 않고, 코인 없이도 보험을 마련할 길은 열어준다.
+ */
+const BOSS_DESTROY_GUARD_DROP_CHANCE = 0.35;
+
+/**
+ * 보물상자류 이벤트에서 소실방지권이 섞여 나올 확률.
+ *
+ * 왜 0.06 인가: treasure 는 tick 당 10% 로 흔한 편이라 보스 드롭보다 두 자릿수
+ * 낮게 잡아야 총 수급이 무너지지 않는다. 풀 클리어 한 런의 treasure 조우를
+ * 대략 8~12회로 보면 기대 0.5~0.7장 — 보스 드롭(1.05장)의 보조 경로 수준이다.
+ * 합쳐 런당 1.5~1.8장이라 "천이 아까워서 강화를 못 누른다" 는 상태가 풀린다.
+ */
+const TREASURE_DESTROY_GUARD_DROP_CHANCE = 0.06;
+
+/** 세션 보상에 소실방지권 n 장 적립. 정산 때 UpHeroState.destroyGuards 로 합산된다. */
+function grantDestroyGuards(s: CombatSession, count: number): void {
+  if (count <= 0) return;
+  s.rewards.destroyGuards = (s.rewards.destroyGuards ?? 0) + count;
+}
+
+/** 세션 보상에 하락방지권 n 장 적립. 정산 때 UpHeroState.downGuards 로 합산된다. */
+function grantDownGuards(s: CombatSession, count: number): void {
+  if (count <= 0) return;
+  s.rewards.downGuards = (s.rewards.downGuards ?? 0) + count;
+}
+
+/**
+ * 굴림틀을 지금 돌릴 수 있는가 — 이벤트 등장 게이트이자 효과 적용 게이트.
+ *
+ * 두 조건을 본다: (1) 이번 탐험에서 번 코인이 비용 이상, (2) **오늘** 굴림 횟수가
+ * 상한(`SLOT_DAILY_SPIN_CAP`) 미만. 오늘 횟수는 세션이 아니라
+ * `UpHeroState.shopDaily.slotSpins` 에 살고, 전투 레이어는 스토어를 import 하지
+ * 않으므로(순환) 스냅샷 `slotSpinsToday` 를 인자로 받는다 — `TickContext` 참조.
+ * 지갑(`UpHeroState.coins`)이 아니라 런 수입(`rewards.coins`)에서 걷는 이유는
+ * `upHeroSlot` 상단 주석 참조 — 던전에서 주운 것만 걸 수 있는 닫힌 고리다.
+ */
+export function canSpinSlot(
+  s: CombatSession,
+  slotSpinsToday: number,
+  cost: number = SLOT_SPIN_COST,
+): boolean {
+  if (slotSpinsToday >= SLOT_DAILY_SPIN_CAP) return false;
+  return s.rewards.coins >= cost;
+}
+
+/**
+ * 틱(`tickSession`)에 필요한 세션 밖 상태. 전투 레이어는 스토어를 import 하지
+ * 않으므로(순환) 스토어가 값을 여기 담아 넘긴다.
+ */
+export interface TickContext {
+  /**
+   * `UpHeroState.shopDaily.slotSpins` 스냅샷 — 오늘 굴림틀을 돌린 횟수. 굴림틀
+   * 이벤트 등장 게이트와 `spinSlot` 효과 적용 게이트가 읽는다. 세션은 이 값을
+   * 갱신하지 않는다: 스토어가 결과 엔트리의 `slot` 페이로드를 보고 +1 한다.
+   * 미전달은 0 (상한 미달로 취급) — 스토어 경로는 항상 넘긴다.
+   */
+  slotSpinsToday?: number;
+}
+
+/** 굴림 결과별 로그/모달 한국어 fallback. i18n key 는 `uphero.slot.result.*`. */
+const SLOT_RESULT_FALLBACK: Record<SlotOutcomeId, string> = {
+  blank: "드럼이 제각각 멈췄다. 장치가 조용해진다.",
+  coinSmall: "룬 셋이 맞물리며 동전이 쏟아졌다.",
+  coinMid: "드럼이 깊게 울리더니 동전 무더기가 굴러 나왔다.",
+  coinJackpot: "사당 전체가 울렸다. 동전이 발밑까지 밀려온다.",
+  rankProtect: "드럼 틈에서 낡은 봉인 조각이 떨어졌다.",
+  destroyProtect: "재가 엉겨 잿빛 천 한 자락이 되어 흘러나왔다.",
+  itemBox: "바닥 판이 열리며 낡은 상자가 밀려 올라왔다.",
+  battleBuff: "룬빛이 몸에 스며든다. 한동안 힘이 오른다.",
+};
 
 /**
  * Phase 12d — 클래스 자원 획득. 각 이벤트 (attack/hit/dodge/heal 등) 시 호출.
@@ -512,7 +657,7 @@ export function classHpRegen(cls: ClassType | null): number {
  */
 const SESSION_LOG_RUNTIME_CAP = 600;
 
-export function tickSession(session: CombatSession): CombatSession {
+export function tickSession(session: CombatSession, ctx?: TickContext): CombatSession {
   if (session.status !== "active") return session;
 
   // 내부 state 로 working copy 만들기
@@ -549,7 +694,7 @@ export function tickSession(session: CombatSession): CombatSession {
   };
 
   const dungeon = DUNGEONS[s.dungeonId];
-  const stats = computeEffectiveStats(s.hero);
+  const stats = sessionStats(s);
 
   // 진행 단계 결정 — 최근 log 기반
   const lastEntry = s.log[s.log.length - 1];
@@ -643,6 +788,9 @@ export function tickSession(session: CombatSession): CombatSession {
         //   기존 `s.hero.hp = combatState.heroHp` 는 이제 double subtraction 위험.
         // Phase 12d — 처치 시 자원 획득 (bard 영감, priest 신앙 등).
         gainClassResource(s, "victory");
+        // 굴림틀 전투 버프는 "전투 1회" 단위로 닳는다. 보스든 잡몹이든 처치가
+        //   전투의 끝이라 여기 한 곳에서만 차감한다.
+        consumeCombatBuff(s);
 
         // 보스 처치면 드롭 확정 + 높은 등급
         if (monster.isBoss) {
@@ -655,6 +803,18 @@ export function tickSession(session: CombatSession): CombatSession {
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
           s.rewards.drops.push(eq);
+          // 소실방지권 드롭 — 보스만. 확률 근거는 BOSS_DESTROY_GUARD_DROP_CHANCE 주석.
+          //   장비 드롭과 별개 판정이라 "장비도 방지권도" 가 나올 수 있다.
+          if (rng() < BOSS_DESTROY_GUARD_DROP_CHANCE) {
+            grantDestroyGuards(s, 1);
+            s.log.push({
+              type: "treasure",
+              coins: 0,
+              description: "소실방지권을 손에 넣었다",
+              narrativeKey: "uphero.slot.drop.destroyGuard",
+              timestamp: Date.now(),
+            });
+          }
           // Phase 11b — "시간 도둑" (prd+10) 효과: 보스 처치 시 time +N.
           //   세션 종료되는 F30 보스에도 적용되긴 하나 실제 이익 없음 (endSession 직후).
           //   중간 보스 (F10/F20) 에서는 실제 시간 확보 가능.
@@ -855,7 +1015,13 @@ export function tickSession(session: CombatSession): CombatSession {
   const roll = rng();
   if (roll < 0.25) {
     // choice 이벤트 — 사용자 선택 필요 (시간 소모는 resolveChoice 에서)
-    const ev = pickEvent(s);
+    // slotAvailable — 돌릴 수 없는 굴림틀(오늘 상한·런 수입)은 아예 뽑히지 않게
+    //   게이트를 넘긴다. 오늘 횟수는 스토어가 ctx 로 준 shopDaily 스냅샷이다.
+    const ev = pickEvent({
+      dungeonId: s.dungeonId,
+      recentEventPrompts: s.recentEventPrompts,
+      slotAvailable: canSpinSlot(s, ctx?.slotSpinsToday ?? 0),
+    });
     const logIdx = s.log.length;
     s.log.push({
       type: "choice",
@@ -948,6 +1114,18 @@ export function tickSession(session: CombatSession): CombatSession {
       timestamp: Date.now(),
     });
     s.rewards.coins += coins;
+    // 보물상자에 소실방지권이 섞여 있는 낮은 확률. 근거는
+    //   TREASURE_DESTROY_GUARD_DROP_CHANCE 주석. 코인과 별개 판정이라 둘 다 나올 수 있다.
+    if (rng() < TREASURE_DESTROY_GUARD_DROP_CHANCE) {
+      grantDestroyGuards(s, 1);
+      s.log.push({
+        type: "treasure",
+        coins: 0,
+        description: "상자 바닥에 소실방지권이 깔려 있었다",
+        narrativeKey: "uphero.slot.drop.destroyGuardChest",
+        timestamp: Date.now(),
+      });
+    }
     consumeTime(s, -TIME_COST.treasure);
     return s;
   }
@@ -971,9 +1149,23 @@ export function tickSession(session: CombatSession): CombatSession {
  *  - 없으면 option.effect 단일 (legacy/fight/flee/nothing)
  *  - 유저는 label 만 보고 어떤 outcome 이 뽑혔는지 미리 알 수 없다
  */
+/**
+ * 선택 해소에 필요한 세션 밖 상태. 전투 레이어는 스토어를 import 하지 않으므로
+ * (순환) 스토어가 값을 여기 담아 넘긴다.
+ */
+export interface ResolveChoiceContext extends TickContext {
+  /**
+   * `UpHeroState.slotBlankStreak` 스냅샷 — 굴림틀 pity 판정의 입력. 세션은 이
+   * 값을 갱신하지 않는다: 스토어가 결과 엔트리의 `slot.outcome` 을 읽어
+   * `nextSlotBlankStreak` 로 상태를 적는다. 미전달은 0 (pity 없음).
+   */
+  slotBlankStreak?: number;
+}
+
 export function resolveChoice(
   session: CombatSession,
   optionIndex: number,
+  ctx?: ResolveChoiceContext,
 ): CombatSession {
   if (session.status !== "awaitingChoice" || session.pendingChoiceIndex == null) {
     return session;
@@ -1023,7 +1215,7 @@ export function resolveChoice(
       timestamp: Date.now(),
     });
     for (const effect of outcome.effects) {
-      applyChoiceEffect(s, effect);
+      applyChoiceEffect(s, effect, ctx);
       // 효과 중에 세션이 끝났으면 더 이상 뒤 효과 적용 X
       if (s.status === "completed") break;
     }
@@ -1046,7 +1238,7 @@ export function resolveChoice(
         timestamp: Date.now(),
       });
     }
-    if (option.effect) applyChoiceEffect(s, option.effect);
+    if (option.effect) applyChoiceEffect(s, option.effect, ctx);
   }
 
   // 세션이 이미 종료됐으면 (damage effect 가 hero HP 0 만들었거나) 그대로 리턴
@@ -1135,7 +1327,11 @@ export function summarizeEffectsData(
   return out;
 }
 
-function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
+function applyChoiceEffect(
+  session: CombatSession,
+  effect: ChoiceEffect,
+  ctx?: ResolveChoiceContext,
+) {
   switch (effect.kind) {
     case "reward":
       if (effect.coins) {
@@ -1197,12 +1393,108 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
         timestamp: Date.now(),
       });
       break;
+    case "spinSlot": {
+      // 결과를 여기서 확정하고 지급까지 끝낸다. 드럼 애니메이션은 이미 정해진
+      //   결과를 재생하는 표시 계층이라, 연출을 건너뛰거나 앱이 죽어도 보상이
+      //   어긋나지 않는다.
+      if (!canSpinSlot(session, ctx?.slotSpinsToday ?? 0, effect.cost)) {
+        // 잔액/상한 게이트는 이벤트 등장 단계에서도 걸리지만, 선택 대기 중에
+        //   시간·코인 상태가 바뀔 수 있어 적용 시점에도 한 번 더 본다.
+        session.log.push({
+          type: "choiceResult",
+          text: "> 손잡이를 당긴다 → 드럼은 꿈쩍도 하지 않았다.",
+          resultTextKey: "uphero.slot.result.unavailable",
+          resultTextFallback: "드럼은 꿈쩍도 하지 않았다.",
+          timestamp: Date.now(),
+        });
+        break;
+      }
+
+      // 오늘 굴림 횟수도 세션이 아니라 상태(`shopDaily.slotSpins`)가 진실이다 —
+      //   여기서 세지 않는다. 스토어가 결과 엔트리의 `slot` 페이로드를 보고 +1 한다.
+      session.rewards.coins -= effect.cost;
+
+      // pity 스트릭은 상태(`UpHeroState.slotBlankStreak`)가 진실이다. 세션에
+      //   두면 탐험을 넘어 이어지지 않아 임계 5 에 닿기 어렵다(죽은 pity).
+      //   여기서는 입력으로만 받고, 갱신은 스토어가 결과 엔트리를 보고 한다.
+      const streak = normalizeSlotBlankStreak(ctx?.slotBlankStreak);
+      const outcome = rollSlotOutcome(streak);
+      // near-miss 여부는 페이로드에 싣지 않는다 — UI 가 symbols 에서 되짚는다 (isNearMiss).
+      const { symbols } = renderSymbols(outcome);
+
+      const grant = SLOT_GRANTS[outcome];
+      let coinsWon = 0;
+      let destroyGuardsWon = 0;
+      let downGuardsWon = 0;
+      let buffWon: { pct: number; battles: number } | undefined;
+      switch (grant.kind) {
+        case "coins":
+          session.rewards.coins += grant.amount;
+          coinsWon = grant.amount;
+          break;
+        case "destroyGuards":
+          grantDestroyGuards(session, grant.count);
+          destroyGuardsWon = grant.count;
+          break;
+        case "downGuards":
+          grantDownGuards(session, grant.count);
+          downGuardsWon = grant.count;
+          break;
+        case "itemBox": {
+          // 새 아이템 생성기를 만들지 않는다 — 보스 드롭과 같은 경로를 탄다.
+          const tMods = sessionMods(session);
+          const rarity = rollDropRarity(
+            slotItemBoxFloor(session.currentFloor),
+            tMods.legendDropBonus + (session.ngPlusLevel ?? 0) * 0.02,
+            session.flattenDropRarity ?? false,
+          );
+          const eq = rollEquipmentDrop(
+            session.dungeonId,
+            session.currentFloor,
+            rarity,
+            DUNGEONS[session.dungeonId].affinity,
+          );
+          session.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
+          session.rewards.drops.push(eq);
+          break;
+        }
+        case "combatBuff":
+          // 덮어쓰기다 — 중첩하지 않는다. 중첩을 허용하면 곱이 쌓여 밸런스가
+          //   순식간에 무너지고, `sessionStats` 의 "한 곳에서만 곱한다" 계약도
+          //   해석이 모호해진다.
+          session.combatBuff = { pct: grant.pct, battlesLeft: grant.battles };
+          buffWon = { pct: grant.pct, battles: grant.battles };
+          break;
+        case "none":
+          break;
+      }
+
+      session.log.push({
+        type: "choiceResult",
+        text: `> 손잡이를 당긴다 → ${SLOT_RESULT_FALLBACK[outcome]}`,
+        actionLabelKey: "uphero.slot.option.spin",
+        actionLabelFallback: "손잡이를 당긴다",
+        resultTextKey: `uphero.slot.result.${outcome}`,
+        resultTextFallback: SLOT_RESULT_FALLBACK[outcome],
+        effectSummaryData: coinsWon > 0 ? { coins: coinsWon } : undefined,
+        slot: {
+          outcome,
+          symbols,
+          cost: effect.cost,
+          destroyGuards: destroyGuardsWon > 0 ? destroyGuardsWon : undefined,
+          downGuards: downGuardsWon > 0 ? downGuardsWon : undefined,
+          buff: buffWon,
+        },
+        timestamp: Date.now(),
+      });
+      break;
+    }
     case "fight": {
       // "싸운다" 선택 — encounter 된 몬스터로 즉시 첫 전투 round 진행
       const encounterIdx = findLastEncounterIndex(session.log);
       if (encounterIdx < 0) break;
       const monster = (session.log[encounterIdx] as { type: "encounter"; monster: Monster }).monster;
-      const stats = computeEffectiveStats(session.hero);
+      const stats = sessionStats(session);
       executeCombatRound(session, monster, stats);
       break;
     }
@@ -1259,7 +1551,7 @@ function applyChoiceEffect(session: CombatSession, effect: ChoiceEffect) {
           },
           timestamp: Date.now(),
         });
-        const stats = computeEffectiveStats(session.hero);
+        const stats = sessionStats(session);
         // 몬스터만 공격 (기습). Phase 5c.2: monk class dodge bonus 동일 적용.
         //   Phase 11c R1: fragile_world affix 시 monsterCritBonus 전달.
         const outcome = rollEnemyOutcome(

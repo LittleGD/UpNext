@@ -26,6 +26,7 @@ import { pickCampAmbience } from "@/data/upHeroFlavor";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import {
   SHOP_PRICES,
+  ENHANCE_GUARD_MAX,
   PASS_CAP_PER_CATEGORY,
   DAILY_PASS_PURCHASE_CAP,
   CLASS_THEME_COLOR,
@@ -684,6 +685,9 @@ function ShopView({
   // Phase 11a — 탐험권 상점 구매.
   const purchasePass = useUpHeroStore((s) => s.purchasePass);
   const claimCoinPouch = useUpHeroStore((s) => s.claimCoinPouch);
+  // Phase 15 — 하락방지권. 소실방지권은 상점 품목이 아니다 (드롭 전용).
+  const purchaseDownGuard = useUpHeroStore((s) => s.purchaseDownGuard);
+  const downGuards = useUpHeroStore((s) => s.downGuards ?? 0);
   const shopDaily = useUpHeroStore((s) => s.shopDaily);
   const passes = useUpHeroStore((s) => s.passes);
   // Phase 12a — 카드매치 티켓 하루 구매 현황.
@@ -707,6 +711,23 @@ function ShopView({
 
   // 코인 주머니 2배 수령 — 리워드 광고 재생 중 상태. 중복 탭 방지 + 로딩 문구.
   const [pouchAdLoading, setPouchAdLoading] = useState(false);
+
+  const onBuyDownGuard = () => {
+    const ok = purchaseDownGuard();
+    if (ok) {
+      play("collect");
+      onNotify(
+        t("uphero.shop.guard.bought", {
+          name: t("uphero.guard.down.name"),
+          n: Math.min(ENHANCE_GUARD_MAX, downGuards + 1),
+        }),
+      );
+    } else if (downGuards >= ENHANCE_GUARD_MAX) {
+      onNotify(t("uphero.shop.guard.full", { max: ENHANCE_GUARD_MAX }));
+    } else {
+      onNotify(t("uphero.shop.insufficient"));
+    }
+  };
 
   const onBuyTicket = () => {
     const ok = purchaseTicket();
@@ -998,6 +1019,20 @@ function ShopView({
         </section>
 
         {/* Phase 12 — 카드매치 / 보조 구매. 탐험권 이후 secondary. */}
+        {/* Phase 15 — 하락방지권. 강화가 아지트의 주요 코인 소비처라
+            카드매치·카드팩 같은 보조 품목보다 위에 둔다.
+            소실방지권은 여기 없다 — 보스·이벤트·슬롯으로만 나오는 물건이라
+            상점 경로를 만들지 않는 것이 그 규칙의 유일한 집행 방법이다. */}
+        <ShopRow
+          iconName="Shield"
+          name={t("uphero.guard.down.name")}
+          desc={t("uphero.shop.guard.downDesc", { held: downGuards })}
+          price={SHOP_PRICES.downGuard}
+          onBuy={onBuyDownGuard}
+          canAfford={
+            coins >= SHOP_PRICES.downGuard && downGuards < ENHANCE_GUARD_MAX
+          }
+        />
         <ShopRow
           iconName="Card"
           name={t("uphero.shop.cardmatchTicket.name")}
