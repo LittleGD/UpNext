@@ -168,6 +168,7 @@ describe("upHeroSlot — 드럼 표시 (near-miss 는 표시 전용)", () => {
   });
 
   it("(b) 꽝의 near-miss 비율은 30% ± 2pp (10만 렌더), 배치 A:B ≈ 8:2", () => {
+    // 10만 렌더는 xcodebuild 와 병렬로 돌 때 기본 5s 를 넘긴다(3회 관측). 시드 고정이라 결과는 결정론적.
     const r = createRng(31337);
     const N = 100_000;
     let near = 0;
@@ -187,7 +188,7 @@ describe("upHeroSlot — 드럼 표시 (near-miss 는 표시 전용)", () => {
     }
     expect(Math.abs(near / N - SLOT_NEAR_MISS_RATE)).toBeLessThan(0.02);
     expect(Math.abs(variantA / near - 0.8)).toBeLessThan(0.02);
-  });
+  }, 30_000);
 
   it("(c) 렌더는 순수 함수 — outcome 을 바꾸지 않고, 같은 난수열이면 같은 그림", () => {
     const ids = SLOT_OUTCOMES.map((o) => o.id);
