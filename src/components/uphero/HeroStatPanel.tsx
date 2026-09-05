@@ -24,11 +24,11 @@ import {
   CLASS_META,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
-import type { EquipSlot } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
+import { SLOT_GLYPH, SLOT_LABEL_KEY, SLOT_ORDER } from "@/lib/equipmentSlotMeta";
+import { STAT_LABEL, formatStat, orderedStatEntries } from "@/lib/equipmentStats";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
-import type { DictKey } from "@/i18n";
 import { skillName, skillDesc, className as classNameI18n, classPassive, equipmentNameById } from "@/lib/upHeroI18n";
 import HeroSprite from "./HeroSprite";
 import HexStatChart from "./HexStatChart";
@@ -41,15 +41,6 @@ interface HeroStatPanelProps {
 
 // Phase 12b — STAT_ROWS 는 HexStatChart 로 대체 (선형 bar 제거).
 //   HeroBaseStats 타입은 아래 effective 객체에서 그대로 사용.
-
-// Phase 12 R-i18n — 슬롯 라벨 키. `t()` 를 여기서 호출하려면 함수 컨텍스트
-//   안이어야 하므로 key 만 저장하고 렌더에서 변환.
-const SLOT_LABEL_KEY: Record<EquipSlot, DictKey> = {
-  weapon: "uphero.slot.weapon",
-  armor: "uphero.slot.armor",
-  accessory: "uphero.slot.accessory",
-  talisman: "uphero.slot.talisman",
-};
 
 export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   const { t, language } = useTranslation();
@@ -201,8 +192,10 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
             {t("uphero.stat.equipmentLabel")}
           </div>
           <div className="flex flex-col gap-2">
-            {(Object.keys(SLOT_LABEL_KEY) as EquipSlot[]).map((slot) => {
+            {SLOT_ORDER.map((slot) => {
               const eq = hero.equipped[slot];
+              // Phase 6-E (피드백 17) — 주스탯 한 줄 (템플릿 statBoost 우선).
+              const primary = eq ? orderedStatEntries(eq)[0] : undefined;
               return (
                 <div
                   key={slot}
@@ -213,9 +206,11 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                   }}
                 >
                   <div
-                    className="typo-caption"
+                    className="typo-caption inline-flex items-center gap-1"
                     style={{ color: GB.light, minWidth: 60 }}
                   >
+                    {/* Phase 6-E (피드백 11) — 맨 슬롯 글리프 (박스 없음). */}
+                    <PixelIcon name={SLOT_GLYPH[slot]} size={12} color={GB.light} />
                     {t(SLOT_LABEL_KEY[slot])}
                   </div>
                   {eq ? (
@@ -236,6 +231,17 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                         >
                           {equipmentNameById(eq.baseId ?? "", eq.name, language)}
                         </div>
+                        {primary && (
+                          <div
+                            className="typo-micro tabular-nums"
+                            style={{ color: GB.light }}
+                          >
+                            <span style={{ color: GB.lightest }}>
+                              {formatStat(primary[0], primary[1])}
+                            </span>{" "}
+                            {STAT_LABEL[primary[0]]}
+                          </div>
+                        )}
                         {/* Phase 11b — talisman skill chips. 부적 슬롯 외에도
                              미래 확장 시 accessory 등에 skills 가 생기면 자동 표기. */}
                         {eq.talismanSkills && eq.talismanSkills.length > 0 && (

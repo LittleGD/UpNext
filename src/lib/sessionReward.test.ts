@@ -7,13 +7,22 @@ import {
   WEEKLY_FIRST_CLEAR_COINS,
   WEEKLY_FIRST_CLEAR_DESTROY_GUARDS,
   calculateBossesDefeated,
+  calculateCodexDelta,
   calculateDungeonProgress,
   computeWeeklyClearReward,
   resolveStartFloor,
+  splitDropsByCap,
 } from "./sessionReward";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { createMonsterForFloor } from "@/data/upHeroMonsters";
-import { createDefaultHero, type CombatSession, type DungeonId, type LogEntry, type SessionEndReason } from "@/types/uphero";
+import {
+  createDefaultHero,
+  type CombatSession,
+  type DungeonId,
+  type Equipment,
+  type LogEntry,
+  type SessionEndReason,
+} from "@/types/uphero";
 
 /**
  * Phase 16 (Track C) — 정산 순수 함수 회귀 테스트.
@@ -206,5 +215,86 @@ describe("computeWeeklyClearReward (피드백 30)", () => {
   it("weeklyVariant 가 없으면 null", () => {
     const s = makeSession("fitness", 30, bossVictory("fitness", 30), { isWeeklyVariant: true, startFloor: 30 });
     expect(computeWeeklyClearReward(s, undefined)).toBeNull();
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Phase 6-E (Track E) — 도감 델타 (피드백 18) / 가방 상한 분배 (피드백 22)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+function eq(overrides: Partial<Equipment>): Equipment {
+  return {
+    id: "e",
+    name: "x",
+    type: "weapon",
+    rarity: "normal",
+    category: "fitness",
+    iconName: "Sword",
+    stats: { str: 5 },
+    ...overrides,
+  };
+}
+
+describe("calculateCodexDelta (Track E)", () => {
+  const legendSword = eq({
+    id: "l1",
+    baseId: "self_control_sword",
+    name: "신성한 자기절제의 검 of 민첩, 힘",
+    rarity: "legend",
+  });
+  const legacyArmor = eq({
+    id: "r1",
+    name: "빛나는 곡물의 갑옷 of 힘",
+    rarity: "rare",
+    type: "armor",
+    category: "nutrition",
+  });
+  const empty = { monsters: [], bosses: [], equipment: [] };
+
+  it("로그 drop 은 baseName 으로 기록된다 (baseId 우선, 없으면 이름 규칙)", () => {
+    const log: LogEntry[] = [
+      { type: "drop", equipment: legendSword, timestamp: 1 },
+      { type: "drop", equipment: legacyArmor, timestamp: 2 },
+    ];
+    expect(calculateCodexDelta(log, empty).equipment).toEqual(["자기절제의 검", "곡물의 갑옷"]);
+  });
+
+  it("기존 항목과 dedupe", () => {
+    const log: LogEntry[] = [{ type: "drop", equipment: legendSword, timestamp: 1 }];
+    const out = calculateCodexDelta(log, { ...empty, equipment: ["자기절제의 검"] });
+    expect(out.equipment).toEqual(["자기절제의 검"]);
+  });
+
+  it("rewards.drops 와 합집합 — 로그가 잘려도 드롭은 남는다", () => {
+    const out = calculateCodexDelta([], empty, [legendSword, legacyArmor]);
+    expect(out.equipment).toEqual(["자기절제의 검", "곡물의 갑옷"]);
+  });
+
+  it("사진 부적은 로그에서도 rewards 에서도 도감에 넣지 않는다", () => {
+    const photo = eq({ id: "p", type: "talisman", photoId: "ph-1", name: "달리기" });
+    const log: LogEntry[] = [{ type: "drop", equipment: photo, timestamp: 1 }];
+    expect(calculateCodexDelta(log, empty, [photo]).equipment).toEqual([]);
+  });
+});
+
+describe("splitDropsByCap", () => {
+  const drops = [1, 2, 3, 4, 5].map((n) => eq({ id: `d${n}` }));
+
+  it("28 + 5 (cap 30) → fits 2 / overflow 3, 순서 보존", () => {
+    const { fits, overflow } = splitDropsByCap(28, drops, 30);
+    expect(fits.map((d) => d.id)).toEqual(["d1", "d2"]);
+    expect(overflow.map((d) => d.id)).toEqual(["d3", "d4", "d5"]);
+  });
+
+  it("가득 찬 가방은 전부 overflow, 넘친 가방(31) 도 음수 없이 전부 overflow", () => {
+    expect(splitDropsByCap(30, drops, 30).fits).toEqual([]);
+    expect(splitDropsByCap(30, drops, 30).overflow.length).toBe(5);
+    expect(splitDropsByCap(31, drops, 30).fits).toEqual([]);
+  });
+
+  it("여유가 충분하면 overflow 없음", () => {
+    const { fits, overflow } = splitDropsByCap(0, drops, 30);
+    expect(fits.length).toBe(5);
+    expect(overflow).toEqual([]);
   });
 });

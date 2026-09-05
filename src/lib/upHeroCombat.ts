@@ -2142,6 +2142,9 @@ function executeCombatRound(
   gainClassResource(s, "roundStart");
   // Phase 6b — combat round 시작 전 액티브 스킬 발동 시도
   const skillCdBefore = s.skillCooldown ?? 0;
+  // Phase 6-E (Track E, 피드백 21) — 스킬별 쿨다운 맵 스냅샷. canFireSkill / SkillBar
+  //   는 `skillCooldowns` 맵을 읽으므로 아래 스칼라 차감만으로는 평정이 죽어 있었다.
+  const cdsBefore: Record<string, number> = { ...(s.skillCooldowns ?? {}) };
   maybeFireSkill(s, monster);
   // Phase 11b — "평정" CD reduce: skill 이 이번 round 에 fire 했으면 (cooldown 증가),
   //   classSkillCdReduce 만큼 더 차감해 다음 재발동 가속.
@@ -2154,6 +2157,19 @@ function executeCombatRound(
       0,
       (s.skillCooldown ?? 0) - tModsEarly.classSkillCdReduce,
     );
+  }
+  // 맵 diff — 이번 라운드에 늘어난 키(= 방금 발동한 스킬)만 reduce 만큼 줄인다 (min 0).
+  //   iOS UpHeroSession.executeCombatRound 동일.
+  if (tModsEarly.classSkillCdReduce > 0 && s.skillCooldowns) {
+    const after: Record<string, number> = { ...s.skillCooldowns };
+    let changed = false;
+    for (const key of Object.keys(after)) {
+      if ((after[key] ?? 0) > (cdsBefore[key] ?? 0)) {
+        after[key] = Math.max(0, after[key] - tModsEarly.classSkillCdReduce);
+        changed = true;
+      }
+    }
+    if (changed) s.skillCooldowns = after;
   }
 
   // Phase 11b — talisman modifier 에서 이번 round 에 영향을 주는 값들.

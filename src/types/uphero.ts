@@ -187,6 +187,14 @@ export interface Equipment {
    */
   enhanceFailStreak?: number;
   /**
+   * Phase 6-E (Track E) — 드롭된 층. createEquipmentFromTemplate(dungeonFloor) 와
+   *   합성(sources 의 max) 이 기록한다. 판매가(`sellPrice`) 와 합성 층 규칙이 읽는다.
+   *   레거시 저장본은 v7 마이그레이션이 주스탯에서 역추정해 채운다 (없으면 undefined).
+   *   사진 부적은 층이 없다 (판매가는 0 층으로 계산).
+   *   클라우드 와이어 키 `dropFloor` (int optional) — iOS CloudEquipment CodingKeys 동일.
+   */
+  dropFloor?: number;
+  /**
    * Phase 11a — 2차 affix stat key (rare+ 드롭에 부여).
    * primary stat 과 별개로 stats 객체에도 반영됨 — 이 필드는 "어떤 key 가 affix
    * 였는지" 라벨 용도 (UI 에서 prefix 분리 표기 등). legend 은 `affixes` 배열이 2 개.
@@ -972,6 +980,14 @@ export interface Cosmetics {
 export interface UpHeroState {
   hero: Hero;
   inventory: Equipment[];
+  /**
+   * Phase 6-E (Track E, 피드백 22) — 정산 때 가방 상한(`INVENTORY_CAP`)을 넘긴 전리품.
+   *   `splitDropsByCap` 이 나눠 담고, 캠프의 BagOverflowModal 이 한 개씩 판매/버리기
+   *   또는 모두 판매로 비운다. 인벤토리와 별개라 `inventory.length <= INVENTORY_CAP`
+   *   불변식이 정산 뒤 항상 성립한다. 영속 + 클라우드 동기화 (와이어 키
+   *   `overflowDrops`, Equipment[], [] 허용, footprint 에 포함). 레거시 저장본은 [].
+   */
+  overflowDrops: Equipment[];
   coins: number;
   passes: ExpeditionPasses;
   dungeons: Partial<Record<DungeonId, DungeonProgress>>;
@@ -1857,12 +1873,74 @@ export function stripEnhanceSuffix(name: string): string {
   return name.replace(/\s+\+\d*$/, "");
 }
 
-/** 장비 판매 환급 (Phase 4a) */
-export const SELL_PRICE: Record<Rarity, number> = {
+/* ═══════════════════════════════════════════════════════════════════════
+ * Phase 6-E (Track E) — 인벤토리 경제: 판매가 / 가방 상한 / 합성
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 장비 판매 환급의 기본값 (Phase 4a 의 `SELL_PRICE` 표). +0 / 0층 가격은 그대로다.
+ * 실제 환급은 `sellPrice(rarity, dropFloor, enhanceLevel)` — 층·강화 가산이 붙는다.
+ */
+export const SELL_PRICE_BASE: Record<Rarity, number> = {
   normal: 5,
   rare: 15,
   unique: 50,
   legend: 200,
+};
+/** @deprecated `SELL_PRICE_BASE` / `sellPrice()` 를 쓸 것. 한 릴리스 동안만 유지. */
+export const SELL_PRICE = SELL_PRICE_BASE;
+/** 드롭 층당 가산 (층은 0..99 로 clamp). */
+export const SELL_PRICE_FLOOR_MULT: Record<Rarity, number> = {
+  normal: 1,
+  rare: 2,
+  unique: 4,
+  legend: 8,
+};
+/** 강화 단계당 가산 (단계는 0..MAX_ENHANCE_LEVEL 로 clamp). */
+export const SELL_PRICE_ENHANCE_MULT: Record<Rarity, number> = {
+  normal: 3,
+  rare: 6,
+  unique: 15,
+  legend: 40,
+};
+/** 판매가 층 clamp 상한. */
+export const SELL_PRICE_FLOOR_CAP = 99;
+
+/**
+ * 판매 환급 = BASE[r] + FLOOR_MULT[r] × clamp(dropFloor ?? 0, 0, 99)
+ *                     + ENHANCE_MULT[r] × clamp(enhanceLevel ?? 0, 0, 20).
+ * 전부 정수 산술 — iOS `UpHeroRules.sellPrice` 와 동일 픽스처
+ *   (normal,0,0)=5 · (normal,30,0)=35 · (rare,12,3)=57 · (unique,20,10)=280 ·
+ *   (legend,30,10)=840 · (legend,120,25)=1992.
+ */
+export function sellPrice(
+  rarity: Rarity,
+  dropFloor: number | undefined,
+  enhanceLevel: number | undefined,
+): number {
+  const f = Math.min(SELL_PRICE_FLOOR_CAP, Math.max(0, Math.floor(dropFloor ?? 0)));
+  const l = Math.min(MAX_ENHANCE_LEVEL, Math.max(0, Math.floor(enhanceLevel ?? 0)));
+  return (
+    SELL_PRICE_BASE[rarity] +
+    SELL_PRICE_FLOOR_MULT[rarity] * f +
+    SELL_PRICE_ENHANCE_MULT[rarity] * l
+  );
+}
+
+/**
+ * 가방 상한. 정산(`acknowledgeSessionEnd` → `splitDropsByCap`) 과 사진 부적 생성에서만
+ * 강제한다 — 장착 해제/합성은 막지 않는다 (가득 찬 가방에서 장비 교체가 죽는 것을 방지).
+ * 후속 격자 인벤토리의 칸 수와 같은 값이다.
+ */
+export const INVENTORY_CAP = 30;
+/** 합성 재료 개수 — 같은 등급 3개 → 다음 등급 1개. */
+export const SYNTHESIS_INPUT_COUNT = 3;
+/** 합성 결과 등급. legend 는 합성 불가 (null). */
+export const NEXT_RARITY: Record<Rarity, Rarity | null> = {
+  normal: "rare",
+  rare: "unique",
+  unique: "legend",
+  legend: null,
 };
 
 /** 영웅 외형 variant 결정 (레벨 기반) */

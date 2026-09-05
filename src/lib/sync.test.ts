@@ -355,3 +355,75 @@ describe("클라우드 채택 뒤 시드 업로드 — syncToCloud 게이트", (
     expect(uploadedUpHero().map((u) => u.heroXp)).toEqual([39031]);
   });
 });
+
+/**
+ * Phase 6-E (Track E) — overflowDrops / dropFloor 와이어.
+ *   iOS UpHeroCloudSchemaTests.WEB_FIXTURE 재생성 #2 — 아래 픽스처 JSON 을 Swift 에
+ *   그대로 붙인다 (A 의 #1 상위집합: overflowDrops + dropFloor 추가).
+ */
+describe("normalizeUpHeroState — overflowDrops / dropFloor (Track E)", () => {
+  const item = {
+    id: "eq_자기절제의검_rare_1_2",
+    baseId: "self_control_sword",
+    name: "빛나는 자기절제의 검",
+    type: "weapon",
+    rarity: "rare",
+    category: "fitness",
+    iconName: "Sword",
+    stats: { str: 24 },
+    dropFloor: 20,
+    enhanceLevel: 3,
+  };
+
+  it("overflowDrops 는 inventory 처럼 디코드되고 dropFloor 가 보존된다", () => {
+    const state = normalizeUpHeroState({ overflowDrops: [item], inventory: [item] });
+    expect(state.overflowDrops?.length).toBe(1);
+    expect(state.overflowDrops?.[0].dropFloor).toBe(20);
+    expect(state.inventory?.[0].dropFloor).toBe(20);
+    expect(state.overflowDrops?.[0].enhanceLevel).toBe(3);
+  });
+
+  it("키가 없거나 배열이 아니면 [] (항상 인코딩)", () => {
+    expect(normalizeUpHeroState({}).overflowDrops).toEqual([]);
+    expect(normalizeUpHeroState({ overflowDrops: "nope" }).overflowDrops).toEqual([]);
+    expect("overflowDrops" in encodeUpHeroForCloud(normalizeUpHeroState({}))).toBe(true);
+  });
+
+  it("깨진 원소만 버린다", () => {
+    const state = normalizeUpHeroState({ overflowDrops: [item, { id: "x" }, 42] });
+    expect(state.overflowDrops?.length).toBe(1);
+  });
+
+  it("overflowDrops 만 있어도 플레이 흔적", () => {
+    expect(hasUpHeroFootprint({ overflowDrops: [item] })).toBe(true);
+    expect(hasUpHeroFootprint({ overflowDrops: [] })).toBe(false);
+  });
+
+  it("픽스처 #2 왕복 — overflowDrops / dropFloor 가 normalize → encode → normalize 를 지나도 같다", () => {
+    const fixture = {
+      hero: { name: "테오", classType: null, learnedSkills: ["novice_heal"], skillPoints: 0 },
+      inventory: [item],
+      overflowDrops: [{ ...item, id: "eq_자기절제의검_rare_3_4", dropFloor: 31 }],
+      coins: 264,
+      passes: { fitness: 2, learning: 0 },
+      dungeons: {
+        fitness: { dungeonId: "fitness", floorReached: 12, bestFloorReached: 14, bossesDefeated: [10] },
+      },
+      codex: { monsters: ["슬라임"], equipment: ["자기절제의 검"], bosses: [] },
+      destroyGuards: 2,
+      downGuards: 1,
+      combatBuff: { pct: 10, battlesLeft: 3 },
+      ngPlusLevel: 1,
+      schemaVersion: 7,
+      heroStartLevel: 1,
+      heroXp: 39031,
+    };
+    const once = encodeUpHeroForCloud(normalizeUpHeroState(fixture));
+    expect((once.overflowDrops as Array<{ dropFloor?: number }>)[0].dropFloor).toBe(31);
+    expect((once.inventory as Array<{ dropFloor?: number }>)[0].dropFloor).toBe(20);
+    const twice = encodeUpHeroForCloud(normalizeUpHeroState(JSON.parse(JSON.stringify(once))));
+    expect(twice).toEqual(once);
+    // iOS 픽스처 재생성용 — 테스트 출력에 남긴다 (실패 시에만 보이는 게 아니라 항상).
+    console.info("[WEB_FIXTURE #2]", JSON.stringify(fixture));
+  });
+});

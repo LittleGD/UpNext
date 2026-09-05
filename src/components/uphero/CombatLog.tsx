@@ -291,7 +291,12 @@ const LogLine = memo(function LogLine({
           style={{ ...style, color: GB.lightest }}
           className="flex items-center gap-1.5"
         >
-          <MonsterSprite kind={entry.monster.kind} size={14} color={GB.lightest} />
+          <MonsterSprite
+            kind={entry.monster.kind}
+            templateId={entry.monster.templateId}
+            size={14}
+            color={GB.lightest}
+          />
           <span>{monsterName(entry.monster, language)}</span>
           <span className={gbClass.textDim}>
             {t("uphero.log.encounterStats", { hp: entry.monster.hp, atk: entry.monster.atk })}

@@ -20,7 +20,10 @@ import {
   PASS_GRANT_BY_RARITY,
   PASS_CAP_PER_CATEGORY,
   SHOP_PRICES,
-  SELL_PRICE,
+  sellPrice,
+  INVENTORY_CAP,
+  NEXT_RARITY,
+  SYNTHESIS_INPUT_COUNT,
   MAX_ENHANCE_LEVEL,
   ENHANCE_GUARD_MAX,
   enhanceOutcomeRates,
@@ -80,7 +83,13 @@ import {
   calculateDungeonProgress,
   computeWeeklyClearReward,
   resolveStartFloor,
+  splitDropsByCap,
 } from "@/lib/sessionReward";
+import {
+  repairCodexEquipment,
+  repairEquipmentList,
+  repairEquippedMap,
+} from "@/lib/upHeroMigrations";
 import { calculateIdleReward, detectClockRewind } from "@/lib/idleAccrual";
 import {
   classXpMult,
@@ -113,7 +122,11 @@ import { useGrowthStore } from "./useGrowthStore";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
 import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
-import { findTemplateByLegacyId } from "@/data/upHeroEquipment";
+import {
+  findTemplateByLegacyId,
+  getEquipmentBaseName,
+  synthesizeEquipment,
+} from "@/data/upHeroEquipment";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { useGameStore, getTodayString } from "./useGameStore";
 import { t } from "@/i18n";
@@ -134,12 +147,18 @@ import type { CloudUpHeroState } from "@/lib/sync";
  *     (Lv47 → 39,031). progress.level 을 읽을 수 없으면 미시드로 두고
  *     `ensureHeroXp` 가 나중에 채운다 (0 으로 시드하는 경로 없음).
  *     hero.skillPoints 는 레벨 파생값으로 재계산 (`reconcileSkillPoints`).
+ * v7: (Phase 6-E, Track E) 장비 수리 — iconName 을 템플릿의 pixelarticons 2.x 이름으로,
+ *     baseId 시드, dropFloor 역추정, 부적 slotBonus ≥ 1, codex.equipment 키 정규화,
+ *     overflowDrops 시드 []. 모두 멱등 (`upHeroMigrations.ts`) 이라 `_setFromCloud`
+ *     에서도 게이트 없이 다시 돈다.
  *
- * 마이그레이션 순서(공통 규칙): v1/v2 코덱스 → [E, <7 예정] 장비 수리 →
+ * 마이그레이션 순서(공통 규칙): v1/v2 코덱스 → [E, <7] 장비 수리 →
  *   [C] normalizeSessionForLoad → heroStartLevel seed → [A] heroXp seed →
  *   shopDaily/weeklyVariant/dungeons 백필 → set → [A] reconcile → 안전망 → persist.
  */
-const CURRENT_SCHEMA_VERSION = 6;
+const CURRENT_SCHEMA_VERSION = 7;
+/** Track E 수리 단계 게이트 (v7). */
+const SCHEMA_V7_EQUIPMENT_REPAIR = 7;
 
 /**
  * Phase 4c-fix: Codex legacy ID → name migration.
@@ -237,6 +256,11 @@ function totalPassCount(passes: Partial<Record<DungeonId, number>>): number {
   for (const count of Object.values(passes)) total += count ?? 0;
   return total;
 }
+
+/** Phase 6-E — synthesizeItems 결과. */
+export type SynthesisResult =
+  | { ok: true; item: Equipment }
+  | { ok: false; reason: "count" | "not-found" | "rarity" | "legend" | "photo" };
 
 interface UpHeroActions {
   initialize(): void;
@@ -426,8 +450,21 @@ interface UpHeroActions {
   unequipItem(slot: EquipSlot): void;
   /** 판매 — inventory 제거 + 등급별 코인 환급 */
   sellItem(itemId: string): number; // 환급 코인 반환
-  /** 버리기 — inventory 제거, 환급 없음 */
+  /** 버리기 — inventory 제거, 환급 없음 (액션바에서는 빠졌고 overflow 모달만 쓴다) */
   discardItem(itemId: string): void;
+  /**
+   * Phase 6-E (Track E, 피드백 22) — 합성. 가방의 같은 등급 3개(legend·사진 부적 제외)
+   *   를 다음 등급 1개로. 결과는 인벤토리 끝에 붙고 도감에 즉시 기록된다.
+   *   장착 중 아이템은 재료가 될 수 없다 (`not-found`).
+   */
+  synthesizeItems(ids: string[]): SynthesisResult;
+  /**
+   * Phase 6-E — 넘친 전리품 한 개 처리. "sell" 은 sellPrice 만큼 코인 지급 후 반환,
+   *   "discard" 는 0. 없는 id 는 0.
+   */
+  resolveOverflowItem(id: string, mode: "sell" | "discard"): number;
+  /** Phase 6-E — 넘친 전리품 모두 판매. 합계 코인 반환 후 목록을 비운다. */
+  sellAllOverflow(): number;
 
   // 갓생 코인 sink
   purchaseTicket(): boolean;
@@ -631,6 +668,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
   const {
     hero,
     inventory,
+    overflowDrops,
     coins,
     passes,
     dungeons,
@@ -663,6 +701,8 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
   return {
     hero,
     inventory,
+    // Phase 6-E — 넘친 전리품 (레거시 저장본은 undefined → initialize 가 [] 로).
+    overflowDrops,
     coins,
     passes,
     dungeons,
@@ -819,6 +859,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
   return {
   hero: createDefaultHero(),
   inventory: [],
+  overflowDrops: [],
   coins: 0,
   passes: {},
   dungeons: {},
@@ -870,7 +911,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
       useGameStore.getState().progress.language ??
       "en";
     const defaults = createDefaultHero(langForDefault);
-    const mergedHero = saved?.hero
+    const mergedHeroRaw = saved?.hero
       ? {
           ...defaults,
           ...saved.hero,
@@ -884,6 +925,18 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     const savedVersion = saved?.schemaVersion ?? 0;
     const needsMigration = savedVersion < CURRENT_SCHEMA_VERSION;
     const rawCodex = saved?.codex ?? { monsters: [], equipment: [], bosses: [] };
+    // Phase 6-E (Track E, v7) — 장비 수리 (공통 규칙 2단계, v1/v2 코덱스 뒤·C 앞).
+    //   iconName/baseId/dropFloor/부적 slotBonus. 멱등이라 재실행에도 안전하다.
+    const repairEquipment = savedVersion < SCHEMA_V7_EQUIPMENT_REPAIR;
+    const mergedHero = repairEquipment
+      ? { ...mergedHeroRaw, equipped: repairEquippedMap(mergedHeroRaw.equipped) }
+      : mergedHeroRaw;
+    const inventory = repairEquipment
+      ? repairEquipmentList(saved?.inventory ?? [])
+      : (saved?.inventory ?? []);
+    const overflowDrops = repairEquipment
+      ? repairEquipmentList(saved?.overflowDrops ?? [])
+      : (saved?.overflowDrops ?? []);
 
     const monsters =
       savedVersion < 1
@@ -893,10 +946,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
       savedVersion < 1
         ? migrateCodexMonsters(rawCodex.bosses ?? [])
         : (rawCodex.bosses ?? []);
-    const equipment =
+    const equipmentV2 =
       savedVersion < 2
         ? migrateCodexEquipment(rawCodex.equipment ?? [])
         : (rawCodex.equipment ?? []);
+    // v7 — 접두/강화/affix 가 붙은 도감 키를 템플릿 baseName 으로 (피드백 18).
+    const equipment = repairEquipment ? repairCodexEquipment(equipmentV2) : equipmentV2;
     const codex = { monsters, bosses, equipment };
 
     // Phase 5b.1 — idle accrual: 마지막 실행 이후 경과 시간 ≥5분이면 보상.
@@ -1036,7 +1091,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
 
     set({
       hero: mergedHero,
-      inventory: saved?.inventory ?? [],
+      inventory,
+      overflowDrops,
       coins,
       passes: saved?.passes ?? {},
       dungeons: dungeonsBackfilled,
@@ -1516,6 +1572,14 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     if (isPhotoBound(photoId, state.inventory, state.hero.equipped)) {
       return { ok: false, errorKey: "uphero.photo.error.alreadyBound" };
     }
+    // Phase 6-E — 가방이 가득 차면 의식을 거절한다 (정산 외 유일한 신규 획득 경로).
+    if (state.inventory.length >= INVENTORY_CAP) {
+      return {
+        ok: false,
+        errorKey: "uphero.equip.toast.bagFull",
+        errorParams: { cap: INVENTORY_CAP } as Record<string, string | number>,
+      };
+    }
     if (state.coins < PHOTO_TALISMAN_RITUAL_COST) {
       return {
         ok: false,
@@ -1899,7 +1963,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     };
 
     // 4. codex (monster/boss/equipment 발견 기록)
-    const codex = calculateCodexDelta(session.log, state.codex);
+    //    Phase 6-E — rewards.drops 도 합집합 (로그 trim 으로 초반 드롭이 빠지지 않게).
+    const codex = calculateCodexDelta(session.log, state.codex, session.rewards.drops);
 
     // 5. Phase 2-A (Track A) — 세션 XP 를 **영웅 XP 풀** 에 정산한다. 계정
     //    XP(useGameStore.progress)는 건드리지 않는다 (피드백 32: 완전 분리).
@@ -1992,7 +2057,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     //   Track E 는 splitDropsByCap 을 끼운다 (공통 규칙 병합 순서).
     const newCoins =
       state.coins + session.rewards.coins + (weeklyReward?.coins ?? 0);
-    const newInventory = [...state.inventory, ...keptDrops];
+    // Phase 6-E (Track E, 피드백 22) — 가방 상한. 넘친 만큼은 overflowDrops 로 가고
+    //   캠프의 BagOverflowModal 이 (레벨업/전직 모달 뒤에) 처리한다.
+    const { fits, overflow } = splitDropsByCap(
+      state.inventory.length,
+      keptDrops,
+      INVENTORY_CAP,
+    );
+    const newInventory = [...state.inventory, ...fits];
+    const newOverflowDrops = [...(state.overflowDrops ?? []), ...overflow];
     // 탐험 중 모은 방지권 정산. 보스 드롭·보물상자·굴림틀이 session.rewards 에
     //   쌓아둔 것을 여기서 한 번에 합산한다. 상한 초과분은 조용히 잘린다.
     const newDestroyGuards = Math.min(
@@ -2013,6 +2086,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     const newState = {
       coins: newCoins,
       inventory: newInventory,
+      overflowDrops: newOverflowDrops,
       dungeons,
       codex,
       ngPlusLevel: newNgPlusLevel,
@@ -2062,7 +2136,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     const state = get();
     const item = state.inventory.find((i) => i.id === itemId);
     if (!item) return 0;
-    const refund = SELL_PRICE[item.rarity];
+    // Phase 6-E — 등급 + 드롭 층 + 강화 단계 가산.
+    const refund = sellPrice(item.rarity, item.dropFloor, item.enhanceLevel);
     const newInventory = state.inventory.filter((i) => i.id !== itemId);
     const newCoins = state.coins + refund;
     set({ inventory: newInventory, coins: newCoins });
@@ -2083,6 +2158,66 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
       STORAGE_KEY,
       pickPersisted({ ...state, inventory: newInventory }),
     );
+  },
+
+  synthesizeItems(ids) {
+    const state = get();
+    if (ids.length !== SYNTHESIS_INPUT_COUNT || new Set(ids).size !== ids.length) {
+      return { ok: false, reason: "count" };
+    }
+    const items: Equipment[] = [];
+    for (const id of ids) {
+      const found = state.inventory.find((i) => i.id === id);
+      if (!found) return { ok: false, reason: "not-found" };
+      items.push(found);
+    }
+    if (items.some((i) => i.photoId)) return { ok: false, reason: "photo" };
+    const rarity = items[0].rarity;
+    if (items.some((i) => i.rarity !== rarity)) return { ok: false, reason: "rarity" };
+    if (!NEXT_RARITY[rarity]) return { ok: false, reason: "legend" };
+    const item = synthesizeEquipment(items);
+    if (!item) return { ok: false, reason: "count" };
+    const idSet = new Set(ids);
+    const newInventory = [...state.inventory.filter((i) => !idSet.has(i.id)), item];
+    // 도감 즉시 기록 — 정산을 거치지 않는 유일한 장비 획득 경로.
+    const baseName = getEquipmentBaseName(item);
+    const codex = state.codex.equipment.includes(baseName)
+      ? state.codex
+      : { ...state.codex, equipment: [...state.codex.equipment, baseName] };
+    set({ inventory: newInventory, codex });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, inventory: newInventory, codex }),
+    );
+    return { ok: true, item };
+  },
+
+  resolveOverflowItem(id, mode) {
+    const state = get();
+    const list = state.overflowDrops ?? [];
+    const item = list.find((i) => i.id === id);
+    if (!item) return 0;
+    const refund =
+      mode === "sell" ? sellPrice(item.rarity, item.dropFloor, item.enhanceLevel) : 0;
+    const overflowDrops = list.filter((i) => i.id !== id);
+    const coins = state.coins + refund;
+    set({ overflowDrops, coins });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, overflowDrops, coins }));
+    return refund;
+  },
+
+  sellAllOverflow() {
+    const state = get();
+    const list = state.overflowDrops ?? [];
+    if (list.length === 0) return 0;
+    let total = 0;
+    for (const item of list) {
+      total += sellPrice(item.rarity, item.dropFloor, item.enhanceLevel);
+    }
+    const coins = state.coins + total;
+    set({ overflowDrops: [], coins });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, overflowDrops: [], coins }));
+    return total;
   },
 
   purchaseTicket() {
@@ -2511,6 +2646,18 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
   _setFromCloud: (state) => {
     set({
       ...state,
+      // Phase 6-E (Track E) — 장비/도감 수리를 게이트 없이 다시 돈다 (멱등). 구 클라이언트가
+      //   옛 iconName/도감 키를 올릴 수 있다. 페이로드에 없는 키는 건드리지 않는다.
+      ...(state.hero
+        ? { hero: { ...state.hero, equipped: repairEquippedMap(state.hero.equipped) } }
+        : {}),
+      ...(state.inventory ? { inventory: repairEquipmentList(state.inventory) } : {}),
+      ...(state.overflowDrops
+        ? { overflowDrops: repairEquipmentList(state.overflowDrops) }
+        : {}),
+      ...(state.codex
+        ? { codex: { ...state.codex, equipment: repairCodexEquipment(state.codex.equipment) } }
+        : {}),
       // Phase 2-A — heroXp 는 spread 에 맡기지 않고 **명시적으로** 페이로드 값을 쓴다
       //   (없으면 undefined). 온보딩 레이스에서 로컬이 progress Lv1 기준 0 으로
       //   먼저 시드됐어도, 구 클라이언트 문서(키 없음)를 채택하는 순간 미시드로
@@ -2557,6 +2704,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     set({
       hero: createDefaultHero(),
       inventory: [],
+      overflowDrops: [],
       coins: 0,
       passes: {},
       dungeons: {},
