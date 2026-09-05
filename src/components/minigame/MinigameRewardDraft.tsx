@@ -54,7 +54,7 @@ export default function MinigameRewardDraft() {
                 border: `2px solid ${color}`,
                 boxShadow: rarityGlowVar(reward.tier),
               }}
-              aria-label={`${t(reward.nameKey as "minigame.title")} — ${rarityLabel(reward.tier, language)}`}
+              aria-label={`${t(reward.nameKey as "minigame.title")}: ${rarityLabel(reward.tier, language)}`}
             >
               <RarityTexture rarity={reward.tier} borderRadius={12} />
               <div className="relative flex items-start justify-between gap-3">

@@ -133,7 +133,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.nextHeroDamageMult = 2
             pushSkillLog(&s, .warrior, "강타",
-                "영웅이 강타를 준비한다 — 다음 공격 2배", skillId: "warrior_smash_t1")
+                "영웅이 강타를 준비한다: 다음 공격 2배", skillId: "warrior_smash_t1")
         })
 
     static let warriorT2 = ClassSkill(
@@ -145,7 +145,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.heroAtkBonusRounds = AtkBonusEffect(rounds: 3, mult: 1.3)
             pushSkillLog(&s, .warrior, "광폭화",
-                "영웅이 광폭화 — 3 round 공격 +30%", skillId: "warrior_berserk_t2")
+                "영웅이 광폭화: 3 round 공격 +30%", skillId: "warrior_berserk_t2")
         })
 
     static let warriorT2b = ClassSkill(
@@ -170,7 +170,7 @@ enum ClassSkills {
             guard let m else { return }
             let dmg = UpHeroCombat.jsRound(Double(m.hp) * 0.2 * getIntMult(s))
             pushSkillHit(&s, m, damage: dmg,
-                narrative: "분쇄가 \(m.name) 을 강타한다 — \(dmg) 피해",
+                narrative: "분쇄가 \(m.name) 을 강타한다, \(dmg) 피해",
                 skillId: "warrior_crush_t3")
             pushSkillLog(&s, .warrior, "분쇄", "적 HP 20% 감소 (\(dmg))",
                 skillId: "warrior_crush_t3", narrativeParams: ["damage": .number(Double(dmg))])
@@ -199,7 +199,7 @@ enum ClassSkills {
             guard let m else { return }
             let dmg = UpHeroCombat.jsRound(80 * getIntMult(s))
             pushSkillHit(&s, m, damage: dmg,
-                narrative: "영웅이 분노를 폭발시킨다 — \(m.name) 에 \(dmg) 고정 피해",
+                narrative: "영웅이 분노를 폭발시킨다, \(m.name) 에 \(dmg) 고정 피해",
                 skillId: "warrior_rage_burst_t4")
             s.heroAtkBonusRounds = AtkBonusEffect(rounds: 3, mult: 1.5)
             pushSkillLog(&s, .warrior, "분노 폭발",
@@ -218,7 +218,7 @@ enum ClassSkills {
             guard let m else { return }
             let dmg = UpHeroCombat.jsRound(Double(m.hp) * 0.25 * getIntMult(s))
             pushSkillHit(&s, m, damage: dmg,
-                narrative: "영웅의 번개가 \(m.name) 을 꿰뚫는다 — \(dmg) 피해",
+                narrative: "영웅의 번개가 \(m.name) 을 꿰뚫는다, \(dmg) 피해",
                 skillId: "mage_lightning_t1")
             pushSkillLog(&s, .mage, "지식의 번개", "적 HP 25% 감소 (\(dmg))",
                 skillId: "mage_lightning_t1", narrativeParams: ["damage": .number(Double(dmg))])
@@ -233,7 +233,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.enemyStunnedRounds = 1
             pushSkillLog(&s, .mage, "빙결",
-                "적이 얼어붙었다 — 1 round 공격 불가", skillId: "mage_freeze_t2")
+                "적이 얼어붙었다: 1 round 공격 불가", skillId: "mage_freeze_t2")
         })
 
     static let mageT2b = ClassSkill(
@@ -258,7 +258,7 @@ enum ClassSkills {
             guard let m else { return }
             let dmg = UpHeroCombat.jsRound(50 * getIntMult(s))
             pushSkillHit(&s, m, damage: dmg,
-                narrative: "불꽃이 \(m.name) 을 휩싼다 — \(dmg) 피해",
+                narrative: "불꽃이 \(m.name) 을 휩싼다, \(dmg) 피해",
                 skillId: "mage_fireball_t3")
             pushSkillLog(&s, .mage, "화염구", "\(dmg) 고정 피해",
                 skillId: "mage_fireball_t3", narrativeParams: ["damage": .number(Double(dmg))])
@@ -291,7 +291,7 @@ enum ClassSkills {
             guard let m else { return }
             let dmg = UpHeroCombat.jsRound(Double(m.hp) * 0.4 * getIntMult(s))
             pushSkillHit(&s, m, damage: dmg,
-                narrative: "메테오가 \(m.name) 을 내리친다 — \(dmg) 피해",
+                narrative: "메테오가 \(m.name) 을 내리친다, \(dmg) 피해",
                 skillId: "mage_meteor_t4")
             pushSkillLog(&s, .mage, "메테오", "적 HP 40% 감소 (\(dmg))",
                 skillId: "mage_meteor_t4", narrativeParams: ["damage": .number(Double(dmg))])
@@ -307,7 +307,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.forcedDodgeRounds = 2
             pushSkillLog(&s, .monk, "선정",
-                "영웅이 선정에 든다 — 2 round 회피 100%", skillId: "monk_zen_t1")
+                "영웅이 선정에 든다: 2 round 회피 100%", skillId: "monk_zen_t1")
         })
 
     static let monkT2 = ClassSkill(
@@ -320,7 +320,7 @@ enum ClassSkills {
             guard let m else { return }
             let dmg = UpHeroCombat.jsRound(Double(m.hp) * 0.3 * getIntMult(s))
             pushSkillHit(&s, m, damage: dmg,
-                narrative: "일섬 — \(m.name) 을 베어낸다 — \(dmg) 피해",
+                narrative: "일섬: \(m.name) 을 베어낸다, \(dmg) 피해",
                 skillId: "monk_flash_t2")
             pushSkillLog(&s, .monk, "일섬", "적 HP 30% 감소 (\(dmg))",
                 skillId: "monk_flash_t2", narrativeParams: ["damage": .number(Double(dmg))])
@@ -373,7 +373,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.heroInvulnerableRounds = 3
             pushSkillLog(&s, .monk, "연화",
-                "연꽃이 영웅을 감싼다 — 3 round 무적", skillId: "monk_lotus_t4")
+                "연꽃이 영웅을 감싼다: 3 round 무적", skillId: "monk_lotus_t4")
         })
 
     // MARK: - druid (자연력)
@@ -400,7 +400,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.enemyStunnedRounds = 2
             pushSkillLog(&s, .druid, "뿌리옥죄기",
-                "뿌리가 적을 잡아챈다 — 2 round 봉인", skillId: "druid_root_t2")
+                "뿌리가 적을 잡아챈다: 2 round 봉인", skillId: "druid_root_t2")
         })
 
     static let druidT2b = ClassSkill(
@@ -455,7 +455,7 @@ enum ClassSkills {
             let intMult = getIntMult(s)
             let dmg = UpHeroCombat.jsRound(Double(m.hp) * 0.3 * intMult)
             pushSkillHit(&s, m, damage: dmg,
-                narrative: "야생의 짐승이 \(m.name) 을 공격한다 — \(dmg) 피해",
+                narrative: "야생의 짐승이 \(m.name) 을 공격한다, \(dmg) 피해",
                 skillId: "druid_wild_call_t4")
             let heal = UpHeroCombat.jsRound(100 * intMult)
             s.hero.hp = min(s.hero.maxHp, s.hero.hp + heal)
@@ -474,7 +474,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.nextCoinMult = 1.5
             pushSkillLog(&s, .bard, "노래",
-                "용기의 노래 — 다음 처치 보상 1.5배", skillId: "bard_song_t1")
+                "용기의 노래: 다음 처치 보상 1.5배", skillId: "bard_song_t1")
         })
 
     static let bardT2 = ClassSkill(
@@ -590,7 +590,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.enemyStunnedRounds = 2
             pushSkillLog(&s, .chronomancer, "시간 정지",
-                "시간이 멈춘다 — 2 round 봉인", skillId: "chrono_stop_t3")
+                "시간이 멈춘다: 2 round 봉인", skillId: "chrono_stop_t3")
         })
 
     static let chronoT3b = ClassSkill(
@@ -674,7 +674,7 @@ enum ClassSkills {
             guard let m else { return }
             let dmg = UpHeroCombat.jsRound(Double(m.hp) * 0.25 * getIntMult(s))
             pushSkillHit(&s, m, damage: dmg,
-                narrative: "심판 — \(m.name) 이 빛에 타들어간다 — \(dmg) 피해",
+                narrative: "심판: \(m.name) 이 빛에 타들어간다, \(dmg) 피해",
                 skillId: "priest_judgment_t3")
             pushSkillLog(&s, .priest, "심판", "적 HP 25% (\(dmg))",
                 skillId: "priest_judgment_t3", narrativeParams: ["damage": .number(Double(dmg))])
@@ -719,7 +719,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.forcedEnemyMisses = 3
             pushSkillLog(&s, .illusionist, "환영",
-                "환영 — 다음 3 공격 miss", skillId: "illus_mirage_t1")
+                "환영: 다음 3 공격 miss", skillId: "illus_mirage_t1")
         })
 
     static let illusT2 = ClassSkill(
@@ -754,7 +754,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.enemyStunnedRounds = 2
             pushSkillLog(&s, .illusionist, "환혹",
-                "적이 홀려 움직이지 못한다 — 2 round", skillId: "illus_charm_t3")
+                "적이 홀려 움직이지 못한다: 2 round", skillId: "illus_charm_t3")
         })
 
     static let illusT3b = ClassSkill(
@@ -782,7 +782,7 @@ enum ClassSkills {
         apply: { s, _ in
             s.heroInvulnerableRounds = 3
             pushSkillLog(&s, .illusionist, "환몽",
-                "영웅이 꿈 속으로 — 3 round 무적", skillId: "illus_dreamscape_t4")
+                "영웅이 꿈 속으로: 3 round 무적", skillId: "illus_dreamscape_t4")
         })
 
     // MARK: - novice (전직 전 tutorial — tier 0, 자원 0)
@@ -810,7 +810,7 @@ enum ClassSkills {
             let prev = s.nextHeroDamageMult ?? 1
             s.nextHeroDamageMult = max(prev, 1.5)
             pushSkillLog(&s, .novice, "집중 일격",
-                "영웅이 깊게 호흡한다 — 다음 공격 +50%.", skillId: "novice_focus")
+                "영웅이 깊게 호흡한다: 다음 공격 +50%.", skillId: "novice_focus")
         })
 
     static let noviceBrace = ClassSkill(
@@ -826,7 +826,7 @@ enum ClassSkills {
                 s.heroDmgReductionRounds = DmgReductionEffect(rounds: 1, reduction: 0.5)
             }
             pushSkillLog(&s, .novice, "방어 자세",
-                "영웅이 자세를 낮춘다 — 다음 피해 -50%.", skillId: "novice_brace")
+                "영웅이 자세를 낮춘다: 다음 피해 -50%.", skillId: "novice_brace")
         })
 
     // MARK: - 레지스트리

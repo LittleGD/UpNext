@@ -1020,7 +1020,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (cmp === "aAhead") {
         if (process.env.NODE_ENV !== "production") {
           console.warn(
-            "[useGameStore._setFromCloud] cloud progress strictly behind local — skipping to prevent data loss.",
+            "[useGameStore._setFromCloud] cloud progress strictly behind local, skipping to prevent data loss.",
             { localDays: localProgress.totalDaysCompleted, cloudDays: normalized.totalDaysCompleted },
           );
         }

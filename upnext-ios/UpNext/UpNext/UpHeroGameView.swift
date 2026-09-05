@@ -424,7 +424,7 @@ private struct CampView: View {
     private var ctaStack: some View {
         VStack(spacing: 10) {
             if classEligible {
-                campCTA(icon: .sparkle, label: AppConfig.loc("전직"), hint: AppConfig.loc("Lv.30 — 전문 클래스 선택"),
+                campCTA(icon: .sparkle, label: AppConfig.loc("전직"), hint: AppConfig.loc("Lv.30: 전문 클래스 선택"),
                         primary: true) { screen = .classChoice }
             }
             // PrimaryCTA — 탐험 시작 (탐험권 0 이면 상점으로). 유일한 강조 CTA(위계 단일화).
@@ -648,7 +648,7 @@ private struct AmbientFlickerText: View {
     var body: some View {
         Group {
             if reduceMotion {
-                Text("— \(AppConfig.locRuntime(Self.lineKeys[index])) —")
+                Text("· \(AppConfig.locRuntime(Self.lineKeys[index])) ·")
                     .typography(.caption)
                     .foregroundStyle(GBPalette.light)
             } else {
@@ -656,7 +656,7 @@ private struct AmbientFlickerText: View {
                     let phase = tl.date.timeIntervalSinceReferenceDate
                         .truncatingRemainder(dividingBy: 4.2) / 4.2
                     let f = Self.fireFlicker(phase)
-                    Text("— \(AppConfig.locRuntime(Self.lineKeys[index])) —")
+                    Text("· \(AppConfig.locRuntime(Self.lineKeys[index])) ·")
                         .typography(.caption)
                         .foregroundStyle(GBPalette.light)
                         // inner fire-flicker: opacity + warm text-shadow

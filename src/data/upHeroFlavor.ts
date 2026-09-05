@@ -233,7 +233,7 @@ export function buildRetreatChoice(currentFloor: number): {
         resultText: "이를 악물고 전투를 이어간다!",
       },
       {
-        label: "후퇴 — 캠프로",
+        label: "후퇴: 캠프로",
         effect: { kind: "damage", amount: 0 },
         resultText: `F${currentFloor} 에서 후퇴. 획득한 보상은 유지된다.`,
       },

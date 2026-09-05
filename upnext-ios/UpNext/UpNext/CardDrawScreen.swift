@@ -1152,7 +1152,7 @@ private struct ReviewCard: View {
             if locked {
                 HStack(spacing: 6) {
                     PixelIcon(.lock, size: 12, color: Color(red: 1, green: 0.27, blue: 0.2))
-                    Text("패널티 — 필수").typography(.micro).foregroundStyle(Color(red: 1, green: 0.4, blue: 0.36))
+                    Text("패널티: 필수").typography(.micro).foregroundStyle(Color(red: 1, green: 0.4, blue: 0.36))
                 }
                 .frame(maxWidth: .infinity).frame(height: 44)
                 .background(Color(red: 1, green: 0.27, blue: 0.2).opacity(0.1), in: RoundedRectangle(cornerRadius: 8))

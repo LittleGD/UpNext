@@ -210,7 +210,7 @@ final class AuthService: NSObject, ObservableObject {
             // 아직 인증된 상태에서 클라우드 정리 (Auth 삭제 후엔 rules 가 write/delete 거부).
             // 실패하면 여기서 중단 — Auth 를 지우기 전이므로 재시도 가능한 상태가 유지된다.
             guard await cloudCleanup() else {
-                lastError = AppConfig.loc("계정 데이터 삭제에 실패했어요 — 잠시 후 다시 시도해주세요")
+                lastError = AppConfig.loc("계정 데이터 삭제에 실패했어요. 잠시 후 다시 시도해주세요")
                 return false
             }
             // Apple: 토큰 revoke 로 '설정 > Apple ID > Apple로 로그인' 목록에서도 앱 제거.
@@ -348,13 +348,13 @@ extension AuthService {
             case ASAuthorizationError.canceled.rawValue:
                 return nil  // 사용자 취소 — 조용히.
             case ASAuthorizationError.notHandled.rawValue:
-                return AppConfig.loc("Apple 로그인을 처리할 수 없어요 — 잠시 후 다시 시도해주세요")
+                return AppConfig.loc("Apple 로그인을 처리할 수 없어요. 잠시 후 다시 시도해주세요")
             case ASAuthorizationError.invalidResponse.rawValue:
                 return AppConfig.loc("Apple ID 응답을 확인할 수 없어요")
             case ASAuthorizationError.notInteractive.rawValue:
                 return AppConfig.loc("Apple ID 로그인이 필요해요")
             case ASAuthorizationError.failed.rawValue:
-                return AppConfig.loc("Apple 로그인이 실패했어요 — 다시 시도해주세요")
+                return AppConfig.loc("Apple 로그인이 실패했어요. 다시 시도해주세요")
             default:
                 return AppConfig.loc("Apple 로그인 중 오류가 발생했어요")
             }
@@ -370,7 +370,7 @@ extension AuthService {
         if ns.domain == "com.google.GIDSignIn", ns.code == -5 {
             return nil  // 사용자 취소 — 조용히.
         }
-        return AppConfig.loc("구글 로그인 중 오류가 발생했어요 — 다시 시도해주세요")
+        return AppConfig.loc("구글 로그인 중 오류가 발생했어요. 다시 시도해주세요")
     }
 
     /// 계정 삭제 중 에러를 사용자 메시지로 변환. 재인증 시트 취소(Apple .canceled / Google -5)는
@@ -384,6 +384,6 @@ extension AuthService {
         if isCancel {
             return AppConfig.loc("계정 삭제가 취소됐어요")
         }
-        return AppConfig.loc("계정 삭제에 실패했어요 — 잠시 후 다시 시도해주세요")
+        return AppConfig.loc("계정 삭제에 실패했어요. 잠시 후 다시 시도해주세요")
     }
 }

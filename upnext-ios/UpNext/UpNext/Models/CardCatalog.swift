@@ -23,7 +23,7 @@ enum CardCatalog {
     /// 번들에서 1회 로드 후 캐시. lazy static.
     private static let file: CatalogFile = {
         guard let url = Bundle.main.url(forResource: "Cards", withExtension: "json") else {
-            assertionFailure("Cards.json이 번들에 없음 — Copy Bundle Resources 확인")
+            assertionFailure("Cards.json이 번들에 없음, Copy Bundle Resources 확인")
             return CatalogFile(cards: [], starterCardIds: [])
         }
         do {

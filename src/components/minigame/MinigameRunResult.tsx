@@ -138,7 +138,7 @@ export default function MinigameRunResult() {
               whileTap={{ scale: 0.97 }}
               onClick={() => toggle(tile.tileId)}
               aria-pressed={isSelected}
-              aria-label={`${cardTitle(tile.card, language)}${isSelected ? " — selected" : ""}`}
+              aria-label={`${cardTitle(tile.card, language)}${isSelected ? ", selected" : ""}`}
               className="relative aspect-[3/4] rounded-lg overflow-hidden transition-[box-shadow,opacity] duration-200 ease-out"
               style={{
                 background: "var(--bg-surface)",

@@ -162,7 +162,7 @@ enum UpHeroSession {
             dungeonId: dungeonId, startFloor: startFloor, currentFloor: startFloor,
             log: [
                 .narrative(
-                    text: "\(dungeonName) — Floor \(startFloor) 에 도착했다.",
+                    text: "\(dungeonName): Floor \(startFloor) 에 도착했다.",
                     narrativeKey: "uphero.combat.narrative.floorArrive",
                     narrativeParams: [
                         "dungeon": .text(dungeonName),
@@ -293,7 +293,7 @@ enum UpHeroSession {
                         s.hero.hp = revivedHp
                         s.log.append(.skill(
                             classType: .priest, skillId: "priest_revive_t4", skillName: "부활",
-                            narrative: "영웅이 부활한다 — HP +\(revivedHp)",
+                            narrative: "영웅이 부활한다, HP +\(revivedHp)",
                             narrativeKey: "uphero.combat.narrative.priestRevive",
                             narrativeParams: ["heal": .number(Double(revivedHp))], timestamp: now()))
                     } else {
@@ -530,7 +530,7 @@ enum UpHeroSession {
                 let recoverAmount = 10 + rng.int(below: 6)
                 let rest = FlavorPool.pickRestWithKey(flavor, rng: &rng)
                 s.log.append(.treasure(
-                    coins: 0, description: "\(rest.text) — 시간 +\(recoverAmount)",
+                    coins: 0, description: "\(rest.text): 시간 +\(recoverAmount)",
                     narrativeKey: "uphero.combat.narrative.restArea",
                     narrativeParams: [
                         "description": .text(rest.text),
@@ -824,7 +824,7 @@ enum UpHeroSession {
             counterDmg = min(counterDmg, Int((Double(effStats.str) * 1.5).rounded(.down)))
             s.log.append(.combat(
                 attacker: .hero, damage: counterDmg, outcome: .hit,
-                narrative: "영웅이 반사적으로 반격한다 — \(counterDmg) 피해",
+                narrative: "영웅이 반사적으로 반격한다, \(counterDmg) 피해",
                 narrativeKey: "uphero.combat.narrative.heroCounter",
                 narrativeParams: ["damage": .number(Double(counterDmg))], timestamp: now()))
         }
