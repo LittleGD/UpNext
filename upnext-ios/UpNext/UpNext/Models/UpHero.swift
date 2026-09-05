@@ -747,6 +747,11 @@ enum ShopPrices {
     ///   **소실방지권은 여기 없다** — 상점에서 팔지 않고 보스·상자·슬롯에서만 나온다.
     ///   웹 `SHOP_PRICES.downGuard` 와 같은 값이어야 한다.
     static let downGuard = 150
+    /// Phase 3-F — 스킬 초기화(리스펙) 1회. learnedSkills 를 [T1] 로 되돌리면 SP 는
+    ///   레벨 파생값이라 자동으로 복구된다 (환급 산술 없음). T2/T3 가 택일이라 후회의
+    ///   출구가 필요하고, 코인 싱크로 downGuard(150) 두 배 자리에 둔다.
+    ///   웹 `SHOP_PRICES.skillRespec` 과 같은 값이어야 한다.
+    static let skillRespec = 300
 }
 
 // MARK: - 클래스 메타

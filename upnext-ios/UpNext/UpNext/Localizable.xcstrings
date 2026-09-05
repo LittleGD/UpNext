@@ -55263,6 +55263,1655 @@
           }
         }
       }
+    },
+    "철벽": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iron Wall"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄壁"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "铁壁"
+          }
+        }
+      }
+    },
+    "3 round 동안 받는 피해 -40%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damage taken -40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3ターンの間、被ダメージ -40%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 回合内受到的伤害 -40%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.warrior_ironwall_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영웅이 철벽처럼 버틴다. 3 round 피해 -40%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero stands like an iron wall. Damage -40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄が鉄壁のように耐える。3ターン被ダメージ -40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄如铁壁般坚守。3 回合伤害 -40%"
+          }
+        }
+      }
+    },
+    "전쟁의 함성": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "War Cry"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戦いの雄叫び"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "战吼"
+          }
+        }
+      }
+    },
+    "적 1 round 봉인 + 다음 2 round 공격 +40%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stun the enemy for 1 round + attack +40% for the next 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敵を1ターン封じる + 次の2ターン攻撃 +40%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "封印敌人 1 回合 + 接下来 2 回合攻击 +40%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.warrior_warcry_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전쟁의 함성이 울린다. 적 1 round 봉인, 2 round 공격 +40%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A war cry rings out. Enemy stunned for 1 round, attack +40% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戦いの雄叫びが響く。敵を1ターン封印、2ターン攻撃 +40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "战吼响彻。敌人封印 1 回合，2 回合攻击 +40%"
+          }
+        }
+      }
+    },
+    "마나 방패": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mana Shield"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マナシールド"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "魔法护盾"
+          }
+        }
+      }
+    },
+    "2 round 동안 받는 피해 -50%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damage taken -50% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2ターンの間、被ダメージ -50%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 回合内受到的伤害 -50%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.mage_manashield_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "마나 방패가 펼쳐진다. 2 round 피해 -50%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A mana shield unfolds. Damage -50% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マナシールドが展開する。2ターン被ダメージ -50%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "魔法护盾展开。2 回合伤害 -50%"
+          }
+        }
+      }
+    },
+    "연쇄 번개": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain Lightning"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連鎖雷撃"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连锁闪电"
+          }
+        }
+      }
+    },
+    "적 현재 HP 30% 피해 + 1 round 봉인.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deal 30% of enemy current HP + stun for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敵の現在HP30%のダメージ + 1ターン封印。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "造成敌人当前 HP 30% 伤害 + 封印 1 回合。"
+          }
+        }
+      }
+    },
+    "uphero.skill.mage_chain_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연쇄 번개가 적을 관통한다 ({damage}), 1 round 봉인"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain lightning pierces the enemy ({damage}), stunned for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連鎖雷撃が敵を貫く ({damage})、1ターン封印"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连锁闪电贯穿敌人 ({damage})，封印 1 回合"
+          }
+        }
+      }
+    },
+    "철포삼": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iron Body"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄布衫"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "铁布衫"
+          }
+        }
+      }
+    },
+    "3 round 동안 받는 피해 -35%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damage taken -35% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3ターンの間、被ダメージ -35%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 回合内受到的伤害 -35%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.monk_ironbody_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영웅의 몸이 강철이 된다. 3 round 피해 -35%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero's body turns to steel. Damage -35% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄の体が鋼になる。3ターン被ダメージ -35%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄之躯化为钢铁。3 回合伤害 -35%"
+          }
+        }
+      }
+    },
+    "연환격": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain Strike"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連環撃"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连环击"
+          }
+        }
+      }
+    },
+    "다음 공격 피해 2.5배.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next attack deals 2.5x damage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の攻撃ダメージ 2.5倍。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次攻击伤害 2.5 倍。"
+          }
+        }
+      }
+    },
+    "uphero.skill.monk_chainstrike_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연환격을 준비한다. 다음 공격 2.5배"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain strike readied. Next attack x2.5."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連環撃を構える。次の攻撃 2.5倍"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备连环击。下次攻击 2.5 倍"
+          }
+        }
+      }
+    },
+    "자연의 활력": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nature's Vigor"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然の活力"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然活力"
+          }
+        }
+      }
+    },
+    "HP +60 회복 + 1 round 회피 100%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heal HP +60 + 100% dodge for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HP +60 回復 + 1ターン回避 100%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复 HP +60 + 1 回合闪避 100%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.druid_vigor_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자연의 활력이 흐른다. HP +{heal}, 1 round 회피"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nature's vigor flows. HP +{heal}, dodge for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然の活力が流れる。HP +{heal}、1ターン回避"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然活力涌动。HP +{heal}，1 回合闪避"
+          }
+        }
+      }
+    },
+    "맹수의 발톱": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beast Claw"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛獣の爪"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛兽之爪"
+          }
+        }
+      }
+    },
+    "3 round 동안 공격 +40%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attack +40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3ターンの間、攻撃 +40%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 回合内攻击 +40%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.druid_claw_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "맹수의 발톱이 돋는다. 3 round 공격 +40%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beast claws emerge. Attack +40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛獣の爪が生える。3ターン攻撃 +40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛兽之爪显现。3 回合攻击 +40%"
+          }
+        }
+      }
+    },
+    "자장가": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lullaby"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子守唄"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摇篮曲"
+          }
+        }
+      }
+    },
+    "uphero.skill.bard_lullaby_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자장가가 적을 재운다. 1 round 봉인"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A lullaby puts the enemy to sleep. Stunned for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子守唄が敵を眠らせる。1ターン封印"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摇篮曲让敌人入睡。封印 1 回合"
+          }
+        }
+      }
+    },
+    "행운의 노래": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Song of Fortune"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸運の歌"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸运之歌"
+          }
+        }
+      }
+    },
+    "다음 처치 코인 2배 + 다음 2 공격 반드시 crit.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next kill coins x2 + next 2 attacks guaranteed crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の撃破コイン2倍 + 次の2回攻撃は必ずクリティカル。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次击杀金币 2 倍 + 接下来 2 次攻击必定暴击。"
+          }
+        }
+      }
+    },
+    "uphero.skill.bard_fortune_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "행운의 노래. 다음 처치 코인 2배, 다음 2 공격 crit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Song of fortune. Next kill coins x2, next 2 attacks crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸運の歌。次の撃破コイン2倍、次の2回攻撃クリティカル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸运之歌。下次击杀金币 2 倍，接下来 2 次攻击暴击"
+          }
+        }
+      }
+    },
+    "시간 왜곡": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time Warp"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間歪曲"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间扭曲"
+          }
+        }
+      }
+    },
+    "uphero.skill.chrono_warp_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시간이 왜곡된다. 2 round 회피 100%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time warps. 100% dodge for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間が歪む。2ターン回避 100%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间扭曲。2 回合闪避 100%"
+          }
+        }
+      }
+    },
+    "미래 예지": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foresight"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未来予知"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预知未来"
+          }
+        }
+      }
+    },
+    "다음 3 공격 반드시 crit.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next 3 attacks guaranteed crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の3回攻撃は必ずクリティカル。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接下来 3 次攻击必定暴击。"
+          }
+        }
+      }
+    },
+    "uphero.skill.chrono_foresight_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "미래를 본다. 다음 3 공격 반드시 crit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The future is seen. Next 3 attacks guaranteed crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未来を見る。次の3回攻撃は必ずクリティカル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预见未来。接下来 3 次攻击必定暴击"
+          }
+        }
+      }
+    },
+    "신의 가호": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divine Favor"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神の加護"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神之庇护"
+          }
+        }
+      }
+    },
+    "1 round 무적.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invulnerable for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1ターン無敵。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 回合无敌。"
+          }
+        }
+      }
+    },
+    "uphero.skill.priest_favor_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "신의 가호가 내린다. 1 round 무적"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divine favor descends. Invulnerable for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神の加護が降りる。1ターン無敵"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神之庇护降临。1 回合无敌"
+          }
+        }
+      }
+    },
+    "축복": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blessing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "祝福"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "祝福"
+          }
+        }
+      }
+    },
+    "HP +60 회복 + 3 round 공격 +25%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heal HP +60 + attack +25% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HP +60 回復 + 3ターン攻撃 +25%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复 HP +60 + 3 回合攻击 +25%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.priest_bless_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "축복이 내린다. HP +{heal}, 3 round 공격 +25%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A blessing descends. HP +{heal}, attack +25% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "祝福が降りる。HP +{heal}、3ターン攻撃 +25%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "祝福降临。HP +{heal}，3 回合攻击 +25%"
+          }
+        }
+      }
+    },
+    "그림자 걸음": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shadow Step"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影歩き"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影步"
+          }
+        }
+      }
+    },
+    "uphero.skill.illus_shadow_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그림자 속으로 사라진다. 2 round 회피 100%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vanishes into the shadows. 100% dodge for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影の中に消える。2ターン回避 100%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐入阴影。2 回合闪避 100%"
+          }
+        }
+      }
+    },
+    "환상 폭발": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phantasm Burst"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影爆発"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影爆裂"
+          }
+        }
+      }
+    },
+    "적 현재 HP 30% 피해.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deal 30% of enemy current HP."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敵の現在HP30%のダメージ。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "造成敌人当前 HP 30% 伤害。"
+          }
+        }
+      }
+    },
+    "uphero.skill.illus_burst_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "환상이 폭발한다 ({damage})"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The phantasm bursts ({damage})."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影が爆発する ({damage})"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影爆裂 ({damage})"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.skillHitMonster.mage_chain_t3": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연쇄 번개가 {monster} 을 관통한다. {damage} 피해"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain lightning pierces {monster}. {damage} damage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連鎖雷撃が {monster} を貫く。{damage} ダメージ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连锁闪电贯穿 {monster}。{damage} 伤害"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.skillHitMonster.illus_burst_t3": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "환상이 {monster} 앞에서 폭발한다. {damage} 피해"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A phantasm bursts before {monster}. {damage} damage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影が {monster} の前で爆発する。{damage} ダメージ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影在 {monster} 面前爆裂。{damage} 伤害"
+          }
+        }
+      }
+    },
+    "아직 배운 스킬이 없어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No skills learned yet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ覚えたスキルがありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有学会任何技能"
+          }
+        }
+      }
+    },
+    "이전 단계 필요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs prev tier"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前段階が必要"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要上一阶段"
+          }
+        }
+      }
+    },
+    "선택 완료": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chosen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选择"
+          }
+        }
+      }
+    },
+    "2단계와 3단계는 둘 중 하나만 고를 수 있어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiers 2 and 3: pick only one of the two"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2段階と3段階はどちらか一方だけ選べます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 2 和第 3 阶段只能二选一"
+          }
+        }
+      }
+    },
+    "3단계 스킬 하나를 배우면 열려요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlocks after learning one tier 3 skill"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3段階のスキルを1つ覚えると開きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "学会一个第 3 阶段技能后解锁"
+          }
+        }
+      }
+    },
+    "스킬 초기화": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset skills"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキル初期化"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置技能"
+          }
+        }
+      }
+    },
+    "스킬 초기화 · %lld 코인": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset skills · %lld coins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキル初期化 · %lld コイン"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置技能 · %lld 金币"
+          }
+        }
+      }
+    },
+    "배운 스킬을 모두 잊고 SP %lld을 돌려받아요. %lld 코인을 쓸까요?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget all learned skills and get SP %lld back. Spend %lld coins?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "覚えたスキルをすべて忘れて SP %lld を取り戻します。%lld コインを使いますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "忘记所有已学技能并取回 SP %lld。要花费 %lld 金币吗？"
+          }
+        }
+      }
+    },
+    "영웅이 철벽처럼 버틴다. 3 round 피해 -40%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero stands like an iron wall. Damage -40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄が鉄壁のように耐える。3ターン被ダメージ -40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄如铁壁般坚守。3 回合伤害 -40%"
+          }
+        }
+      }
+    },
+    "전쟁의 함성이 울린다. 적 1 round 봉인, 2 round 공격 +40%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A war cry rings out. Enemy stunned for 1 round, attack +40% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戦いの雄叫びが響く。敵を1ターン封印、2ターン攻撃 +40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "战吼响彻。敌人封印 1 回合，2 回合攻击 +40%"
+          }
+        }
+      }
+    },
+    "마나 방패가 펼쳐진다. 2 round 피해 -50%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A mana shield unfolds. Damage -50% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マナシールドが展開する。2ターン被ダメージ -50%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "魔法护盾展开。2 回合伤害 -50%"
+          }
+        }
+      }
+    },
+    "영웅의 몸이 강철이 된다. 3 round 피해 -35%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero's body turns to steel. Damage -35% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄の体が鋼になる。3ターン被ダメージ -35%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄之躯化为钢铁。3 回合伤害 -35%"
+          }
+        }
+      }
+    },
+    "연환격을 준비한다. 다음 공격 2.5배": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain strike readied. Next attack x2.5."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連環撃を構える。次の攻撃 2.5倍"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备连环击。下次攻击 2.5 倍"
+          }
+        }
+      }
+    },
+    "맹수의 발톱이 돋는다. 3 round 공격 +40%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beast claws emerge. Attack +40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛獣の爪が生える。3ターン攻撃 +40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛兽之爪显现。3 回合攻击 +40%"
+          }
+        }
+      }
+    },
+    "자장가가 적을 재운다. 1 round 봉인": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A lullaby puts the enemy to sleep. Stunned for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子守唄が敵を眠らせる。1ターン封印"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摇篮曲让敌人入睡。封印 1 回合"
+          }
+        }
+      }
+    },
+    "행운의 노래. 다음 처치 코인 2배, 다음 2 공격 crit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Song of fortune. Next kill coins x2, next 2 attacks crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸運の歌。次の撃破コイン2倍、次の2回攻撃クリティカル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸运之歌。下次击杀金币 2 倍，接下来 2 次攻击暴击"
+          }
+        }
+      }
+    },
+    "시간이 왜곡된다. 2 round 회피 100%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time warps. 100% dodge for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間が歪む。2ターン回避 100%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间扭曲。2 回合闪避 100%"
+          }
+        }
+      }
+    },
+    "미래를 본다. 다음 3 공격 반드시 crit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The future is seen. Next 3 attacks guaranteed crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未来を見る。次の3回攻撃は必ずクリティカル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预见未来。接下来 3 次攻击必定暴击"
+          }
+        }
+      }
+    },
+    "신의 가호가 내린다. 1 round 무적": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divine favor descends. Invulnerable for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神の加護が降りる。1ターン無敵"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神之庇护降临。1 回合无敌"
+          }
+        }
+      }
+    },
+    "그림자 속으로 사라진다. 2 round 회피 100%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vanishes into the shadows. 100% dodge for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影の中に消える。2ターン回避 100%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐入阴影。2 回合闪避 100%"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

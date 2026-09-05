@@ -1,7 +1,9 @@
 // classskills-check.mjs — Phase 2.4 "스킬" 동치성 검증 (웹 측)
 //
-// src/lib/classSkills.ts 의 35개 스킬(apply/shouldFire) + 발동 로직을 고정 입력으로
+// src/lib/classSkills.ts 의 51개 스킬(apply/shouldFire) + 발동 로직을 고정 입력으로
 // 실행. 스킬은 RNG 미사용 — 전부 결정론적. Swift 측이 같은 출력을 내면 동치.
+// Phase 3-F — 트리가 6노드(a/b 분기)라 A/B 는 51개를 자동 순회. 섹션 F 에 동 tier
+// 타이브레이크, 섹션 H 에 getSkillLearnStatus 매트릭스 + getSiblingSkill.
 //
 // 실행: cd /Users/jmlee/Documents/UpNext && npx tsx scripts/classskills-check.mjs
 
@@ -13,6 +15,8 @@ import {
   fireSkill,
   maybeFireSkill,
   advanceSkillCounters,
+  getSkillLearnStatus,
+  getSiblingSkill,
 } from "../src/lib/classSkills.ts";
 
 const lines = [];
@@ -68,7 +72,7 @@ function effSummary(s) {
   return `ndm=${f10(s.nextHeroDamageMult)} atk=${atk} stun=${dash(s.enemyStunnedRounds)} dr=${dr} inv=${dash(s.heroInvulnerableRounds)} fd=${dash(s.forcedDodgeRounds)} fem=${dash(s.forcedEnemyMisses)} ncm=${f10(s.nextCoinMult)} gca=${dash(s.guaranteedCritAttacks)} rev=${dash(s.revivePending)} cd=${cd}`;
 }
 
-// ── A. apply — 35 스킬 고정 preset 직접 호출 ────────────────────
+// ── A. apply — 51 스킬 고정 preset 직접 호출 ────────────────────
 const applyMonster = mkMonster({ hp: 400, level: 20, isBoss: false });
 for (const sk of allSkills) {
   const s = mkSession({ skillCooldowns: { warrior_smash_t1: 3, mage_lightning_t1: 5 } });
@@ -82,7 +86,7 @@ for (const sk of allSkills) {
   );
 }
 
-// ── B. shouldFire — 35 스킬 × 3 세션 변형 ──────────────────────
+// ── B. shouldFire — 51 스킬 × 3 세션 변형 ──────────────────────
 const sfMon = mkMonster({ hp: 400, level: 20, isBoss: false });
 const sfMonMid = mkMonster({ hp: 100, level: 5, isBoss: false });
 const variants = [
@@ -142,6 +146,13 @@ for (const id of ["warrior_smash_t1", "mage_meteor_t4", "novice_brace", "nonexis
   const last = [...s.log].reverse().find((e) => e.type === "skill");
   lines.push(`maybeFireSkill:novice = ${last ? last.skillId : "none"}`);
 }
+{
+  // Phase 3-F — 레거시 [T1, T2a, T2b] 둘 다 준비 + hp 50% → 선언 순서 (a) 우선.
+  const s = mkSession({ classResource: 100, classType: "warrior", autoSkillEnabled: true, learnedSkills: ["warrior_smash_t1", "warrior_berserk_t2", "warrior_ironwall_t2"], hp: 250, maxHp: 500 });
+  maybeFireSkill(s, applyMonster);
+  const last = [...s.log].reverse().find((e) => e.type === "skill");
+  lines.push(`maybeFireSkill:tieBreak = ${last ? last.skillId : "none"}`);
+}
 
 // ── G. advanceSkillCounters ────────────────────────────────────
 {
@@ -153,6 +164,41 @@ for (const id of ["warrior_smash_t1", "mage_meteor_t4", "novice_brace", "nonexis
   });
   advanceSkillCounters(s);
   lines.push(`advanceSkillCounters = ${effSummary(s)} t1cd${dash(s.skillCooldown)}`);
+}
+
+// ── H. getSkillLearnStatus 매트릭스 + getSiblingSkill (Phase 3-F) ──
+{
+  const W1 = "warrior_smash_t1", W2A = "warrior_berserk_t2", W2B = "warrior_ironwall_t2";
+  const W3A = "warrior_crush_t3", W3B = "warrior_warcry_t3", W4 = "warrior_rage_burst_t4";
+  // [case, learned, points, heroLevel, classType]
+  const cases = [
+    ["t1only", [W1], 5, 45, "warrior"],
+    ["t2a", [W1, W2A], 5, 45, "warrior"],
+    ["t2b", [W1, W2B], 5, 45, "warrior"],
+    ["t2a_t3b", [W1, W2A, W3B], 5, 45, "warrior"],
+    ["full", [W1, W2A, W3A, W4], 5, 45, "warrior"],
+    ["legacyBoth", [W1, W2A, W2B], 5, 45, "warrior"],
+    ["lv34", [W1], 5, 34, "warrior"],
+    ["lv39", [W1, W2A], 5, 39, "warrior"],
+    ["lv44", [W1, W2A, W3A], 5, 44, "warrior"],
+    ["sp0", [W1], 0, 45, "warrior"],
+    ["sp1", [W1, W2A, W3A], 1, 45, "warrior"],
+    ["mage", [W1], 5, 45, "mage"],
+    ["noClass", [W1], 5, 45, null],
+  ];
+  const ids = [W1, W2A, W2B, W3A, W3B, W4, "mage_chain_t3"];
+  for (const id of ids) {
+    const sk = findSkillById(id);
+    for (const [cn, learned, points, heroLevel, classType] of cases) {
+      lines.push(`learnStatus:${id}:${cn} = ${getSkillLearnStatus(sk, { classType, heroLevel, learned, points })}`);
+    }
+  }
+  for (const id of ids) {
+    const sib = getSiblingSkill(findSkillById(id));
+    lines.push(`sibling:${id} = ${sib ? sib.id : "nil"}`);
+  }
+  const nov = getSiblingSkill(findSkillById("novice_heal"));
+  lines.push(`sibling:novice_heal = ${nov ? nov.id : "nil"}`);
 }
 
 console.log(lines.join("\n"));

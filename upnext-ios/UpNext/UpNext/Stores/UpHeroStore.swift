@@ -962,29 +962,77 @@ final class UpHeroStore: ObservableObject {
         return amount
     }
 
-    enum LearnSkillResult { case ok, already, notFound, noClass, needLevel, noPoints }
+    /// 웹 learnSkill 반환 union. Phase 3-F — branchTaken("branch") / needPrereq("requires") 추가.
+    enum LearnSkillResult { case ok, already, notFound, noClass, needLevel, noPoints, branchTaken, needPrereq }
 
     /// Phase 12d — 스킬트리에서 스킬 포인트로 클래스 스킬 해금. 웹 `learnSkill` 동치.
     /// Phase 2-A — 영웅 레벨은 heroXp 풀 기준, 남은 SP 는 파생값(deriveSkillPoints).
+    /// Phase 3-F — 판정은 ClassSkills.learnStatus 한 곳 (HeroStatPanel 과 같은 규칙).
     /// 성공 시 learnedSkills 에 추가하고 SP 캐시를 다시 파생한다 — pointCost 가 유일한
-    /// 소비 경로다 (Track F 의 리스펙은 learnedSkills 리셋만으로 복원).
+    /// 소비 경로다 (respecSkills 는 learnedSkills 리셋만으로 복원).
     @discardableResult
     func learnSkill(_ skillId: String) -> LearnSkillResult {
         guard let cls = state.hero.classType else { return .noClass }
         guard let skill = ClassSkills.findSkillById(skillId) else { return .notFound }
-        guard skill.skillClass.rawValue == cls.rawValue else { return .noClass }
         let heroLevel = self.heroLevel
-        guard heroLevel >= skill.requiredLevel else { return .needLevel }
         let learned = state.hero.learnedSkills ?? []
-        guard !learned.contains(skillId) else { return .already }
         let points = Self.deriveSkillPoints(state.hero, level: heroLevel)
-        guard points >= skill.pointCost else { return .noPoints }
+        switch ClassSkills.learnStatus(
+            skill, classType: cls, heroLevel: heroLevel, learned: learned, points: points
+        ) {
+        case .learned:     return .already
+        case .wrongClass:  return .noClass
+        case .needLevel:   return .needLevel
+        case .needPrereq:  return .needPrereq
+        case .branchTaken: return .branchTaken
+        case .needPoints:  return .noPoints
+        case .ok:          break
+        }
         mutate { s in
             s.hero.learnedSkills = learned + [skillId]
             s.hero.skillPoints = Self.deriveSkillPoints(s.hero, level: heroLevel)
         }
         Haptics.play(.celebration)   // 스킬 해금 — 성장 순간
         SoundPlayer.shared.play(.levelUp)
+        return .ok
+    }
+
+    /// 웹 respecSkills 반환 union: ok | no-coins | nothing | class.
+    enum RespecResult { case ok, noCoins, nothing, noClass }
+
+    /// Phase 3-F — 스킬 초기화. ShopPrices.skillRespec 코인을 내고 learnedSkills 를
+    /// [해당 class T1] 로 되돌린다. SP 는 pointCost 합에서 파생되므로 환급 산술이 없다
+    /// (deriveSkillPoints 가 다시 계산). 진행 중 세션이 있으면 session.hero 스냅샷과
+    /// skillCooldowns 에서 사라진 스킬을 정리한다 (assignClass 패턴). 웹 `respecSkills` 동치.
+    ///   검사 순서: class → nothing(T2+ 배운 게 없음) → no-coins.
+    @discardableResult
+    func respecSkills() -> RespecResult {
+        guard let cls = state.hero.classType else { return .noClass }
+        let learned = state.hero.learnedSkills ?? []
+        let removed = learned.filter { id in
+            guard let sk = ClassSkills.findSkillById(id) else { return false }
+            return sk.skillClass.rawValue == cls.rawValue && sk.tier >= 2
+        }
+        if removed.isEmpty { return .nothing }
+        let cost = ShopPrices.skillRespec
+        if state.coins < cost { return .noCoins }
+        let t1 = ClassSkills.classSkillTrees[cls]?.first { $0.tier == 1 }
+        let learnedSkills = t1.map { [$0.id] } ?? []
+        let heroLevel = self.heroLevel
+        mutate { s in
+            s.hero.learnedSkills = learnedSkills
+            // 환급 산술 없음 — SP 는 pointCost 합에서 다시 파생된다.
+            s.hero.skillPoints = Self.deriveSkillPoints(s.hero, level: heroLevel)
+            s.coins -= cost
+            if s.currentSession != nil {
+                s.currentSession?.hero.learnedSkills = learnedSkills
+                var cds = s.currentSession?.skillCooldowns ?? [:]
+                for id in removed { cds.removeValue(forKey: id) }
+                s.currentSession?.skillCooldowns = cds
+            }
+        }
+        Haptics.play(.selection)
+        SoundPlayer.shared.play(.select)
         return .ok
     }
 

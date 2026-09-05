@@ -91,6 +91,7 @@ import {
   findSkillById,
   canFireSkill,
   fireSkill,
+  getSkillLearnStatus,
   CLASS_SKILL_TREES,
   NOVICE_SKILLS,
 } from "@/lib/classSkills";
@@ -353,8 +354,23 @@ interface UpHeroActions {
    *   충족 된 것들을 모두 learnedSkills 에 추가. idempotent (이미 있으면 skip).
    */
   grantNoviceSkills(currentLevel: number): void;
-  /** Phase 12d — 스킬 해금 (skill points 소모). */
-  learnSkill(skillId: string): "ok" | "no-points" | "already" | "not-found" | "level" | "class";
+  /**
+   * Phase 12d — 스킬 해금 (skill points 소모).
+   *   Phase 3-F — 판정은 getSkillLearnStatus 한 곳. "branch" = 같은 tier 형제를 이미
+   *   배움, "requires" = 선행 스킬 미충족.
+   */
+  learnSkill(
+    skillId: string,
+  ): "ok" | "no-points" | "already" | "not-found" | "level" | "class" | "branch" | "requires";
+  /**
+   * Phase 3-F — 스킬 초기화. SHOP_PRICES.skillRespec 코인을 내고 learnedSkills 를
+   *   [해당 class T1] 로 되돌린다. SP 는 pointCost 합에서 파생되므로 환급 산술이
+   *   없다 (reconcileSkillPoints 가 다시 계산). 진행 중 세션이 있으면 session.hero
+   *   스냅샷과 skillCooldowns 에서 사라진 스킬을 정리한다 (assignClass 패턴).
+   *   반환: ok | no-coins(코인 부족) | nothing(T2+ 배운 게 없음) | class(전직 전).
+   *   검사 순서: class → nothing → no-coins.
+   */
+  respecSkills(): "ok" | "no-coins" | "nothing" | "class";
   /** Phase 12d — 전투 중 수동 스킬 발동. 자원 + 쿨다운 체크 후 apply. */
   fireSkillManual(skillId: string): "ok" | "no-session" | "cooldown" | "resource" | "locked" | "no-monster" | "no-target";
   /** Phase 12e — 미니게임 결과 해소. success 에 따라 effects 적용 + status=active. */
@@ -1329,13 +1345,18 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     if (!cls) return "class";
     const skill = findSkillById(skillId);
     if (!skill) return "not-found";
-    if (skill.class !== cls) return "class";
     const heroLevel = heroLevelOf(state);
-    if (heroLevel < skill.requiredLevel) return "level";
     const learned = state.hero.learnedSkills ?? [];
-    if (learned.includes(skillId)) return "already";
     const points = deriveSkillPoints(state.hero, heroLevel);
-    if (points < skill.pointCost) return "no-points";
+    const status = getSkillLearnStatus(skill, {
+      classType: cls,
+      heroLevel,
+      learned,
+      points,
+    });
+    if (status === "learned") return "already";
+    if (status === "points") return "no-points";
+    if (status !== "ok") return status;
     const learnedSkills = [...learned, skillId];
     const newHero = {
       ...state.hero,
@@ -1344,6 +1365,53 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     };
     set({ hero: newHero });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+    return "ok";
+  },
+
+  respecSkills() {
+    const state = get();
+    const cls = state.hero.classType;
+    if (!cls) return "class";
+    const learned = state.hero.learnedSkills ?? [];
+    const removed = learned.filter((id) => {
+      const sk = findSkillById(id);
+      return !!sk && sk.class === cls && sk.tier >= 2;
+    });
+    if (removed.length === 0) return "nothing";
+    const cost = SHOP_PRICES.skillRespec;
+    if (state.coins < cost) return "no-coins";
+    const t1 = CLASS_SKILL_TREES[cls].find((s) => s.tier === 1);
+    const learnedSkills = t1 ? [t1.id] : [];
+    const heroLevel = heroLevelOf(state);
+    const newHero = {
+      ...state.hero,
+      learnedSkills,
+      // 환급 산술 없음 — SP 는 pointCost 합에서 다시 파생된다.
+      skillPoints: deriveSkillPoints({ learnedSkills }, heroLevel),
+    };
+    const newCoins = state.coins - cost;
+    // assignClass 와 같은 세션 미러: hero 스냅샷 + 사라진 스킬의 쿨다운 정리.
+    const prevSession = state.currentSession;
+    let newSession = prevSession;
+    if (prevSession) {
+      const cds = { ...(prevSession.skillCooldowns ?? {}) };
+      for (const id of removed) delete cds[id];
+      newSession = {
+        ...prevSession,
+        hero: { ...prevSession.hero, learnedSkills: [...learnedSkills] },
+        skillCooldowns: cds,
+      };
+    }
+    set({ hero: newHero, coins: newCoins, currentSession: newSession });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({
+        ...state,
+        hero: newHero,
+        coins: newCoins,
+        currentSession: newSession,
+      }),
+    );
     return "ok";
   },
 
