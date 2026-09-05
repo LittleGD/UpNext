@@ -222,11 +222,13 @@ final class UpHeroStore: ObservableObject {
             .compactMap { id in CardCatalog.allCards.first { $0.id == id } }
             .map(CardBuffs.getCardBuff)
 
-        // 영웅 레벨 성장 반영 + 시작 층 (재진입 체크포인트 +1)
+        // 영웅 레벨 성장 반영 + 시작 층.
+        // Phase 16 (Track C, 피드백 19/26) — 미처치 보스층이 floorReached 이하에 있으면
+        //   거기서 시작 (createSession 이 보스를 바로 스폰). 웹 confirmDungeon 과 동일.
         let heroLevel = UpHeroRules.getEffectiveHeroLevel(
             gameLevel: gameLevel, heroStartLevel: state.heroStartLevel)
         let leveledHero = UpHeroRules.computeHeroForLevel(state.hero, level: heroLevel)
-        let startFloor = (state.dungeons[dungeonId]?.floorReached ?? 0) + 1
+        let startFloor = SessionReward.resolveStartFloor(state.dungeons[dungeonId])
 
         var rng = SystemRandom()
         let session = UpHeroSession.createSession(
@@ -277,6 +279,12 @@ final class UpHeroStore: ObservableObject {
             log: session.log, current: state.codex)
         // NG+ — F30 보스를 이번 세션에 처음 처치 시 +1 (weekly variant 제외).
         let clearedF30Newly = newBosses.contains(30) && !prevBosses.contains(30)
+        // Phase 16 (Track C, 피드백 30) — 주간 악몽 보상. 파생값이라 저장 필드 없음.
+        //   SessionResultModal 이 같은 함수로 미리 보여준다. 상태 커밋 전에 계산해야
+        //   clearedDungeons 갱신 전의 "첫 클리어 / 7→8" 판정이 맞다.
+        let weeklyReward = session.isWeeklyVariant == true
+            ? SessionReward.computeWeeklyClearReward(session: session, weekly: state.weeklyVariant)
+            : nil
 
         // 17-leaderboard-dummy — 주간 변종 세션이면 clearedDungeons/bestScore 갱신 +
         //   최고 점수 경신 시 Firestore 업로드(fire-and-forget). 웹 useUpHeroStore.ts:1373-1405.
@@ -309,19 +317,24 @@ final class UpHeroStore: ObservableObject {
         }
 
         mutate { s in
-            s.coins += session.rewards.coins
+            // Track C: 주간 보상 (weeklyReward) 합산. Track A 는 이 앞에 settleHeroXp,
+            //   Track E 는 splitDropsByCap 을 끼운다 (공통 규칙 병합 순서).
+            s.coins += session.rewards.coins + (weeklyReward?.coins ?? 0)
             s.inventory.append(contentsOf: keptDrops)
             // Phase 15 — 이번 탐험에서 번 방지권을 지갑으로 합산 (상한 99).
-            // 보스 드롭·보물상자·굴림틀이 전부 session.rewards 에 쌓아둔 것이다.
-            if session.rewards.destroyGuards > 0 {
+            // 보스 드롭·보물상자·굴림틀이 전부 session.rewards 에 쌓아둔 것이고,
+            // Phase 16 (Track C) 주간 첫 클리어/올클리어 방지권도 여기서 같이 더한다.
+            let destroyGain = session.rewards.destroyGuards + (weeklyReward?.destroyGuards ?? 0)
+            if destroyGain > 0 {
                 s.destroyGuards = min(
                     UpHeroRules.enhanceGuardMax,
-                    (s.destroyGuards ?? 0) + session.rewards.destroyGuards)
+                    (s.destroyGuards ?? 0) + destroyGain)
             }
-            if session.rewards.downGuards > 0 {
+            let downGain = session.rewards.downGuards + (weeklyReward?.downGuards ?? 0)
+            if downGain > 0 {
                 s.downGuards = min(
                     UpHeroRules.enhanceGuardMax,
-                    (s.downGuards ?? 0) + session.rewards.downGuards)
+                    (s.downGuards ?? 0) + downGain)
             }
             // 굴림틀 전투 버프 잔여분을 탐험 밖 보관소로 되쓴다. 세션 층위 pct 는
             // 퍼센트 포인트(10), 상태 층위는 비율([0,1] 클램프) — CombatBuff 주석 참고.
@@ -334,13 +347,17 @@ final class UpHeroStore: ObservableObject {
                 s.ngPlusLevel = (s.ngPlusLevel ?? 0) + 1
             }
             // 주간 변종 최고 점수 갱신 + 클리어 던전 기록 (state commit 후 업로드는 아래).
+            // Phase 16 (Track C) — clearedDungeons 는 isNewBest 와 무관하게 F30 보스
+            //   처치만으로 기록한다 (웹 파리티). 이전엔 최고 점수 분기 안에 있어 점수가
+            //   안 오른 클리어는 던전이 기록되지 않았고 올클리어 보너스가 iOS 에서 절대
+            //   뜰 수 없었다.
             if session.isWeeklyVariant == true, var weekly = s.weeklyVariant {
                 if let payload = uploadPayload {
                     weekly.bestScore = max(weekly.bestScore, payload.score)
-                    let bosses = SessionReward.calculateBossesDefeated(log: session.log, existing: [])
-                    if bosses.contains(30), !weekly.clearedDungeons.contains(session.dungeonId) {
-                        weekly.clearedDungeons.append(session.dungeonId)
-                    }
+                }
+                let bosses = SessionReward.calculateBossesDefeated(log: session.log, existing: [])
+                if bosses.contains(30), !weekly.clearedDungeons.contains(session.dungeonId) {
+                    weekly.clearedDungeons.append(session.dungeonId)
                 }
                 s.weeklyVariant = weekly
             }

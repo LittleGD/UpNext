@@ -9,6 +9,7 @@
 //  - 700ms count-up: XP/coin 숫자가 0→target 으로 카운트
 //  - 드롭 그리드: DropRevealCard 들 (탭하면 flip)
 //  - 사망 시 drops 절반 회색 + 사선 hatch 로 "잃음" 표시
+//  - Phase 16 (Track C, 피드백 30) 주간 악몽 첫 클리어/올클리어 보상 줄 (legend 톤 + 글로우)
 //
 
 import SwiftUI
@@ -17,6 +18,7 @@ struct SessionResultModal: View {
     let session: CombatSession
     let onAcknowledge: () -> Void
 
+    @EnvironmentObject private var upHero: UpHeroStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var mounted: Bool = false
@@ -74,9 +76,58 @@ struct SessionResultModal: View {
                 .multilineTextAlignment(.center)
                 .opacity(detailMounted ? 0.85 : 0)
                 .offset(y: detailMounted ? 0 : -4)
+            // Phase 16 (Track C, 피드백 30) — 주간 악몽 첫 클리어 / 올클리어 보상.
+            //   acknowledgeSessionEnd 가 같은 순수 함수로 지급하므로 여기 보이는 것이
+            //   곧 받는 것. 텍스트 + 글로우만 (아이콘 박스·보더 없음, 디자인 규칙).
+            if let weeklyReward, detailMounted {
+                weeklyRewardBlock(weeklyReward)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 18)
+    }
+
+    // MARK: - 주간 악몽 보상 (웹 SessionResultModal 의 weeklyReward 블록)
+
+    /// 상태 커밋 전이라 clearedDungeons 는 아직 이 던전을 포함하지 않는다.
+    private var weeklyReward: SessionReward.WeeklyClearReward? {
+        SessionReward.computeWeeklyClearReward(session: session, weekly: upHero.state.weeklyVariant)
+    }
+
+    private func weeklyRewardBlock(_ reward: SessionReward.WeeklyClearReward) -> some View {
+        VStack(spacing: 2) {
+            Text(AppConfig.loc("uphero.session.weeklyFirstClear"))
+                .typography(.caption)
+                .foregroundStyle(GBPalette.legend)
+                .shadow(color: GBPalette.legend.opacity(0.53), radius: 4)
+            Text(UpHeroNarrative.resolveLog(
+                "uphero.session.weeklyFirstClearReward",
+                ["coins": .number(Double(SessionReward.weeklyFirstClearCoins)),
+                 "wards": .number(Double(SessionReward.weeklyFirstClearDestroyGuards))],
+                fallback: "+\(SessionReward.weeklyFirstClearCoins) · +\(SessionReward.weeklyFirstClearDestroyGuards)"))
+                .typography(.caption)
+                .monospacedDigit()
+                .foregroundStyle(GBPalette.legend.opacity(0.85))
+            if reward.allClear {
+                Text(AppConfig.loc("uphero.session.weeklyAllClear"))
+                    .typography(.caption)
+                    .foregroundStyle(GBPalette.legend)
+                    .shadow(color: GBPalette.legend.opacity(0.67), radius: 5)
+                    .padding(.top, 4)
+                Text(UpHeroNarrative.resolveLog(
+                    "uphero.session.weeklyAllClearReward",
+                    ["coins": .number(Double(SessionReward.weeklyAllClearCoins)),
+                     "wards": .number(Double(SessionReward.weeklyAllClearDestroyGuards)),
+                     "downs": .number(Double(SessionReward.weeklyAllClearDownGuards))],
+                    fallback: "+\(SessionReward.weeklyAllClearCoins) · +\(SessionReward.weeklyAllClearDestroyGuards) · +\(SessionReward.weeklyAllClearDownGuards)"))
+                    .typography(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(GBPalette.legend.opacity(0.85))
+            }
+        }
+        .multilineTextAlignment(.center)
+        .padding(.top, 4)
+        .transition(.opacity)
     }
 
     // MARK: - Rewards

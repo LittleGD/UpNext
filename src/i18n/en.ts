@@ -818,6 +818,9 @@ const en: Record<DictKey, string> = {
   "uphero.weekly.f30Badge": "F30 variant",
   "uphero.weekly.f30Locked": "F30 not cleared",
   "uphero.weekly.defaultName": "Weekly nightmare",
+  "uphero.weekly.rewardHint": "First clear of each dungeon: Coins +{coins} · Loss Ward +{wards}",
+  "uphero.weekly.allClearHint": "Clear all 8: Coins +{coins} · {wards} Loss Wards · {downs} Downgrade Wards",
+  "uphero.weekly.allClearDone": "Every nightmare conquered this week",
 
   // === Camp ambience (15 rotating lines) ===
   "uphero.camp.ambience.1": "The campfire burns quietly.",
@@ -1411,6 +1414,11 @@ const en: Record<DictKey, string> = {
   "uphero.session.f30FirstClear": "F30 First Clear",
   "uphero.session.ngPlusUnlocked": "NG+ · Weekly Nightmare unlocked.",
   "uphero.session.ngPlusUnlockedAnnounce": "NG+ and Weekly Nightmare are unlocked.",
+  "uphero.session.weeklyFirstClear": "Weekly Nightmare First Clear",
+  "uphero.session.weeklyFirstClearReward": "Coins +{coins} · Loss Ward +{wards}",
+  "uphero.session.weeklyAllClear": "All 8 Nightmares Conquered This Week",
+  "uphero.session.weeklyAllClearReward": "Coins +{coins} · Loss Ward +{wards} · Downgrade Ward +{downs}",
+  "uphero.session.weeklyRewardAnnounce": "Weekly nightmare reward received. {detail}",
   "uphero.session.tapCardHint": "Tap a card to inspect.",
 
   // Session-end detail patterns
@@ -2083,6 +2091,7 @@ const en: Record<DictKey, string> = {
   "uphero.combat.narrative.fleeFail": "Tried to flee, but {monster} cut off the path!",
   "uphero.combat.narrative.revealBoss": "A boss's presence can be felt.",
   "uphero.combat.narrative.challengeStart": "The challenge begins...",
+  "uphero.combat.narrative.skipBlocked": "The passage ends right before the boss's door",
   "uphero.combat.narrative.restArea": "{description} — time +{time}.",
   "uphero.combat.narrative.treasureFound": "{description}",
   "uphero.combat.narrative.choiceReward": "A reward for the choice.",

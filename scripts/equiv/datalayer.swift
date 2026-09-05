@@ -74,4 +74,22 @@ for dg in [DungeonId.fitness, .learning] {
     }
 }
 
+// ── 6. createMonsterForFloor (시드, 템플릿 선택 + 보스 사이클 인덱스) ──
+// Phase 16 (Track C) — 웹 createMonsterForFloor 가 rng() 를 쓰므로 시드별 템플릿
+// 선택을 대조한다 (호출 순서: newbie roll → power 티어 roll → 티어 내 인덱스 roll).
+for dg in [DungeonId.fitness, .learning] {
+    for floor in [3, 8, 15, 25, 45] {
+        for seed in 1...3 {
+            var rng = Mulberry32(seed: seed)
+            let m = MonsterPool.createMonsterForFloor(dungeonId: dg, floor: floor, isBoss: false, rng: &rng)
+            lines.append("createMonster:\(dg.rawValue):f\(floor):s\(seed) = \(m.templateId ?? "-") hp\(m.hp) atk\(m.atk) def\(m.def)")
+        }
+    }
+    for floor in [10, 20, 30, 40, 50, 60] {
+        var rng = Mulberry32(seed: 1)  // 보스 생성은 rng 를 소비하지 않는다.
+        let b = MonsterPool.createMonsterForFloor(dungeonId: dg, floor: floor, isBoss: true, rng: &rng)
+        lines.append("createBoss:\(dg.rawValue):f\(floor) = \(b.templateId ?? "-") hp\(b.hp) atk\(b.atk) def\(b.def) xp\(b.xpReward) coin\(b.coinReward)")
+    }
+}
+
 print(lines.joined(separator: "\n"))

@@ -5420,6 +5420,35 @@
         }
       }
     },
+    "uphero.combat.narrative.skipBlocked": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "통로가 보스의 문 앞에서 끊겨 있다"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The passage ends right before the boss's door"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通路はボスの扉の手前で途切れている"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通道在魔王之门前中断了"
+          }
+        }
+      }
+    },
     "uphero.combat.narrative.treasureFound": {
       "extractionState": "manual",
       "localizations": {
@@ -24386,6 +24415,151 @@
         }
       }
     },
+    "uphero.session.weeklyAllClear": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주 악몽 8곳 정복"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All 8 Nightmares Conquered This Week"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今週の悪夢 8か所を制覇"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本周 8 处噩梦全部征服"
+          }
+        }
+      }
+    },
+    "uphero.session.weeklyAllClearReward": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "코인 +{coins} · 소실방지권 +{wards} · 하락방지권 +{downs}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coins +{coins} · Loss Ward +{wards} · Downgrade Ward +{downs}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コイン +{coins} · 消失防止札 +{wards} · 降格防止札 +{downs}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金币 +{coins} · 防消失符 +{wards} · 防降级符 +{downs}"
+          }
+        }
+      }
+    },
+    "uphero.session.weeklyFirstClear": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "주간 악몽 첫 클리어"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly Nightmare First Clear"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週間悪夢 初クリア"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "周噩梦首次通关"
+          }
+        }
+      }
+    },
+    "uphero.session.weeklyFirstClearReward": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "코인 +{coins} · 소실방지권 +{wards}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coins +{coins} · Loss Ward +{wards}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コイン +{coins} · 消失防止札 +{wards}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金币 +{coins} · 防消失符 +{wards}"
+          }
+        }
+      }
+    },
+    "uphero.session.weeklyRewardAnnounce": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "주간 악몽 보상을 받았습니다. {detail}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly nightmare reward received. {detail}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週間悪夢の報酬を受け取りました。{detail}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已获得周噩梦奖励。{detail}"
+          }
+        }
+      }
+    },
     "uphero.skill.bard_anthem_t3.narrative": {
       "extractionState": "manual",
       "localizations": {
@@ -26673,6 +26847,93 @@
           "stringUnit": {
             "state": "translated",
             "value": "一块古老遗物的碎片映入眼帘。"
+          }
+        }
+      }
+    },
+    "uphero.weekly.allClearDone": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주 악몽을 모두 정복했다"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every nightmare conquered this week"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今週の悪夢をすべて制覇した"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本周噩梦已全部征服"
+          }
+        }
+      }
+    },
+    "uphero.weekly.allClearHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "8곳 모두 클리어 시 코인 +{coins} · 소실방지권 {wards}장 · 하락방지권 {downs}장"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear all 8: Coins +{coins} · {wards} Loss Wards · {downs} Downgrade Wards"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "8か所すべてクリアでコイン +{coins} · 消失防止札 {wards}枚 · 降格防止札 {downs}枚"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "8 处全部通关：金币 +{coins} · 防消失符 {wards} 张 · 防降级符 {downs} 张"
+          }
+        }
+      }
+    },
+    "uphero.weekly.rewardHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "던전마다 첫 클리어 시 코인 +{coins} · 소실방지권 {wards}장"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First clear of each dungeon: Coins +{coins} · Loss Ward +{wards}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各ダンジョン初クリアでコイン +{coins} · 消失防止札 {wards}枚"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每个地下城首次通关：金币 +{coins} · 防消失符 {wards} 张"
           }
         }
       }

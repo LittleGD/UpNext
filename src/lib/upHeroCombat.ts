@@ -91,6 +91,24 @@ const TIME_COST = {
 } as const;
 
 /**
+ * Phase 16 (Track C) — 몬스터 regen trait 상수.
+ *
+ * 왜 보스만 1% 인가: 이전엔 보스도 일반몹과 같은 5% 라 F20 보스 (HP 1440) 가
+ * 라운드마다 72 를 회복해 영웅 DPS (~30) 를 넘어섰다 — 수학적으로 무적.
+ * 보스 HP 는 일반몹보다 훨씬 크므로 같은 퍼센트면 절대량이 과하다. 1% 면
+ * F30 보스 (612) 기준 6/라운드로 "버티는 느낌" 만 남는다.
+ *
+ * REGEN_STOP_BELOW_HP_RATIO: 현재 HP 가 최대치의 30% 미만이면 어떤 regen
+ * 몬스터도 회복하지 않는다. 마무리 국면에서 "다 잡았는데 계속 차오른다" 는
+ * 좌절을 막는 마감선. executeCombatRound 가 push 자체를 게이트한다 —
+ * computeMonsterHp / UI 는 log 에 있는 엔트리만 접으므로 양쪽이 자동 일치.
+ * iOS UpHeroCombat.swift 의 같은 이름 상수와 값을 맞출 것.
+ */
+export const MONSTER_REGEN_PCT = 0.05;
+export const BOSS_REGEN_PCT = 0.01;
+export const REGEN_STOP_BELOW_HP_RATIO = 0.3;
+
+/**
  * 세션 시작 — 빈 log 로 생성.
  *
  * Phase 4b.3: activeBuffs 를 hero 스냅샷에 적용.
@@ -212,14 +230,19 @@ export function createSession(
   //   isBossFloor 체크가 (nextFloor=31 % 10 !== 0) 로 false 리턴되어 F30 보스가
   //   스폰되지 않음. 유저는 일반 몬스터만 반복 조우 → 모든 주간 점수 0.
   //
-  //   해결: weekly variant 면 초기 log 에 F30 boss + paused 상태 push.
+  //   해결: 초기 log 에 boss + paused 상태 push.
   //   BossBanner → resumeSession → encounter → 전투 정상 진입.
-  if (options?.isWeeklyVariant && startFloor === 30) {
+  //
+  // Phase 16 (Track C, 피드백 19) — 주간 특례 `isWeeklyVariant && startFloor === 30`
+  //   를 "시작층 자체가 보스층" 으로 일반화. 보스층에서 포기/사망한 뒤 재진입하면
+  //   startFloor 가 10/20/30 이 되는데, tickSession 은 "다음 층" 만 보스 판정하므로
+  //   보스가 영구 스킵됐다 (resolveStartFloor 와 짝).
+  if (isBossFloor(startFloor)) {
     const hasExistingBoss = session.log.some(
-      (e) => e.type === "boss" && e.floor === 30,
+      (e) => e.type === "boss" && e.floor === startFloor,
     );
     if (!hasExistingBoss) {
-      const boss = createMonsterForFloor(dungeonId, 30, true, {
+      const boss = createMonsterForFloor(dungeonId, startFloor, true, {
         ngPlusLevel: session.ngPlusLevel ?? 0,
         hpMult: session.monsterHpMult ?? 1,
         atkMult: session.monsterAtkMult ?? 1,
@@ -227,7 +250,7 @@ export function createSession(
       session.log.push({
         type: "boss",
         monster: boss,
-        floor: 30,
+        floor: startFloor,
         timestamp: Date.now(),
       });
       session.status = "paused";
@@ -241,6 +264,26 @@ export function createSession(
 
 /** Phase 12 — mystery ? 시스템 공용 상수. cycle 당 floor 수. */
 export const CYCLE_SIZE = 30;
+
+/**
+ * Phase 16 (Track C, 피드백 28) — 보스 케이던스: 10층마다 영원히.
+ *
+ * 이전엔 `nextFloor % 10 === 0 && nextFloor <= 30` 상한 때문에 F30 이후로는
+ * 보스가 한 번도 안 나왔다 (100층까지 밋밋). 이제 F40/F50/F60/... 에도 보스가
+ * 나오며, 던전의 3 보스를 사이클마다 순서대로 재사용한다
+ * (`createMonsterForFloor` 의 템플릿 인덱스 `((f/10 - 1) mod 3)`).
+ * F30 (CYCLE_SIZE) 만 "최종 보스" 로 런을 끝내고 NG+ 를 올린다. F40+ 보스는
+ * 드롭 후 계속 진행. DungeonView 마커·revealBoss·skipFloors 클램프가 모두 이
+ * 두 헬퍼를 쓴다. iOS UpHeroCombat.isBossFloor / nextBossFloorAfter 미러.
+ */
+export function isBossFloor(floor: number): boolean {
+  return floor > 0 && floor % 10 === 0;
+}
+
+/** 현재 층 *이후* 첫 보스층. F9 → 10, F10 → 20, F35 → 40. */
+export function nextBossFloorAfter(floor: number): number {
+  return Math.floor(floor / 10) * 10 + 10;
+}
 
 /**
  * Phase 12 — 특정 cycle (0 = F1-F30, 1 = F31-F60, ...) 에 대해 mystery floor 생성.
@@ -360,24 +403,26 @@ function consumeCombatBuff(s: CombatSession): void {
 /**
  * 보스 처치 시 소실방지권이 떨어질 확률.
  *
- * 왜 0.35 인가: 소실방지권은 이제 상점에서만 살 수 있는 물건이 아니라 "던전에서
- * 벌어오는" 물건이어야 한다. 한 런에서 만나는 보스는 F10 / F20 / F30 셋이라
- * 풀 클리어 기대 수급은 약 1.05장이다. 시뮬레이션상 legend 를 +10 까지 올리는
- * 동안 평균 1.8장이 소모되니, "풀 클리어 두 번이면 legend 한 자루의 보험료가
- * 대략 채워진다" 는 관계가 성립한다. 상점(150C)을 무의미하게 만들 만큼 후하지
- * 않고, 코인 없이도 보험을 마련할 길은 열어준다.
+ * 왜 0.5 인가: 소실방지권은 이제 상점에서만 살 수 있는 물건이 아니라 "던전에서
+ * 벌어오는" 물건이어야 한다. 한 사이클에서 만나는 보스는 F10 / F20 / F30 셋이라
+ * 풀 클리어 기대 수급은 약 1.5장이다. 강화 상한이 +20 으로 열리면 (Track B)
+ * +15 이후 구간은 시도마다 소실방지권을 태우므로, 이전 0.35 (기대 1.05장) 로는
+ * 수급이 수십 런 단위로 모자랐다 (비평 반영: 0.35 → 0.5). 상점(150C)을
+ * 무의미하게 만들 만큼 후하지 않고, 코인 없이도 보험을 마련할 길은 열어준다.
+ * iOS UpHeroSession.bossDestroyGuardDropChance 와 같은 값.
  */
-const BOSS_DESTROY_GUARD_DROP_CHANCE = 0.35;
+const BOSS_DESTROY_GUARD_DROP_CHANCE = 0.5;
 
 /**
  * 보물상자류 이벤트에서 소실방지권이 섞여 나올 확률.
  *
- * 왜 0.06 인가: treasure 는 tick 당 10% 로 흔한 편이라 보스 드롭보다 두 자릿수
- * 낮게 잡아야 총 수급이 무너지지 않는다. 풀 클리어 한 런의 treasure 조우를
- * 대략 8~12회로 보면 기대 0.5~0.7장 — 보스 드롭(1.05장)의 보조 경로 수준이다.
- * 합쳐 런당 1.5~1.8장이라 "천이 아까워서 강화를 못 누른다" 는 상태가 풀린다.
+ * 왜 0.10 인가: treasure 는 tick 당 10% 로 흔한 편이라 보스 드롭보다 낮게
+ * 잡아야 총 수급이 무너지지 않는다. 풀 클리어 한 런의 treasure 조우를
+ * 대략 8~12회로 보면 기대 0.8~1.2장 — 보스 드롭(1.5장)의 보조 경로 수준이다.
+ * 합쳐 런당 2.3~2.7장이라 "천이 아까워서 강화를 못 누른다" 는 상태가 풀린다
+ * (비평 반영: 0.06 → 0.10, 굴림틀 RTP 는 건드리지 않음). iOS 미러.
  */
-const TREASURE_DESTROY_GUARD_DROP_CHANCE = 0.06;
+const TREASURE_DESTROY_GUARD_DROP_CHANCE = 0.1;
 
 /** 세션 보상에 소실방지권 n 장 적립. 정산 때 UpHeroState.destroyGuards 로 합산된다. */
 function grantDestroyGuards(s: CombatSession, count: number): void {
@@ -827,11 +872,13 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
           //   탐험이 끝난다" 의 원인.
           //   의도 (윗 주석에서 이미 선언됨): F10/F20 은 중간 보스 — 드롭 받고
           //   그대로 탐험 지속, F30 (CYCLE_SIZE) 만 최종 보스 → endSession.
-          //   `isBossFloor` 생성 상한 `nextFloor <= 30` 때문에 보스는 {10, 20,
-          //   30} 에만 등장하므로 `currentFloor >= CYCLE_SIZE` 로 최종 여부를
-          //   판별. return 만 하면 다음 tick 에서 lastEntry=drop 분기로 들어가
+          //   return 만 하면 다음 tick 에서 lastEntry=drop 분기로 들어가
           //   F11 로 진행된다.
-          const isFinalBoss = s.currentFloor >= CYCLE_SIZE;
+          // Phase 16 (Track C, 피드백 28) — 보스가 10층마다 영원히 나오므로
+          //   `>= CYCLE_SIZE` 는 F40/F50/... 보스도 런을 끝내버린다. 정확히 F30
+          //   에서만 종료 + NG+ (스토어 트리거 `bossesDefeated.includes(30)`),
+          //   F40+ 보스는 드롭 후 계속. Track A 의 bossClearXp 는 위 gainedXp 에.
+          const isFinalBoss = s.currentFloor === CYCLE_SIZE;
           if (isFinalBoss) {
             endSession(s, "bossDefeated", `${monster.name} 을(를) 쓰러뜨렸다`, {
               detailKey: "uphero.session.detail.bossDefeated",
@@ -916,9 +963,9 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
   // - 10% treasure
   // - 50% encounter
 
-  // 단, 10F/20F/30F 에 도달 직전이면 boss 로 분기
+  // 단, 보스층 (10의 배수, 상한 없음) 에 도달 직전이면 boss 로 분기
   const nextFloor = s.currentFloor + 1;
-  const isBossFloor = nextFloor % 10 === 0 && nextFloor <= 30;
+  const bossAhead = isBossFloor(nextFloor);
 
   // 층 이동
   if (lastEntry?.type === "victory" || lastEntry?.type === "drop" || lastEntry?.type === "treasure" || lastEntry?.type === "narrative") {
@@ -941,7 +988,9 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
     // Phase 11c R4 bugfix — 같은 floor 에 이미 boss 엔트리가 있으면 중복 push 금지.
     //   BossBanner 연출 중 paused→active handoff race 에서 tick 이 한 번 더 실행되면
     //   같은 floor 에 boss 2번 찍혀 "보스 재등장" 현상.
-    if (isBossFloor) {
+    // Track C 블록 — Track A 는 위 currentFloor 갱신 뒤 floorXp 를, Track D 는
+    //   advanceRunModFloors(s, 1) 을 이 앞에 끼운다. 이 블록 자체는 바뀌지 않는다.
+    if (bossAhead) {
       const hasExistingBoss = s.log.some(
         (e) => e.type === "boss" && e.floor === nextFloor,
       );
@@ -1250,8 +1299,45 @@ export function resolveChoice(
   // Phase 12d — choice 해소 시 자원 (chronomancer 시간 파편).
   gainClassResource(s, "choice");
 
-  s.status = "active";
+  // Phase 16 (Track C, 피드백 14) — resolveChoice 가 "소유한" 상태만 되돌린다.
+  //   이전의 무조건 `s.status = "active"` 는 startMinigame 효과가 방금 세운
+  //   awaitingMinigame 을 덮어써 미니게임 모달이 영영 뜨지 않았다 (Phase 12e 부터
+  //   dead code). 효과가 세운 대기 상태 (지금은 awaitingMinigame, 앞으로 Track D
+  //   가 추가할 수 있는 것들) 는 살아남는다. Track D: 여기서 무조건 active 로
+  //   되돌리는 코드를 다시 넣지 말 것.
+  if (s.status === "awaitingChoice") s.status = "active";
   s.pendingChoiceIndex = undefined;
+  return s;
+}
+
+/**
+ * Phase 16 (Track C) — 저장본에서 읽은 세션을 정상 상태로 교정한다. 순수 함수,
+ *   스키마 버전 게이트 없음 (멱등·저렴·데이터 모양 불변).
+ *
+ *   피드백 14 의 버그 (resolveChoice 꼬리가 awaitingMinigame 을 덮어씀) 때문에
+ *   `status: "active"` 인데 `pendingMinigame` 이 남아 있는 저장본이 실존한다.
+ *   그대로 두면 DungeonView 게이트 (`pendingMinigame && awaitingMinigame`) 는
+ *   안 뜨지만 pendingMinigame 이 영원히 남는다. 반대 경우 (awaitingMinigame 인데
+ *   pending 없음) 는 어떤 모달도 안 떠 세션이 영구 정지. awaitingChoice 인데
+ *   pendingChoiceIndex 가 choice 엔트리를 가리키지 않아도 마찬가지.
+ *   iOS 는 currentSession 을 영속화하지 않으므로 미러 불필요.
+ */
+export function normalizeSessionForLoad(session: CombatSession): CombatSession {
+  const s: CombatSession = { ...session };
+  if (s.pendingMinigame && s.status !== "awaitingMinigame") {
+    delete s.pendingMinigame;
+  }
+  if (s.status === "awaitingMinigame" && !s.pendingMinigame) {
+    s.status = "active";
+  }
+  if (s.status === "awaitingChoice") {
+    const idx = s.pendingChoiceIndex;
+    const entry = idx != null ? s.log[idx] : undefined;
+    if (!entry || entry.type !== "choice") {
+      s.status = "active";
+      s.pendingChoiceIndex = undefined;
+    }
+  }
   return s;
 }
 
@@ -1376,15 +1462,33 @@ function applyChoiceEffect(
       gainClassResource(session, "heal");
       break;
     }
-    case "skipFloors":
-      session.currentFloor += effect.count;
+    case "skipFloors": {
+      // Phase 16 (Track C, 피드백 26) — 다음 보스층 직전까지만 건너뛴다. 이전엔
+      //   F19 에서 +3 이 F22 로 가 F20 보스가 통째로 사라졌고 (bossesDefeated 에
+      //   구멍), 사이클 경계도 넘어 lazy mystery 생성이 어긋났다. 움직일 곳이
+      //   없으면 층 엔트리 대신 narrative 로 피드백만 준다.
+      // Track D 블록 — moved > 0 분기 끝에 advanceRunModFloors(s, moved) 가 붙는다.
+      const cur = session.currentFloor;
+      const target = Math.min(cur + effect.count, nextBossFloorAfter(cur) - 1);
+      const moved = target - cur;
+      if (moved <= 0) {
+        session.log.push({
+          type: "narrative",
+          text: "통로가 보스의 문 앞에서 끊겨 있다",
+          narrativeKey: "uphero.combat.narrative.skipBlocked",
+          timestamp: Date.now(),
+        });
+        break;
+      }
+      session.currentFloor = target;
       session.log.push({
         type: "floor",
-        from: session.currentFloor - effect.count,
-        to: session.currentFloor,
+        from: cur,
+        to: target,
         timestamp: Date.now(),
       });
       break;
+    }
     case "revealBoss":
       session.log.push({
         type: "narrative",
@@ -1661,19 +1765,28 @@ function executeCombatRound(
 ): void {
   // Phase 14 — monster trait regen: round 시작 시 monster HP 회복 (maxHp cap 은
   //   computeMonsterHp 에서 적용). log 에 monsterEffect/regen push.
+  // Phase 16 (Track C, 피드백 16) — 현재 HP 가 최대치의 30% 미만이면 push 자체를
+  //   건너뛴다 (REGEN_STOP_BELOW_HP_RATIO). log 에 엔트리가 없으면 엔진의
+  //   computeMonsterHp 도 UI HP 바도 자동으로 일치한다. fight 효과 경로도 같은
+  //   monster 객체로 여길 지나므로 별도 분기 불필요.
   if (s.monsterRegenAmount && s.monsterRegenAmount > 0) {
-    s.log.push({
-      type: "monsterEffect",
-      effect: "regen",
-      amount: s.monsterRegenAmount,
-      narrativeKey: "uphero.combat.trait.regen",
-      narrativeParams: {
+    const encIdx = findLastEncounterIndex(s.log);
+    const cap = monster.maxHp ?? monster.hp;
+    const hpNow = encIdx >= 0 ? computeMonsterHp(s.log, encIdx, monster) : cap;
+    if (hpNow >= cap * REGEN_STOP_BELOW_HP_RATIO) {
+      s.log.push({
+        type: "monsterEffect",
+        effect: "regen",
         amount: s.monsterRegenAmount,
-        monster: monster.name,
-        monsterTemplateId: monster.templateId ?? "",
-      },
-      timestamp: Date.now(),
-    });
+        narrativeKey: "uphero.combat.trait.regen",
+        narrativeParams: {
+          amount: s.monsterRegenAmount,
+          monster: monster.name,
+          monsterTemplateId: monster.templateId ?? "",
+        },
+        timestamp: Date.now(),
+      });
+    }
   }
 
   // Phase 14 — hero poison DoT: round 시작 시 s.hero.hp 감소 + log entry.
@@ -2084,8 +2197,10 @@ function initMonsterTraitState(s: CombatSession, monster: Monster): void {
   if (!monster.trait) return;
   if (monster.trait === "regen") {
     const cap = monster.maxHp ?? monster.hp;
-    // 매 round monster max HP 의 ~5% 회복 (min 2). cap 은 computeMonsterHp.
-    s.monsterRegenAmount = Math.max(2, Math.round(cap * 0.05));
+    // 매 round monster max HP 의 일정 비율 회복 (min 2). cap 은 computeMonsterHp.
+    // Phase 16 (Track C) — 보스 1% / 일반 5%. 근거는 BOSS_REGEN_PCT 주석.
+    const pct = monster.isBoss ? BOSS_REGEN_PCT : MONSTER_REGEN_PCT;
+    s.monsterRegenAmount = Math.max(2, Math.round(cap * pct));
     return;
   }
   if (monster.trait === "shield") {
@@ -2154,12 +2269,15 @@ export function rollEnemyOutcome(
   heroLevel = 99,
 ): CombatOutcome {
   const newbie = isNewbieBuffActive(heroLevel, monster.level);
-  // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 8%, floor 60 에서 2% 바닥)
+  // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 10%, floor 100 에서 5% 바닥)
   //   Phase 11b talisman "변덕" → enemyMissBonus 추가.
-  //   newbie: +5% (13%) — 적이 자주 허당쳐서 "쉬운 스타트" 체감.
+  //   newbie: +5% (15%) — 적이 자주 허당쳐서 "쉬운 스타트" 체감.
+  // Phase 16 (Track C, 피드백 33) — 바닥 2% → 5%, 기울기 0.001 → 0.0005. 이전엔
+  //   F60 에서 이미 바닥이라 후반 사이클의 적이 거의 빗나가지 않았다.
+  //   iOS UpHeroCombat.rollEnemyOutcome 미러.
   const newbieMissBonus = newbie ? 0.05 : 0;
   const missChance =
-    Math.max(0.02, 0.08 - monster.level * 0.001) + enemyMissBonus + newbieMissBonus;
+    Math.max(0.05, 0.1 - monster.level * 0.0005) + enemyMissBonus + newbieMissBonus;
   if (rng() < missChance) return "miss";
   // 방어자(영웅) 회피 — agi scaling + class bonus + talisman bonus. cap 0.45 (monk + 변덕 최대).
   //   newbie: +6% flat (agi 부족한 저레벨에서도 한 번씩 회피).
