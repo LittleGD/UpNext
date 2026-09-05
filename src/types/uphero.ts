@@ -174,7 +174,7 @@ export interface Equipment {
    */
   photoId?: string;
   /**
-   * Phase 11a — 강화 레벨. 0 = 미강화, 최대 10.
+   * Phase 11a — 강화 레벨. 0 = 미강화. Phase 5-B 부터 최대 20 (사진 부적은 10).
    * `undefined` 는 legacy 저장본으로 0 과 동일하게 취급.
    * 이름 표기: `${baseName} +${enhanceLevel}` (N≥1).
    * stats 는 enhanceItem 호출 시 각 key 에 누적 가산 (미미한 +0.5 반올림 수준).
@@ -1258,12 +1258,16 @@ export function computeWeeklyScore(
 /* ══════════════════════════════════════════════════════════════════════
  * Phase 11a — 강화 (enhanceItem) 시스템 상수
  *
- * 단일 아이템 + 코인 → 확률적 +1 level 시도. 최대 +10.
- * 성공률: base - enhanceLevel × decay (등급별 decay 다름).
+ * 단일 아이템 + 코인 → 확률적 +1 level 시도. 최대 +20.
+ *   +0..+10 (currentLevel 0..9): 성공률 base - level × decay (등급별 decay).
+ *   +11..+20 (currentLevel 10..19, Phase 5-B "상위 밴드"): 등급별 명시 표.
  * ══════════════════════════════════════════════════════════════════════ */
 
-/** 강화 가능 최대 레벨 (inclusive). */
-export const MAX_ENHANCE_LEVEL = 10;
+/**
+ * 강화 가능 최대 레벨 (inclusive). Phase 5-B 에서 10 → 20.
+ * 사진 부적은 별도 상한 PHOTO_TALISMAN_MAX_ENHANCE_LEVEL(10) 을 쓴다.
+ */
+export const MAX_ENHANCE_LEVEL = 20;
 
 // Phase 11c R2 — 이전 `ENHANCE_PRESERVE_ON_FAIL` 상수 제거.
 // Phase 15 — 그 후계인 `ENHANCE_PRESERVE_BY_RARITY`(레벨 무관 고정 보존률) 도 퇴역.
@@ -1314,6 +1318,43 @@ const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
   legend: 0.04, // +4%p / fail
 };
 
+/* ── Phase 5-B — 상위 밴드 (+11..+20) ─────────────────────────────────────
+ *
+ * 0..9 의 선형 감쇠는 legend 가 +10 에서 이미 5% 바닥에 닿아 10..19 를 만들 수
+ * 없다. 그래서 currentLevel >= 10 은 등급별 명시 표로 간다. 0..9 의 값은 바이트
+ * 단위로 그대로다 (기존 여정 회귀 테스트가 그 증거).
+ */
+
+/** 상위 밴드가 시작하는 currentLevel (+10 → +11 시도부터). */
+export const ENHANCE_HIGH_BAND_START = 10;
+
+/**
+ * 상위 밴드 성공률 (백분율). index = currentLevel - ENHANCE_HIGH_BAND_START.
+ * +19 → +20 은 모든 등급에서 1%. 바닥은 ENHANCE_HIGH_MIN_SUCCESS.
+ */
+export const ENHANCE_HIGH_SUCCESS_BY_LEVEL: Record<Rarity, readonly number[]> = {
+  normal: [50, 40, 31, 24, 18, 13, 9, 5, 3, 1],
+  rare: [40, 32, 25, 19, 14, 10, 7, 4, 2, 1],
+  unique: [24, 20, 16, 12, 9, 7, 5, 3, 2, 1],
+  legend: [12, 10, 8, 6, 5, 4, 3, 2, 2, 1],
+};
+
+/** 상위 밴드 성공률 바닥 (1%). */
+export const ENHANCE_HIGH_MIN_SUCCESS = 0.01;
+
+/**
+ * 상위 밴드 pity (연속 실패당 가산, 0-1). 밴드 안에서는
+ * ENHANCE_PITY_BONUS_PER_FAIL 을 **대체** 한다 (더하지 않는다).
+ * 완전 방어 시 +10 → +20 기대 시도 수: normal 50.7 / rare 55.5 / unique 63.2 /
+ * legend 63.8. 등급 순서가 유지되도록 legend 만 0.03.
+ */
+export const ENHANCE_HIGH_PITY_PER_FAIL: Record<Rarity, number> = {
+  normal: 0.02,
+  rare: 0.02,
+  unique: 0.02,
+  legend: 0.03,
+};
+
 /* ── Phase 15 — 실패를 소실 / 하락 / 유지 3분기로 재설계 ────────────────────
  *
  * 무엇이 문제였나: 직전 모델 `ENHANCE_PRESERVE_BY_RARITY` 는 레벨과 무관하게
@@ -1325,7 +1366,7 @@ const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
  * 파괴가 붙는다. 그리고 그 사이 구간을 채우는 것이 **등급 하락**이다 — 아이템이
  * 사라지지는 않지만 한 단계 내려가므로, 손실감은 주되 판을 엎지는 않는다.
  *
- * 새 모델 (MAX_ENHANCE_LEVEL=10 에 맞춰 축약):
+ * 새 모델 (Phase 5-B 에서 20 단계로 확장):
  *   실패했을 때 아래 셋 중 하나로 갈린다.
  *     destroy : ENHANCE_DESTROY_ON_FAIL_BY_LEVEL[L] × ENHANCE_DESTROY_RARITY_MULT[rarity]
  *     down    : ENHANCE_DOWN_ON_FAIL_BY_LEVEL[L]
@@ -1339,7 +1380,13 @@ const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
  *
  * 아래 두 표는 **실패했을 때** 의 조건부 확률이다. 시도당 확률은 (1 - 성공률) ×
  * 이 값이라 훨씬 낮다. 예: normal +5 는 실패율 20% × 소실 5% = 시도당 1.0%.
- * index = currentLevel (0..9). +9→+10 이 마지막 시도라 index 9 까지만 쓴다.
+ * index = currentLevel (0..19). +19→+20 이 마지막 시도라 index 19 까지 쓴다.
+ *
+ * Phase 5-B 밴드 (검키우기 레퍼런스):
+ *   10..14 (+10→+15): 소실 0 / 하락 100%. 실패는 반드시 한 단계 내려간다.
+ *     +9 로 내려가면 index 9 의 소실 위험이 다시 생긴다 — 힌트 카피가 이를 말한다.
+ *   15..19 (+15→+20): 소실 30→70% 기본, 나머지는 하락. 유지는 0 (등급 배율로
+ *     소실이 깎인 unique/legend 만 그 차이만큼 유지가 남는다).
  */
 export const ENHANCE_DESTROY_ON_FAIL_BY_LEVEL: readonly number[] = [
   0, 0, 0, // +0→+3: 완전 안전 구간.
@@ -1350,6 +1397,12 @@ export const ENHANCE_DESTROY_ON_FAIL_BY_LEVEL: readonly number[] = [
   0.14, // +7→+8
   0.2, // +8→+9
   0.26, // +9→+10
+  0, 0, 0, 0, 0, // +10→+15: 소실 없음 (하락 100%).
+  0.3, // +15→+16
+  0.4, // +16→+17
+  0.5, // +17→+18
+  0.6, // +18→+19
+  0.7, // +19→+20
 ];
 
 /**
@@ -1367,6 +1420,12 @@ export const ENHANCE_DOWN_ON_FAIL_BY_LEVEL: readonly number[] = [
   0.35, // +7→+8
   0.4, // +8→+9
   0.45, // +9→+10
+  1, 1, 1, 1, 1, // +10→+15: 실패는 전부 하락.
+  0.7, // +15→+16
+  0.6, // +16→+17
+  0.5, // +17→+18
+  0.4, // +18→+19
+  0.3, // +19→+20
 ];
 
 /**
@@ -1422,7 +1481,12 @@ export function enhanceOutcomeRates(
   const destroy = clamp01((ENHANCE_DESTROY_ON_FAIL_BY_LEVEL[idx] ?? 0) * mult);
   // 소실 판정이 먼저이므로 하락은 남은 확률 공간을 넘지 못한다.
   const down = Math.min(clamp01(ENHANCE_DOWN_ON_FAIL_BY_LEVEL[idx] ?? 0), 1 - destroy);
-  return { destroy, down, keep: Math.max(0, 1 - destroy - down) };
+  // Phase 5-B — 0.7 + 0.3 같은 조합은 IEEE double 에서 1 - d - w 가 5e-17 로 남는다.
+  //   "유지 0" 을 표와 UI 가 정직하게 말할 수 있도록 1e-12 미만은 0 으로 스냅한다
+  //   (iOS enhanceOutcomeRates 와 동일; equiv 스크립트는 10자리로 비교).
+  const keepRaw = Math.max(0, 1 - destroy - down);
+  const keep = keepRaw < 1e-12 ? 0 : keepRaw;
+  return { destroy, down, keep };
 }
 
 function clamp01(n: number): number {
@@ -1482,12 +1546,26 @@ export const ENHANCE_COST_RARITY_MULT: Record<Rarity, number> = {
 /**
  * 현재 level → 다음 level 시도의 성공률 (0-1 범위).
  * targetLevel = currentLevel + 1.
+ *
+ * Phase 5-B — currentLevel >= ENHANCE_HIGH_BAND_START 는 명시 표 + 밴드 pity.
+ *   rate = min(1, max(0.01, table/100) + streak × ENHANCE_HIGH_PITY_PER_FAIL).
+ *   0..9 는 예전 4줄 그대로다.
  */
 export function enhanceSuccessRate(
   rarity: Rarity,
   currentLevel: number,
   failStreak: number = 0,
 ): number {
+  const level = Math.max(0, Math.floor(currentLevel));
+  if (level >= ENHANCE_HIGH_BAND_START) {
+    const idx = Math.min(level, MAX_ENHANCE_LEVEL - 1) - ENHANCE_HIGH_BAND_START;
+    const rawRate = Math.max(
+      ENHANCE_HIGH_MIN_SUCCESS,
+      ENHANCE_HIGH_SUCCESS_BY_LEVEL[rarity][idx] / 100,
+    );
+    const bandPity = Math.max(0, failStreak) * ENHANCE_HIGH_PITY_PER_FAIL[rarity];
+    return Math.min(1, rawRate + bandPity);
+  }
   const base = ENHANCE_BASE_SUCCESS[rarity];
   const decay = ENHANCE_DECAY_PER_LEVEL[rarity];
   // +0 → +1 시도는 level=0 으로 base 그대로, +9 → +10 은 level=9 로 decay × 9 차감.
@@ -1499,14 +1577,212 @@ export function enhanceSuccessRate(
 }
 
 /**
- * 강화 시도 코인 비용 계산. base 30 + level 당 50% 증가 + rarity mult.
+ * Phase 5-B — 밴드별 비용 배율. 0..9 ×1, 10..14 ×1.5, 15..19 ×2.
+ * 곱셈의 **마지막** 인자다 — 모든 중간 곱이 0.25 의 배수라 JS Math.round 와
+ * Swift .rounded() 가 같은 정수를 낸다 (인자 순서를 바꾸면 그 보장이 깨진다).
+ */
+export const ENHANCE_COST_BAND_MULT: readonly [number, number, number] = [1, 1.5, 2];
+
+export function enhanceCostBandMult(currentLevel: number): number {
+  const level = Math.max(0, Math.floor(currentLevel));
+  if (level < ENHANCE_HIGH_BAND_START) return ENHANCE_COST_BAND_MULT[0];
+  if (level < 15) return ENHANCE_COST_BAND_MULT[1];
+  return ENHANCE_COST_BAND_MULT[2];
+}
+
+/**
+ * 강화 시도 코인 비용 계산. base 30 + level 당 50% 증가 + rarity mult + 밴드 배율.
  *   e.g., unique +3 → 30 × (1 + 3 × 0.5) × 2.5 = 30 × 2.5 × 2.5 = 187.5 → 188.
+ *   rare +11 → 30 × 6.5 × 1.5 × 1.5 = 438.75 → 439.
  */
 export function enhanceCost(rarity: Rarity, currentLevel: number): number {
   const base = SHOP_PRICES.enhance;
   const levelMult = 1 + Math.max(0, currentLevel) * 0.5;
   const rarityMult = ENHANCE_COST_RARITY_MULT[rarity];
-  return Math.round(base * levelMult * rarityMult);
+  return Math.round(
+    base * levelMult * rarityMult * enhanceCostBandMult(Math.max(0, currentLevel)),
+  );
+}
+
+/* ── Phase 5-B — 칭호 / 연출 밴드 / 방지권 소모 ─────────────────────────── */
+
+/** 칭호가 붙는 레벨 경계. 칭호는 저장하지 않고 enhanceLevel 에서 파생한다. */
+export const ENHANCE_TITLE_LEVELS = { awakened: 15, transcended: 20 } as const;
+
+export type EnhanceTitle = "awakened" | "transcended";
+
+/** +15..+19 각성, +20 초월, 그 외 null. */
+export function getEnhanceTitle(level: number): EnhanceTitle | null {
+  const l = Math.floor(level);
+  if (l >= ENHANCE_TITLE_LEVELS.transcended) return "transcended";
+  if (l >= ENHANCE_TITLE_LEVELS.awakened) return "awakened";
+  return null;
+}
+
+/**
+ * 강화 연출 밴드. targetLevel(= currentLevel + 1) 기준.
+ *   0: 목표 +1..+10 (기존 2초 연출) / 1: +11..+15 / 2: +16..+20.
+ */
+export function enhanceRitualBand(targetLevel: number): 0 | 1 | 2 {
+  const l = Math.floor(targetLevel);
+  if (l <= ENHANCE_HIGH_BAND_START) return 0;
+  if (l <= ENHANCE_TITLE_LEVELS.awakened) return 1;
+  return 2;
+}
+
+/**
+ * 한 번의 강화 시도에서 소모된 방지권. 시도 시작 시 걸려 있고(보유 > 0, 그 결과가
+ * 이 레벨에서 가능) 결과와 무관하게 1장 나간다. 결과 모달이 "무엇을 썼는지" 말한다.
+ */
+export interface EnhanceGuardSpend {
+  destroy: 0 | 1;
+  down: 0 | 1;
+}
+
+/* ── Phase 5-B — 강화 스탯 성장 순수 헬퍼 (웹/iOS 공유 규칙) ────────────────
+ *
+ * 성공 (applyEnhanceStatGrowth, newLevel 기준):
+ *   primary   : 짝수 레벨 ≤ 10 에서 +1 (기존), 11..20 은 매 레벨 +1.
+ *   secondary : +15 에서 +2, +20 에서 +3.
+ * 하락 (revertEnhanceStatGrowth, 잃는 레벨 기준) 은 정확한 역이며 0 아래로 내리지
+ * 않는다. 성공 규칙을 바꾸면 반드시 둘을 같이 바꾼다 — 왕복이 어긋나면 올렸다
+ * 내리기만으로 스탯이 새거나 불어난다.
+ */
+
+const ENHANCE_STAT_ORDER: ReadonlyArray<keyof HeroBaseStats> = [
+  "str",
+  "int",
+  "vit",
+  "dex",
+  "agi",
+  "crit",
+  "slotBonus",
+];
+
+/** secondary 후보 풀 — crit / slotBonus 제외 (AFFIX_POOL 과 같은 제외 규칙). */
+const ENHANCE_SECONDARY_POOL: ReadonlyArray<keyof HeroBaseStats> = [
+  "str",
+  "int",
+  "vit",
+  "dex",
+  "agi",
+];
+
+/**
+ * 장비의 "primary stat key". 드롭 템플릿의 statBoost 가 primary 이지만
+ * Equipment 타입에는 statBoost 가 저장 안 돼 있어 stats 객체에서 최대값 key 로 추정.
+ * 동률 시 정의 순서 (str/int/vit/dex/agi/crit/slotBonus) 로 tie-break.
+ */
+export function pickPrimaryStatKey(
+  stats: Equipment["stats"],
+): keyof HeroBaseStats | null {
+  let best: keyof HeroBaseStats | null = null;
+  let bestVal = -Infinity;
+  for (const key of ENHANCE_STAT_ORDER) {
+    const v = stats[key];
+    if (v == null) continue;
+    if (v > bestVal) {
+      best = key;
+      bestVal = v;
+    }
+  }
+  return best;
+}
+
+/**
+ * 마일스톤(+15/+20) 보너스를 받을 secondary key.
+ * [str,int,vit,dex,agi] 에서 primary 를 뺀 최대값 (동률은 그 순서). 후보가 없으면
+ * primary 로 돌린다 (단일 스탯 장비). crit / slotBonus 는 퍼센트·슬롯 스탯이라 제외.
+ */
+export function pickSecondaryStatKey(
+  stats: Equipment["stats"],
+  primary: keyof HeroBaseStats,
+): keyof HeroBaseStats {
+  let best: keyof HeroBaseStats | null = null;
+  let bestVal = -Infinity;
+  for (const key of ENHANCE_SECONDARY_POOL) {
+    if (key === primary) continue;
+    const v = stats[key];
+    if (v == null) continue;
+    if (v > bestVal) {
+      best = key;
+      bestVal = v;
+    }
+  }
+  return best ?? primary;
+}
+
+function enhancePrimaryGrowthAt(level: number): number {
+  if (level <= 0) return 0;
+  if (level > ENHANCE_HIGH_BAND_START) return 1;
+  return level % 2 === 0 ? 1 : 0;
+}
+
+function enhanceSecondaryGrowthAt(level: number): number {
+  if (level === ENHANCE_TITLE_LEVELS.transcended) return 3;
+  if (level === ENHANCE_TITLE_LEVELS.awakened) return 2;
+  return 0;
+}
+
+/** newLevel 에 도달했을 때의 스탯. 입력은 건드리지 않고 새 객체를 돌려준다. */
+export function applyEnhanceStatGrowth(
+  stats: Equipment["stats"],
+  newLevel: number,
+): Equipment["stats"] {
+  const next: Equipment["stats"] = { ...stats };
+  const primary = pickPrimaryStatKey(stats);
+  if (!primary) return next;
+  const p = enhancePrimaryGrowthAt(newLevel);
+  if (p > 0) next[primary] = (next[primary] ?? 0) + p;
+  const sBonus = enhanceSecondaryGrowthAt(newLevel);
+  if (sBonus > 0) {
+    const secondary = pickSecondaryStatKey(stats, primary);
+    next[secondary] = (next[secondary] ?? 0) + sBonus;
+  }
+  return next;
+}
+
+/**
+ * lostLevel 을 잃을 때(+L → +L-1) 의 스탯. applyEnhanceStatGrowth(·, L) 의 정확한
+ * 역. 성공 직후에도 primary 는 여전히 최대(증가한 키가 최대였다)이고 secondary 도
+ * 풀 안 최대로 남으므로 같은 선택기가 같은 키를 돌려준다.
+ */
+export function revertEnhanceStatGrowth(
+  stats: Equipment["stats"],
+  lostLevel: number,
+): Equipment["stats"] {
+  const next: Equipment["stats"] = { ...stats };
+  const primary = pickPrimaryStatKey(stats);
+  if (!primary) return next;
+  const p = enhancePrimaryGrowthAt(lostLevel);
+  if (p > 0) next[primary] = Math.max(0, (next[primary] ?? 0) - p);
+  const sBonus = enhanceSecondaryGrowthAt(lostLevel);
+  if (sBonus > 0) {
+    const secondary = pickSecondaryStatKey(stats, primary);
+    next[secondary] = Math.max(0, (next[secondary] ?? 0) - sBonus);
+  }
+  return next;
+}
+
+/**
+ * +0 → +level 까지 primary 에 누적된 증가량 = floor(min(level,10)/2) + max(0, level-10).
+ * Track E 의 dropFloor 역추정이 쓴다 (secondary 는 primary 가 아니라 보정 불필요).
+ */
+export function enhancePrimaryGrowthTotal(level: number): number {
+  const l = Math.max(0, Math.floor(level));
+  return (
+    Math.floor(Math.min(l, ENHANCE_HIGH_BAND_START) / 2) +
+    Math.max(0, l - ENHANCE_HIGH_BAND_START)
+  );
+}
+
+/**
+ * 이름에서 " +N" 또는 legacy " +" suffix 제거. enhanceItem 성공/하락 시 매번 재부여.
+ *   "자기절제의 검 +3" → "자기절제의 검"
+ *   "꾸준함의 방패 +"  → "꾸준함의 방패" (legacy 합성 표기)
+ */
+export function stripEnhanceSuffix(name: string): string {
+  return name.replace(/\s+\+\d*$/, "");
 }
 
 /** 장비 판매 환급 (Phase 4a) */

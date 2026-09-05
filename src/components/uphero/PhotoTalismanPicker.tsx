@@ -16,10 +16,10 @@ import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 import {
   findBoundPhotoTalisman,
   isPhotoBound,
+  PHOTO_TALISMAN_MAX_ENHANCE_LEVEL,
   PHOTO_TALISMAN_RITUAL_COST,
   rebindPhotoTalismanCost,
 } from "@/lib/photoTalisman";
-import { MAX_ENHANCE_LEVEL } from "@/types/uphero";
 import { TALISMAN_SKILLS, computeTalismanSkillIds } from "@/lib/talismanSkills";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import type { PhotoMeta } from "@/types/growth";
@@ -143,7 +143,7 @@ export default function PhotoTalismanPicker({
       );
       return;
     }
-    if ((existing.enhanceLevel ?? 0) >= MAX_ENHANCE_LEVEL) {
+    if ((existing.enhanceLevel ?? 0) >= PHOTO_TALISMAN_MAX_ENHANCE_LEVEL) {
       play("cancel");
       onNotify(t("uphero.photo.toast.maxEnhance"));
       return;
@@ -345,12 +345,12 @@ export default function PhotoTalismanPicker({
               style={{ color: GB.lightest }}
             >
               <PixelIcon name="Fire" size={14} color={GB.lightest} />
-              {t("uphero.photo.section.rebind", { max: MAX_ENHANCE_LEVEL })}
+              {t("uphero.photo.section.rebind", { max: PHOTO_TALISMAN_MAX_ENHANCE_LEVEL })}
             </div>
             <div className="flex flex-col gap-1.5">
               {boundPhotos.map(({ photo: p, item }) => {
                 const level = item.enhanceLevel ?? 0;
-                const isMaxed = level >= MAX_ENHANCE_LEVEL;
+                const isMaxed = level >= PHOTO_TALISMAN_MAX_ENHANCE_LEVEL;
                 // Phase 11c R4 — rebind 비용 level 스케일. 각 행마다 재계산.
                 const rebindCost = rebindPhotoTalismanCost(level);
                 const rowCanAfford = coins >= rebindCost;
@@ -383,7 +383,7 @@ export default function PhotoTalismanPicker({
                       <div
                         className={`typo-micro tabular-nums ${gbClass.textDim} flex items-center gap-2 mt-0.5`}
                       >
-                        <span>+{level} → +{Math.min(MAX_ENHANCE_LEVEL, level + 1)}</span>
+                        <span>+{level} → +{Math.min(PHOTO_TALISMAN_MAX_ENHANCE_LEVEL, level + 1)}</span>
                         {gainingSkill && (
                           <span style={{ color: GB.lightest }}>
                             {t("uphero.photo.newSkill")}

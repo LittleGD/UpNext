@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 /**
- * Phase 15 — 강화 실패 3분기 + 방지권 2종 소모 계약 회귀 테스트.
+ * Phase 15 → 5-B — 강화 실패 3분기 + 방지권 2종 **시도당** 소모 계약 회귀 테스트.
  *
- * 계약은 하나다: **그 결과가 실제로 나서 막아낸 순간에만 1장 소모된다.**
- * 성공했거나, 실패했지만 그냥 유지로 끝났으면 소모하지 않는다. 이 규칙이 흔들리면
- * 유저는 "썼는데 아무것도 안 막았다" 는 경험을 하게 되고, 그건 소모품에 대한
- * 신뢰를 통째로 무너뜨린다. 그래서 갈래를 모두 못박는다.
+ * 계약은 하나다: **걸린 방지권(보유 > 0, 그 결과가 가능한 레벨)은 결과와 무관하게
+ * 이번 시도에서 1장 나간다.** 성공이든 유지든 소실이든 같다. 대신 걸어도 소용없는
+ * 곳(보유 0, 소실 0 인 +10..+14, 안전 구간)에서는 나가지 않는다. 이 규칙이 흔들리면
+ * 유저는 "켰는데 안 나갔다 / 안 켰는데 나갔다" 를 겪고, 소모품 신뢰가 무너진다.
+ * 그래서 소모 매트릭스의 갈래를 모두 못박는다.
  *
  * 저장/동기화는 이 테스트의 관심사가 아니므로 storage 모듈을 통째로 대체한다
  * (실물은 Firestore 로 나가는 syncToCloud 를 물고 있다).
@@ -127,81 +128,141 @@ describe("enhanceItem — 실패 3분기", () => {
       });
       const s = useUpHeroStore.getState();
       expect(s.inventory[0].enhanceLevel).toBe(level);
-      // 안전 구간에서는 방지권도 소모되지 않는다.
+      // 안전 구간에서는 방지권도 소모되지 않는다 — 그 결과가 날 수 없으니 arm 되지 않는다.
       expect(s.destroyGuards).toBe(2);
       expect(s.downGuards).toBe(2);
     }
   });
 });
 
-describe("enhanceItem — 방지권 소모 조건", () => {
+describe("enhanceItem — 방지권 소모 매트릭스 (소모 == armed)", () => {
   beforeEach(() => seedStore({ destroy: 2, down: 2 }));
   afterEach(() => vi.restoreAllMocks());
 
-  it("성공하면 소모하지 않는다", () => {
+  const SPENT_BOTH = { destroy: 1, down: 1 };
+  const SPENT_NONE = { destroy: 0, down: 0 };
+
+  it("둘 다 걸고 성공 → 둘 다 1장씩 나간다, spent {1,1}", () => {
     queueRolls(0.0001); // 성공 판정 적중 → 3분기 판정 자체가 없다
-    expect(useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH).ok).toBe(true);
-    expect(useUpHeroStore.getState().destroyGuards).toBe(2);
-    expect(useUpHeroStore.getState().downGuards).toBe(2);
+    const r = useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH);
+    expect(r).toMatchObject({ ok: true, reason: "success", spent: SPENT_BOTH });
+    expect(useUpHeroStore.getState().destroyGuards).toBe(1);
+    expect(useUpHeroStore.getState().downGuards).toBe(1);
   });
 
-  it("그냥 유지로 끝난 실패에서는 소모하지 않는다", () => {
+  it("둘 다 걸고 유지로 끝난 실패 → 그래도 둘 다 나간다, spent {1,1}", () => {
     queueRolls(ROLL_FAIL, ROLL_KEEP);
-    expect(useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH)).toMatchObject({
-      reason: "keep",
-    });
-    expect(useUpHeroStore.getState().destroyGuards).toBe(2);
-    expect(useUpHeroStore.getState().downGuards).toBe(2);
+    const r = useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH);
+    expect(r).toMatchObject({ ok: false, reason: "keep", spent: SPENT_BOTH });
+    expect(useUpHeroStore.getState().destroyGuards).toBe(1);
+    expect(useUpHeroStore.getState().downGuards).toBe(1);
   });
 
-  it("소실을 막았을 때만 소실방지권 1장이 나간다", () => {
+  it("둘 다 걸고 소실이 굴러나오면 막힌다 (guarded destroy), 둘 다 나간다", () => {
     queueRolls(ROLL_FAIL, ROLL_DESTROY);
-    expect(useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH)).toMatchObject({
+    const r = useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH);
+    expect(r).toMatchObject({
       ok: false,
       reason: "guarded",
       guard: "destroy",
+      spent: SPENT_BOTH,
     });
     const s = useUpHeroStore.getState();
     expect(s.destroyGuards).toBe(1);
-    // 하락은 애초에 나지 않았으므로 하락방지권은 그대로다.
-    expect(s.downGuards).toBe(2);
+    // 하락은 나지 않았지만 걸어뒀으므로 하락방지권도 시도의 값으로 나갔다.
+    expect(s.downGuards).toBe(1);
     expect(s.inventory).toHaveLength(1);
     expect(s.inventory[0].enhanceLevel).toBe(RISK_LEVEL);
   });
 
-  it("하락을 막았을 때만 하락방지권 1장이 나간다", () => {
+  it("둘 다 걸고 하락이 굴러나오면 막힌다 (guarded down), 둘 다 나간다", () => {
     queueRolls(ROLL_FAIL, ROLL_DOWN);
-    expect(useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH)).toMatchObject({
+    const r = useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH);
+    expect(r).toMatchObject({
       ok: false,
       reason: "guarded",
       guard: "down",
+      spent: SPENT_BOTH,
     });
     const s = useUpHeroStore.getState();
     expect(s.downGuards).toBe(1);
-    expect(s.destroyGuards).toBe(2);
+    expect(s.destroyGuards).toBe(1);
     expect(s.inventory[0].enhanceLevel).toBe(RISK_LEVEL);
   });
 
-  it("걸지 않은 방지권은 막아주지 않는다", () => {
+  it("하락방지권만 걸고 소실이 나면 소실된다 — 걸어둔 하락방지권은 그래도 나간다, spent {0,1}", () => {
     queueRolls(ROLL_FAIL, ROLL_DESTROY);
-    expect(
-      useUpHeroStore.getState().enhanceItem("it-1", { destroy: false, down: true }),
-    ).toMatchObject({ reason: "destroyed" });
-    expect(useUpHeroStore.getState().destroyGuards).toBe(2);
+    const r = useUpHeroStore
+      .getState()
+      .enhanceItem("it-1", { destroy: false, down: true });
+    expect(r).toMatchObject({
+      ok: false,
+      reason: "destroyed",
+      spent: { destroy: 0, down: 1 },
+    });
+    const s = useUpHeroStore.getState();
+    expect(s.destroyGuards).toBe(2);
+    expect(s.downGuards).toBe(1);
+    expect(s.inventory).toHaveLength(0);
   });
 
-  it("보유 0 이면 걸어도 무시된다 — 개수가 음수로 내려가지 않는다", () => {
+  it("소실방지권만 걸고 하락이 나면 내려간다 — 소실방지권은 나가고 하락방지권은 그대로, spent {1,0}", () => {
+    queueRolls(ROLL_FAIL, ROLL_DOWN);
+    const r = useUpHeroStore
+      .getState()
+      .enhanceItem("it-1", { destroy: true, down: false });
+    expect(r).toMatchObject({
+      ok: false,
+      reason: "down",
+      prevLevel: RISK_LEVEL,
+      spent: { destroy: 1, down: 0 },
+    });
+    const s = useUpHeroStore.getState();
+    expect(s.destroyGuards).toBe(1);
+    expect(s.downGuards).toBe(2);
+    expect(s.inventory[0].enhanceLevel).toBe(RISK_LEVEL - 1);
+  });
+
+  it("rare +12 (소실 0 / 하락 100%) 는 둘 다 걸어도 소실방지권은 나가지 않는다", () => {
+    // 중간 밴드: 결과는 성공 또는 막힌 하락뿐이다. 소실은 불가능하므로 arm 되지 않는다.
+    seedStore({ destroy: 2, down: 2 }, makeItem({ enhanceLevel: 12, name: "쇠검 +12" }));
+    expect(enhanceOutcomeRates("rare", 12)).toEqual({ destroy: 0, down: 1, keep: 0 });
+    queueRolls(ROLL_FAIL, 0);
+    const failed = useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH);
+    expect(failed).toMatchObject({
+      ok: false,
+      reason: "guarded",
+      guard: "down",
+      spent: { destroy: 0, down: 1 },
+    });
+    expect(useUpHeroStore.getState().destroyGuards).toBe(2);
+    expect(useUpHeroStore.getState().downGuards).toBe(1);
+    expect(useUpHeroStore.getState().inventory[0].enhanceLevel).toBe(12);
+    vi.restoreAllMocks();
+
+    queueRolls(0.0001);
+    const ok = useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH);
+    expect(ok).toMatchObject({ ok: true, reason: "success", spent: { destroy: 0, down: 1 } });
+    expect(useUpHeroStore.getState().destroyGuards).toBe(2);
+    expect(useUpHeroStore.getState().downGuards).toBe(0);
+    expect(useUpHeroStore.getState().inventory[0].enhanceLevel).toBe(13);
+  });
+
+  it("보유 0 이면 걸어도 무시된다 — 소실이 그대로 나고 개수는 음수로 내려가지 않는다", () => {
     seedStore({ destroy: 0, down: 0 });
     queueRolls(ROLL_FAIL, ROLL_DESTROY);
     expect(useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH)).toMatchObject({
       reason: "destroyed",
+      spent: SPENT_NONE,
     });
     expect(useUpHeroStore.getState().destroyGuards).toBe(0);
+    expect(useUpHeroStore.getState().downGuards).toBe(0);
 
     seedStore({ destroy: 0, down: 0 });
     queueRolls(ROLL_FAIL, ROLL_DOWN);
     expect(useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH)).toMatchObject({
       reason: "down",
+      spent: SPENT_NONE,
     });
     expect(useUpHeroStore.getState().downGuards).toBe(0);
   });
@@ -213,6 +274,7 @@ describe("enhanceItem — 방지권 소모 조건", () => {
     queueRolls(ROLL_FAIL, ROLL_DESTROY);
     expect(useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH)).toMatchObject({
       reason: "destroyed",
+      spent: SPENT_NONE,
     });
     expect(useUpHeroStore.getState().destroyGuards ?? 0).toBe(0);
   });
@@ -226,6 +288,27 @@ describe("enhanceItem — 방지권 소모 조건", () => {
     expect(useUpHeroStore.getState().downGuards).toBe(2);
   });
 
+  it("안전 구간(0..2)에서는 걸어도 아무것도 나가지 않는다, spent {0,0}", () => {
+    seedStore({ destroy: 2, down: 2 }, makeItem({ enhanceLevel: 1, name: "쇠검 +1" }));
+    queueRolls(ROLL_FAIL, 0);
+    expect(useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH)).toMatchObject({
+      reason: "keep",
+      spent: SPENT_NONE,
+    });
+    expect(useUpHeroStore.getState().destroyGuards).toBe(2);
+    expect(useUpHeroStore.getState().downGuards).toBe(2);
+  });
+
+  it("걸지 않으면 나가지 않는다 — 기본값은 둘 다 OFF", () => {
+    queueRolls(ROLL_FAIL, ROLL_KEEP);
+    expect(useUpHeroStore.getState().enhanceItem("it-1")).toMatchObject({
+      reason: "keep",
+      spent: SPENT_NONE,
+    });
+    expect(useUpHeroStore.getState().destroyGuards).toBe(2);
+    expect(useUpHeroStore.getState().downGuards).toBe(2);
+  });
+
   it("막아준 실패에서도 시도 비용은 그대로 나간다", () => {
     const before = useUpHeroStore.getState().coins;
     queueRolls(ROLL_FAIL, ROLL_DESTROY);
@@ -233,6 +316,103 @@ describe("enhanceItem — 방지권 소모 조건", () => {
     expect(useUpHeroStore.getState().coins).toBe(
       before - enhanceCost("rare", RISK_LEVEL),
     );
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Phase 5-B — 상위 밴드 성장 (+11..+20) + 사진 부적 상한
+ * ══════════════════════════════════════════════════════════════════════ */
+
+describe("enhanceItem — 상위 밴드 성장과 마일스톤", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("+10 → +11: primary +1 (매 레벨)", () => {
+    seedStore({}, makeItem({ enhanceLevel: 10, name: "쇠검 +10", stats: { str: 10, dex: 3 } }));
+    queueRolls(0.0000001);
+    const r = useUpHeroStore.getState().enhanceItem("it-1");
+    expect(r).toMatchObject({ ok: true, prevLevel: 10 });
+    const item = useUpHeroStore.getState().inventory[0];
+    expect(item.enhanceLevel).toBe(11);
+    expect(item.name).toBe("쇠검 +11");
+    expect(item.stats).toEqual({ str: 11, dex: 3 });
+  });
+
+  it("+14 → +15: primary +1 & secondary +2, 이름 '쇠검 +15'; 하락 15 → 14 는 정확한 역", () => {
+    const original = { str: 20, dex: 4 };
+    seedStore({}, makeItem({ enhanceLevel: 14, name: "쇠검 +14", stats: { ...original } }));
+    queueRolls(0.0000001);
+    expect(useUpHeroStore.getState().enhanceItem("it-1").ok).toBe(true);
+    let item = useUpHeroStore.getState().inventory[0];
+    expect(item.enhanceLevel).toBe(15);
+    expect(item.name).toBe("쇠검 +15");
+    expect(item.stats).toEqual({ str: 21, dex: 6 });
+    vi.restoreAllMocks();
+
+    const rates = enhanceOutcomeRates("rare", 15);
+    expect(rates.down).toBeGreaterThan(0);
+    queueRolls(ROLL_FAIL, rates.destroy + rates.down / 2);
+    const down = useUpHeroStore.getState().enhanceItem("it-1");
+    expect(down).toMatchObject({ reason: "down", prevLevel: 15 });
+    item = useUpHeroStore.getState().inventory[0];
+    expect(item.enhanceLevel).toBe(14);
+    expect(item.name).toBe("쇠검 +14");
+    expect(item.stats).toEqual(original);
+  });
+
+  it("+19 → +20: primary +1 & secondary +3, 그 뒤는 maxed", () => {
+    seedStore({}, makeItem({ enhanceLevel: 19, name: "쇠검 +19", stats: { str: 30, dex: 5 } }));
+    queueRolls(0.0000001);
+    expect(useUpHeroStore.getState().enhanceItem("it-1").ok).toBe(true);
+    const item = useUpHeroStore.getState().inventory[0];
+    expect(item.enhanceLevel).toBe(20);
+    expect(item.name).toBe("쇠검 +20");
+    expect(item.stats).toEqual({ str: 31, dex: 8 });
+    vi.restoreAllMocks();
+
+    const coins = useUpHeroStore.getState().coins;
+    queueRolls(0.0000001);
+    expect(useUpHeroStore.getState().enhanceItem("it-1", ARM_BOTH)).toEqual({
+      ok: false,
+      reason: "maxed",
+    });
+    expect(useUpHeroStore.getState().coins).toBe(coins);
+  });
+});
+
+describe("enhanceItem — 사진 부적 (photoId) 은 상한 10 + 스킬 재계산", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const photoItem = (level: number): Equipment =>
+    ({
+      id: "ph-1",
+      name: `추억의 부적 +${level}`,
+      type: "talisman",
+      rarity: "rare",
+      category: "fitness",
+      iconName: "Photo",
+      photoId: "photo-1",
+      stats: { vit: 3 },
+      enhanceLevel: level,
+    }) as Equipment;
+
+  it("+4 → +5 에 도달하면 talismanSkills 1개가 붙는다", () => {
+    seedStore({}, photoItem(4));
+    queueRolls(0.0000001);
+    const r = useUpHeroStore.getState().enhanceItem("ph-1");
+    expect(r).toMatchObject({ ok: true, prevLevel: 4 });
+    const item = useUpHeroStore.getState().inventory[0];
+    expect(item.enhanceLevel).toBe(5);
+    expect(item.talismanSkills).toHaveLength(1);
+  });
+
+  it("+10 이면 일반 장비와 달리 maxed 다", () => {
+    seedStore({}, photoItem(10));
+    queueRolls(0.0000001);
+    expect(useUpHeroStore.getState().enhanceItem("ph-1")).toEqual({
+      ok: false,
+      reason: "maxed",
+    });
+    expect(useUpHeroStore.getState().inventory[0].enhanceLevel).toBe(10);
   });
 });
 

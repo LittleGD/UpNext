@@ -466,6 +466,22 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
   animation: uphero-crit-shake 260ms steps(5, end);
 }
 
+/* === Up Hero — Phase 5-B 강화 band 2 (+16..+20) 성공 shake, 6px ===
+   EnhanceRitualOverlay 루트에 420ms 로 적용. transform 만 쓴다. */
+@keyframes enhance-shake-strong {
+  0%   { transform: translate(0, 0); }
+  15%  { transform: translate(-6px, -4px); }
+  30%  { transform: translate(6px, 3px); }
+  45%  { transform: translate(-5px, 5px); }
+  60%  { transform: translate(5px, -4px); }
+  75%  { transform: translate(-3px, 2px); }
+  90%  { transform: translate(2px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+.enhance-shake-strong {
+  animation: enhance-shake-strong 420ms steps(7, end);
+}
+
 /* === Up Hero — 버프 카드 선택 순간 pulse ===
    selected 가 false → true 로 바뀐 순간 한 번만 재생. tactile feedback 보완. */
 @keyframes uphero-card-select {
@@ -778,6 +794,7 @@ html[lang="zh"] .typo-micro   { font-size: 12px; }
 @media (prefers-reduced-motion: reduce) {
   /* 강한 장식 — shake, flash, spark, rotate, typewriter caret */
   .uphero-crit-shake,
+  .enhance-shake-strong,
   .uphero-time-flash,
   .uphero-floor-sweep,
   .uphero-ritual-photo,

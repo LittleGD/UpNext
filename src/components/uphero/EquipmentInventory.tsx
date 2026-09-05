@@ -26,6 +26,10 @@ import {
   canEnhanceDestroy,
   canEnhanceDowngrade,
   isEnhanceSafeLevel,
+  getEnhanceTitle,
+  enhanceRitualBand,
+  ENHANCE_HIGH_BAND_START,
+  ENHANCE_TITLE_LEVELS,
   MAX_ENHANCE_LEVEL,
   SELL_PRICE,
   CLASS_THEME_COLOR,
@@ -40,7 +44,7 @@ import type { DictKey } from "@/i18n";
 import { equipmentNameById } from "@/lib/upHeroI18n";
 import EquipmentCard from "./EquipmentCard";
 import HeroSprite from "./HeroSprite";
-import GbConfirm from "./GbConfirm";
+import GbConfirm, { GbConfirmPanel } from "./GbConfirm";
 import EnhanceRitualOverlay, {
   type EnhanceRitualOutcome,
 } from "./EnhanceRitualOverlay";
@@ -75,50 +79,91 @@ function splitAtToken(text: string, token: string): [string, string] {
 }
 
 /**
- * Phase 15 — 강화 확인 다이얼로그의 방지권 토글 한 줄.
+ * Phase 15 → 5-B — 강화 확인 다이얼로그의 방지권 패널 (종류별 1개).
  *
- * 보유가 0 이면 토글 자체를 그리지 않는다 — 누를 수 없는 체크박스는 "살 수도 있나"
- * 를 묻게 만들 뿐이라, 그 자리에 구하는 경로를 한 줄로 대신 적는다.
- * 최소 터치 타깃 40px 은 다른 다이얼로그 컨트롤과 같은 값이다.
+ * GbConfirmPanel 위에 올라가며, 걸리면(armed && applicable && held>0) 라임 글로우.
+ *   - applicable=false : 이 레벨에서 그 결과가 날 수 없다 (소실 0 인 +10..+14 등).
+ *                        회색 NA 문구만, 버튼 없음. 걸어도 소모되지 않는다는 뜻.
+ *   - held 0           : 구하는 경로를 한 줄로 (기존 destroyNone/downNone).
+ *   - 그 외             : 40px 토글 + "켜면 이번 시도에 1장 (결과 무관)" 마이크로 힌트.
+ * 토글은 열 때마다 OFF 로 시작한다 — 시도당 소모라 켜둔 채 잊으면 손해다.
  */
-function GuardToggle({
+function GuardPanel({
+  kind,
   held,
   armed,
+  applicable,
   onToggle,
-  label,
-  emptyLabel,
 }: {
+  kind: "destroy" | "down";
   held: number;
   armed: boolean;
+  applicable: boolean;
   onToggle: () => void;
-  label: string;
-  emptyLabel: string;
 }) {
-  if (held <= 0) {
-    return <span style={{ color: GB.light, opacity: 0.8 }}>{emptyLabel}</span>;
-  }
+  const { t } = useTranslation();
+  const name = t(kind === "destroy" ? "uphero.guard.destroy.name" : "uphero.guard.down.name");
+  const active = armed && applicable && held > 0;
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={armed}
-      className="typo-caption inline-flex items-center gap-1.5 rounded"
-      style={{
-        minHeight: 40,
-        padding: "6px 8px",
-        marginTop: 2,
-        background: "transparent",
-        border: "none",
-        color: armed ? GB.lightest : GB.light,
-      }}
+    <GbConfirmPanel
+      active={active}
+      title={name}
+      trailing={
+        <span
+          className="typo-micro tabular-nums"
+          style={{
+            background: GB.darkest,
+            color: GB.lightest,
+            borderRadius: 4,
+            padding: "1px 6px",
+          }}
+        >
+          {t("uphero.equip.guard.heldChip", { n: held })}
+        </span>
+      }
     >
-      <PixelIcon
-        name={armed ? "CheckboxOn" : "Checkbox"}
-        size={14}
-        color={armed ? GB.lightest : GB.light}
-      />
-      {label}
-    </button>
+      {!applicable ? (
+        <div className="typo-micro mt-1" style={{ color: GB.light, opacity: 0.5 }}>
+          {t(kind === "destroy" ? "uphero.equip.guard.destroyNA" : "uphero.equip.guard.downNA")}
+        </div>
+      ) : held <= 0 ? (
+        <div className="typo-micro mt-1" style={{ color: GB.light, opacity: 0.8 }}>
+          {t(
+            kind === "destroy"
+              ? "uphero.equip.guard.destroyNone"
+              : "uphero.equip.guard.downNone",
+            { name },
+          )}
+        </div>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-pressed={armed}
+            className="typo-caption inline-flex items-center gap-1.5 rounded"
+            style={{
+              minHeight: 40,
+              padding: "6px 4px",
+              marginTop: 2,
+              background: "transparent",
+              border: "none",
+              color: armed ? GB.lightest : GB.light,
+            }}
+          >
+            <PixelIcon
+              name={armed ? "CheckboxOn" : "Checkbox"}
+              size={14}
+              color={armed ? GB.lightest : GB.light}
+            />
+            {t("uphero.equip.guard.armLabel")}
+          </button>
+          <div className="typo-micro" style={{ color: GB.light, opacity: 0.8 }}>
+            {t("uphero.equip.guard.perAttemptHint")}
+          </div>
+        </>
+      )}
+    </GbConfirmPanel>
   );
 }
 
@@ -203,12 +248,12 @@ export default function EquipmentInventory({
   /** Phase 9a — GbConfirm 으로 교체된 판매/버리기/합성 pending state. */
   const [pending, setPending] = useState<PendingAction | null>(null);
   /**
-   * Phase 15 — 이번 강화 시도에 방지권을 걸지 여부 (2종 독립).
-   * 확인 다이얼로그를 열 때마다 기본 ON 으로 되돌린다 (onEnhance). 소모는 실제로
-   * 막아냈을 때만 일어나므로 켜둔 채로 두는 것이 유저에게 손해가 아니다.
+   * Phase 15 → 5-B — 이번 강화 시도에 방지권을 걸지 여부 (2종 독립).
+   * 기본 OFF 이고 확인 다이얼로그를 열 때마다 OFF 로 되돌린다 (onEnhance). 시도당
+   * 소모라 켜둔 채 잊으면 매 시도 1장씩 조용히 나가므로, 명시적 선택만 받는다.
    */
-  const [armDestroyGuard, setArmDestroyGuard] = useState(true);
-  const [armDownGuard, setArmDownGuard] = useState(true);
+  const [armDestroyGuard, setArmDestroyGuard] = useState(false);
+  const [armDownGuard, setArmDownGuard] = useState(false);
 
   /** Phase 8a — 사진 부적 탭 카운트용 */
   const photoMetas = useGrowthStore((s) => s.photoMetas);
@@ -255,10 +300,11 @@ export default function EquipmentInventory({
     setPending({ kind: "discard", item });
   };
 
-  /** Phase 11a — 강화 연출 state. confirm → ritual (2s) → result modal 순서. */
+  /** Phase 11a — 강화 연출 state. confirm → ritual (밴드별 2.0/2.6/3.4s) → result modal. */
   const [ritual, setRitual] = useState<{
     item: Equipment;
     outcome: EnhanceRitualOutcome;
+    band: 0 | 1 | 2;
   } | null>(null);
   const [resultModal, setResultModal] = useState<EnhanceModalVariant | null>(
     null,
@@ -285,18 +331,12 @@ export default function EquipmentInventory({
       //
       // Phase 11c R1 — exhaustive switch 로 재구성. 새로운 EnhanceResult 분기가
       //   추가될 때 TS 에러 로 포착되도록 default 에 assertExhaustive 패턴.
-      // Phase 15 — 안전 구간(소실·하락 0)에서는 방지권을 걸지 않는다. 걸어도 판정이
-      //   안 나므로 소모되지 않지만, 애초에 넘기지 않는 편이 계약이 분명하다.
+      // Phase 5-B — 토글 값을 그대로 넘긴다. 보유 0 / 그 결과가 불가능한 레벨 검증은
+      //   스토어가 한 곳에서 한다 (UI 게이트는 안내용).
       const lvl = pending.item.enhanceLevel ?? 0;
       const result: EnhanceResult = enhanceItem(pending.item.id, {
-        destroy:
-          armDestroyGuard &&
-          destroyGuards > 0 &&
-          canEnhanceDestroy(pending.item.rarity, lvl),
-        down:
-          armDownGuard &&
-          downGuards > 0 &&
-          canEnhanceDowngrade(pending.item.rarity, lvl),
+        destroy: armDestroyGuard,
+        down: armDownGuard,
       });
 
       // coin/maxed/not-found 는 ritual 없이 즉시 toast — 상호작용 abort
@@ -309,7 +349,7 @@ export default function EquipmentInventory({
         }
         if (result.reason === "maxed") {
           play("cancel");
-          onNotify(t("uphero.equip.toast.maxEnhance"));
+          onNotify(t("uphero.equip.toast.maxEnhance", { max: MAX_ENHANCE_LEVEL }));
           setPending(null);
           return;
         }
@@ -326,23 +366,39 @@ export default function EquipmentInventory({
       let modal: EnhanceModalVariant;
       if (result.ok) {
         outcome = "success";
-        modal = { kind: "success", newItem: result.newItem, prevLevel: result.prevLevel };
+        modal = {
+          kind: "success",
+          newItem: result.newItem,
+          prevLevel: result.prevLevel,
+          spent: result.spent,
+        };
       } else if (result.reason === "keep") {
         outcome = "keep";
-        modal = { kind: "keep", item: result.item };
+        modal = { kind: "keep", item: result.item, spent: result.spent };
       } else if (result.reason === "guarded") {
         // 방지권이 막아냈다. 연출은 "유지" 쪽 색을 쓰되 모달이 무엇을 막았는지 말한다.
         outcome = "keep";
-        modal = { kind: "guarded", item: result.item, guard: result.guard };
+        modal = {
+          kind: "guarded",
+          item: result.item,
+          guard: result.guard,
+          spent: result.spent,
+        };
       } else if (result.reason === "down") {
         outcome = "keep";
-        modal = { kind: "down", item: result.item, prevLevel: result.prevLevel };
+        modal = {
+          kind: "down",
+          item: result.item,
+          prevLevel: result.prevLevel,
+          spent: result.spent,
+        };
       } else if (result.reason === "destroyed") {
         outcome = "destroyed";
         modal = {
           kind: "destroyed",
           lostItemName: result.lostItemName,
           lostBaseId: result.lostBaseId,
+          spent: result.spent,
         };
       } else {
         // unreachable — coin/maxed/not-found 위에서 처리됨. TS exhaustiveness 보장.
@@ -355,7 +411,10 @@ export default function EquipmentInventory({
       // Phase 11b-fix — 소리는 ritual 연출 끝에 재생해야 결과 스포일 방지.
       //   이전엔 여기서 play() 를 했지만 "collect" vs "cancel" 이 2초 연출보다
       //   먼저 들려 유저가 결과 예측 가능. 이제 ritual onDone 에서 재생.
-      setRitual({ item: pending.item, outcome });
+      // Phase 5-B — 밴드별 연출. band >= 1 은 시작 시 충전음 (결과와 무관해 스포일 아님).
+      const band = enhanceRitualBand(lvl + 1);
+      setRitual({ item: pending.item, outcome, band });
+      if (band >= 1) play("enhanceCharge");
       setPendingResult(modal);
       setSelectedId(null);
     }
@@ -375,8 +434,10 @@ export default function EquipmentInventory({
   };
 
   // Phase 11a — 강화 가능한 아이템 리스트.
-  //   inventory 전체에서 +10 미만인 아이템만. rarity 별 그룹은 유지 (UI 가독성).
+  //   inventory 전체에서 최대 미만인 아이템만. rarity 별 그룹은 유지 (UI 가독성).
   // Phase 11c R4 — 장착된 장비도 포함. inventory + equipped 합쳐서 정렬.
+  // Phase 5-B — 사진 부적(photoId) 은 제외. 부적은 사진 부적 탭의 재의식(+10 상한)
+  //   경로만 쓴다.
   const enhanceableItems = useMemo(() => {
     const equippedList: Equipment[] = [];
     for (const slot of ["weapon", "armor", "accessory", "talisman"] as const) {
@@ -384,7 +445,7 @@ export default function EquipmentInventory({
       if (eq) equippedList.push(eq);
     }
     const items = [...inventory, ...equippedList].filter(
-      (i) => (i.enhanceLevel ?? 0) < MAX_ENHANCE_LEVEL,
+      (i) => !i.photoId && (i.enhanceLevel ?? 0) < MAX_ENHANCE_LEVEL,
     );
     // rarity 순 (legend 먼저) 그 다음 enhanceLevel 내림차순.
     const rarityOrder: Record<Rarity, number> = {
@@ -406,9 +467,9 @@ export default function EquipmentInventory({
     const cost = enhanceCost(item.rarity, level);
     // Phase 11c R4 — pity streak 반영된 성공률 표시.
     const rate = enhanceSuccessRate(item.rarity, level, item.enhanceFailStreak ?? 0);
-    // 다이얼로그를 열 때마다 방지권 토글을 기본 ON 으로 되돌린다.
-    setArmDestroyGuard(true);
-    setArmDownGuard(true);
+    // Phase 5-B — 다이얼로그를 열 때마다 방지권 토글을 OFF 로 되돌린다 (시도당 소모).
+    setArmDestroyGuard(false);
+    setArmDownGuard(false);
     setPending({ kind: "enhance", item, cost, successRate: rate });
   };
 
@@ -721,7 +782,7 @@ export default function EquipmentInventory({
               style={{ color: GB.lightest }}
             >
               <PixelIcon name="Fire" size={14} color={GB.lightest} />
-              {t("uphero.equip.enhance.heading")}
+              {t("uphero.equip.enhance.heading", { max: MAX_ENHANCE_LEVEL })}
             </div>
             {enhanceableItems.length === 0 ? (
               <EmptyState text={t("uphero.equip.empty.enhance")} />
@@ -735,6 +796,8 @@ export default function EquipmentInventory({
                   const rate = enhanceSuccessRate(item.rarity, level, streak);
                   const canAfford = coins >= cost;
                   const rColor = RARITY_COLOR[item.rarity];
+                  // Phase 5-B — 칭호 칩 + 밴드 배지.
+                  const enhanceTitle = getEnhanceTitle(level);
                   // Phase 11c R4 R2 — 장착 중인 아이템인지 표시 (destroy 시 스탯 하락 경고).
                   const isEquipped = (["weapon", "armor", "accessory", "talisman"] as const).some(
                     (s) => hero.equipped[s]?.id === item.id,
@@ -751,13 +814,29 @@ export default function EquipmentInventory({
                       <PixelIcon name={item.iconName} size={18} color={rColor} />
                       <div className="flex-1 min-w-0">
                         <div
-                          className="typo-caption truncate"
+                          className="typo-caption flex items-center gap-1 min-w-0"
                           style={{ color: GB.lightest }}
                         >
-                          {equipmentNameById(
-                            item.baseId ?? "",
-                            item.name,
-                            language,
+                          <span className="truncate">
+                            {equipmentNameById(
+                              item.baseId ?? "",
+                              item.name,
+                              language,
+                            )}
+                          </span>
+                          {enhanceTitle && (
+                            <span
+                              className="typo-micro shrink-0 px-1 rounded-sm"
+                              style={{
+                                background: `${GB.lightest}22`,
+                                color: GB.lightest,
+                              }}
+                              aria-label={t("uphero.enhance.title.chipAria", {
+                                title: t(`uphero.enhance.title.${enhanceTitle}` as const),
+                              })}
+                            >
+                              {t(`uphero.enhance.title.${enhanceTitle}` as const)}
+                            </span>
                           )}
                         </div>
                         <div
@@ -781,10 +860,23 @@ export default function EquipmentInventory({
                           {/* Phase 15 — 안전 구간(+0→+3)은 "유지 100%" 대신 "안전"
                               으로 말한다. 100% 라는 숫자를 확률처럼 늘어놓으면
                               나머지 구간의 숫자와 같은 무게로 읽혀 오히려 흐릿해진다. */}
+                          {/* Phase 5-B — 상위 밴드 배지: 10..14 "실패 시 한 단계 하락",
+                              15..19 "소실 N%". 유지 확률이 0 인 구간에서 "보존 0%" 는
+                              숫자만 남고 뜻이 죽는다. */}
                           {isEnhanceSafeLevel(item.rarity, level) ? (
                             <span style={{ color: GB.lightest }}>
                               {t("uphero.equip.enhanceSafeBadge")}
                             </span>
+                          ) : level >= ENHANCE_TITLE_LEVELS.awakened ? (
+                            <span style={{ color: GB_WARN }}>
+                              {t("uphero.equip.enhanceBadge.destroyPct", {
+                                pct: Math.round(
+                                  enhanceOutcomeRates(item.rarity, level).destroy * 100,
+                                ),
+                              })}
+                            </span>
+                          ) : level >= ENHANCE_HIGH_BAND_START ? (
+                            <span>{t("uphero.equip.enhanceBadge.downOnly")}</span>
                           ) : (
                             <span>
                               {t("uphero.equip.enhancePreserveBadge", {
@@ -926,26 +1018,50 @@ export default function EquipmentInventory({
                   );
                 }
                 const rates = enhanceOutcomeRates(pending.item.rarity, lvl);
-                const destroyBlocked = armDestroyGuard && destroyGuards > 0;
-                const downBlocked = armDownGuard && downGuards > 0;
+                // Phase 5-B — "막힘" 은 실제로 arm 되는 조건과 같다:
+                //   켜짐 && 보유 > 0 && 그 결과가 이 레벨에서 가능.
+                const destroyBlocked =
+                  armDestroyGuard && destroyGuards > 0 && rates.destroy > 0;
+                const downBlocked = armDownGuard && downGuards > 0 && rates.down > 0;
                 const pct = (n: number) => Math.round(n * 100);
+                // 밴드 힌트 — 10..14 는 하락 전용 + +9 재노출, 15..19 는 소실 주 + 두 방지권.
+                const bandHint =
+                  lvl >= ENHANCE_TITLE_LEVELS.awakened
+                    ? t("uphero.equip.enhanceBandHint.top")
+                    : lvl >= ENHANCE_HIGH_BAND_START
+                      ? t("uphero.equip.enhanceBandHint.mid")
+                      : null;
                 return (
                   <>
-                    <span style={{ color: destroyBlocked ? GB.light : GB_WARN }}>
-                      {t("uphero.equip.enhanceDestroyHint", {
-                        pct: pct(rates.destroy),
-                      })}
-                      {destroyBlocked && ` ${t("uphero.equip.guard.blockedTag")}`}
-                    </span>
-                    <br />
-                    <span style={{ color: downBlocked ? GB.light : GB_WARN }}>
-                      {t("uphero.equip.enhanceDownHint", { pct: pct(rates.down) })}
-                      {downBlocked && ` ${t("uphero.equip.guard.blockedTag")}`}
-                    </span>
+                    {rates.destroy > 0 && (
+                      <>
+                        <span style={{ color: destroyBlocked ? GB.light : GB_WARN }}>
+                          {t("uphero.equip.enhanceDestroyHint", {
+                            pct: pct(rates.destroy),
+                          })}
+                          {destroyBlocked && ` ${t("uphero.equip.guard.blockedTag")}`}
+                        </span>
+                        <br />
+                      </>
+                    )}
+                    {rates.down > 0 && (
+                      <>
+                        <span style={{ color: downBlocked ? GB.light : GB_WARN }}>
+                          {t("uphero.equip.enhanceDownHint", { pct: pct(rates.down) })}
+                          {downBlocked && ` ${t("uphero.equip.guard.blockedTag")}`}
+                        </span>
+                        <br />
+                      </>
+                    )}
+                    {bandHint && (
+                      <>
+                        <span style={{ color: GB.light }}>{bandHint}</span>
+                        <br />
+                      </>
+                    )}
                   </>
                 );
               })()}
-              <br />
               {(() => {
                 // Phase 12 i18n — cost 숫자만 강조. (템플릿의 "코인"/"C" 단위는
                 //   after 가 들고 있으므로 span 에는 숫자만.)
@@ -961,49 +1077,38 @@ export default function EquipmentInventory({
                   </>
                 );
               })()}
-              {/* Phase 15 — 방지권 토글 2종. 그 결과가 실제로 날 수 있는 레벨에서만
-                  노출한다. 안전 구간에서 권하면 필요 없는 것을 파는 셈이라 아예
-                  그리지 않는다. 보유 0 이면 토글 대신 구하는 경로만 한 줄 안내한다. */}
-              {canEnhanceDestroy(
-                pending.item.rarity,
-                pending.item.enhanceLevel ?? 0,
-              ) && (
-                <>
-                  <br />
-                  <GuardToggle
-                    held={destroyGuards}
-                    armed={armDestroyGuard}
-                    onToggle={() => setArmDestroyGuard((v) => !v)}
-                    label={t("uphero.equip.guard.toggle", {
-                      name: t("uphero.guard.destroy.name"),
-                      n: destroyGuards,
-                    })}
-                    emptyLabel={t("uphero.equip.guard.destroyNone", {
-                      name: t("uphero.guard.destroy.name"),
-                    })}
-                  />
-                </>
-              )}
-              {canEnhanceDowngrade(
-                pending.item.rarity,
-                pending.item.enhanceLevel ?? 0,
-              ) && (
-                <>
-                  <br />
-                  <GuardToggle
-                    held={downGuards}
-                    armed={armDownGuard}
-                    onToggle={() => setArmDownGuard((v) => !v)}
-                    label={t("uphero.equip.guard.toggle", {
-                      name: t("uphero.guard.down.name"),
-                      n: downGuards,
-                    })}
-                    emptyLabel={t("uphero.equip.guard.downNone", {
-                      name: t("uphero.guard.down.name"),
-                    })}
-                  />
-                </>
-              )}
+              {/* Phase 5-B — 방지권이 하나라도 걸리면 이번 시도의 총 값을 한 줄로.
+                  코인 + 방지권 이름들. 확인 버튼을 누르기 전에 무엇이 나가는지 보인다. */}
+              {(() => {
+                const lvl = pending.item.enhanceLevel ?? 0;
+                const wards: string[] = [];
+                if (
+                  armDestroyGuard &&
+                  destroyGuards > 0 &&
+                  canEnhanceDestroy(pending.item.rarity, lvl)
+                ) {
+                  wards.push(t("uphero.guard.destroy.name"));
+                }
+                if (
+                  armDownGuard &&
+                  downGuards > 0 &&
+                  canEnhanceDowngrade(pending.item.rarity, lvl)
+                ) {
+                  wards.push(t("uphero.guard.down.name"));
+                }
+                if (wards.length === 0) return null;
+                return (
+                  <>
+                    <br />
+                    <span style={{ color: GB.lightest }}>
+                      {t("uphero.equip.enhance.attemptSummary", {
+                        cost: pending.cost,
+                        wards: wards.join(" + "),
+                      })}
+                    </span>
+                  </>
+                );
+              })()}
               {/* Phase 11c R4 R2 — equipped 장비 강화 시 추가 경고 (소실 → 스탯 즉시 하락). */}
               {(["weapon", "armor", "accessory", "talisman"] as const).some(
                 (s) => hero.equipped[s]?.id === pending.item.id,
@@ -1015,6 +1120,38 @@ export default function EquipmentInventory({
                   </span>
                 </>
               )}
+            </>
+          ) : undefined
+        }
+        sections={
+          // Phase 5-B — 방지권 패널 2종. 안전 구간(소실·하락 0)에서는 아예 그리지
+          //   않는다. 그 외에는 둘 다 그리되, 불가능한 쪽은 회색 NA 로 남긴다.
+          pending?.kind === "enhance" &&
+          !isEnhanceSafeLevel(pending.item.rarity, pending.item.enhanceLevel ?? 0) ? (
+            <>
+              <div className="typo-micro" style={{ color: GB.light }}>
+                {t("uphero.equip.guard.panelTitle")}
+              </div>
+              <GuardPanel
+                kind="destroy"
+                held={destroyGuards}
+                armed={armDestroyGuard}
+                applicable={canEnhanceDestroy(
+                  pending.item.rarity,
+                  pending.item.enhanceLevel ?? 0,
+                )}
+                onToggle={() => setArmDestroyGuard((v) => !v)}
+              />
+              <GuardPanel
+                kind="down"
+                held={downGuards}
+                armed={armDownGuard}
+                applicable={canEnhanceDowngrade(
+                  pending.item.rarity,
+                  pending.item.enhanceLevel ?? 0,
+                )}
+                onToggle={() => setArmDownGuard((v) => !v)}
+              />
             </>
           ) : undefined
         }
@@ -1039,12 +1176,20 @@ export default function EquipmentInventory({
         <EnhanceRitualOverlay
           item={ritual.item}
           outcome={ritual.outcome}
+          band={ritual.band}
           onDone={() => {
             // outcome 별 sound 재생 — ritual 종료와 result modal 등장 사이.
+            // Phase 5-B — band 0 은 기존 그대로, band 1/2 는 전용 큐.
             if (ritual.outcome === "success") {
-              play("collect");
+              play(
+                ritual.band === 2
+                  ? "enhanceSuccessMax"
+                  : ritual.band === 1
+                    ? "enhanceSuccessHigh"
+                    : "collect",
+              );
             } else if (ritual.outcome === "destroyed") {
-              play("cancel");
+              play(ritual.band >= 1 ? "enhanceShatter" : "cancel");
             } else {
               // keep — 애매한 결과. cancel 은 너무 negative 하니 아무 소리 안 냄
               // (정적 → modal 이 직접 메시지 전달).

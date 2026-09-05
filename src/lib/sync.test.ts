@@ -91,6 +91,52 @@ describe("normalizeUpHeroState — 방지권 2종", () => {
   });
 });
 
+/**
+ * Phase 5-B — enhanceLevel 0..20 은 와이어 키 변경 없이 그대로 왕복한다.
+ * normalizeEquipment 는 필드를 spread 하므로 20 도, 사진 부적의 talismanSkills 도 남는다.
+ */
+describe("normalizeUpHeroState — enhanceLevel 20 왕복", () => {
+  it("inventory 아이템의 enhanceLevel 20 과 talismanSkills 가 그대로 남는다", () => {
+    const out = normalizeUpHeroState({
+      inventory: [
+        {
+          id: "it-20",
+          baseId: "sword_iron",
+          name: "쇠검 +20",
+          type: "weapon",
+          rarity: "rare",
+          category: "fitness",
+          iconName: "Sword",
+          stats: { str: 25, dex: 8 },
+          enhanceLevel: 20,
+          enhanceFailStreak: 0,
+        },
+        {
+          id: "ph-10",
+          name: "추억의 부적 +10",
+          type: "talisman",
+          rarity: "rare",
+          category: "fitness",
+          iconName: "Photo",
+          photoId: "photo-1",
+          stats: { vit: 5 },
+          enhanceLevel: 10,
+          talismanSkills: ["fit5", "fit10"],
+        },
+      ],
+    });
+    const inv = out.inventory ?? [];
+    expect(inv).toHaveLength(2);
+    expect(inv[0].enhanceLevel).toBe(20);
+    expect(inv[0].stats).toEqual({ str: 25, dex: 8 });
+    expect(inv[1].enhanceLevel).toBe(10);
+    expect(inv[1].talismanSkills).toEqual(["fit5", "fit10"]);
+    // 인코딩 후에도 그대로 (와이어 키 변경 없음).
+    const encoded = encodeUpHeroForCloud(out) as { inventory: Array<{ enhanceLevel?: number }> };
+    expect(encoded.inventory[0].enhanceLevel).toBe(20);
+  });
+});
+
 describe("normalizeUpHeroState — combatBuff", () => {
   // pct 는 퍼센트 포인트다 (10 = +10%). 굴림틀이 실제로 거는 값이 10 이라
   // 여기서 10 이 그대로 왕복하는지가 핵심이다 — 예전 상한 1 은 이걸 1 로 접어

@@ -21,20 +21,38 @@ import type { DictKey } from "@/i18n";
 import type { Language } from "@/types/game";
 import { equipmentNameById } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
-import type { Equipment } from "@/types/uphero";
+import {
+  ENHANCE_TITLE_LEVELS,
+  getEnhanceTitle,
+  type EnhanceGuardSpend,
+  type Equipment,
+} from "@/types/uphero";
 
+/**
+ * Phase 5-B — 다섯 갈래 모두 `spent`(이번 시도에 나간 방지권)를 싣는다. 시도당
+ * 소모라 성공/유지/소실에서도 방지권이 나갈 수 있고, 모달이 그것을 한 줄씩 말한다.
+ */
 export type EnhanceModalVariant =
-  | { kind: "success"; newItem: Equipment; prevLevel: number }
-  /** 실패했지만 아무 일도 없었던 경우. 방지권도 소모되지 않았다. */
-  | { kind: "keep"; item: Equipment }
+  | { kind: "success"; newItem: Equipment; prevLevel: number; spent: EnhanceGuardSpend }
+  /** 실패했지만 아무 일도 없었던 경우. */
+  | { kind: "keep"; item: Equipment; spent: EnhanceGuardSpend }
   /**
-   * 방지권이 소실/하락을 막아준 경우 — 이때만 해당 방지권이 1장 줄어들었으므로
-   * 결과 문구도 "무엇을 막았는지" 를 말해야 한다.
+   * 방지권이 소실/하락을 막아준 경우 — 결과 문구가 "무엇을 막았는지" 를 말한다.
    */
-  | { kind: "guarded"; item: Equipment; guard: "destroy" | "down" }
+  | {
+      kind: "guarded";
+      item: Equipment;
+      guard: "destroy" | "down";
+      spent: EnhanceGuardSpend;
+    }
   /** 실패로 강화 단계가 1 내려간 경우. prevLevel 은 내려가기 전 레벨. */
-  | { kind: "down"; item: Equipment; prevLevel: number }
-  | { kind: "destroyed"; lostItemName: string; lostBaseId?: string };
+  | { kind: "down"; item: Equipment; prevLevel: number; spent: EnhanceGuardSpend }
+  | {
+      kind: "destroyed";
+      lostItemName: string;
+      lostBaseId?: string;
+      spent: EnhanceGuardSpend;
+    };
 
 interface EnhanceResultModalProps {
   variant: EnhanceModalVariant;
@@ -62,7 +80,19 @@ export default function EnhanceResultModal({
 
   if (typeof window === "undefined") return null;
 
-  const { title, tone, body, cta, icon } = resolveVariant(variant, t, language);
+  const { title, tone, body, cta, icon, glow } = resolveVariant(variant, t, language);
+  // Phase 5-B — 소모된 방지권을 한 줄씩. 시도당 소모라 어떤 결과에서도 나올 수 있다.
+  const spentLines: string[] = [];
+  if (variant.spent.destroy > 0) {
+    spentLines.push(
+      t("uphero.enhance.spent.line", { name: t("uphero.guard.destroy.name") }),
+    );
+  }
+  if (variant.spent.down > 0) {
+    spentLines.push(
+      t("uphero.enhance.spent.line", { name: t("uphero.guard.down.name") }),
+    );
+  }
 
   return createPortal(
     <div
@@ -81,6 +111,7 @@ export default function EnhanceResultModal({
         style={{
           background: GB.darkest,
           border: `1px solid ${tone}`,
+          boxShadow: glow ? `0 0 18px ${GB.lightest}55` : undefined,
           outline: "none",
         }}
       >
@@ -105,6 +136,15 @@ export default function EnhanceResultModal({
           style={{ color: GB.light }}
         >
           {body}
+          {spentLines.length > 0 && (
+            <div className="mt-2 flex flex-col gap-0.5">
+              {spentLines.map((line) => (
+                <div key={line} className="typo-micro" style={{ color: GB.light }}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Footer — CTA */}
@@ -173,23 +213,60 @@ function resolveVariant(
   body: React.ReactNode;
   cta: string;
   icon: string;
+  /** Phase 5-B — +15 이상 성공은 카드에 라임 글로우. */
+  glow?: boolean;
 } {
   if (variant.kind === "success") {
     const { newItem, prevLevel } = variant;
     const newLevel = newItem.enhanceLevel ?? prevLevel + 1;
     const localName = equipmentNameById(newItem.baseId ?? "", newItem.name, language);
+    // Phase 5-B — 각성(+15..+19) / 초월(+20) 타이틀 + 칭호 칩 + 새 스탯 한 줄.
+    const enhanceTitle = getEnhanceTitle(newLevel);
+    const title =
+      newLevel >= ENHANCE_TITLE_LEVELS.transcended
+        ? t("uphero.enhance.success.transcendTitle")
+        : newLevel >= ENHANCE_TITLE_LEVELS.awakened
+          ? t("uphero.enhance.success.awakenTitle")
+          : t("uphero.enhance.success.fullTitle");
+    const tone =
+      newLevel >= ENHANCE_TITLE_LEVELS.awakened
+        ? GB.lightest
+        : newLevel >= 10
+          ? GB_LEGEND
+          : GB.lightest;
+    const statLine = Object.entries(newItem.stats)
+      .filter(([, v]) => v != null && v !== 0)
+      .map(([k, v]) => `${k.toUpperCase()} +${v}${k === "crit" ? "%" : ""}`)
+      .join(" · ");
     return {
-      title: t("uphero.enhance.success.fullTitle"),
-      tone: newLevel >= 10 ? GB_LEGEND : GB.lightest,
+      title,
+      tone,
+      glow: newLevel >= ENHANCE_TITLE_LEVELS.awakened,
       icon: "Check",
       body: (
         <>
+          {enhanceTitle && (
+            <span
+              className="typo-micro inline-block mb-1 px-1.5 rounded-sm"
+              style={{ background: `${GB.lightest}22`, color: GB.lightest }}
+              aria-label={t("uphero.enhance.title.chipAria", {
+                title: t(`uphero.enhance.title.${enhanceTitle}` as const),
+              })}
+            >
+              {t(`uphero.enhance.title.${enhanceTitle}` as const)}
+            </span>
+          )}
           <div style={{ color: GB.lightest, fontWeight: 600 }}>
             {localName}
           </div>
           <div className="mt-1.5 tabular-nums">
             +{prevLevel} → <span style={{ color: GB.lightest }}>+{newLevel}</span>
           </div>
+          {statLine && (
+            <div className="mt-1 typo-micro tabular-nums" style={{ color: GB.light }}>
+              {statLine}
+            </div>
+          )}
         </>
       ),
       cta: t("uphero.enhance.continue"),
