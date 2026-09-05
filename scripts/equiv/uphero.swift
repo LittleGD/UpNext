@@ -126,3 +126,34 @@ let cases12: [(Hero, Int)] = [
 for (i, pair) in cases12.enumerated() {
     print("getBuffSlotCount(case\(i),\(pair.1)) = \(UpHeroRules.getBuffSlotCount(hero: pair.0, level: pair.1))")
 }
+
+// ── Phase 2-A (Track A) — 영웅 XP 풀 곡선 / SP 파생 / XP 소스 ──────────────
+// 13. heroXpToNextLevel / heroTotalXPForLevel — 표 + clamp (0, -5, 1000 → cap)
+for lv in [0, -5, 1, 2, 5, 10, 20, 22, 30, 40, 45, 47, 50, 60, 100, 999, 1000] {
+    print("heroXpToNextLevel(\(lv)) = \(UpHeroRules.heroXpToNextLevel(lv))")
+    print("heroTotalXPForLevel(\(lv)) = \(UpHeroRules.heroTotalXPForLevel(lv))")
+}
+// 14. heroLevelFromXP — 역함수 경계 + 상한 + 음수
+for xp in [0, 120, 121, 509, 510, 1365, 5831, 12035, 39031, 331955259, 2000000000, 1000000000000, -1] {
+    print("heroLevelFromXP(\(xp)) = \(UpHeroRules.heroLevelFromXP(xp))")
+}
+// 15. heroXPProgress
+for (xp, lv) in [(0, 1), (1000, 1), (39031, 47), (5000, 10), (331955259, 999)] {
+    let pr = UpHeroRules.heroXPProgress(totalXp: xp, level: lv)
+    print("getHeroXPProgress(\(xp),\(lv)) = \(pr.current),\(pr.needed)")
+}
+// 16. skillPointsTotalForLevel
+for lv in [1, 29, 30, 31, 45, 999, 1000] {
+    print("skillPointsTotalForLevel(\(lv)) = \(UpHeroRules.skillPointsTotalForLevel(lv))")
+}
+// 17. bossClearXp / floorXp / resolveHeroLevel
+for (fl, ng) in [(10, 0), (20, 0), (30, 0), (30, 1), (45, 1), (60, 2), (1, 0)] {
+    print("bossClearXp(\(fl),\(ng)) = \(UpHeroRules.bossClearXp(floor: fl, ngPlusLevel: ng))")
+    print("floorXp(\(fl),\(ng)) = \(UpHeroRules.floorXp(floor: fl, ngPlusLevel: ng))")
+}
+let cases17: [(Int?, Int, Int?)] = [(nil, 47, 1), (0, 47, 1), (245, 47, 41), (39031, 47, 1), (nil, 43, 41)]
+for (xp, g, h) in cases17 {
+    let xpLabel = xp.map { String($0) } ?? "undefined"
+    let hLabel = h.map { String($0) } ?? "undefined"
+    print("resolveHeroLevel(\(xpLabel),\(g),\(hLabel)) = \(UpHeroRules.resolveHeroLevel(heroXp: xp, gameLevel: g, heroStartLevel: h))")
+}

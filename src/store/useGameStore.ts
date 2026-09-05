@@ -607,35 +607,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       } else {
         updatedProgress.pendingPacks += levelsGained;
       }
-      // Phase 12d — Lv30+ (전직 후) 레벨업마다 스킬 포인트 +1 지급.
-      //   Lv31 부터 유효. prevLevel < 30, newLevel = 35 라면 35-30 = 5 포인트.
-      try {
-        if (newLevel > 30) {
-          const pointsToGrant =
-            prevLevel < 30
-              ? newLevel - 30 // 첫 전직 구간 : Lv31 ~ newLevel 까지 total
-              : levelsGained; // 이미 Lv30+ 였으면 획득한 level 만큼
-          if (pointsToGrant > 0) {
-            const heroStore = useUpHeroStore.getState();
-            const curPoints = heroStore.hero.skillPoints ?? 0;
-            heroStore.grantSkillPoints(pointsToGrant);
-            void curPoints;
-          }
-        }
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useGameStore] grantSkillPoints failed:", e);
-        }
-      }
-      // Phase 14 — 전직 전 튜토리얼 novice 스킬 자동 지급 (Lv5, Lv15).
-      //   grantNoviceSkills 는 idempotent — requiredLevel 충족 & 미보유 만 추가.
-      try {
-        useUpHeroStore.getState().grantNoviceSkills(newLevel);
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useGameStore] grantNoviceSkills failed:", e);
-        }
-      }
+      // Phase 2-A (Track A, 피드백 7/32) — 계정 레벨업은 영웅에게 아무것도 주지 않는다.
+      //   스킬 포인트·novice 스킬·전직 제안은 전부 영웅 XP 풀(useUpHeroStore.heroXp)의
+      //   레벨 마일스톤(applyHeroLevelMilestones)이 담당한다. 여기 남아 있던 세 개의
+      //   역방향 게이트(grantSkillPoints / grantNoviceSkills / proposeClassChoice)는 제거.
     }
 
     const shouldOpenPack = updatedProgress.pendingPacks > (progress.pendingPacks || 0);
@@ -663,21 +638,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       totalXp: xpGain + bonusXp,
       levelsGained,
     };
-
-    // Phase 5c.1: Lv 30 도달 시 영웅 class 분화.
-    // Bug 2026-04 — 자동 할당 → "추천 + 선택" UX 로 변경. proposeClassChoice 가
-    //   pendingClassChoice 를 세팅하면 ClassChoiceModal 이 열리고, 유저가 8개
-    //   중 하나를 고르면 confirmClassChoice 로 실제 분화가 이뤄진다.
-    // 이전 레벨 < 30 & 새 레벨 >= 30 인 edge 에서만 시도.
-    if (prevLevel < 30 && updatedProgress.level >= 30) {
-      try {
-        useUpHeroStore.getState().proposeClassChoice();
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useGameStore] proposeClassChoice failed:", e);
-        }
-      }
-    }
 
     // 알림 갱신
     if (updatedProgress.notificationsEnabled) {

@@ -20,7 +20,6 @@ import { useGrowthStore } from "@/store/useGrowthStore";
 import { isPhotoBound } from "@/lib/photoTalisman";
 import {
   getHeroAppearanceVariant,
-  getEffectiveHeroLevel,
   enhanceSuccessRate,
   enhanceCost,
   enhanceOutcomeRates,
@@ -34,7 +33,7 @@ import {
 import type { Equipment, EquipSlot } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
 import { GB, EASE_OUT, gbClass, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
-import { useGameStore } from "@/store/useGameStore";
+import { useHeroLevel } from "./useHeroLevel";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
@@ -191,10 +190,8 @@ export default function EquipmentInventory({
   // Phase 15 — 방지권 2종 보유 개수.
   const destroyGuards = useUpHeroStore((s) => s.destroyGuards ?? 0);
   const downGuards = useUpHeroStore((s) => s.downGuards ?? 0);
-  // Phase 9d — 영웅 전용 레벨.
-  const gameLevel = useGameStore((s) => s.progress.level);
-  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
-  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  // Phase 2-A — 영웅 레벨은 heroXp 풀 기준.
+  const level = useHeroLevel();
   const { play } = useSound();
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
 

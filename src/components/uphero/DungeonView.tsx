@@ -17,12 +17,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore, slotSpinsLeft } from "@/store/useUpHeroStore";
-import { useGameStore } from "@/store/useGameStore";
+import { useHeroLevel } from "./useHeroLevel";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import {
   computeEffectiveStats,
   getHeroAppearanceVariant,
-  getEffectiveHeroLevel,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
 import type { CombatSession, Monster } from "@/types/uphero";
@@ -95,10 +94,8 @@ export default function DungeonView() {
   // 오늘 굴림 횟수는 세션이 아니라 shopDaily 에 산다 (하루 상한, 탐험을 넘어 합산).
   const shopDaily = useUpHeroStore((s) => s.shopDaily);
   const spinSlotAgain = useUpHeroStore((s) => s.spinSlotAgain);
-  // Phase 9d — 영웅 전용 레벨 사용. variant 결정 등.
-  const gameLevel = useGameStore((s) => s.progress.level);
-  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
-  const heroLevel = getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  // Phase 2-A — 영웅 레벨은 heroXp 풀 기준 (useHeroLevel). variant 결정 등.
+  const heroLevel = useHeroLevel();
 
   const [speed, setSpeed] = useState<1 | 2 | 4>(1);
   const [paused, setPaused] = useState(false);

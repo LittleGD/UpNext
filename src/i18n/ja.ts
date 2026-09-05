@@ -104,6 +104,14 @@ const ja: Record<DictKey, string> = {
   "uphero.levelup.title": "LEVEL UP!",
   "uphero.levelup.reached": "Lv.{level} に到達",
   "uphero.levelup.announce": "レベルアップ! Lv.{level} に到達しました",
+  // Phase 2-A (Track A) — hero level-up overlay (hero XP pool).
+  "uphero.heroLevelup.title": "英雄レベルアップ",
+  "uphero.heroLevelup.range": "英雄 Lv.{from} → Lv.{to}",
+  "uphero.heroLevelup.sp": "スキルポイント +{n}",
+  "uphero.heroLevelup.classReady": "転職できるようになりました",
+  "uphero.heroLevelup.statDelta": "{stat} +{n}",
+  "uphero.heroLevelup.stat.maxHp": "最大HP",
+  "uphero.heroLevelup.announce": "英雄レベルアップ! 英雄 Lv.{to} に到達しました",
 
   // === splash ===
   "splash.tagline": "毎日小さな達成を積み重ねるローグライクチャレンジ",

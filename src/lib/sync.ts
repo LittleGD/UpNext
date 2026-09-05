@@ -8,6 +8,7 @@ import {
   createDefaultHero,
   DUNGEON_BY_CLASS,
   ENHANCE_GUARD_MAX,
+  clampHeroXp,
 } from "@/types/uphero";
 import type { DailyState, UserProgress } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
@@ -122,6 +123,10 @@ export type CloudUpHeroState = Partial<
     | "lastIdleAccrualAt"
     | "lastSeenAt"
     | "heroStartLevel"
+    // Phase 2-A (Track A) — 영웅 XP 풀. 와이어 키 = "heroXp" (정수 [0, HERO_XP_CAP]).
+    //   없으면 로컬 유지(절대 지어내지 않는다), 시드된 뒤엔 0 이어도 항상 인코딩.
+    //   iOS UpHeroCloudSchema CodingKeys 에 같은 철자로 있어야 한다.
+    | "heroXp"
     | "shopDaily"
     | "ngPlusLevel"
     // Phase 15 — 방지권 2종 + 슬롯머신 전투 버프.
@@ -452,6 +457,12 @@ export function normalizeUpHeroState(raw: unknown): CloudUpHeroState {
   } else if (hasUpHeroFootprint(state)) {
     state.heroStartLevel = 1;
   }
+  // heroXp — 영웅 XP 풀 (Phase 2-A). 키가 있을 때만 싣고 [0, HERO_XP_CAP] 정수로 접는다.
+  // 구 클라이언트 문서(키 없음)는 생략 → _setFromCloud 가 undefined 로 두고 ensureHeroXp
+  // 가 progress.level 로 시드한다. 여기서 0 이나 레거시 공식으로 지어내면 두 기기의
+  // 풀이 서로를 덮는다 (mergeCloudHeroXp 의 단조 병합 전제가 깨진다).
+  const heroXp = asFinite(r.heroXp);
+  if (heroXp !== undefined) state.heroXp = clampHeroXp(heroXp);
   return state;
 }
 

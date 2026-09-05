@@ -12,9 +12,8 @@
  */
 
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { useGameStore } from "@/store/useGameStore";
+import { useHeroLevel } from "./useHeroLevel";
 import {
-  getEffectiveHeroLevel,
   CLASS_RESOURCE,
   type ClassType,
 } from "@/types/uphero";
@@ -28,9 +27,8 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
   const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
   const learnSkill = useUpHeroStore((s) => s.learnSkill);
-  const gameLevel = useGameStore((s) => s.progress.level);
-  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
-  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  // Phase 2-A — 영웅 레벨은 heroXp 풀 기준. SP 는 레벨 파생 캐시(hero.skillPoints).
+  const level = useHeroLevel();
   const learned = hero.learnedSkills ?? [];
   const points = hero.skillPoints ?? 0;
   const tree = CLASS_SKILL_TREES[classType];

@@ -26,6 +26,8 @@ import {
   computeEffectiveStats,
   CLASS_RESOURCE,
   CLASS_RESOURCE_MAX,
+  bossClearXp,
+  floorXp,
   type ResourceEvent,
 } from "@/types/uphero";
 import { createMonsterForFloor } from "@/data/upHeroMonsters";
@@ -124,7 +126,7 @@ export interface CreateSessionOptions {
   /** Phase 11c — 주간 affix id (isWeeklyVariant=true 일 때만 의미). */
   weeklyAffixId?: string;
   /**
-   * 영웅 레벨 (챌린지 레벨 - heroStartLevel + 1). 초보자 버프 판정 용.
+   * 영웅 레벨 (Phase 2-A: `heroXp` 풀에서 파생, `resolveHeroLevel`). 초보자 버프 판정 용.
    *   미전달 시 undefined → 레거시 동작 (버프 해제 상태) 유지.
    */
   heroLevel?: number;
@@ -387,6 +389,20 @@ function sessionStats(s: CombatSession): HeroBaseStats {
     dex: Math.round(base.dex * m),
     agi: Math.round(base.agi * m),
   };
+}
+
+/**
+ * Phase 2-A (Track A) — 세션의 XP 배율 한 곳. 카드 버프 xpBoost × 클래스(mage +20%)
+ * × 주간 affix(`s.xpMult`, 풍요의 수확 -25%). 처치 XP(보스 보너스 포함)와 층 진입
+ * XP 가 **같은** 배율을 탄다 — 한쪽만 곱하면 "XP +20%" 카피가 거짓이 된다.
+ * iOS UpHeroSession.sessionXpMult 미러.
+ */
+export function sessionXpMult(s: CombatSession): number {
+  return (
+    (1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100) *
+    classXpMult(s.hero.classType) *
+    (s.xpMult ?? 1)
+  );
 }
 
 /**
@@ -806,10 +822,8 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
         // Phase 11b: talisman 카리스마 (coinMult) × class × buff 모두 곱.
         const tMods = sessionMods(s);
         // Phase 11c-balance — weekly affix xpMult (풍요의 수확 XP -25%) 반영.
-        const xpMult =
-          (1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100) *
-          classXpMult(s.hero.classType) *
-          (s.xpMult ?? 1);
+        // Phase 2-A — 층 진입 XP 와 같은 배율 (sessionXpMult).
+        const xpMult = sessionXpMult(s);
         let coinMult =
           (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
           classCoinMult(s.hero.classType) *
@@ -818,7 +832,13 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
           coinMult *= s.nextCoinMult;
           s.nextCoinMult = undefined;
         }
-        const gainedXp = Math.round(monster.xpReward * xpMult);
+        // Phase 2-A (Track A, 피드백 20) — 보스 처치 보너스 `bossClearXp(층, NG+)` 를
+        //   같은 victory 엔트리에 합산한다 (LogEntry 종류 추가 없음, iOS 디코더 불변).
+        //   영웅 XP 풀로 정산되는 값이며 계정 XP 는 건드리지 않는다.
+        const bossBonus = monster.isBoss
+          ? bossClearXp(monster.level, s.ngPlusLevel ?? 0)
+          : 0;
+        const gainedXp = Math.round((monster.xpReward + bossBonus) * xpMult);
         const gainedCoin = Math.round(monster.coinReward * coinMult);
         s.log.push({
           type: "victory",
@@ -977,6 +997,10 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
       timestamp: Date.now(),
     });
     s.currentFloor = nextFloor;
+    // Phase 2-A (Track A) — 층 진입 XP. 처치 XP 와 같은 배율(sessionXpMult)을 탄다.
+    //   skipFloors 로 건너뛴 층은 받지 않는다 (applyChoiceEffect 는 이 줄을 지나지 않음).
+    //   로그 엔트리는 추가하지 않는다 — rewards.xp 에만 누적.
+    s.rewards.xp += Math.round(floorXp(nextFloor, s.ngPlusLevel ?? 0) * sessionXpMult(s));
     // Phase 12d — 층 이동 시 자원 (chronomancer 시간 파편, druid 자연력).
     gainClassResource(s, "floor");
     // Phase 4c.1 — 층 이동마다 시간 소모
