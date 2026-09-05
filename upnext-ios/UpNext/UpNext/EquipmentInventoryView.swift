@@ -7,9 +7,13 @@
 //   - 등급별 외곽 글로우 (common 무 / rare 청 / unique 자홍 / legend 라임)
 //   - 슬롯 미장착 시 placeholder + PixelIcon
 //   - 보유 장비 그리드 — 등급 글로우 카드
-//   - 탭 → 액션 (장착/판매/강화/버리기)
+//   - 탭 → 액션 (장착/강화/판매/합성)
 //   - 강화 → EnhanceRitualOverlay (밴드별 2.0/2.6/3.4s) + 결과 후 토스트
 //   - Phase 5-B: +20 상한, 시도당 방지권 패널(GbConfirmPanel), 밴드 힌트, 칭호 칩
+//   - Phase 6-E (Track E): 가방 N/30 헤더, 슬롯 필터 칩, 카드 슬롯 칩 + 2열 스탯 + 버프 슬롯 칩,
+//     등급 스트로크 제거(보더 금지 규칙 — 글로우·배지로 등급 표시), 합성 모드(같은 등급 3개 →
+//     다음 등급 1개, GbConfirm 확인 + 결과 모달), 버리기 액션 제거(넘친 전리품 시트만 쓴다),
+//     판매가 = 등급 + 드롭 층 + 강화 단계. 소유권 분리: B 는 강화 흐름, E 는 레이아웃/합성.
 //
 
 import SwiftUI
@@ -37,8 +41,17 @@ struct EquipmentInventoryView: View {
     // (성공률·소실/하락 위험·비용·방지권을 보여줘야 하므로 — 웹 GbConfirm 과 같은 자리).
     // 웹 EquipmentInventory.tsx 처럼 pending 하나로 세 액션 공유, title/body 만 분기.
     @State private var pendingAction: PendingEquipAction?
+    /// Phase 6-E — 슬롯 필터 (nil = 전체). 웹 slotFilter.
+    @State private var slotFilter: EquipSlot?
+    /// Phase 6-E — 합성 모드 + 고른 재료 id (최대 3). 웹 synthMode / synthPicks.
+    @State private var synthMode = false
+    @State private var synthPicks: [String] = []
+    /// 합성 확인 대기 재료 (GbConfirm). 웹 PendingAction kind "synth".
+    @State private var pendingSynth: [Equipment]?
+    /// 합성 결과 (SynthesisResultModal 대응).
+    @State private var synthResult: Equipment?
 
-    private enum EquipConfirmKind { case sell, discard, enhance }
+    private enum EquipConfirmKind { case sell, enhance }
     private struct PendingEquipAction: Identifiable {
         let id = UUID()
         let kind: EquipConfirmKind
@@ -97,23 +110,49 @@ struct EquipmentInventoryView: View {
                 .zIndex(50)
             }
 
-            // 05-modal-design — 판매/버리기 재확인 (danger). 웹 EquipmentInventory.tsx:741~ 문구.
-            if let pending = pendingAction, pending.kind != .enhance {
+            // 05-modal-design — 판매 재확인 (danger). 웹 EquipmentInventory.tsx 문구.
+            // Phase 6-E — 버리기는 액션에서 빠졌다 (판매가 항상 우세, 넘친 전리품 시트만 버리기).
+            if let pending = pendingAction, pending.kind == .sell {
                 GbConfirm(
-                    title: pending.kind == .sell
-                        ? "\(pending.item.localizedDisplayName) — 판매할까요?"
-                        : "\(pending.item.localizedDisplayName) — 버릴까요?",
-                    message: pending.kind == .sell
-                        ? "+\(UpHeroRules.sellPrice[pending.item.rarity] ?? 0) 코인"
-                        : "환급 없음 · 복구 불가",
-                    confirmLabel: pending.kind == .sell ? "판매" : "버리기",
+                    title: "\(pending.item.localizedDisplayName) — 판매할까요?",
+                    message: "+\(UpHeroStore.sellPrice(pending.item)) 코인",
+                    confirmLabel: "판매",
                     danger: true,
                     onConfirm: {
-                        if pending.kind == .sell { upHero.sellItem(pending.item.id) }
-                        else { upHero.discardItem(pending.item.id) }
+                        upHero.sellItem(pending.item.id)
                         pendingAction = nil
                     },
                     onCancel: { pendingAction = nil })
+                .transition(.opacity)
+                .zIndex(60)
+            }
+
+            // Phase 6-E — 합성 확인 (웹 GbConfirm synth 분기).
+            if let items = pendingSynth, let first = items.first,
+               let next = UpHeroRules.nextRarity[first.rarity] {
+                GbConfirm(
+                    title: LocalizedStringKey(AppConfig.loc("\(first.rarity.displayName) 장비 3개를 합성할까요?")),
+                    message: LocalizedStringKey(AppConfig.loc(
+                        "\(next.displayName) 장비 1개가 나와요. 강화 단계는 사라지고 층수는 가장 높은 것을 따라가요")),
+                    confirmLabel: "합성",
+                    onConfirm: { runSynthesis(items) },
+                    onCancel: { pendingSynth = nil })
+                .transition(.opacity)
+                .zIndex(60)
+            }
+
+            // Phase 6-E — 합성 결과 (웹 SynthesisResultModal). 카드 한 장 + 확인.
+            if let result = synthResult {
+                GbConfirm(title: "합성 완료", onBackdropTap: { synthResult = nil }) { tint in
+                    VStack(spacing: 12) {
+                        EquipmentSlotCard(item: result, slot: result.type, onAction: nil)
+                            .frame(maxWidth: 200)
+                        GbConfirmStandardFooter(
+                            confirmLabel: "확인", cancelLabel: "취소", tint: tint,
+                            showCancel: false,
+                            onConfirm: { synthResult = nil }, onCancel: { synthResult = nil })
+                    }
+                }
                 .transition(.opacity)
                 .zIndex(60)
             }
@@ -127,8 +166,9 @@ struct EquipmentInventoryView: View {
 
             if let toast { toastView(toast) }
         }
-        // 액션 선택 시트 — 장착만 즉시 실행. 강화·판매·버리기는 GbConfirm 재확인을 거친다
+        // 액션 선택 시트 — 장착만 즉시 실행. 강화·판매·합성은 GbConfirm 재확인을 거친다
         // (강화는 성공률·소실/하락 위험·방지권을 먼저 보여줘야 하므로 즉시 실행에서 승격).
+        // Phase 6-E — [장착] [강화] [판매 +가격] [합성]; 버리기 제거.
         .confirmationDialog(
             // 액션시트 타이틀은 raw name(한국어 원문) 대신 현지화 표시명 사용 — 전 언어 정합.
             actionItem?.localizedDisplayName ?? "",
@@ -151,13 +191,83 @@ struct EquipmentInventoryView: View {
                 }
                 .disabled(upHero.state.coins < cost)
             }
-            Button("판매 (+\(UpHeroRules.sellPrice[item.rarity] ?? 0) 코인)") {
+            Button("판매 (+\(UpHeroStore.sellPrice(item)) 코인)") {
                 pendingAction = PendingEquipAction(kind: .sell, item: item); actionItem = nil
             }
-            Button("버리기", role: .destructive) {
-                pendingAction = PendingEquipAction(kind: .discard, item: item); actionItem = nil
+            if item.photoId == nil, UpHeroRules.nextRarity[item.rarity] != nil {
+                Button(AppConfig.loc("합성")) {
+                    enterSynthMode(first: item)
+                    actionItem = nil
+                }
             }
             Button("취소", role: .cancel) { actionItem = nil }
+        }
+    }
+
+    // MARK: - Phase 6-E — 합성 모드 (웹 synthMode / toggleSynthPick / executePending synth)
+
+    /// 합성 모드 진입 — 선택한 아이템을 첫 재료로. 슬롯 필터는 재료 탐색을 막지 않게 푼다.
+    private func enterSynthMode(first: Equipment) {
+        synthMode = true
+        synthPicks = [first.id]
+        slotFilter = nil
+        Haptics.play(.selection)
+    }
+
+    private func exitSynthMode() {
+        synthMode = false
+        synthPicks = []
+    }
+
+    /// 합성 재료 토글. 사진 부적·legend·등급 불일치는 토스트로 거절 (웹 toggleSynthPick).
+    private func toggleSynthPick(_ item: Equipment) {
+        if let idx = synthPicks.firstIndex(of: item.id) {
+            synthPicks.remove(at: idx)
+            Haptics.play(.selection)
+            return
+        }
+        if let reason = synthBlockReason(item) {
+            failToast(reason)
+            return
+        }
+        guard synthPicks.count < UpHeroRules.synthesisInputCount else { return }
+        synthPicks.append(item.id)
+        Haptics.play(.selection)
+    }
+
+    /// 재료가 될 수 없는 이유 (nil = 가능). 첫 재료의 등급이 기준이다.
+    private func synthBlockReason(_ item: Equipment) -> String? {
+        if item.photoId != nil { return AppConfig.loc("사진 부적은 합성할 수 없어요") }
+        if UpHeroRules.nextRarity[item.rarity] == nil { return AppConfig.loc("전설 장비는 합성할 수 없어요") }
+        if let firstId = synthPicks.first,
+           let first = upHero.state.inventory.first(where: { $0.id == firstId }),
+           first.rarity != item.rarity {
+            return AppConfig.loc("같은 등급끼리만 합성할 수 있어요")
+        }
+        return nil
+    }
+
+    private var synthPickItems: [Equipment] {
+        synthPicks.compactMap { id in upHero.state.inventory.first { $0.id == id } }
+    }
+
+    private func runSynthesis(_ items: [Equipment]) {
+        pendingSynth = nil
+        switch upHero.synthesizeItems(items.map(\.id)) {
+        case .ok(let item):
+            exitSynthMode()
+            Haptics.play(.success)
+            SoundPlayer.shared.play(.collect)
+            synthResult = item
+            showToast(AppConfig.loc("\(item.localizedDisplayName) 획득"))
+        case .fail(let reason):
+            switch reason {
+            case .rarity: failToast(AppConfig.loc("같은 등급끼리만 합성할 수 있어요"))
+            case .legend: failToast(AppConfig.loc("전설 장비는 합성할 수 없어요"))
+            case .photo: failToast(AppConfig.loc("사진 부적은 합성할 수 없어요"))
+            case .count, .notFound: failToast(AppConfig.loc("아이템을 찾을 수 없음"))
+            }
+            exitSynthMode()
         }
     }
 
@@ -526,7 +636,9 @@ struct EquipmentInventoryView: View {
             }
         } else {
             VStack(spacing: 6) {
-                PixelIcon(slotIcon(slot), size: 28, color: Color.textTertiary.opacity(0.4))
+                // Phase 6-E — 슬롯 글리프 (EquipSlot.glyphName 단일 출처), 박스 없이 맨 아이콘.
+                PixelIcon(PixelIconName.resolve(slot.glyphName), size: 22,
+                          color: Color.textTertiary.opacity(0.4))
                 Text(slotName(slot))
                     .typography(.micro).foregroundStyle(Color.textTertiary)
                 Text("비어 있음")
@@ -546,36 +658,80 @@ struct EquipmentInventoryView: View {
     // MARK: - 보유 장비 그리드
 
     private var inventoryGrid: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("보유 장비 (\(upHero.state.inventory.count))")
-                .typography(.heading).foregroundStyle(Color.textPrimary)
-            if upHero.state.inventory.isEmpty {
+        let inventory = upHero.state.inventory
+        let count = inventory.count
+        let cap = UpHeroRules.inventoryCap
+        let visible = inventory.filter { slotFilter == nil || $0.type == slotFilter }
+        return VStack(alignment: .leading, spacing: 10) {
+            // Phase 6-E — 가방 N/30 (가득 차면 경고 톤). 웹 uphero.equip.bagCount.
+            Text(AppConfig.loc("보유 장비 (\(count)/\(cap))"))
+                .typography(.heading).monospacedDigit()
+                .foregroundStyle(count >= cap ? GBPalette.enemy : Color.textPrimary)
+            if inventory.isEmpty {
                 Text("보유한 장비가 없어요.\n던전을 탐험하면 얻을 수 있어요.")
                     .typography(.caption).foregroundStyle(Color.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
+                // Phase 6-E — 슬롯 필터 칩 (텍스트 전용, 보더 없음).
+                SlotFilterChips(selection: $slotFilter)
+                if synthMode {
+                    synthBanner
+                }
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                    ForEach(upHero.state.inventory) { item in
-                        Button { actionItem = item } label: {
-                            EquipmentSlotCard(item: item, slot: nil, onAction: nil)
+                    ForEach(visible) { item in
+                        let picked = synthPicks.contains(item.id)
+                        let dimmed = synthMode && !picked && synthBlockReason(item) != nil
+                        Button {
+                            if synthMode { toggleSynthPick(item) } else { actionItem = item }
+                        } label: {
+                            EquipmentSlotCard(item: item, slot: nil, onAction: nil, selected: picked)
                         }
                         .buttonStyle(.plain)
+                        .opacity(dimmed ? 0.4 : 1)
+                        .accessibilityAddTraits(picked ? .isSelected : [])
                     }
+                }
+                if synthMode {
+                    synthFooter
                 }
             }
         }
     }
 
-    // MARK: - 헬퍼
-
-    private func slotIcon(_ slot: EquipSlot) -> PixelIconName {
-        switch slot {
-        case .weapon:    return .sword
-        case .armor:     return .shield
-        case .accessory: return .sparkle
-        case .talisman:  return .star
+    /// Phase 6-E — 합성 모드 안내줄 + 나가기. 웹 uphero.equip.synth.mode.
+    private var synthBanner: some View {
+        HStack(spacing: 8) {
+            Text(AppConfig.loc("같은 등급 장비 3개를 고르세요"))
+                .typography(.caption).foregroundStyle(GBPalette.light)
+            Spacer(minLength: 0)
+            Button(AppConfig.loc("취소")) { exitSynthMode() }
+                .typography(.caption).foregroundStyle(Color.textTertiary)
+                .buttonStyle(.plain)
+                .frame(minHeight: 32)
         }
     }
+
+    /// Phase 6-E — "합성 n/3" 버튼. 3개가 모여야 활성 (웹 footer 버튼).
+    private var synthFooter: some View {
+        let items = synthPickItems
+        let ready = items.count == UpHeroRules.synthesisInputCount
+        return Button {
+            guard ready else { return }
+            pendingSynth = items
+        } label: {
+            Text(AppConfig.loc("합성 \(items.count)/3"))
+                .typography(.body).monospacedDigit()
+                .foregroundStyle(ready ? Color.bgPrimary : Color.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(ready ? Color.accentPrimary : Color.bgSurface,
+                            in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .disabled(!ready)
+        .opacity(ready ? 1 : 0.5)
+    }
+
+    // MARK: - 헬퍼
 
     private func slotName(_ slot: EquipSlot) -> String {
         switch slot {
@@ -593,6 +749,8 @@ struct EquipmentSlotCard: View {
     let item: Equipment
     let slot: EquipSlot?
     let onAction: (() -> Void)?
+    /// Phase 6-E — 합성 재료로 고른 상태 (선택 상태는 보더 예외 규칙).
+    var selected: Bool = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -603,6 +761,12 @@ struct EquipmentSlotCard: View {
                         .foregroundStyle(Color.bgPrimary)
                         .padding(.horizontal, 5).padding(.vertical, 1)
                         .background(item.rarity.color, in: Capsule())
+                    // Phase 6-E — 슬롯 칩 (텍스트만, GB.dark 배경 단계). 웹 slot chip.
+                    Text(slotChipLabel)
+                        .typography(.micro)
+                        .foregroundStyle(GBPalette.light)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(GBPalette.dark, in: RoundedRectangle(cornerRadius: 3))
                     if let lvl = item.enhanceLevel, lvl > 0 {
                         // Phase 5-B — +N 칩 톤은 밴드 표 (웹 enhanceChipTone):
                         //   1..9 어두운 배경 / 10..14 legend 골드 / 15..19 라임 + 글로우 /
@@ -635,20 +799,27 @@ struct EquipmentSlotCard: View {
                         .background(GBPalette.lightest.opacity(0.13), in: Capsule())
                         .accessibilityLabel(AppConfig.loc("칭호 \(titleText)"))
                 }
-                Text(statSummary(item.stats))
-                    .typography(.micro)
-                    .foregroundStyle(Color.textTertiary)
-                    .lineLimit(1)
+                // Phase 6-E — 전 스탯 2열 마이크로 그리드 (주스탯 먼저, EquipmentStats 단일 출처).
+                statGrid
+                // Phase 6-E — 부적 버프 슬롯 칩 (slotBonus > 0).
+                if (item.stats[.slotBonus] ?? 0) > 0 {
+                    Text(AppConfig.loc("버프 슬롯 +1"))
+                        .typography(.micro)
+                        .foregroundStyle(GBPalette.lightest)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(GBPalette.lightest.opacity(0.13), in: RoundedRectangle(cornerRadius: 3))
+                }
             }
             .padding(8)
             // 그룹 등고(패턴 A) — 이름 2줄·강화 배지 유무로 갈리던 셀 높이를 행 단위로 통일.
             // 빈 슬롯 카드(EquipmentInventoryView.slotCard)와 같은 바닥값이라 2×2 행이 맞는다.
             .unCardCell(minHeight: CardHeights.equipmentCell)
             .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+            // Phase 6-E — 등급 스트로크 제거 (카드 보더 금지 규칙). 등급은 글로우 + 배지로.
+            //   선택 상태(합성 재료)만 예외로 라임 스트로크.
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(item.rarity.color.opacity(rarityBorderAlpha),
-                            lineWidth: item.rarity == .legend ? 2 : 1)
+                    .stroke(Color.accentPrimary, lineWidth: selected ? 2 : 0)
             )
             .shadow(color: item.rarity.color.opacity(rarityGlowAlpha),
                     radius: rarityGlowRadius)
@@ -669,12 +840,34 @@ struct EquipmentSlotCard: View {
         }
     }
 
-    private var rarityBorderAlpha: Double {
-        switch item.rarity {
-        case .normal: return 0.15
-        case .rare:   return 0.4
-        case .unique: return 0.5
-        case .legend: return 0.7
+    /// 슬롯 칩 라벨 — 카탈로그 키는 EquipSlot.labelKey (무기/방어구/장신구/부적).
+    private var slotChipLabel: String {
+        switch item.type {
+        case .weapon:    return AppConfig.loc("무기")
+        case .armor:     return AppConfig.loc("방어구")
+        case .accessory: return AppConfig.loc("장신구")
+        case .talisman:  return AppConfig.loc("부적")
+        }
+    }
+
+    /// Phase 6-E — 스탯 2열 그리드. 웹 EquipmentCard sm `grid grid-cols-2`.
+    @ViewBuilder
+    private var statGrid: some View {
+        let entries = EquipmentStats.orderedEntries(item)
+        if entries.isEmpty {
+            Text(AppConfig.loc("효과 없음"))
+                .typography(.micro).foregroundStyle(Color.textTertiary)
+        } else {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4)],
+                      alignment: .leading, spacing: 0) {
+                ForEach(Array(entries.enumerated()), id: \.offset) { idx, entry in
+                    Text("\(entry.key.label) \(EquipmentStats.format(entry.key, entry.value))")
+                        .font(.system(size: 9)).monospacedDigit()
+                        .foregroundStyle(idx == 0 ? Color.textPrimary : Color.textTertiary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
         }
     }
 
@@ -696,12 +889,51 @@ struct EquipmentSlotCard: View {
         }
     }
 
-    private func statSummary(_ stats: [StatKey: Int]) -> String {
-        let parts = StatKey.allCases.compactMap { key -> String? in
-            guard let v = stats[key], v != 0 else { return nil }
-            return "\(key.label)\(v > 0 ? "+" : "")\(v)"
+}
+
+// MARK: - Phase 6-E — 슬롯 필터 칩 (웹 SlotFilterChips)
+
+/// 전체 + 무기/방어구/장신구/부적 텍스트 칩. 보더 없음 — 활성은 라임 배경, 비활성은 GB.dark 단계.
+/// 가방과 (향후) 강화 목록이 같은 필터를 공유한다.
+struct SlotFilterChips: View {
+    @Binding var selection: EquipSlot?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                chip(label: AppConfig.loc("전체"), slot: nil)
+                ForEach(EquipSlot.displayOrder, id: \.self) { slot in
+                    chip(label: slotLabel(slot), slot: slot)
+                }
+            }
         }
-        return parts.isEmpty ? AppConfig.loc("효과 없음") : parts.joined(separator: " ")
+    }
+
+    private func chip(label: String, slot: EquipSlot?) -> some View {
+        let active = selection == slot
+        return Button {
+            selection = slot
+            Haptics.play(.selection)
+        } label: {
+            Text(label)
+                .typography(.micro)
+                .foregroundStyle(active ? GBPalette.darkest : GBPalette.light)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 32)
+                .background(active ? GBPalette.lightest : GBPalette.dark.opacity(0.4),
+                            in: RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func slotLabel(_ slot: EquipSlot) -> String {
+        switch slot {
+        case .weapon:    return AppConfig.loc("무기")
+        case .armor:     return AppConfig.loc("방어구")
+        case .accessory: return AppConfig.loc("장신구")
+        case .talisman:  return AppConfig.loc("부적")
+        }
     }
 }
 

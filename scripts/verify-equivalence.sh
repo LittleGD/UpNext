@@ -112,7 +112,7 @@ run_suite uphero           Card.swift Game.swift UpHero.swift
 run_suite uphero-combat    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift
 run_suite classskills      Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift
 run_suite talisman-reward  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift TalismanSkills.swift SessionReward.swift EquipmentPool.swift
-run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift
+run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift BossSprites.swift
 run_suite affix-narrative  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift
 run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift FlavorPool.swift
 run_suite sync             Card.swift Game.swift FirestoreModels.swift

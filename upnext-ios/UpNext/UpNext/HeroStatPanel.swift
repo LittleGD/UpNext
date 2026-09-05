@@ -555,9 +555,13 @@ struct HeroStatPanel: View {
 
     private func equipRow(slot: EquipSlot, item: Equipment?) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(slotLabel(slot))
-                .typography(.caption).foregroundStyle(gbDim)
-                .frame(width: 56, alignment: .leading)
+            // Phase 6-E — 슬롯 글리프(박스 없이 맨 아이콘) + 라벨. EquipSlot.glyphName 단일 출처.
+            HStack(spacing: 4) {
+                PixelIcon(PixelIconName.resolve(slot.glyphName), size: 12, color: gbDim)
+                Text(slotLabel(slot))
+                    .typography(.caption).foregroundStyle(gbDim)
+            }
+            .frame(width: 68, alignment: .leading)
             if let item {
                 // 사진 부적이면 썸네일, 아니면 픽셀 아이콘.
                 if let photoId = item.photoId {
@@ -573,6 +577,12 @@ struct HeroStatPanel: View {
                         if let lv = item.enhanceLevel, lv > 0 {
                             Text("+\(lv)").typography(.micro).foregroundStyle(gbText)
                         }
+                    }
+                    // Phase 6-E — 주스탯 한 줄 (EquipmentStats 순서의 첫 항목).
+                    if let first = EquipmentStats.orderedEntries(item).first {
+                        Text("\(first.key.label) \(EquipmentStats.format(first.key, first.value))")
+                            .typography(.micro).monospacedDigit()
+                            .foregroundStyle(gbDim)
                     }
                     // talisman skill 칩 (✦ 이름) — 웹 :244-276.
                     if let ids = item.talismanSkills, !ids.isEmpty {

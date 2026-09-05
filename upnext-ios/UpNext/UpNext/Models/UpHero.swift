@@ -226,6 +226,13 @@ struct Equipment: Equatable, Identifiable {
     var affix: StatKey?              // Phase 11a — 2차 affix stat key
     var affixes: [StatKey]?          // Phase 11a — legend 전용 3차 affix
     var talismanSkills: [String]?    // Phase 11b — 사진 부적 passive skill id
+    /// Phase 6-E (Track E) — 드롭된 층. `EquipmentPool.createEquipmentFromTemplate(dungeonFloor:)`
+    /// 와 합성(재료의 max) 이 기록한다. 판매가(`UpHeroRules.sellPrice`) 와 합성 층 규칙이 읽는다.
+    /// 레거시 저장본은 `EquipmentRepair` 가 주스탯에서 역추정해 채운다 (없으면 nil).
+    /// 사진 부적은 층이 없다 (판매가는 0 층). 와이어 키 `dropFloor` (int optional).
+    /// ⚠️ 반드시 **마지막** 저장 프로퍼티로 둔다 — 기본값 nil 이라 기존 memberwise init
+    /// 호출부(talismanSkills 가 마지막 인자)가 그대로 컴파일된다.
+    var dropFloor: Int? = nil
 }
 
 // MARK: - 몬스터 / 던전
@@ -675,6 +682,12 @@ struct PendingClassChoice: Equatable {
 struct UpHeroState: Equatable {
     var hero: Hero
     var inventory: [Equipment]
+    /// Phase 6-E (Track E, 피드백 22) — 정산 때 가방 상한(`UpHeroRules.inventoryCap`)을 넘긴
+    /// 전리품. `SessionReward.splitDropsByCap` 이 나눠 담고, 캠프의 BagOverflowSheet 가 한 개씩
+    /// 판매/버리기 또는 모두 판매로 비운다. 인벤토리와 별개라 `inventory.count <= inventoryCap`
+    /// 불변식이 정산 뒤 항상 성립한다. 영속 + 클라우드 동기화 (와이어 키 `overflowDrops`,
+    /// [] 허용, footprint 포함). 레거시 저장본은 []. 웹 `UpHeroState.overflowDrops`.
+    var overflowDrops: [Equipment] = []
     var coins: Int
     /// 탐험권 보유량 — 카테고리별. 웹 `ExpeditionPasses`.
     var passes: [DungeonId: Int]
@@ -1113,9 +1126,45 @@ enum UpHeroRules {
         .normal: 1, .rare: 1.5, .unique: 2.5, .legend: 4,
     ]
 
-    /// 장비 판매 환급. 웹 `SELL_PRICE`.
-    static let sellPrice: [Rarity: Int] = [
+    // ── Phase 6-E (Track E) — 인벤토리 경제: 판매가 / 가방 상한 / 합성 ────────
+
+    /// 장비 판매 환급의 기본값 (Phase 4a 의 `SELL_PRICE` 표). +0 / 0층 가격은 그대로다.
+    /// 실제 환급은 `sellPrice(rarity:dropFloor:enhanceLevel:)`. 웹 `SELL_PRICE_BASE`.
+    static let sellPriceBase: [Rarity: Int] = [
         .normal: 5, .rare: 15, .unique: 50, .legend: 200,
+    ]
+    /// 드롭 층당 가산 (층은 0..99 로 clamp). 웹 `SELL_PRICE_FLOOR_MULT`.
+    static let sellPriceFloorMult: [Rarity: Int] = [
+        .normal: 1, .rare: 2, .unique: 4, .legend: 8,
+    ]
+    /// 강화 단계당 가산 (단계는 0..maxEnhanceLevel 로 clamp). 웹 `SELL_PRICE_ENHANCE_MULT`.
+    static let sellPriceEnhanceMult: [Rarity: Int] = [
+        .normal: 3, .rare: 6, .unique: 15, .legend: 40,
+    ]
+    /// 판매가 층 clamp 상한. 웹 `SELL_PRICE_FLOOR_CAP`.
+    static let sellPriceFloorCap = 99
+
+    /// 판매 환급 = BASE[r] + FLOOR_MULT[r] × clamp(dropFloor ?? 0, 0, 99)
+    ///                     + ENHANCE_MULT[r] × clamp(enhanceLevel ?? 0, 0, 20).
+    /// 전부 정수 산술 — 웹 `sellPrice` 와 동일 픽스처
+    ///   (normal,0,0)=5 · (normal,30,0)=35 · (rare,12,3)=57 · (unique,20,10)=280 ·
+    ///   (legend,30,10)=840 · (legend,120,25)=1792 (층 99 · 단계 20 clamp).
+    static func sellPrice(rarity: Rarity, dropFloor: Int?, enhanceLevel: Int?) -> Int {
+        let f = min(sellPriceFloorCap, max(0, dropFloor ?? 0))
+        let l = min(maxEnhanceLevel, max(0, enhanceLevel ?? 0))
+        return (sellPriceBase[rarity] ?? 0)
+            + (sellPriceFloorMult[rarity] ?? 0) * f
+            + (sellPriceEnhanceMult[rarity] ?? 0) * l
+    }
+
+    /// 가방 상한. 정산(`acknowledgeSessionEnd` → `splitDropsByCap`) 과 사진 부적 생성에서만
+    /// 강제한다 — 장착 해제/합성은 막지 않는다. 웹 `INVENTORY_CAP`.
+    static let inventoryCap = 30
+    /// 합성 재료 개수 — 같은 등급 3개 → 다음 등급 1개. 웹 `SYNTHESIS_INPUT_COUNT`.
+    static let synthesisInputCount = 3
+    /// 합성 결과 등급. legend 는 합성 불가 (nil). 웹 `NEXT_RARITY`.
+    static let nextRarity: [Rarity: Rarity] = [
+        .normal: .rare, .rare: .unique, .unique: .legend,
     ]
 
     // ── 영웅 이름 풀 ──────────────────────────────────────────────

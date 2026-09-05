@@ -1,5 +1,6 @@
 // datalayer.swift — Phase 2.4 데이터 레이어 동치성 검증 (Swift 측).
-// 컴파일: Card+Game+UpHero+UpHeroRNG+UpHeroCombat+Dungeons+MonsterPool+EquipmentPool
+// 컴파일: Card+Game+UpHero+UpHeroRNG+UpHeroCombat+Dungeons+MonsterPool+EquipmentPool+BossSprites
+//         (Phase 6-E: 7 sellPrice / 8 synthesizeEquipment / 9 equipmentBaseName / 10 bossSprites)
 //         ↔  scripts/datalayer-check.mjs
 
 import Foundation
@@ -90,6 +91,58 @@ for dg in [DungeonId.fitness, .learning] {
         let b = MonsterPool.createMonsterForFloor(dungeonId: dg, floor: floor, isBoss: true, rng: &rng)
         lines.append("createBoss:\(dg.rawValue):f\(floor) = \(b.templateId ?? "-") hp\(b.hp) atk\(b.atk) def\(b.def) xp\(b.xpReward) coin\(b.coinReward)")
     }
+}
+
+// ── 7. sellPrice (Phase 6-E, Track E — 정수 표 산술) ────────────
+let sellCfgs: [(Rarity, Int, Int)] = [
+    (.normal, 0, 0), (.normal, 30, 0), (.rare, 12, 3),
+    (.unique, 20, 10), (.legend, 30, 10), (.legend, 120, 25),
+]
+for (rarity, floor, level) in sellCfgs {
+    let p = UpHeroRules.sellPrice(rarity: rarity, dropFloor: floor, enhanceLevel: level)
+    lines.append("sellPrice:\(rarity.rawValue):f\(floor):l\(level) = \(p)")
+}
+
+// ── 8. synthesizeEquipment (시드, id 제외) ─────────────────────
+//   rng 호출 순서: 풀 인덱스 1회 → createEquipmentFromTemplate 내부.
+func synthSources(_ rarity: Rarity) -> [Equipment] {
+    func mk(_ id: String, _ category: DungeonId, _ dropFloor: Int) -> Equipment {
+        Equipment(id: id, name: "x", baseId: nil, type: .weapon, rarity: rarity, category: category,
+                  iconName: "Sword", stats: [.str: 5], effects: nil, flavor: nil, photoId: nil,
+                  enhanceLevel: nil, enhanceFailStreak: nil, affix: nil, affixes: nil,
+                  talismanSkills: nil, dropFloor: dropFloor)
+    }
+    return [mk("a", .fitness, 12), mk("b", .learning, 20), mk("c", .learning, 15)]
+}
+for rarity in [Rarity.normal, .rare, .unique] {
+    for seed in 1...4 {
+        var rng = Mulberry32(seed: seed)
+        let out = EquipmentPool.synthesizeEquipment(synthSources(rarity), rng: &rng)!
+        lines.append("synth:\(rarity.rawValue):s\(seed) = \(out.baseId ?? "-")|\(out.rarity.rawValue)|f\(out.dropFloor.map(String.init) ?? "undefined")|\(fmtEq(out))")
+    }
+}
+do {
+    var rng = Mulberry32(seed: 1)
+    lines.append("synth:legend:s1 = \(EquipmentPool.synthesizeEquipment(synthSources(.legend), rng: &rng) == nil ? "null" : "?")")
+}
+
+// ── 9. equipmentBaseName ───────────────────────────────────────
+let nameCfgs: [(String?, String, Rarity)] = [
+    ("self_control_sword", "신성한 자기절제의 검 of 민첩, 힘 +7", .legend),
+    (nil, "신성한 자기절제의 검 of 민첩, 힘 +7", .legend),
+    (nil, "빛나는 곡물의 갑옷 of 힘", .rare),
+    (nil, "꾸준함의 방패 +3", .normal),
+    (nil, "메모의 펜", .normal),
+    ("nope", "빛나는 지혜의 안경 of 힘", .rare),
+]
+for (i, cfg) in nameCfgs.enumerated() {
+    lines.append("baseName:\(i) = \(EquipmentPool.equipmentBaseName(name: cfg.1, rarity: cfg.2, baseId: cfg.0))")
+}
+
+// ── 10. bossSprites (24 × 2 프레임 12×12) ──────────────────────
+for id in BossSprites.frames.keys.sorted() {
+    let f = BossSprites.frames[id]!
+    lines.append("boss:\(id) = \(f[0].joined(separator: "|"))/\(f[1].joined(separator: "|"))")
 }
 
 print(lines.joined(separator: "\n"))

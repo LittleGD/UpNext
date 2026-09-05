@@ -229,6 +229,7 @@ struct MonsterCodexCard: View {
         VStack(spacing: 6) {
             MonsterSprite(
                 kind: template.kind,
+                templateId: template.id,
                 size: 44,
                 color: discovered
                     ? (template.isBoss ? Color.accentSecondary : Color.textPrimary)

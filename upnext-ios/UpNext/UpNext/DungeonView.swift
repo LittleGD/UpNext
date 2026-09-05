@@ -315,6 +315,7 @@ struct DungeonView: View {
                 if let enemy {
                     MonsterSprite(
                         kind: enemy.kind,
+                        templateId: enemy.templateId,
                         size: 56,
                         color: enemy.isBoss == true ? Color.accentSecondary : Color.textPrimary,
                         glow: enemy.isBoss == true

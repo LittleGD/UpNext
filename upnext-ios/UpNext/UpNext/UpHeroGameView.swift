@@ -37,6 +37,14 @@ struct UpHeroGameView: View {
                 .zIndex(90)
                 .transition(.opacity)
             }
+            // Phase 6-E (Track E, 피드백 22) — 넘친 전리품 시트. 세션 없음 · 레벨업 오버레이
+            //   없음 · 전직 제안 없음일 때만 (순서: HeroLevelUpOverlay → ClassChoice →
+            //   BagOverflowSheet). 웹 isBagOverflowVisible 과 같은 조건.
+            if BagOverflowSheet.isVisible(upHero.state) {
+                BagOverflowSheet()
+                    .zIndex(66)
+                    .transition(.opacity)
+            }
         }
     }
 }
