@@ -196,6 +196,19 @@ export interface Equipment {
    * 일반 드롭 장비에는 없음 (사진 부적 전용).
    */
   talismanSkills?: string[];
+  /**
+   * 격자 가방 좌표 (Backpack Hero 스타일, `src/lib/upHeroBag.ts`).
+   *   bagX 0..4, bagY 0..7 (row 0 = 십자, 아래로 자람), bagRot 0..3 (v1 은 weapon 만 0/1 이 다름).
+   *   세 키가 모두 없으면 미배치(정리 대기 트레이). 착용 아이템(`hero.equipped`)은 좌표를 갖지 않는다
+   *   (equipItem 이 지운다). 레거시 저장본은 undefined → 로드 시 `packAllIfNonePlaced` 가 first-fit.
+   *   미배치 전환은 키 **삭제**로만 한다 (undefined 대입은 Firestore 페이로드에서 throw).
+   *   정규화 계약(무효 → 삭제, floor 정수)은 `normalizeEquipmentPlacement` 하나만 쓴다.
+   *   클라우드 와이어 키도 그대로 `bagX/bagY/bagRot`. iOS `UpHeroCloudSchema.CloudEquipment.K` 화이트리스트에
+   *   같은 철자로 있어야 왕복에서 탈락하지 않는다 — 웹·iOS 를 **함께** 배포할 것.
+   */
+  bagX?: number;
+  bagY?: number;
+  bagRot?: number;
 }
 
 /** 탐험권 보유량 — 카테고리별 */

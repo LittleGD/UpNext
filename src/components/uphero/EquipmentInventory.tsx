@@ -1,20 +1,33 @@
 "use client";
 
 /**
- * Up Hero — EquipmentInventory.
+ * Up Hero — 가방 (격자 인벤토리).
  *
- * 구조:
- *  - 상단 1/3: 영웅 sprite + 십자 4슬롯 (위=weapon, 아래=talisman, 좌=armor, 우=accessory)
- *  - 중단 actions: 선택한 아이템이 있을 때 [장착 / 해제 / 판매 / 버리기]
- *  - 하단 2/3: 보유 장비 grid (스크롤) — EquipmentCard sm
+ * 화면은 위에서 아래로 고정 높이 4단이다:
+ *   서브헤더 48 / BagBoard(남는 만큼) / 사진 부적 CTA 44 / BagTray 64 / BagActionBar 56.
+ * 보드는 **절대 스크롤 컨테이너 안에 두지 않는다** — 격자는 한 화면에 다 보여야
+ * "무엇이 어디 있는지"가 공간 기억으로 남는다. 대신 셀 크기가 44~56 사이에서 줄어든다.
  *
- * interaction flow:
- *  1. 사용자가 보유 장비 grid 에서 한 장 탭 → 선택 상태 (border 하이라이트)
- *  2. action bar 활성화: 장착하려면 "장착" (type 에 맞는 슬롯으로 이동)
- *  3. 또는 슬롯 탭 → 해제 (다시 인벤토리로)
+ * 탭(가방/사진/강화)은 제거했다. 강화는 선택 아이템의 액션바 버튼이고, 정렬된
+ * 강화 개요는 서브헤더 오른쪽 아이콘이 여는 보조 시트다(같은 JSX 재사용).
+ *
+ * 상태 기계(플랜 §7): idle → selected(item) → placing(item, rot).
+ *   - 아이템 탭 = 선택 / 같은 아이템 재탭 = 회전(무기만)
+ *   - 빈 칸 탭 = 그 칸을 원점으로 배치
+ *   - 앵커 탭 = 착용 아이템 선택 (해제·강화)
+ * 드래그는 이 경로 위에 얹힌 것이고, 탭 경로가 항상 보장된 폴백이다.
  */
 
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { useUpHeroStore, type EnhanceResult } from "@/store/useUpHeroStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
 import { isPhotoBound } from "@/lib/photoTalisman";
@@ -29,18 +42,24 @@ import {
   isEnhanceSafeLevel,
   MAX_ENHANCE_LEVEL,
   SELL_PRICE,
-  CLASS_THEME_COLOR,
 } from "@/types/uphero";
 import type { Equipment, EquipSlot } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
+import {
+  bagRows,
+  canRotate,
+  computeBagSynergy,
+  firstValidOriginCovering,
+  normalizeBagLayout,
+  normalizeRot,
+  readPlacement,
+} from "@/lib/upHeroBag";
 import { GB, EASE_OUT, gbClass, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { useGameStore } from "@/store/useGameStore";
 import { useSound } from "@/hooks/useSound";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
-import type { DictKey } from "@/i18n";
 import { equipmentNameById } from "@/lib/upHeroI18n";
-import EquipmentCard from "./EquipmentCard";
-import HeroSprite from "./HeroSprite";
 import GbConfirm from "./GbConfirm";
 import EnhanceRitualOverlay, {
   type EnhanceRitualOutcome,
@@ -49,25 +68,38 @@ import EnhanceResultModal, {
   type EnhanceModalVariant,
 } from "./EnhanceResultModal";
 import PixelIcon from "@/components/icons/PixelIcon";
+import BagBoard, { type BagBoardHandle } from "./BagBoard";
+import BagTray from "./BagTray";
+import BagActionBar from "./BagActionBar";
 
 // Phase 9b — PhotoTalismanPicker 는 picker 버튼 탭 시에만 필요.
-//   631줄 + PhotoMeta/DUNGEONS import → 장비 탭 첫 진입에서 번들링 제외.
 const PhotoTalismanPicker = lazy(() => import("./PhotoTalismanPicker"));
-import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
+// 영웅 칸 탭 → 스탯 패널. 포털 기반이라 fallback 없이 열어도 자연스럽다.
+const HeroStatPanel = lazy(() => import("./HeroStatPanel"));
+
+/** 서브헤더 높이 — 캠프 헤더(41) 아래 한 단. 플랜 §7 세로 예산. */
+const SUB_HEADER_H = 48;
+/** 사진 부적 CTA 한 줄. 트레이 머리줄로 붙는다. */
+const PHOTO_CTA_H = 44;
+
+/**
+ * "새로 들어온 타일" 표식 — 첫 탭 전까지 모서리 점.
+ *
+ * 비영속이고 스토어에도 없다. 모듈 스코프에 두는 이유: 가방 화면은 탐험 정산
+ * 뒤에 다시 **마운트**되는데, 컴포넌트 state 로 두면 매 진입마다 전부 새것이
+ * 되거나 전부 헌것이 된다. 페이지 세션 동안만 살아 있으면 충분하다.
+ */
+const seenIds = new Set<string>();
+/** 첫 마운트가 기존 아이템을 "본 것"으로 채웠는지. 렌더가 아니라 effect 에서만 바뀐다. */
+let seenPrimed = false;
 
 /**
  * i18n 템플릿에서 값 한 개를 강조 span 으로 감싸기 위한 분할 헬퍼.
  *
- * 호출부는 t() 에 실제 값 대신 sentinel 을 넣고, 돌아온 문자열을 sentinel 기준으로
- * 앞/뒤로 자른 다음 그 사이에 span 을 끼운다.
- *
  * **주의 (2026-08 버그의 원인)**: 템플릿이 이미 단위 기호를 갖고 있다
- * (`"성공률 {pct}%"`, `"비용 {cost} 코인"`). 그러니 span 안에는 **숫자만** 넣어야
- * 한다. 여기에 단위를 덧붙이면 템플릿에 남아 있던 기호와 겹쳐 `86%%` 가 된다.
- * 단위는 잘려나온 뒷부분(after)이 그대로 들고 있으므로 화면에서는 이어져 보인다.
- *
+ * (`"성공률 {pct}%"`). 그러니 span 안에는 **숫자만** 넣어야 한다.
  * String.prototype.split 대신 indexOf 를 쓰는 이유: 토큰이 두 번 이상 나오는
- * 템플릿에서 split 의 [before, after] 구조 분해가 나머지 조각을 조용히 버린다.
+ * 템플릿에서 split 의 구조 분해가 나머지 조각을 조용히 버린다.
  */
 function splitAtToken(text: string, token: string): [string, string] {
   const idx = text.indexOf(token);
@@ -77,10 +109,7 @@ function splitAtToken(text: string, token: string): [string, string] {
 
 /**
  * Phase 15 — 강화 확인 다이얼로그의 방지권 토글 한 줄.
- *
- * 보유가 0 이면 토글 자체를 그리지 않는다 — 누를 수 없는 체크박스는 "살 수도 있나"
- * 를 묻게 만들 뿐이라, 그 자리에 구하는 경로를 한 줄로 대신 적는다.
- * 최소 터치 타깃 40px 은 다른 다이얼로그 컨트롤과 같은 값이다.
+ * 보유가 0 이면 토글 자체를 그리지 않고 구하는 경로를 한 줄로 대신 적는다.
  */
 function GuardToggle({
   held,
@@ -123,8 +152,7 @@ function GuardToggle({
   );
 }
 
-/** Phase 9a / 11a — 판매/버리기/강화 확인 dialog pending state.
- *   enhance 는 이제 단일 아이템 + 비용 + 성공률 snapshot. */
+/** Phase 9a / 11a — 판매/버리기/강화 확인 dialog pending state. */
 type PendingAction =
   | { kind: "sell"; item: Equipment }
   | { kind: "discard"; item: Equipment }
@@ -141,40 +169,6 @@ interface EquipmentInventoryProps {
   onNotify: (msg: string) => void;
 }
 
-// Phase 12 i18n — 슬롯 라벨을 i18n key 로 저장. 렌더 시점 t() 로 언어별 문자열.
-const SLOT_LABEL_KEY: Record<EquipSlot, DictKey> = {
-  weapon: "uphero.slot.weapon",
-  armor: "uphero.slot.armor",
-  accessory: "uphero.slot.accessory",
-  talisman: "uphero.slot.talisman",
-};
-
-/**
- * 슬롯 배치 (영웅 중심 십자):
- *    weapon (위)
- * armor     accessory
- *    talisman (아래)
- *
- * absolute positioning 으로 영웅 sprite 주변에 배치.
- */
-const SLOT_POSITIONS: Record<
-  EquipSlot,
-  { top?: string; bottom?: string; left?: string; right?: string }
-> = {
-  weapon: { top: "0", left: "50%" }, // 상 중앙
-  talisman: { bottom: "0", left: "50%" }, // 하 중앙
-  armor: { top: "50%", left: "0" }, // 좌 중앙
-  accessory: { top: "50%", right: "0" }, // 우 중앙
-};
-
-/** 슬롯 translate 보정 (중앙 정렬용) */
-const SLOT_TRANSFORMS: Record<EquipSlot, string> = {
-  weapon: "translate(-50%, 0)",
-  talisman: "translate(-50%, 0)",
-  armor: "translate(0, -50%)",
-  accessory: "translate(0, -50%)",
-};
-
 export default function EquipmentInventory({
   onBack,
   onNotify,
@@ -188,6 +182,7 @@ export default function EquipmentInventory({
   const sellItem = useUpHeroStore((s) => s.sellItem);
   const discardItem = useUpHeroStore((s) => s.discardItem);
   const enhanceItem = useUpHeroStore((s) => s.enhanceItem);
+  const placeItem = useUpHeroStore((s) => s.placeItem);
   // Phase 15 — 방지권 2종 보유 개수.
   const destroyGuards = useUpHeroStore((s) => s.destroyGuards ?? 0);
   const downGuards = useUpHeroStore((s) => s.downGuards ?? 0);
@@ -198,65 +193,266 @@ export default function EquipmentInventory({
   const { play } = useSound();
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
 
+  /** 보드 행 수는 렌더 시점에 계산한다 — 레벨업 직후에도 스토어와 어긋나지 않게. */
+  const rows = bagRows(level);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<EquipSlot | null>(null);
+  const [placing, setPlacing] = useState(false);
+  const [placingRot, setPlacingRot] = useState(0);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [enhanceListOpen, setEnhanceListOpen] = useState(false);
   /** Phase 7 — 사진 부적 Picker 오버레이 표시 여부. */
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
-  /** Phase 8a — 장비 페이지 내부 탭 (가방 기본 / 사진 부적 / 강화) */
-  const [tab, setTab] = useState<"bag" | "photo" | "enhance">("bag");
-  /** Phase 9a — GbConfirm 으로 교체된 판매/버리기/합성 pending state. */
+  /** Phase 9a — GbConfirm 으로 교체된 판매/버리기/강화 pending state. */
   const [pending, setPending] = useState<PendingAction | null>(null);
-  /**
-   * Phase 15 — 이번 강화 시도에 방지권을 걸지 여부 (2종 독립).
-   * 확인 다이얼로그를 열 때마다 기본 ON 으로 되돌린다 (onEnhance). 소모는 실제로
-   * 막아냈을 때만 일어나므로 켜둔 채로 두는 것이 유저에게 손해가 아니다.
-   */
   const [armDestroyGuard, setArmDestroyGuard] = useState(true);
   const [armDownGuard, setArmDownGuard] = useState(true);
 
-  /** Phase 8a — 사진 부적 탭 카운트용 */
-  const photoMetas = useGrowthStore((s) => s.photoMetas);
-  const photoCounts = useMemo(() => {
-    const boundCount = inventory.filter((i) => i.photoId).length;
-    const unboundCount = photoMetas.filter(
-      (p) => !isPhotoBound(p.id, inventory, hero.equipped),
-    ).length;
-    return { boundCount, unboundCount, totalPhotos: photoMetas.length };
-  }, [inventory, photoMetas, hero.equipped]);
+  const boardRef = useRef<BagBoardHandle>(null);
+
+  // ─── 파생 상태 ─────────────────────────────────────────────────────────
+
+  const layout = useMemo(
+    () => normalizeBagLayout(inventory, rows).layout,
+    [inventory, rows],
+  );
+  const synergy = useMemo(
+    () => computeBagSynergy(hero.equipped, inventory, rows),
+    [hero.equipped, inventory, rows],
+  );
+  /** 트레이 = 미배치 + 보류(좌표는 있지만 지금 rows 밖). 최신순. */
+  const trayItems = useMemo(() => {
+    const out = inventory.filter(
+      (i) => layout.statusById[i.id] !== "placed",
+    );
+    return out.reverse();
+  }, [inventory, layout]);
+  const suspendedIds = useMemo(
+    () => new Set(layout.suspended.map((i) => i.id)),
+    [layout],
+  );
+
+  /**
+   * 처음 마운트 때 있던 것은 "새것" 이 아니다 — 전부 점을 찍으면 신호가 죽는다.
+   * `seenTick` 은 "탭해서 확인했다" 를 리렌더로 옮기는 트리거일 뿐이다(모듈 Set 은
+   * 리액트가 관찰하지 못한다).
+   */
+  const [seenTick, setSeenTick] = useState(0);
+  // 첫 마운트: 지금 있는 아이템을 전부 "본 것"으로 채운다. 렌더 중에 모듈 변수를
+  //   바꾸면 순수성이 깨지므로(react-hooks/globals) effect 에서 한 번만 하고 tick 으로
+  //   리렌더를 유도한다. 그 전 첫 프레임은 점을 하나도 찍지 않는다(아래 memo).
+  useEffect(() => {
+    if (seenPrimed) return;
+    for (const i of inventory) seenIds.add(i.id);
+    seenPrimed = true;
+    setSeenTick((n) => n + 1);
+    // 최초 1회만 — inventory 는 그 시점 스냅샷이면 충분하다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const newIds = useMemo(() => {
+    void seenTick;
+    const out = new Set<string>();
+    if (!seenPrimed) return out;
+    for (const i of inventory) if (!seenIds.has(i.id)) out.add(i.id);
+    return out;
+  }, [inventory, seenTick]);
+  const markSeen = useCallback((id: string) => {
+    if (seenIds.has(id)) return;
+    seenIds.add(id);
+    setSeenTick((n) => n + 1);
+  }, []);
+
   const selectedItem = selectedId
-    ? inventory.find((i) => i.id === selectedId)
+    ? (inventory.find((i) => i.id === selectedId) ?? null)
     : null;
+  const selectedWorn = selectedSlot ? (hero.equipped[selectedSlot] ?? null) : null;
 
-  const onEquip = (item: Equipment) => {
-    equipItem(item.id, item.type);
-    play("equip");
-    onNotify(
-      t("uphero.equip.toast.equipped", {
-        name: equipmentNameById(item.baseId ?? "", item.name, language),
-      }),
-    );
+  const photoMetas = useGrowthStore((s) => s.photoMetas);
+  const unboundPhotoCount = useMemo(
+    () =>
+      photoMetas.filter((p) => !isPhotoBound(p.id, inventory, hero.equipped))
+        .length,
+    [inventory, photoMetas, hero.equipped],
+  );
+
+  // ─── 선택 / 배치 ───────────────────────────────────────────────────────
+
+  const clearSelection = useCallback(() => {
     setSelectedId(null);
-  };
+    setSelectedSlot(null);
+    setPlacing(false);
+  }, []);
 
-  const onUnequipSlot = (slot: EquipSlot) => {
-    const item = hero.equipped[slot];
-    if (!item) return;
-    unequipItem(slot);
-    play("equip");
-    onNotify(
-      t("uphero.equip.toast.unequipped", {
-        name: equipmentNameById(item.baseId ?? "", item.name, language),
-      }),
-    );
-  };
+  /** 배치 커밋 — 성공하면 그 자리로, 실패하면 상태를 전혀 건드리지 않는다. */
+  const commitPlace = useCallback(
+    (itemId: string, x: number, y: number, rot: number, withSound: boolean) => {
+      const res = placeItem(itemId, x, y, rot);
+      if (res.ok) {
+        markSeen(itemId);
+        setPlacing(false);
+        if (withSound) play("equip");
+        onNotify(t("uphero.bag.toast.placed"));
+      } else {
+        if (withSound) play("cancel");
+        onNotify(t("uphero.bag.toast.noSpace"));
+      }
+      return res;
+    },
+    [placeItem, play, onNotify, t, markSeen],
+  );
 
-  // Phase 9a — 직접 confirm() 대신 GbConfirm 상태 설정.
-  const onSell = (item: Equipment) => {
-    setPending({ kind: "sell", item });
-  };
+  /** 같은 아이템 재탭 = 회전. 이미 놓여 있으면 제자리 회전까지 시도한다. */
+  const rotateSelected = useCallback(() => {
+    if (!selectedItem) return;
+    if (!canRotate(selectedItem.type)) return;
+    const nextRot = (placingRot + 1) % 2;
+    const p = readPlacement(selectedItem);
+    if (p) {
+      const res = placeItem(selectedItem.id, p.x, p.y, nextRot);
+      if (!res.ok) {
+        play("cancel");
+        onNotify(t("uphero.bag.toast.noSpace"));
+        return;
+      }
+    }
+    setPlacingRot(nextRot);
+    play("select");
+  }, [selectedItem, placingRot, placeItem, play, onNotify, t]);
 
-  const onDiscard = (item: Equipment) => {
-    setPending({ kind: "discard", item });
-  };
+  const handleSelect = useCallback(
+    (id: string | null) => {
+      if (id == null) {
+        clearSelection();
+        return;
+      }
+      if (id === selectedId) {
+        rotateSelected();
+        return;
+      }
+      const item = inventory.find((i) => i.id === id);
+      if (!item) return;
+      markSeen(id);
+      setSelectedSlot(null);
+      setSelectedId(id);
+      setPlacingRot(normalizeRot(item.bagRot));
+      setPlacing(false);
+      play("select");
+    },
+    [selectedId, inventory, rotateSelected, clearSelection, play, markSeen],
+  );
+
+  /**
+   * 빈 칸 탭 = 그 칸을 **덮는** 자리에 놓기. 탭한 칸을 원점으로만 쓰면 1x2 무기를 맨 윗줄에
+   * 탭했을 때 footprint 가 보드 밖으로 나가 거절된다 — 덮는 원점 후보를 순서대로 시도한다.
+   */
+  const handleTapEmptyCell = useCallback(
+    (x: number, y: number) => {
+      if (!selectedId) {
+        clearSelection();
+        return;
+      }
+      const item = inventory.find((i) => i.id === selectedId);
+      if (!item) return;
+      const origin = firstValidOriginCovering(
+        layout.occupancy,
+        rows,
+        item.type,
+        placingRot,
+        x,
+        y,
+        item.id,
+      );
+      if (!origin) {
+        play("cancel");
+        onNotify(t("uphero.bag.toast.noSpace"));
+        return;
+      }
+      commitPlace(selectedId, origin.x, origin.y, placingRot, true);
+    },
+    [selectedId, inventory, layout.occupancy, rows, placingRot, commitPlace, clearSelection, play, onNotify, t],
+  );
+
+  /** 보드 드래그 커밋 — 소리·햅틱은 보드가 결과를 보고 직접 낸다. */
+  const handleDropAt = useCallback(
+    (itemId: string, x: number, y: number, rot: number) =>
+      commitPlace(itemId, x, y, rot, false),
+    [commitPlace],
+  );
+
+  /** 트레이 롱프레스 드래그 — 보드 ref 로 화면 좌표를 원점 칸으로 바꾼다. */
+  const handleDragToBoard = useCallback(
+    (itemId: string, clientX: number, clientY: number, rot: number) => {
+      const item = inventory.find((i) => i.id === itemId);
+      if (!item) return;
+      const origin = boardRef.current?.originFromPoint(
+        clientX,
+        clientY,
+        item.type,
+        rot,
+      );
+      if (!origin) {
+        play("cancel");
+        onNotify(t("uphero.bag.toast.noSpace"));
+        return;
+      }
+      commitPlace(itemId, origin.x, origin.y, rot, true);
+    },
+    [inventory, commitPlace, play, onNotify, t],
+  );
+
+  const handleTapWorn = useCallback(
+    (slot: EquipSlot) => {
+      if (!hero.equipped[slot]) return;
+      setSelectedId(null);
+      setPlacing(false);
+      setSelectedSlot(slot);
+      play("select");
+    },
+    [hero.equipped, play],
+  );
+
+  // ─── 장착 / 해제 / 판매 / 버리기 / 강화 ────────────────────────────────
+
+  const onEquip = useCallback(
+    (item: Equipment) => {
+      equipItem(item.id, item.type);
+      play("equip");
+      onNotify(
+        t("uphero.equip.toast.equipped", {
+          name: equipmentNameById(item.baseId ?? "", item.name, language),
+        }),
+      );
+      clearSelection();
+    },
+    [equipItem, play, onNotify, t, language, clearSelection],
+  );
+
+  const onUnequipSlot = useCallback(
+    (slot: EquipSlot) => {
+      const item = hero.equipped[slot];
+      if (!item) return;
+      unequipItem(slot);
+      play("equip");
+      onNotify(
+        t("uphero.equip.toast.unequipped", {
+          name: equipmentNameById(item.baseId ?? "", item.name, language),
+        }),
+      );
+      clearSelection();
+    },
+    [hero.equipped, unequipItem, play, onNotify, t, language, clearSelection],
+  );
+
+  /** 강화 시도 — 확인 다이얼로그 표시. 방지권 토글은 열 때마다 기본 ON. */
+  const onEnhance = useCallback((item: Equipment) => {
+    const lvl = item.enhanceLevel ?? 0;
+    const cost = enhanceCost(item.rarity, lvl);
+    const rate = enhanceSuccessRate(item.rarity, lvl, item.enhanceFailStreak ?? 0);
+    setArmDestroyGuard(true);
+    setArmDownGuard(true);
+    setPending({ kind: "enhance", item, cost, successRate: rate });
+  }, []);
 
   /** Phase 11a — 강화 연출 state. confirm → ritual (2s) → result modal 순서. */
   const [ritual, setRitual] = useState<{
@@ -264,6 +460,10 @@ export default function EquipmentInventory({
     outcome: EnhanceRitualOutcome;
   } | null>(null);
   const [resultModal, setResultModal] = useState<EnhanceModalVariant | null>(
+    null,
+  );
+  /** ritual 연출 끝나면 여기 저장된 variant 로 결과 모달 open. */
+  const [pendingResult, setPendingResult] = useState<EnhanceModalVariant | null>(
     null,
   );
 
@@ -274,22 +474,16 @@ export default function EquipmentInventory({
       const refund = sellItem(pending.item.id);
       play("collect");
       onNotify(t("uphero.equip.toast.sold", { coins: refund }));
-      setSelectedId(null);
+      clearSelection();
     } else if (pending.kind === "discard") {
       discardItem(pending.item.id);
       play("cancel");
       onNotify(t("uphero.equip.toast.discarded"));
-      setSelectedId(null);
+      clearSelection();
     } else if (pending.kind === "enhance") {
-      // Phase 11a — 단일 아이템 + 확률 강화. result 를 먼저 받은 뒤 2초 ritual
-      //   연출 → 연출 끝나면 결과 모달. 순서 주의: enhanceItem 이 이미 store 를
-      //   mutate 했으므로 UI 에서 보이는 아이템 reference 는 staleness 주의.
-      //   ritual 은 "입력 아이템" 기준으로 보여주므로 stale 문제 없음.
-      //
-      // Phase 11c R1 — exhaustive switch 로 재구성. 새로운 EnhanceResult 분기가
-      //   추가될 때 TS 에러 로 포착되도록 default 에 assertExhaustive 패턴.
-      // Phase 15 — 안전 구간(소실·하락 0)에서는 방지권을 걸지 않는다. 걸어도 판정이
-      //   안 나므로 소모되지 않지만, 애초에 넘기지 않는 편이 계약이 분명하다.
+      // Phase 11a — 결과를 먼저 받고 2초 ritual → 결과 모달. ritual 은 "입력
+      //   아이템" 기준이라 store mutate 이후에도 stale 문제가 없다.
+      // Phase 15 — 안전 구간(소실·하락 0)에서는 방지권을 걸지 않는다.
       const lvl = pending.item.enhanceLevel ?? 0;
       const result: EnhanceResult = enhanceItem(pending.item.id, {
         destroy:
@@ -324,7 +518,6 @@ export default function EquipmentInventory({
         }
       }
 
-      // 시각 outcome + modal variant 을 exhaustive 하게 결정.
       let outcome: EnhanceRitualOutcome;
       let modal: EnhanceModalVariant;
       if (result.ok) {
@@ -356,19 +549,12 @@ export default function EquipmentInventory({
       }
 
       // Phase 11b-fix — 소리는 ritual 연출 끝에 재생해야 결과 스포일 방지.
-      //   이전엔 여기서 play() 를 했지만 "collect" vs "cancel" 이 2초 연출보다
-      //   먼저 들려 유저가 결과 예측 가능. 이제 ritual onDone 에서 재생.
       setRitual({ item: pending.item, outcome });
       setPendingResult(modal);
-      setSelectedId(null);
+      clearSelection();
     }
     setPending(null);
   };
-
-  /** ritual 연출 끝나면 여기 저장된 variant 로 결과 모달 open. */
-  const [pendingResult, setPendingResult] = useState<EnhanceModalVariant | null>(
-    null,
-  );
 
   const RARITY_COLOR: Record<Rarity, string> = {
     normal: GB.light,
@@ -377,9 +563,7 @@ export default function EquipmentInventory({
     legend: GB_LEGEND,
   };
 
-  // Phase 11a — 강화 가능한 아이템 리스트.
-  //   inventory 전체에서 +10 미만인 아이템만. rarity 별 그룹은 유지 (UI 가독성).
-  // Phase 11c R4 — 장착된 장비도 포함. inventory + equipped 합쳐서 정렬.
+  // Phase 11a — 강화 가능한 아이템 리스트 (인벤 + 착용). 보조 시트에서 쓴다.
   const enhanceableItems = useMemo(() => {
     const equippedList: Equipment[] = [];
     for (const slot of ["weapon", "armor", "accessory", "talisman"] as const) {
@@ -389,7 +573,6 @@ export default function EquipmentInventory({
     const items = [...inventory, ...equippedList].filter(
       (i) => (i.enhanceLevel ?? 0) < MAX_ENHANCE_LEVEL,
     );
-    // rarity 순 (legend 먼저) 그 다음 enhanceLevel 내림차순.
     const rarityOrder: Record<Rarity, number> = {
       legend: 0,
       unique: 1,
@@ -403,32 +586,125 @@ export default function EquipmentInventory({
     });
   }, [inventory, hero.equipped]);
 
-  /** 강화 시도 — 확인 다이얼로그 표시 */
-  const onEnhance = (item: Equipment) => {
-    const level = item.enhanceLevel ?? 0;
-    const cost = enhanceCost(item.rarity, level);
-    // Phase 11c R4 — pity streak 반영된 성공률 표시.
-    const rate = enhanceSuccessRate(item.rarity, level, item.enhanceFailStreak ?? 0);
-    // 다이얼로그를 열 때마다 방지권 토글을 기본 ON 으로 되돌린다.
-    setArmDestroyGuard(true);
-    setArmDownGuard(true);
-    setPending({ kind: "enhance", item, cost, successRate: rate });
-  };
+  // 보조 시트의 Esc·포커스 트랩. 확인/연출이 위에 떠 있는 동안은 비활성 —
+  //   트랩 두 개가 서로 포커스를 뺏으면 아무 데도 닿지 않는다.
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useModalA11y(sheetRef, () => setEnhanceListOpen(false), {
+    disabled:
+      !enhanceListOpen || pending != null || ritual != null || resultModal != null,
+  });
+
+  const enhanceList = (
+    <div className="flex flex-col gap-1.5">
+      {enhanceableItems.map((item) => {
+        const lvl = item.enhanceLevel ?? 0;
+        const cost = enhanceCost(item.rarity, lvl);
+        const streak = item.enhanceFailStreak ?? 0;
+        const rate = enhanceSuccessRate(item.rarity, lvl, streak);
+        const canAfford = coins >= cost;
+        const rColor = RARITY_COLOR[item.rarity];
+        const isEquipped = (["weapon", "armor", "accessory", "talisman"] as const).some(
+          (s) => hero.equipped[s]?.id === item.id,
+        );
+        return (
+          <div
+            key={item.id}
+            className="flex items-center gap-2 rounded px-2.5 py-2"
+            style={{
+              background: `${GB.dark}66`,
+              border: `1px solid ${rColor}55`,
+            }}
+          >
+            <PixelIcon name={item.iconName} size={18} color={rColor} />
+            <div className="flex-1 min-w-0">
+              <div className="typo-caption truncate" style={{ color: GB.lightest }}>
+                {equipmentNameById(item.baseId ?? "", item.name, language)}
+              </div>
+              <div
+                className={`typo-micro tabular-nums ${gbClass.textDim} flex items-center gap-2 flex-wrap`}
+              >
+                <span>+{lvl} → +{lvl + 1}</span>
+                <span style={{ color: rColor }}>{Math.round(rate * 100)}%</span>
+                {streak > 0 && (
+                  <span
+                    style={{ color: "#e8b887" }}
+                    aria-label={t("uphero.equip.enhance.pityAria", { n: streak })}
+                  >
+                    pity ×{streak}
+                  </span>
+                )}
+                {isEnhanceSafeLevel(item.rarity, lvl) ? (
+                  <span style={{ color: GB.lightest }}>
+                    {t("uphero.equip.enhanceSafeBadge")}
+                  </span>
+                ) : (
+                  <span>
+                    {t("uphero.equip.enhancePreserveBadge", {
+                      pct: Math.round(
+                        enhanceOutcomeRates(item.rarity, lvl).keep * 100,
+                      ),
+                    })}
+                  </span>
+                )}
+                {isEquipped && (
+                  <span
+                    style={{ color: GB_WARN, fontWeight: 600 }}
+                    aria-label={t("uphero.equip.equippedAria")}
+                  >
+                    {t("uphero.equip.enhance.equippedBadge")}
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={!canAfford}
+              onClick={() => onEnhance(item)}
+              className="uphero-enhance-btn typo-caption rounded tabular-nums"
+              style={{
+                padding: "10px 14px",
+                minHeight: 44,
+                background: canAfford ? rColor : `${GB.dark}aa`,
+                color: canAfford ? GB.darkest : GB.light,
+                border: "none",
+                opacity: canAfford ? 1 : 0.55,
+              }}
+            >
+              {t("uphero.equip.enhance.button", { cost })}
+            </button>
+          </div>
+        );
+      })}
+      <style jsx>{`
+        .uphero-enhance-btn {
+          transition: transform 120ms ${EASE_OUT};
+        }
+        .uphero-enhance-btn:not(:disabled):active {
+          transform: scale(0.96);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .uphero-enhance-btn {
+            transition: none;
+          }
+        }
+      `}</style>
+    </div>
+  );
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-      {/* === SubHeader === */}
-      {/* Phase 11b-fix — subheader 균형: 뒤로 ghost, 제목 typo-body. */}
+      {/* === 서브헤더 === 뒤로 44 / 제목 / 강화 목록 44 */}
       <header
-        className="px-3 py-2 flex items-center gap-1 shrink-0"
-        style={{ borderBottom: `1px solid ${GB.dark}` }}
+        className="px-2 flex items-center gap-1 shrink-0"
+        style={{ height: SUB_HEADER_H, borderBottom: `1px solid ${GB.dark}` }}
       >
         <button
           type="button"
           onClick={onBack}
           className="uphero-back-btn typo-caption inline-flex items-center gap-0.5 rounded"
           style={{
-            minHeight: 40,
+            minHeight: 44,
+            minWidth: 44,
             padding: "6px 8px",
             background: "transparent",
             border: "none",
@@ -438,412 +714,218 @@ export default function EquipmentInventory({
         >
           <PixelIcon name="ChevronLeft" size={14} color={GB.light} />
           {t("uphero.equip.back")}
-          <style jsx>{`
-            .uphero-back-btn {
-              transition: transform 120ms ${EASE_OUT},
-                background 160ms ${EASE_OUT};
-            }
-            .uphero-back-btn:active {
-              transform: scale(0.96);
-              background: ${GB.dark}66;
-            }
-          `}</style>
         </button>
         <div
-          className="typo-body ml-1"
+          className="typo-body flex-1 ml-1 truncate"
           style={{ color: GB.lightest, fontWeight: 500 }}
         >
-          {t("uphero.equip.title")}
+          {t("uphero.bag.title")}
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            play("select");
+            setEnhanceListOpen(true);
+          }}
+          className="uphero-back-btn rounded inline-flex items-center justify-center"
+          style={{
+            width: 44,
+            height: 44,
+            background: "transparent",
+            border: "none",
+            color: GB.light,
+          }}
+          aria-label={t("uphero.bag.enhanceList")}
+        >
+          <PixelIcon name="Fire" size={18} color={GB.light} />
+        </button>
+        <style jsx>{`
+          .uphero-back-btn {
+            transition: transform 120ms ${EASE_OUT}, background 160ms ${EASE_OUT};
+          }
+          .uphero-back-btn:active {
+            transform: scale(0.97);
+            background: ${GB.dark}66;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .uphero-back-btn {
+              transition: none;
+            }
+            .uphero-back-btn:active {
+              transform: none;
+            }
+          }
+        `}</style>
       </header>
 
-      {/* === 상단: 영웅 + 4슬롯 === */}
-      <section
-        className="shrink-0 py-5 flex items-center justify-center"
-        style={{ borderBottom: `1px solid ${GB.dark}` }}
-      >
-        <div
-          className="relative"
-          style={{ width: 220, height: 220 }}
-        >
-          {/* 중앙 영웅 sprite */}
-          <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-            style={{ width: 80, height: 80 }}
-          >
-            <HeroSprite
-              variant={variant}
-              classType={hero.classType}
-              size={80}
-              color={
-                hero.classType
-                  ? CLASS_THEME_COLOR[hero.classType]
-                  : GB.lightest
-              }
-            />
-          </div>
+      {/* === 격자 보드 === */}
+      <BagBoard
+        ref={boardRef}
+        rows={rows}
+        inventory={inventory}
+        equipped={hero.equipped}
+        classType={hero.classType}
+        heroVariant={variant}
+        selectedId={selectedId}
+        selectedSlot={selectedSlot}
+        placingRot={placingRot}
+        synergy={synergy}
+        newIds={newIds}
+        onSelect={handleSelect}
+        onTapEmptyCell={handleTapEmptyCell}
+        onTapWorn={handleTapWorn}
+        onTapHero={() => setStatsOpen(true)}
+        onDropAt={handleDropAt}
+        onRequestDiscard={(id) => {
+          const item = inventory.find((i) => i.id === id);
+          if (item) setPending({ kind: "discard", item });
+        }}
+      />
 
-          {/* 4 슬롯 */}
-          {(Object.keys(SLOT_LABEL_KEY) as EquipSlot[]).map((slot) => {
-            const equipped = hero.equipped[slot];
-            const pos = SLOT_POSITIONS[slot];
-            const translate = SLOT_TRANSFORMS[slot];
-            return (
+      {/* === 사진 부적 CTA (트레이 머리줄) === */}
+      <button
+        type="button"
+        onClick={() => {
+          play("select");
+          setPhotoPickerOpen(true);
+        }}
+        disabled={unboundPhotoCount === 0}
+        title={t("uphero.bag.photoHint")}
+        className="uphero-photo-cta shrink-0 flex items-center gap-2 px-3 typo-caption"
+        style={{
+          height: PHOTO_CTA_H,
+          borderTop: `1px solid ${GB.dark}`,
+          background: unboundPhotoCount > 0 ? `${GB.dark}44` : "transparent",
+          color: GB.light,
+          textAlign: "left",
+          opacity: unboundPhotoCount > 0 ? 1 : 0.55,
+        }}
+      >
+        <PixelIcon name="Camera" size={14} color={GB.light} />
+        <span className="flex-1 truncate" style={{ color: GB.lightest }}>
+          {unboundPhotoCount > 0
+            ? t("uphero.bag.photoCta")
+            : t("uphero.equip.ritualNoPhotos")}
+        </span>
+        <span className={`${gbClass.textDim} tabular-nums shrink-0`}>
+          {t("uphero.equip.photo.priceMeta")}
+        </span>
+        <style jsx>{`
+          .uphero-photo-cta {
+            transition: transform 140ms ${EASE_OUT};
+          }
+          .uphero-photo-cta:not(:disabled):active {
+            transform: scale(0.99);
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .uphero-photo-cta {
+              transition: none;
+            }
+            .uphero-photo-cta:not(:disabled):active {
+              transform: none;
+            }
+          }
+        `}</style>
+      </button>
+
+      {/* === 정리 대기 트레이 === */}
+      <BagTray
+        items={trayItems}
+        suspendedIds={suspendedIds}
+        selectedId={selectedId}
+        synergy={synergy}
+        onSelect={handleSelect}
+        onDragToBoard={handleDragToBoard}
+      />
+
+      {/* === 액션바 (항상 마운트) === */}
+      <BagActionBar
+        item={selectedItem}
+        wornSlot={selectedWorn ? selectedSlot : null}
+        placing={placing}
+        trayCount={layout.unplaced.length}
+        rotatable={selectedItem ? canRotate(selectedItem.type) : false}
+        onPlace={() => setPlacing(true)}
+        onRotate={rotateSelected}
+        onEquip={() => selectedItem && onEquip(selectedItem)}
+        onUnequip={() => selectedSlot && onUnequipSlot(selectedSlot)}
+        onEnhance={() => {
+          const target = selectedItem ?? selectedWorn;
+          if (target) onEnhance(target);
+        }}
+        onSell={() =>
+          selectedItem && setPending({ kind: "sell", item: selectedItem })
+        }
+        onDiscard={() =>
+          selectedItem && setPending({ kind: "discard", item: selectedItem })
+        }
+        onCancel={clearSelection}
+      />
+
+      {/* === 강화 목록 (보조 시트) === */}
+      {enhanceListOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={sheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("uphero.bag.enhanceList")}
+            className="fixed inset-0 z-50 flex flex-col"
+            style={{
+              background: GB.darkest,
+              color: GB.light,
+              paddingTop: "calc(env(safe-area-inset-top) + 10px)",
+              paddingBottom: "calc(max(env(safe-area-inset-bottom), 24px) + 10px)",
+              outline: "none",
+            }}
+          >
+            <header
+              className="px-3 flex items-center justify-between shrink-0"
+              style={{ height: SUB_HEADER_H, borderBottom: `1px solid ${GB.dark}` }}
+            >
+              <div className="typo-body" style={{ color: GB.lightest, fontWeight: 500 }}>
+                {t("uphero.bag.enhanceList")}
+              </div>
               <button
-                key={slot}
                 type="button"
-                onClick={() => equipped && onUnequipSlot(slot)}
-                disabled={!equipped}
-                className="uphero-slot-btn absolute rounded-md flex flex-col items-center justify-center"
+                onClick={() => setEnhanceListOpen(false)}
+                className="typo-caption rounded"
                 style={{
-                  ...pos,
-                  transform: translate,
-                  width: 56,
-                  height: 56,
-                  background: equipped ? `${GB.dark}cc` : "transparent",
-                  border: `1px solid ${equipped ? GB.lightest : GB.dark}`,
-                  cursor: equipped ? "pointer" : "default",
+                  minHeight: 44,
+                  minWidth: 44,
+                  padding: "6px 10px",
+                  background: "transparent",
+                  border: "none",
                   color: GB.light,
                 }}
               >
-                {equipped ? (
-                  equipped.photoId ? (
-                    <SlotPhotoThumb photoId={equipped.photoId} size={40} />
-                  ) : (
-                    <PixelIcon
-                      name={equipped.iconName}
-                      size={28}
-                      color={GB.lightest}
-                    />
-                  )
-                ) : (
-                  <div
-                    className="typo-micro"
-                    style={{ color: GB.dark, letterSpacing: "0.05em" }}
-                  >
-                    {t(SLOT_LABEL_KEY[slot])}
-                  </div>
-                )}
-                <style jsx>{`
-                  .uphero-slot-btn {
-                    transition: transform 120ms ${EASE_OUT};
-                  }
-                  .uphero-slot-btn:not(:disabled):active {
-                    /* Emil — press 0.97 통일. 기존 0.95 는 강한 strobe 감. */
-                    transform: ${translate} scale(0.97);
-                  }
-                `}</style>
+                {t("uphero.stat.close")}
               </button>
-            );
-          })}
-        </div>
-      </section>
+            </header>
+            <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
+              {enhanceableItems.length === 0 ? (
+                <div
+                  className={`typo-caption ${gbClass.textDim} text-center py-8 leading-relaxed`}
+                >
+                  {t("uphero.equip.empty.enhance")}
+                </div>
+              ) : (
+                enhanceList
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
 
-      {/* === Action Bar (선택한 item 있을 때만) === */}
-      {selectedItem && (
-        <section
-          className="shrink-0 px-3 py-2.5 flex items-center gap-2"
-          style={{
-            borderBottom: `1px solid ${GB.dark}`,
-            background: `${GB.dark}40`,
-          }}
-        >
-          <div className="typo-caption flex-1 truncate" style={{ color: GB.lightest }}>
-            {equipmentNameById(
-              selectedItem.baseId ?? "",
-              selectedItem.name,
-              language,
-            )}
-          </div>
-          <ActionButton onClick={() => onEquip(selectedItem)} primary>
-            {t("uphero.equip.action.equip")}
-          </ActionButton>
-          <ActionButton onClick={() => onSell(selectedItem)}>
-            {t("uphero.equip.action.sellPreview", {
-              price: SELL_PRICE[selectedItem.rarity],
-            })}
-          </ActionButton>
-          <ActionButton onClick={() => onDiscard(selectedItem)} danger>
-            {t("uphero.equip.action.discard")}
-          </ActionButton>
-        </section>
+      {/* 영웅 칸 탭 — 스탯 패널 (가방 시너지 합 표시) */}
+      {statsOpen && (
+        <Suspense fallback={null}>
+          <HeroStatPanel onClose={() => setStatsOpen(false)} />
+        </Suspense>
       )}
 
-      {/* === Phase 8a: 탭 switcher (가방 / 사진 부적 / 강화)
-           Phase 8b: sliding underline indicator — 두 객체(A↓/B↑) 가 아닌 하나의
-           underline 이 옮겨가는 지각. translateX 로 0/100/200% 이동. === */}
-      <nav
-        className="relative flex items-stretch shrink-0"
-        style={{ borderBottom: `1px solid ${GB.dark}` }}
-      >
-        <EqTabButton
-          active={tab === "bag"}
-          onClick={() => setTab("bag")}
-          label={t("uphero.equip.tabBag")}
-        />
-        <EqTabButton
-          active={tab === "photo"}
-          onClick={() => setTab("photo")}
-          label={t("uphero.equip.tabTalisman")}
-        />
-        <EqTabButton
-          active={tab === "enhance"}
-          onClick={() => setTab("enhance")}
-          label={t("uphero.equip.tabEnhance")}
-        />
-        <div
-          aria-hidden="true"
-          className="absolute bottom-[-1px] h-[2px]"
-          style={{
-            width: "33.3333%",
-            left: 0,
-            background: GB.lightest,
-            transform: `translateX(${tab === "bag" ? "0%" : tab === "photo" ? "100%" : "200%"})`,
-            transition: `transform 240ms ${EASE_OUT}`,
-            boxShadow: `0 0 4px ${GB.lightest}66`,
-          }}
-        />
-      </nav>
-
-      {/* === 탭 컨텐츠 — key={tab} 로 DOM remount 해서 enter keyframe 재생.
-           "탭 전환 = 새로운 공간" 이라는 감각을 200ms fade + 4px slide 로 전달. === */}
-      <div
-        key={tab}
-        className="eq-tab-content flex-1 min-h-0 overflow-y-auto px-3 py-3"
-      >
-        {/* 가방 — 현재 인벤토리 grid */}
-        {tab === "bag" &&
-          (inventory.length === 0 ? (
-            <EmptyState text={t("uphero.equip.empty.bag")} />
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {inventory.map((eq) => (
-                <EquipmentCard
-                  key={eq.id}
-                  equipment={eq}
-                  size="sm"
-                  selected={eq.id === selectedId}
-                  onClick={() =>
-                    setSelectedId(eq.id === selectedId ? null : eq.id)
-                  }
-                />
-              ))}
-            </div>
-          ))}
-
-        {/* 사진 부적 — CTA + 카운트 라벨 */}
-        {tab === "photo" && (
-          <section>
-            <div
-              className="typo-caption mb-3 inline-flex items-center gap-1.5"
-              style={{ color: GB.lightest }}
-            >
-              <PixelIcon name="Camera" size={14} color={GB.lightest} />
-              {t("uphero.equip.photo.heading")}
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                play("select");
-                setPhotoPickerOpen(true);
-              }}
-              disabled={photoCounts.unboundCount === 0}
-              className="uphero-ritual-cta w-full rounded px-3 py-3 typo-caption flex items-center gap-2"
-              style={{
-                background:
-                  photoCounts.unboundCount > 0
-                    ? `${GB.dark}66`
-                    : `${GB.dark}33`,
-                border: `1px dashed ${photoCounts.unboundCount > 0 ? GB.light : GB.dark}80`,
-                color: GB.light,
-                textAlign: "left",
-              }}
-            >
-              <PixelIcon name="Image" size={14} color={GB.light} />
-              <span className="flex-1" style={{ color: GB.lightest }}>
-                {photoCounts.unboundCount > 0
-                  ? t("uphero.equip.ritualOpen")
-                  : t("uphero.equip.ritualNoPhotos")}
-              </span>
-              <span className={gbClass.textDim}>
-                {t("uphero.equip.photo.priceMeta")}
-              </span>
-              <style jsx>{`
-                .uphero-ritual-cta {
-                  transition: transform 140ms ${EASE_OUT},
-                    border-color 200ms ${EASE_OUT},
-                    filter 220ms ${EASE_OUT};
-                }
-                .uphero-ritual-cta:not(:disabled):active {
-                  transform: scale(0.985);
-                }
-                .uphero-ritual-cta:not(:disabled):hover {
-                  border-color: ${GB.lightest};
-                }
-                .uphero-ritual-cta:disabled {
-                  filter: saturate(0.25) brightness(0.85);
-                  opacity: 0.55;
-                  cursor: not-allowed;
-                }
-              `}</style>
-            </button>
-
-            {/* 카운트 라벨 */}
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <CountTile
-                iconName="Heart"
-                label={t("uphero.equip.talismanBound")}
-                count={photoCounts.boundCount}
-                accent={GB.lightest}
-              />
-              <CountTile
-                iconName="Image"
-                label={t("uphero.equip.talismanUnbound")}
-                count={photoCounts.unboundCount}
-                accent={GB.light}
-              />
-            </div>
-
-            {/* 전체 총합 / 도움 문구 */}
-            <div
-              className={`typo-caption ${gbClass.textDim} mt-3 text-center leading-relaxed`}
-            >
-              {t("uphero.equip.photo.archiveTotal", {
-                n: photoCounts.totalPhotos,
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Phase 11a — 강화: 단일 아이템 선택 + 확률 기반 +N.
-             이전 "같은 등급 2장 합성" 은 제거됨. 이제 각 아이템에 enhanceLevel (+0~+10) 부여. */}
-        {tab === "enhance" && (
-          <section>
-            <div
-              className="typo-caption mb-3 inline-flex items-center gap-1.5"
-              style={{ color: GB.lightest }}
-            >
-              <PixelIcon name="Fire" size={14} color={GB.lightest} />
-              {t("uphero.equip.enhance.heading")}
-            </div>
-            {enhanceableItems.length === 0 ? (
-              <EmptyState text={t("uphero.equip.empty.enhance")} />
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {enhanceableItems.map((item) => {
-                  const level = item.enhanceLevel ?? 0;
-                  const cost = enhanceCost(item.rarity, level);
-                  const streak = item.enhanceFailStreak ?? 0;
-                  // Phase 11c R4 — pity streak 가산 성공률.
-                  const rate = enhanceSuccessRate(item.rarity, level, streak);
-                  const canAfford = coins >= cost;
-                  const rColor = RARITY_COLOR[item.rarity];
-                  // Phase 11c R4 R2 — 장착 중인 아이템인지 표시 (destroy 시 스탯 하락 경고).
-                  const isEquipped = (["weapon", "armor", "accessory", "talisman"] as const).some(
-                    (s) => hero.equipped[s]?.id === item.id,
-                  );
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 rounded px-2.5 py-2"
-                      style={{
-                        background: `${GB.dark}66`,
-                        border: `1px solid ${rColor}55`,
-                      }}
-                    >
-                      <PixelIcon name={item.iconName} size={18} color={rColor} />
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="typo-caption truncate"
-                          style={{ color: GB.lightest }}
-                        >
-                          {equipmentNameById(
-                            item.baseId ?? "",
-                            item.name,
-                            language,
-                          )}
-                        </div>
-                        <div
-                          className={`typo-micro tabular-nums ${gbClass.textDim} flex items-center gap-2 flex-wrap`}
-                        >
-                          <span>+{level} → +{level + 1}</span>
-                          <span style={{ color: rColor }}>
-                            {Math.round(rate * 100)}%
-                          </span>
-                          {/* Phase 11c R4 — pity streak 노출 (legend/unique 에서 의미). */}
-                          {streak > 0 && (
-                            <span
-                              style={{ color: "#e8b887" }}
-                              aria-label={t("uphero.equip.enhance.pityAria", {
-                                n: streak,
-                              })}
-                            >
-                              pity ×{streak}
-                            </span>
-                          )}
-                          {/* Phase 15 — 안전 구간(+0→+3)은 "유지 100%" 대신 "안전"
-                              으로 말한다. 100% 라는 숫자를 확률처럼 늘어놓으면
-                              나머지 구간의 숫자와 같은 무게로 읽혀 오히려 흐릿해진다. */}
-                          {isEnhanceSafeLevel(item.rarity, level) ? (
-                            <span style={{ color: GB.lightest }}>
-                              {t("uphero.equip.enhanceSafeBadge")}
-                            </span>
-                          ) : (
-                            <span>
-                              {t("uphero.equip.enhancePreserveBadge", {
-                                pct: Math.round(
-                                  enhanceOutcomeRates(item.rarity, level).keep * 100,
-                                ),
-                              })}
-                            </span>
-                          )}
-                          {/* Phase 11c R4 R2 — 장착 중 배지. 실패-소실 시 즉시 스탯 감소 안내. */}
-                          {isEquipped && (
-                            <span
-                              style={{ color: GB_WARN, fontWeight: 600 }}
-                              aria-label={t("uphero.equip.equippedAria")}
-                            >
-                              {t("uphero.equip.enhance.equippedBadge")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={!canAfford}
-                        onClick={() => onEnhance(item)}
-                        className="uphero-enhance-btn typo-caption rounded tabular-nums"
-                        style={{
-                          padding: "10px 14px",
-                          minHeight: 44,
-                          background: canAfford ? rColor : `${GB.dark}aa`,
-                          color: canAfford ? GB.darkest : GB.light,
-                          border: `1px solid ${canAfford ? rColor : GB.dark}`,
-                          opacity: canAfford ? 1 : 0.55,
-                        }}
-                      >
-                        {t("uphero.equip.enhance.button", { cost })}
-                      </button>
-                    </div>
-                  );
-                })}
-                <style jsx>{`
-                  .uphero-enhance-btn {
-                    transition: transform 120ms ${EASE_OUT};
-                  }
-                  .uphero-enhance-btn:not(:disabled):active {
-                    transform: scale(0.96);
-                  }
-                `}</style>
-              </div>
-            )}
-          </section>
-        )}
-      </div>
-
-      {/* Phase 7 — 사진 부적 Picker (overlay portal).
-           Phase 9b — lazy. picker 는 Portal 기반 + 첫 open 시 fade-in 자체가 로딩
-           시간 감춤 → fallback=null 이면 네이티브처럼 느껴짐. */}
+      {/* Phase 7 / 9b — 사진 부적 Picker (lazy overlay portal) */}
       {photoPickerOpen && (
         <Suspense fallback={null}>
           <PhotoTalismanPicker
@@ -853,8 +935,7 @@ export default function EquipmentInventory({
         </Suspense>
       )}
 
-      {/* Phase 9a — 판매/버리기/합성 confirm 다이얼로그 (기존 native confirm 대체).
-           pending state 하나로 세 액션 공유, UI 에서 title/body 만 분기. */}
+      {/* Phase 9a — 판매/버리기/강화 confirm 다이얼로그. pending 하나로 세 액션 공유. */}
       <GbConfirm
         open={pending != null}
         title={
@@ -896,10 +977,8 @@ export default function EquipmentInventory({
           ) : pending?.kind === "enhance" ? (
             <>
               {(() => {
-                // Phase 12 i18n — "성공률 N%" 의 숫자만 강조 색으로 묶기.
-                // 2026-08 버그 수정: 템플릿이 이미 "%" 를 갖고 있으므로 span 안에는
-                //   숫자만 넣는다. 예전엔 여기서 `{pct}%` 를 렌더해 "86%%" 가 됐다.
-                //   "%" 는 잘려나온 after 가 그대로 들고 있어 화면에선 이어져 보인다.
+                // "성공률 N%" 의 숫자만 강조 색으로. 템플릿이 "%" 를 갖고 있으므로
+                //   span 안에는 숫자만 넣는다 (그렇지 않으면 "86%%").
                 const pct = Math.round(pending.successRate * 100);
                 const [before, after] = splitAtToken(
                   t("uphero.equip.confirm.successRate", { pct: "__PCT__" }),
@@ -914,11 +993,8 @@ export default function EquipmentInventory({
                 );
               })()}
               <br />
-              {/* Phase 15 — 위험 안내는 정직하게. 안전 구간에서는 소실·하락이 둘 다
-                  0 이므로 "실패해도 그대로" 라고만 말하고, 위험 구간에서만 실패 시의
-                  소실/하락 확률을 각각 숫자로 보여준다. 방지권을 걸어 그 결과가
-                  막히는 항목은 같은 줄에서 "막힘" 으로 표시한다 — 확률은 그대로
-                  굴러가지만 결과가 바뀌므로, 숫자를 지우는 대신 상태를 덧붙인다. */}
+              {/* Phase 15 — 안전 구간에선 "실패해도 그대로", 위험 구간에서만 소실/하락
+                  확률을 각각 숫자로. 방지권이 막는 항목은 같은 줄에 "막힘" 을 덧붙인다. */}
               {(() => {
                 const lvl = pending.item.enhanceLevel ?? 0;
                 if (isEnhanceSafeLevel(pending.item.rarity, lvl)) {
@@ -950,8 +1026,6 @@ export default function EquipmentInventory({
               })()}
               <br />
               {(() => {
-                // Phase 12 i18n — cost 숫자만 강조. (템플릿의 "코인"/"C" 단위는
-                //   after 가 들고 있으므로 span 에는 숫자만.)
                 const [before, after] = splitAtToken(
                   t("uphero.equip.enhanceCost", { cost: "__COST__", coins }),
                   "__COST__",
@@ -964,9 +1038,6 @@ export default function EquipmentInventory({
                   </>
                 );
               })()}
-              {/* Phase 15 — 방지권 토글 2종. 그 결과가 실제로 날 수 있는 레벨에서만
-                  노출한다. 안전 구간에서 권하면 필요 없는 것을 파는 셈이라 아예
-                  그리지 않는다. 보유 0 이면 토글 대신 구하는 경로만 한 줄 안내한다. */}
               {canEnhanceDestroy(
                 pending.item.rarity,
                 pending.item.enhanceLevel ?? 0,
@@ -1007,7 +1078,6 @@ export default function EquipmentInventory({
                   />
                 </>
               )}
-              {/* Phase 11c R4 R2 — equipped 장비 강화 시 추가 경고 (소실 → 스탯 즉시 하락). */}
               {(["weapon", "armor", "accessory", "talisman"] as const).some(
                 (s) => hero.equipped[s]?.id === pending.item.id,
               ) && (
@@ -1035,22 +1105,16 @@ export default function EquipmentInventory({
         onCancel={() => setPending(null)}
       />
 
-      {/* Phase 11a — 강화 연출 (2s) → 결과 모달 순서.
-           Phase 11b-fix — 소리는 ritual 이 끝날 때 재생해야 2초 연출 동안 결과
-           스포일러 안 됨. 이전엔 ritual 시작 직전 play 로 즉시 결과 추측 가능했음. */}
+      {/* Phase 11a/11b-fix — 강화 연출 (2s) → 결과 모달. 소리는 연출 끝에. */}
       {ritual && (
         <EnhanceRitualOverlay
           item={ritual.item}
           outcome={ritual.outcome}
           onDone={() => {
-            // outcome 별 sound 재생 — ritual 종료와 result modal 등장 사이.
             if (ritual.outcome === "success") {
               play("collect");
             } else if (ritual.outcome === "destroyed") {
               play("cancel");
-            } else {
-              // keep — 애매한 결과. cancel 은 너무 negative 하니 아무 소리 안 냄
-              // (정적 → modal 이 직접 메시지 전달).
             }
             setRitual(null);
             if (pendingResult) {
@@ -1067,205 +1131,5 @@ export default function EquipmentInventory({
         />
       )}
     </div>
-  );
-}
-
-/* ────────────────────────────────────────── */
-
-function ActionButton({
-  children,
-  onClick,
-  primary,
-  danger,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  primary?: boolean;
-  danger?: boolean;
-}) {
-  const bg = primary ? GB.lightest : "transparent";
-  const color = primary ? GB.darkest : danger ? "#e88b7a" : GB.light;
-  const border = primary
-    ? GB.lightest
-    : danger
-      ? "#e88b7a"
-      : GB.light;
-  // Phase 9a — tap target 34 → 44 (Apple HIG). 판매/버리기는 high-stakes 이므로
-  //   오탭 방지가 특히 중요. padding 확대로 실수 탭 확률 ↓.
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="uphero-action-btn typo-caption rounded"
-      style={{
-        padding: "10px 14px",
-        minHeight: 44,
-        background: bg,
-        color,
-        border: `1px solid ${border}`,
-      }}
-    >
-      {children}
-      <style jsx>{`
-        .uphero-action-btn {
-          transition: transform 120ms ${EASE_OUT};
-        }
-        .uphero-action-btn:active {
-          /* Emil — press 0.97 통일 */
-          transform: scale(0.97);
-        }
-      `}</style>
-    </button>
-  );
-}
-
-/** Phase 8a → 8b — 탭 버튼.
- *   underline 은 nav 부모의 sliding indicator 가 담당 (shared element).
- *   여기선 flex-1 balanced + press feedback 만 책임.
- *   탭은 하루 수십 번 눌리는 고빈도라 120ms 로 짧게, 0.97 scale 로 미묘하게. */
-function EqTabButton({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="eq-tab-btn typo-caption flex-1"
-      style={{
-        padding: "10px 8px",
-        color: active ? GB.lightest : GB.light,
-        background: "transparent",
-      }}
-      aria-current={active ? "page" : undefined}
-    >
-      {label}
-      <style jsx>{`
-        .eq-tab-btn {
-          transition: color 180ms ${EASE_OUT}, transform 120ms ${EASE_OUT};
-        }
-        .eq-tab-btn:active {
-          transform: scale(0.97);
-        }
-      `}</style>
-    </button>
-  );
-}
-
-/** Phase 8b — 로그라이크 감성 Empty state.
- *   텍스트 뒤에 깜빡이는 cursor caret 을 붙여 "터미널 / prompt 대기" 느낌.
- *   정적 placeholder 보다 "앱이 살아있다" 는 시그널. */
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div
-      className={`typo-caption ${gbClass.textDim} text-center py-8 leading-relaxed`}
-    >
-      {text}
-      <span className="uphero-caret" aria-hidden="true">
-        _
-      </span>
-      <style jsx>{`
-        .uphero-caret {
-          display: inline-block;
-          margin-left: 2px;
-          animation: uphero-caret-blink 1.1s steps(2, end) infinite;
-        }
-        @keyframes uphero-caret-blink {
-          0%,
-          100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-/** Phase 8a — 사진 부적 탭의 카운트 tile (아이콘 + 숫자 + 라벨) */
-function CountTile({
-  iconName,
-  label,
-  count,
-  accent,
-}: {
-  iconName: string;
-  label: string;
-  count: number;
-  accent: string;
-}) {
-  return (
-    <div
-      className="rounded px-3 py-2.5 flex items-center gap-2.5"
-      style={{
-        background: `${GB.dark}44`,
-        border: `1px solid ${GB.dark}`,
-      }}
-    >
-      <PixelIcon name={iconName} size={16} color={accent} />
-      <div className="flex flex-col leading-tight">
-        <div
-          className="typo-body tabular-nums"
-          style={{ color: accent, fontWeight: 600 }}
-        >
-          {count}
-        </div>
-        <div className={`typo-micro ${gbClass.textDim}`}>{label}</div>
-      </div>
-    </div>
-  );
-}
-
-/** Phase 7 — 4슬롯 중앙 photo 부적 썸네일 (small inline version) */
-function SlotPhotoThumb({ photoId, size }: { photoId: string; size: number }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    let objectUrl: string | null = null;
-    getThumbnailBlob(photoId)
-      .then((blob) => {
-        if (!active || !blob) return;
-        objectUrl = blobToUrl(blob);
-        setUrl(objectUrl);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [photoId]);
-
-  if (!url) {
-    return (
-      <div
-        className="rounded-sm"
-        style={{
-          width: size,
-          height: size,
-          background: `${GB.dark}`,
-        }}
-      />
-    );
-  }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
-      alt=""
-      aria-hidden="true"
-      className="rounded-sm"
-      style={{
-        width: size,
-        height: size,
-        objectFit: "cover",
-      }}
-    />
   );
 }

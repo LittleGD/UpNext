@@ -36,7 +36,6 @@ import {
   type EquipSlot,
   type CombatSession,
   type CardBuff,
-  type HeroBaseStats,
   type Monster,
   getEffectiveHeroLevel,
 } from "@/types/uphero";
@@ -65,8 +64,23 @@ import {
   calculateBossesDefeated,
   calculateCodexDelta,
   calculateDungeonProgress,
+  settleBagAfterSession,
 } from "@/lib/sessionReward";
 import { calculateIdleReward, detectClockRewind } from "@/lib/idleAccrual";
+import {
+  BAG_ROWS_MAX,
+  applyBagSynergy,
+  bagRows,
+  checkPlacement,
+  inheritPlacement,
+  normalizeBagLayout,
+  packAllIfNonePlaced,
+  packInventory,
+  pickPrimaryStatKey,
+  placeIntoBag,
+  withPlacement,
+  withoutPlacement,
+} from "@/lib/upHeroBag";
 import {
   classXpMult,
   classCoinMult,
@@ -110,8 +124,11 @@ import type { CloudUpHeroState } from "@/lib/sync";
  * v4: shopDaily seed — 상점 하루 탐험권 구매 cap.
  * v5: ngPlusLevel seed (0) + weeklyVariant 는 initialize 에서 이번 주 id 로 갱신.
  *     기존 유저도 F30 처음 처치 시점부터 NG+ 자연 해금.
+ * v6: 격자 가방 좌표 first-fit 팩 — 좌표 개념이 없던 저장본의 인벤토리를 배열 순서로
+ *     한 번 배치한다. 이후의 복구는 버전과 무관한 packAllIfNonePlaced 가 맡는다
+ *     (iOS 에는 버전 게이트가 없어서, 규칙을 버전에만 의존시키면 안 된다).
  */
-const CURRENT_SCHEMA_VERSION = 5;
+const CURRENT_SCHEMA_VERSION = 6;
 
 /**
  * Phase 4c-fix: Codex legacy ID → name migration.
@@ -449,6 +466,33 @@ interface UpHeroActions {
    * UI 는 이 반환값 기반으로 Ritual overlay + Result modal 분기.
    */
   enhanceItem(id: string, guards?: EnhanceGuardArm): EnhanceResult;
+
+  /**
+   * 격자 가방에 아이템을 놓는다 (원점 x,y + 회전 rot).
+   * 실패하면 상태를 전혀 건드리지 않는다 — UI 는 스냅백만 하면 된다.
+   * 판정은 `checkPlacement` 하나만 쓴다 (드래그 고스트 미리보기도 같은 함수).
+   */
+  placeItem(itemId: string, x: number, y: number, rot: number): PlaceResult;
+
+  /**
+   * 가방 화면 열림 신호 — 풀스크린(하단 탭 숨김) 판단에 쓰인다.
+   * `pendingDungeon` 처럼 **비영속**이라 pickPersisted 에도 클라우드에도 나가지 않는다.
+   */
+  setBagOpen(open: boolean): void;
+}
+
+/** 배치 결과. 실패 이유는 UI 문구·햅틱 분기에 그대로 쓰인다. */
+export type PlaceResult =
+  | { ok: true }
+  | { ok: false; reason: "notFound" | "outOfBounds" | "overlap" };
+
+/**
+ * 비영속 UI 상태 — 영속 스키마(`UpHeroState`)와 클라우드 와이어를 UI 플래그로
+ * 오염시키지 않으려고 스토어 층에만 둔다.
+ */
+interface UpHeroUiState {
+  /** 가방 화면이 열려 있는가 (풀스크린 신호). */
+  uiBagOpen: boolean;
 }
 
 /** Phase 15 — 이번 강화 시도에 걸 방지권. UI 토글이 그대로 매핑된다. */
@@ -480,7 +524,7 @@ export type EnhanceResult =
   | { ok: false; reason: "maxed" }
   | { ok: false; reason: "not-found" };
 
-type UpHeroStore = UpHeroState & UpHeroActions;
+type UpHeroStore = UpHeroState & UpHeroActions & UpHeroUiState;
 
 /**
  * Phase 13 review Critical #2 — session.log persist cap.
@@ -522,6 +566,20 @@ function normalizeCombatBuff(raw: unknown): UpHeroState["combatBuff"] {
   if (pct <= 0 || left <= 0) return undefined;
   // 상한: 배율 2배(+100% = pct 100) / 20 전투. 손상된 값이 전투 밸런스를 뒤집지 않게.
   return { pct: Math.min(100, pct), battlesLeft: Math.min(20, left) };
+}
+
+/**
+ * 지금 보드의 행 수. 세션 시작이 쓰는 유효 영웅 레벨(`getEffectiveHeroLevel`)과
+ * **같은 값**을 근거로 삼는다 — 로드 시점이 아니라 매 호출 시점에 계산해야
+ * 레벨업 직후에도 보드와 세션 스냅샷이 어긋나지 않는다.
+ *
+ * @param state 판정에 쓸 스냅샷. 생략하면 현재 스토어 상태 (클라우드 병합처럼
+ *   아직 커밋되지 않은 상태를 넘길 수 있게 열어 둔다 — 그래서 부분 스냅샷도 받는다).
+ */
+export function currentBagRows(state?: Pick<UpHeroState, "heroStartLevel">): number {
+  const heroStartLevel = (state ?? useUpHeroStore.getState()).heroStartLevel;
+  const gameLevel = useGameStore.getState().progress.level ?? 1;
+  return bagRows(getEffectiveHeroLevel(gameLevel, heroStartLevel));
 }
 
 /**
@@ -664,6 +722,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   welcomeGrantClaimed: false,
   pendingWelcomeGrant: null,
   isLoaded: false,
+  // 가방 화면 열림 — 비영속. 재시작하면 항상 닫힌 상태로 시작한다.
+  uiBagOpen: false,
 
   initialize() {
     if (get().isLoaded) return;
@@ -814,6 +874,21 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
             bestScore: 0,
           };
 
+    // 격자 가방 — 저장본 인벤토리를 보드 계약대로 정리한다. 세 단계 모두 멱등.
+    //   1) normalizeBagLayout: 좌표 정규화(무효 삭제) + 겹침/보드 밖 판정
+    //   2) v6 승격: 좌표 개념이 없던 저장본만 배열 순서 first-fit 로 한 번 팩
+    //   3) packAllIfNonePlaced: 버전과 무관한 복구 — 구버전 iOS 가 좌표를 벗겨
+    //      올린 문서도 여기서 되살아난다 (유저는 아이템을 트레이로 옮길 수 없으므로
+    //      "배치 0개" 는 정당한 상태가 아니다).
+    //   행 수는 로드 시점엔 항상 BAG_ROWS_MAX 다. 레벨은 다른 스토어(진행도)에서 오고 클라우드
+    //   충돌 해소로 내려갈 수도 있어, 지금 보드보다 아래 행의 좌표를 여기서 지우면 레이아웃을
+    //   영구히 잃는다. 마이그레이션 팩도 8행 기준 — 지금 레벨 보드 밖에 놓인 아이템은
+    //   suspended(보류)로 트레이에 보이다가 레벨이 오르면 제자리에 나타난다. 미배치로 보내
+    //   자동 판매 후보가 되게 하지 않는다 (iOS loadPersisted 와 같은 규칙).
+    let inventory = normalizeBagLayout(saved?.inventory ?? [], BAG_ROWS_MAX).inventory;
+    if (savedVersion < 6) inventory = packInventory(inventory, BAG_ROWS_MAX);
+    inventory = packAllIfNonePlaced(inventory);
+
     // Backfill: 기존 데이터에 bestFloorReached 가 없으면 floorReached 로 초기화.
     const dungeonsBackfilled: Partial<Record<DungeonId, DungeonProgress>> = {};
     for (const [id, prog] of Object.entries(saved?.dungeons ?? {})) {
@@ -826,7 +901,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
     set({
       hero: mergedHero,
-      inventory: saved?.inventory ?? [],
+      inventory,
       coins,
       passes: saved?.passes ?? {},
       dungeons: dungeonsBackfilled,
@@ -1211,7 +1286,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     }
     const rarity = rollPhotoRarity();
     const newItem = buildPhotoTalisman(photo, rarity);
-    const newInventory = [...state.inventory, newItem];
+    // 새 부적도 다른 삽입 지점과 같은 헬퍼로 들어간다 (자리 없으면 트레이).
+    const newInventory = placeIntoBag(state.inventory, newItem, currentBagRows(state));
     const newCoins = state.coins - PHOTO_TALISMAN_RITUAL_COST;
     set({ inventory: newInventory, coins: newCoins });
     saveToStorage(
@@ -1260,8 +1336,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     let newInventory = state.inventory;
     let newHero = state.hero;
     if (found.location === "inventory") {
+      // 재의식은 자리 이동이 아니다 — 새 객체가 원래 칸을 그대로 물려받아야
+      //   유저가 정리해 둔 배치가 유지된다.
+      const rebound = inheritPlacement(current, newItem);
       newInventory = state.inventory.map((i) =>
-        i.id === current.id ? newItem : i,
+        i.id === current.id ? rebound : i,
       );
     } else {
       // equipped 슬롯 중 해당 id 를 찾아 교체.
@@ -1359,7 +1438,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const startFloor = (progress?.floorReached ?? 0) + 1;
     const gameLevel = useGameStore.getState().progress.level ?? 1;
     const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
-    const leveledHero = computeHeroForLevel(state.hero, heroLvl);
+    // 가방 시너지는 세션 스냅샷에 1회 접힌다 (전투 중 재배치 무효).
+    const leveledHero = applyBagSynergy(
+      computeHeroForLevel(state.hero, heroLvl),
+      state.inventory,
+      bagRows(heroLvl),
+    );
     const session: CombatSession = buildSession(
       dungeonId,
       leveledHero,
@@ -1399,7 +1483,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // Phase 5a.1: level 기반 성장 반영. Phase 9d: 영웅 레벨 사용.
     const gameLevel = useGameStore.getState().progress.level ?? 1;
     const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
-    const leveledHero = computeHeroForLevel(state.hero, heroLvl);
+    // 가방 시너지는 세션 스냅샷에 1회 접힌다 (전투 중 재배치 무효).
+    const leveledHero = applyBagSynergy(
+      computeHeroForLevel(state.hero, heroLvl),
+      state.inventory,
+      bagRows(heroLvl),
+    );
     const session = buildSession(dungeonId, leveledHero, startFloor, undefined, {
       ngPlusLevel: state.ngPlusLevel ?? 0,
       heroLevel: heroLvl,
@@ -1431,7 +1520,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
     const gameLevel = useGameStore.getState().progress.level ?? 1;
     const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
-    const leveledHero = computeHeroForLevel(state.hero, heroLvl);
+    // 가방 시너지는 세션 스냅샷에 1회 접힌다 (전투 중 재배치 무효).
+    const leveledHero = applyBagSynergy(
+      computeHeroForLevel(state.hero, heroLvl),
+      state.inventory,
+      bagRows(heroLvl),
+    );
 
     // 주간 던전은 F30 고정 시작 (짧은 도전 run). ngPlusLevel 은 영향 X —
     // weekly affix 자체가 별도 난이도 소스.
@@ -1669,8 +1763,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     }
 
     // state commit + persist — 업로드 microtask 보다 먼저 실행 보장.
-    const newCoins = state.coins + session.rewards.coins;
-    const newInventory = [...state.inventory, ...keptDrops];
+    // 드롭을 격자 가방에 넣고, 정리 대기 트레이가 넘치면 초과분을 자동 판매한다.
+    //   결과 모달의 미리보기도 같은 순수 함수를 써야 화면과 실제가 어긋나지 않는다.
+    const settledBag = settleBagAfterSession(
+      state.inventory,
+      keptDrops,
+      currentBagRows(state),
+    );
+    const newCoins = state.coins + session.rewards.coins + settledBag.coins;
+    const newInventory = settledBag.inventory;
     // 탐험 중 모은 방지권 정산. 보스 드롭·보물상자·굴림틀이 session.rewards 에
     //   쌓아둔 것을 여기서 한 번에 합산한다. 상한 초과분은 조용히 잘린다.
     const newDestroyGuards = Math.min(
@@ -1702,15 +1803,25 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
   equipItem(itemId, slot) {
     const state = get();
-    const item = state.inventory.find((i) => i.id === itemId);
-    if (!item || item.type !== slot) return;
-    const heroEquipped = { ...state.hero.equipped, [slot]: item };
+    const index = state.inventory.findIndex((i) => i.id === itemId);
+    if (index < 0) return;
+    const item = state.inventory[index];
+    if (item.type !== slot) return;
+    // 착용 아이템은 앵커 칸에 1칸으로 그려진다 — 좌표를 들고 가면 가방 점유가
+    //   유령처럼 남고 클라우드로도 새어 나간다. 그래서 착용 시 좌표를 벗긴다.
+    const worn = withoutPlacement(item);
+    const heroEquipped = { ...state.hero.equipped, [slot]: worn };
     const hero = { ...state.hero, equipped: heroEquipped };
     // 인벤토리에서 해당 아이템 제거 (장착 slot 으로 이동)
-    // 기존 장착 아이템 있으면 인벤토리로 반환
+    // 교체면 벗겨지는 아이템이 방금 비운 footprint 를 그대로 물려받는다 (같은 슬롯 =
+    //   같은 모양이라 항상 성립). 배열 자리도 같은 index 를 쓴다 — push 하면 시너지
+    //   순회와 first-fit 순서가 장착할 때마다 달라져 결정성이 깨진다.
     const existing = state.hero.equipped[slot];
-    const newInventory = state.inventory.filter((i) => i.id !== itemId);
-    if (existing) newInventory.push(existing);
+    const newInventory = existing
+      ? state.inventory.map((i, idx) =>
+          idx === index ? inheritPlacement(item, existing) : i,
+        )
+      : state.inventory.filter((i) => i.id !== itemId);
     set({ hero, inventory: newInventory });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero, inventory: newInventory }));
   },
@@ -1722,7 +1833,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const heroEquipped = { ...state.hero.equipped };
     delete heroEquipped[slot];
     const hero = { ...state.hero, equipped: heroEquipped };
-    const newInventory = [...state.inventory, item];
+    // 첫 빈 자리에 놓고, 자리가 없으면 정리 대기 트레이로. 실패하지 않는다.
+    const newInventory = placeIntoBag(state.inventory, item, currentBagRows(state));
     set({ hero, inventory: newInventory });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero, inventory: newInventory }));
   },
@@ -2002,6 +2114,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const success = roll < rate;
 
     // 위치별 item 을 새 item 으로 교체하는 헬퍼.
+    //   호출부의 newItem 은 전부 `{ ...item, ... }` 스프레드라 가방 좌표
+    //   (bagX/bagY/bagRot)가 그대로 따라온다 — 강화는 자리 이동이 아니다.
+    //   소실(removeItem)은 배열에서 빠지므로 칸도 자동으로 비워진다.
     const replaceItem = (newItem: Equipment) => {
       if (equippedSlot) {
         const newEquipped = { ...state.hero.equipped, [equippedSlot]: newItem };
@@ -2163,9 +2278,40 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     return { ok: false, reason: "destroyed", lostItemName: lostName, lostBaseId };
   },
 
+  placeItem(itemId, x, y, rot) {
+    const state = get();
+    const rows = currentBagRows(state);
+    // 판정 기준은 정규화된 레이아웃이다 — 손상 좌표가 남아 있으면 "빈 칸인데
+    //   겹침" 같은 거짓 거절이 난다. 자기 자신의 현재 칸은 무시한다(제자리 회전).
+    const { inventory: normalized, layout } = normalizeBagLayout(state.inventory, rows);
+    const item = normalized.find((i) => i.id === itemId);
+    if (!item) return { ok: false, reason: "notFound" };
+    const check = checkPlacement(layout.occupancy, rows, item.type, x, y, rot, itemId);
+    if (check !== "ok") return { ok: false, reason: check };
+    const placed = withPlacement(item, { x, y, rot });
+    const newInventory = normalized.map((i) => (i.id === itemId ? placed : i));
+    set({ inventory: newInventory });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, inventory: newInventory }));
+    return { ok: true };
+  },
+
+  setBagOpen(open) {
+    // 비영속 — persist 하지 않는다 (pendingDungeon 과 같은 성격).
+    if (get().uiBagOpen === open) return;
+    set({ uiBagOpen: open });
+  },
+
   _setFromCloud: (state) => {
+    // 격자 가방 — 들어온 인벤토리도 로컬 로드와 같은 계약으로 접는다. 백필은
+    //   여기서만 한다 (sync 의 디코드는 iOS 와 바이트 동일해야 해서 손대지 않는다).
+    // 로드와 같은 규칙: 행 수는 BAG_ROWS_MAX. 레벨 하락으로 아래 행 좌표를 잃지 않고,
+    //   팩도 8행에 놓아 보드 밖 아이템은 suspended(보류)로 남긴다 (자동 판매 후보가 아님).
+    const inventory = packAllIfNonePlaced(
+      normalizeBagLayout(state.inventory ?? [], BAG_ROWS_MAX).inventory,
+    );
     set({
       ...state,
+      inventory,
       // Phase 15 — 방지권/버프는 클라우드에서 온 값도 로컬과 같은 계약으로 접는다.
       //   와이어는 만료된 버프를 {pct:0,battlesLeft:0} 껍데기로 실어 보내므로
       //   (merge 로 되살아나는 걸 막으려고) 여기서 undefined 로 되돌려야 한다.
@@ -2229,36 +2375,6 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 /* ═══════════════════════════════════════════════════════════════════════
  * Phase 11a — enhanceItem 헬퍼
  * ═══════════════════════════════════════════════════════════════════════ */
-
-/**
- * 장비의 "primary stat key" 를 찾는다. 드롭 템플릿의 statBoost 가 primary 이지만
- * Equipment 타입에는 statBoost 가 저장 안 돼 있어 stats 객체에서 최대값 key 로 추정.
- * 동률 시 defined order (str/int/vit/dex/agi/crit/slotBonus) 로 tie-break.
- */
-function pickPrimaryStatKey(
-  stats: Equipment["stats"],
-): keyof HeroBaseStats | null {
-  const order: Array<keyof HeroBaseStats> = [
-    "str",
-    "int",
-    "vit",
-    "dex",
-    "agi",
-    "crit",
-    "slotBonus",
-  ];
-  let best: keyof HeroBaseStats | null = null;
-  let bestVal = -Infinity;
-  for (const key of order) {
-    const v = stats[key];
-    if (v == null) continue;
-    if (v > bestVal) {
-      best = key;
-      bestVal = v;
-    }
-  }
-  return best;
-}
 
 /**
  * 이름에서 " +N" 또는 legacy " +" suffix 제거. enhanceItem 성공 시 매번 재부여.

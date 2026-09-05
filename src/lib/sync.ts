@@ -4,6 +4,7 @@ import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { ALL_CARDS } from "@/data/cards";
 import { normalizeRetentionState, stripUndefined } from "@/lib/retention";
 import { normalizeSlotBlankStreak, normalizeSlotSpins } from "@/lib/upHeroSlot";
+import { normalizeEquipmentPlacement } from "@/lib/upHeroBag";
 import {
   createDefaultHero,
   DUNGEON_BY_CLASS,
@@ -199,9 +200,19 @@ function normalizeEquipment(raw: unknown): Equipment | null {
   if (id === undefined || type === undefined) return null;
   if (!EQUIP_SLOTS.includes(type as EquipSlot)) return null;
   const item = { ...r } as unknown as Equipment;
+  // Firestore 는 값이 지워진 옵셔널 필드를 명시적 null 로 실어 보낸다. null 을 그대로
+  // 두면 `photoId: null` 같은 값이 "있다" 로 읽혀 게임 로직이 밟는다. 키를 **삭제**해야
+  // 한다 — undefined 를 대입하면 다음 업로드 페이로드에서 Firestore 가 throw 한다.
+  const rec = item as unknown as Record<string, unknown>;
+  for (const key of Object.keys(rec)) {
+    if (rec[key] === null) delete rec[key];
+  }
   item.name = asText(r.name) ?? id;
   item.stats = normalizeStats(r.stats);
-  return item;
+  // 격자 가방 좌표 계약 (upHeroBag 단일 출처, iOS CloudEquipment 와 같은 규칙).
+  // 여기서 팩(백필)은 하지 않는다 — 클라우드 디코드는 iOS 와 바이트 동일해야 하고,
+  // 좌표가 없는 저장본의 복구는 스토어 로드 경로(initialize / _setFromCloud)가 맡는다.
+  return normalizeEquipmentPlacement(item);
 }
 
 /**

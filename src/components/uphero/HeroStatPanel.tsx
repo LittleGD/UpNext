@@ -25,12 +25,13 @@ import {
   CLASS_META,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
-import type { EquipSlot } from "@/types/uphero";
+import type { EquipSlot, HeroBaseStats } from "@/types/uphero";
+import { bagRows, computeBagSynergy } from "@/lib/upHeroBag";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
-import { skillName, skillDesc, className as classNameI18n, classPassive, equipmentNameById } from "@/lib/upHeroI18n";
+import { skillName, skillDesc, className as classNameI18n, classPassive, equipmentNameById, affixStatLabel } from "@/lib/upHeroI18n";
 import HeroSprite from "./HeroSprite";
 import HexStatChart from "./HexStatChart";
 import SkillTreePanel from "./SkillTreePanel";
@@ -55,6 +56,7 @@ const SLOT_LABEL_KEY: Record<EquipSlot, DictKey> = {
 export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
+  const inventory = useUpHeroStore((s) => s.inventory);
   // Phase 9d — 영웅 전용 레벨.
   const gameLevel = useGameStore((s) => s.progress.level);
   const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
@@ -66,6 +68,15 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   const leveledHero = computeHeroForLevel(hero, level);
   const effective = computeEffectiveStats(leveledHero);
   const base = leveledHero.baseStats;
+
+  // 격자 가방 시너지 — 세션 시작 때 baseStats 에 가산되는 값과 **같은 순수 함수**로
+  //   라이브 계산한다. 여기서 따로 더하면 화면과 전투가 갈린다.
+  const bagSynergy = computeBagSynergy(hero.equipped, inventory, bagRows(level));
+  const bagSynergyText = (
+    Object.keys(bagSynergy.bonuses) as Array<keyof HeroBaseStats>
+  )
+    .map((k) => `+${bagSynergy.bonuses[k] ?? 0} ${affixStatLabel(k, language)}`)
+    .join("  ");
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -193,6 +204,20 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
             classType={hero.classType}
             size={240}
           />
+          {/* 가방 시너지 합 — 앵커 옆에 무엇을 뒀는지가 만든 값. 0 이면 줄을 그리지 않는다. */}
+          {bagSynergyText && (
+            <div className="mt-3">
+              <div
+                className="typo-caption tabular-nums"
+                style={{ color: GB.lightest }}
+              >
+                {t("uphero.bag.synergy.total")} {bagSynergyText}
+              </div>
+              <div className={`typo-micro mt-1 ${gbClass.textDim} leading-relaxed`}>
+                {t("uphero.bag.photoHint")}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* 장착 장비 4개 */}

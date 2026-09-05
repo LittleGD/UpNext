@@ -91,3 +91,77 @@ describe("normalizeUpHeroState — combatBuff", () => {
     ).toEqual({ pct: 99, battlesLeft: 5 });
   });
 });
+
+/**
+ * 격자 가방 좌표의 와이어 계약. iOS `CloudEquipment` 가 같은 규칙을 쓰므로
+ * 한쪽만 고치면 왕복에서 배치가 조용히 어긋난다.
+ *
+ * 계약: `n = 유한수 ? floor(n) : 삭제`, bagX 0..4 / bagY 0..7 / bagRot 0..3,
+ * bagX 나 bagY 가 무효면 **세 키를 모두** 삭제. 무효 rot 만 0 으로 접는다.
+ * 여기서 팩(백필)은 하지 않는다 — 디코드가 좌표를 지어내면 iOS 와 바이트가 갈린다.
+ */
+describe("normalizeUpHeroState — 장비 좌표·null 키", () => {
+  const base = {
+    id: "eq-1",
+    type: "weapon",
+    name: "쇠검",
+    category: "fitness",
+    rarity: "rare",
+    iconName: "Sword",
+    stats: { str: 3 },
+  };
+  const decode = (
+    extra: Record<string, unknown>,
+  ): Record<string, unknown> | undefined => {
+    const decoded = normalizeUpHeroState({ inventory: [{ ...base, ...extra }] });
+    const item: unknown = decoded.inventory?.[0];
+    return item as Record<string, unknown> | undefined;
+  };
+  const hasCoords = (item: Record<string, unknown> | undefined) =>
+    item !== undefined &&
+    ("bagX" in item || "bagY" in item || "bagRot" in item);
+
+  it("null 값 키는 삭제된다 (undefined 대입은 업로드에서 throw 한다)", () => {
+    const item = decode({ photoId: null, bagX: null, bagY: null, bagRot: null });
+    expect(item).toBeDefined();
+    expect("photoId" in (item as object)).toBe(false);
+    expect(hasCoords(item)).toBe(false);
+  });
+
+  it("소수 좌표는 floor 된다", () => {
+    expect(decode({ bagX: 2.7, bagY: 1, bagRot: 0 })).toMatchObject({
+      bagX: 2,
+      bagY: 1,
+      bagRot: 0,
+    });
+  });
+
+  it("음수·범위 밖·타입 불일치는 세 키를 모두 지운다", () => {
+    expect(hasCoords(decode({ bagX: -1, bagY: 1, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: 99, bagY: 1, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: 1, bagY: 99, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: "2", bagY: 1, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: 1, bagY: NaN, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: 1e300, bagY: 1, bagRot: 0 }))).toBe(false);
+  });
+
+  it("좌표가 유효하면 무효 rot 만 0 으로 접는다", () => {
+    expect(decode({ bagX: 1, bagY: 2, bagRot: 7 })).toMatchObject({
+      bagX: 1,
+      bagY: 2,
+      bagRot: 0,
+    });
+    expect(decode({ bagX: 1, bagY: 2, bagRot: "가로" })).toMatchObject({
+      bagRot: 0,
+    });
+  });
+
+  it("정상 좌표는 그대로 왕복하고, 좌표가 없으면 지어내지 않는다", () => {
+    expect(decode({ bagX: 4, bagY: 7, bagRot: 1 })).toMatchObject({
+      bagX: 4,
+      bagY: 7,
+      bagRot: 1,
+    });
+    expect(hasCoords(decode({}))).toBe(false);
+  });
+});

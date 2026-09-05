@@ -21,10 +21,12 @@ vi.mock("@/lib/storage", () => ({
 }));
 
 import { useUpHeroStore } from "./useUpHeroStore";
+import { loadFromStorage } from "@/lib/storage";
 import { normalizeUpHeroState } from "@/lib/sync";
 import { createSession, tickSession } from "@/lib/upHeroCombat";
 import { createDefaultHero, enhanceOutcomeRates } from "@/types/uphero";
-import type { CombatSession } from "@/types/uphero";
+import { useGameStore } from "./useGameStore";
+import type { CombatSession, Equipment, EquipSlot } from "@/types/uphero";
 
 describe("신규 필드 없는 저장본", () => {
   it("클라우드 문서에 세 키가 없어도 기본값으로 채워진다", () => {
@@ -131,5 +133,90 @@ describe("진행 중이던 옛 세션", () => {
       combatBuff: undefined,
     });
     expect(carried.combatBuff).toBeUndefined();
+  });
+});
+
+/**
+ * 좌표가 없던 시절(v5 이하) 저장본과, 구버전 iOS 가 좌표를 벗겨 올린 클라우드
+ * 문서의 복구. 유저는 아이템을 트레이로 **옮길 수 없으므로** "배치 0개" 는
+ * 정당한 상태가 아니다 — 로드 경로가 배열 순서 first-fit 로 한 번 채워 준다.
+ */
+describe("격자 가방 좌표가 없는 저장본", () => {
+  /** 좌표 세 키가 다 없는가 (= 정리 대기 트레이). */
+  const inTray = (item: Equipment) =>
+    !Object.prototype.hasOwnProperty.call(item, "bagX") &&
+    !Object.prototype.hasOwnProperty.call(item, "bagY") &&
+    !Object.prototype.hasOwnProperty.call(item, "bagRot");
+
+  const legacyItem = (id: string, type: EquipSlot): Equipment =>
+    ({
+      id,
+      baseId: `base_${type}`,
+      name: id,
+      type,
+      category: "fitness",
+      rarity: "normal",
+      iconName: "Sword",
+      stats: { str: 1 },
+      enhanceLevel: 0,
+    }) as Equipment;
+
+  it("v5 저장본은 배열 순서 first-fit 으로 결정적으로 팩된다", () => {
+    // 영웅 Lv1 (5행) 보드. 십자 5칸을 피해 좌상 → 우하로 채워진다.
+    useGameStore.setState({
+      progress: { ...useGameStore.getState().progress, level: 1 },
+    });
+    vi.mocked(loadFromStorage).mockImplementation((key: string) =>
+      key === "uphero"
+        ? ({
+            schemaVersion: 5,
+            heroStartLevel: 1,
+            inventory: [
+              legacyItem("w", "weapon"),
+              legacyItem("a", "armor"),
+              legacyItem("c", "accessory"),
+              legacyItem("t", "talisman"),
+            ],
+          } as never)
+        : (null as never),
+    );
+    useUpHeroStore.setState({ isLoaded: false });
+    useUpHeroStore.getState().initialize();
+
+    const inv = useUpHeroStore.getState().inventory;
+    // 무기 1x2 는 (0,0)-(0,1), 갑옷 2x2 는 십자에 막혀 (0,2) 부터,
+    // 1x1 둘은 남은 첫 칸 (1,0) 과 (3,0).
+    expect(inv[0]).toMatchObject({ id: "w", bagX: 0, bagY: 0, bagRot: 0 });
+    expect(inv[1]).toMatchObject({ id: "a", bagX: 0, bagY: 2, bagRot: 0 });
+    expect(inv[2]).toMatchObject({ id: "c", bagX: 1, bagY: 0, bagRot: 0 });
+    expect(inv[3]).toMatchObject({ id: "t", bagX: 3, bagY: 0, bagRot: 0 });
+    expect(useUpHeroStore.getState().schemaVersion).toBe(6);
+    vi.mocked(loadFromStorage).mockImplementation(() => null as never);
+  });
+
+  it("좌표가 하나도 없는 클라우드 문서는 _setFromCloud 가 되살린다", () => {
+    useUpHeroStore.setState({ heroStartLevel: 1 });
+    useUpHeroStore.getState()._setFromCloud({
+      ...useUpHeroStore.getState(),
+      inventory: [legacyItem("c1", "accessory"), legacyItem("c2", "accessory")],
+    });
+    const inv = useUpHeroStore.getState().inventory;
+    expect(inv.every((i) => !inTray(i))).toBe(true);
+    expect(inv[0]).toMatchObject({ bagX: 0, bagY: 0 });
+    expect(inv[1]).toMatchObject({ bagX: 1, bagY: 0 });
+  });
+
+  it("좌표가 이미 있는 문서는 그대로 둔다 (백필이 배치를 흔들지 않는다)", () => {
+    useUpHeroStore.setState({ heroStartLevel: 1 });
+    const placed = { ...legacyItem("c1", "accessory"), bagX: 4, bagY: 4, bagRot: 0 };
+    const trayItem = legacyItem("c2", "accessory");
+    useUpHeroStore.getState()._setFromCloud({
+      ...useUpHeroStore.getState(),
+      inventory: [placed, trayItem],
+    });
+    const inv = useUpHeroStore.getState().inventory;
+    expect(inv[0]).toMatchObject({ bagX: 4, bagY: 4 });
+    // 배치가 하나라도 있으면 전체 팩은 돌지 않는다 — 트레이 아이템은 트레이로 남는다.
+    expect(inTray(inv[1])).toBe(true);
   });
 });

@@ -96,6 +96,10 @@ export default function CampPlaceholder() {
   const ngPlusLevel = useUpHeroStore((s) => s.ngPlusLevel ?? 0);
 
   const [view, setView] = useState<View>("home");
+  // 가방 화면 열림 신호 — playground 의 immersive 와 BottomNav 숨김이 이걸 본다.
+  //   비영속 플래그라 persist·클라우드에는 나가지 않는다 (pendingDungeon 과 같은 성격).
+  const setBagOpen = useUpHeroStore((s) => s.setBagOpen);
+  const uiBagOpen = useUpHeroStore((s) => s.uiBagOpen);
   const [toast, setToast] = useState<string | null>(null);
   const [statsOpen, setStatsOpen] = useState(false);
   // 아지트 첫 진입 튜토리얼 — 유저가 완료/Skip 누르면 persist 되어 재등장 안 함.
@@ -111,6 +115,14 @@ export default function CampPlaceholder() {
   //   이전엔 `setTimeout(() => setToast(null), 2000)` 가 unmount 이후에도 fire →
   //   dev console 의 "state update on unmounted component" warning. 이제 ref 로
   //   timer id 추적 + unmount cleanup + 중복 호출 시 이전 timer clear.
+  // 장비 view 진입/이탈에 신호를 켜고 끈다. cleanup 이 이탈·언마운트 양쪽을 덮으므로
+  //   뒤로 가기든 탭 전환이든 플래그가 남지 않는다.
+  useEffect(() => {
+    if (view !== "equipment") return;
+    setBagOpen(true);
+    return () => setBagOpen(false);
+  }, [view, setBagOpen]);
+
   const toastTimerRef = useRef<number | null>(null);
   useEffect(() => {
     return () => {
@@ -136,9 +148,11 @@ export default function CampPlaceholder() {
       style={{
         background: GB.darkest,
         color: GB.light,
-        // 캠프 = tab + bottomnav 위쪽 공간 전체 점유 (대략 100dvh - 앱 chrome)
-        height: "calc(100dvh - 208px)",
-        minHeight: 480,
+        // 캠프 = tab + bottomnav 위쪽 공간 전체 점유 (대략 100dvh - 앱 chrome).
+        //   가방이 열려 있으면 탭바·네비가 숨으므로 창이 화면 전체를 가져간다 —
+        //   minHeight 를 함께 지우지 않으면 짧은 뷰포트에서 보드가 잘린다.
+        height: uiBagOpen ? "100dvh" : "calc(100dvh - 208px)",
+        minHeight: uiBagOpen ? undefined : 480,
       }}
     >
       {/* === Header (글로벌) ===

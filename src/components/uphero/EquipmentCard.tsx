@@ -13,12 +13,12 @@
  * interaction: onClick/onTap 이 있으면 press scale(0.97) 피드백.
  */
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 import type { Equipment } from "@/types/uphero";
 import RarityTexture from "@/components/cards/RarityTexture";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
-import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
+import EquipmentPhotoThumb from "./EquipmentPhotoThumb";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
 import { equipmentNameById, skillName } from "@/lib/upHeroI18n";
@@ -143,7 +143,10 @@ export default function EquipmentCard({
       {/* 상단: 아이콘 (photo 부적이면 썸네일) + rarity accent dot */}
       <div className="flex items-start justify-between">
         {equipment.photoId ? (
-          <PhotoThumb photoId={equipment.photoId} size={dim.iconSize + 4} />
+          <EquipmentPhotoThumb
+            photoId={equipment.photoId}
+            size={dim.iconSize + 4}
+          />
         ) : (
           <PixelIcon
             name={equipment.iconName}
@@ -301,58 +304,4 @@ export default function EquipmentCard({
     );
   }
   return content;
-}
-
-/* ────────────────────────────────────────── */
-
-/**
- * Phase 7 — 사진 부적의 썸네일.
- * IndexedDB 에서 blob 을 가져와 URL 렌더. 로딩 중 dim placeholder.
- */
-function PhotoThumb({ photoId, size }: { photoId: string; size: number }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    let objectUrl: string | null = null;
-    getThumbnailBlob(photoId)
-      .then((blob) => {
-        if (!active || !blob) return;
-        objectUrl = blobToUrl(blob);
-        setUrl(objectUrl);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [photoId]);
-
-  if (!url) {
-    return (
-      <div
-        className="rounded-sm"
-        style={{
-          width: size,
-          height: size,
-          background: `${GB.dark}cc`,
-          border: `1px solid ${GB.light}80`,
-        }}
-      />
-    );
-  }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
-      alt=""
-      aria-hidden="true"
-      className="rounded-sm"
-      style={{
-        width: size,
-        height: size,
-        objectFit: "cover",
-        border: `1px solid ${GB.light}`,
-      }}
-    />
-  );
 }

@@ -18,6 +18,9 @@ set -u
 cd "$(dirname "$0")/.."
 
 MODELS="upnext-ios/UpNext/UpNext/Models"
+# AppConfig 는 App Group 공유라 Models/ 밖(Shared/)에 있는데 Game.swift·IdleAccrual.swift 가 참조한다.
+# 모든 suite 컴파일에 항상 포함한다 (2026-09-04: 1.3.0 머지 뒤 11/12 suite 가 이 한 줄 때문에 컴파일 실패했다).
+SHARED_ALWAYS="upnext-ios/UpNext/Shared/AppConfig.swift"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -27,7 +30,7 @@ TOTAL=0
 
 run_suite() {
   local name="$1"; shift
-  local args=()
+  local args=("$SHARED_ALWAYS")
   local f
   for f in "$@"; do args+=("$MODELS/$f"); done
   # 검증기 swift 파일은 top-level 코드 → swiftc 다중 파일 컴파일 시 main.swift 여야 함.
@@ -58,7 +61,7 @@ run_suite() {
 # 시드 고정으로 세션을 끝까지 돌려 크래시·불변식·종료 보장만 확인 (exit 0 = pass).
 run_smoke() {
   local name="$1"; shift
-  local args=()
+  local args=("$SHARED_ALWAYS")
   local f
   for f in "$@"; do args+=("$MODELS/$f"); done
   cp "scripts/equiv/$name.swift" "$TMP/main.swift"
@@ -82,15 +85,19 @@ echo "═══ UpNext 동치성 검증 (Phase 2.3~3.1) ═══"
 run_suite rng              UpHeroRNG.swift
 run_suite idle             IdleAccrual.swift
 run_suite gamerules        Card.swift Game.swift GameRules.swift
-run_suite uphero           Card.swift Game.swift UpHero.swift
-run_suite uphero-combat    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift
-run_suite classskills      Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift
-run_suite talisman-reward  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift TalismanSkills.swift SessionReward.swift EquipmentPool.swift
-run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift
-run_suite affix-narrative  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift
-run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift FlavorPool.swift
-run_suite sync             Card.swift Game.swift FirestoreModels.swift
-run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift
+run_suite uphero           Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroSlot.swift
+run_suite uphero-combat    Card.swift Game.swift UpHero.swift UpHeroSlot.swift UpHeroRNG.swift UpHeroCombat.swift
+run_suite classskills      Card.swift Game.swift UpHero.swift UpHeroSlot.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift
+run_suite talisman-reward  Card.swift Game.swift UpHero.swift UpHeroSlot.swift UpHeroRNG.swift UpHeroCombat.swift TalismanSkills.swift SessionReward.swift EquipmentPool.swift UpHeroBag.swift
+run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroSlot.swift UpHeroRNG.swift UpHeroCombat.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift
+run_suite affix-narrative  Card.swift Game.swift UpHero.swift UpHeroSlot.swift UpHeroRNG.swift UpHeroCombat.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift
+run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroSlot.swift FlavorPool.swift
+# sync suite 는 HEAD(dc0c183) 시점부터 컴파일이 깨져 있다: FirestoreModels → Retention → PhotoMeta(GrowthModels) → Sticker(뷰 파일)
+#   로 이어지는 의존 사슬이 Models/ 밖(SwiftUI 뷰)까지 닿는다. Retention 의 PhotoMeta 의존을 끊거나 Sticker 를 Models 로
+#   옮기는 별도 작업이 필요하다. 2026-09-04 격자 가방 작업과 무관한 기존 결함으로 남긴다.
+run_suite sync             Card.swift Game.swift FirestoreModels.swift Retention.swift GrowthModels.swift CardCatalog.swift
+run_suite bag              Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroSlot.swift UpHeroBag.swift
+run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroSlot.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift
 echo "──────────────────────────────────────────"
 echo "결과: $PASS/$((PASS + FAIL)) suite 통과 · 총 $TOTAL 라인 동치"
 if [ "$FAIL" -eq 0 ]; then
