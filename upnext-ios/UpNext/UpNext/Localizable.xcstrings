@@ -29866,6 +29866,29 @@
         }
       }
     },
+    "남은 카드가 부족해 %lld 코인으로 보상했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not enough cards left, so %lld coins were added instead"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残りカードが足りないため %lld コインで補償しました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余卡片不足，已补偿 %lld 金币"
+          }
+        }
+      }
+    },
     "남의 속도와 비교하는 마음을 내려놓으세요. 당신의 셈은 따로 갑니다": {
       "localizations": {
         "en": {
@@ -31455,6 +31478,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "地牢"
+          }
+        }
+      }
+    },
+    "던전 XP 획득 +20%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dungeon XP +20%"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダンジョン XP +20%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地下城 XP +20%"
           }
         }
       }
@@ -34560,6 +34606,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "集齐所有卡牌"
+          }
+        }
+      }
+    },
+    "모든 카드를 이미 모았어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You already own every card"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのカードを集めました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你已经集齐所有卡片"
           }
         }
       }

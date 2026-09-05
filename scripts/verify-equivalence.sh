@@ -18,6 +18,8 @@ set -u
 cd "$(dirname "$0")/.."
 
 MODELS="upnext-ios/UpNext/UpNext/Models"
+# Game.swift 가 AppConfig(App+Widget 공유, Foundation 전용)를 참조하므로 함께 컴파일한다.
+SHARED="upnext-ios/UpNext/Shared"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -29,7 +31,10 @@ run_suite() {
   local name="$1"; shift
   local args=()
   local f
-  for f in "$@"; do args+=("$MODELS/$f"); done
+  for f in "$@"; do
+    args+=("$MODELS/$f")
+    if [ "$f" = "Game.swift" ]; then args+=("$SHARED/AppConfig.swift"); fi
+  done
   # 검증기 swift 파일은 top-level 코드 → swiftc 다중 파일 컴파일 시 main.swift 여야 함.
   cp "scripts/equiv/$name.swift" "$TMP/main.swift"
   if ! swiftc "${args[@]}" "$TMP/main.swift" -o "$TMP/bin-$name" 2>"$TMP/err-$name"; then
@@ -60,7 +65,10 @@ run_smoke() {
   local name="$1"; shift
   local args=()
   local f
-  for f in "$@"; do args+=("$MODELS/$f"); done
+  for f in "$@"; do
+    args+=("$MODELS/$f")
+    if [ "$f" = "Game.swift" ]; then args+=("$SHARED/AppConfig.swift"); fi
+  done
   cp "scripts/equiv/$name.swift" "$TMP/main.swift"
   if ! swiftc "${args[@]}" "$TMP/main.swift" -o "$TMP/bin-$name" 2>"$TMP/err-$name"; then
     echo "❌ $name — Swift 컴파일 실패"

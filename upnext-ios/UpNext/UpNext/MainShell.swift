@@ -542,9 +542,11 @@ struct MainTabView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { evaluateFortunePrompt() }
     }
 
-    /// 미개봉 카드팩 수 (레벨업 팩 + 보너스 카드).
+    /// 미개봉 카드팩 수 (풀 카드팩 + 레벨업 팩 + 보너스 카드) — 상점에서 산 풀팩도 오프너를 띄운다.
     private var pendingPackCount: Int {
-        (store.progress?.pendingPacks ?? 0) + (store.progress?.pendingBonusCards ?? 0)
+        (store.progress?.pendingFullPacks ?? 0)
+            + (store.progress?.pendingPacks ?? 0)
+            + (store.progress?.pendingBonusCards ?? 0)
     }
 
     /// 촬영 모달 헤더에 표시할 챌린지 제목 — 카탈로그에서 cardId 로 카드를 찾아 인앱 언어로
