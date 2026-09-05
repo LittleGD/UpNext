@@ -134,6 +134,12 @@ final class UpHeroStore: ObservableObject {
     /// 스냅샷마다 호출한다 — 로컬에 흔적이 있어 채택을 건너뛰는 기기도 다른 기기가 올린
     /// 더 큰 풀을 받아들여야 Lv47 시드값이 클라우드를 되감는 핑퐁이 사라진다.
     /// 다른 기기가 이미 본 레벨업이라 오버레이는 띄우지 않는다. 웹 mergeCloudHeroXp.
+    ///
+    /// hydrate 전 호출 계약: 웹은 initialize 전에 이 병합이 오면 (아지트를 안 거친
+    /// 라우트에서 로그인) in-memory 기본값을 persist 하지 않도록 저장본 레코드에만
+    /// 병합한다. iOS 는 `init` 이 디스크 상태를 먼저 복원하므로 `state` 가 항상
+    /// 저장본 그 자체다 — 여기서 persist 해도 코인·인벤·영웅 흔적이 지워지지 않아
+    /// 별도 분기가 필요 없다 (adoptCloudUpHero 의 흔적 게이트 불변).
     func mergeCloudHeroXp(_ cloudHeroXp: Int?) {
         guard let raw = cloudHeroXp else { return }
         let cloud = UpHeroRules.clampHeroXp(raw)
