@@ -135,6 +135,13 @@ var f3 = mkSession(hp: 100, maxHp: 500, classResource: 0, learnedSkills: ["novic
 ClassSkills.maybeFireSkill(&f3, monster: applyMonster)
 print("maybeFireSkill:novice = \(lastSkillId(f3.log))")
 
+// Phase 3-F — 레거시 [T1, T2a, T2b] 둘 다 준비 + hp 50% → 선언 순서 (a) 우선.
+var f4 = mkSession(hp: 250, maxHp: 500, classResource: 100, classType: .warrior,
+                   learnedSkills: ["warrior_smash_t1", "warrior_berserk_t2", "warrior_ironwall_t2"],
+                   autoSkillEnabled: true)
+ClassSkills.maybeFireSkill(&f4, monster: applyMonster)
+print("maybeFireSkill:tieBreak = \(lastSkillId(f4.log))")
+
 // ── G. advanceSkillCounters ────────────────────────────────────
 var gS = mkSession(
     skillCooldown: 2, skillCooldowns: ["a": 3, "b": 1, "c": 0],
@@ -143,3 +150,40 @@ var gS = mkSession(
     heroInvulnerableRounds: 3, forcedDodgeRounds: 1)
 ClassSkills.advanceSkillCounters(&gS)
 print("advanceSkillCounters = \(effSummary(gS)) t1cd\(dash(gS.skillCooldown))")
+
+// ── H. learnStatus 매트릭스 + siblingSkill (Phase 3-F) ────────────
+do {
+    let W1 = "warrior_smash_t1", W2A = "warrior_berserk_t2", W2B = "warrior_ironwall_t2"
+    let W3A = "warrior_crush_t3", W3B = "warrior_warcry_t3", W4 = "warrior_rage_burst_t4"
+    // (case, learned, points, heroLevel, classType) — classskills-check.mjs 섹션 H 와 동일.
+    let cases: [(String, [String], Int, Int, ClassType?)] = [
+        ("t1only", [W1], 5, 45, .warrior),
+        ("t2a", [W1, W2A], 5, 45, .warrior),
+        ("t2b", [W1, W2B], 5, 45, .warrior),
+        ("t2a_t3b", [W1, W2A, W3B], 5, 45, .warrior),
+        ("full", [W1, W2A, W3A, W4], 5, 45, .warrior),
+        ("legacyBoth", [W1, W2A, W2B], 5, 45, .warrior),
+        ("lv34", [W1], 5, 34, .warrior),
+        ("lv39", [W1, W2A], 5, 39, .warrior),
+        ("lv44", [W1, W2A, W3A], 5, 44, .warrior),
+        ("sp0", [W1], 0, 45, .warrior),
+        ("sp1", [W1, W2A, W3A], 1, 45, .warrior),
+        ("mage", [W1], 5, 45, .mage),
+        ("noClass", [W1], 5, 45, nil),
+    ]
+    let ids = [W1, W2A, W2B, W3A, W3B, W4, "mage_chain_t3"]
+    for id in ids {
+        let sk = ClassSkills.findSkillById(id)!
+        for (cn, learned, points, heroLevel, classType) in cases {
+            let st = ClassSkills.learnStatus(sk, classType: classType, heroLevel: heroLevel,
+                                             learned: learned, points: points)
+            print("learnStatus:\(id):\(cn) = \(st.webName)")
+        }
+    }
+    for id in ids {
+        let sib = ClassSkills.siblingSkill(of: ClassSkills.findSkillById(id)!)
+        print("sibling:\(id) = \(sib?.id ?? "nil")")
+    }
+    let nov = ClassSkills.siblingSkill(of: ClassSkills.findSkillById("novice_heal")!)
+    print("sibling:novice_heal = \(nov?.id ?? "nil")")
+}
