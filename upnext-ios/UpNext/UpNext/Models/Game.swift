@@ -156,6 +156,9 @@ struct UserProgress: Codable {
     var daysTowardNextLevel: Int
     var pendingPacks: Int
     var pendingBonusCards: Int
+    /// 상점 풀 카드팩 큐 — 웹 UserProgress.pendingFullPacks (항상 PackTier.fullPackCardCount 장, tier 하한 rare).
+    /// 구 문서에는 없으므로 관용 디코드(부재 = 0). CodingKeys 는 합성이라 와이어 키가 웹과 동일.
+    var pendingFullPacks: Int
     /// 카드별 완수 횟수.
     var cardCompletions: [String: Int]
     var extraChallengesCompleted: Int
@@ -220,6 +223,7 @@ extension UserProgress {
         daysTowardNextLevel = (try? c.decode(Int.self, forKey: .daysTowardNextLevel)) ?? 0
         pendingPacks = (try? c.decode(Int.self, forKey: .pendingPacks)) ?? 0
         pendingBonusCards = (try? c.decode(Int.self, forKey: .pendingBonusCards)) ?? 0
+        pendingFullPacks = max(0, (try? c.decode(Int.self, forKey: .pendingFullPacks)) ?? 0)
         cardCompletions = (try? c.decode([String: Int].self, forKey: .cardCompletions)) ?? [:]
         extraChallengesCompleted = (try? c.decode(Int.self, forKey: .extraChallengesCompleted)) ?? 0
         superChallengesCompleted = (try? c.decode(Int.self, forKey: .superChallengesCompleted)) ?? 0

@@ -771,7 +771,7 @@ enum UpHeroRules {
     /// 클래스 메타 (이름/패시브/아이콘). 웹 `CLASS_META`.
     static let classMeta: [ClassType: ClassMeta] = [
         .warrior: ClassMeta(name: "전사", passive: "전투 round 당 HP +2 회복", icon: "Sword"),
-        .mage: ClassMeta(name: "마법사", passive: "모든 XP 획득 +20%", icon: "BookOpen"),
+        .mage: ClassMeta(name: "마법사", passive: "던전 XP 획득 +20%", icon: "BookOpen"),
         .monk: ClassMeta(name: "수도승", passive: "회피 확률 +10%", icon: "Moon"),
         .druid: ClassMeta(name: "드루이드", passive: "회복 효과 +30%", icon: "Coffee"),
         .bard: ClassMeta(name: "음유시인", passive: "코인 획득 +25%", icon: "Message"),

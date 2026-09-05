@@ -1253,13 +1253,17 @@ final class GameStore: ObservableObject {
     // MARK: - 카드팩 개봉 (웹 useGameStore openCardPack)
 
     /// 카드팩 1개 개봉 — 잠긴 카드 풀에서 등급 굴림으로 N장 해금.
-    /// 보너스 카드(pendingBonusCards) 우선 소진 (normal tier 1장).
-    /// 컬렉션 100% 시 환산 보상(영웅 코인)은 Phase 4.4 — 우선 큐만 비운다(stub).
-    /// 반환: 개봉된 카드 + 팩 등급. 열 팩이 없으면 nil.
+    /// 큐 소진 순서 full > bonus > levelUp (웹과 동일 — 유료 팩이 1장 보너스 뒤로 밀리지 않게).
+    ///  - full   : PackTier.rollFullPackTier (rare+) · fullPackCardCount(5) 장 고정.
+    ///  - bonus  : normal tier 1장.
+    ///  - levelUp: rollPackTier → count(tier) 장.
+    /// 잠긴 카드가 기대 장수보다 적으면 부족분을 shortfallCompensation 으로 보상(코인은 upHero.addCoins).
+    /// 컬렉션 100% 면 큐를 환산 보상으로 변환 (풀팩은 fullPackCollectionRefundCoins 환급).
+    /// 반환: 개봉된 카드 + 팩 등급 + 종류 + 부족분 보상 코인. 열 팩이 없으면 nil.
     @discardableResult
-    func openCardPack() -> (cards: [ChallengeCard], tier: Rarity)? {
+    func openCardPack() -> (cards: [ChallengeCard], tier: Rarity, kind: PackKind, shortfallCoins: Int)? {
         guard var p = progress else { return nil }
-        guard p.pendingPacks > 0 || p.pendingBonusCards > 0 else { return nil }
+        guard p.pendingFullPacks > 0 || p.pendingPacks > 0 || p.pendingBonusCards > 0 else { return nil }
 
         let locked = CardCatalog.allCards.filter { !p.unlockedCardIds.contains($0.id) }
         guard !locked.isEmpty else {
@@ -1275,8 +1279,11 @@ final class GameStore: ObservableObject {
                 xpGain += reward.xp
                 coinGain += reward.coins
             }
+            // 풀 카드팩 — 결제액 전액(800 코인) 환급. 웹 FULL_PACK_COLLECTION_REFUND_COINS.
+            coinGain += p.pendingFullPacks * PackTier.fullPackCollectionRefundCoins
             p.pendingPacks = 0
             p.pendingBonusCards = 0
+            p.pendingFullPacks = 0
             p.xp += xpGain
             progress = p
             sync.syncProgress(p)
@@ -1284,18 +1291,34 @@ final class GameStore: ObservableObject {
             return nil
         }
 
-        let isBonus = p.pendingBonusCards > 0
+        let kind: PackKind = p.pendingFullPacks > 0 ? .full : p.pendingBonusCards > 0 ? .bonus : .levelUp
         let tier: Rarity
         let newCards: [ChallengeCard]
-        if isBonus {
+        let expected: Int
+        switch kind {
+        case .full:
+            tier = PackTier.rollFullPackTier()
+            expected = PackTier.fullPackCardCount
+            newCards = PackTier.drawTierPack(locked, tier: tier, count: expected)
+        case .bonus:
             tier = .normal
+            expected = 1
             newCards = Deck.drawFromPool(locked, count: 1)
-        } else {
+        case .levelUp:
             tier = PackTier.rollPackTier()
-            newCards = PackTier.drawTierPack(locked, tier: tier, count: PackTier.count(tier))
+            expected = PackTier.count(tier)
+            newCards = PackTier.drawTierPack(locked, tier: tier, count: expected)
         }
+        // 부족분 보상 — 잠긴 카드가 기대 장수보다 적을 때 (웹 shortfall / shortfallCompensation).
+        let shortfall = max(0, expected - newCards.count)
+        let comp = PackTier.shortfallCompensation(kind: kind, missing: shortfall)
         p.unlockedCardIds.append(contentsOf: newCards.map(\.id))
-        if isBonus { p.pendingBonusCards -= 1 } else { p.pendingPacks -= 1 }
+        switch kind {
+        case .full:    p.pendingFullPacks -= 1
+        case .bonus:   p.pendingBonusCards -= 1
+        case .levelUp: p.pendingPacks -= 1
+        }
+        p.xp += comp.xp
 
         // 첫 컬렉션 완료 감지 — 이번 개봉으로 풀 100% 채워졌고, 달성 이력이 없을 때.
         //   웹 openCardPack 의 justCompleted. firstClearBonus.xp 만 직접 가산하고
@@ -1311,11 +1334,12 @@ final class GameStore: ObservableObject {
 
         progress = p
         sync.syncProgress(p)
+        if comp.coins > 0 { upHero.addCoins(comp.coins) }
         if justCompleted { collectionCelebration = true }
         // 개봉 햅틱·사운드 — 컬렉션 첫 완성이면 celebration, 아니면 success.
         Haptics.play(justCompleted ? .celebration : .success)
         SoundPlayer.shared.play(.packOpen)
-        return (newCards, tier)
+        return (newCards, tier, kind, comp.coins)
     }
 
     /// 컬렉션 완성 축하 모달 닫기 (웹 dismissCollectionCelebration).
@@ -1359,17 +1383,27 @@ final class GameStore: ObservableObject {
     }
 
     /// Up Hero 코인으로 카드팩 구매 — 코인 차감(upHero) + 팩 적립(progress).
-    /// full=true 면 레벨업 팩(pendingPacks), false 면 보너스 카드 1장(pendingBonusCards).
+    /// full=true 면 풀 카드팩(pendingFullPacks, 항상 5장 rare+), false 면 보너스 카드 1장(pendingBonusCards).
+    /// 컬렉션 100% 면 팔지 않는다 (환급 케이스를 새로 만들지 않기 위해) → false.
     /// 적립되면 MainTabView 의 syncPackOpener 가 팩 오프너를 띄운다 (기존 배선 재사용).
     /// 웹 useUpHeroStore.purchaseCardPack.
-    func buyCardPack(full: Bool) {
+    @discardableResult
+    func buyCardPack(full: Bool) -> Bool {
+        guard let p = progress, !hasCompletedCollection(p) else { return false }
         let price = full ? ShopPrices.cardPackFull : ShopPrices.cardPackSmall
-        guard upHero.spendCoins(price) else { return }
+        guard upHero.spendCoins(price) else { return false }
         mutateProgress {
-            if full { $0.pendingPacks += 1 } else { $0.pendingBonusCards += 1 }
+            if full { $0.pendingFullPacks += 1 } else { $0.pendingBonusCards += 1 }
         }
         Haptics.play(.success)
         SoundPlayer.shared.play(.packOpen)
+        return true
+    }
+
+    /// 컬렉션 100% 여부 — 상점 카드팩 매진 표시용. 웹 CampPlaceholder.collectionComplete.
+    var isCollectionComplete: Bool {
+        guard let p = progress else { return false }
+        return hasCompletedCollection(p)
     }
 
     // MARK: - 미니게임 (웹 useMinigameStore — 티켓 소비 / 보상)
@@ -1639,6 +1673,7 @@ final class GameStore: ObservableObject {
             daysTowardNextLevel: 0,
             pendingPacks: 0,
             pendingBonusCards: 0,
+            pendingFullPacks: 0,
             cardCompletions: [:],
             extraChallengesCompleted: 0,
             superChallengesCompleted: 0,

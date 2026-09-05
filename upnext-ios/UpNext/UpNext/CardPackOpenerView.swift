@@ -36,10 +36,15 @@ struct CardPackOpenerView: View {
     private struct Reveal {
         let cards: [ChallengeCard]
         let tier: Rarity
+        /// 잠긴 카드가 기대 장수보다 적어 코인으로 대신 받은 보상 (0 이면 캡션 없음).
+        let shortfallCoins: Int
     }
 
+    /// 미개봉 팩 수 — 풀 카드팩 + 레벨업 팩 + 보너스 카드 (웹 CardPackOpener.remaining).
     private var pendingCount: Int {
-        (store.progress?.pendingPacks ?? 0) + (store.progress?.pendingBonusCards ?? 0)
+        (store.progress?.pendingFullPacks ?? 0)
+            + (store.progress?.pendingPacks ?? 0)
+            + (store.progress?.pendingBonusCards ?? 0)
     }
 
     /// 현재 tier + reduceMotion 에 맞는 연출 스펙. 오버레이(플래시/링/펄스)에서 공유.
@@ -153,6 +158,11 @@ struct CardPackOpenerView: View {
                 Text("새 카드 \(r.cards.count)장 해금!")
                     .typography(.caption)
                     .foregroundStyle(Color.textSecondary)
+                if r.shortfallCoins > 0 {
+                    Text("남은 카드가 부족해 \(r.shortfallCoins) 코인으로 보상했어요")
+                        .typography(.caption)
+                        .foregroundStyle(Color.textTertiary)
+                }
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
                     spacing: 10
@@ -202,7 +212,7 @@ struct CardPackOpenerView: View {
             onComplete()
             return
         }
-        revealed = Reveal(cards: result.cards, tier: result.tier)
+        revealed = Reveal(cards: result.cards, tier: result.tier, shortfallCoins: result.shortfallCoins)
         let f = effectiveFx(result.tier)
 
         // 2) SHAKING — 웹 shakeMs(normal 1.2s ~ legend 2.5s). 기존 0.32 고정 제거.

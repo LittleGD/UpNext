@@ -8,9 +8,30 @@ import { drawFromPool } from "@/lib/deck";
  * - 카드 등급(Rarity) 과 같은 4단계 enum 을 재사용 (normal/rare/unique/legend).
  * - 팩 안에 들어가는 카드의 등급은 우선 같은 tier 로 채우고, 부족하면
  *   기존 가중 랜덤(drawFromPool) 으로 보충 — 풀 고갈 graceful.
+ *
+ * 팩 종류 (PackKind) — openCardPack 큐 소진 순서 full > bonus > levelUp.
+ * - full   : 상점 풀 카드팩 (SHOP_PRICES.cardPackFull). 항상 FULL_PACK_CARD_COUNT 장,
+ *            tier 는 normal 을 제외한 가중치 재정규화 (rare 60% / unique 30% / legend 10%).
+ * - bonus  : 추가/슈퍼 풀클리어 보너스 카드 1장 (normal tier).
+ * - levelUp: 레벨업 팩. rollPackTier (normal 50 / rare 30 / unique 15 / legend 5) → 2/3/4/5 장.
+ *
+ * 부족분 보상 (shortfallCompensation) — 잠긴 카드가 기대 장수보다 적을 때:
+ * - full   : 장당 160 코인 = SHOP_PRICES.cardPackFull(800) / FULL_PACK_CARD_COUNT(5) 비례 환급.
+ * - levelUp: 장당 25 XP + 50 코인 = COLLECTION_COMPENSATION_BONUS (카드 1장 환산).
+ * - bonus  : 부족분 없음 (풀 고갈은 100% 분기에서 처리).
+ * iOS 미러: Models/PackTier.swift (fullPackCardCount / fullPackTierFloor / rollFullPackTier /
+ * shortfallCompensation / fullPackCollectionRefundCoins).
  */
 
 const TIER_ORDER: Rarity[] = ["normal", "rare", "unique", "legend"];
+
+export type PackKind = "full" | "bonus" | "levelUp";
+
+/** 풀 카드팩 고정 장수 (tier 와 무관). 상점 카피 "5장 뽑기" 와 일치. */
+export const FULL_PACK_CARD_COUNT = 5;
+
+/** 풀 카드팩 tier 하한 — 이 등급 이상만 굴린다 (normal 제외). */
+export const FULL_PACK_TIER_FLOOR: Rarity = "rare";
 
 export const PACK_TIER_WEIGHT: Record<Rarity, number> = {
   normal: 50,
@@ -26,16 +47,31 @@ export const PACK_TIER_COUNT: Record<Rarity, number> = {
   legend: 5,
 };
 
-export function rollPackTier(): Rarity {
-  const total = TIER_ORDER.reduce((s, t) => s + PACK_TIER_WEIGHT[t], 0);
+/**
+ * 주어진 tier 목록 안에서 PACK_TIER_WEIGHT 가중 굴림.
+ * 가중치는 목록 총합으로 재정규화된다 (normal 을 빼면 rare 60 / unique 30 / legend 10).
+ * 경계: roll=r*total 에서 순서대로 빼며 `<= 0` 에서 멈춤 (r=0 → 첫 tier).
+ */
+export function rollPackTierFrom(tiers: Rarity[]): Rarity {
+  const total = tiers.reduce((s, t) => s + PACK_TIER_WEIGHT[t], 0);
   let roll = Math.random() * total;
-  for (const tier of TIER_ORDER) {
+  for (const tier of tiers) {
     roll -= PACK_TIER_WEIGHT[tier];
     if (roll <= 0) return tier;
   }
   // Math.random() < 1 이고 총합이 양수 이므로 위 루프에서 항상 return.
   // 이 라인은 부동소수점 안전망 (실제로 도달 불가).
-  return "normal";
+  return tiers[0] ?? "normal";
+}
+
+/** 레벨업 팩 tier — normal 50% / rare 30% / unique 15% / legend 5%. */
+export function rollPackTier(): Rarity {
+  return rollPackTierFrom(TIER_ORDER);
+}
+
+/** 상점 풀 카드팩 tier — rare 60% / unique 30% / legend 10% (normal 제외). */
+export function rollFullPackTier(): Rarity {
+  return rollPackTierFrom(TIER_ORDER.slice(TIER_ORDER.indexOf(FULL_PACK_TIER_FLOOR)));
 }
 
 /**
@@ -111,3 +147,31 @@ export function rollCompensationForLevels(levelsGained: number): { xp: number; c
   }
   return { xp, coins };
 }
+
+/**
+ * 팩 부족분(잠긴 카드 < 기대 장수) 장당 보상.
+ *  - full   : 160 코인 = SHOP_PRICES.cardPackFull(800) / FULL_PACK_CARD_COUNT(5). 결제액 비례 환급.
+ *  - levelUp: COLLECTION_COMPENSATION_BONUS 와 동일 (카드 1장 환산).
+ * bonus 카드는 부족분이 생기지 않는다 (빈 풀 = 100% 분기).
+ * 테스트가 full.coins * FULL_PACK_CARD_COUNT === SHOP_PRICES.cardPackFull 을 단언한다.
+ */
+export const PACK_SHORTFALL_COMPENSATION: Record<Exclude<PackKind, "bonus">, { xp: number; coins: number }> = {
+  full: { xp: 0, coins: 160 },
+  levelUp: { xp: COLLECTION_COMPENSATION_BONUS.xp, coins: COLLECTION_COMPENSATION_BONUS.coins },
+};
+
+export function shortfallCompensation(
+  kind: Exclude<PackKind, "bonus">,
+  missing: number,
+): { xp: number; coins: number } {
+  const m = Math.max(0, missing);
+  const unit = PACK_SHORTFALL_COMPENSATION[kind];
+  return { xp: m * unit.xp, coins: m * unit.coins };
+}
+
+/**
+ * 컬렉션 100% 상태에서 남아 있는 풀 카드팩 1개당 환급 코인 (= 800, 결제액 전액).
+ * openCardPack 의 100% 분기에서 pendingFullPacks 를 코인으로 변환할 때 사용.
+ */
+export const FULL_PACK_COLLECTION_REFUND_COINS =
+  FULL_PACK_CARD_COUNT * PACK_SHORTFALL_COMPENSATION.full.coins;

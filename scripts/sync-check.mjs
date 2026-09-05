@@ -33,7 +33,7 @@ function dumpRedehydrate(tag, d) {
 
 function dumpProgress(tag, p) {
   lines.push(`${tag}.progress lvl=${p.level} xp=${p.xp} days=${p.totalDaysCompleted} streak=${p.currentStreak}/${p.longestStreak} unlocked=${p.unlockedCardIds.length} mode=${p.mode} lang=${p.language}`);
-  lines.push(`${tag}.progress dtnl=${p.daysTowardNextLevel} packs=${p.pendingPacks} bonus=${p.pendingBonusCards} extraC=${p.extraChallengesCompleted} superC=${p.superChallengesCompleted}`);
+  lines.push(`${tag}.progress dtnl=${p.daysTowardNextLevel} packs=${p.pendingPacks} bonus=${p.pendingBonusCards} full=${p.pendingFullPacks ?? 0} extraC=${p.extraChallengesCompleted} superC=${p.superChallengesCompleted}`);
   lines.push(`${tag}.progress titleEq=${p.equippedTitleId ?? "nil"} titlesSeen=${p.seenTitleIds.length} pendPenalty=${p.hasPendingPenalty} pendMode=${p.pendingMode ?? "nil"}`);
   lines.push(`${tag}.progress sound=${p.soundEnabled} haptic=${p.hapticEnabled} notif=${p.notificationsEnabled} notifTime=${p.notificationTime}`);
   lines.push(`${tag}.progress tickets=${p.tickets} mgRuns=${p.minigameRunsPlayed} mgBest=${p.minigameBestMatches}`);

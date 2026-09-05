@@ -9,6 +9,7 @@ import { useGrowthStore } from "@/store/useGrowthStore";
 import PhotoCaptureModal from "@/components/growth/PhotoCaptureModal";
 import { RARITY_CONFIG, rarityLabel } from "@/data/rarityConfig";
 import { XP_PER_RARITY } from "@/types/game";
+import type { ChallengeCompletionResult } from "@/types/game";
 import type { Category, ChallengeCard } from "@/types/card";
 import { motion, AnimatePresence } from "framer-motion";
 import PixelIcon from "@/components/icons/PixelIcon";
@@ -23,6 +24,24 @@ import RarityTexture, { rarityGlow } from "@/components/cards/RarityTexture";
 import ExtraChallengeBanner from "./ExtraChallengeBanner";
 import SuperChallengeBanner from "./SuperChallengeBanner";
 import ChallengeConfirmModal from "./ChallengeConfirmModal";
+import ChallengeXpCounter from "./ChallengeXpCounter";
+
+// === 완료 셀레브레이션 타이밍 (단일 출처) ===
+// "+N XP" 카운트업은 ChallengeXpCounter (XP_COUNT_START_MS 300 / XP_COUNT_MS 600 → 0.9s 종료).
+// 스파크는 숫자 없는 점 6개 — 숫자를 찍으면 chip 과 모순된다 (10 != 4x3).
+// 티어다운은 스파크 타이밍에서 파생시켜 애니메이션과 어긋나지 않게 한다.
+// 나머지 연출은 그보다 먼저 끝난다 (burst 0.8s, particles 1.05s, count-up 0.9s, pass chip 0.85s).
+const SPARK_COUNT = 6;
+const SPARK_DELAY_S = 0.4;
+const SPARK_STAGGER_S = 0.1;
+const SPARK_DURATION_S = 0.7;
+const CELEBRATION_HOLD_MS = 200;
+/** 마지막 스파크 종료(0.4 + 5*0.1 + 0.7 = 1.6s) + hold 200ms = 1800ms. */
+const CELEBRATION_TEARDOWN_MS =
+  Math.round((SPARK_DELAY_S + (SPARK_COUNT - 1) * SPARK_STAGGER_S + SPARK_DURATION_S) * 1000) +
+  CELEBRATION_HOLD_MS;
+/** reduced-motion: 스파크/카운트업 없음 → 짧게. */
+const CELEBRATION_TEARDOWN_REDUCED_MS = 1200;
 
 // Phase 13 final review — `categoryLabelKo` 제거. upHeroI18n.ts 의 공용
 //   `categoryLabel(category, language)` 헬퍼 사용으로 통일 (i18n 4 언어 지원).
@@ -126,7 +145,10 @@ function CompletionCard({ phase }: { phase: "daily" | "extra" | "super" }) {
 // 재생하므로, pass cap 표시처럼 "커밋 전" 스냅샷이 필요한 값을 여기 담아 넘긴다.
 interface CelebrationPayload {
   card: ChallengeCard;
+  /** 실제로 progress.xp 에 더해진 값 (base + 컬렉션 보상). store 가 null 을 주면 base. */
   xp: number;
+  /** 컬렉션 100% 환산 보상 XP (없으면 0) — 캡션 표시용. */
+  bonusXp: number;
   pass: {
     amount: number;
     category: Category;
@@ -159,6 +181,7 @@ export default function DailyBoard() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [completingCard, setCompletingCard] = useState<ChallengeCard | null>(null);
   const [completingXp, setCompletingXp] = useState(0);
+  const [completingBonusXp, setCompletingBonusXp] = useState(0);
   /**
    * Phase 12 bugfix — 챌린지 완료 시 탐험권 지급 피드백 추가.
    *   유저 제보: "챌린지를 마쳤는데 던전 티켓을 주지 않아".
@@ -205,13 +228,11 @@ export default function DailyBoard() {
     : phase === "super" ? t("super.board.heading")
     : t("daily.board.heading");
 
-  const handleCompleteAction = (cardId: string) => {
-    if (phase === "daily") {
-      completeChallenge(cardId);
-    } else {
-      completePhaseChallenge(cardId);
-    }
-  };
+  const handleCompleteAction = useCallback(
+    (cardId: string): ChallengeCompletionResult | null =>
+      phase === "daily" ? completeChallenge(cardId) : completePhaseChallenge(cardId),
+    [phase, completeChallenge, completePhaseChallenge],
+  );
 
   // 챌린지 완료 커밋 (동기) — XP/탐험권/스트릭이 이 시점에 확정된다.
   //   iOS d00a7d7 백포트: 연출과 분리해, 사진 캡처 경로에서도 촬영 전에 먼저
@@ -219,7 +240,7 @@ export default function DailyBoard() {
   //   연출 데이터는 커밋 "전" 상태로 계산해 반환 — pass cap 체크는 지급 전
   //   기준이어야 정확하다.
   const commitChallenge = useCallback((card: ChallengeCard): CelebrationPayload => {
-    const xp = XP_PER_RARITY[card.rarity] || 10;
+    const baseXp = XP_PER_RARITY[card.rarity] || 10;
     // Phase 12 bugfix — 탐험권 지급 피드백. 지급 전 현재 passes 읽어 cap 체크.
     //   grant = PASS_GRANT_BY_RARITY[rarity] (normal:1, rare:2, unique:3, legend:3).
     //   current + grant > 20 면 일부만 지급 (cap), 그 경우 capped=true.
@@ -231,10 +252,15 @@ export default function DailyBoard() {
       PASS_CAP_PER_CATEGORY - currentPasses,
     );
     const willBeAllDone = completedCount + 1 >= totalCount;
-    handleCompleteAction(card.id);
+    // 셀레브레이션 정직성 — store 가 실제로 더한 XP(컬렉션 보상 포함)를 그대로 보여준다.
+    //   guard 에 걸려 null 이면 base XP 로 폴백 (0 이 찍히지 않게).
+    const result = handleCompleteAction(card.id);
+    const xp = result?.totalXp ?? baseXp;
+    const bonusXp = result?.bonusXp ?? 0;
     return {
       card,
       xp,
+      bonusXp,
       pass: {
         amount: actualGrant,
         category: card.category,
@@ -248,6 +274,7 @@ export default function DailyBoard() {
   const playCelebration = useCallback((payload: CelebrationPayload) => {
     setCompletingCard(payload.card);
     setCompletingXp(payload.xp);
+    setCompletingBonusXp(payload.bonusXp);
     setCompletingPass(payload.pass);
     play("complete");
     setTimeout(() => play("xpGain"), 280);
@@ -260,8 +287,8 @@ export default function DailyBoard() {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 2000);
       }
-    }, 1200);
-  }, [play]);
+    }, reducedMotion ? CELEBRATION_TEARDOWN_REDUCED_MS : CELEBRATION_TEARDOWN_MS);
+  }, [play, reducedMotion]);
 
   // "완료" — 사진 없이 바로 완료 (커밋 + 연출 즉시)
   const handleConfirm = () => {
@@ -719,7 +746,7 @@ export default function DailyBoard() {
                   <PixelIcon name="Check" size={44} color={rarity.color} />
                 </motion.div>
 
-                {/* XP gain with counting animation */}
+                {/* XP gain, count-up (ChallengeXpCounter). key 로 매 셀레브레이션마다 remount. */}
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -729,14 +756,28 @@ export default function DailyBoard() {
                 >
                   <PixelIcon name="Zap" size={18} color="var(--accent-primary)" />
                   <motion.span
-                    className="typo-title text-accent"
                     initial={{ scale: 0.5 }}
                     animate={{ scale: [0.5, 1.2, 1] }}
                     transition={{ delay: 0.35, duration: 0.4 }}
                   >
-                    {t("common.unit.xpGain", { n: completingXp })}
+                    <ChallengeXpCounter
+                      key={completingCard.id}
+                      xp={completingXp}
+                      reducedMotion={reducedMotion}
+                    />
                   </motion.span>
                 </motion.div>
+                {/* 컬렉션 100% 환산 보상 XP 가 포함된 경우 — 왜 카드 XP 보다 큰지 설명. */}
+                {completingBonusXp > 0 && (
+                  <motion.p
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4, duration: 0.3, ease: "easeOut" }}
+                    className="mt-1.5 typo-caption text-text-tertiary"
+                  >
+                    {t("daily.celebration.bonusXp", { n: completingBonusXp })}
+                  </motion.p>
+                )}
                 {/* Phase 12 bugfix — 탐험권 지급 chip. 유저가 "던전 티켓 안 주네" 오인
                      하지 않도록 명시. 실제 지급량 기준 (cap 도달 시 0). */}
                 {completingPass && (
@@ -781,18 +822,26 @@ export default function DailyBoard() {
                   </motion.div>
                 )}
 
-                {/* Floating +XP particles going up — reduced-motion 시 숨김 */}
-                {!reducedMotion && [...Array(4)].map((_, i) => (
+                {/* 위로 흩어지는 스파크 — 숫자 없는 점 (숫자를 찍으면 chip 과 모순). reduced-motion 시 숨김 */}
+                {!reducedMotion && [...Array(SPARK_COUNT)].map((_, i) => (
                   <motion.div
-                    key={`xp-float-${i}`}
-                    className="absolute typo-caption text-accent/60 pointer-events-none"
-                    initial={{ opacity: 0, y: 0, x: (i - 1.5) * 25 }}
-                    animate={{ opacity: [0, 0.7, 0], y: -60 - i * 15 }}
-                    transition={{ delay: 0.4 + i * 0.12, duration: 0.8, ease: "easeOut" }}
-                    style={{ top: 10 }}
-                  >
-                    +{Math.round(completingXp / 4)}
-                  </motion.div>
+                    key={`xp-spark-${i}`}
+                    aria-hidden
+                    className="absolute rounded-full pointer-events-none"
+                    style={{
+                      top: 10,
+                      width: i % 2 ? 3 : 4,
+                      height: i % 2 ? 3 : 4,
+                      background: i % 3 === 0 ? "var(--accent-primary)" : rarity.color,
+                    }}
+                    initial={{ opacity: 0, y: 0, x: (i - (SPARK_COUNT - 1) / 2) * 18, scale: 1 }}
+                    animate={{ opacity: [0, 0.9, 0], y: -56 - i * 10, scale: [1, 1.3, 0.6] }}
+                    transition={{
+                      delay: SPARK_DELAY_S + i * SPARK_STAGGER_S,
+                      duration: SPARK_DURATION_S,
+                      ease: "easeOut",
+                    }}
+                  />
                 ))}
               </motion.div>
             </motion.div>

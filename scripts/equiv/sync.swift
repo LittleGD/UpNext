@@ -59,7 +59,7 @@ func dumpRedehydrate(_ tag: String, _ d: DailyDoc) {
 
 func dumpProgress(_ tag: String, _ p: UserProgress) {
     lines.append("\(tag).progress lvl=\(p.level) xp=\(p.xp) days=\(p.totalDaysCompleted) streak=\(p.currentStreak)/\(p.longestStreak) unlocked=\(p.unlockedCardIds.count) mode=\(p.mode.rawValue) lang=\(p.language.rawValue)")
-    lines.append("\(tag).progress dtnl=\(p.daysTowardNextLevel) packs=\(p.pendingPacks) bonus=\(p.pendingBonusCards) extraC=\(p.extraChallengesCompleted) superC=\(p.superChallengesCompleted)")
+    lines.append("\(tag).progress dtnl=\(p.daysTowardNextLevel) packs=\(p.pendingPacks) bonus=\(p.pendingBonusCards) full=\(p.pendingFullPacks) extraC=\(p.extraChallengesCompleted) superC=\(p.superChallengesCompleted)")
     lines.append("\(tag).progress titleEq=\(p.equippedTitleId ?? "nil") titlesSeen=\(p.seenTitleIds.count) pendPenalty=\(p.hasPendingPenalty) pendMode=\(p.pendingMode?.rawValue ?? "nil")")
     lines.append("\(tag).progress sound=\(p.soundEnabled) haptic=\(p.hapticEnabled) notif=\(p.notificationsEnabled) notifTime=\(p.notificationTime)")
     lines.append("\(tag).progress tickets=\(p.tickets) mgRuns=\(p.minigameRunsPlayed) mgBest=\(p.minigameBestMatches)")
