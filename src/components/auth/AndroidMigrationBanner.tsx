@@ -8,6 +8,13 @@
  * 로그인 없이는 스트릭·XP·진행도가 이전되지 않는다. 전환 전에 클라우드
  * 동기화를 걸어두도록 정직한 문구로 안내한다.
  *
+ * 동시에 Chrome 기반 셸(TWA · 설치형 PWA)의 "진행도 위험" 안내를 겸한다:
+ * 브라우저 데이터 삭제는 localStorage · IndexedDB 사진 · Firebase Auth 세션을
+ * 한 번에 지우므로(익명 인증도 같은 origin 저장소라 구제 불가), 로그인만이
+ * 되찾을 길이다. 본문 아래 androidMigration.banner.risk 한 줄이 그 역할.
+ * isAndroidTwa() 의 폴백(Android UA + display-mode standalone)이 TWA 와 설치형
+ * PWA 를 모두 이 배너로 보내므로 대상 집합이 정확히 일치한다.
+ *
  * TWA 여부 판정은 마운트 지점(src/app/page.tsx 의 isTwaClient 분기) 책임 —
  * 이 컴포넌트는 TWA 에서만 마운트된다는 전제로 노출 조건만 본다:
  *  - Firebase 설정됨 (CTA 가 로그인 오버레이라 미설정이면 무의미)
@@ -19,8 +26,10 @@
  *    D+7 부터는 1일로 단축 — 전환 시점이 다가올수록 리마인드를 조인다)
  *
  * 시각 패턴은 BackupReminderBanner 를 답습하되, 경고 톤 대신
- * 업데이트 예고에 맞는 accent(라임) 톤을 사용한다. 노출 상태도 같은
- * uSES 파생 패턴 (react-hooks/set-state-in-effect 준수).
+ * 업데이트 예고에 맞는 accent(라임) 톤을 사용한다. 카드에 border 를 쓰지
+ * 않는 디자인 규칙에 따라 배경 단계 + 라임 글로우로 위계를 만든다.
+ * 노출 상태도 같은 uSES 파생 패턴 (react-hooks/set-state-in-effect 준수).
+ * 노출 조건 · dismiss 주기(3일, D+7 뒤 1일) · 저장 키 · CTA 배선은 그대로.
  */
 
 import { useState, useSyncExternalStore } from "react";
@@ -114,7 +123,7 @@ export default function AndroidMigrationBanner({ onLogin }: AndroidMigrationBann
           className="rounded-md p-3 mb-3 flex items-start gap-3"
           style={{
             background: "rgba(205, 245, 100, 0.08)",
-            border: "1px solid rgba(205, 245, 100, 0.35)",
+            boxShadow: "0 0 18px rgba(205, 245, 100, 0.14)",
           }}
           role="status"
         >
@@ -127,6 +136,9 @@ export default function AndroidMigrationBanner({ onLogin }: AndroidMigrationBann
             </p>
             <p className="typo-caption text-text-secondary mt-0.5 leading-snug">
               {t("androidMigration.banner.body")}
+            </p>
+            <p className="typo-caption text-text-secondary mt-1 leading-snug">
+              {t("androidMigration.banner.risk")}
             </p>
             <div className="flex gap-2 mt-2">
               <button

@@ -12,6 +12,7 @@ const en: Record<DictKey, string> = {
   // === android first launch ===
   "androidMigration.banner.title": "A big app update is coming",
   "androidMigration.banner.body": "The new app arrives in September. Log in now and your streak, XP and progress will carry over. Photos are stored only on this device and won't transfer.",
+  "androidMigration.banner.risk": "Clearing browser data also erases the progress on this device. Log in once and you can always get it back.",
   "androidMigration.banner.cta": "Log in to keep it",
   "androidMigration.banner.later": "Later",
   "androidFirstLaunch.title": "Keep your progress safe",

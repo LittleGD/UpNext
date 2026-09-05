@@ -10,6 +10,7 @@ const ko = {
   // === android migration banner (TWA→Capacitor 전환 예고) ===
   "androidMigration.banner.title": "곧 대규모 앱 업데이트가 찾아와요",
   "androidMigration.banner.body": "9월 중 새 앱으로 전환돼요. 지금 로그인해 두면 스트릭·XP·진행도가 그대로 이어져요. 사진은 이 기기에만 저장되어 이전되지 않아요.",
+  "androidMigration.banner.risk": "브라우저 데이터를 지우면 이 기기의 진행도도 함께 사라져요. 로그인해 두면 언제든 되찾을 수 있어요.",
   "androidMigration.banner.cta": "로그인하고 지켜두기",
   "androidMigration.banner.later": "나중에",
   // === android first launch ===
