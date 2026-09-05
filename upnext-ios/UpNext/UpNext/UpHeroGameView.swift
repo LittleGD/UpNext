@@ -19,10 +19,24 @@ struct UpHeroGameView: View {
         // 웹 UpHeroGame 의 currentSession 분기 — 세션이 있으면 던전(전투), 없으면 아지트.
         // UpHeroStore 초기화·idle accrual 은 GameStore.bootstrapUpHero 가 앱 부팅
         // 시점(.ready)에 처리한다 — 이 화면 진입과 무관 (idle 은 "앱 닫은 사이" 기준).
-        if upHero.state.currentSession != nil {
-            DungeonView()
-        } else {
-            CampView()
+        ZStack {
+            if upHero.state.currentSession != nil {
+                DungeonView()
+            } else {
+                CampView()
+            }
+            // Phase 2-A — 영웅 레벨업 오버레이. 방치 보상 배너가 떠 있거나 세션(결산 모달)이
+            //   살아 있으면 뒤로 미룬다 — 결산 CTA / 보상 확인 뒤에 이어서 뜬다. 닫히면
+            //   acknowledgeHeroLevelUp 이 Lv30 전직 제안을 이어서 띄운다 (웹 HeroLevelUpOverlay).
+            if let event = upHero.state.pendingHeroLevelUp,
+               upHero.state.idleReward == nil,
+               upHero.state.currentSession == nil {
+                HeroLevelUpOverlay(event: event, hero: upHero.state.hero) {
+                    upHero.acknowledgeHeroLevelUp()
+                }
+                .zIndex(90)
+                .transition(.opacity)
+            }
         }
     }
 }
@@ -524,26 +538,22 @@ private struct CampView: View {
         }
     }
 
-    /// 영웅 전용 레벨 — 챌린지 레벨 기반. 웹 getEffectiveHeroLevel.
-    private var heroLevel: Int {
-        UpHeroRules.getEffectiveHeroLevel(
-            gameLevel: store.progress?.level ?? 1,
-            heroStartLevel: upHero.state.heroStartLevel)
-    }
+    /// 영웅 전용 레벨 — Phase 2-A: heroXp 풀 기준 (시드 전엔 레거시 폴백). 웹 useHeroLevel.
+    private var heroLevel: Int { upHero.heroLevel }
 
     // MARK: 헤더 — 영웅 nameplate (웹 CampPlaceholder 헤더: 영웅 이름 + 영웅 Lv + XP + NG+ + 코인)
 
     /// 글로벌 AppHeader 가 아지트 탭에서 숨겨졌으므로(MainShell), 이 헤더가 아지트의 유일한
     /// Lv 표기다. 따라서 **영웅 레벨(heroLevel)**을 보여 게임 레벨과 의미적으로 구분한다.
-    /// 단 XP 진행률(curXp/needXp)은 게임 레벨 기준으로 계산해야 진행바가 정확하다
-    /// (영웅 Lv 진행률 % == 게임 Lv 진행률 %, 웹 CampPlaceholder 와 동일 로직).
+    /// Phase 2-A — XP 진행률도 영웅 XP 풀(heroXp) 기준이다 (웹 CampPlaceholder 의
+    /// useHeroXpProgress). 미시드면 폴백 레벨의 시작점(0/needed)을 보여준다.
     private var header: some View {
         let hero = upHero.state.hero
         let heroName = hero.name.isEmpty ? AppConfig.loc("갓생 영웅") : hero.name
-        let gameLevel = store.progress?.level ?? 0
-        let xp = store.progress?.xp ?? 0
-        let curXp = max(0, xp - GameRules.totalXPForLevel(gameLevel))
-        let needXp = max(1, GameRules.totalXPForLevel(gameLevel + 1) - GameRules.totalXPForLevel(gameLevel))
+        let totalXp = upHero.state.heroXp ?? UpHeroRules.heroTotalXPForLevel(heroLevel)
+        let progress = UpHeroRules.heroXPProgress(totalXp: totalXp, level: heroLevel)
+        let curXp = progress.current
+        let needXp = max(1, progress.needed)
         let ngPlus = upHero.state.ngPlusLevel ?? 0
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -571,7 +581,7 @@ private struct CampView: View {
                         .typography(.body)
                 }
             }
-            // XP 진행 바 + 수치 (게임레벨 기준 · 디자인 룰: 보더 금지)
+            // XP 진행 바 + 수치 (영웅 XP 풀 기준 · 디자인 룰: 보더 금지)
             HStack(spacing: 8) {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {

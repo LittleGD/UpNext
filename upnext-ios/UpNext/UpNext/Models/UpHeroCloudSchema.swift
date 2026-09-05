@@ -140,6 +140,11 @@ struct CloudUpHeroState: Equatable {
     var shopDaily: ShopDaily?
     var weeklyVariant: WeeklyVariant?
     var heroStartLevel: Int?
+    /// Phase 2-A (Track A) — 영웅 XP 풀. 와이어 키 "heroXp" (정수 [0, heroXpCap]).
+    /// 없으면 nil 유지 — **절대 지어내지 않는다** (0 이나 레거시 공식으로 채우면 두 기기의
+    /// 풀이 서로를 덮어 `mergeCloudHeroXp` 의 단조 병합 전제가 깨진다). 시드된 뒤엔 0 이어도
+    /// 항상 인코딩. 흔적(footprint) 신호가 아니다. 웹 sync.ts CloudUpHeroState.heroXp.
+    var heroXp: Int?
 
     /// 클라우드 스냅샷 흔적 판정 — 세션 없는 페이로드 축만 (웹 업로드/복원 게이트).
     var hasFootprint: Bool {
@@ -176,6 +181,7 @@ struct CloudUpHeroState: Equatable {
         // 생략하면 복원한 기기의 신규 seed(현재 챌린지 Lv)가 남아 영웅 Lv 가 주저앉는다
         // (웹 normalizeUpHeroState 의 동일 판정).
         if heroStartLevel == nil, hasFootprint { heroStartLevel = 1 }
+        heroXp = s.heroXp.map(UpHeroRules.clampHeroXp)
     }
 
     /// 클라우드 페이로드 → 살아있는 상태. currentSession/transient 는 호출측
@@ -202,7 +208,8 @@ struct CloudUpHeroState: Equatable {
             weeklyVariant: weeklyVariant,
             schemaVersion: schemaVersion,
             hasSeenCampTutorial: hasSeenCampTutorial,
-            welcomeGiftClaimed: welcomeGiftClaimed
+            welcomeGiftClaimed: welcomeGiftClaimed,
+            heroXp: heroXp   // 없으면 nil = 미시드 (GameStore.adoptCloudUpHero 가 ensureHeroXp)
         ).toState()
     }
 }
@@ -223,6 +230,9 @@ extension CloudUpHeroState: Codable {
         case lastIdleAccrualAt, ngPlusLevel, hasSeenCampTutorial
         case welcomeGiftClaimed = "welcomeGrantClaimed"
         case lastSeenAt, schemaVersion, shopDaily, weeklyVariant, heroStartLevel
+        // Phase 2-A — 영웅 XP 풀. 웹 sync.ts 와 철자 동일. 빠뜨리면 화이트리스트 디코드에서
+        // 조용히 탈락해 웹에서 쌓은 풀이 iOS 왕복 뒤 레거시 시드값으로 되감긴다.
+        case heroXp
     }
 
     /// 관용 디코드 — 웹 normalizeUpHeroState. 오브젝트이기만 하면 절대 throw 하지
@@ -298,6 +308,9 @@ extension CloudUpHeroState: Codable {
             heroStartLevel = nil
             if hasFootprint { heroStartLevel = 1 }  // legacy 채움 (init(_:) 주석 참고)
         }
+        // heroXp — 키가 있을 때만 싣고 [0, cap] 정수로 접는다 (웹 normalizeUpHeroState 의
+        // asFinite → clampHeroXp). 구 클라이언트 문서(키 없음)는 nil 유지.
+        heroXp = lenientInt(c, .heroXp).map(UpHeroRules.clampHeroXp)
     }
 
     /// 클라우드 쓰기 인코딩 — 웹 encodeUpHeroForCloud. 맵 필드의 "빈 자리" 를
@@ -342,6 +355,8 @@ extension CloudUpHeroState: Codable {
         }
         try c.encodeIfPresent(weeklyVariant, forKey: .weeklyVariant)
         try c.encodeIfPresent(heroStartLevel, forKey: .heroStartLevel)
+        // 시드된 뒤엔 0 이어도 싣는다 (setDoc(merge) 가 옛 값을 되살리지 않게) — 미시드는 생략.
+        try c.encodeIfPresent(heroXp, forKey: .heroXp)
     }
 }
 

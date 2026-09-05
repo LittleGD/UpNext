@@ -29,10 +29,8 @@ struct BuffDrawPanel: View {
 
     /// 선택 가능한 버프 슬롯 수 — 영웅 레벨/장비 기반. 웹 getBuffSlotCount.
     private var slotCount: Int {
-        let level = UpHeroRules.getEffectiveHeroLevel(
-            gameLevel: store.progress?.level ?? 1,
-            heroStartLevel: upHero.state.heroStartLevel)
-        return UpHeroRules.getBuffSlotCount(hero: upHero.state.hero, level: level)
+        // Phase 2-A — 영웅 레벨은 heroXp 풀 기준 (웹 useHeroLevel).
+        UpHeroRules.getBuffSlotCount(hero: upHero.state.hero, level: upHero.heroLevel)
     }
 
     private var dungeonName: String {
@@ -128,9 +126,7 @@ struct BuffDrawPanel: View {
             Button("취소") { upHero.cancelBuffDraw() }
                 .buttonStyle(.un(.secondary, tint: .textSecondary))
             Button("탐험 시작") {
-                upHero.confirmDungeon(
-                    selectedCardIds: Array(selectedIds),
-                    gameLevel: store.progress?.level ?? 1)
+                upHero.confirmDungeon(selectedCardIds: Array(selectedIds))
             }
             .buttonStyle(.un(.primary))
         }

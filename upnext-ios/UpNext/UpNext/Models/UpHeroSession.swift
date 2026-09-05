@@ -74,6 +74,14 @@ enum UpHeroSession {
         s.combatBuff = left <= 0 ? nil : CombatBuff(pct: buff.pct, battlesLeft: left)
     }
 
+    /// Phase 2-A (Track A) — 세션의 XP 배율 한 곳. 카드 버프 xpBoost × 클래스(mage +20%)
+    /// × 주간 affix(`s.xpMult`). 처치 XP(보스 보너스 포함)와 층 진입 XP 가 **같은** 배율을
+    /// 탄다 — 한쪽만 곱하면 "XP +20%" 카피가 거짓이 된다. 웹 `sessionXpMult`.
+    static func sessionXpMult(_ s: CombatSession) -> Double {
+        (1 + UpHeroCombat.getBuffBoost(buffs: s.activeBuffs, type: .xpBoost) / 100)
+            * UpHeroCombat.classXpMult(s.hero.classType) * (s.xpMult ?? 1)
+    }
+
     /// 클래스 자원 획득. 웹 `gainClassResource`.
     static func gainClassResource(_ s: inout CombatSession, event: ResourceEvent) {
         guard let cls = s.hero.classType,
@@ -289,15 +297,21 @@ enum UpHeroSession {
                 }
                 if monsterHpNow <= 0 {
                     let tMods = sessionMods(s)
-                    let xpMult = (1 + UpHeroCombat.getBuffBoost(buffs: s.activeBuffs, type: .xpBoost) / 100)
-                        * UpHeroCombat.classXpMult(s.hero.classType) * (s.xpMult ?? 1)
+                    // Phase 2-A — 층 진입 XP 와 같은 배율 (sessionXpMult).
+                    let xpMult = sessionXpMult(s)
                     var coinMult = (1 + UpHeroCombat.getBuffBoost(buffs: s.activeBuffs, type: .coinBoost) / 100)
                         * UpHeroCombat.classCoinMult(s.hero.classType) * tMods.coinMult
                     if let ncm = s.nextCoinMult, ncm > 1 {
                         coinMult *= ncm
                         s.nextCoinMult = nil
                     }
-                    let gainedXp = UpHeroCombat.jsRound(Double(monster.xpReward) * xpMult)
+                    // Phase 2-A (Track A, 피드백 20) — 보스 처치 보너스 `bossClearXp(층, NG+)` 를
+                    //   같은 victory 엔트리에 합산한다 (LogEntry 종류 추가 없음). 영웅 XP 풀로
+                    //   정산되는 값이며 계정 XP 는 건드리지 않는다. 웹 tickSession 과 동일.
+                    let bossBonus = monster.isBoss == true
+                        ? UpHeroRules.bossClearXp(floor: monster.level, ngPlusLevel: s.ngPlusLevel ?? 0)
+                        : 0
+                    let gainedXp = UpHeroCombat.jsRound(Double(monster.xpReward + bossBonus) * xpMult)
                     let gainedCoin = UpHeroCombat.jsRound(Double(monster.coinReward) * coinMult)
                     s.log.append(.victory(monster: monster, xp: gainedXp, coins: gainedCoin,
                                           narrativeKey: nil, narrativeParams: nil, timestamp: now()))
@@ -408,6 +422,12 @@ enum UpHeroSession {
         if advanceFloor {
             s.log.append(.floor(from: s.currentFloor, to: nextFloor, timestamp: now()))
             s.currentFloor = nextFloor
+            // Phase 2-A (Track A) — 층 진입 XP. 처치 XP 와 같은 배율(sessionXpMult)을 탄다.
+            //   skipFloors 로 건너뛴 층은 받지 않는다 (applyChoiceEffect 는 이 줄을 지나지 않음).
+            //   로그 엔트리는 추가하지 않는다 — rewards.xp 에만 누적. 웹 tickSession 동일.
+            s.rewards.xp += UpHeroCombat.jsRound(
+                Double(UpHeroRules.floorXp(floor: nextFloor, ngPlusLevel: s.ngPlusLevel ?? 0))
+                    * sessionXpMult(s))
             gainClassResource(&s, event: .floor)
             if consumeTime(&s, delta: -UpHeroCombat.TimeCost.floor) { return s }
 

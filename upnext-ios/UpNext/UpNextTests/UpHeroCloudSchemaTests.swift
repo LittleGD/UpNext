@@ -6,6 +6,8 @@
 //  src/lib/sync.ts 의 normalizeUpHeroState → encodeUpHeroForCloud 를 vitest 로
 //  실행한 출력 (2026-08-29, 웹 커밋 9c2bf93 계약). Swift 가 이 JSON 을 읽고
 //  같은 JSON 으로 다시 쓰면 웹↔iOS 가 같은 Firestore 필드를 안전하게 공유한다.
+//  재생성 #1 (Phase 2-A, Track A): `heroXp: 39031` (레거시 Lv47 시드값) 추가 —
+//  src/lib/sync.test.ts "픽스처 왕복 — heroXp 39031" 과 같은 값.
 //
 
 import XCTest
@@ -95,7 +97,8 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         "bestScore": 3140,
         "lastUploadedAt": 1756400002000
       },
-      "heroStartLevel": 3
+      "heroStartLevel": 3,
+      "heroXp": 39031
     }
     """
 
@@ -140,6 +143,7 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         XCTAssertEqual(decoded.shopDaily?.slotSpins, 2)          // 와이어 키 "slotSpins"
         XCTAssertEqual(decoded.weeklyVariant?.clearedDungeons, [.fitness])
         XCTAssertEqual(decoded.heroStartLevel, 3)
+        XCTAssertEqual(decoded.heroXp, 39031)                   // Phase 2-A 와이어 키 "heroXp"
         XCTAssertEqual(decoded.destroyGuards, 2)
         XCTAssertEqual(decoded.downGuards, 1)
         XCTAssertEqual(decoded.combatBuff.buff, CombatBuff(pct: 10, battlesLeft: 3))
@@ -357,5 +361,66 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         var zeroPasses = empty
         zeroPasses.passes = [.fitness: 0]
         XCTAssertFalse(zeroPasses.hasUpHeroFootprint)
+    }
+
+    // MARK: - 영웅 XP 풀 (와이어 키 "heroXp", Phase 2-A)
+    //
+    // 웹 normalizeUpHeroState: 키가 있을 때만 싣고 [0, HERO_XP_CAP] 정수로 접는다. 구
+    // 클라이언트 문서(키 없음)는 nil 유지 — 0 이나 레거시 공식으로 지어내면 두 기기의 풀이
+    // 서로를 덮어 mergeCloudHeroXp 의 단조 병합 전제가 깨진다.
+
+    private func decodeHeroXp(_ json: String) throws -> Int? {
+        try JSONDecoder().decode(CloudUpHeroState.self, from: Data(json.utf8)).heroXp
+    }
+
+    /// 구 클라이언트 문서(heroXp 없음) → nil 로 디코드하고, 재인코딩에도 키가 없다.
+    func testLegacyDocWithoutHeroXpStaysAbsent() throws {
+        let decoded = try JSONDecoder().decode(
+            CloudUpHeroState.self, from: Data(#"{"coins": 12, "heroStartLevel": 1}"#.utf8))
+        XCTAssertNil(decoded.heroXp)
+        let payload = try XCTUnwrap(decoded.firestoreValue())
+        XCTAssertNil(payload["heroXp"], "미시드 풀을 지어내 올리면 안 된다")
+        // 상태로 옮겨도 미시드 유지 (GameStore.adoptCloudUpHero 가 ensureHeroXp 로 시드).
+        XCTAssertNil(decoded.toState().heroXp)
+    }
+
+    /// 시드된 값은 0 이어도 항상 싣는다 (setDoc(merge) 가 옛 값을 되살리지 않게).
+    func testHeroXpAlwaysEncodedOnceSeeded() throws {
+        var state = UpHeroStore.makeDefaultState()
+        state.heroXp = 0
+        let payload = try XCTUnwrap(CloudUpHeroState(state).firestoreValue())
+        XCTAssertEqual(payload["heroXp"] as? Int, 0)
+        state.heroXp = 39031
+        let again = try XCTUnwrap(CloudUpHeroState(state).firestoreValue())
+        XCTAssertEqual(again["heroXp"] as? Int, 39031)
+    }
+
+    /// 클램프 — 음수 → 0, 소수 내림, 상한 heroXpCap. 웹 clampHeroXp 와 동일.
+    func testHeroXpClampsLikeWeb() throws {
+        XCTAssertEqual(try decodeHeroXp(#"{"heroXp": -5}"#), 0)
+        XCTAssertEqual(try decodeHeroXp(#"{"heroXp": 12.9}"#), 12)
+        XCTAssertEqual(try decodeHeroXp(#"{"heroXp": 1000000000000}"#), UpHeroRules.heroXpCap)
+        XCTAssertNil(try decodeHeroXp(#"{"heroXp": "abc"}"#), "비숫자는 부재로 취급 (지어내지 않는다)")
+        var state = UpHeroStore.makeDefaultState()
+        state.heroXp = -1
+        XCTAssertEqual(CloudUpHeroState(state).heroXp, 0)
+    }
+
+    /// 왕복 — 상태 → 클라우드 → 상태 를 지나도 heroXp 가 같다.
+    func testHeroXpRoundTripsThroughCloudWire() throws {
+        var state = UpHeroStore.makeDefaultState()
+        state.heroXp = 39031
+        let data = try JSONEncoder().encode(CloudUpHeroState(state))
+        let decoded = try JSONDecoder().decode(CloudUpHeroState.self, from: data)
+        XCTAssertEqual(decoded.heroXp, 39031)
+        XCTAssertEqual(decoded.toState().heroXp, 39031)
+    }
+
+    /// heroXp 만으로는 플레이 흔적이 아니다 (footprint 게이트 불변, 웹 hasUpHeroFootprint).
+    func testHeroXpAloneIsNotFootprint() throws {
+        let decoded = try JSONDecoder().decode(
+            CloudUpHeroState.self, from: Data(#"{"heroXp": 39031}"#.utf8))
+        XCTAssertFalse(decoded.hasFootprint)
+        XCTAssertEqual(decoded.heroXp, 39031)
     }
 }

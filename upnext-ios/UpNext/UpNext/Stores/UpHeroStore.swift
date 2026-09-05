@@ -10,15 +10,16 @@
 //  상태 컨테이너 + 기본 상태 팩토리 + 로컬 영속화 + initialize(idle accrual).
 //   - UpHeroState 를 보유하고, 비-세션 부분을 기기 로컬 파일에 JSON 으로 저장한다
 //     (PersistedUpHeroState — UpHeroPersistence.swift). 웹 localStorage["uphero"] 대응.
-//   - initialize(gameLevel:) 가 heroStartLevel seed + 오프라인 수련 보상을 적용.
-//     영웅 XP 는 GameStore 소관이라 지급량을 반환 → GameStore.enterUpHero 가 반영.
+//   - initialize(gameLevel:) 가 heroStartLevel/heroXp seed + 오프라인 수련 보상을 적용.
 //
 //  ── 다음 슬라이스 ──
 //  장비 인벤토리, 버프 드로우, 전투(currentSession 영속화 포함),
 //  세션 결과·전직, 스킬트리·도감. 주간 변종 seed 도 이후 슬라이스.
 //
-//  영웅 레벨/XP 의 진실의 원천은 GameStore.progress — UpHeroStore 가 소유하지 않는다.
-//  (전투 세션 생성 시 그 시점 레벨을 스냅샷할 뿐. 웹 useUpHeroStore 와 동일.)
+//  Phase 2-A (Track A) — 영웅 XP/레벨의 진실의 원천은 이 스토어의 `state.heroXp` 풀이다.
+//  계정 XP(GameStore.progress)와 완전히 분리됐다: 던전 정산과 방치 보상은 heroXp 에만
+//  더하고, 챌린지 완료는 영웅에게 아무것도 주지 않는다. 스킬 포인트는 레벨에서
+//  파생(`deriveSkillPoints`)하며 별도 지급 카운터가 없다. 웹 useUpHeroStore 와 동일.
 //
 
 import Foundation
@@ -43,13 +44,13 @@ final class UpHeroStore: ObservableObject {
 
     // MARK: - 수명주기
 
-    /// Up Hero 진입 시 1회 — heroStartLevel seed + 오프라인 수련 보상(idle accrual).
-    /// 코인은 즉시 반영하고 idleReward 스냅샷을 저장한다 (아지트가 토스트로 표시).
-    /// 영웅 XP 의 진실의 원천은 GameStore.progress 라 XP 는 여기서 더하지 않고
-    /// 지급할 양을 반환 — 호출부(GameStore.enterUpHero)가 progress 에 반영한다.
-    /// 웹 useUpHeroStore.initialize() 대응. 이미 로드됐으면 0 (1회성).
-    func initialize(gameLevel: Int) -> Int {
-        guard !state.isLoaded else { return 0 }
+    /// Up Hero 진입 시 1회 — heroStartLevel/heroXp seed + 오프라인 수련 보상(idle accrual).
+    /// 코인과 영웅 XP 는 즉시 반영하고 idleReward 스냅샷을 저장한다 (아지트가 토스트로 표시).
+    /// Phase 2-A — 방치 XP 는 `heroXp` 풀로 간다. 계정 XP(GameStore.progress)는 불변.
+    /// 웹 useUpHeroStore.initialize() 대응. 이미 로드됐으면 no-op (1회성).
+    func initialize(gameLevel: Int) {
+        lastKnownGameLevel = gameLevel
+        guard !state.isLoaded else { return }
 
         var s = state
         s.isLoaded = true
@@ -62,24 +63,32 @@ final class UpHeroStore: ObservableObject {
             s.heroStartLevel = gameLevel
         }
 
-        // 오프라인 수련 보상 — 영웅 effective 레벨 기준 (웹과 동일).
-        //   클래스 XP/coin 배율은 전직 슬라이스에서 — 현재 영웅은 무직이라 ×1.
-        let heroLevel = UpHeroRules.getEffectiveHeroLevel(
-            gameLevel: gameLevel, heroStartLevel: s.heroStartLevel)
-        var grantedXP = 0
+        // Phase 2-A (Track A) — heroXp seed. 저장본에 있으면 그대로(loadPersisted 가 clamp),
+        //   없으면(레거시 저장본) 레거시 영웅 Lv 를 곡선으로 옮긴다: Lv47 → 39,031.
+        //   iOS 는 부트스트랩에 progress 가 항상 있으므로 여기서 인라인 시드한다.
+        //   클라우드 값이 있었다면 mergeCloudHeroXp/adoptCloudState 가 먼저 채웠으므로
+        //   레거시 공식은 마지막 폴백이다. 0 으로 시드하는 경로는 없다.
+        if s.heroXp == nil {
+            s.heroXp = UpHeroRules.heroTotalXPForLevel(
+                UpHeroRules.getEffectiveHeroLevel(gameLevel: gameLevel, heroStartLevel: s.heroStartLevel))
+        }
+        let heroLevelBeforeIdle = UpHeroRules.heroLevelFromXP(s.heroXp ?? 0)
+
+        // 오프라인 수련 보상 — 영웅 레벨 기준 (웹과 동일). XP 는 heroXp 풀에 즉시 더한다.
         let rewound = IdleAccrual.detectClockRewind(
             now: now, lastSeenAt: s.lastSeenAt, lastIdleAt: s.lastIdleAccrualAt)
         if !rewound,
            let reward = IdleAccrual.calculateIdleReward(
-               elapsedMs: now - s.lastIdleAccrualAt, level: heroLevel) {
+               elapsedMs: now - s.lastIdleAccrualAt, level: heroLevelBeforeIdle) {
             s.coins += reward.coins
+            s.heroXp = UpHeroRules.clampHeroXp((s.heroXp ?? 0) + reward.xp)
             s.idleReward = IdleRewardSnapshot(
                 xp: reward.xp, coins: reward.coins,
                 elapsedMin: reward.elapsedMin, rawElapsedMin: reward.rawElapsedMin)
             s.lastIdleAccrualAt = now   // 보상 지급분만큼 누적 기준점 이동
-            grantedXP = reward.xp
         }
         s.lastSeenAt = now              // 시계 rewind 감지 기준 — 매 진입 갱신
+        let heroLevelAfterIdle = UpHeroRules.heroLevelFromXP(s.heroXp ?? 0)
 
         // 시작 선물 예약 — 아직 안 받았으면 매 부팅 다시 예약한다(수령 전에 앱을 껐어도
         // 다음 실행에서 연출이 다시 뜬다). 실제 지급은 claimWelcomeGift() 가 한다.
@@ -89,8 +98,122 @@ final class UpHeroStore: ObservableObject {
 
         state = s
         persist()
-        return grantedXP
+        // Phase 2-A — 마일스톤 정리: SP 파생 캐시 → novice 소급 지급 → (방치 XP 로 올랐으면)
+        //   레벨업 오버레이 예약 → Lv30+ 미전직 안전망. 전부 applyHeroLevelMilestones 한 곳.
+        applyHeroLevelMilestones(prev: heroLevelBeforeIdle, new: heroLevelAfterIdle)
     }
+
+    // MARK: - Phase 2-A — 영웅 XP 풀 / 레벨 / 스킬 포인트 파생
+
+    /// 시드 소스 계정 레벨 캐시 — GameStore 가 initialize/ensureHeroXp/acknowledgeSessionEnd
+    /// 에 넘긴 마지막 progress.level. `heroLevel` 의 시드 전 폴백(resolveHeroLevel)에만 쓴다.
+    /// transient. 웹 readSeedGameLevel 대응 (iOS 는 스토어가 GameStore 를 모른다).
+    private(set) var lastKnownGameLevel: Int = 1
+
+    /// 표시/판정용 영웅 레벨 — heroXp 풀 기준, 시드 전엔 레거시 공식 폴백. 웹 useHeroLevel().
+    var heroLevel: Int {
+        UpHeroRules.resolveHeroLevel(
+            heroXp: state.heroXp, gameLevel: lastKnownGameLevel, heroStartLevel: state.heroStartLevel)
+    }
+
+    /// 영웅 XP 풀 시드 보장 — `heroXp` 가 nil 이면 `heroTotalXPForLevel(레거시 영웅 Lv)` 로
+    /// 시드하고 persist + 마일스톤 정리. 이미 시드됐으면 no-op (멱등). 클라우드 채택
+    /// (adoptCloudState 는 initialize 를 건너뛴다) 뒤 GameStore.adoptCloudUpHero 와
+    /// bootstrapUpHero, acknowledgeSessionEnd 맨 앞에서 호출한다. 웹 ensureHeroXp.
+    func ensureHeroXp(gameLevel: Int) {
+        lastKnownGameLevel = gameLevel
+        guard state.heroXp == nil else { return }
+        let level = UpHeroRules.getEffectiveHeroLevel(
+            gameLevel: gameLevel, heroStartLevel: state.heroStartLevel)
+        mutate { $0.heroXp = UpHeroRules.heroTotalXPForLevel(level) }
+        applyHeroLevelMilestones(prev: level, new: level)
+    }
+
+    /// 클라우드 heroXp 단조 병합: `heroXp = max(local ?? -1, cloud)`. cloud 가 nil 이면 no-op
+    /// (절대 지어내지 않는다). 흔적 게이트와 무관하게 GameStore.adoptCloudUpHero 가 매
+    /// 스냅샷마다 호출한다 — 로컬에 흔적이 있어 채택을 건너뛰는 기기도 다른 기기가 올린
+    /// 더 큰 풀을 받아들여야 Lv47 시드값이 클라우드를 되감는 핑퐁이 사라진다.
+    /// 다른 기기가 이미 본 레벨업이라 오버레이는 띄우지 않는다. 웹 mergeCloudHeroXp.
+    func mergeCloudHeroXp(_ cloudHeroXp: Int?) {
+        guard let raw = cloudHeroXp else { return }
+        let cloud = UpHeroRules.clampHeroXp(raw)
+        let local = state.heroXp ?? -1
+        guard cloud > local else { return }
+        state.heroXp = cloud
+        Self.savePersisted(state)   // 클라우드에서 온 값 — echo 업로드 없이 로컬만 저장
+        let level = UpHeroRules.heroLevelFromXP(cloud)
+        applyHeroLevelMilestones(prev: level, new: level)
+    }
+
+    /// learnedSkills 가 소모한 스킬 포인트 합 (findSkillById 로 해석되는 것만; novice/T1 은 0).
+    /// 웹 spentSkillPoints.
+    static func spentSkillPoints(_ hero: Hero) -> Int {
+        (hero.learnedSkills ?? []).reduce(0) { $0 + (ClassSkills.findSkillById($1)?.pointCost ?? 0) }
+    }
+
+    /// 남은 스킬 포인트 = max(0, 레벨 누적 SP - 소모 SP). 별도 카운터 없이 항상 재계산.
+    /// 웹 deriveSkillPoints.
+    static func deriveSkillPoints(_ hero: Hero, level: Int) -> Int {
+        max(0, UpHeroRules.skillPointsTotalForLevel(level) - spentSkillPoints(hero))
+    }
+
+    /// 정산: 풀에 XP 를 더하고 (상한 clamp) 전후 레벨을 돌려준다. 웹 settleHeroXp.
+    static func settleHeroXp(prev: Int, gain: Int) -> (heroXp: Int, prevLevel: Int, newLevel: Int) {
+        let before = UpHeroRules.clampHeroXp(prev)
+        let after = UpHeroRules.clampHeroXp(before + max(0, gain))
+        return (after, UpHeroRules.heroLevelFromXP(before), UpHeroRules.heroLevelFromXP(after))
+    }
+
+    /// hero.skillPoints 를 파생값으로 재계산해 캐시한다 (구 클라이언트 호환용 와이어 필드).
+    /// 값이 바뀔 때만 persist. 멱등. 웹 reconcileSkillPoints.
+    func reconcileSkillPoints() {
+        let derived = Self.deriveSkillPoints(state.hero, level: heroLevel)
+        guard state.hero.skillPoints != derived else { return }
+        mutate { $0.hero.skillPoints = derived }
+    }
+
+    /// 영웅 레벨 마일스톤 단일 진입점 (정산 / 방치 / 시드 / 병합 뒤). 웹 applyHeroLevelMilestones.
+    ///   - reconcileSkillPoints + grantNoviceSkills(new) 는 **무조건** (prev == new 여도;
+    ///     첫 부트스트랩의 Lv1 novice 지급과 소급 지급이 여기 걸려 있다).
+    ///   - new > prev 면 pendingHeroLevelUp 세팅 → HeroLevelUpOverlay.
+    ///   - Lv30 이상인데 전직 전이면 전직 제안. 단 이번 호출이 30 을 **넘긴** 레벨업이면
+    ///     오버레이가 닫힌 뒤(acknowledgeHeroLevelUp)로 미룬다.
+    private func applyHeroLevelMilestones(prev: Int, new: Int) {
+        reconcileSkillPoints()
+        grantNoviceSkills(new)
+        let leveledUp = new > prev
+        if leveledUp {
+            state.pendingHeroLevelUp = HeroLevelUpEvent(from: prev, to: new)
+        }
+        let crossed30 = leveledUp && prev < 30 && new >= 30
+        if new >= 30, state.hero.classType == nil, !crossed30 {
+            proposeClassChoice()
+        }
+    }
+
+    /// HeroLevelUpOverlay 닫힘 — pendingHeroLevelUp 을 내리고, 그 레벨업이 Lv30 을 넘겼는데
+    /// 아직 전직 전이면 여기서 전직을 제안한다 (오버레이 → 전직 화면 순서). 웹 동치.
+    func acknowledgeHeroLevelUp() {
+        guard let pending = state.pendingHeroLevelUp else { return }
+        state.pendingHeroLevelUp = nil
+        if pending.from < 30, pending.to >= 30, state.hero.classType == nil {
+            proposeClassChoice()
+        }
+    }
+
+    #if DEBUG
+    /// UI 테스트/단위 테스트 시드 전용 — 영웅 레벨을 곡선의 정확한 시작 XP 로 맞춘다.
+    /// 오버레이는 띄우지 않는다 (prev == new). 웹 테스트의 `heroXp: heroTotalXPForLevel(L)` 시드.
+    func debugSetHeroLevel(_ level: Int) {
+        mutate { $0.heroXp = UpHeroRules.heroTotalXPForLevel(level) }
+        applyHeroLevelMilestones(prev: level, new: level)
+    }
+
+    /// 단위 테스트 전용 — 완료 세션 등을 직접 꽂는다 (state 는 private(set)).
+    func debugSetCurrentSession(_ session: CombatSession?) {
+        state.currentSession = session
+    }
+    #endif
 
     /// idle 보상 토스트 확인 — 스냅샷을 비운다. transient 라 저장은 불필요.
     func acknowledgeIdleReward() {
@@ -211,9 +334,9 @@ final class UpHeroStore: ObservableObject {
     // MARK: - 전투 세션 (웹 confirmDungeon / abandonSession)
 
     /// 버프 선택 확정 → 전투 세션 생성. 웹 confirmDungeon.
-    /// gameLevel 은 영웅 effective 레벨 산출용 (GameStore.progress.level — 호출부 전달).
+    /// 영웅 레벨은 heroXp 풀 기준(`heroLevel`) — Phase 2-A 로 gameLevel 파라미터 제거.
     /// 탐험권(passes) 소비는 패스 경제 슬라이스에서.
-    func confirmDungeon(selectedCardIds: [String], gameLevel: Int) {
+    func confirmDungeon(selectedCardIds: [String]) {
         guard let prep = state.pendingDungeon else { return }
         let dungeonId = prep.dungeonId
 
@@ -225,8 +348,7 @@ final class UpHeroStore: ObservableObject {
         // 영웅 레벨 성장 반영 + 시작 층.
         // Phase 16 (Track C, 피드백 19/26) — 미처치 보스층이 floorReached 이하에 있으면
         //   거기서 시작 (createSession 이 보스를 바로 스폰). 웹 confirmDungeon 과 동일.
-        let heroLevel = UpHeroRules.getEffectiveHeroLevel(
-            gameLevel: gameLevel, heroStartLevel: state.heroStartLevel)
+        let heroLevel = self.heroLevel
         let leveledHero = UpHeroRules.computeHeroForLevel(state.hero, level: heroLevel)
         let startFloor = SessionReward.resolveStartFloor(state.dungeons[dungeonId])
 
@@ -258,13 +380,15 @@ final class UpHeroStore: ObservableObject {
     }
 
     /// 완료된 세션 결산 — 보상을 반영하고 세션을 비운다. 웹 acknowledgeSessionEnd.
-    /// 코인·장비(사망 시 절반)·던전 진행·코덱스·NG+ 는 여기서 반영하고, XP 는
-    /// GameStore.progress 소관이라 지급량만 반환한다 (호출부가 progress 에 적용).
-    /// 반환: 지급할 XP (세션 없음/미완료면 0).
-    @discardableResult
-    func acknowledgeSessionEnd(gameLevel: Int? = nil) -> Int {
+    /// 코인·장비(사망 시 절반)·던전 진행·코덱스·NG+ 와 **영웅 XP 풀(heroXp)** 을 여기서
+    /// 반영한다. Phase 2-A — 계정 XP(GameStore.progress)는 건드리지 않는다 (피드백 32).
+    /// `gameLevel` 은 미시드 저장본의 시드 소스일 뿐이다 (ensureHeroXp); 미시드가 남으면
+    /// 이번 정산은 heroXp 를 쓰지 않는다 (nil 을 0 + gain 으로 굳히면 레거시 레벨을 잃는다).
+    func acknowledgeSessionEnd(gameLevel: Int? = nil) {
+        // 공통 규칙: "acknowledgeSessionEnd 맨 앞" 에서 시드 보장.
+        if let gameLevel { ensureHeroXp(gameLevel: gameLevel) }
         guard let session = state.currentSession,
-              session.status == .completed else { return 0 }
+              session.status == .completed else { return }
         var rng = SystemRandom()
 
         // 보상 계산 — sessionReward.ts 의 순수 helper (state-in → 값-out).
@@ -285,6 +409,8 @@ final class UpHeroStore: ObservableObject {
         let weeklyReward = session.isWeeklyVariant == true
             ? SessionReward.computeWeeklyClearReward(session: session, weekly: state.weeklyVariant)
             : nil
+        // Phase 2-A (Track A) — 세션 XP 를 영웅 XP 풀에 정산 (미시드면 nil → heroXp 불변).
+        let settled = state.heroXp.map { Self.settleHeroXp(prev: $0, gain: session.rewards.xp) }
 
         // 17-leaderboard-dummy — 주간 변종 세션이면 clearedDungeons/bestScore 갱신 +
         //   최고 점수 경신 시 Firestore 업로드(fire-and-forget). 웹 useUpHeroStore.ts:1373-1405.
@@ -297,17 +423,8 @@ final class UpHeroStore: ObservableObject {
             let clearedF30 = bossesThisSession.contains(30)
             let reachedFloors = max(0, session.currentFloor - session.startFloor)
             let floorsCleared = clearedF30 ? reachedFloors + 1 : reachedFloors
-            // 웹 파리티: 정산 시점에 gameLevel-heroStartLevel+1 재계산 — 세션 도중
-            // 챌린지 XP 로 레벨업하면 시작 스냅샷(session.heroLevel)은 낮은 점수를
-            // isNewBest 로 영구 업로드하는 비가역 결함이 있었다(코드리뷰 must-fix).
-            // gameLevel 미전달 폴백만 스냅샷 사용.
-            let heroLv: Int
-            if let gl = gameLevel {
-                heroLv = UpHeroRules.getEffectiveHeroLevel(
-                    gameLevel: gl, heroStartLevel: state.heroStartLevel)
-            } else {
-                heroLv = max(1, session.heroLevel ?? 1)
-            }
+            // 웹 파리티: 주간 점수에 쓰는 영웅 레벨은 정산 후 풀 기준 (settled.newLevel).
+            let heroLv = settled?.newLevel ?? heroLevel
             let score = UpHeroRules.computeWeeklyScore(
                 floorsCleared: floorsCleared, remainingTime: session.time, heroLevel: heroLv)
             let isNewBest = score > weekly.bestScore
@@ -317,8 +434,9 @@ final class UpHeroStore: ObservableObject {
         }
 
         mutate { s in
-            // Track C: 주간 보상 (weeklyReward) 합산. Track A 는 이 앞에 settleHeroXp,
+            // Track C: 주간 보상 (weeklyReward) 합산. Track A 의 settleHeroXp 는 위에서,
             //   Track E 는 splitDropsByCap 을 끼운다 (공통 규칙 병합 순서).
+            if let settled { s.heroXp = settled.heroXp }
             s.coins += session.rewards.coins + (weeklyReward?.coins ?? 0)
             s.inventory.append(contentsOf: keptDrops)
             // Phase 15 — 이번 탐험에서 번 방지권을 지갑으로 합산 (상한 99).
@@ -363,6 +481,9 @@ final class UpHeroStore: ObservableObject {
             }
             s.currentSession = nil
         }
+        // Phase 2-A — 레벨 마일스톤 (SP 재계산 · novice · 레벨업 오버레이 · 전직 제안).
+        //   persist 뒤에 호출 — 마일스톤이 hero 를 바꾸면 각자 다시 persist 한다.
+        if let settled { applyHeroLevelMilestones(prev: settled.prevLevel, new: settled.newLevel) }
 
         // state commit 뒤 fire-and-forget 업로드(웹 R1 — atomic 순서 고정). 성공 시에만
         //   lastUploadedAt 갱신(웹 R3). 익명/미로그인은 서비스 내부에서 skip.
@@ -382,7 +503,6 @@ final class UpHeroStore: ObservableObject {
                 }
             }
         }
-        return session.rewards.xp
     }
 
     // MARK: - 전투 진행 (웹 tickSession / resolveChoice / resolveMinigame)
@@ -836,38 +956,39 @@ final class UpHeroStore: ObservableObject {
         return amount
     }
 
-    func grantSkillPoints(_ points: Int) {
-        guard points > 0 else { return }
-        mutate { $0.hero.skillPoints = ($0.hero.skillPoints ?? 0) + points }
-    }
-
     enum LearnSkillResult { case ok, already, notFound, noClass, needLevel, noPoints }
 
     /// Phase 12d — 스킬트리에서 스킬 포인트로 클래스 스킬 해금. 웹 `learnSkill` 동치.
-    /// gameLevel 은 호출부(뷰)가 store.progress.level 로 주입(confirmDungeon 패턴).
+    /// Phase 2-A — 영웅 레벨은 heroXp 풀 기준, 남은 SP 는 파생값(deriveSkillPoints).
+    /// 성공 시 learnedSkills 에 추가하고 SP 캐시를 다시 파생한다 — pointCost 가 유일한
+    /// 소비 경로다 (Track F 의 리스펙은 learnedSkills 리셋만으로 복원).
     @discardableResult
-    func learnSkill(_ skillId: String, gameLevel: Int) -> LearnSkillResult {
+    func learnSkill(_ skillId: String) -> LearnSkillResult {
         guard let cls = state.hero.classType else { return .noClass }
         guard let skill = ClassSkills.findSkillById(skillId) else { return .notFound }
         guard skill.skillClass.rawValue == cls.rawValue else { return .noClass }
-        let heroLevel = UpHeroRules.getEffectiveHeroLevel(
-            gameLevel: gameLevel, heroStartLevel: state.heroStartLevel)
+        let heroLevel = self.heroLevel
         guard heroLevel >= skill.requiredLevel else { return .needLevel }
         let learned = state.hero.learnedSkills ?? []
         guard !learned.contains(skillId) else { return .already }
-        let points = state.hero.skillPoints ?? 0
+        let points = Self.deriveSkillPoints(state.hero, level: heroLevel)
         guard points >= skill.pointCost else { return .noPoints }
         mutate { s in
             s.hero.learnedSkills = learned + [skillId]
-            s.hero.skillPoints = points - skill.pointCost
+            s.hero.skillPoints = Self.deriveSkillPoints(s.hero, level: heroLevel)
         }
         Haptics.play(.celebration)   // 스킬 해금 — 성장 순간
         SoundPlayer.shared.play(.levelUp)
         return .ok
     }
 
-    /// 전직 전 튜토리얼 스킬 자동 해금. 웹 `grantNoviceSkills`.
+    /// 전직 전 튜토리얼 스킬 자동 해금. 웹 `grantNoviceSkills`. 멱등.
+    /// 전직 이후엔 novice 단계 종료 — classType 이 세팅된 영웅은 레벨 마일스톤/초기화/소급
+    /// 어느 경로에서도 novice 스킬을 다시 받지 않는다 (웹 Bug 2026-04 가드 미러: 가드가
+    /// 없으면 assignClass 가 learnedSkills 를 [T1] 로 비워도 다음 마일스톤에서 novice_heal
+    /// 등이 되살아난다).
     func grantNoviceSkills(_ level: Int) {
+        guard state.hero.classType == nil else { return }
         let unlocks: [String]
         switch level {
         case 15...:
@@ -879,14 +1000,10 @@ final class UpHeroStore: ObservableObject {
         default:
             unlocks = []
         }
-        guard !unlocks.isEmpty else { return }
-        mutate { s in
-            var learned = s.hero.learnedSkills ?? []
-            for id in unlocks where !learned.contains(id) {
-                learned.append(id)
-            }
-            s.hero.learnedSkills = learned
-        }
+        let learned = state.hero.learnedSkills ?? []
+        let toAdd = unlocks.filter { !learned.contains($0) }
+        guard !toAdd.isEmpty else { return }   // 변경 없으면 persist 도 없다
+        mutate { $0.hero.learnedSkills = learned + toAdd }
     }
 
     /// Lv30 도달 시 클래스 선택 모달을 준비. 이미 전직했거나 대기 중이면 no-op.
@@ -1113,6 +1230,9 @@ final class UpHeroStore: ObservableObject {
         let cap = UpHeroRules.enhanceGuardMax
         restored.destroyGuards = min(cap, max(0, restored.destroyGuards ?? 0))
         restored.downGuards = min(cap, max(0, restored.downGuards ?? 0))
+        // Phase 2-A — 영웅 XP 풀: 키가 있으면 [0, cap] 으로 접고, 없으면 nil 유지(미시드 →
+        // initialize/ensureHeroXp 가 레거시 레벨로 시드). 웹 normalizeHeroXp.
+        if let x = restored.heroXp { restored.heroXp = UpHeroRules.clampHeroXp(x) }
         // 오늘 굴림 횟수 — 구 저장본은 키가 없어 nil(=0), 손상 값은 [0, 100] 으로 접는다
         // (웹 loadFromStorage 의 normalizeSlotSpins 와 같은 계약). 날짜 롤오버는 읽는
         // 쪽(currentShopDaily)이 처리하므로 여기서 날짜를 건드리지 않는다.
@@ -1175,6 +1295,7 @@ final class UpHeroStore: ObservableObject {
             lastIdleAccrualAt: now,
             lastSeenAt: now,
             heroStartLevel: nil,        // initialize 에서 seed (슬라이스 16~)
+            heroXp: nil,                // Phase 2-A — 미시드. initialize/ensureHeroXp 에서 seed
             shopDaily: nil,
             ngPlusLevel: 0,
             weeklyVariant: nil,
@@ -1185,6 +1306,7 @@ final class UpHeroStore: ObservableObject {
             idleReward: nil,            // transient
             pendingClassAwaken: nil,    // transient
             pendingClassChoice: nil,    // transient
+            pendingHeroLevelUp: nil,    // transient
             isLoaded: false
         )
     }
