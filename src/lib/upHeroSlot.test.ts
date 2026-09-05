@@ -187,7 +187,9 @@ describe("upHeroSlot — 드럼 표시 (near-miss 는 표시 전용)", () => {
     }
     expect(Math.abs(near / N - SLOT_NEAR_MISS_RATE)).toBeLessThan(0.02);
     expect(Math.abs(variantA / near - 0.8)).toBeLessThan(0.02);
-  });
+    // 10만 렌더 × 루프 안 expect 3회 — 단독 실행은 약 2초지만 전체 스위트가 jsdom 워커를
+    // 병렬로 돌릴 때는 기본 5초를 넘겨 타임아웃으로 실패했다(검증 결과 자체는 통과).
+  }, 30_000);
 
   it("(c) 렌더는 순수 함수 — outcome 을 바꾸지 않고, 같은 난수열이면 같은 그림", () => {
     const ids = SLOT_OUTCOMES.map((o) => o.id);
