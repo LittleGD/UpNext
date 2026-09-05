@@ -1,11 +1,17 @@
 "use client";
 
 /**
- * 챌린지 레벨업 시 전역 축하 오버레이.
+ * 계정(챌린지) 레벨업 전역 축하 오버레이.
+ *
+ * Phase 2-A (Track A) — 구 UpHeroLevelUpOverlay. 영웅 XP 풀이 계정 XP 에서 분리되면서
+ *   이 오버레이는 **계정 레벨** 만 다룬다 (영웅 레벨업은 uphero/HeroLevelUpOverlay).
+ *   공용 클라이언트 셸(app/layout.tsx, Header/BottomNav 옆)에 한 번만 마운트된다 —
+ *   챌린지 완료 / 미니게임 보상 / 컬렉션 보상 등 어느 경로의 레벨업이든 같은 연출.
  *
  * useGameStore.progress.level 증가를 감지해 풀스크린 연출 (파티클 버스트 +
  * 레벨 숫자 스케일-인 + 사운드) 후 2.8 초 후 자동 해제. 탭으로 즉시 해제 가능.
- * 모든 레벨업 경로 (탐험 완료 / idle 보상 / 기타) 를 공통 커버.
+ * 카드팩 오프너(isOpeningPack)가 열려 있는 동안은 표시를 미룬다 — 팩이 닫힌 뒤
+ * 같은 축하가 이어서 뜬다 (celebration 상태는 유지).
  *
  * 온보딩 중 (hasCompletedOnboarding=false) 에는 LevelUpScreen 이 전담하므로
  * 이 오버레이는 비활성화.
@@ -67,9 +73,11 @@ function particleDuration(): number {
   return 0.8 + Math.random() * 0.3;
 }
 
-export default function UpHeroLevelUpOverlay() {
+export default function AccountLevelUpOverlay() {
   const level = useGameStore((s) => s.progress.level);
   const isLoaded = useGameStore((s) => s.isLoaded);
+  // Phase 2-A — 카드팩 오프너가 떠 있는 동안 연출을 미룬다 (팩 위에 겹치지 않게).
+  const isOpeningPack = useGameStore((s) => s.isOpeningPack);
   const hasCompletedOnboarding = useGameStore(
     (s) => s.hasCompletedOnboarding,
   );
@@ -95,10 +103,13 @@ export default function UpHeroLevelUpOverlay() {
     }
   }
 
-  // 사운드/SR 공지 — celebration 이 새로 만들어졌을 때 1회 (객체 identity 로 중복 방지)
+  // 표시 여부 — 팩 오프너가 닫힌 뒤에만. 타이머/사운드도 그때부터 시작한다.
+  const visible = celebration !== null && !isOpeningPack;
+
+  // 사운드/SR 공지 — celebration 이 처음 표시될 때 1회 (객체 identity 로 중복 방지)
   const playedKeyRef = useRef<Celebration | null>(null);
   useEffect(() => {
-    if (!celebration) return;
+    if (!celebration || !visible) return;
     if (playedKeyRef.current === celebration) return;
     playedKeyRef.current = celebration;
     play("levelUp");
@@ -106,16 +117,16 @@ export default function UpHeroLevelUpOverlay() {
       t("uphero.levelup.announce", { level: celebration.newLevel }),
       "assertive",
     );
-  }, [celebration, play, announce, t]);
+  }, [celebration, visible, play, announce, t]);
 
   useEffect(() => {
-    if (!celebration) return;
+    if (!celebration || !visible) return;
     const timer = window.setTimeout(
       () => setCelebration(null),
       AUTO_DISMISS_MS,
     );
     return () => window.clearTimeout(timer);
-  }, [celebration]);
+  }, [celebration, visible]);
 
   if (typeof window === "undefined") return null;
 
@@ -123,7 +134,7 @@ export default function UpHeroLevelUpOverlay() {
 
   return createPortal(
     <AnimatePresence>
-      {celebration && (
+      {celebration && visible && (
         <motion.div
           key={celebration.key}
           role="status"

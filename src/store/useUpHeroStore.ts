@@ -3,7 +3,11 @@
  *
  * 영속 데이터 (localStorage "uphero"): hero, inventory, coins, passes, dungeons, codex, cosmetics.
  * currentSession 도 저장 (resume 용).
- * level/xp 는 useGameStore 가 source of truth — 여기선 진행 중 session 에만 snapshot.
+ *
+ * Phase 2-A (Track A) — 영웅 XP/레벨은 이 스토어의 `heroXp` 풀이 source of truth 다.
+ *   계정 XP(useGameStore.progress)와 완전히 분리됐다: 던전 정산과 방치 보상은
+ *   heroXp 에만 더하고, 챌린지 완료는 영웅에게 아무것도 주지 않는다.
+ *   스킬 포인트는 레벨에서 파생(`deriveSkillPoints`)하며 별도 지급 카운터가 없다.
  */
 
 import { create } from "zustand";
@@ -38,12 +42,18 @@ import {
   type CardBuff,
   type HeroBaseStats,
   type Monster,
+  type Hero,
   getEffectiveHeroLevel,
+  heroTotalXPForLevel,
+  heroLevelFromXP,
+  resolveHeroLevel,
+  skillPointsTotalForLevel,
+  clampHeroXp,
 } from "@/types/uphero";
 import { pickWeeklyAffix } from "@/data/weeklyAffixes";
 import type { Category } from "@/types/card";
 import type { Rarity } from "@/types/card";
-import { getLevelFromXP, DAILY_CARDMATCH_TICKET_CAP } from "@/types/game";
+import { DAILY_CARDMATCH_TICKET_CAP } from "@/types/game";
 import {
   createSession as buildSession,
   tickSession as stepSession,
@@ -113,8 +123,17 @@ import type { CloudUpHeroState } from "@/lib/sync";
  * v4: shopDaily seed — 상점 하루 탐험권 구매 cap.
  * v5: ngPlusLevel seed (0) + weeklyVariant 는 initialize 에서 이번 주 id 로 갱신.
  *     기존 유저도 F30 처음 처치 시점부터 NG+ 자연 해금.
+ * v6: (Phase 2-A, Track A) heroXp seed — 영웅 XP 풀을 계정 XP 에서 분리.
+ *     `heroXp === undefined` 이면 `heroTotalXPForLevel(레거시 영웅 Lv)` 로 시드
+ *     (Lv47 → 39,031). progress.level 을 읽을 수 없으면 미시드로 두고
+ *     `ensureHeroXp` 가 나중에 채운다 (0 으로 시드하는 경로 없음).
+ *     hero.skillPoints 는 레벨 파생값으로 재계산 (`reconcileSkillPoints`).
+ *
+ * 마이그레이션 순서(공통 규칙): v1/v2 코덱스 → [E, <7 예정] 장비 수리 →
+ *   [C] normalizeSessionForLoad → heroStartLevel seed → [A] heroXp seed →
+ *   shopDaily/weeklyVariant/dungeons 백필 → set → [A] reconcile → 안전망 → persist.
  */
-const CURRENT_SCHEMA_VERSION = 5;
+const CURRENT_SCHEMA_VERSION = 6;
 
 /**
  * Phase 4c-fix: Codex legacy ID → name migration.
@@ -300,8 +319,34 @@ interface UpHeroActions {
   toggleAutoSkill(): void;
   /** Phase 12a — 영웅 이름 변경 (최대 16자, 공백만 입력은 무시). */
   renameHero(name: string): void;
-  /** Phase 12d — 레벨업 시 스킬 포인트 부여. */
-  grantSkillPoints(amount: number): void;
+  /**
+   * Phase 2-A — 영웅 XP 풀 시드 보장. `heroXp` 가 아직 undefined 이고 progress.level
+   *   을 읽을 수 있으면 (useGameStore 로드됨 → 그 값, 아니면 localStorage "progress")
+   *   `heroTotalXPForLevel(레거시 영웅 Lv)` 로 시드하고 persist + 마일스톤 정리.
+   *   이미 시드됐거나 progress 를 못 읽으면 no-op. initialize 끝 / acknowledgeSessionEnd
+   *   맨 앞 / _setFromCloud 뒤(microtask) / UpHeroGame 효과에서 호출한다.
+   */
+  ensureHeroXp(): void;
+  /**
+   * Phase 2-A — 클라우드 heroXp 단조 병합: `heroXp = max(local ?? -1, cloud)`.
+   *   cloud 가 없거나 비유한이면 no-op (절대 지어내지 않는다). 흔적 게이트와 무관하게
+   *   SyncProvider.adoptCloudUpHero 가 매 스냅샷마다 호출한다.
+   *   hydrate 전(isLoaded=false)엔 in-memory 를 건드리지 않고 저장본 레코드에만
+   *   병합한다 — 기본값을 persist 해 로컬 흔적(코인·인벤·영웅)을 지우면 안 된다.
+   */
+  mergeCloudHeroXp(cloudHeroXp: number | undefined): void;
+  /**
+   * Phase 2-A — hero.skillPoints 를 파생값으로 재계산해 캐시한다
+   *   (`skillPointsTotalForLevel(영웅 Lv) - Σ pointCost(learnedSkills)`, 0 미만 없음).
+   *   값이 바뀔 때만 set + persist. 멱등.
+   */
+  reconcileSkillPoints(): void;
+  /**
+   * Phase 2-A — HeroLevelUpOverlay 닫힘. pendingHeroLevelUp 을 null 로 내리고,
+   *   그 레벨업이 Lv30 을 넘겼는데 아직 전직 전이면 여기서 전직을 제안한다
+   *   (오버레이 → ClassChoiceModal 순서 보장).
+   */
+  acknowledgeHeroLevelUp(): void;
   /**
    * Phase 14 — 전직 전 튜토리얼 novice 스킬 레벨별 자동 지급.
    *   currentLevel 기준으로 아직 learned 가 아닌 novice skill 중 requiredLevel
@@ -543,6 +588,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     lastIdleAccrualAt,
     lastSeenAt,
     heroStartLevel,
+    heroXp,
     shopDaily,
     ngPlusLevel,
     weeklyVariant,
@@ -574,6 +620,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     lastIdleAccrualAt,
     lastSeenAt,
     heroStartLevel,
+    heroXp,
     shopDaily,
     ngPlusLevel,
     weeklyVariant,
@@ -585,6 +632,69 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     combatBuff,
     slotBlankStreak,
   };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Phase 2-A (Track A) — 영웅 XP 풀 / 스킬 포인트 파생 순수 헬퍼 (테스트용 export)
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/** 저장본/클라우드의 heroXp 를 읽는다 — 숫자가 아니면 undefined(미시드), 숫자면 clamp. */
+export function normalizeHeroXp(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) ? clampHeroXp(v) : undefined;
+}
+
+/** learnedSkills 가 소모한 스킬 포인트 합 (findSkillById 로 해석되는 것만; novice/T1 은 0). */
+export function spentSkillPoints(hero: Pick<Hero, "learnedSkills">): number {
+  let spent = 0;
+  for (const id of hero.learnedSkills ?? []) {
+    spent += findSkillById(id)?.pointCost ?? 0;
+  }
+  return spent;
+}
+
+/** 남은 스킬 포인트 = max(0, 레벨 누적 SP - 소모 SP). 별도 카운터 없이 항상 재계산. */
+export function deriveSkillPoints(
+  hero: Pick<Hero, "learnedSkills">,
+  level: number,
+): number {
+  return Math.max(0, skillPointsTotalForLevel(level) - spentSkillPoints(hero));
+}
+
+/** 정산: 풀에 XP 를 더하고 (상한 clamp) 전후 레벨을 돌려준다. */
+export function settleHeroXp(
+  prevXp: number,
+  gain: number,
+): { heroXp: number; prevLevel: number; newLevel: number } {
+  const before = clampHeroXp(prevXp);
+  const safeGain = Number.isFinite(gain) ? Math.max(0, Math.floor(gain)) : 0;
+  const heroXp = clampHeroXp(before + safeGain);
+  return {
+    heroXp,
+    prevLevel: heroLevelFromXP(before),
+    newLevel: heroLevelFromXP(heroXp),
+  };
+}
+
+/**
+ * 시드에 쓸 계정 레벨. useGameStore 가 로드됐으면 그 값, 아니면 localStorage 의
+ * "progress" (useGameStore.initialize 가 읽을 바로 그 저장본). 둘 다 없으면 undefined
+ * — 그 기기는 진행이 전무하므로 시드를 미룬다 (0 으로 시드하지 않는다).
+ */
+function readSeedGameLevel(): number | undefined {
+  const gs = useGameStore.getState();
+  if (gs.isLoaded) return gs.progress.level ?? 1;
+  const saved = loadFromStorage<{ level?: number }>("progress");
+  const level = saved?.level;
+  return typeof level === "number" && Number.isFinite(level) ? level : undefined;
+}
+
+/** 스토어 상태 기준 영웅 레벨 — 시드 전엔 레거시 공식 폴백 (resolveHeroLevel). */
+function heroLevelOf(
+  state: Pick<UpHeroState, "heroXp" | "heroStartLevel">,
+): number {
+  if (state.heroXp !== undefined) return heroLevelFromXP(state.heroXp);
+  const gameLevel = readSeedGameLevel() ?? 1;
+  return resolveHeroLevel(undefined, gameLevel, state.heroStartLevel);
 }
 
 /**
@@ -631,7 +741,30 @@ export function slotSpinsLeft(shopDaily: UpHeroState["shopDaily"]): number {
   return Math.max(0, SLOT_DAILY_SPIN_CAP - slotSpinsToday(shopDaily));
 }
 
-export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
+export const useUpHeroStore = create<UpHeroStore>((set, get) => {
+  /**
+   * Phase 2-A — 영웅 레벨 마일스톤 단일 진입점 (정산 / 방치 / 시드 / 병합 뒤).
+   *   - reconcileSkillPoints + grantNoviceSkills(new) 는 **무조건** (prev == new 여도;
+   *     첫 부트스트랩의 Lv1 novice 지급과 소급 지급이 여기 걸려 있다).
+   *   - new > prev 면 pendingHeroLevelUp 세팅 → HeroLevelUpOverlay.
+   *   - Lv30 이상인데 전직 전이면 전직 제안. 단 이번 호출이 30 을 **넘긴** 레벨업이면
+   *     오버레이가 닫힌 뒤(acknowledgeHeroLevelUp)로 미룬다 — 오버레이와 ClassChoiceModal
+   *     이 동시에 뜨지 않게.
+   */
+  const applyHeroLevelMilestones = (prevLevel: number, newLevel: number): void => {
+    get().reconcileSkillPoints();
+    get().grantNoviceSkills(newLevel);
+    const leveledUp = newLevel > prevLevel;
+    if (leveledUp) {
+      set({ pendingHeroLevelUp: { from: prevLevel, to: newLevel } });
+    }
+    const crossed30 = leveledUp && prevLevel < 30 && newLevel >= 30;
+    if (newLevel >= 30 && get().hero.classType === null && !crossed30) {
+      get().proposeClassChoice();
+    }
+  };
+
+  return {
   hero: createDefaultHero(),
   inventory: [],
   coins: 0,
@@ -645,6 +778,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   lastSeenAt: Date.now(),
   // Phase 9d — 초기값 undefined. initialize 에서 seed.
   heroStartLevel: undefined,
+  // Phase 2-A — 영웅 XP 풀. undefined = 미시드. initialize/ensureHeroXp 에서 seed.
+  heroXp: undefined,
+  pendingHeroLevelUp: null,
   // Phase 11a — 초기값 undefined. initialize 에서 오늘 날짜로 seed.
   shopDaily: undefined,
   // Phase 11c — 초기 0 (미해금). F30 보스 처치 시 +1.
@@ -725,6 +861,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const clockRewound = detectClockRewind(now, saved?.lastSeenAt, lastIdleAt);
     const gameStore = useGameStore.getState();
     const curLevel = gameStore.progress.level ?? 1;
+    // Phase 2-A — 시드에 쓸 계정 레벨 한 곳. useGameStore 가 로드됐으면 그 값, 아니면
+    //   localStorage "progress" (initialize 가 곧 읽을 바로 그 저장본). 둘 다 없으면
+    //   undefined. heroStartLevel 시드와 heroXp 시드가 같은 값을 봐야 한다 — 로드 전
+    //   기본값(level 0)으로 heroStartLevel 을 굳히면 Lv47 계정의 첫 영웅이 Lv48 로 뜬다.
+    const seedGameLevel = gameStore.isLoaded ? curLevel : readSeedGameLevel();
 
     // Phase 9d — heroStartLevel seed / migration.
     //   - saved 에 이미 heroStartLevel 있으면 그대로 사용 (반복 초기화 포함).
@@ -753,16 +894,35 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         hasPassesRecord ||
         (saved?.coins ?? 0) > 0 ||
         Object.keys(saved?.cosmetics ?? {}).length > 0;
-      heroStartLevel = hasPlayedUpHero ? 1 : curLevel;
+      heroStartLevel = hasPlayedUpHero ? 1 : (seedGameLevel ?? curLevel);
     }
-    // 영웅 레벨 — 이후 로직 (idle 스케일 등) 에서 사용
-    const heroLevel = Math.max(1, curLevel - heroStartLevel + 1);
+
+    // Phase 2-A (Track A, v6) — heroXp seed. 저장본에 있으면 clamp 해서 그대로,
+    //   없으면(레거시 v5 이하) 레거시 영웅 Lv 를 곡선으로 옮긴다: Lv47 → 39,031.
+    //   progress.level 소스는 useGameStore 가 로드됐으면 그 값, 아니면 localStorage
+    //   "progress". 둘 다 없으면 미시드로 두고 ensureHeroXp 가 나중에 채운다 —
+    //   0 으로 시드하면 Lv47 영웅이 Lv1 로 주저앉으므로 절대 하지 않는다.
+    let heroXp = normalizeHeroXp(saved?.heroXp);
+    if (heroXp === undefined && seedGameLevel !== undefined) {
+      heroXp = heroTotalXPForLevel(
+        getEffectiveHeroLevel(seedGameLevel, heroStartLevel),
+      );
+    }
+    // 영웅 레벨 — 이후 로직 (idle 스케일 등) 에서 사용. 시드 전엔 레거시 공식 폴백.
+    const heroLevel = resolveHeroLevel(
+      heroXp,
+      seedGameLevel ?? curLevel,
+      heroStartLevel,
+    );
 
     // idle accrual 도 heroLevel 기준으로 — 챌린지 Lv 41 에 영웅 Lv 1 유저가
     // Lv 41 수준의 idle reward 를 받으면 "영웅 Lv 1 인데 거대 보상" 이 부자연.
-    const rawIdleReward = clockRewound
-      ? null
-      : calculateIdleReward(now - lastIdleAt, heroLevel);
+    // Phase 2-A — 방치 XP 는 영웅 XP 풀로 간다. 풀이 아직 미시드면 이번 hydrate 에선
+    //   지급하지 않고 lastIdleAccrualAt 도 건드리지 않는다 (다음 시드된 init 에 누적).
+    const rawIdleReward =
+      clockRewound || heroXp === undefined
+        ? null
+        : calculateIdleReward(now - lastIdleAt, heroLevel);
     const heroClass = mergedHero.classType;
     const idleReward = rawIdleReward
       ? {
@@ -772,23 +932,18 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         }
       : null;
 
-    // 지급 — useGameStore.xp 증가 + coins 증가 (Up Hero store).
-    // Phase 9d-fix — xp 만 더하고 level 을 재계산 안 하면 Header / BottomNav 가
-    //   stale level 을 표시한다. getLevelFromXP 로 즉시 재계산 + Header 의 레벨업
-    //   애니메이션 trigger 도 작동.
+    // 지급 — heroXp 증가 + coins 증가 (둘 다 Up Hero store). 계정 XP 는 불변.
     let coins = saved?.coins ?? 0;
-    if (idleReward) {
-      const newXp = (gameStore.progress.xp ?? 0) + idleReward.xp;
-      const newLevel = getLevelFromXP(newXp);
-      const newProgress = {
-        ...gameStore.progress,
-        xp: newXp,
-        level: newLevel,
-      };
-      useGameStore.setState({ progress: newProgress });
-      saveToStorage("progress", newProgress);
+    const heroLevelBeforeIdle = heroLevel;
+    if (idleReward && heroXp !== undefined) {
+      heroXp = clampHeroXp(heroXp + idleReward.xp);
       coins = coins + idleReward.coins;
     }
+    const heroLevelAfterIdle = resolveHeroLevel(
+      heroXp,
+      seedGameLevel ?? curLevel,
+      heroStartLevel,
+    );
 
     // Phase 5c-fix #2: lastIdleAccrualAt 는 reward 가 실제로 지급됐을 때만
     // now 로 갱신. 5분 미만 reload 시에는 기존 timestamp 유지 → 누적 보전.
@@ -844,6 +999,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       lastIdleAccrualAt: newLastIdleAt,
       lastSeenAt: now,
       heroStartLevel,
+      heroXp,
+      pendingHeroLevelUp: null, // transient
       shopDaily,
       ngPlusLevel: saved?.ngPlusLevel ?? 0,
       // Phase 15 — 필드가 없는 기존 저장본은 0 (미보유). 음수·소수·상한 초과 저장본도
@@ -880,21 +1037,80 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       saveToStorage(STORAGE_KEY, pickPersisted(get()));
     }
 
-    // Phase 5c.1 safety — 이미 Lv30+ 인데 classType 이 null 인 영웅
-    // (이 기능 출시 전 Lv30 도달한 유저) 은 여기서 분화 제안 시도.
-    // Bug 2026-04 — assignClass (자동) → proposeClassChoice (선택 UI) 로 교체.
-    //   init 직후 ClassChoiceModal 이 자동으로 열림. 아직 proposal 없을 때만.
-    // Phase 9d — 챌린지 레벨이 아닌 영웅 레벨 기준 (heroLevel >= 30).
-    //   신규 영웅 유저는 heroStartLevel 부터 30 단계 성장해야 class 분화.
-    if (heroLevel >= 30 && mergedHero.classType === null) {
+    // Phase 2-A — 마일스톤 정리 (공통 규칙 8단계):
+    //   reconcileSkillPoints (SP 파생 캐시 재계산) → 기존 class-choice 안전망
+    //   (Lv30+ 인데 classType null → 전직 제안; 이 hydrate 의 방치 XP 로 30 을
+    //   넘겼으면 오버레이 뒤로 미룸) → grantNoviceSkills(heroLevel) 소급 지급.
+    //   전부 applyHeroLevelMilestones 한 곳에서. 방치 XP 로 레벨이 올랐으면
+    //   pendingHeroLevelUp 도 여기서 예약된다 (IdleRewardToast 닫힌 뒤 표시).
+    applyHeroLevelMilestones(heroLevelBeforeIdle, heroLevelAfterIdle);
+
+    // 공통 규칙: initialize 끝에서 한 번 더 — 위에서 progress 를 못 읽어 미시드로
+    //   남았어도 여기서 읽을 수 있게 됐다면 즉시 채운다 (멱등).
+    get().ensureHeroXp();
+  },
+
+  ensureHeroXp() {
+    const state = get();
+    if (state.heroXp !== undefined) return;
+    const seedGameLevel = readSeedGameLevel();
+    if (seedGameLevel === undefined) return;
+    // 클라우드 값이 있었다면 mergeCloudHeroXp / _setFromCloud 가 이미 heroXp 를
+    //   채웠으므로 여기까지 오지 않는다 — 레거시 공식은 마지막 폴백이다.
+    const level = getEffectiveHeroLevel(seedGameLevel, state.heroStartLevel);
+    const heroXp = heroTotalXPForLevel(level);
+    set({ heroXp });
+    saveToStorage(STORAGE_KEY, pickPersisted(get()));
+    applyHeroLevelMilestones(level, level);
+  },
+
+  mergeCloudHeroXp(cloudHeroXp) {
+    const cloud = normalizeHeroXp(cloudHeroXp);
+    if (cloud === undefined) return;
+    const state = get();
+    if (!state.isLoaded) {
+      // 아직 hydrate 전 (아지트를 안 거친 라우트에서 로그인/리스너 스냅샷이 먼저 온
+      //   경우: /settings, /collection, /minigame). 이때 in-memory 는 기본값이라
+      //   pickPersisted(get()) 로 persist 하면 저장본의 코인·인벤·영웅이 기본값으로
+      //   덮여 흔적이 사라지고, 바로 뒤의 adoptCloudUpHero 흔적 게이트가 뚫려
+      //   "로컬 흔적 우선" 계약이 깨진다. 저장본 레코드에만 heroXp 를 병합한다 —
+      //   heroXp 단독 레코드는 흔적이 아니므로 게이트는 그대로고, initialize 가
+      //   normalizeHeroXp(saved?.heroXp) 로 읽어 간다. 마일스톤 정리도 initialize 몫.
+      const saved = loadFromStorage<Record<string, unknown>>(STORAGE_KEY);
+      const localSaved = normalizeHeroXp(saved?.heroXp) ?? -1;
+      if (cloud <= localSaved) return;
+      saveToStorage(STORAGE_KEY, { ...(saved ?? {}), heroXp: cloud });
+      return;
+    }
+    const local = state.heroXp ?? -1;
+    if (cloud <= local) return;
+    set({ heroXp: cloud });
+    saveToStorage(STORAGE_KEY, pickPersisted(get()));
+    // 레벨이 바뀌었을 수 있다 — SP 캐시/novice/전직 안전망만 정리한다. 다른 기기가
+    //   이미 본 레벨업이라 오버레이는 띄우지 않는다 (prev == new 로 호출).
+    const level = heroLevelFromXP(cloud);
+    applyHeroLevelMilestones(level, level);
+  },
+
+  reconcileSkillPoints() {
+    const state = get();
+    const derived = deriveSkillPoints(state.hero, heroLevelOf(state));
+    if (state.hero.skillPoints === derived) return;
+    const newHero = { ...state.hero, skillPoints: derived };
+    set({ hero: newHero });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+  },
+
+  acknowledgeHeroLevelUp() {
+    const state = get();
+    const pending = state.pendingHeroLevelUp;
+    if (!pending) return;
+    set({ pendingHeroLevelUp: null });
+    // 이번 레벨업이 Lv30 을 넘겼고 아직 전직 전이면 이제 전직을 제안한다
+    //   (applyHeroLevelMilestones 가 오버레이 뒤로 미뤄둔 몫).
+    if (pending.from < 30 && pending.to >= 30 && state.hero.classType === null) {
       get().proposeClassChoice();
     }
-
-    // Phase 14 retroactive — 업데이트 전부터 Lv5+/Lv15+ 도달했던 영웅에게
-    //   novice 스킬을 소급 지급. grantNoviceSkills 는 idempotent 라 매 init
-    //   마다 호출해도 중복 추가되지 않는다. (levelUp 훅에서만 지급하던 기존
-    //   구현으로는 "이미 Lv20 인 유저가 Lv21 될 때까지 스킬이 안 생김" 회귀)
-    get().grantNoviceSkills(heroLevel);
   },
 
   acknowledgeIdleReward() {
@@ -1013,18 +1229,6 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   },
 
   /**
-   * Phase 12d — 스킬 포인트 부여 (레벨업 훅 용). 음수/0 은 무시.
-   */
-  grantSkillPoints(amount: number) {
-    if (amount <= 0) return;
-    const state = get();
-    const cur = state.hero.skillPoints ?? 0;
-    const newHero = { ...state.hero, skillPoints: cur + amount };
-    set({ hero: newHero });
-    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
-  },
-
-  /**
    * Phase 14 — 전직 전 영웅용 novice 스킬 자동 지급.
    *   레벨업 hook 에서 매번 호출. 이미 learned 인 skill 은 skip → idempotent.
    */
@@ -1113,10 +1317,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   /**
    * Phase 12d — 스킬트리 해금.
    *   - 해당 skill 이 hero.classType 와 일치해야 함
-   *   - hero level ≥ skill.requiredLevel
-   *   - hero.skillPoints ≥ skill.pointCost
+   *   - hero level ≥ skill.requiredLevel (Phase 2-A: heroXp 풀 기준)
+   *   - 남은 SP(파생) ≥ skill.pointCost
    *   - 아직 learned 에 없어야 함
-   *   성공 시 learnedSkills 에 추가 + skillPoints 차감.
+   *   성공 시 learnedSkills 에 추가. SP 는 pointCost 합에서 다시 파생돼 캐시된다 —
+   *   pointCost 가 유일한 소비 경로다 (Track F 의 리스펙은 learnedSkills 리셋만으로 복원).
    */
   learnSkill(skillId) {
     const state = get();
@@ -1125,19 +1330,17 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const skill = findSkillById(skillId);
     if (!skill) return "not-found";
     if (skill.class !== cls) return "class";
-    const heroLevel = getEffectiveHeroLevel(
-      useGameStore.getState().progress.level,
-      state.heroStartLevel,
-    );
+    const heroLevel = heroLevelOf(state);
     if (heroLevel < skill.requiredLevel) return "level";
     const learned = state.hero.learnedSkills ?? [];
     if (learned.includes(skillId)) return "already";
-    const points = state.hero.skillPoints ?? 0;
+    const points = deriveSkillPoints(state.hero, heroLevel);
     if (points < skill.pointCost) return "no-points";
+    const learnedSkills = [...learned, skillId];
     const newHero = {
       ...state.hero,
-      learnedSkills: [...learned, skillId],
-      skillPoints: points - skill.pointCost,
+      learnedSkills,
+      skillPoints: deriveSkillPoints({ learnedSkills }, heroLevel),
     };
     set({ hero: newHero });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
@@ -1361,13 +1564,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // stat / affinity / healStart / critBonus 를 반영한다. 따라서 buffs 는
     // 반드시 네 번째 인자로 넘겨줘야 실제 전투에 효과가 적용된다.
     // Phase 5a.1: level 에 따라 base stat 이 자동 성장한 hero 를 전달.
-    // Phase 9d: 챌린지 레벨이 아닌 영웅 레벨 (gameLevel - heroStartLevel + 1) 사용.
+    // Phase 2-A: 영웅 레벨은 heroXp 풀에서 (시드 전엔 레거시 공식 폴백).
     const progress = state.dungeons[dungeonId];
     // Phase 16 (Track C, 피드백 19/26) — 미처치 보스층이 floorReached 이하에
     //   있으면 거기서 시작 (createSession 이 보스를 바로 스폰).
     const startFloor = resolveStartFloor(progress);
-    const gameLevel = useGameStore.getState().progress.level ?? 1;
-    const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
+    const heroLvl = heroLevelOf(state);
     const leveledHero = computeHeroForLevel(state.hero, heroLvl);
     const session: CombatSession = buildSession(
       dungeonId,
@@ -1405,9 +1607,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     if (updatedPasses === null) return false;
     const progress = state.dungeons[dungeonId];
     const startFloor = resolveStartFloor(progress);
-    // Phase 5a.1: level 기반 성장 반영. Phase 9d: 영웅 레벨 사용.
-    const gameLevel = useGameStore.getState().progress.level ?? 1;
-    const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
+    // Phase 5a.1: level 기반 성장 반영. Phase 2-A: heroXp 풀 기준 영웅 레벨.
+    const heroLvl = heroLevelOf(state);
     const leveledHero = computeHeroForLevel(state.hero, heroLvl);
     const session = buildSession(dungeonId, leveledHero, startFloor, undefined, {
       ngPlusLevel: state.ngPlusLevel ?? 0,
@@ -1438,8 +1639,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       );
     if (!f30EverCleared) return "not-unlocked";
 
-    const gameLevel = useGameStore.getState().progress.level ?? 1;
-    const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
+    // Phase 2-A: heroXp 풀 기준 영웅 레벨.
+    const heroLvl = heroLevelOf(state);
     const leveledHero = computeHeroForLevel(state.hero, heroLvl);
 
     // 주간 던전은 F30 고정 시작 (짧은 도전 run). ngPlusLevel 은 영향 X —
@@ -1550,6 +1751,10 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   },
 
   acknowledgeSessionEnd() {
+    // Phase 2-A — 정산 전에 풀 시드를 보장한다 (공통 규칙: "acknowledgeSessionEnd 맨 앞").
+    //   여기서도 시드하지 못하면(progress 가 어디에도 없음) 이번 정산은 heroXp 를
+    //   쓰지 않는다 — undefined 를 0 + gain 으로 굳히면 레거시 레벨을 영영 잃는다.
+    get().ensureHeroXp();
     const state = get();
     const session = state.currentSession;
     if (!session || session.status !== "completed") return;
@@ -1591,20 +1796,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // 4. codex (monster/boss/equipment 발견 기록)
     const codex = calculateCodexDelta(session.log, state.codex);
 
-    // 5. 외부 store (useGameStore) 로 XP 반영 — cross-store 는 여기 남김.
-    //    Phase 9d-fix — xp 누적 후 getLevelFromXP 로 level 도 재계산.
-    //    누락되면 Header 가 stale level 을 유지하고 영웅 레벨 (= gameLevel -
-    //    heroStartLevel + 1) 이 밀림.
-    const gameStore = useGameStore.getState();
-    const newXp = gameStore.progress.xp + session.rewards.xp;
-    const newLevel = getLevelFromXP(newXp);
-    const newProgress = {
-      ...gameStore.progress,
-      xp: newXp,
-      level: newLevel,
-    };
-    useGameStore.setState({ progress: newProgress });
-    saveToStorage("progress", newProgress);
+    // 5. Phase 2-A (Track A) — 세션 XP 를 **영웅 XP 풀** 에 정산한다. 계정
+    //    XP(useGameStore.progress)는 건드리지 않는다 (피드백 32: 완전 분리).
+    //    미시드(ensureHeroXp 도 실패)면 settled = null → heroXp 를 쓰지 않는다.
+    const settled =
+      state.heroXp === undefined
+        ? null
+        : settleHeroXp(state.heroXp, session.rewards.xp);
+    // 주간 점수/리더보드에 쓰는 영웅 레벨 — 정산 후 풀 기준.
+    const heroLv = settled ? settled.newLevel : heroLevelOf(state);
 
     // Phase 11c — weekly variant 세션이었으면 clearedDungeons / bestScore 업데이트.
     //   F30 까지 도달 안 했어도 점수는 산출 (floorsCleared 기반).
@@ -1633,8 +1833,6 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       // clearedF30 (이번 세션 자체에서 F30 보스 처치했는지) + 기존 변수명 유지.
       const clearedF30 = clearedF30InSession;
       const floorsCleared = clearedF30 ? reachedFloors + 1 : reachedFloors;
-      const gameLv = useGameStore.getState().progress.level ?? 1;
-      const heroLv = Math.max(1, gameLv - (state.heroStartLevel ?? 1) + 1);
       const score = computeWeeklyScore(floorsCleared, session.time, heroLv);
       const isNewBest = score > state.weeklyVariant.bestScore;
       newWeeklyVariant = {
@@ -1717,10 +1915,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       destroyGuards: newDestroyGuards,
       downGuards: newDownGuards,
       combatBuff: newCombatBuff,
+      // Phase 2-A — 정산된 영웅 XP 풀 (미시드면 키를 싣지 않아 undefined 유지).
+      ...(settled ? { heroXp: settled.heroXp } : {}),
       currentSession: null,
     };
     set(newState);
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...newState }));
+    // Phase 2-A — 레벨 마일스톤 (SP 재계산 · novice · 레벨업 오버레이 · 전직 제안).
+    //   persist 뒤에 호출 — 마일스톤이 hero 를 바꾸면 각자 다시 persist 한다.
+    if (settled) applyHeroLevelMilestones(settled.prevLevel, settled.newLevel);
   },
 
   equipItem(itemId, slot) {
@@ -2192,6 +2395,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   _setFromCloud: (state) => {
     set({
       ...state,
+      // Phase 2-A — heroXp 는 spread 에 맡기지 않고 **명시적으로** 페이로드 값을 쓴다
+      //   (없으면 undefined). 온보딩 레이스에서 로컬이 progress Lv1 기준 0 으로
+      //   먼저 시드됐어도, 구 클라이언트 문서(키 없음)를 채택하는 순간 미시드로
+      //   되돌려 아래 ensureHeroXp 가 클라우드 progress(Lv47) 로 다시 시드하게 한다.
+      heroXp: normalizeHeroXp(state.heroXp),
       // Phase 15 — 방지권/버프는 클라우드에서 온 값도 로컬과 같은 계약으로 접는다.
       //   와이어는 만료된 버프를 {pct:0,battlesLeft:0} 껍데기로 실어 보내므로
       //   (merge 로 되살아나는 걸 막으려고) 여기서 undefined 로 되돌려야 한다.
@@ -2216,6 +2424,16 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         // storage full / private mode: 메모리 상태만 유지
       }
     }
+    // Phase 2-A — 시드/SP 정리는 microtask 로 미룬다. 이 함수는 (1) 클라우드
+    //   리스너 콜백 안(isUpdatingFromCloud=true) 이나 (2) 부트스트랩의 setSyncReady
+    //   이전에 불리므로, 동기적으로 persist 하면 syncToCloud 가 조용히 버려 시드값이
+    //   업로드되지 않는다. microtask 는 리스너의 finally / 동기 setSyncReady(true)
+    //   뒤에 돌아 업로드 게이트를 통과한다 (두 번째 기기가 레거시 공식으로 재시드하는
+    //   핑퐁 차단).
+    queueMicrotask(() => {
+      get().ensureHeroXp();
+      get().reconcileSkillPoints();
+    });
   },
 
   resetForSignOut: () => {
@@ -2233,6 +2451,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       lastIdleAccrualAt: now,
       lastSeenAt: now,
       heroStartLevel: undefined,
+      heroXp: undefined,
+      pendingHeroLevelUp: null,
       shopDaily: undefined,
       ngPlusLevel: 0,
       destroyGuards: 0,
@@ -2250,7 +2470,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       isLoaded: false,
     });
   },
-}));
+  };
+});
 
 /* ═══════════════════════════════════════════════════════════════════════
  * Phase 11a — enhanceItem 헬퍼

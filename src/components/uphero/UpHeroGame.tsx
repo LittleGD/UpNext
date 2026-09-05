@@ -10,14 +10,14 @@
 import { useEffect } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
-import { getEffectiveHeroLevel } from "@/types/uphero";
+import { useHeroLevel } from "./useHeroLevel";
 import CampPlaceholder from "./CampPlaceholder";
 import DungeonView from "./DungeonView";
 import SessionResultModal from "./SessionResultModal";
 import IdleRewardToast from "./IdleRewardToast";
 import ClassAwakenModal from "./ClassAwakenModal";
 import ClassChoiceModal from "./ClassChoiceModal";
-import UpHeroLevelUpOverlay from "./UpHeroLevelUpOverlay";
+import HeroLevelUpOverlay from "./HeroLevelUpOverlay";
 import { GB } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -33,13 +33,21 @@ export default function UpHeroGame() {
   const heroClassType = useUpHeroStore((s) => s.hero.classType);
   const pendingClassChoice = useUpHeroStore((s) => s.pendingClassChoice);
   const proposeClassChoice = useUpHeroStore((s) => s.proposeClassChoice);
-  const gameLevel = useGameStore((s) => s.progress.level);
-  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
-  const heroLevel = getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  const pendingHeroLevelUp = useUpHeroStore((s) => s.pendingHeroLevelUp);
+  const ensureHeroXp = useUpHeroStore((s) => s.ensureHeroXp);
+  // Phase 2-A — 영웅 레벨은 heroXp 풀 기준 (시드 전엔 레거시 공식 폴백).
+  const heroLevel = useHeroLevel();
 
   useEffect(() => {
     if (!isLoaded) initialize();
   }, [isLoaded, initialize]);
+
+  // Phase 2-A — 풀 시드 안전망. useUpHeroStore.initialize 가 useGameStore 보다 먼저
+  //   돌아 progress 를 못 읽었으면 heroXp 가 미시드로 남는다. 두 스토어가 모두
+  //   로드된 시점에 한 번 더 시도 (멱등 — 이미 시드됐으면 no-op).
+  useEffect(() => {
+    if (isLoaded && gameLoaded) ensureHeroXp();
+  }, [isLoaded, gameLoaded, ensureHeroXp]);
 
   // Phase 5c-fix #4: class 할당 race condition 안전장치.
   // useUpHeroStore.initialize 는 useGameStore 가 아직 load 안 됐을 때 실행될
@@ -48,11 +56,14 @@ export default function UpHeroGame() {
   // Phase 9d: 챌린지 레벨이 아닌 영웅 레벨 기준.
   // Bug 2026-04: assignClass 직접 호출 → proposeClassChoice 로 교체. 이미
   //   pendingClassChoice 가 있으면 중복 제안하지 않음 (store 에서도 guard).
+  // Phase 2-A: 레벨업 오버레이가 떠 있는 동안은 제안하지 않는다 — 오버레이가 닫힐 때
+  //   acknowledgeHeroLevelUp 이 제안한다 (오버레이 → ClassChoiceModal 순서).
   useEffect(() => {
     if (!isLoaded || !gameLoaded) return;
     if (heroClassType !== null) return;
     if (heroLevel < 30) return;
     if (pendingClassChoice) return;
+    if (pendingHeroLevelUp) return;
     proposeClassChoice();
   }, [
     isLoaded,
@@ -60,6 +71,7 @@ export default function UpHeroGame() {
     heroClassType,
     heroLevel,
     pendingClassChoice,
+    pendingHeroLevelUp,
     proposeClassChoice,
   ]);
 
@@ -93,8 +105,9 @@ export default function UpHeroGame() {
       <ClassChoiceModal />
       {/* Phase 5c.3 — 선택 확정 후 class 분화 풀스크린 연출. */}
       <ClassAwakenModal />
-      {/* Phase 15 — 챌린지 레벨업 시 전역 축하 오버레이. */}
-      <UpHeroLevelUpOverlay />
+      {/* Phase 2-A — 영웅 레벨업 오버레이 (heroXp 풀). 계정 레벨업 오버레이
+          (AccountLevelUpOverlay) 는 공용 셸(layout) 에 한 번만 마운트된다. */}
+      <HeroLevelUpOverlay />
     </>
   );
 }

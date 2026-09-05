@@ -104,6 +104,14 @@ const ko = {
   "uphero.levelup.title": "LEVEL UP!",
   "uphero.levelup.reached": "Lv.{level} 달성",
   "uphero.levelup.announce": "레벨업! Lv.{level} 에 도달했습니다",
+  // Phase 2-A (Track A) — 영웅 레벨업 오버레이 (영웅 XP 풀 전용).
+  "uphero.heroLevelup.title": "영웅 레벨 업",
+  "uphero.heroLevelup.range": "영웅 Lv.{from} → Lv.{to}",
+  "uphero.heroLevelup.sp": "스킬 포인트 +{n}",
+  "uphero.heroLevelup.classReady": "이제 전직할 수 있어요",
+  "uphero.heroLevelup.statDelta": "{stat} +{n}",
+  "uphero.heroLevelup.stat.maxHp": "최대 HP",
+  "uphero.heroLevelup.announce": "영웅 레벨 업! 영웅 Lv.{to} 에 도달했습니다",
 
   // === splash ===
   "splash.tagline": "매일 작은 성취를 쌓아가는 로그라이크 챌린지",

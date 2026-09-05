@@ -14,14 +14,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { useGameStore } from "@/store/useGameStore";
+import { useHeroLevel } from "./useHeroLevel";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import KeyboardAccessoryBar from "@/components/common/KeyboardAccessoryBar";
 import {
   computeEffectiveStats,
   computeHeroForLevel,
   getHeroAppearanceVariant,
-  getEffectiveHeroLevel,
   CLASS_META,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
@@ -55,10 +54,8 @@ const SLOT_LABEL_KEY: Record<EquipSlot, DictKey> = {
 export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
-  // Phase 9d — 영웅 전용 레벨.
-  const gameLevel = useGameStore((s) => s.progress.level);
-  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
-  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  // Phase 2-A — 영웅 레벨은 heroXp 풀 기준.
+  const level = useHeroLevel();
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
 
   // Phase 5a.1 — level 기반 base stat 자동 성장을 display 에 반영.

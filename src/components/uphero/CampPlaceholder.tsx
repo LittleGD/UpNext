@@ -20,7 +20,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore, getTodayString } from "@/store/useGameStore";
-import { DAILY_CARDMATCH_TICKET_CAP, getXPProgress } from "@/types/game";
+import { DAILY_CARDMATCH_TICKET_CAP } from "@/types/game";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { ALL_CARDS } from "@/data/cards";
 import { pickCampAmbience } from "@/data/upHeroFlavor";
@@ -31,8 +31,8 @@ import {
   PASS_CAP_PER_CATEGORY,
   DAILY_PASS_PURCHASE_CAP,
   CLASS_THEME_COLOR,
-  getEffectiveHeroLevel,
 } from "@/types/uphero";
+import { useHeroLevel, useHeroXpProgress } from "./useHeroLevel";
 import type { DungeonId } from "@/types/uphero";
 import { isAdAvailable, showRewardedAd } from "@/lib/ads";
 import { useSound } from "@/hooks/useSound";
@@ -80,16 +80,10 @@ export default function CampPlaceholder() {
   const { t } = useTranslation();
   const heroName = hero.name?.trim() || t("uphero.home.heroDefault");
   const pendingDungeon = useUpHeroStore((s) => s.pendingDungeon);
-  // Phase 12 — XP 진행도 (상단바 표시용). progress.xp 는 챌린지/영웅 공유 pool.
-  const totalXp = useGameStore((s) => s.progress.xp ?? 0);
-  // Phase 9d — 영웅 전용 레벨 사용 (챌린지 Lv 와 분리).
-  //   신규 영웅 유저는 heroStartLevel=gameLevel 로 seed → 영웅 Lv 1.
-  const gameLevel = useGameStore((s) => s.progress.level);
-  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
-  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
-  // Phase 12 — 현재 레벨 내 XP 진행도. gameLevel 의 current-within-level 값이
-  //   heroLv 진행도와 동일 (heroLv 는 gameLv 의 1:1 오프셋이라 레벨 내 %는 같음).
-  const xpInfo = getXPProgress(totalXp, gameLevel);
+  // Phase 2-A (Track A) — 영웅 레벨과 XP 진행도는 영웅 전용 풀(heroXp) 기준.
+  //   계정 XP(progress.xp)와 완전히 분리됐다 — 상단바 수치는 영웅 곡선 안의 진행도.
+  const level = useHeroLevel();
+  const xpInfo = useHeroXpProgress();
   const tickets = useGameStore((s) => s.progress.tickets ?? 0);
   // Phase 12 — header 에 NG+ badge 노출. 홈 view 의 nameplate 를 제거하면서
   //   NG+ 정보를 header 로 승격 (정보가 사라지지 않도록). ngPlusLevel > 0 일
@@ -158,11 +152,8 @@ export default function CampPlaceholder() {
             {heroName}
           </span>
           <span className={gbClass.textDim}>{t("common.levelShort", { level })}</span>
-          {/* Phase 12 — XP 진행도 수치 표시. 유저 피드백: "레벨 시스템은 따로 가되
-               경험치는 공유, 상단바 레벨 옆에 수치 표시".
-               XP pool 은 챌린지/영웅 세션 공유 (progress.xp), Lv 진행도는
-               영웅 Lv 와 챌린지 Lv 가 같은 진행률 (heroLv = gameLv - heroStartLv + 1).
-               따라서 getXPProgress(progress.xp, gameLevel) 값을 그대로 사용 가능. */}
+          {/* Phase 12 — XP 진행도 수치 표시. Phase 2-A: 영웅 XP 풀(heroXp) 안의
+               현재 레벨 진행도 (getHeroXPProgress). 계정 XP 와는 무관하다. */}
           <span
             className={`tabular-nums ${gbClass.textDim}`}
             style={{ fontSize: 11 }}

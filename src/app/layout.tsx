@@ -11,6 +11,7 @@ import ClientEffects from "@/components/effects/ClientEffects";
 import NativeSplashHide from "@/components/native/NativeSplashHide";
 import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
 import WidgetSync from "@/components/providers/WidgetSync";
+import AccountLevelUpOverlay from "@/components/uphero/AccountLevelUpOverlay";
 import { Analytics } from "@vercel/analytics/next";
 import { BOOT_COVER_ID, BOOT_COVER_INIT_SCRIPT, BOOT_COVER_STYLE } from "@/lib/bootCover";
 
@@ -106,6 +107,8 @@ export default function RootLayout({
             <Header />
             <main className="relative z-[1] flex-1">{children}</main>
             <BottomNav />
+            {/* Phase 2-A — 계정 레벨업 축하 오버레이. 셸에 1회 마운트 (모든 경로 공통). */}
+            <AccountLevelUpOverlay />
           </SyncProvider>
         </MotionProvider>
         <Analytics />

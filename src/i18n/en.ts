@@ -104,6 +104,14 @@ const en: Record<DictKey, string> = {
   "uphero.levelup.title": "LEVEL UP!",
   "uphero.levelup.reached": "Reached Lv.{level}",
   "uphero.levelup.announce": "Level up! You reached Lv.{level}",
+  // Phase 2-A (Track A) — hero level-up overlay (hero XP pool).
+  "uphero.heroLevelup.title": "HERO LEVEL UP",
+  "uphero.heroLevelup.range": "Hero Lv.{from} → Lv.{to}",
+  "uphero.heroLevelup.sp": "Skill points +{n}",
+  "uphero.heroLevelup.classReady": "You can choose a class now",
+  "uphero.heroLevelup.statDelta": "{stat} +{n}",
+  "uphero.heroLevelup.stat.maxHp": "Max HP",
+  "uphero.heroLevelup.announce": "Hero level up! Reached hero Lv.{to}",
 
   // === splash ===
   "splash.tagline": "A roguelike challenge for daily achievements",

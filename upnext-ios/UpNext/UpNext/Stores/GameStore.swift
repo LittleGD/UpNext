@@ -598,9 +598,17 @@ final class GameStore: ObservableObject {
     /// initialize 의 heroStartLevel seed 를 건너뛰게 만든다 (챌린지 Lv 41 신규 유저의
     /// 영웅 Lv 가 41 시작점을 잃는 회귀).
     private func adoptCloudUpHero(_ cloud: CloudUpHeroState?) {
+        // Phase 2-A — 영웅 XP 풀은 단조 증가 축이라 흔적 게이트와 무관하게 max 병합한다.
+        //   클라우드에 키가 없으면 no-op — 절대 지어내지 않는다 (웹 SyncProvider 동일).
+        upHero.mergeCloudHeroXp(cloud?.heroXp)
         guard let cloud, cloud.hasFootprint else { return }
         guard !upHero.state.hasUpHeroFootprint else { return }
         upHero.adoptCloudState(cloud)
+        // Phase 2-A — 채택 직후 시드 보장. adoptCloudState 는 isLoaded 를 세워 initialize 를
+        //   건너뛰므로, 구 클라이언트 문서(heroXp 없음)를 채택한 경로(bootstrap .found /
+        //   머지 해결 / 라이브 리스너)는 여기서 레거시 레벨(클라우드 progress 기준)로 시드한다.
+        //   progress 는 채택 전에 클라우드 값으로 이미 갱신돼 있다.
+        upHero.ensureHeroXp(gameLevel: progress?.level ?? 1)
     }
 
     /// 업로드용 Up Hero 페이로드 — 흔적 게이트는 uploadLocalData/syncUpHero 가 판단.
@@ -849,16 +857,13 @@ final class GameStore: ObservableObject {
         return (updated, normalized.levelsGained)
     }
 
+    /// 계정(챌린지) 레벨업 마일스톤 — **계정 전용 훅, 오늘은 비어 있다**.
+    /// Phase 2-A (Track A, 피드백 7/32) — 계정 레벨업은 영웅에게 아무것도 주지 않는다.
+    /// 스킬 포인트·novice 스킬·전직 제안은 전부 영웅 XP 풀(UpHeroStore.heroXp)의 레벨
+    /// 마일스톤(applyHeroLevelMilestones)이 담당한다. 여기 있던 세 역방향 게이트
+    /// (grantSkillPoints / grantNoviceSkills / proposeClassChoice)는 제거했다.
     private func applyLevelMilestones(previousLevel: Int, newLevel: Int) {
-        guard newLevel > previousLevel else { return }
-        if newLevel > 30 {
-            let points = previousLevel < 30 ? newLevel - 30 : newLevel - previousLevel
-            upHero.grantSkillPoints(points)
-        }
-        upHero.grantNoviceSkills(newLevel)
-        if previousLevel < 30, newLevel >= 30 {
-            upHero.proposeClassChoice()
-        }
+        _ = (previousLevel, newLevel)
     }
 
     // MARK: - 온보딩 (웹 useGameStore selectStarterPack / completeOnboarding)
@@ -896,7 +901,7 @@ final class GameStore: ObservableObject {
         progress = p
         let r = retention ?? RetentionState.fresh(today: Self.todayString())
         retention = r
-        upHero.grantNoviceSkills(1)
+        // Phase 2-A — novice T0 는 bootstrapUpHero 의 initialize 마일스톤이 영웅 Lv1 에서 지급한다.
         AuthFunnel.log(.onboardingComplete, ["anonymous": auth.uid == nil ? "1" : "0"])
 
         if let uid = auth.uid {
@@ -1349,10 +1354,9 @@ final class GameStore: ObservableObject {
 
     // MARK: - Up Hero 연동 (웹 useUpHeroStore ↔ useGameStore)
 
-    /// 앱 부팅 완료(.ready) 시 1회 — UpHeroStore 를 초기화하고, 오프라인 수련 보상의
-    /// XP 를 progress 에 반영한다. 영웅 XP 의 진실의 원천은 progress 이므로
-    /// UpHeroStore 가 직접 쓰지 않고 지급량만 반환 → 여기서 부모 스토어가 반영
-    /// (웹 useUpHeroStore.initialize 가 useGameStore 에 XP 를 써넣는 흐름과 동일).
+    /// 앱 부팅 완료(.ready) 시 1회 — UpHeroStore 를 초기화한다 (heroStartLevel/heroXp seed
+    /// + 오프라인 수련 보상). Phase 2-A — 방치 XP 는 영웅 XP 풀(heroXp)로 가고 progress
+    /// (계정 XP)는 건드리지 않는다 (웹 useUpHeroStore.initialize 동일).
     ///
     /// Up Hero 탭 진입이 아니라 부팅 시점에 호출하는 이유: idle accrual 은 "앱을 닫은
     /// 사이"가 기준이라 앱 진입 즉시 계산해야 한다. 탭 진입 때 돌리면 그전까지 앱 안에
@@ -1360,26 +1364,17 @@ final class GameStore: ObservableObject {
     /// 깜빡인다. 1회성(UpHeroStore.isLoaded 가드)이라 부팅마다 한 번만 실행된다.
     func bootstrapUpHero() {
         guard let p = progress else { return }
-        let idleXP = upHero.initialize(gameLevel: p.level)
-        guard idleXP > 0 else { return }
-        // idle XP 반영 — 웹 idle 과 동일하게 level 만 재계산 (pendingPacks 미적립).
-        //   normalizeXpLevel 의 레벨 산출(grandfather·승급)만 쓰고 pendingPacks 는 버린다.
-        mutateProgress {
-            $0.xp += idleXP
-            $0.level = GameRules.normalizeXpLevel($0).progress.level
-        }
+        upHero.initialize(gameLevel: p.level)
+        // 공통 규칙: initialize 끝에서 한 번 더 시드 보장 (adoptCloudState 로 isLoaded 가 서
+        //   있어 initialize 가 건너뛴 경우를 덮는다). 멱등.
+        upHero.ensureHeroXp(gameLevel: p.level)
     }
 
-    /// Up Hero 전투 세션 결산 — UpHeroStore 가 자기 보상(코인·장비·던전·코덱스·NG+)을
-    /// 반영하고 세션을 비운 뒤, 반환한 세션 XP 를 progress 에 적용한다.
-    /// 웹 acknowledgeSessionEnd 의 cross-store XP 반영부. (idle XP 와 동일 경로.)
+    /// Up Hero 전투 세션 결산 — UpHeroStore 가 자기 보상(코인·장비·던전·코덱스·NG+·영웅 XP)
+    /// 을 반영하고 세션을 비운다. Phase 2-A — progress(계정 XP)는 건드리지 않는다.
+    /// gameLevel 은 미시드 저장본의 시드 소스로만 넘긴다.
     func finishUpHeroSession() {
-        let sessionXP = upHero.acknowledgeSessionEnd(gameLevel: progress?.level)
-        guard sessionXP > 0 else { return }
-        mutateProgress {
-            $0.xp += sessionXP
-            $0.level = GameRules.normalizeXpLevel($0).progress.level
-        }
+        upHero.acknowledgeSessionEnd(gameLevel: progress?.level)
     }
 
     /// Up Hero 코인으로 카드팩 구매 — 코인 차감(upHero) + 팩 적립(progress).
@@ -1585,9 +1580,9 @@ final class GameStore: ObservableObject {
             p.xp = GameRules.totalXPForLevel(35)
             p.unlockedCardIds = CardCatalog.allCards.map(\.id)
             store.upHero.assignClass(.warrior)
-            store.upHero.grantNoviceSkills(35)   // SkillBar 검증용 — 보유 스킬 표시
+            store.upHero.debugSetHeroLevel(35)   // 영웅 Lv35 (heroXp 풀) — SkillBar 검증용 novice 포함
             store.upHero.prepareBuffDraw(dungeonId: .fitness, ownedCardIds: p.unlockedCardIds)
-            store.upHero.confirmDungeon(selectedCardIds: [], gameLevel: 35)
+            store.upHero.confirmDungeon(selectedCardIds: [])
         }
         // 캠프(아지트) IA + 스킬트리 검증용 — 전직(T1 자동 해금)·SP·코인은 있으되
         // 진행 중 세션은 없음. Lv35 → T2 해금 가능, T3/T4 는 레벨 잠금 상태 노출.
@@ -1596,7 +1591,7 @@ final class GameStore: ObservableObject {
             p.xp = GameRules.totalXPForLevel(35)
             p.unlockedCardIds = CardCatalog.allCards.map(\.id)
             store.upHero.assignClass(.warrior)   // T1(warrior_smash_t1) 자동 해금
-            store.upHero.grantSkillPoints(3)     // 스킬트리에서 T2 해금 가능
+            store.upHero.debugSetHeroLevel(35)   // 영웅 Lv35 → SP 5 파생 (T2 해금 가능)
             store.upHero.addCoins(2400)
             store.upHero.markCampTutorialSeen()  // 캠프 홈 IA 검증 — 튜토리얼 가림 방지
             // 캐시된 영웅 이름을 강제 언어 풀의 결정론 이름으로 — 스크린샷 언어 일관성.

@@ -104,6 +104,14 @@ const zh: Record<DictKey, string> = {
   "uphero.levelup.title": "LEVEL UP!",
   "uphero.levelup.reached": "达到 Lv.{level}",
   "uphero.levelup.announce": "升级！达到 Lv.{level}",
+  // Phase 2-A (Track A) — hero level-up overlay (hero XP pool).
+  "uphero.heroLevelup.title": "英雄升级",
+  "uphero.heroLevelup.range": "英雄 Lv.{from} → Lv.{to}",
+  "uphero.heroLevelup.sp": "技能点 +{n}",
+  "uphero.heroLevelup.classReady": "现在可以转职了",
+  "uphero.heroLevelup.statDelta": "{stat} +{n}",
+  "uphero.heroLevelup.stat.maxHp": "最大HP",
+  "uphero.heroLevelup.announce": "英雄升级！达到英雄 Lv.{to}",
 
   // === splash ===
   "splash.tagline": "每天积累小成就的肉鸽挑战",

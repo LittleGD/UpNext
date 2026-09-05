@@ -138,8 +138,12 @@ export interface Hero {
    */
   learnedSkills?: string[];
   /**
-   * Phase 12d — 남은 스킬 포인트. 레벨업 (Lv31+) 마다 +1.
-   *   T2 해금에 1, T3 에 1, T4 에 2 포인트 필요.
+   * Phase 12d — 남은 스킬 포인트. T2 해금에 1, T3 에 1, T4 에 2 포인트 필요.
+   *
+   * Phase 2-A — **파생 캐시**다. 진실은 `skillPointsTotalForLevel(영웅 Lv) -
+   *   Σ pointCost(learnedSkills)` 이고, `useUpHeroStore.reconcileSkillPoints` 가
+   *   초기화/정산/해금 뒤 다시 계산해 여기 적는다. 구 클라이언트가 그대로 읽을 수
+   *   있게 와이어(`skillPoints`)에는 남긴다. 별도 지급 카운터는 없다.
    */
   skillPoints?: number;
 }
@@ -1057,6 +1061,29 @@ export interface UpHeroState {
    *   transient — persist 되지 않음.
    */
   pendingClassChoice: { recommended: ClassType } | null;
+  /**
+   * Phase 2-A (Track A, 피드백 7/20/32) — 영웅 전용 누적 XP 풀.
+   *   계정 XP(progress.xp)와 완전히 분리된다. 던전 정산(`settleHeroXp`)과 방치
+   *   보상만 여기에 더하고, 챌린지 완료는 절대 건드리지 않는다.
+   *   영웅 Lv = `heroLevelFromXP(heroXp)` (곡선 `heroTotalXPForLevel`).
+   *
+   *   undefined = 아직 시드되지 않음 (레거시 저장본 / progress 를 못 읽은 초기화).
+   *   그동안은 `resolveHeroLevel` 이 레거시 공식(getEffectiveHeroLevel)로 표시하고,
+   *   `ensureHeroXp` 가 progress.level 을 읽을 수 있게 되는 즉시
+   *   `heroTotalXPForLevel(레거시 Lv)` 로 정확히 같은 레벨에서 시드한다.
+   *   0 으로 시드하는 경로는 없다 (Lv47 영웅이 Lv1 로 주저앉는 사고 방지).
+   *
+   *   정수 [0, HERO_XP_CAP]. 와이어 키 `heroXp` — 없으면 로컬 유지, 시드 뒤엔 항상
+   *   인코딩. iOS `UpHeroCloudSchema` CodingKeys 와 철자를 맞출 것.
+   */
+  heroXp?: number;
+  /**
+   * Phase 2-A — 방금 일어난 영웅 레벨업 (HeroLevelUpOverlay 표시용).
+   *   `applyHeroLevelMilestones` 가 new > prev 일 때 세팅, `acknowledgeHeroLevelUp`
+   *   이 null 로 내린다. Lv30 전직 제안은 이 오버레이가 닫힌 뒤에만 뜬다.
+   *   transient — persist 되지 않음.
+   */
+  pendingHeroLevelUp: { from: number; to: number } | null;
   isLoaded: boolean;
 }
 
@@ -1507,6 +1534,11 @@ export function getHeroAppearanceVariant(level: number): number {
  *
  * 영웅 Lv 기반 요소 — appearanceVariant, base stat 성장, class 분화 (Lv30+),
  *   idle accrual 스케일 등 — 전부 이 effective 값 사용.
+ *
+ * @deprecated Phase 2-A 이후 영웅 레벨은 `heroXp` 풀(`heroLevelFromXP`)이 진실이다.
+ *   이 공식은 (1) `ensureHeroXp` 가 레거시 저장본을 딱 한 번 시드할 때, (2) 아직
+ *   시드 전인 잠깐 동안 `resolveHeroLevel` 의 표시 폴백으로만 남는다.
+ *   새 코드는 `resolveHeroLevel` / `useHeroLevel()` 을 쓸 것.
  */
 export function getEffectiveHeroLevel(
   gameLevel: number,
@@ -1514,6 +1546,125 @@ export function getEffectiveHeroLevel(
 ): number {
   const startLvl = heroStartLevel ?? 1;
   return Math.max(1, gameLevel - startLvl + 1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Phase 2-A (Track A) — 영웅 XP 풀 / 레벨 곡선 / 스킬 포인트 파생
+ *
+ * 영웅 XP 풀(`UpHeroState.heroXp`)은 계정 XP(progress.xp)와 완전히 분리된다.
+ * heroStartLevel 은 레거시 저장본을 한 번 시드하는 데만 쓰인다.
+ *
+ * 곡선: gap(L) = A·L² + B·L + C = L² + 120 (HERO_XP_GAP_A/B/C = 1/0/120).
+ *   heroTotalXPForLevel(L) = Σ_{k=1}^{L-1} gap(k) = n(n+1)(2n+1)/6 + 120n (n = L-1).
+ *   전부 정수 산술 — iOS UpHeroRules 와 결과가 비트 단위로 같아야 한다.
+ *   표: 1:0 2:121 5:510 10:1,365 20:4,750 22:5,831 30:12,035 40:25,220
+ *       45:34,650 47:39,031 50:46,305 60:77,290 999:331,955,259.
+ *   페이싱(보스 10층마다, xpMult 전): 1사이클(F1-30) → Lv22, 누적 2사이클(NG+1,
+ *   F31-60) → Lv40. 전직(Lv30)은 F45 부근. 방치 XP(idleAccrual, XP_PER_MIN 0.5)는
+ *   Lv22 기준 8시간 상한이 0.8 레벨 정도 — 단일 노브로 두고 관찰한다.
+ *
+ * 순수 함수는 입력을 clamp 한다: 비유한/음수 XP → 0, 레벨 → [1, HERO_LEVEL_CAP].
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/** 영웅 레벨 상한. 곡선/스킬 포인트/역함수 모두 이 값에서 멈춘다. */
+export const HERO_LEVEL_CAP = 999;
+/** 스킬 포인트는 Lv31 부터 레벨당 1 — `skillPointsTotalForLevel(L) = max(0, L-30)`. */
+export const HERO_SP_LEVEL_FLOOR = 30;
+/** gap(L) = A·L² + B·L + C. */
+export const HERO_XP_GAP_A = 1;
+export const HERO_XP_GAP_B = 0;
+export const HERO_XP_GAP_C = 120;
+/** 보스 처치 보너스 XP: `bossClearXp(f, ng) = round(f × 20 × ngMult)`. */
+export const BOSS_CLEAR_XP_PER_FLOOR = 20;
+/** 층 진입 XP: `floorXp(f, ng) = round((5 + f) × ngMult)`. 스킵으로 건너뛴 층은 없음. */
+export const FLOOR_XP_BASE = 5;
+
+/** 레벨 입력 정규화 — 비유한 → 1, 정수화, [1, HERO_LEVEL_CAP]. */
+function clampHeroLevel(level: number): number {
+  if (!Number.isFinite(level)) return 1;
+  return Math.min(HERO_LEVEL_CAP, Math.max(1, Math.floor(level)));
+}
+
+/** Lv L → L+1 에 필요한 XP (gap). 입력은 [1, cap] 으로 접는다. */
+export function heroXpToNextLevel(level: number): number {
+  const L = clampHeroLevel(level);
+  return HERO_XP_GAP_A * L * L + HERO_XP_GAP_B * L + HERO_XP_GAP_C;
+}
+
+/** Lv L 에 도달하는 데 필요한 누적 XP (닫힌 형식, 정수). Lv1 = 0. */
+export function heroTotalXPForLevel(level: number): number {
+  const n = clampHeroLevel(level) - 1;
+  const sumSq = (n * (n + 1) * (2 * n + 1)) / 6;
+  const sumLin = (n * (n + 1)) / 2;
+  return HERO_XP_GAP_A * sumSq + HERO_XP_GAP_B * sumLin + HERO_XP_GAP_C * n;
+}
+
+/** 영웅 XP 풀 상한 = heroTotalXPForLevel(HERO_LEVEL_CAP) = 331,955,259. */
+export const HERO_XP_CAP = heroTotalXPForLevel(HERO_LEVEL_CAP);
+
+/** XP 값 정규화 — 비유한/음수 → 0, 정수화, 상한 HERO_XP_CAP. sync/store 공용. */
+export function clampHeroXp(xp: number): number {
+  if (!Number.isFinite(xp)) return 0;
+  return Math.min(HERO_XP_CAP, Math.max(0, Math.floor(xp)));
+}
+
+/**
+ * 누적 XP → 영웅 레벨 (역함수, 선형 스캔). heroLevelFromXP(total(L)) == L,
+ * heroLevelFromXP(total(L) - 1) == L - 1. 상한에서 멈춘다 (1e12 → 999).
+ */
+export function heroLevelFromXP(totalXp: number): number {
+  const xp = clampHeroXp(totalXp);
+  let level = 1;
+  while (level < HERO_LEVEL_CAP && heroTotalXPForLevel(level + 1) <= xp) {
+    level += 1;
+  }
+  return level;
+}
+
+/** 현재 레벨 안의 진행도 — `{ current, needed }` (XP 바 표시용). */
+export function getHeroXPProgress(
+  totalXp: number,
+  level: number,
+): { current: number; needed: number } {
+  const xp = clampHeroXp(totalXp);
+  const L = clampHeroLevel(level);
+  return {
+    current: Math.max(0, xp - heroTotalXPForLevel(L)),
+    needed: heroXpToNextLevel(L),
+  };
+}
+
+/**
+ * 레벨이 누적으로 부여한 스킬 포인트 총량 = max(0, min(cap, L) - 30).
+ *   남은 SP 는 여기서 learnedSkills 의 pointCost 합을 뺀 파생값이다
+ *   (useUpHeroStore.deriveSkillPoints). 별도 지급/차감 카운터는 없다.
+ */
+export function skillPointsTotalForLevel(level: number): number {
+  return Math.max(0, clampHeroLevel(level) - HERO_SP_LEVEL_FLOOR);
+}
+
+/** 보스 처치 보너스 XP — victory 엔트리의 xp 에 합산된다 (xpMult 적용 전 값). */
+export function bossClearXp(floor: number, ngPlusLevel: number | undefined): number {
+  return Math.round(floor * BOSS_CLEAR_XP_PER_FLOOR * ngPlusScaleMult(ngPlusLevel));
+}
+
+/** 층 진입 XP — tickSession 의 층 전환 때 rewards.xp 에 더한다 (xpMult 적용 전 값). */
+export function floorXp(floor: number, ngPlusLevel: number | undefined): number {
+  return Math.round((FLOOR_XP_BASE + floor) * ngPlusScaleMult(ngPlusLevel));
+}
+
+/**
+ * 표시/판정용 영웅 레벨 단일 진입점.
+ *   heroXp 가 시드됐으면 곡선의 역함수, 아직이면 레거시 공식으로 폴백한다.
+ *   폴백 덕에 시드 전 잠깐 동안에도 Lv47 영웅이 Lv1 로 깜빡이지 않는다.
+ */
+export function resolveHeroLevel(
+  heroXp: number | undefined,
+  gameLevel: number,
+  heroStartLevel: number | undefined,
+): number {
+  if (heroXp === undefined) return getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  return heroLevelFromXP(heroXp);
 }
 
 /**

@@ -35,9 +35,7 @@ struct HeroStatPanel: View {
     var body: some View {
         // 영웅 전용 레벨 → 레벨 스케일 적용된 영웅 → effective 스탯.
         let hero = upHero.state.hero
-        let level = UpHeroRules.getEffectiveHeroLevel(
-            gameLevel: store.progress?.level ?? 1,
-            heroStartLevel: upHero.state.heroStartLevel)
+        let level = upHero.heroLevel   // Phase 2-A — heroXp 풀 기준 (웹 useHeroLevel)
         let leveled = UpHeroRules.computeHeroForLevel(hero, level: level)
         let effective = UpHeroRules.computeEffectiveStats(leveled)
 
@@ -381,7 +379,7 @@ struct HeroStatPanel: View {
             Spacer(minLength: 0)
             if !isLearned {
                 Button {
-                    upHero.learnSkill(skill.id, gameLevel: store.progress?.level ?? 1)
+                    upHero.learnSkill(skill.id)
                 } label: {
                     Text(learnButtonLabel(status, skill: skill))
                         .typography(.micro)
