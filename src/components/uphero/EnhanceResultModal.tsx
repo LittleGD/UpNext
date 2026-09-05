@@ -19,7 +19,7 @@ import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
 import type { Language } from "@/types/game";
-import { equipmentNameById } from "@/lib/upHeroI18n";
+import { affixStatLabel, equipmentNameById } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 import {
   ENHANCE_TITLE_LEVELS,
@@ -27,6 +27,12 @@ import {
   type EnhanceGuardSpend,
   type Equipment,
 } from "@/types/uphero";
+
+/** 6대 스탯은 약어(STR/INT/…), 그 외(slotBonus 등)는 카탈로그 라벨. iOS StatKey.label 과 동일. */
+const STAT_ABBREV = new Set(["str", "int", "vit", "dex", "agi", "crit"]);
+export function enhanceStatLabel(stat: string, language: Language): string {
+  return STAT_ABBREV.has(stat) ? stat.toUpperCase() : affixStatLabel(stat, language);
+}
 
 /**
  * Phase 5-B — 다섯 갈래 모두 `spent`(이번 시도에 나간 방지권)를 싣는다. 시도당
@@ -236,7 +242,7 @@ function resolveVariant(
           : GB.lightest;
     const statLine = Object.entries(newItem.stats)
       .filter(([, v]) => v != null && v !== 0)
-      .map(([k, v]) => `${k.toUpperCase()} +${v}${k === "crit" ? "%" : ""}`)
+      .map(([k, v]) => `${enhanceStatLabel(k, language)} +${v}${k === "crit" ? "%" : ""}`)
       .join(" · ");
     return {
       title,
