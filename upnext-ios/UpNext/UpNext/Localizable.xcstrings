@@ -24456,19 +24456,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Coins +{coins} · Loss Ward +{wards} · Drop Ward +{downs}"
+            "value": "Coins +{coins} · Loss Ward +{wards} · Downgrade Ward +{downs}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "コイン +{coins} · 消失防止券 +{wards} · 下落防止券 +{downs}"
+            "value": "コイン +{coins} · 消失防止札 +{wards} · 降格防止札 +{downs}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "金币 +{coins} · 防消失券 +{wards} · 防降级券 +{downs}"
+            "value": "金币 +{coins} · 防消失符 +{wards} · 防降级符 +{downs}"
           }
         }
       }
@@ -24520,13 +24520,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "コイン +{coins} · 消失防止券 +{wards}"
+            "value": "コイン +{coins} · 消失防止札 +{wards}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "金币 +{coins} · 防消失券 +{wards}"
+            "value": "金币 +{coins} · 防消失符 +{wards}"
           }
         }
       }
@@ -26892,19 +26892,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Clear all 8: Coins +{coins} · {wards} Loss Wards · {downs} Drop Wards"
+            "value": "Clear all 8: Coins +{coins} · {wards} Loss Wards · {downs} Downgrade Wards"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "8か所すべてクリアでコイン +{coins} · 消失防止券 {wards}枚 · 下落防止券 {downs}枚"
+            "value": "8か所すべてクリアでコイン +{coins} · 消失防止札 {wards}枚 · 降格防止札 {downs}枚"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "8 处全部通关：金币 +{coins} · 防消失券 {wards} 张 · 防降级券 {downs} 张"
+            "value": "8 处全部通关：金币 +{coins} · 防消失符 {wards} 张 · 防降级符 {downs} 张"
           }
         }
       }
@@ -26915,25 +26915,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "던전마다 첫 클리어 시 코인 +{coins} · 소실방지권 1장"
+            "value": "던전마다 첫 클리어 시 코인 +{coins} · 소실방지권 {wards}장"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "First clear of each dungeon: Coins +{coins} · 1 Loss Ward"
+            "value": "First clear of each dungeon: Coins +{coins} · Loss Ward +{wards}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "各ダンジョン初クリアでコイン +{coins} · 消失防止券 1枚"
+            "value": "各ダンジョン初クリアでコイン +{coins} · 消失防止札 {wards}枚"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "每个地下城首次通关：金币 +{coins} · 防消失券 1 张"
+            "value": "每个地下城首次通关：金币 +{coins} · 防消失符 {wards} 张"
           }
         }
       }
