@@ -573,6 +573,9 @@ struct MainTabView: View {
     ///  · .completed → 노출(SessionResultModal 이 풀백드롭으로 덮고, 확인 시 캠프로 복귀 = 웹 패리티).
     private var hideNavForDungeon: Bool {
         guard tab == .playground else { return false }
+        // 격자 가방도 풀스크린이다 — 보드·트레이·액션바가 화면 전체를 쓰고, 하단 탭이
+        // 액션바와 겹치면 판매·버리기 오탭이 난다 (웹 BottomNav.hideForUpHero 의 uiBagOpen).
+        if upHero.isBagOpen { return true }
         switch upHero.state.currentSession?.status {
         case .active, .paused, .awaitingChoice, .awaitingMinigame:
             return true

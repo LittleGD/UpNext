@@ -41,6 +41,29 @@ enum SessionReward {
         return Array(drops.prefix(drops.count / 2))
     }
 
+    /// 탐험 정산의 가방 반영 — 드롭을 격자 가방에 넣고, 정리 대기(트레이)가 넘치면
+    /// 초과분을 자동 판매한다. 웹 `sessionReward.ts` 의 `settleBagAfterSession` 1:1.
+    ///
+    /// 순수 함수인 이유: 결과 모달이 "정리 대기 초과 n개 자동 판매, +m 코인" 을 미리
+    /// 보여줄 때 실제 정산과 **같은 값**을 써야 화면과 저장 상태가 어긋나지 않는다.
+    ///
+    /// 넣는 순서는 `placeAllIntoBag` 의 배열 순서 first-fit, 넘침 선별은 `trayOverflow` 의
+    /// "최저 등급 먼저, 같은 등급이면 오래된 것 먼저" 다. 판매가는 `UpHeroRules.sellPrice`
+    /// 한 곳에서만 온다 — 판매가 개편이 이 한 줄만 바꾸면 되게 둔다.
+    ///
+    /// - Parameter rows: 현재 영웅 레벨 기준 보드 행 수 (`UpHeroBag.bagRows`).
+    /// - Returns: inventory = 정산 후 인벤토리, sold = 자동 판매된 아이템, coins = 환급 코인.
+    static func settleBagAfterSession(
+        inventory: [Equipment], keptDrops: [Equipment], rows: Int
+    ) -> (inventory: [Equipment], sold: [Equipment], coins: Int) {
+        let withDrops = UpHeroBag.placeAllIntoBag(inventory, keptDrops, rows: rows)
+        // 판매 후보는 **이번 드롭만** — 이미 갖고 있던 아이템은 트레이가 넘쳐도 팔지 않는다 (웹 동일).
+        let overflow = UpHeroBag.trayOverflow(
+            withDrops, rows: rows, candidateIds: keptDrops.map(\.id))
+        let coins = overflow.sell.reduce(0) { $0 + (UpHeroRules.sellPrice[$1.rarity] ?? 0) }
+        return (inventory: overflow.keep, sold: overflow.sell, coins: coins)
+    }
+
     /// log 를 순회해 실제 처치한 보스 floor 집합. 웹 `calculateBossesDefeated`.
     /// "boss" entry 다음 "victory(isBoss)" 패턴 → 그 floor 기록. 정렬 반환.
     static func calculateBossesDefeated(log: [LogEntry], existing: [Int]) -> [Int] {

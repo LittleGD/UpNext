@@ -507,6 +507,36 @@ struct HeroStatPanel: View {
             HexStatChart(base: base, effective: effective,
                          level: level, classType: classType, size: 240)
                 .frame(maxWidth: .infinity)
+            // 격자 가방 시너지 합 — 세션 시작 때 baseStats 에 가산되는 값과 **같은 순수
+            // 함수**로 라이브 계산한다. 여기서 따로 더하면 화면과 전투가 갈린다.
+            let bagText = bagSynergyText(level: level)
+            if !bagText.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(AppConfig.loc("가방 시너지 \(bagText)"))
+                        .typography(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(gbText)
+                    Text(AppConfig.loc(
+                        "사진 부적을 앵커 옆에 두면 스탯 보너스, 스킬은 착용한 부적만"))
+                        .typography(.micro)
+                        .foregroundStyle(gbDim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
+    }
+
+    /// 가방 시너지 합계 문장. StatKey 는 `allCases` 로 훑는다 — Dictionary 순회 순서에
+    /// 맡기면 열 때마다 항목 순서가 달라진다.
+    private func bagSynergyText(level: Int) -> String {
+        let synergy = UpHeroBag.computeBagSynergy(
+            equipped: upHero.state.hero.equipped,
+            inventory: upHero.state.inventory,
+            rows: UpHeroBag.bagRows(level))
+        return StatKey.allCases.compactMap { key -> String? in
+            guard let v = synergy.bonuses[key], v != 0 else { return nil }
+            return "+\(v) \(key.label)"
+        }.joined(separator: "  ")
     }
 }

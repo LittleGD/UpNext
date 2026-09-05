@@ -17,6 +17,8 @@ struct SessionResultModal: View {
     let session: CombatSession
     let onAcknowledge: () -> Void
 
+    @EnvironmentObject private var upHero: UpHeroStore
+    @EnvironmentObject private var store: GameStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var mounted: Bool = false
@@ -153,6 +155,18 @@ struct SessionResultModal: View {
                             .foregroundStyle(GBPalette.light.opacity(0.6))
                             .frame(maxWidth: .infinity, alignment: .center)
                     }
+                }
+                // 정리 대기(트레이) 초과분 자동 판매 — 아이템이 조용히 사라지지 않았음을
+                // 한 줄로 알린다. acknowledge 가 쓰는 것과 **같은 순수 함수**로 미리 계산하므로
+                // 화면 값과 실제 정산이 어긋나지 않는다 (모달은 acknowledge 이전에 뜬다).
+                let autoSold = SessionReward.settleBagAfterSession(
+                    inventory: upHero.state.inventory, keptDrops: kept,
+                    rows: upHero.currentBagRows(gameLevel: store.progress?.level))
+                if !autoSold.sold.isEmpty {
+                    Text(AppConfig.loc(
+                        "정리 대기 초과 \(autoSold.sold.count)개 자동 판매, +\(autoSold.coins) 코인"))
+                        .typography(.caption)
+                        .foregroundStyle(GBPalette.light)
                 }
             }
         }

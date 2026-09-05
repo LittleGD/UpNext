@@ -1,37 +1,76 @@
 //
 //  EquipmentInventoryView.swift
-//  UpNext — Up Hero 장비 인벤토리 (R8 격상).
+//  UpNext — Up Hero 가방 (격자 인벤토리).
 //
-//  웹 components/uphero/EquipmentInventory.tsx (1079 LOC) 비주얼 회복:
-//   - 4 슬롯 카드 그리드 (weapon/armor/accessory/talisman)
-//   - 등급별 외곽 글로우 (common 무 / rare 청 / unique 자홍 / legend 라임)
-//   - 슬롯 미장착 시 placeholder + PixelIcon
-//   - 보유 장비 그리드 — 등급 글로우 카드
-//   - 탭 → 액션 (장착/판매/강화/버리기)
-//   - 강화 → EnhanceRitualOverlay (2s) + 결과 후 모달
+//  웹 components/uphero/EquipmentInventory.tsx 1:1 미러. 화면은 위에서 아래로 고정
+//  높이 4단이다:
+//    서브헤더 48 / BagBoardView(남는 만큼) / 사진 부적 CTA 44 / BagTrayView 64 / BagActionBar 56.
+//  보드는 **절대 스크롤 컨테이너 안에 두지 않는다** — 격자는 한 화면에 다 보여야
+//  "무엇이 어디 있는지" 가 공간 기억으로 남는다. 대신 셀 크기가 44~56 사이에서 줄어든다.
+//
+//  탭(가방/사진/강화)과 시스템 액션시트는 제거했다. 강화는 선택 아이템의 액션바 버튼이고,
+//  정렬된 강화 개요는 서브헤더 오른쪽 아이콘이 여는 보조 시트다. 판매·버리기 같은
+//  비가역 동작은 그대로 GbConfirm 을 거친다.
+//
+//  상태 기계(플랜 §7): idle → selected(item) → placing(item, rot).
+//   - 아이템 탭 = 선택 / 같은 아이템 재탭 = 회전(무기만)
+//   - 빈 칸 탭 = 그 칸을 원점으로 배치
+//   - 앵커 탭 = 착용 아이템 선택 (해제·강화)
+//  드래그는 이 경로 위에 얹힌 것이고, 탭 경로가 항상 보장된 폴백이다.
 //
 
 import SwiftUI
 
+/// "새로 들어온 타일" 표식 — 첫 탭 전까지 모서리 점.
+///
+/// 비영속이고 스토어에도 없다. 뷰 밖(타입 스코프)에 두는 이유: 가방 화면은 탐험 정산
+/// 뒤에 다시 **마운트**되는데, @State 로 두면 매 진입마다 전부 새것이 되거나 전부
+/// 헌것이 된다. 앱 세션 동안만 살아 있으면 충분하다.
+@MainActor
+enum BagNewMarks {
+    static var seen = Set<String>()
+    /// 첫 진입이 기존 아이템을 "본 것" 으로 채웠는지.
+    static var primed = false
+}
+
 struct EquipmentInventoryView: View {
+    /// 가방 화면 루트 좌표계 — 트레이 롱프레스 드래그가 보드 기하와 좌표를 맞추는 기준.
+    static let rootSpace = "upheroBagRoot"
+    private static let headerH: CGFloat = 48
+    private static let photoCtaH: CGFloat = 44
+
     @EnvironmentObject private var upHero: UpHeroStore
+    @EnvironmentObject private var store: GameStore
+    @EnvironmentObject private var growth: GrowthStore
     let onBack: () -> Void
 
-    @State private var actionItem: Equipment?
+    // ── 선택 상태 기계 ──
+    @State private var selectedId: String?
+    @State private var selectedSlot: EquipSlot?
+    @State private var placing = false
+    @State private var placingRot = 0
+    /// 모듈 Set 변경을 리렌더로 옮기는 트리거 (Set 자체는 SwiftUI 가 관찰하지 못한다).
+    @State private var seenTick = 0
+    /// 보드가 올려보낸 격자 기하 — 트레이 드래그의 좌표 해석에 쓴다.
+    @State private var boardMetrics: BagBoardMetrics?
+
+    @State private var statsOpen = false
+    @State private var enhanceListOpen = false
+    @State private var showTalismanPicker = false
+
+    // ── 강화 연출 (기존 흐름 유지) ──
     @State private var enhancingItem: Equipment?
     @State private var enhanceOutcome: EnhanceRitualOutcome?
     /// 강화 의식이 끝난 뒤 띄울 결과 문구 (웹 결과 모달 대응 — iOS 는 토스트).
     @State private var enhanceMessage: String?
-    @State private var showTalismanPicker = false
     /// 강화 확인 다이얼로그의 방지권 토글 2종. 다이얼로그를 열 때마다 기본 ON 으로
     /// 되돌린다 (웹 EquipmentInventory 와 동일) — 소모는 실제로 막아냈을 때만
     /// 일어나므로 켜둔 채로 두는 것이 유저에게 손해가 아니다.
     @State private var useDestroyGuard = true
     @State private var useDownGuard = true
     @State private var toast: String?
-    // 05-modal-design — 판매/버리기(비가역)는 GbConfirm 재확인. 강화도 이제 확인을 거친다
+    // 05-modal-design — 판매/버리기(비가역)는 GbConfirm 재확인. 강화도 확인을 거친다
     // (성공률·소실/하락 위험·비용·방지권을 보여줘야 하므로 — 웹 GbConfirm 과 같은 자리).
-    // 웹 EquipmentInventory.tsx 처럼 pending 하나로 세 액션 공유, title/body 만 분기.
     @State private var pendingAction: PendingEquipAction?
 
     private enum EquipConfirmKind { case sell, discard, enhance }
@@ -41,25 +80,97 @@ struct EquipmentInventoryView: View {
         let item: Equipment
     }
 
+    // MARK: - 파생 상태
+
+    private var gameLevel: Int { store.progress?.level ?? 1 }
+    /// 보드 행 수는 렌더 시점에 계산한다 — 레벨업 직후에도 스토어와 어긋나지 않게.
+    private var rows: Int { upHero.currentBagRows(gameLevel: gameLevel) }
+    private var heroLevel: Int {
+        UpHeroRules.getEffectiveHeroLevel(
+            gameLevel: gameLevel, heroStartLevel: upHero.state.heroStartLevel)
+    }
+    private var inventory: [Equipment] { upHero.state.inventory }
+    private var equipped: [EquipSlot: Equipment] { upHero.state.hero.equipped }
+
+    private var layout: BagLayout {
+        UpHeroBag.normalizeBagLayout(inventory, rows: rows).layout
+    }
+    private var synergy: BagSynergy {
+        UpHeroBag.computeBagSynergy(equipped: equipped, inventory: inventory, rows: rows)
+    }
+    private var selectedItem: Equipment? {
+        selectedId.flatMap { id in inventory.first { $0.id == id } }
+    }
+    private var selectedWorn: Equipment? { selectedSlot.flatMap { equipped[$0] } }
+
+    /// 아직 부적으로 묶지 않은 사진 수 — 0 이면 CTA 를 잠근다.
+    private var unboundPhotoCount: Int {
+        growth.photoMetas.filter {
+            !PhotoTalisman.isBound($0.id, inventory: inventory, equipped: equipped)
+        }.count
+    }
+
+    private var newIds: Set<String> {
+        _ = seenTick
+        guard BagNewMarks.primed else { return [] }
+        return Set(inventory.map(\.id)).subtracting(BagNewMarks.seen)
+    }
+
+    // MARK: - Body
+
     var body: some View {
+        let lay = layout
+        let syn = synergy
         ZStack {
             VStack(spacing: 0) {
                 header
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        photoTalismanCTA
-                        equippedGrid
-                        inventoryGrid
-                    }
-                    .padding(16)
-                    .padding(.bottom, 100)
-                }
+                BagBoardView(
+                    rows: rows,
+                    inventory: inventory,
+                    equipped: equipped,
+                    classType: upHero.state.hero.classType,
+                    heroVariant: UpHeroRules.getHeroAppearanceVariant(level: heroLevel),
+                    selectedId: selectedId,
+                    selectedSlot: selectedSlot,
+                    placingRot: placingRot,
+                    synergy: syn,
+                    newIds: newIds,
+                    growth: growth,
+                    onSelect: handleSelect,
+                    onTapEmptyCell: handleTapEmptyCell,
+                    onTapWorn: handleTapWorn,
+                    onTapHero: { statsOpen = true },
+                    onDropAt: { id, x, y, rot in commitPlace(id, x, y, rot, withSound: false) },
+                    onItemAction: handleItemAction)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                photoTalismanCTA
+                BagTrayView(
+                    items: trayItems(lay),
+                    suspendedIds: Set(lay.suspended.map(\.id)),
+                    selectedId: selectedId,
+                    synergy: syn,
+                    growth: growth,
+                    onSelect: { handleSelect($0) },
+                    onDragToBoard: handleDragToBoard)
+                BagActionBar(
+                    item: selectedItem,
+                    wornSlot: selectedWorn != nil ? selectedSlot : nil,
+                    placing: placing,
+                    trayCount: lay.unplaced.count,
+                    rotatable: selectedItem.map { UpHeroBag.canRotate(type: $0.type) } ?? false,
+                    onAction: { action in
+                        if let worn = selectedWorn, selectedItem == nil {
+                            handleItemAction(action, worn)
+                        } else if let item = selectedItem {
+                            handleItemAction(action, item)
+                        }
+                    },
+                    onCancel: clearSelection)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.bgPrimary)
-            .fullScreenCover(isPresented: $showTalismanPicker) {
-                PhotoTalismanPicker(onClose: { showTalismanPicker = false })
-            }
+            .background(GBPalette.darkest)
+            .coordinateSpace(name: Self.rootSpace)
+            .onPreferenceChange(BagBoardMetricsKey.self) { boardMetrics = $0 }
 
             // 강화 의식 오버레이. 소리·결과 문구는 연출이 끝난 뒤에 — 2초 연출보다 먼저
             // 들리면 결과가 스포일된다 (웹 Phase 11b-fix 와 같은 이유).
@@ -81,7 +192,7 @@ struct EquipmentInventoryView: View {
                 .zIndex(50)
             }
 
-            // 05-modal-design — 판매/버리기 재확인 (danger). 웹 EquipmentInventory.tsx:741~ 문구.
+            // 05-modal-design — 판매/버리기 재확인 (danger). 웹 EquipmentInventory.tsx 문구.
             if let pending = pendingAction, pending.kind != .enhance {
                 GbConfirm(
                     title: pending.kind == .sell
@@ -95,6 +206,7 @@ struct EquipmentInventoryView: View {
                     onConfirm: {
                         if pending.kind == .sell { upHero.sellItem(pending.item.id) }
                         else { upHero.discardItem(pending.item.id) }
+                        clearSelection()
                         pendingAction = nil
                     },
                     onCancel: { pendingAction = nil })
@@ -111,35 +223,349 @@ struct EquipmentInventoryView: View {
 
             if let toast { toastView(toast) }
         }
-        // 액션 선택 시트 — 장착만 즉시 실행. 강화·판매·버리기는 GbConfirm 재확인을 거친다
-        // (강화는 성공률·소실/하락 위험·방지권을 먼저 보여줘야 하므로 즉시 실행에서 승격).
-        .confirmationDialog(
-            // 액션시트 타이틀은 raw name(한국어 원문) 대신 현지화 표시명 사용 — 전 언어 정합.
-            actionItem?.localizedDisplayName ?? "",
-            isPresented: Binding(get: { actionItem != nil }, set: { if !$0 { actionItem = nil } }),
-            presenting: actionItem
-        ) { item in
-            Button("장착") { upHero.equipItem(item.id); actionItem = nil }
-            // 비용은 등급·현재 레벨에 따라 달라진다 (웹 enhanceCost) — 고정 100 이 아니다.
-            let enhanceLevel = item.enhanceLevel ?? 0
-            if enhanceLevel < UpHeroRules.maxEnhanceLevel {
-                let cost = UpHeroRules.enhanceCost(rarity: item.rarity, currentLevel: enhanceLevel)
-                Button(AppConfig.loc("강화 (−\(cost) 코인)")) {
-                    useDestroyGuard = true   // 열 때마다 기본 ON (웹 onEnhance)
-                    useDownGuard = true
-                    pendingAction = PendingEquipAction(kind: .enhance, item: item)
-                    actionItem = nil
-                }
-                .disabled(upHero.state.coins < cost)
-            }
-            Button("판매 (+\(UpHeroRules.sellPrice[item.rarity] ?? 0) 코인)") {
-                pendingAction = PendingEquipAction(kind: .sell, item: item); actionItem = nil
-            }
-            Button("버리기", role: .destructive) {
-                pendingAction = PendingEquipAction(kind: .discard, item: item); actionItem = nil
-            }
-            Button("취소", role: .cancel) { actionItem = nil }
+        .fullScreenCover(isPresented: $showTalismanPicker) {
+            PhotoTalismanPicker(onClose: { showTalismanPicker = false })
         }
+        .sheet(isPresented: $statsOpen) { HeroStatPanel() }
+        .sheet(isPresented: $enhanceListOpen) { enhanceListSheet }
+        // 가방 화면이 열려 있는 동안은 하단 네비를 숨긴다(MainShell 이 이 신호를 본다).
+        // onDisappear 가 뒤로 가기·탭 전환 양쪽을 덮으므로 플래그가 남지 않는다.
+        .onAppear {
+            upHero.setBagOpen(true)
+            primeNewMarks()
+        }
+        .onDisappear { upHero.setBagOpen(false) }
+    }
+
+    /// 트레이 = 미배치 + 보류(좌표는 있지만 지금 rows 밖). 최신순.
+    private func trayItems(_ lay: BagLayout) -> [Equipment] {
+        inventory.filter { lay.statusById[$0.id] != .placed }.reversed()
+    }
+
+    // MARK: - 선택 / 배치
+
+    private func clearSelection() {
+        selectedId = nil
+        selectedSlot = nil
+        placing = false
+    }
+
+    /// 배치 커밋 — 성공하면 그 자리로, 실패하면 상태를 전혀 건드리지 않는다.
+    /// gameLevel 을 반드시 넘긴다: 화면이 8행을 그리는데 판정만 5행이면 아래 행 드롭이
+    /// 전부 거절된다.
+    @discardableResult
+    private func commitPlace(
+        _ itemId: String, _ x: Int, _ y: Int, _ rot: Int, withSound: Bool
+    ) -> Bool {
+        let res = upHero.placeItem(itemId: itemId, x: x, y: y, rot: rot, gameLevel: gameLevel)
+        guard res == .placed else {
+            if withSound { SoundPlayer.shared.play(.cancel) }
+            showToast(AppConfig.loc("그 자리에는 놓을 수 없어요"))
+            return false
+        }
+        markSeen(itemId)
+        placing = false
+        if withSound { SoundPlayer.shared.play(.equip) }
+        showToast(AppConfig.loc("배치했어요"))
+        return true
+    }
+
+    /// 같은 아이템 재탭 = 회전. 이미 놓여 있으면 제자리 회전까지 시도한다.
+    private func rotateSelected() {
+        guard let item = selectedItem, UpHeroBag.canRotate(type: item.type) else { return }
+        let next = (placingRot + 1) % 2
+        if let p = UpHeroBag.readPlacement(item) {
+            let res = upHero.placeItem(
+                itemId: item.id, x: p.x, y: p.y, rot: next, gameLevel: gameLevel)
+            guard res == .placed else {
+                SoundPlayer.shared.play(.cancel)
+                showToast(AppConfig.loc("그 자리에는 놓을 수 없어요"))
+                return
+            }
+        }
+        placingRot = next
+        SoundPlayer.shared.play(.select)
+    }
+
+    private func handleSelect(_ id: String?) {
+        guard let id else {
+            clearSelection()
+            return
+        }
+        if id == selectedId {
+            rotateSelected()
+            return
+        }
+        guard let item = inventory.first(where: { $0.id == id }) else { return }
+        markSeen(id)
+        selectedSlot = nil
+        selectedId = id
+        placingRot = UpHeroBag.normalizeRot(item.bagRot)
+        placing = false
+        SoundPlayer.shared.play(.select)
+    }
+
+    /// 빈 칸 탭 = 그 칸을 **덮는** 자리에 놓기 (웹 동일). 탭한 칸을 원점으로만 쓰면 1x2 세로
+    /// 무기를 맨 윗줄에 탭했을 때 footprint 가 보드 밖으로 나가 거절된다.
+    private func handleTapEmptyCell(_ x: Int, _ y: Int) {
+        guard let id = selectedId else {
+            clearSelection()
+            return
+        }
+        guard let item = inventory.first(where: { $0.id == id }) else { return }
+        guard let origin = UpHeroBag.firstValidOriginCovering(
+            occ: layout.occupancy, rows: rows, type: item.type, rot: placingRot,
+            x: x, y: y, ignoreId: item.id)
+        else {
+            SoundPlayer.shared.play(.cancel)
+            showToast(AppConfig.loc("그 자리에는 놓을 수 없어요"))
+            return
+        }
+        commitPlace(id, origin.x, origin.y, placingRot, withSound: true)
+    }
+
+    /// 트레이 롱프레스 드래그 — 보드 기하로 화면 좌표를 원점 칸으로 바꾼다.
+    private func handleDragToBoard(_ itemId: String, _ point: CGPoint, _ rot: Int) {
+        guard let item = inventory.first(where: { $0.id == itemId }),
+              let origin = boardMetrics?.originFromPoint(point, type: item.type, rot: rot) else {
+            SoundPlayer.shared.play(.cancel)
+            showToast(AppConfig.loc("그 자리에는 놓을 수 없어요"))
+            return
+        }
+        commitPlace(itemId, origin.x, origin.y, rot, withSound: true)
+    }
+
+    private func handleTapWorn(_ slot: EquipSlot) {
+        guard equipped[slot] != nil else { return }
+        selectedId = nil
+        placing = false
+        selectedSlot = slot
+        SoundPlayer.shared.play(.select)
+    }
+
+    /// 액션바·보드 접근성 액션이 함께 쓰는 실행 경로.
+    private func handleItemAction(_ action: BagItemAction, _ item: Equipment) {
+        switch action {
+        case .place:
+            if selectedId != item.id { handleSelect(item.id) }
+            placing = true
+        case .rotate:
+            if selectedId != item.id { handleSelect(item.id) }
+            rotateSelected()
+        case .equip:
+            upHero.equipItem(item.id)
+            clearSelection()
+        case .unequip:
+            upHero.unequipItem(item.type, gameLevel: gameLevel)
+            clearSelection()
+        case .enhance:
+            beginEnhance(item)
+        case .sell:
+            pendingAction = PendingEquipAction(kind: .sell, item: item)
+        case .discard:
+            pendingAction = PendingEquipAction(kind: .discard, item: item)
+        }
+    }
+
+    // MARK: - 새 아이템 표식
+
+    private func primeNewMarks() {
+        guard !BagNewMarks.primed else { return }
+        for item in inventory { BagNewMarks.seen.insert(item.id) }
+        BagNewMarks.primed = true
+        seenTick += 1
+    }
+
+    private func markSeen(_ id: String) {
+        guard !BagNewMarks.seen.contains(id) else { return }
+        BagNewMarks.seen.insert(id)
+        seenTick += 1
+    }
+
+    // MARK: - 헤더
+
+    private var header: some View {
+        HStack(spacing: 4) {
+            Button(action: onBack) {
+                HStack(spacing: 2) {
+                    PixelIcon(.chevronLeft, size: 14, color: GBPalette.light)
+                    Text(AppConfig.loc("뒤로"))
+                        .typography(.caption)
+                        .foregroundStyle(GBPalette.light)
+                }
+                .padding(.horizontal, 8)
+                .frame(minWidth: 44, minHeight: 44)
+            }
+            .buttonStyle(.unPress)
+            Text(AppConfig.loc("가방"))
+                .typography(.body)
+                .foregroundStyle(GBPalette.lightest)
+                .padding(.leading, 4)
+            Spacer(minLength: 0)
+            HStack(spacing: 4) {
+                PixelIcon(.coins, size: 13, color: GBPalette.light)
+                Text("\(upHero.state.coins)")
+                    .typography(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(GBPalette.lightest)
+            }
+            Button {
+                SoundPlayer.shared.play(.select)
+                enhanceListOpen = true
+            } label: {
+                PixelIcon(.fire, size: 18, color: GBPalette.light)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.unPress)
+            .accessibilityLabel(AppConfig.loc("강화 목록"))
+        }
+        .padding(.horizontal, 8)
+        .frame(height: Self.headerH)
+        .overlay(alignment: .bottom) { Rectangle().fill(GBPalette.dark).frame(height: 1) }
+    }
+
+    // MARK: - 사진 부적 CTA (트레이 머리줄)
+
+    private var photoTalismanCTA: some View {
+        let has = unboundPhotoCount > 0
+        return Button { showTalismanPicker = true } label: {
+            HStack(spacing: 8) {
+                PixelIcon(.camera, size: 14, color: GBPalette.light)
+                Text(has
+                     ? AppConfig.loc("사진 부적 만들기")
+                     : AppConfig.loc("바인딩할 수 있는 사진 없음"))
+                    .typography(.caption)
+                    .foregroundStyle(GBPalette.lightest)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text(AppConfig.loc("\(PhotoTalisman.ritualCost) C · 랜덤"))
+                    .typography(.micro)
+                    .monospacedDigit()
+                    .foregroundStyle(GBPalette.light)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: Self.photoCtaH)
+            .frame(maxWidth: .infinity)
+            .background(has ? GBPalette.dark.opacity(0.27) : Color.clear)
+            .opacity(has ? 1 : 0.55)
+        }
+        .buttonStyle(.unPress)
+        .disabled(!has)
+        .overlay(alignment: .top) { Rectangle().fill(GBPalette.dark).frame(height: 1) }
+    }
+
+    // MARK: - 강화 목록 (보조 시트)
+
+    /// 강화 가능한 아이템 (인벤 + 착용). 등급 내림차순 → 강화 레벨 내림차순.
+    private var enhanceableItems: [Equipment] {
+        var all = inventory
+        for slot in UpHeroBag.anchorOrder {
+            if let eq = equipped[slot] { all.append(eq) }
+        }
+        let rarityOrder: [Rarity: Int] = [.legend: 0, .unique: 1, .rare: 2, .normal: 3]
+        return all
+            .filter { ($0.enhanceLevel ?? 0) < UpHeroRules.maxEnhanceLevel }
+            .sorted { a, b in
+                let ra = rarityOrder[a.rarity] ?? 3
+                let rb = rarityOrder[b.rarity] ?? 3
+                if ra != rb { return ra < rb }
+                return (a.enhanceLevel ?? 0) > (b.enhanceLevel ?? 0)
+            }
+    }
+
+    private var enhanceListSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(AppConfig.loc("강화 목록"))
+                    .typography(.body)
+                    .foregroundStyle(GBPalette.lightest)
+                Spacer()
+                Button(AppConfig.loc("닫기")) { enhanceListOpen = false }
+                    .typography(.caption)
+                    .foregroundStyle(GBPalette.light)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .buttonStyle(.unPress)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: Self.headerH)
+            .overlay(alignment: .bottom) { Rectangle().fill(GBPalette.dark).frame(height: 1) }
+
+            ScrollView {
+                if enhanceableItems.isEmpty {
+                    Text(AppConfig.loc("강화할 수 있는 장비가 없어요"))
+                        .typography(.caption)
+                        .foregroundStyle(GBPalette.light)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 40)
+                } else {
+                    VStack(spacing: 6) {
+                        ForEach(enhanceableItems) { item in enhanceRow(item) }
+                    }
+                    .padding(12)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(GBPalette.darkest)
+    }
+
+    private func enhanceRow(_ item: Equipment) -> some View {
+        let p = enhancePreview(item)
+        let canAfford = upHero.state.coins >= p.cost
+        let streak = item.enhanceFailStreak ?? 0
+        return HStack(spacing: 8) {
+            PixelIcon(PixelIconName.resolve(item.iconName), size: 18, color: item.rarity.color)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.localizedDisplayName)
+                    .typography(.caption)
+                    .foregroundStyle(GBPalette.lightest)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text("+\(p.level) → +\(p.level + 1)")
+                        .foregroundStyle(GBPalette.light)
+                    Text("\(p.successPct)%")
+                        .foregroundStyle(item.rarity.color)
+                    if streak > 0 {
+                        Text("pity ×\(streak)")
+                            .foregroundStyle(Rarity.legend.color)
+                    }
+                    if p.safe {
+                        Text(AppConfig.loc("안전")).foregroundStyle(GBPalette.lightest)
+                    }
+                    if p.equipped {
+                        Text(AppConfig.loc("장착 중")).foregroundStyle(bagWarnColor)
+                    }
+                }
+                .typography(.micro)
+                .monospacedDigit()
+            }
+            Spacer(minLength: 0)
+            Button {
+                useDestroyGuard = true   // 열 때마다 기본 ON (웹 onEnhance)
+                useDownGuard = true
+                enhanceListOpen = false
+                pendingAction = PendingEquipAction(kind: .enhance, item: item)
+            } label: {
+                Text(AppConfig.loc("강화 (−\(p.cost) 코인)"))
+                    .typography(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(canAfford ? GBPalette.darkest : GBPalette.light)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .background(canAfford ? item.rarity.color : GBPalette.dark.opacity(0.67),
+                                in: RoundedRectangle(cornerRadius: 4))
+                    .opacity(canAfford ? 1 : 0.55)
+            }
+            .buttonStyle(.unPress)
+            .disabled(!canAfford)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(GBPalette.dark.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(item.rarity.color.opacity(BagRarityStyle.borderAlpha(item.rarity)),
+                              lineWidth: 1))
     }
 
     // MARK: - 강화 확인 (웹 GbConfirm enhance 분기 1:1)
@@ -177,6 +603,17 @@ struct EquipmentInventoryView: View {
             equipped: EquipSlot.allCases.contains {
                 upHero.state.hero.equipped[$0]?.id == item.id
             })
+    }
+
+    /// 강화 시도 — 확인 다이얼로그 표시. 방지권 토글은 열 때마다 기본 ON.
+    private func beginEnhance(_ item: Equipment) {
+        guard (item.enhanceLevel ?? 0) < UpHeroRules.maxEnhanceLevel else {
+            failToast(AppConfig.loc("이미 최대 강화(+\(UpHeroRules.maxEnhanceLevel))예요"))
+            return
+        }
+        useDestroyGuard = true
+        useDownGuard = true
+        pendingAction = PendingEquipAction(kind: .enhance, item: item)
     }
 
     /// 이번 시도에 실제로 걸리는 방지권. 웹 `guardArm` 과 같은 3중 조건 —
@@ -294,6 +731,7 @@ struct EquipmentInventoryView: View {
     private func runEnhance(_ item: Equipment) {
         let result = upHero.enhanceItem(item.id, guards: armedGuards(item))
         pendingAction = nil
+        clearSelection()
         switch result {
         case .success:
             startRitual(item, .success, AppConfig.loc("강화 성공"))
@@ -340,7 +778,7 @@ struct EquipmentInventoryView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16).padding(.vertical, 10)
                 .background(Color.bgElevated, in: Capsule())
-                .padding(.bottom, 40)
+                .padding(.bottom, CGFloat(UpHeroBag.trayH + UpHeroBag.actionH) + 12)
         }
         .allowsHitTesting(false)
     }
@@ -348,231 +786,5 @@ struct EquipmentInventoryView: View {
     private func showToast(_ msg: String) {
         toast = msg
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { if toast == msg { toast = nil } }
-    }
-
-    // MARK: - 헤더
-
-    private var header: some View {
-        HStack(spacing: 8) {
-            Button(action: onBack) {
-                PixelIcon(.chevronLeft, size: 16, color: Color.textSecondary)
-                    .frame(width: 40, height: 40)
-            }
-            .buttonStyle(.plain)
-            Text("장비")
-                .typography(.title)
-                .foregroundStyle(Color.textPrimary)
-            Spacer()
-            HStack(spacing: 4) {
-                PixelIcon(.coins, size: 14, color: Color.accentPrimary)
-                Text("\(upHero.state.coins)").typography(.caption).foregroundStyle(Color.textPrimary)
-                    .monospacedDigit()
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-    }
-
-    // MARK: - 사진 부적 만들기 CTA (웹 EquipmentInventory → PhotoTalismanPicker)
-
-    private var photoTalismanCTA: some View {
-        Button { showTalismanPicker = true } label: {
-            HStack(spacing: 12) {
-                PixelIcon(.image, size: 18, color: Color.accentPrimary).frame(width: 24)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("사진 부적 만들기")
-                        .typography(.body).foregroundStyle(Color.textPrimary)
-                    Text("성장의 순간을 부적으로 — 코인 \(PhotoTalisman.ritualCost)")
-                        .typography(.caption).foregroundStyle(Color.textTertiary)
-                }
-                Spacer(minLength: 0)
-                PixelIcon(.chevronRight, size: 13, color: Color.textTertiary)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity)
-            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - 4 슬롯 그리드
-
-    private var equippedGrid: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("장착 중")
-                .typography(.heading).foregroundStyle(Color.textPrimary)
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                ForEach(EquipSlot.allCases, id: \.self) { slot in
-                    slotCard(slot)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func slotCard(_ slot: EquipSlot) -> some View {
-        if let item = upHero.state.hero.equipped[slot] {
-            EquipmentSlotCard(item: item, slot: slot) {
-                upHero.unequipItem(slot)
-            }
-        } else {
-            VStack(spacing: 6) {
-                PixelIcon(slotIcon(slot), size: 28, color: Color.textTertiary.opacity(0.4))
-                Text(slotName(slot))
-                    .typography(.micro).foregroundStyle(Color.textTertiary)
-                Text("비어 있음")
-                    .typography(.micro).foregroundStyle(Color.textTertiary.opacity(0.5))
-            }
-            // 그룹 등고(패턴 A) — 빈 슬롯과 장착 카드가 같은 행에서 같은 높이.
-            // 고정 height 였던 자리 — Dynamic Type/iPad 에서 라벨이 잘리던 것도 함께 해소.
-            .unCardCell(minHeight: CardHeights.equipmentCell)
-            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.textTertiary.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-            )
-        }
-    }
-
-    // MARK: - 보유 장비 그리드
-
-    private var inventoryGrid: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("보유 장비 (\(upHero.state.inventory.count))")
-                .typography(.heading).foregroundStyle(Color.textPrimary)
-            if upHero.state.inventory.isEmpty {
-                Text("보유한 장비가 없어요.\n던전을 탐험하면 얻을 수 있어요.")
-                    .typography(.caption).foregroundStyle(Color.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                    ForEach(upHero.state.inventory) { item in
-                        Button { actionItem = item } label: {
-                            EquipmentSlotCard(item: item, slot: nil, onAction: nil)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - 헬퍼
-
-    private func slotIcon(_ slot: EquipSlot) -> PixelIconName {
-        switch slot {
-        case .weapon:    return .sword
-        case .armor:     return .shield
-        case .accessory: return .sparkle
-        case .talisman:  return .star
-        }
-    }
-
-    private func slotName(_ slot: EquipSlot) -> String {
-        switch slot {
-        case .weapon:    return AppConfig.loc("무기")
-        case .armor:     return AppConfig.loc("방어구")
-        case .accessory: return AppConfig.loc("장신구")
-        case .talisman:  return AppConfig.loc("부적")
-        }
-    }
-}
-
-// MARK: - 슬롯 카드 (rarity glow + stats summary)
-
-struct EquipmentSlotCard: View {
-    let item: Equipment
-    let slot: EquipSlot?
-    let onAction: (() -> Void)?
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            VStack(spacing: 6) {
-                HStack(spacing: 4) {
-                    Text(item.rarity.displayName)
-                        .typography(.micro)
-                        .foregroundStyle(Color.bgPrimary)
-                        .padding(.horizontal, 5).padding(.vertical, 1)
-                        .background(item.rarity.color, in: Capsule())
-                    if let lvl = item.enhanceLevel, lvl > 0 {
-                        Text("+\(lvl)")
-                            .typography(.micro).monospacedDigit()
-                            .foregroundStyle(Color.accentPrimary)
-                    }
-                    Spacer(minLength: 0)
-                }
-                PixelIcon(PixelIconName.resolve(item.iconName), size: 28, color: item.rarity.color)
-                Text(item.localizedDisplayName)
-                    .typography(.micro)
-                    .foregroundStyle(Color.textPrimary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                Text(statSummary(item.stats))
-                    .typography(.micro)
-                    .foregroundStyle(Color.textTertiary)
-                    .lineLimit(1)
-            }
-            .padding(8)
-            // 그룹 등고(패턴 A) — 이름 2줄·강화 배지 유무로 갈리던 셀 높이를 행 단위로 통일.
-            // 빈 슬롯 카드(EquipmentInventoryView.slotCard)와 같은 바닥값이라 2×2 행이 맞는다.
-            .unCardCell(minHeight: CardHeights.equipmentCell)
-            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(item.rarity.color.opacity(rarityBorderAlpha),
-                            lineWidth: item.rarity == .legend ? 2 : 1)
-            )
-            .shadow(color: item.rarity.color.opacity(rarityGlowAlpha),
-                    radius: rarityGlowRadius)
-
-            // 해제 버튼 (장착 슬롯 카드일 때만)
-            if let onAction {
-                Button(action: onAction) {
-                    Text("해제")
-                        .typography(.micro)
-                        .foregroundStyle(Color.textTertiary)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Color.bgElevated, in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity, alignment: .topTrailing)
-                .padding(6)
-            }
-        }
-    }
-
-    private var rarityBorderAlpha: Double {
-        switch item.rarity {
-        case .normal: return 0.15
-        case .rare:   return 0.4
-        case .unique: return 0.5
-        case .legend: return 0.7
-        }
-    }
-
-    private var rarityGlowAlpha: Double {
-        switch item.rarity {
-        case .normal: return 0
-        case .rare:   return 0.28
-        case .unique: return 0.32
-        case .legend: return 0.42
-        }
-    }
-
-    private var rarityGlowRadius: CGFloat {
-        switch item.rarity {
-        case .normal: return 0
-        case .rare:   return 8
-        case .unique: return 10
-        case .legend: return 14
-        }
-    }
-
-    private func statSummary(_ stats: [StatKey: Int]) -> String {
-        let parts = StatKey.allCases.compactMap { key -> String? in
-            guard let v = stats[key], v != 0 else { return nil }
-            return "\(key.label)\(v > 0 ? "+" : "")\(v)"
-        }
-        return parts.isEmpty ? AppConfig.loc("효과 없음") : parts.joined(separator: " ")
     }
 }

@@ -16,6 +16,9 @@
 //   - 인코드는 setDoc(merge) 중첩 맵 병합 누수를 막는다: hero.equipped 의 빈 슬롯은
 //     명시적 null, shopDaily.coinPouchClaimed 는 기본 false, classType 해제는 명시적
 //     null (키를 빼면 클라우드에 남은 예전 값이 되살아난다 — 웹 encodeUpHeroForCloud).
+//   - 격자 가방 좌표(bagX/bagY/bagRot)는 디코드 시점에 정규화 계약을 적용한다
+//     (웹 upHeroBag.normalizeEquipmentPlacement 와 같은 규칙). 무효 좌표를 도메인으로
+//     흘리면 보드가 겹쳐 그려지고, 키를 통째로 빼먹으면 왕복마다 배치가 지워진다.
 //   - 흔적(footprint) 판정: 업로드/복원 게이트 둘 다 "키 존재" 가 아니라 흔적으로.
 //     initialize 가 새 기기에서 즉시 persist 하는 빈 저장본 때문에 키 존재 판정이면
 //     클라우드 영웅이 빈 값으로 덮인다 (웹 커밋 9c2bf93 에서 실측된 회귀).
@@ -47,10 +50,13 @@ private func lossyStrings<K: CodingKey>(
 }
 
 /// 관용 숫자 디코드 — 정수/실수 모두 허용 (웹 asFinite). 도메인이 Int 라 내림.
+/// 크기 가드가 필요한 이유: `Int(1e300)` 은 Swift 에서 트랩(크래시)이라, 손상된 클라우드
+/// 문서 하나가 앱을 죽인다. 웹은 같은 값을 그대로 두지만 iOS 는 Int 도메인이라 버린다.
 private func lenientInt<K: CodingKey>(
     _ c: KeyedDecodingContainer<K>, _ key: K
 ) -> Int? {
     guard let d = try? c.decode(Double.self, forKey: key), d.isFinite else { return nil }
+    guard abs(d) < 9.0e15 else { return nil }
     return Int(d.rounded(.down))
 }
 
@@ -449,6 +455,8 @@ private struct CloudEquipment: Codable {
         case id, name, baseId, type, rarity, category, iconName, stats
         case effects, flavor, photoId, enhanceLevel, enhanceFailStreak
         case affix, affixes, talismanSkills
+        // 격자 가방 좌표 — 웹 정본과 같은 철자. 여기 빠지면 왕복마다 배치가 지워진다.
+        case bagX, bagY, bagRot
     }
 
     init(equipment: Equipment) { self.equipment = equipment }
@@ -461,6 +469,20 @@ private struct CloudEquipment: Codable {
             throw DecodingError.dataCorrupted(DecodingError.Context(
                 codingPath: decoder.codingPath,
                 debugDescription: "equipment 필수 필드(id/type) 손상"))
+        }
+        // 격자 가방 좌표 — 웹 `normalizeEquipmentPlacement` 와 같은 정규화 계약을 와이어에서
+        // 바로 적용한다. 여기서 걸러야 도메인·UI 가 좌표를 무조건 신뢰할 수 있다.
+        //   유한수면 내림 → bagX 는 0..<cols, bagY 는 0..<rowsMax 여야 유효,
+        //   bagRot 은 0...3 이 아니면 0, bagX·bagY 중 하나라도 무효면 셋 다 버린다.
+        var bagX = lenientInt(c, .bagX)
+        var bagY = lenientInt(c, .bagY)
+        var bagRot: Int?
+        if let x = bagX, let y = bagY,
+           x >= 0, x < UpHeroBag.cols, y >= 0, y < UpHeroBag.rowsMax {
+            bagRot = UpHeroBag.normalizeRot(lenientInt(c, .bagRot))
+        } else {
+            bagX = nil
+            bagY = nil
         }
         var affixes: [StatKey]? = nil
         if c.contains(.affixes) {
@@ -484,7 +506,10 @@ private struct CloudEquipment: Codable {
             affix: try? c.decode(StatKey.self, forKey: .affix),
             affixes: affixes,
             talismanSkills: c.contains(.talismanSkills)
-                ? (lossyStrings(c, .talismanSkills) ?? []) : nil
+                ? (lossyStrings(c, .talismanSkills) ?? []) : nil,
+            bagX: bagX,
+            bagY: bagY,
+            bagRot: bagRot
         )
     }
 
@@ -509,6 +534,10 @@ private struct CloudEquipment: Codable {
         try c.encodeIfPresent(e.affix, forKey: .affix)
         try c.encodeIfPresent(e.affixes, forKey: .affixes)
         try c.encodeIfPresent(e.talismanSkills, forKey: .talismanSkills)
+        // 미배치는 세 키를 함께 생략한다 — 웹의 "키 삭제" 와 바이트 동일한 와이어.
+        try c.encodeIfPresent(e.bagX, forKey: .bagX)
+        try c.encodeIfPresent(e.bagY, forKey: .bagY)
+        try c.encodeIfPresent(e.bagRot, forKey: .bagRot)
     }
 }
 

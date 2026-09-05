@@ -1,0 +1,115 @@
+//
+//  BagActionBar.swift
+//  UpNext — Up Hero 가방 액션바 (웹 components/uphero/BagActionBar.tsx 1:1 미러).
+//
+//  **항상** 마운트된다(56pt). 선택 여부에 따라 나타났다 사라지면 그 위의 보드가 매번
+//  리사이즈되어 셀 크기가 출렁이는데, 격자에서 그건 "아이템이 움직였다" 로 읽힌다.
+//  그래서 비어 있을 땐 힌트 한 줄이 그 자리를 지킨다.
+//
+//  계층: 라임(GBPalette.lightest)은 화면에서 **하나**뿐인 활성 요소다. 여기서는 지금
+//  해야 할 행동(배치 또는 해제) 하나만 라임이고 나머지는 배경 단계로만 구분한다.
+//
+
+import SwiftUI
+
+struct BagActionBar: View {
+    /// 선택된 가방 아이템 (없으면 nil).
+    let item: Equipment?
+    /// 앵커를 눌러 고른 착용 슬롯.
+    let wornSlot: EquipSlot?
+    /// 빈 칸 탭을 기다리는 중인가.
+    let placing: Bool
+    /// 정리 대기 개수 — 0 보다 크면 유휴 힌트가 "가방이 꽉 찼어요" 로 바뀐다.
+    let trayCount: Int
+    /// 회전이 의미 있는 타입인가 (v1: 무기만).
+    let rotatable: Bool
+    let onAction: (BagItemAction) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                if let wornSlot {
+                    Text(slotName(wornSlot))
+                        .typography(.micro)
+                        .foregroundStyle(GBPalette.light)
+                        .lineLimit(1)
+                        .frame(maxWidth: 84)
+                    action(AppConfig.loc("해제"), primary: true) { onAction(.unequip) }
+                    action(AppConfig.loc("강화")) { onAction(.enhance) }
+                    action(AppConfig.loc("취소"), onTap: onCancel)
+                } else if item != nil, placing {
+                    // 배치 모드: 힌트가 주인공. 회전·취소만 남겨 빈 칸 탭에 집중시킨다 (웹 동일).
+                    Text(hint)
+                        .typography(.caption)
+                        .foregroundStyle(GBPalette.lightest)
+                        .lineLimit(1)
+                    action(AppConfig.loc("회전"), disabled: !rotatable) { onAction(.rotate) }
+                    action(AppConfig.loc("취소"), onTap: onCancel)
+                } else if let item {
+                    action(AppConfig.loc("배치"), primary: true) { onAction(.place) }
+                    action(AppConfig.loc("회전"), disabled: !rotatable) { onAction(.rotate) }
+                    action(AppConfig.loc("장착")) { onAction(.equip) }
+                    action(AppConfig.loc("강화")) { onAction(.enhance) }
+                    action(AppConfig.loc("판매 (+\(UpHeroRules.sellPrice[item.rarity] ?? 0) 코인)")) {
+                        onAction(.sell)
+                    }
+                    action(AppConfig.loc("버리기"), danger: true) { onAction(.discard) }
+                    action(AppConfig.loc("취소"), onTap: onCancel)
+                } else {
+                    Text(hint)
+                        .typography(.caption)
+                        .foregroundStyle(GBPalette.light)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxHeight: .infinity)
+        }
+        .frame(height: CGFloat(UpHeroBag.actionH))
+        .frame(maxWidth: .infinity)
+        .background(GBPalette.dark.opacity(0.2))
+        .overlay(alignment: .top) { Rectangle().fill(GBPalette.dark).frame(height: 1) }
+        // children: .contain — 버튼들이 각자의 요소로 남아야 액션바 안에서 찾을 수 있다.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("bagActionBar")
+        .accessibilityLabel(AppConfig.loc("가방 액션"))
+    }
+
+    private var hint: String {
+        if placing { return AppConfig.loc("빈 칸을 탭해서 놓으세요") }
+        if trayCount > 0 { return AppConfig.loc("가방이 꽉 찼어요. 판매하거나 정리하세요") }
+        return AppConfig.loc("아이템을 탭해서 선택하세요")
+    }
+
+    /// 액션 버튼 — 보더 없이 배경 단계와 색으로만 위계를 만든다. 44pt 터치 타깃, press 0.97.
+    private func action(
+        _ label: String, primary: Bool = false, danger: Bool = false, disabled: Bool = false,
+        onTap: @escaping () -> Void
+    ) -> some View {
+        Button(action: onTap) {
+            Text(label)
+                .typography(.caption)
+                .foregroundStyle(primary ? GBPalette.darkest
+                                 : (danger ? GBPalette.enemy : GBPalette.light))
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(primary ? GBPalette.lightest : GBPalette.dark.opacity(0.53),
+                            in: RoundedRectangle(cornerRadius: 4))
+                .opacity(disabled ? 0.45 : 1)
+        }
+        .buttonStyle(.unPress)
+        .disabled(disabled)
+    }
+
+    private func slotName(_ slot: EquipSlot) -> String {
+        switch slot {
+        case .weapon:    return AppConfig.loc("무기")
+        case .armor:     return AppConfig.loc("방어구")
+        case .accessory: return AppConfig.loc("장신구")
+        case .talisman:  return AppConfig.loc("부적")
+        }
+    }
+}

@@ -1568,6 +1568,18 @@ final class GameStore: ObservableObject {
             // 캐시된 영웅 이름을 강제 언어 풀의 결정론 이름으로 — 스크린샷 언어 일관성.
             store.upHero.renameHero(UpHeroRules.heroNamePools[forcedLang ?? .ko]?.first ?? "레오")
         }
+        // 격자 가방 검증 — 착용 4 + 가방 8 + 정리 대기 2 를 결정론으로 시드한다.
+        //   UITestSeedCamp 와 조합하면 Lv35(8행), 단독이면 Lv1(5행) 보드가 나온다.
+        //   좌표는 UpHeroBag.packInventory 가 잡으므로 항상 유효하고, 시너지가 보이도록
+        //   부적/장신구를 앵커 옆에 오게 배열 순서를 짠다.
+        if args.contains("UITestSeedGear") {
+            if !args.contains("UITestSeedCamp") {
+                // 단독 실행에서도 아지트 튜토리얼이 보드를 가리지 않게.
+                store.upHero.markCampTutorialSeen()
+                store.upHero.addCoins(2400)
+            }
+            seedGearForUITests(store: store)
+        }
         // 카드매치(미니게임) 검증 — 티켓을 가득 채워 플레이 CTA 를 활성화한다.
         if args.contains("UITestSeedTickets") { p.tickets = GameConstants.minigameTicketCap }
         // 도감 발견 표시 검증 — 실제 전투 기록 경로로 codex 를 시드(몬스터/보스 발견).
@@ -1586,6 +1598,60 @@ final class GameStore: ObservableObject {
         store.retention = r
         store.phase = .ready
         return true
+    }
+
+    /// 격자 가방 UITest 시드 — 착용 4 + 가방 8(고정 좌표) + 정리 대기 2.
+    ///
+    /// 좌표를 손으로 박는 이유: first-fit 에 맡기면 어떤 아이템이 어느 앵커 옆에 붙는지가
+    /// 템플릿 순서에 따라 흔들려 "시너지 커넥터가 보이는" 스크린샷을 보장하지 못한다.
+    /// 여기 배치는 5행 보드(Lv1~9)에서도 전부 유효해 Lv1/Lv35 두 벌 모두 같은 그림이 된다.
+    ///   (1,0) 장신구 → 무기 앵커 (2,0) 직교 인접 = S2 치명 +3
+    ///   (3,0)+(4,0) 무기(가로) → 무기 앵커 인접 + 같은 카테고리 = S1
+    ///   (1,2) 드롭 부적 → 갑옷 앵커 (1,1) 인접 = S3 체력 +3 (+ 같은 카테고리 S1)
+    ///
+    /// 상태 주입은 `adoptCloudState` 경로를 쓴다 — 스토어의 `state` 는 파일 밖에서 쓸 수
+    /// 없고(private(set)), 클라우드 채택이 정규화·팩까지 실제 로드와 같은 계약으로 태운다.
+    /// `heroStartLevel = 1` 로 못 박아 progress.level 이 그대로 영웅 레벨이 되게 한다
+    /// (그래야 UITestSeedCamp 의 Lv35 가 8행 보드를 만든다).
+    private static func seedGearForUITests(store: GameStore) {
+        var rng = Mulberry32(seed: 20_260_905)
+        func make(_ baseId: String, _ rarity: Rarity, enhance: Int? = nil) -> Equipment? {
+            guard let t = EquipmentPool.templates.first(where: { $0.baseId == baseId })
+            else { return nil }
+            var item = EquipmentPool.createEquipmentFromTemplate(
+                t, rarity: rarity, dungeonFloor: 8, rng: &rng)
+            item.enhanceLevel = enhance
+            return item
+        }
+        func at(_ item: Equipment?, _ x: Int, _ y: Int, _ rot: Int = 0) -> Equipment? {
+            item.map { UpHeroBag.withPlacement($0, BagPlacement(x: x, y: y, rot: rot)) }
+        }
+
+        var worn: [EquipSlot: Equipment] = [:]
+        worn[.weapon] = make("memo_pen", .legend, enhance: 4)
+        worn[.armor] = make("silence_robe", .unique)
+        worn[.accessory] = make("endurance_bracer", .rare)
+        worn[.talisman] = make("aroma_charm", .normal)
+
+        let bag: [Equipment] = [
+            at(make("endurance_bracer", .rare), 1, 0),                  // S2 (무기 앵커 옆)
+            at(make("serenity_charm", .unique), 1, 2),                  // S3 + S1 (갑옷 앵커 옆)
+            at(make("memo_pen", .rare, enhance: 2), 3, 0, 1),           // S1 (무기 앵커 옆, 가로)
+            at(make("smile_ring", .normal), 0, 1),
+            at(make("silence_robe", .rare), 0, 3),                      // 2x2
+            at(make("viral_sword", .legend, enhance: UpHeroRules.maxEnhanceLevel), 3, 2),
+            at(make("aroma_charm", .normal), 4, 2),
+            at(make("focus_clock", .unique), 0, 2),
+            // 정리 대기(트레이) — 좌표 없음.
+            make("grain_armor", .normal),
+            make("zen_beads", .rare),
+        ].compactMap { $0 }
+
+        var cloud = CloudUpHeroState(store.upHero.state)
+        cloud.hero.equipped = worn
+        cloud.inventory = bag
+        cloud.heroStartLevel = 1
+        store.upHero.adoptCloudState(cloud)
     }
     #endif
 

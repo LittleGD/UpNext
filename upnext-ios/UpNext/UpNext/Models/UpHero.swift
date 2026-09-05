@@ -226,6 +226,19 @@ struct Equipment: Equatable, Identifiable {
     var affix: StatKey?              // Phase 11a — 2차 affix stat key
     var affixes: [StatKey]?          // Phase 11a — legend 전용 3차 affix
     var talismanSkills: [String]?    // Phase 11b — 사진 부적 passive skill id
+    /// 격자 가방 좌표 (Backpack Hero 스타일). 순수 로직은 `Models/UpHeroBag.swift`, 웹 정본은
+    /// `src/lib/upHeroBag.ts` / `src/types/uphero.ts`.
+    ///   bagX 0..4, bagY 0..7 (row 0 = 십자, 아래로 자람), bagRot 0..3 (v1 은 weapon 만 0/1 이 다름).
+    ///   세 값이 모두 nil 이면 미배치(정리 대기 트레이). 착용 아이템(`hero.equipped`)은 좌표를 갖지
+    ///   않는다 — equipItem 이 지운다. 미배치 전환은 세 값을 **함께** nil 로 만든다(합성 Codable 이
+    ///   nil 을 키 생략으로 인코딩하므로 웹의 "키 삭제" 와 같은 와이어가 된다).
+    ///   클라우드 와이어 키도 같은 철자다 (`UpHeroCloudSchema.CloudEquipment.K`). 화이트리스트라
+    ///   한쪽만 빠지면 왕복에서 좌표가 통째로 지워지므로 웹과 함께 배포해야 한다.
+    ///   구조체 **맨 끝**에 두는 이유: `scripts/equiv/*.swift` 의 위치 기반 이니셜라이저가
+    ///   기본값 있는 후행 인자를 그대로 생략할 수 있어 동치성 검증기가 무변경으로 컴파일된다.
+    var bagX: Int?
+    var bagY: Int?
+    var bagRot: Int?
 }
 
 // MARK: - 몬스터 / 던전
