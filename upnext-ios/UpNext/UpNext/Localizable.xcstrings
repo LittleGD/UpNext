@@ -1494,6 +1494,29 @@
         }
       }
     },
+    "%lld행 → %lld행 · 가방칸 +%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld rows → %lld rows · +%lld slots"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld行 → %lld行 · かばんマス +%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld行 → %lld行 · 背包格 +%lld"
+          }
+        }
+      }
+    },
     "'%@' 을(를) 완료로 표시할까요?": {
       "localizations": {
         "en": {
@@ -27033,6 +27056,75 @@
         }
       }
     },
+    "가방 확장": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bag expansion"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばん拡張"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包扩容"
+          }
+        }
+      }
+    },
+    "가방이 %lld행으로 커졌어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bag grew to %lld rows"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばんが%lld行に広がりました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包扩大到%lld行了"
+          }
+        }
+      }
+    },
+    "가방이 꽉 찼어요. 판매하거나 상점에서 가방을 늘리세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bag is full. Sell items or expand it in the shop"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばんがいっぱいです。売るかショップで拡張してください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包满了。请出售或在商店扩容"
+          }
+        }
+      }
+    },
     "가방이 꽉 찼어요. 판매하거나 정리하세요": {
       "extractionState": "manual",
       "localizations": {
@@ -27052,6 +27144,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "背包满了。请出售或整理"
+          }
+        }
+      }
+    },
+    "가방이 이미 최대 크기예요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bag is already the largest size."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばんはすでに最大サイズです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包已经是最大尺寸了"
           }
         }
       }
@@ -50560,6 +50675,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "最高配对"
+          }
+        }
+      }
+    },
+    "최대 크기 (8행)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Largest size (8 rows)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大サイズ (8行)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已是最大尺寸 (8行)"
           }
         }
       }

@@ -650,6 +650,14 @@ struct UpHeroState: Equatable {
     /// 키를 항상 싣는다: 보상 뒤 0 리셋이 merge 에서 빠지면 옛 스트릭이 되살아나
     /// 받을 자격이 없는 pity 가 발동한다. 웹 `UpHeroState.slotBlankStreak`.
     var slotBlankStreak: Int? = nil
+    /// 격자 가방에서 **상점으로 산 행 수** (0..`UpHeroBag.rowsBuyable`). 보드 행 수는
+    /// `UpHeroBag.bagRows(rowsBought:)` = 4 + 이 값이다 — 레벨과 무관하고 상점
+    /// `purchaseBagRow` 만 올린다. nil = 0 (행을 사기 전 저장본·구 저장본).
+    /// 판독은 언제나 `UpHeroBag.normalizeBagRowsBought` 를 거친다 — 손상된 값이 그대로
+    /// 보드 크기가 되면 배치가 통째로 suspended 된다. 와이어 키도 같은 `bagRowsBought`,
+    /// 0 이어도 항상 싣는다: merge 에서 키가 빠지면 클라우드의 옛 값이 되살아나
+    /// 코인으로 산 행이 기기를 옮길 때마다 흔들린다. 웹 `UpHeroState.bagRowsBought`.
+    var bagRowsBought: Int? = nil
     var lastIdleAccrualAt: Int
     var lastSeenAt: Int?              // Phase 14 — 시계 되감기 탐지용
     var heroStartLevel: Int?          // Phase 9d — 영웅 시작 시점 챌린지 레벨

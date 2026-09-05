@@ -42,6 +42,7 @@ struct ShopView: View {
                         coinPouchSection
                         expeditionPassSection
                         downGuardItem
+                        bagRowItem
                         shopItem(name: AppConfig.loc("작은 카드팩"), desc: AppConfig.loc("새 카드 1장"),
                                  price: ShopPrices.cardPackSmall) {
                             store.buyCardPack(full: false)
@@ -282,6 +283,46 @@ struct ShopView: View {
         }
     }
 
+    // MARK: - 가방 확장 (행 1줄 = 가방칸 +5)
+
+    /// 가방은 레벨로 커지지 않고 **여기서만** 커진다(사용자 결정 2026-09-05). 그래서
+    /// 다음 가격과 지금 크기를 한 줄에 함께 보여줘야 "얼마를 모으면 얼마나 넓어지는지"
+    /// 판단이 선다. 최대(8행)면 가격 자리를 없애고 상태만 남긴다 — 살 수 없는 값을
+    /// 회색으로 띄워 두는 것보다 정직하다.
+    private var bagRowItem: some View {
+        let rows = upHero.currentBagRows()
+        let price = UpHeroBag.bagRowPrice(rowsBought: upHero.state.bagRowsBought)
+        return shopItem(
+            name: AppConfig.loc("가방 확장"),
+            desc: price == nil
+                ? AppConfig.loc("최대 크기 (8행)")
+                : AppConfig.loc("\(rows)행 → \(rows + 1)행 · 가방칸 +\(UpHeroBag.cols)"),
+            price: price,
+            // 전용 가방 아이콘이 없어 "넓힌다" 를 그대로 읽히는 plus 를 쓴다
+            // (shoppingBag 은 상점 자체를 가리키는 CTA 아이콘이라 여기서 중복된다).
+            icon: .plus
+        ) {
+            buyBagRow()
+        }
+    }
+
+    private func buyBagRow() {
+        switch upHero.purchaseBagRow() {
+        case .ok:
+            Haptics.play(.success)
+            SoundPlayer.shared.play(.collect)
+            showToast(AppConfig.loc("가방이 \(upHero.currentBagRows())행으로 커졌어요"))
+        case .noCoin:
+            Haptics.play(.warning)
+            SoundPlayer.shared.play(.cancel)
+            showToast(AppConfig.loc("코인이 부족해요"))
+        case .atCap:
+            Haptics.play(.warning)
+            SoundPlayer.shared.play(.cancel)
+            showToast(AppConfig.loc("가방이 이미 최대 크기예요"))
+        }
+    }
+
     // MARK: - 토스트 (PhotoTalismanPicker.swift 패턴 재사용)
 
     private func toastView(_ msg: String) -> some View {
@@ -301,11 +342,13 @@ struct ShopView: View {
 
     // MARK: - 상점 항목 (기존 카드팩 — 슬라이스 25)
 
-    private func shopItem(name: String, desc: String, price: Int,
+    /// price 가 nil = 더 살 수 없는 품목(가방 최대 크기). 가격 캡슐 자리에 "MAX" 를
+    /// 두어 "0 코인" 이나 회색 가격 같은 거짓 정보를 만들지 않는다.
+    private func shopItem(name: String, desc: String, price: Int?,
                           icon: PixelIconName = .gift,
                           soldOut: Bool = false,
                           buy: @escaping () -> Void) -> some View {
-        let affordable = upHero.state.coins >= price && !soldOut
+        let affordable = (price.map { upHero.state.coins >= $0 } ?? false) && !soldOut
         return HStack(spacing: 12) {
             PixelIcon(icon, size: 20, color: Color.accentPrimary)
                 .frame(width: 28)
@@ -320,12 +363,18 @@ struct ShopView: View {
             Spacer(minLength: 0)
             Button(action: buy) {
                 HStack(spacing: 4) {
-                    PixelIcon(.coins, size: 12,
-                              color: affordable ? Color.bgPrimary : Color.textTertiary)
-                    Text("\(price)")
-                        .typography(.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(affordable ? Color.bgPrimary : Color.textTertiary)
+                    if let price {
+                        PixelIcon(.coins, size: 12,
+                                  color: affordable ? Color.bgPrimary : Color.textTertiary)
+                        Text("\(price)")
+                            .typography(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(affordable ? Color.bgPrimary : Color.textTertiary)
+                    } else {
+                        Text(verbatim: "MAX")
+                            .typography(.caption)
+                            .foregroundStyle(Color.textTertiary)
+                    }
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)

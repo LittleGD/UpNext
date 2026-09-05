@@ -48,20 +48,37 @@ final class UpHeroBagTests: XCTestCase {
 
     // MARK: - 보드 크기
 
-    /// 행 수 = clamp(5 + floor(level/10), 5, 8).
-    func testBagRowsMatchesLevelBands() {
-        XCTAssertEqual(UpHeroBag.bagRows(1), 5)
-        XCTAssertEqual(UpHeroBag.bagRows(9), 5)
-        XCTAssertEqual(UpHeroBag.bagRows(10), 6)
-        XCTAssertEqual(UpHeroBag.bagRows(19), 6)
-        XCTAssertEqual(UpHeroBag.bagRows(20), 7)
-        XCTAssertEqual(UpHeroBag.bagRows(30), 8)
-        XCTAssertEqual(UpHeroBag.bagRows(99), 8, "상한 8 을 넘지 않는다")
-        XCTAssertEqual(UpHeroBag.bagRows(0), 5, "레벨 0/음수는 1 로 접는다")
-        XCTAssertEqual(UpHeroBag.bagRows(-5), 5)
+    /// 행 수 = 4 + 상점에서 산 행 수. 레벨은 근거가 아니다 (2026-09-05 결정).
+    func testBagRowsComeFromPurchasedRowsOnly() {
+        XCTAssertEqual(UpHeroBag.bagRows(rowsBought: nil), 4, "행을 사기 전 저장본은 시작 크기")
+        XCTAssertEqual(UpHeroBag.bagRows(rowsBought: 0), 4)
+        XCTAssertEqual(UpHeroBag.bagRows(rowsBought: 1), 5)
+        XCTAssertEqual(UpHeroBag.bagRows(rowsBought: 4), 8)
+        XCTAssertEqual(UpHeroBag.bagRows(rowsBought: 5), 8, "상한 8 을 넘지 않는다")
+        XCTAssertEqual(UpHeroBag.bagRows(rowsBought: -1), 4, "음수는 0 으로 접는다")
+    }
+
+    /// 가격은 "다음 행" 값이다 — index = 이미 산 행 수. 다 사면 nil(더 살 게 없다).
+    func testBagRowPriceEscalatesThenStops() {
+        XCTAssertEqual(UpHeroBag.bagRowPrice(rowsBought: nil), 200)
+        XCTAssertEqual(UpHeroBag.bagRowPrice(rowsBought: 0), 200)
+        XCTAssertEqual(UpHeroBag.bagRowPrice(rowsBought: 1), 400)
+        XCTAssertEqual(UpHeroBag.bagRowPrice(rowsBought: 2), 800)
+        XCTAssertEqual(UpHeroBag.bagRowPrice(rowsBought: 3), 1500)
+        XCTAssertNil(UpHeroBag.bagRowPrice(rowsBought: 4), "최대 크기면 가격이 없다")
+        XCTAssertNil(UpHeroBag.bagRowPrice(rowsBought: 9), "손상된 값도 상한으로 접힌다")
+    }
+
+    /// 판독 규칙 — 유한/내림/클램프. 보드 크기의 유일한 입구다.
+    func testNormalizeBagRowsBoughtClamps() {
+        XCTAssertEqual(UpHeroBag.normalizeBagRowsBought(nil), 0)
+        XCTAssertEqual(UpHeroBag.normalizeBagRowsBought(2), 2)
+        XCTAssertEqual(UpHeroBag.normalizeBagRowsBought(-3), 0)
+        XCTAssertEqual(UpHeroBag.normalizeBagRowsBought(7), UpHeroBag.rowsBuyable)
     }
 
     func testBagCellCountExcludesCross() {
+        XCTAssertEqual(UpHeroBag.bagCellCount(rows: 4), 15, "시작 4행 = 20칸 − 십자 5칸")
         XCTAssertEqual(UpHeroBag.bagCellCount(rows: 5), 20)
         XCTAssertEqual(UpHeroBag.bagCellCount(rows: 6), 25)
         XCTAssertEqual(UpHeroBag.bagCellCount(rows: 7), 30)

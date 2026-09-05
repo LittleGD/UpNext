@@ -109,8 +109,12 @@ enum UpHeroBag {
     // MARK: 상수
 
     static let cols = 5
-    static let rowsMin = 5
+    static let rowsMin = 4   // 시작 4행(가방칸 15). 상점 구매로만 는다
     static let rowsMax = 8
+    /// 상점에서 살 수 있는 행 수 (4 → 8).
+    static let rowsBuyable = rowsMax - rowsMin
+    /// 가방 확장 가격표 — index = 산 행 수(0..3), 값 = 다음 행 가격. 웹 BAG_ROW_PRICES 와 동일.
+    static let rowPrices: [Int] = [200, 400, 800, 1500]
     /// 셀 사이 간격(px/pt). 웹·iOS 공통.
     static let gap = 4
     static let cellMin = 44
@@ -141,11 +145,22 @@ enum UpHeroBag {
 
     // MARK: 보드 크기
 
-    /// 행 수 = clamp(5 + floor(level/10), 5, 8). Lv1~9: 5, Lv10~19: 6, Lv20~29: 7, Lv30+: 8.
-    static func bagRows(_ heroLevel: Int) -> Int {
-        let lv = max(1, heroLevel)
-        let rows = rowsMin + lv / 10
-        return min(rowsMax, max(rowsMin, rows))
+    /// 산 행 수 정규화: [0, rowsBuyable] 로 접는다 (웹 normalizeBagRowsBought 1:1).
+    static func normalizeBagRowsBought(_ v: Int?) -> Int {
+        guard let v else { return 0 }
+        return min(rowsBuyable, max(0, v))
+    }
+
+    /// 행 수 = rowsMin + 산 행 수. 레벨과 무관 — 가방은 상점에서만 커진다 (웹 bagRows 1:1).
+    ///   0장: 4행(가방칸 15) · 1장: 5행(20) · 2장: 6행(25) · 3장: 7행(30) · 4장: 8행(35)
+    static func bagRows(rowsBought: Int?) -> Int {
+        rowsMin + normalizeBagRowsBought(rowsBought)
+    }
+
+    /// 다음 행의 가격. 다 샀으면 nil (웹 bagRowPrice 1:1).
+    static func bagRowPrice(rowsBought: Int?) -> Int? {
+        let n = normalizeBagRowsBought(rowsBought)
+        return n >= rowsBuyable ? nil : rowPrices[n]
     }
 
     /// 가방칸 수 = 전체 - 십자 5칸.

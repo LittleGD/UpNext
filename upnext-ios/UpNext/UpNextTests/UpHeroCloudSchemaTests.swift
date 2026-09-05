@@ -101,6 +101,7 @@ final class UpHeroCloudSchemaTests: XCTestCase {
       "downGuards": 1,
       "combatBuff": { "pct": 10, "battlesLeft": 3 },
       "slotBlankStreak": 2,
+      "bagRowsBought": 2,
       "lastIdleAccrualAt": 1756400000000,
       "ngPlusLevel": 1,
       "hasSeenCampTutorial": true,
@@ -172,6 +173,7 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         XCTAssertEqual(decoded.downGuards, 1)
         XCTAssertEqual(decoded.combatBuff.buff, CombatBuff(pct: 10, battlesLeft: 3))
         XCTAssertEqual(decoded.slotBlankStreak, 2)
+        XCTAssertEqual(decoded.bagRowsBought, 2, "상점에서 산 가방 행")
         XCTAssertTrue(decoded.hasFootprint)
     }
 
@@ -219,6 +221,49 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         let onlyStreak = try JSONDecoder().decode(
             CloudUpHeroState.self, from: Data(#"{"slotBlankStreak":4}"#.utf8))
         XCTAssertFalse(onlyStreak.hasFootprint, "스트릭만으로는 플레이 흔적이 아니다")
+    }
+
+    // MARK: - 상점 가방 행 (와이어 키 "bagRowsBought")
+    //
+    // 웹 `normalizeBagRowsBought`: 부재·비숫자 → 0, 소수 내림, 정수 [0, 4].
+    // 0 이어도 키를 항상 싣는다 — 키가 빠지면 merge 가 클라우드의 옛 값을 되살려
+    // 코인으로 산 행이 기기를 옮길 때마다 흔들린다.
+
+    private func decodeBagRows(_ json: String) throws -> Int {
+        try JSONDecoder()
+            .decode(CloudUpHeroState.self, from: Data(json.utf8))
+            .bagRowsBought
+    }
+
+    func testBagRowsBoughtLenientDecodeMatchesWeb() throws {
+        XCTAssertEqual(try decodeBagRows("{}"), 0)                              // 레거시(키 없음)
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":3}"#), 3)
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":2.9}"#), 2)         // 내림
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":7}"#), 4)           // 상한
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":-1}"#), 0)          // 음수 → 0
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":"2"}"#), 0)         // 문자열은 값이 아니다
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":null}"#), 0)
+    }
+
+    func testBagRowsBoughtAlwaysEncodedEvenWhenZero() throws {
+        let empty = try JSONDecoder().decode(CloudUpHeroState.self, from: Data("{}".utf8))
+        let payload = try XCTUnwrap(empty.firestoreValue())
+        XCTAssertEqual(payload["bagRowsBought"] as? Int, 0, "0 이어도 키를 실어야 한다")
+    }
+
+    /// 상태 → 클라우드 → 상태 왕복에서 값이 살아남고, 산 행 자체가 플레이 흔적이다
+    /// (코인 200 을 써야 생기는 값이라 "빈 계정" 으로 덮이면 안 된다).
+    func testBagRowsBoughtRoundTripsThroughCloudWire() throws {
+        var state = UpHeroStore.makeDefaultState()
+        state.bagRowsBought = 3
+        let payload = try XCTUnwrap(CloudUpHeroState(state).firestoreValue())
+        XCTAssertEqual(payload["bagRowsBought"] as? Int, 3, "와이어 키가 빠졌다")
+
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let back = try JSONDecoder().decode(CloudUpHeroState.self, from: data)
+        XCTAssertEqual(back.bagRowsBought, 3)
+        XCTAssertEqual(back.toState().bagRowsBought, 3)
+        XCTAssertTrue(back.hasFootprint, "코인으로 산 행은 플레이 흔적이다")
     }
 
     // MARK: - 굴림틀 전투 버프 (와이어 키 "combatBuff")

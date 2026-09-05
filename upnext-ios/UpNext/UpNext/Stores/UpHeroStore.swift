@@ -47,13 +47,6 @@ final class UpHeroStore: ObservableObject {
     /// **비영속**이라 저장 파일에도 클라우드에도 나가지 않는다 (pendingDungeon 과 같은 성격).
     @Published var isBagOpen = false
 
-    /// 마지막으로 확인한 챌린지 레벨. 격자 가방의 행 수는 영웅 유효 레벨에서 나오는데,
-    /// 그 레벨의 진실의 원천은 GameStore.progress 라 스토어가 소유하지 않는다.
-    /// gameLevel 을 받는 액션(initialize / confirmDungeon / acknowledgeSessionEnd)이
-    /// 지날 때마다 여기 적어 두어, 레벨을 못 받는 호출부(가방 화면·해제·부적 생성)도
-    /// 실제 보드와 같은 행 수를 쓴다. 비영속 — 앱을 다시 켜면 다음 진입에서 채워진다.
-    private var lastKnownGameLevel: Int?
-
     init() {
         // 디스크에 저장된 상태가 있으면 복원, 없으면(최초 실행) 기본 상태.
         state = Self.loadPersisted() ?? Self.makeDefaultState()
@@ -62,26 +55,12 @@ final class UpHeroStore: ObservableObject {
 
     // MARK: - 격자 가방 (웹 upHeroBag / placeItem / uiBagOpen)
 
-    /// 지금 보드의 행 수. 세션 시작이 쓰는 유효 영웅 레벨(`getEffectiveHeroLevel`)과
-    /// **같은 값**을 근거로 삼는다 — 로드 시점이 아니라 매 호출 시점에 계산해야
-    /// 레벨업 직후에도 보드와 세션 스냅샷이 어긋나지 않는다. 웹 `currentBagRows`.
+    /// 지금 보드의 행 수 = 4 + 상점에서 산 행 수. 웹 `currentBagRows`.
     ///
-    /// 레벨을 전혀 모르면(부팅 직후 로드·클라우드 채택) 최소 행 수로 접는다.
-    /// 작은 보드에 맞춘 배치는 어떤 큰 보드에서도 유효하므로, 모를 때 크게 잡아
-    /// 나중에 보드 밖으로 밀려나는 것보다 안전하다.
-    func currentBagRows(gameLevel: Int? = nil) -> Int {
-        Self.bagRows(
-            gameLevel: gameLevel ?? lastKnownGameLevel,
-            heroStartLevel: state.heroStartLevel)
-    }
-
-    /// `currentBagRows` 의 상태 비의존 판. 클라우드 채택은 아직 커밋되지 않은 스냅샷의
-    /// heroStartLevel 로 판정해야 해서 인스턴스 상태에 묶을 수 없다.
-    static func bagRows(gameLevel: Int?, heroStartLevel: Int?) -> Int {
-        guard let gameLevel else { return UpHeroBag.rowsMin }
-        return UpHeroBag.bagRows(
-            UpHeroRules.getEffectiveHeroLevel(
-                gameLevel: gameLevel, heroStartLevel: heroStartLevel))
+    /// 레벨은 더 이상 근거가 아니다 — 가방은 상점 구매로만 커진다(사용자 결정 2026-09-05).
+    /// 그래서 레벨을 모르는 호출부(가방 화면·해제·부적 생성)도 같은 값을 얻는다.
+    func currentBagRows() -> Int {
+        UpHeroBag.bagRows(rowsBought: state.bagRowsBought)
     }
 
     /// 가방 화면 열림/닫힘 신호. 값이 같으면 no-op — 매 프레임 set 이 들어와도
@@ -103,11 +82,9 @@ final class UpHeroStore: ObservableObject {
     /// 격자 가방에 아이템을 놓는다 (원점 x,y + 회전 rot).
     /// 실패하면 상태를 전혀 건드리지 않는다 — UI 는 스냅백만 하면 된다.
     /// 판정은 `UpHeroBag.checkPlacement` 하나만 쓴다 (드래그 고스트 미리보기도 같은 함수).
-    /// gameLevel 을 넘기면 그 레벨의 보드로 판정한다 — 화면이 8행을 그리는데 판정만
-    /// 5행이면 아래 행 드롭이 전부 거절되므로, 보드를 그리는 쪽은 반드시 넘길 것.
     @discardableResult
-    func placeItem(itemId: String, x: Int, y: Int, rot: Int, gameLevel: Int? = nil) -> PlaceResult {
-        let rows = currentBagRows(gameLevel: gameLevel)
+    func placeItem(itemId: String, x: Int, y: Int, rot: Int) -> PlaceResult {
+        let rows = currentBagRows()
         // 판정 기준은 정규화된 레이아웃이다 — 손상 좌표가 남아 있으면 "빈 칸인데 겹침"
         // 같은 거짓 거절이 난다. 자기 자신의 현재 칸은 무시한다(제자리 회전).
         let normalized = UpHeroBag.normalizeBagLayout(state.inventory, rows: rows)
@@ -154,8 +131,6 @@ final class UpHeroStore: ObservableObject {
     /// 지급할 양을 반환 — 호출부(GameStore.enterUpHero)가 progress 에 반영한다.
     /// 웹 useUpHeroStore.initialize() 대응. 이미 로드됐으면 0 (1회성).
     func initialize(gameLevel: Int) -> Int {
-        // 가방 행 수 계산용 — isLoaded 여도 갱신한다 (진입할 때마다 최신 레벨).
-        lastKnownGameLevel = gameLevel
         guard !state.isLoaded else { return 0 }
 
         var s = state
@@ -270,9 +245,8 @@ final class UpHeroStore: ObservableObject {
     }
 
     /// 슬롯의 장비를 해제해 인벤토리로 되돌린다. 웹 unequipItem.
-    /// gameLevel 은 보드 행 수 판정용 — 넘기지 않으면 마지막으로 확인한 레벨을 쓴다.
-    func unequipItem(_ slot: EquipSlot, gameLevel: Int? = nil) {
-        let rows = currentBagRows(gameLevel: gameLevel)
+    func unequipItem(_ slot: EquipSlot) {
+        let rows = currentBagRows()
         mutate { s in
             guard let item = s.hero.equipped[slot] else { return }
             s.hero.equipped[slot] = nil
@@ -350,14 +324,13 @@ final class UpHeroStore: ObservableObject {
             .map(CardBuffs.getCardBuff)
 
         // 영웅 레벨 성장 반영 + 시작 층 (재진입 체크포인트 +1)
-        lastKnownGameLevel = gameLevel   // 가방 행 수 판정 근거 갱신
         let heroLevel = UpHeroRules.getEffectiveHeroLevel(
             gameLevel: gameLevel, heroStartLevel: state.heroStartLevel)
         // 가방 시너지는 세션 스냅샷에 1회 접힌다 (전투 중 재배치 무효).
         let leveledHero = UpHeroBag.applyBagSynergy(
             UpHeroRules.computeHeroForLevel(state.hero, level: heroLevel),
             inventory: state.inventory,
-            rows: UpHeroBag.bagRows(heroLevel))
+            rows: currentBagRows())
         let startFloor = (state.dungeons[dungeonId]?.floorReached ?? 0) + 1
 
         var rng = SystemRandom()
@@ -395,7 +368,6 @@ final class UpHeroStore: ObservableObject {
     func acknowledgeSessionEnd(gameLevel: Int? = nil) -> Int {
         guard let session = state.currentSession,
               session.status == .completed else { return 0 }
-        if let gameLevel { lastKnownGameLevel = gameLevel }   // 가방 행 수 판정 근거 갱신
         var rng = SystemRandom()
 
         // 보상 계산 — sessionReward.ts 의 순수 helper (state-in → 값-out).
@@ -443,7 +415,7 @@ final class UpHeroStore: ObservableObject {
 
         // 드롭을 격자 가방에 넣고, 정리 대기 트레이가 넘치면 초과분을 자동 판매한다.
         //   결과 모달의 미리보기도 같은 순수 함수를 써야 화면과 실제가 어긋나지 않는다.
-        let bagRowsForSettle = currentBagRows(gameLevel: gameLevel)
+        let bagRowsForSettle = currentBagRows()
 
         mutate { s in
             s.coins += session.rewards.coins
@@ -894,6 +866,25 @@ final class UpHeroStore: ObservableObject {
         return .ok
     }
 
+    /// 가방 행 1줄 구매 — 보드가 5칸 넓어진다. 가격은 산 행 수에 따라 오른다
+    /// (`UpHeroBag.rowPrices` = 200 / 400 / 800 / 1500). 4행 시작, 최대 8행.
+    ///
+    /// 레벨로는 절대 늘지 않는다 — 가방 크기는 오직 이 함수만 올린다(사용자 결정
+    /// 2026-09-05). 그래서 "레벨업했더니 보드가 커져 배치가 흔들린다" 가 구조적으로 없다.
+    /// 상한이면 `.atCap` 이라 UI 가 "코인 부족" 과 다른 문구를 낼 수 있다.
+    /// 웹 `purchaseBagRow` 1:1.
+    @discardableResult
+    func purchaseBagRow() -> PurchaseGuardResult {
+        let bought = UpHeroBag.normalizeBagRowsBought(state.bagRowsBought)
+        guard let price = UpHeroBag.bagRowPrice(rowsBought: bought) else { return .atCap }
+        guard state.coins >= price else { return .noCoin }
+        mutate { s in
+            s.coins -= price
+            s.bagRowsBought = bought + 1
+        }
+        return .ok
+    }
+
     /// 방지권 지급 — 보스 처치 드롭 · 던전 상자 · 슬롯머신이 쓰는 유일한 입구.
     /// 웹 `grantEnhanceGuards`. 음수는 무시하고 상한을 넘는 만큼은 버린다.
     /// - Returns: 실제로 늘어난 개수 (상한에 걸려 일부만 들어갔을 수 있다).
@@ -1126,7 +1117,7 @@ final class UpHeroStore: ObservableObject {
     /// 사진 → 부적 최초 바인딩. 코인(80) 소모 + 랜덤 rarity roll + category 스탯.
     /// 웹 bindPhotoAsTalisman 동치. 사진 메타는 호출부(뷰)가 GrowthStore 에서 주입.
     @discardableResult
-    func bindPhotoAsTalisman(photo: PhotoMeta, gameLevel: Int? = nil) -> PhotoTalismanResult {
+    func bindPhotoAsTalisman(photo: PhotoMeta) -> PhotoTalismanResult {
         guard !PhotoTalisman.isBound(photo.id, inventory: state.inventory,
                                      equipped: state.hero.equipped) else {
             return talismanFail(AppConfig.loc("이미 부적으로 만든 사진이에요"))
@@ -1138,7 +1129,7 @@ final class UpHeroStore: ObservableObject {
         let rarity = PhotoTalisman.rollRarity(&rng)
         let item = PhotoTalisman.build(photo: photo, rarity: rarity)
         // 새 부적도 다른 삽입 지점과 같은 헬퍼로 들어간다 (자리 없으면 트레이).
-        let rows = currentBagRows(gameLevel: gameLevel)
+        let rows = currentBagRows()
         mutate {
             $0.inventory = UpHeroBag.placeIntoBag($0.inventory, item, rows: rows)
             $0.coins -= PhotoTalisman.ritualCost
@@ -1319,6 +1310,7 @@ final class UpHeroStore: ObservableObject {
             cosmetics: Cosmetics(tentColor: nil, campfire: nil),
             destroyGuards: 0,
             downGuards: 0,
+            bagRowsBought: 0,
             lastIdleAccrualAt: now,
             lastSeenAt: now,
             heroStartLevel: nil,        // initialize 에서 seed (슬라이스 16~)

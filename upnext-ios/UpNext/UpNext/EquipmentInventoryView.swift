@@ -83,8 +83,8 @@ struct EquipmentInventoryView: View {
     // MARK: - 파생 상태
 
     private var gameLevel: Int { store.progress?.level ?? 1 }
-    /// 보드 행 수는 렌더 시점에 계산한다 — 레벨업 직후에도 스토어와 어긋나지 않게.
-    private var rows: Int { upHero.currentBagRows(gameLevel: gameLevel) }
+    /// 보드 행 수는 렌더 시점에 계산한다 — 상점에서 행을 사면 즉시 반영되게.
+    private var rows: Int { upHero.currentBagRows() }
     private var heroLevel: Int {
         UpHeroRules.getEffectiveHeroLevel(
             gameLevel: gameLevel, heroStartLevel: upHero.state.heroStartLevel)
@@ -251,13 +251,12 @@ struct EquipmentInventoryView: View {
     }
 
     /// 배치 커밋 — 성공하면 그 자리로, 실패하면 상태를 전혀 건드리지 않는다.
-    /// gameLevel 을 반드시 넘긴다: 화면이 8행을 그리는데 판정만 5행이면 아래 행 드롭이
-    /// 전부 거절된다.
+    /// 판정 행 수는 스토어의 `currentBagRows()` 하나뿐이라 화면과 어긋날 수 없다.
     @discardableResult
     private func commitPlace(
         _ itemId: String, _ x: Int, _ y: Int, _ rot: Int, withSound: Bool
     ) -> Bool {
-        let res = upHero.placeItem(itemId: itemId, x: x, y: y, rot: rot, gameLevel: gameLevel)
+        let res = upHero.placeItem(itemId: itemId, x: x, y: y, rot: rot)
         guard res == .placed else {
             if withSound { SoundPlayer.shared.play(.cancel) }
             showToast(AppConfig.loc("그 자리에는 놓을 수 없어요"))
@@ -275,8 +274,7 @@ struct EquipmentInventoryView: View {
         guard let item = selectedItem, UpHeroBag.canRotate(type: item.type) else { return }
         let next = (placingRot + 1) % 2
         if let p = UpHeroBag.readPlacement(item) {
-            let res = upHero.placeItem(
-                itemId: item.id, x: p.x, y: p.y, rot: next, gameLevel: gameLevel)
+            let res = upHero.placeItem(itemId: item.id, x: p.x, y: p.y, rot: next)
             guard res == .placed else {
                 SoundPlayer.shared.play(.cancel)
                 showToast(AppConfig.loc("그 자리에는 놓을 수 없어요"))
@@ -356,7 +354,7 @@ struct EquipmentInventoryView: View {
             upHero.equipItem(item.id)
             clearSelection()
         case .unequip:
-            upHero.unequipItem(item.type, gameLevel: gameLevel)
+            upHero.unequipItem(item.type)
             clearSelection()
         case .enhance:
             beginEnhance(item)

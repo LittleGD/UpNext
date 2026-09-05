@@ -1604,15 +1604,16 @@ final class GameStore: ObservableObject {
     ///
     /// 좌표를 손으로 박는 이유: first-fit 에 맡기면 어떤 아이템이 어느 앵커 옆에 붙는지가
     /// 템플릿 순서에 따라 흔들려 "시너지 커넥터가 보이는" 스크린샷을 보장하지 못한다.
-    /// 여기 배치는 5행 보드(Lv1~9)에서도 전부 유효해 Lv1/Lv35 두 벌 모두 같은 그림이 된다.
+    /// 여기 배치는 5행 보드에서 전부 유효하다 — 그래서 시드는 상점 행 1개를 사둔
+    /// 것으로 친다(`bagRowsBought = 1`). 8행 스크린샷이 필요하면 `UITestSeedBagMax` 를
+    /// 붙여 최대치(4행 구매 = 8행)로 띄운다 — 레벨은 더 이상 가방 크기와 무관하다.
     ///   (1,0) 장신구 → 무기 앵커 (2,0) 직교 인접 = S2 치명 +3
     ///   (3,0)+(4,0) 무기(가로) → 무기 앵커 인접 + 같은 카테고리 = S1
     ///   (1,2) 드롭 부적 → 갑옷 앵커 (1,1) 인접 = S3 체력 +3 (+ 같은 카테고리 S1)
     ///
     /// 상태 주입은 `adoptCloudState` 경로를 쓴다 — 스토어의 `state` 는 파일 밖에서 쓸 수
     /// 없고(private(set)), 클라우드 채택이 정규화·팩까지 실제 로드와 같은 계약으로 태운다.
-    /// `heroStartLevel = 1` 로 못 박아 progress.level 이 그대로 영웅 레벨이 되게 한다
-    /// (그래야 UITestSeedCamp 의 Lv35 가 8행 보드를 만든다).
+    /// `heroStartLevel = 1` 로 못 박아 progress.level 이 그대로 영웅 레벨이 되게 한다.
     private static func seedGearForUITests(store: GameStore) {
         var rng = Mulberry32(seed: 20_260_905)
         func make(_ baseId: String, _ rarity: Rarity, enhance: Int? = nil) -> Equipment? {
@@ -1651,6 +1652,9 @@ final class GameStore: ObservableObject {
         cloud.hero.equipped = worn
         cloud.inventory = bag
         cloud.heroStartLevel = 1
+        // 시드 배치가 5행을 쓰므로 최소 1행은 사둔 상태로 시작한다.
+        cloud.bagRowsBought = ProcessInfo.processInfo.arguments.contains("UITestSeedBagMax")
+            ? UpHeroBag.rowsBuyable : 1
         store.upHero.adoptCloudState(cloud)
     }
     #endif

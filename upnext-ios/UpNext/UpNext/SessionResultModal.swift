@@ -161,7 +161,7 @@ struct SessionResultModal: View {
                 // 화면 값과 실제 정산이 어긋나지 않는다 (모달은 acknowledge 이전에 뜬다).
                 let autoSold = SessionReward.settleBagAfterSession(
                     inventory: upHero.state.inventory, keptDrops: kept,
-                    rows: upHero.currentBagRows(gameLevel: store.progress?.level))
+                    rows: upHero.currentBagRows())
                 if !autoSold.sold.isEmpty {
                     Text(AppConfig.loc(
                         "정리 대기 초과 \(autoSold.sold.count)개 자동 판매, +\(autoSold.coins) 코인"))

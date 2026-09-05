@@ -40,6 +40,8 @@ struct PersistedUpHeroState: Codable {
     var combatBuff: CombatBuff?
     /// 굴림틀 연속 꽝 스트릭 (nil = 구 저장본 → 0). 탐험을 건너 이어진다 (pity).
     var slotBlankStreak: Int?
+    /// 상점에서 산 가방 행 수 (nil = 구 저장본 → 0). 보드 행 = 4 + 이 값.
+    var bagRowsBought: Int?
     var lastIdleAccrualAt: Int
     var lastSeenAt: Int?
     var heroStartLevel: Int?
@@ -68,6 +70,7 @@ extension PersistedUpHeroState {
         downGuards = s.downGuards
         combatBuff = s.combatBuff?.normalized
         slotBlankStreak = UpHeroSlot.normalizeBlankStreak(s.slotBlankStreak)
+        bagRowsBought = UpHeroBag.normalizeBagRowsBought(s.bagRowsBought)
         lastIdleAccrualAt = s.lastIdleAccrualAt
         lastSeenAt = s.lastSeenAt
         heroStartLevel = s.heroStartLevel
@@ -96,6 +99,7 @@ extension PersistedUpHeroState {
             downGuards: downGuards,
             combatBuff: combatBuff?.normalized,
             slotBlankStreak: UpHeroSlot.normalizeBlankStreak(slotBlankStreak),
+            bagRowsBought: UpHeroBag.normalizeBagRowsBought(bagRowsBought),
             lastIdleAccrualAt: lastIdleAccrualAt,
             lastSeenAt: lastSeenAt,
             heroStartLevel: heroStartLevel,

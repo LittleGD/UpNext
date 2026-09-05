@@ -87,7 +87,8 @@ private func upHeroFootprint(
     coins: Int,
     cosmetics: Cosmetics,
     destroyGuards: Int,
-    downGuards: Int
+    downGuards: Int,
+    bagRowsBought: Int
 ) -> Bool {
     if !inventory.isEmpty { return true }
     if !codex.monsters.isEmpty || !codex.bosses.isEmpty || !codex.equipment.isEmpty { return true }
@@ -100,6 +101,8 @@ private func upHeroFootprint(
     // (웹 hasUpHeroFootprint 의 같은 두 축).
     if destroyGuards > 0 { return true }
     if downGuards > 0 { return true }
+    // 가방 행은 코인 200 부터 시작하는 상점 구매로만 는다 — 한 행이라도 샀으면 플레이 흔적.
+    if bagRowsBought > 0 { return true }
     return false
 }
 
@@ -109,7 +112,8 @@ extension UpHeroState {
         upHeroFootprint(
             inventory: inventory, codex: codex, hasSession: currentSession != nil,
             dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics,
-            destroyGuards: destroyGuards ?? 0, downGuards: downGuards ?? 0)
+            destroyGuards: destroyGuards ?? 0, downGuards: downGuards ?? 0,
+            bagRowsBought: UpHeroBag.normalizeBagRowsBought(bagRowsBought))
     }
 }
 
@@ -136,6 +140,10 @@ struct CloudUpHeroState: Equatable {
     /// 웹 `normalizeSlotBlankStreak` — 부재·손상은 0. 빠뜨리면 화이트리스트 디코드에서
     /// 조용히 탈락해 웹에서 쌓은 스트릭이 iOS 왕복 뒤 0 으로 덮인다.
     var slotBlankStreak: Int
+    /// 상점에서 산 가방 행 수. 와이어 키 "bagRowsBought" (정수 0..4, 0 도 항상 싣는다).
+    /// 웹 `normalizeBagRowsBought` — 부재·손상은 0. 빠뜨리면 화이트리스트 디코드에서
+    /// 조용히 탈락해 코인으로 산 행이 iOS 왕복 뒤 사라진다.
+    var bagRowsBought: Int
     var lastIdleAccrualAt: Int
     var ngPlusLevel: Int
     var hasSeenCampTutorial: Bool
@@ -152,7 +160,8 @@ struct CloudUpHeroState: Equatable {
         upHeroFootprint(
             inventory: inventory, codex: codex, hasSession: false,
             dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics,
-            destroyGuards: destroyGuards, downGuards: downGuards)
+            destroyGuards: destroyGuards, downGuards: downGuards,
+            bagRowsBought: bagRowsBought)
     }
 
     /// 살아있는 로컬 상태 → 클라우드 페이로드 (웹 normalizeUpHeroState 의 클램프 재현).
@@ -169,6 +178,7 @@ struct CloudUpHeroState: Equatable {
         downGuards = min(UpHeroRules.enhanceGuardMax, max(0, s.downGuards ?? 0))
         combatBuff = CloudCombatBuff(s.combatBuff)
         slotBlankStreak = UpHeroSlot.normalizeBlankStreak(s.slotBlankStreak)
+        bagRowsBought = UpHeroBag.normalizeBagRowsBought(s.bagRowsBought)
         lastIdleAccrualAt = s.lastIdleAccrualAt
         ngPlusLevel = max(0, s.ngPlusLevel ?? 0)
         hasSeenCampTutorial = s.hasSeenCampTutorial ?? false
@@ -200,6 +210,7 @@ struct CloudUpHeroState: Equatable {
             downGuards: downGuards,
             combatBuff: combatBuff.buff,
             slotBlankStreak: slotBlankStreak,
+            bagRowsBought: bagRowsBought,
             lastIdleAccrualAt: lastIdleAccrualAt,
             lastSeenAt: lastSeenAt,
             heroStartLevel: heroStartLevel,
@@ -226,6 +237,8 @@ extension CloudUpHeroState: Codable {
         case combatBuff
         // 굴림틀 pity 스트릭 — 정수. 웹과 철자가 같아야 왕복에서 탈락하지 않는다.
         case slotBlankStreak
+        // 상점으로 산 가방 행 — 철자가 웹과 같아야 왕복에서 탈락하지 않는다.
+        case bagRowsBought
         case lastIdleAccrualAt, ngPlusLevel, hasSeenCampTutorial
         case welcomeGiftClaimed = "welcomeGrantClaimed"
         case lastSeenAt, schemaVersion, shopDaily, weeklyVariant, heroStartLevel
@@ -285,6 +298,10 @@ extension CloudUpHeroState: Codable {
         // (웹 normalizeSlotBlankStreak 와 동일).
         slotBlankStreak = UpHeroSlot.normalizeBlankStreak(lenientInt(c, .slotBlankStreak))
 
+        // 산 가방 행 — 부재·비숫자·NaN 은 0, 소수는 내림, 정수 [0, 4] 클램프
+        // (웹 normalizeBagRowsBought 와 동일).
+        bagRowsBought = UpHeroBag.normalizeBagRowsBought(lenientInt(c, .bagRowsBought))
+
         // 값이 깨졌으면 now — 과거 timestamp 를 지어내 거대한 idle reward 를 만들지 않는다.
         lastIdleAccrualAt = lenientInt(c, .lastIdleAccrualAt)
             ?? Int(Date().timeIntervalSince1970 * 1000)
@@ -337,6 +354,9 @@ extension CloudUpHeroState: Codable {
         // 0 도 항상 싣는다 — 보상 뒤 0 리셋이 merge 에서 빠지면 클라우드의 옛 스트릭이
         // 되살아나 받을 자격이 없는 pity 가 발동한다.
         try c.encode(slotBlankStreak, forKey: .slotBlankStreak)
+        // 0 도 항상 싣는다 — 키를 빼면 merge 가 클라우드에 남은 옛 값을 되살려,
+        // 코인으로 산 행이 기기를 옮길 때마다 흔들린다 (passes 와 같은 이유).
+        try c.encode(bagRowsBought, forKey: .bagRowsBought)
         try c.encode(lastIdleAccrualAt, forKey: .lastIdleAccrualAt)
         try c.encode(ngPlusLevel, forKey: .ngPlusLevel)
         try c.encode(hasSeenCampTutorial, forKey: .hasSeenCampTutorial)

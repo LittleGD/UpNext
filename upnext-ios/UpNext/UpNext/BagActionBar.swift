@@ -79,7 +79,7 @@ struct BagActionBar: View {
 
     private var hint: String {
         if placing { return AppConfig.loc("빈 칸을 탭해서 놓으세요") }
-        if trayCount > 0 { return AppConfig.loc("가방이 꽉 찼어요. 판매하거나 정리하세요") }
+        if trayCount > 0 { return AppConfig.loc("가방이 꽉 찼어요. 판매하거나 상점에서 가방을 늘리세요") }
         return AppConfig.loc("아이템을 탭해서 선택하세요")
     }
 

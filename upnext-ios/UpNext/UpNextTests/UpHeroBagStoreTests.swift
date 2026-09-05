@@ -15,6 +15,11 @@
 import XCTest
 @testable import UpNext
 
+/// 테스트 보드는 5행으로 고정한다 — 상점에서 행 1개를 산 상태.
+/// 기본 4행이면 좌표 기대값((4,4) 등)이 규칙이 아니라 보드 크기 때문에 깨진다.
+private let testRowsBought = 1
+private let testRows = UpHeroBag.bagRows(rowsBought: testRowsBought)
+
 @MainActor
 final class UpHeroBagStoreTests: XCTestCase {
 
@@ -40,7 +45,7 @@ final class UpHeroBagStoreTests: XCTestCase {
     /// 5행 보드의 가방칸 20개를 1x1 로 가득 채운다 (십자 5칸 제외).
     private func fullBoard(prefix: String = "f") -> [Equipment] {
         var out: [Equipment] = []
-        for y in 0..<UpHeroBag.rowsMin {
+        for y in 0..<testRows {
             for x in 0..<UpHeroBag.cols where !UpHeroBag.isCrossCell(x: x, y: y) {
                 out.append(eq("\(prefix)-\(x)-\(y)", x: x, y: y, rot: 0))
             }
@@ -49,11 +54,12 @@ final class UpHeroBagStoreTests: XCTestCase {
     }
 
     /// 원하는 인벤토리·착용으로 채운 스토어. `adoptCloudState` 가 유일한 주입 통로다.
-    /// heroStartLevel 을 1 로 두어 gameLevel 1 = 영웅 Lv1 = 5행 보드로 고정한다.
+    /// 보드 크기는 레벨이 아니라 산 행 수에서 나오므로 `bagRowsBought` 로 고정한다.
     private func makeStore(
         inventory: [Equipment],
         equipped: [EquipSlot: Equipment] = [:],
-        coins: Int = 0
+        coins: Int = 0,
+        rowsBought: Int = testRowsBought
     ) -> UpHeroStore {
         let store = UpHeroStore()
         var seed = UpHeroStore.makeDefaultState()
@@ -61,6 +67,7 @@ final class UpHeroBagStoreTests: XCTestCase {
         seed.hero.equipped = equipped
         seed.inventory = inventory
         seed.coins = coins
+        seed.bagRowsBought = rowsBought
         store.adoptCloudState(CloudUpHeroState(seed))
         return store
     }
@@ -157,7 +164,7 @@ final class UpHeroBagStoreTests: XCTestCase {
         }
 
         let settled = SessionReward.settleBagAfterSession(
-            inventory: inventory, keptDrops: drops, rows: UpHeroBag.rowsMin)
+            inventory: inventory, keptDrops: drops, rows: testRows)
 
         XCTAssertEqual(settled.sold.map(\.id), ["d0", "d5"],
                        "최저 등급 먼저, 같은 등급이면 오래된 index 먼저")
@@ -173,7 +180,7 @@ final class UpHeroBagStoreTests: XCTestCase {
 
     func testSettleBagAfterSessionPlacesDropsWhenBoardHasRoom() {
         let settled = SessionReward.settleBagAfterSession(
-            inventory: [], keptDrops: [eq("d0"), eq("d1")], rows: UpHeroBag.rowsMin)
+            inventory: [], keptDrops: [eq("d0"), eq("d1")], rows: testRows)
         XCTAssertTrue(settled.sold.isEmpty)
         XCTAssertEqual(settled.coins, 0)
         XCTAssertEqual(
@@ -256,7 +263,7 @@ final class UpHeroBagStoreTests: XCTestCase {
             equipped: [.weapon: worn], classType: nil, appearanceVariant: 0)
         let inventory = [eq("far", type: .accessory, category: .learning, x: 3, y: 0, rot: 0)]
 
-        let folded = UpHeroBag.applyBagSynergy(hero, inventory: inventory, rows: UpHeroBag.rowsMin)
+        let folded = UpHeroBag.applyBagSynergy(hero, inventory: inventory, rows: testRows)
         XCTAssertEqual(folded.baseStats.crit, hero.baseStats.crit + 3)
         // 두 번 접어도 입력 hero 는 불변 — 폴드가 상태를 오염시키지 않는다.
         XCTAssertEqual(hero.baseStats.crit, 0)
@@ -278,6 +285,39 @@ final class UpHeroBagStoreTests: XCTestCase {
         store.removePhotoBindings(photoId: "p1")
         XCTAssertEqual(store.state.inventory.map(\.id), ["keep"])
         XCTAssertNil(store.state.hero.equipped[.talisman])
+    }
+
+    // MARK: - 상점 가방 확장 (purchaseBagRow)
+
+    /// 가격은 산 행 수를 따라 오르고, 코인은 그만큼만 빠진다.
+    func testPurchaseBagRowGrowsBoardAndChargesEscalatingPrice() {
+        let store = makeStore(inventory: [], coins: 600, rowsBought: 0)
+        XCTAssertEqual(store.currentBagRows(), 4, "행을 사기 전에는 시작 크기")
+
+        XCTAssertEqual(store.purchaseBagRow(), .ok)
+        XCTAssertEqual(store.state.bagRowsBought, 1)
+        XCTAssertEqual(store.currentBagRows(), 5)
+        XCTAssertEqual(store.state.coins, 400, "첫 행 200")
+
+        XCTAssertEqual(store.purchaseBagRow(), .ok)
+        XCTAssertEqual(store.currentBagRows(), 6)
+        XCTAssertEqual(store.state.coins, 0, "둘째 행 400")
+    }
+
+    func testPurchaseBagRowRejectsWhenCoinsShort() {
+        let store = makeStore(inventory: [], coins: 199, rowsBought: 0)
+        XCTAssertEqual(store.purchaseBagRow(), .noCoin)
+        XCTAssertEqual(store.state.coins, 199, "실패는 코인을 건드리지 않는다")
+        XCTAssertEqual(store.currentBagRows(), 4)
+    }
+
+    func testPurchaseBagRowRejectsAtMaxSize() {
+        let store = makeStore(inventory: [], coins: 99_999,
+                              rowsBought: UpHeroBag.rowsBuyable)
+        XCTAssertEqual(store.currentBagRows(), UpHeroBag.rowsMax)
+        XCTAssertEqual(store.purchaseBagRow(), .atCap, "코인이 넘쳐도 8행이 상한")
+        XCTAssertEqual(store.state.coins, 99_999)
+        XCTAssertEqual(store.state.bagRowsBought, UpHeroBag.rowsBuyable)
     }
 
     // MARK: - 가방 화면 열림 신호
