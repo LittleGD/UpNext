@@ -219,6 +219,11 @@ final class UpHeroStore: ObservableObject {
     func debugSetCurrentSession(_ session: CombatSession?) {
         state.currentSession = session
     }
+
+    /// 단위 테스트 전용 — 인벤토리/코인/방지권 픽스처를 통째로 꽂는다 (웹 setState 시드).
+    func debugSetState(_ change: (inout UpHeroState) -> Void) {
+        change(&state)
+    }
     #endif
 
     /// idle 보상 토스트 확인 — 스냅샷을 비운다. transient 라 저장은 불필요.
@@ -628,28 +633,39 @@ final class UpHeroStore: ObservableObject {
 
     /// 장비 강화 — 웹 `useUpHeroStore.enhanceItem` 1:1.
     ///
-    /// 구 iOS 구현은 등급·레벨을 아예 보지 않고 100 코인 고정 / 70·20·10 롤이었다.
-    /// 이제 웹과 같은 공식을 쓴다:
+    /// 흐름 (Phase 5-B — +20 확장, 시도당 방지권 소모, 밴드 스탯 성장, 사진 부적 상한 10):
     ///   1. inventory → 장착 슬롯 순으로 대상 탐색 (장착 중인 장비도 강화 가능)
-    ///   2. +10 이면 maxed, 코인 부족이면 coinShort — 코인은 건드리지 않고 반환
-    ///   3. 성공률 = enhanceSuccessRate(등급, 현재레벨, 연속실패) — soft pity 포함
-    ///   4. 성공: enhanceLevel +1, 짝수 레벨에서 primary stat +1, 이름 " +N" 재부여,
-    ///      failStreak 리셋
-    ///   5. 실패: enhanceOutcomeRates 로 소실 / 하락 / 유지 3분기. failStreak +1.
-    ///   6. 코인은 성공/실패 무관 차감 (시도 자체의 비용)
+    ///   2. 상한(일반 20 / 사진 부적 10)이면 maxed, 코인 부족이면 coinShort — 코인은
+    ///      건드리지 않고 반환
+    ///   3. 실패 3분기 확률과 방지권 arm(소모) 을 **성공 롤 전에** 확정
+    ///   4. rng < 성공률(enhanceSuccessRate, soft pity 포함) → 성공: 레벨 +1,
+    ///      applyEnhanceStatGrowth, 이름 " +N" 재부여, failStreak 리셋
+    ///   5. 실패: rng 한 번으로 소실 / 하락 / 유지 3분기. 걸린 방지권이 그 결과를 막으면
+    ///      "guarded" (아이템 그대로). failStreak +1.
+    ///   6. 코인은 성공/실패 무관 차감, 걸린 방지권도 결과 무관 차감.
     ///
-    /// **방지권 계약** — `guards` 는 "쓸 의사" 일 뿐이고, 여기가 그 계약의 유일한
-    /// 집행 지점이다:
-    ///   1) 판정은 방지권 보유·장착 여부와 무관하게 원래 확률로 굴린다.
-    ///   2) 결과가 유지면 막을 것이 없으므로 **아무것도 소모하지 않는다**.
-    ///   3) 소실이 났고 소실방지권을 걸었고 보유가 1 이상일 때만 1장 태우고 지킨다.
-    ///   4) 하락도 같은 규칙으로 하락방지권이 막는다.
-    /// 소실과 하락은 배타적이므로 한 시도에서 두 종류가 같이 소모되지 않는다.
-    /// 안전 구간(현재 레벨 0..2)에서는 소실·하락 판정 자체가 나지 않으므로 방지권은
-    /// 절대 줄지 않는다 — UI 는 그 구간에서 토글을 아예 그리지 않는다.
+    /// **방지권 계약 (시도당 소모)** — 여기가 그 계약의 유일한 집행 지점이다:
+    ///   1) 걸린 방지권은 보유 > 0 이고 그 결과가 이 레벨에서 가능(확률 > 0)할 때만
+    ///      arm 된다. 소실 0 인 +10..+14 에서 소실방지권을 걸어도 arm 되지 않는다.
+    ///   2) arm 된 방지권은 **결과와 무관하게** 이번 시도에서 1장 나간다 — 성공이든
+    ///      유지든 소실이든. 그래서 아래 모든 mutate 가 같은 next*Guards 를 쓴다.
+    ///   3) 판정은 방지권과 무관하게 원래 확률로 굴리고, 소실/하락이 나왔을 때 arm 된
+    ///      방지권이 있으면 "guarded" (아이템 그대로) 로 바꾼다.
+    /// 소실과 하락은 배타적이지만 둘을 같이 걸면 둘 다 나간다 (한 시도의 값).
+    /// 안전 구간(현재 레벨 0..2)은 소실·하락이 0 이라 어느 쪽도 arm 되지 않는다.
+    /// rng 호출 순서는 웹과 같다: 성공 롤 → (실패 시) 결과 롤.
     @discardableResult
     func enhanceItem(
         _ itemId: String, guards: EnhanceGuardArm = EnhanceGuardArm()
+    ) -> EnhanceResult {
+        var rng = SystemRandom()
+        return enhanceItem(itemId, guards: guards, rng: &rng)
+    }
+
+    /// 난수 소스 주입형 — 단위 테스트가 소모 매트릭스의 갈래를 하나씩 못박는 데 쓴다.
+    @discardableResult
+    func enhanceItem<R: RandomSource>(
+        _ itemId: String, guards: EnhanceGuardArm = EnhanceGuardArm(), rng: inout R
     ) -> EnhanceResult {
         // 1. 대상 탐색 — inventory 우선, 없으면 장착 슬롯 (웹과 같은 순서).
         var equippedSlot: EquipSlot?
@@ -668,10 +684,24 @@ final class UpHeroStore: ObservableObject {
         guard let item = found else { return .notFound }
 
         // 2. 상한 / 비용 검증. 둘 다 코인을 차감하지 않는다.
+        //    사진 부적은 +10 이 상한 (스킬이 +5/+10 에 열리고 재의식 비용도 10 기준).
+        //    정식 경로는 rebindPhotoTalisman 이지만 여기로 와도 같은 상한을 지킨다.
         let curLevel = item.enhanceLevel ?? 0
-        guard curLevel < UpHeroRules.maxEnhanceLevel else { return .maxed }
+        let cap = item.photoId != nil ? PhotoTalisman.maxEnhanceLevel : UpHeroRules.maxEnhanceLevel
+        guard curLevel < cap else { return .maxed }
         let cost = UpHeroRules.enhanceCost(rarity: item.rarity, currentLevel: curLevel)
         guard state.coins >= cost else { return .coinShort(need: cost) }
+
+        // 3. 방지권 arm — 성공 롤 전에 확정. 보유·가능성 검사는 여기에 접혀 있다.
+        let rates = UpHeroRules.enhanceOutcomeRates(
+            rarity: item.rarity, currentLevel: curLevel)
+        let heldDestroy = min(UpHeroRules.enhanceGuardMax, max(0, state.destroyGuards ?? 0))
+        let heldDown = min(UpHeroRules.enhanceGuardMax, max(0, state.downGuards ?? 0))
+        let armDestroy = guards.destroy && heldDestroy > 0 && rates.destroy > 0
+        let armDown = guards.down && heldDown > 0 && rates.down > 0
+        let nextDestroyGuards = heldDestroy - (armDestroy ? 1 : 0)
+        let nextDownGuards = heldDown - (armDown ? 1 : 0)
+        let spent = EnhanceGuardSpend(destroy: armDestroy ? 1 : 0, down: armDown ? 1 : 0)
 
         // 원래 자리에 새 아이템을 되꽂는/빼는 헬퍼 (웹 replaceItem / removeItem).
         let slot = equippedSlot
@@ -689,46 +719,54 @@ final class UpHeroStore: ObservableObject {
                 s.inventory.removeAll { $0.id == itemId }
             }
         }
+        // 공통 차감 — 코인 + 걸린 방지권 (모든 갈래가 같은 값을 쓴다).
+        func charge(_ s: inout UpHeroState) {
+            s.coins -= cost
+            s.destroyGuards = nextDestroyGuards
+            s.downGuards = nextDownGuards
+        }
+        // 사진 부적이 여기로 오면 +5/+10 스킬을 레벨에 맞게 다시 계산한다.
+        // 일반 장비는 talismanSkills 를 건드리지 않는다.
+        func applyTalismanSkills(_ e: inout Equipment, level: Int) {
+            guard e.photoId != nil else { return }
+            let ids = TalismanSkills.computeTalismanSkillIds(
+                category: e.category, enhanceLevel: level)
+            e.talismanSkills = ids.isEmpty ? nil : ids
+        }
 
-        // 3. 성공 판정 — 누적 실패(pity) 반영.
+        // 4. 성공 판정 — 누적 실패(pity) 반영.
         let curStreak = item.enhanceFailStreak ?? 0
         let rate = UpHeroRules.enhanceSuccessRate(
             rarity: item.rarity, currentLevel: curLevel, failStreak: curStreak)
 
-        if Double.random(in: 0..<1) < rate {
-            // 4. 성공 — 짝수 레벨에서만 primary stat +1 ("스킬이 주 보상" 원칙).
+        if rng.unit() < rate {
+            // 성공 — 스탯 성장 규칙은 UpHeroRules.applyEnhanceStatGrowth 단일 출처
+            //   (짝수 ≤10 primary +1, 11..20 매 레벨 +1, +15 secondary +2, +20 +3).
             let newLevel = curLevel + 1
-            var newStats = item.stats
-            if newLevel % 2 == 0, let primary = UpHeroRules.pickPrimaryStatKey(newStats) {
-                newStats[primary] = (newStats[primary] ?? 0) + 1
-            }
             var newItem = item
             newItem.name = UpHeroRules.stripEnhanceSuffix(item.name) + " +\(newLevel)"
-            newItem.stats = newStats
+            newItem.stats = UpHeroRules.applyEnhanceStatGrowth(item.stats, newLevel: newLevel)
             newItem.enhanceLevel = newLevel
             newItem.enhanceFailStreak = 0
+            applyTalismanSkills(&newItem, level: newLevel)
             mutate { s in
-                s.coins -= cost
+                charge(&s)
                 replace(&s, newItem)
             }
-            return .success(newItem: newItem, prevLevel: curLevel)
+            return .success(newItem: newItem, prevLevel: curLevel, spent: spent)
         }
 
-        // 5. 실패 — 소실 / 하락 / 유지 3분기. 확률은 enhanceOutcomeRates 단일 출처에서
-        //    온다 (UI 표기와 같은 값). 누적 구간 한 번의 롤로 셋을 가른다 — 두 번 굴리면
-        //    두 표의 확률이 조건부로 얽혀 UI 에 적어둔 숫자와 실제가 달라진다.
-        let rates = UpHeroRules.enhanceOutcomeRates(
-            rarity: item.rarity, currentLevel: curLevel)
-        let outcomeRoll = Double.random(in: 0..<1)
+        // 5. 실패 — 소실 / 하락 / 유지 3분기. 누적 구간 한 번의 롤로 셋을 가른다 — 두 번
+        //    굴리면 두 표의 확률이 조건부로 얽혀 UI 에 적어둔 숫자와 실제가 달라진다.
+        let outcomeRoll = rng.unit()
         let rolled: EnhanceGuardKind? =
             outcomeRoll < rates.destroy ? .destroy
             : outcomeRoll < rates.destroy + rates.down ? .down
             : nil   // nil = 유지
 
-        let heldDestroy = min(UpHeroRules.enhanceGuardMax, max(0, state.destroyGuards ?? 0))
-        let heldDown = min(UpHeroRules.enhanceGuardMax, max(0, state.downGuards ?? 0))
-        let guardedDestroy = rolled == .destroy && guards.destroy && heldDestroy > 0
-        let guardedDown = rolled == .down && guards.down && heldDown > 0
+        // arm 여부만 본다 — 보유·가능성 검사는 arm 계산에 이미 접혀 있다.
+        let guardedDestroy = rolled == .destroy && armDestroy
+        let guardedDown = rolled == .down && armDown
 
         // 실패 공통 — failStreak +1 (다음 시도에 pity 보너스). 웹과 동일한 100 cap.
         let nextStreak = min(100, curStreak + 1)
@@ -737,48 +775,39 @@ final class UpHeroStore: ObservableObject {
             var kept = item
             kept.enhanceFailStreak = nextStreak
             mutate { s in
-                s.coins -= cost
-                if guardedDestroy { s.destroyGuards = heldDestroy - 1 }
-                if guardedDown { s.downGuards = heldDown - 1 }
+                charge(&s)
                 replace(&s, kept)
             }
-            if guardedDestroy { return .guarded(item: kept, guard: .destroy) }
-            if guardedDown { return .guarded(item: kept, guard: .down) }
-            return .keep(item: kept)
+            if guardedDestroy { return .guarded(item: kept, guard: .destroy, spent: spent) }
+            if guardedDown { return .guarded(item: kept, guard: .down, spent: spent) }
+            return .keep(item: kept, spent: spent)
         }
 
         if rolled == .down {
-            // 하락 — 성공 경로의 정확한 역연산이어야 한다. 성공은 "새 레벨이 짝수일 때
-            //   primary stat +1" 이었으므로, 없어지는 레벨(curLevel)이 짝수면 그때 붙은
-            //   +1 을 같은 키에서 뺀다. 성공 직후에도 그 키가 여전히 최대값이라
-            //   pickPrimaryStatKey 는 같은 키를 돌려준다 — 그래서 왕복이 닫힌다.
-            //   성공 규칙을 바꾸면 여기도 같이 바꿀 것.
+            // 하락 — 성공 경로의 정확한 역연산. revertEnhanceStatGrowth 가 잃는 레벨
+            //   (curLevel) 에 붙었던 증가분을 같은 키에서 뺀다 (0 아래로는 내리지 않는다).
             let newLevel = max(0, curLevel - 1)
-            var newStats = item.stats
-            if curLevel % 2 == 0, curLevel > 0,
-               let primary = UpHeroRules.pickPrimaryStatKey(item.stats) {
-                // 0 미만으로는 내리지 않는다 — 손상된 저장본이 음수 스탯을 만들지 않게.
-                newStats[primary] = max(0, (newStats[primary] ?? 0) - 1)
-            }
             let baseName = UpHeroRules.stripEnhanceSuffix(item.name)
             var newItem = item
             newItem.name = newLevel >= 1 ? "\(baseName) +\(newLevel)" : baseName
-            newItem.stats = newStats
+            newItem.stats = UpHeroRules.revertEnhanceStatGrowth(item.stats, lostLevel: curLevel)
             newItem.enhanceLevel = newLevel
             newItem.enhanceFailStreak = nextStreak
+            applyTalismanSkills(&newItem, level: newLevel)
             mutate { s in
-                s.coins -= cost
+                charge(&s)
                 replace(&s, newItem)
             }
-            return .down(item: newItem, prevLevel: curLevel)
+            return .down(item: newItem, prevLevel: curLevel, spent: spent)
         }
 
+        // 소실 — inventory 혹은 장착 슬롯에서 제거. 걸어둔 하락방지권도 나간다.
         let lostName = item.name
         mutate { s in
-            s.coins -= cost
+            charge(&s)
             remove(&s)
         }
-        return .destroyed(lostItemName: lostName)
+        return .destroyed(lostItemName: lostName, spent: spent)
     }
 
     /// R8 — 미니게임 결과 해소. UI 가 호출 — success/fail 에 따라 successEffects/failEffects 적용.

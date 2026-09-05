@@ -30,6 +30,10 @@ import {
   WELCOME_GRANT_COINS,
   enhanceSuccessRate,
   enhanceCost,
+  applyEnhanceStatGrowth,
+  revertEnhanceStatGrowth,
+  stripEnhanceSuffix,
+  type EnhanceGuardSpend,
   getISOWeekId,
   computeWeeklyScore,
   type UpHeroState,
@@ -40,7 +44,6 @@ import {
   type EquipSlot,
   type CombatSession,
   type CardBuff,
-  type HeroBaseStats,
   type Monster,
   type Hero,
   getEffectiveHeroLevel,
@@ -95,7 +98,9 @@ import {
   CLASS_SKILL_TREES,
   NOVICE_SKILLS,
 } from "@/lib/classSkills";
+import { computeTalismanSkillIds } from "@/lib/talismanSkills";
 import {
+  PHOTO_TALISMAN_MAX_ENHANCE_LEVEL,
   PHOTO_TALISMAN_RITUAL_COST,
   buildPhotoTalisman,
   findBoundPhotoTalisman,
@@ -500,46 +505,77 @@ interface UpHeroActions {
 
   /**
    * Phase 11a — 장비 +N 강화 (기존 2→1 합성 대체).
-   * 단일 아이템 + 코인 → 확률적으로 enhanceLevel +1. 최대 +10.
+   * 단일 아이템 + 코인 → 확률적으로 enhanceLevel +1. 최대 +20 (사진 부적은 +10).
    * 실패 시 enhanceOutcomeRates(rarity, level) 로 소실 / 하락 / 유지 3분기.
    * 성공률 / 코인 비용 공식은 types/uphero.ts 의 enhanceSuccessRate / enhanceCost 참고.
    *
    * @param guards 이번 시도에 걸 방지권 (기본 둘 다 false).
-   *   **소모 계약**: 방지권은 그 결과가 **실제로 나서 막아낸 순간에만** 1장 소모된다.
-   *   성공했거나, 실패했지만 그냥 유지로 끝났으면 소모하지 않는다. 보유가 0 이면
-   *   true 를 넘겨도 무시된다 (조용히 진행 — UI 가 먼저 토글을 막는 게 정상 경로).
-   *   소실과 하락은 배타적이라 한 번의 시도에서 두 종류가 동시에 소모되는 일은 없다.
+   *   **소모 계약 (Phase 5-B, 시도당 소모)**: 걸린 방지권은 보유가 1 이상이고 그
+   *   결과(소실/하락)가 이 레벨에서 가능할 때 **시도 시작에 1장 소모된다**. 결과가
+   *   성공이든 유지든 소실이든 관계없이 나간다. 보유가 0 이거나 그 결과가 불가능한
+   *   레벨(소실 0 인 +10..+14, 안전 구간 0..2)이면 걸어도 소모되지 않고 막지도 않는다.
+   *   소실과 하락은 배타적이지만 둘을 같이 걸면 둘 다 나간다 (한 시도의 값).
    *
-   * UI 는 이 반환값 기반으로 Ritual overlay + Result modal 분기.
+   * UI 는 이 반환값 기반으로 Ritual overlay + Result modal 분기. 모든 시도 결과에
+   * `spent` 가 실려 결과 모달이 "무엇을 썼는지" 말한다.
    */
   enhanceItem(id: string, guards?: EnhanceGuardArm): EnhanceResult;
 }
 
-/** Phase 15 — 이번 강화 시도에 걸 방지권. UI 토글이 그대로 매핑된다. */
+/**
+ * Phase 15 → 5-B — 이번 강화 시도에 걸 방지권. UI 토글이 그대로 매핑된다.
+ * 걸면(보유 > 0, 그 결과가 가능한 레벨) 결과와 무관하게 이번 시도에서 1장 소모된다.
+ */
 export interface EnhanceGuardArm {
-  /** 소실방지권을 걸지 (보유 0 이면 무시) */
+  /** 소실방지권을 걸지 (보유 0 이거나 소실 0 인 레벨이면 무시) */
   destroy?: boolean;
-  /** 하락방지권을 걸지 (보유 0 이면 무시) */
+  /** 하락방지권을 걸지 (보유 0 이거나 하락 0 인 레벨이면 무시) */
   down?: boolean;
 }
 
-/** Phase 11a — 강화 결과 discriminated union. UI 는 이 타입 기반 분기. */
+/**
+ * Phase 11a — 강화 결과 discriminated union. UI 는 이 타입 기반 분기.
+ * Phase 5-B — 시도가 성립한 다섯 갈래는 모두 `spent`(이번 시도에 나간 방지권)를 싣는다.
+ */
 export type EnhanceResult =
-  | { ok: true; reason: "success"; newItem: Equipment; prevLevel: number }
-  /** 실패했지만 아무 일도 없었다. 방지권도 소모되지 않았다. */
-  | { ok: false; reason: "keep"; item: Equipment }
+  | {
+      ok: true;
+      reason: "success";
+      newItem: Equipment;
+      prevLevel: number;
+      spent: EnhanceGuardSpend;
+    }
+  /** 실패했지만 아무 일도 없었다. 걸어둔 방지권은 그래도 나갔다 (spent 참고). */
+  | { ok: false; reason: "keep"; item: Equipment; spent: EnhanceGuardSpend }
   /**
    * 실패로 강화 단계가 1 내려갔다. prevLevel 은 내려가기 **전** 레벨이라
    * UI 가 "+7 → +6" 을 그릴 수 있다. item 은 내려간 뒤의 아이템이다.
    */
-  | { ok: false; reason: "down"; item: Equipment; prevLevel: number }
+  | {
+      ok: false;
+      reason: "down";
+      item: Equipment;
+      prevLevel: number;
+      spent: EnhanceGuardSpend;
+    }
   /**
    * 방지권이 결과를 막아냈다. guard 가 무엇을 막았는지 말해준다 —
-   * "소실될 뻔했다" 와 "하락할 뻔했다" 는 연출이 달라야 한다.
-   * 이 분기에서만 해당 방지권이 1장 소모된다.
+   * "소실될 뻔했다" 와 "하락할 뻔했다" 는 연출이 달라야 한다. 아이템은 같은 레벨.
    */
-  | { ok: false; reason: "guarded"; item: Equipment; guard: "destroy" | "down" }
-  | { ok: false; reason: "destroyed"; lostItemName: string; lostBaseId?: string }
+  | {
+      ok: false;
+      reason: "guarded";
+      item: Equipment;
+      guard: "destroy" | "down";
+      spent: EnhanceGuardSpend;
+    }
+  | {
+      ok: false;
+      reason: "destroyed";
+      lostItemName: string;
+      lostBaseId?: string;
+      spent: EnhanceGuardSpend;
+    }
   | { ok: false; reason: "coin"; cost: number }
   | { ok: false; reason: "maxed" }
   | { ok: false; reason: "not-found" };
@@ -1516,7 +1552,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     }
     const current = found.item;
     const curLevel = current.enhanceLevel ?? 0;
-    if (curLevel >= MAX_ENHANCE_LEVEL) {
+    // Phase 5-B — 사진 부적 상한은 10 으로 고정 (일반 장비 20 과 별개).
+    if (curLevel >= PHOTO_TALISMAN_MAX_ENHANCE_LEVEL) {
       return { ok: false, reason: "maxed", errorKey: "uphero.photo.error.maxEnhance" };
     }
 
@@ -2255,17 +2292,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     const useDestroyGuard = guards.destroy === true;
     const useDownGuard = guards.down === true;
     // Phase 11a 재작성 — 단일 아이템 + 코인 → 확률적 +1 level 시도.
+    // Phase 5-B — +20 확장, 시도당 방지권 소모, 밴드 스탯 성장, 사진 부적 상한 10.
     //
     // 흐름:
-    //   1. 아이템 & 비용 검증
-    //   2. Math.random() < successRate 체크
-    //   3. 성공: enhanceLevel+1, stats 미미 증가 (+0.5 반올림/키), 이름 suffix 갱신
-    //   4. 실패-보존 (30%): 아이템 그대로 유지
-    //   5. 실패-소실 (70%): inventory 에서 제거
-    //   6. 코인은 성공/실패 무관 차감 (시도 자체의 비용)
-    //
-    // stats 상승 규칙: primary stat 키 한정 +1 (level 이 짝수일 때),
-    // 그 외 기존 키는 +0 (매우 미미). 총 +10 달성 시 primary stat +5 증가.
+    //   1. 아이템 & 상한 & 비용 검증
+    //   2. 실패 3분기 확률과 방지권 arm(소모) 을 **성공 롤 전에** 확정
+    //   3. rng() < successRate 체크 → 성공: 레벨 +1, applyEnhanceStatGrowth, 이름 갱신
+    //   4. 실패: rng() 한 번으로 소실 / 하락 / 유지 3분기. 걸린 방지권이 그 결과를
+    //      막으면 "guarded" (아이템 그대로).
+    //   5. 코인은 성공/실패 무관 차감, 걸린 방지권도 결과 무관 차감.
     const state = get();
     // Phase 11c R4 — 장착 중 아이템도 강화 가능. inventory → equipped slot 순 탐색.
     //   성공/실패 시 원래 위치 (inventory 혹은 equipped slot) 에 맞게 반영.
@@ -2286,13 +2321,35 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     if (!item) return { ok: false, reason: "not-found" };
 
     const curLevel = item.enhanceLevel ?? 0;
-    if (curLevel >= MAX_ENHANCE_LEVEL) return { ok: false, reason: "maxed" };
+    // Phase 5-B — 사진 부적은 +10 이 상한 (스킬이 +5/+10 에 열리고 재의식 비용도
+    //   10 기준). 정식 경로는 rebindPhotoTalisman 이지만 여기로 와도 같은 상한을 지킨다.
+    const cap = item.photoId ? PHOTO_TALISMAN_MAX_ENHANCE_LEVEL : MAX_ENHANCE_LEVEL;
+    if (curLevel >= cap) return { ok: false, reason: "maxed" };
 
     const cost = enhanceCost(item.rarity, curLevel);
     if (state.coins < cost) return { ok: false, reason: "coin", cost };
 
+    // Phase 5-B 방지권 계약 — 여기가 그 계약의 유일한 집행 지점이다:
+    //   1) 걸린 방지권은 보유 > 0 이고 그 결과가 이 레벨에서 가능(확률 > 0)할 때만
+    //      arm 된다. 소실 0 인 +10..+14 에서 소실방지권을 걸어도 arm 되지 않는다.
+    //   2) arm 된 방지권은 **결과와 무관하게** 이번 시도에서 1장 나간다 — 성공이든
+    //      유지든 소실이든. 그래서 아래 모든 set() 이 같은 next*Guards 를 쓴다.
+    //   3) 판정은 방지권과 무관하게 원래 확률로 굴리고, 소실/하락이 나왔을 때 arm 된
+    //      방지권이 있으면 "guarded" (아이템 그대로) 로 바꾼다.
+    const rates = enhanceOutcomeRates(item.rarity, curLevel);
+    const heldDestroyGuards = clampGuards(state.destroyGuards);
+    const heldDownGuards = clampGuards(state.downGuards);
+    const armDestroy = useDestroyGuard && heldDestroyGuards > 0 && rates.destroy > 0;
+    const armDown = useDownGuard && heldDownGuards > 0 && rates.down > 0;
+    const nextDestroyGuards = heldDestroyGuards - (armDestroy ? 1 : 0);
+    const nextDownGuards = heldDownGuards - (armDown ? 1 : 0);
+    const spent: EnhanceGuardSpend = {
+      destroy: armDestroy ? 1 : 0,
+      down: armDown ? 1 : 0,
+    };
+    const newCoins = state.coins - cost;
+
     // Phase 11c R4 — pity 적용. 누적된 failStreak 가 성공률 가산.
-    //   legend +4%p / fail, unique +2%p / fail. normal/rare 는 미적용.
     const curStreak = item.enhanceFailStreak ?? 0;
     const rate = enhanceSuccessRate(item.rarity, curLevel, curStreak);
     const roll = rng();
@@ -2320,18 +2377,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
         hero: state.hero,
       };
     };
+    // Phase 5-B — 사진 부적이 여기로 오면 +5/+10 스킬을 레벨에 맞게 다시 계산한다.
+    //   일반 장비는 talismanSkills 를 건드리지 않는다 (키 자체를 추가하지 않는다).
+    const talismanPatch = (level: number): Pick<Equipment, "talismanSkills"> | Record<string, never> => {
+      if (!item.photoId) return {};
+      const ids = computeTalismanSkillIds(item.category, level);
+      return { talismanSkills: ids.length > 0 ? ids : undefined };
+    };
 
     if (success) {
       const newLevel = curLevel + 1;
-      // stats 미미 상승 — primary stat 키에만 짝수 level 에서 +1 (총 10 단계 중 5 회).
-      //   즉 +2, +4, +6, +8, +10 에서 primary +1 누적. "스킬이 주 보상" 원칙 유지.
-      const newStats: Equipment["stats"] = { ...item.stats };
-      if (newLevel % 2 === 0) {
-        const primaryKey = pickPrimaryStatKey(item.stats);
-        if (primaryKey) {
-          newStats[primaryKey] = (newStats[primaryKey] ?? 0) + 1;
-        }
-      }
+      // 스탯 성장 — 규칙은 types/uphero.ts applyEnhanceStatGrowth 단일 출처
+      //   (짝수 ≤10 primary +1, 11..20 매 레벨 primary +1, +15 secondary +2, +20 +3).
+      const newStats = applyEnhanceStatGrowth(item.stats, newLevel);
       // 이름에 +N suffix. 기존 "+" 가 legacy 합성 표기로 남아있을 수 있어 strip 후 재부여.
       const baseName = stripEnhanceSuffix(item.name);
       const newName = newLevel >= 1 ? `${baseName} +${newLevel}` : baseName;
@@ -2342,28 +2400,24 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
         enhanceLevel: newLevel,
         // Phase 11c R4 — 성공 시 streak 리셋. pity 보너스 초기화.
         enhanceFailStreak: 0,
+        ...talismanPatch(newLevel),
       };
       const { inventory: newInventory, hero: newHero } = replaceItem(newItem);
-      const newCoins = state.coins - cost;
-      set({ inventory: newInventory, hero: newHero, coins: newCoins });
-      saveToStorage(
-        STORAGE_KEY,
-        pickPersisted({ ...state, inventory: newInventory, hero: newHero, coins: newCoins }),
-      );
-      return { ok: true, reason: "success", newItem, prevLevel: curLevel };
+      const patch = {
+        inventory: newInventory,
+        hero: newHero,
+        coins: newCoins,
+        destroyGuards: nextDestroyGuards,
+        downGuards: nextDownGuards,
+      };
+      set(patch);
+      saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
+      return { ok: true, reason: "success", newItem, prevLevel: curLevel, spent };
     }
 
     // 실패 — 코인은 어쨌든 차감. 실패의 결과는 소실 / 하락 / 유지 3분기다.
     //   확률은 enhanceOutcomeRates 단일 출처에서 온다 (UI 표기와 같은 값).
     //   currentLevel 0..2 는 셋 다 keep=1 이라 안전 구간이다.
-    //
-    // Phase 15 방지권 계약 — 여기가 그 계약의 유일한 집행 지점이다:
-    //   1) 판정은 방지권 보유·장착 여부와 무관하게 원래 확률로 굴린다.
-    //   2) 결과가 유지면 막을 것이 없으므로 **아무것도 소모하지 않는다**.
-    //   3) 소실이 났고 소실방지권을 걸었고 보유가 1 이상일 때만 1장 태우고 지킨다.
-    //   4) 하락도 같은 규칙으로 하락방지권이 막는다.
-    // 소실과 하락은 배타적이므로 한 시도에서 두 종류가 같이 소모되지 않는다.
-    const rates = enhanceOutcomeRates(item.rarity, curLevel);
     // 누적 구간 한 번의 롤로 3분기를 가른다 — 두 번 굴리면 두 표의 확률이
     // 조건부로 얽혀 UI 에 적어둔 숫자와 실제가 달라진다.
     const outcomeRoll = rng();
@@ -2374,16 +2428,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
           ? "down"
           : "keep";
 
-    const heldDestroyGuards = clampGuards(state.destroyGuards);
-    const heldDownGuards = clampGuards(state.downGuards);
-    const guardedDestroy =
-      rolled === "destroy" && useDestroyGuard && heldDestroyGuards > 0;
-    const guardedDown = rolled === "down" && useDownGuard && heldDownGuards > 0;
-    const nextDestroyGuards = guardedDestroy
-      ? heldDestroyGuards - 1
-      : heldDestroyGuards;
-    const nextDownGuards = guardedDown ? heldDownGuards - 1 : heldDownGuards;
-    const newCoins = state.coins - cost;
+    // arm 여부만 본다 — 보유·가능성 검사는 arm 계산에 이미 접혀 있다.
+    const guardedDestroy = rolled === "destroy" && armDestroy;
+    const guardedDown = rolled === "down" && armDown;
 
     // 실패 공통 — failStreak +1 (다음 시도에 pity 보너스 적용).
     //   Phase 14 code-review Medium #14 — pity 포뮬러는 streak 15~20 에서 이미
@@ -2404,29 +2451,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
       set(patch);
       saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
       if (guardedDestroy) {
-        return { ok: false, reason: "guarded", item: newItem, guard: "destroy" };
+        return { ok: false, reason: "guarded", item: newItem, guard: "destroy", spent };
       }
       if (guardedDown) {
-        return { ok: false, reason: "guarded", item: newItem, guard: "down" };
+        return { ok: false, reason: "guarded", item: newItem, guard: "down", spent };
       }
-      return { ok: false, reason: "keep", item: newItem };
+      return { ok: false, reason: "keep", item: newItem, spent };
     }
 
     if (rolled === "down") {
-      // 하락 — 성공 경로의 정확한 역연산이어야 한다. 성공은 "새 레벨이 짝수일 때
-      //   primary stat +1" 이었으므로, 없어지는 레벨(curLevel)이 짝수면 그때 붙은
-      //   +1 을 같은 키에서 뺀다. 성공 직후에도 그 키가 여전히 최대값이라
-      //   (증가시킨 키가 최대였고 +1 로 더 커졌다) pickPrimaryStatKey 는 같은 키를
-      //   돌려준다 — 그래서 왕복이 닫힌다. 성공 규칙을 바꾸면 여기도 같이 바꿀 것.
+      // 하락 — 성공 경로의 정확한 역연산. revertEnhanceStatGrowth 가 잃는 레벨
+      //   (curLevel) 에 붙었던 증가분을 같은 키에서 뺀다 (0 아래로는 내리지 않는다).
       const newLevel = Math.max(0, curLevel - 1);
-      const newStats: Equipment["stats"] = { ...item.stats };
-      if (curLevel % 2 === 0 && curLevel > 0) {
-        const primaryKey = pickPrimaryStatKey(item.stats);
-        if (primaryKey) {
-          // 0 미만으로는 내리지 않는다 — 손상된 저장본이 음수 스탯을 만들지 않게.
-          newStats[primaryKey] = Math.max(0, (newStats[primaryKey] ?? 0) - 1);
-        }
-      }
+      const newStats = revertEnhanceStatGrowth(item.stats, curLevel);
       const baseName = stripEnhanceSuffix(item.name);
       const newItem: Equipment = {
         ...item,
@@ -2434,6 +2471,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
         stats: newStats,
         enhanceLevel: newLevel,
         enhanceFailStreak: nextStreak,
+        ...talismanPatch(newLevel),
       };
       const { inventory: newInventory, hero: newHero } = replaceItem(newItem);
       const patch = {
@@ -2445,19 +2483,29 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
       };
       set(patch);
       saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
-      return { ok: false, reason: "down", item: newItem, prevLevel: curLevel };
+      return { ok: false, reason: "down", item: newItem, prevLevel: curLevel, spent };
     }
 
-    // 소실 — inventory 혹은 equipped slot 에서 제거.
+    // 소실 — inventory 혹은 equipped slot 에서 제거. 걸어둔 하락방지권도 나간다.
     const { inventory: newInventory, hero: newHero } = removeItem();
     const lostName = item.name;
     const lostBaseId = item.baseId;
-    set({ inventory: newInventory, hero: newHero, coins: newCoins });
-    saveToStorage(
-      STORAGE_KEY,
-      pickPersisted({ ...state, inventory: newInventory, hero: newHero, coins: newCoins }),
-    );
-    return { ok: false, reason: "destroyed", lostItemName: lostName, lostBaseId };
+    const patch = {
+      inventory: newInventory,
+      hero: newHero,
+      coins: newCoins,
+      destroyGuards: nextDestroyGuards,
+      downGuards: nextDownGuards,
+    };
+    set(patch);
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
+    return {
+      ok: false,
+      reason: "destroyed",
+      lostItemName: lostName,
+      lostBaseId,
+      spent,
+    };
   },
 
   _setFromCloud: (state) => {
@@ -2541,45 +2589,3 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
   };
 });
 
-/* ═══════════════════════════════════════════════════════════════════════
- * Phase 11a — enhanceItem 헬퍼
- * ═══════════════════════════════════════════════════════════════════════ */
-
-/**
- * 장비의 "primary stat key" 를 찾는다. 드롭 템플릿의 statBoost 가 primary 이지만
- * Equipment 타입에는 statBoost 가 저장 안 돼 있어 stats 객체에서 최대값 key 로 추정.
- * 동률 시 defined order (str/int/vit/dex/agi/crit/slotBonus) 로 tie-break.
- */
-function pickPrimaryStatKey(
-  stats: Equipment["stats"],
-): keyof HeroBaseStats | null {
-  const order: Array<keyof HeroBaseStats> = [
-    "str",
-    "int",
-    "vit",
-    "dex",
-    "agi",
-    "crit",
-    "slotBonus",
-  ];
-  let best: keyof HeroBaseStats | null = null;
-  let bestVal = -Infinity;
-  for (const key of order) {
-    const v = stats[key];
-    if (v == null) continue;
-    if (v > bestVal) {
-      best = key;
-      bestVal = v;
-    }
-  }
-  return best;
-}
-
-/**
- * 이름에서 " +N" 또는 legacy " +" suffix 제거. enhanceItem 성공 시 매번 재부여.
- *   "자기절제의 검 +3" → "자기절제의 검"
- *   "꾸준함의 방패 +"  → "꾸준함의 방패" (legacy 합성 표기)
- */
-function stripEnhanceSuffix(name: string): string {
-  return name.replace(/\s+\+\d*$/, "");
-}

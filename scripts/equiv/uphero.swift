@@ -39,20 +39,35 @@ let wsInputs: [(Int, Int, Int)] = [(0, 0, 1), (15, 50, 10), (30, 100, 30), (45, 
 for (fl, t, lv) in wsInputs {
     print("computeWeeklyScore(\(fl),\(t),\(lv)) = \(UpHeroRules.computeWeeklyScore(floorsCleared: fl, remainingTime: t, heroLevel: lv))")
 }
-// 5. enhanceSuccessRate
+// 5. enhanceSuccessRate — Phase 5-B: 상위 밴드 (10..19) + 밴드 pity 포함
 for r in [Rarity.normal, .rare, .unique, .legend] {
-    for lv in [0, 3, 9] {
-        for st in [0, 5, 15] {
+    for lv in [0, 3, 9, 10, 14, 15, 19] {
+        for st in [0, 5, 15, 40] {
             let rate = UpHeroRules.enhanceSuccessRate(rarity: r, currentLevel: lv, failStreak: st)
             print("enhanceSuccessRate(\(r.rawValue),\(lv),\(st)) = \(f(rate))")
         }
     }
 }
-// 6. enhanceCost
+// 6. enhanceCost — 밴드 배율 (마지막 인자) 포함
 for r in [Rarity.normal, .rare, .unique, .legend] {
-    for lv in [0, 3, 9] {
+    for lv in [0, 3, 9, 10, 14, 15, 19] {
         print("enhanceCost(\(r.rawValue),\(lv)) = \(UpHeroRules.enhanceCost(rarity: r, currentLevel: lv))")
     }
+}
+// 6b. enhanceOutcomeRates — 3분기 (keep 은 1e-12 미만 스냅) 10자리
+for r in [Rarity.normal, .rare, .unique, .legend] {
+    for lv in [0, 3, 9, 10, 14, 15, 19, 25] {
+        let o = UpHeroRules.enhanceOutcomeRates(rarity: r, currentLevel: lv)
+        print("enhanceOutcomeRates(\(r.rawValue),\(lv)) = \(f(o.destroy)),\(f(o.down)),\(f(o.keep))")
+    }
+}
+// 6c. enhanceTitle / enhanceRitualBand
+for lv in [0, 14, 15, 19, 20] {
+    let title = UpHeroRules.enhanceTitle(level: lv).map { $0.rawValue } ?? "null"
+    print("getEnhanceTitle(\(lv)) = \(title)")
+}
+for lv in [1, 10, 11, 15, 16, 20] {
+    print("enhanceRitualBand(\(lv)) = \(UpHeroRules.enhanceRitualBand(targetLevel: lv))")
 }
 // 7. getHeroAppearanceVariant
 for lv in [1, 9, 10, 29, 30, 50] {

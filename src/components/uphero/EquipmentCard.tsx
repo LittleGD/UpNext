@@ -14,10 +14,10 @@
  */
 
 import { useEffect, useState, type CSSProperties } from "react";
-import type { Equipment } from "@/types/uphero";
+import { getEnhanceTitle, type Equipment } from "@/types/uphero";
 import RarityTexture from "@/components/cards/RarityTexture";
 import PixelIcon from "@/components/icons/PixelIcon";
-import { GB, EASE_OUT } from "@/lib/upHeroPalette";
+import { GB, EASE_OUT, GB_LEGEND } from "@/lib/upHeroPalette";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -89,6 +89,30 @@ const RARITY_COLOR: Record<Equipment["rarity"], string> = {
   legend: "#e8b887",
 };
 
+/**
+ * Phase 5-B — +N 칩 톤. 밴드가 올라갈수록 어둡게 → legend 골드 → 라임 + 글로우.
+ *   1..9   : 어두운 배경, rarity 보더 (기존)
+ *   10..14 : legend 골드 (기존 +10 톤)
+ *   15..19 : 라임 + 글로우, 보더 없음
+ *   20     : 라임 + 더 강한 글로우
+ * Track E 의 종이인형 칩도 이 헬퍼를 가져다 쓴다.
+ */
+export function enhanceChipTone(
+  level: number,
+  rarityColor: string,
+): { bg: string; fg: string; glow?: string; border: string } {
+  if (level >= 20) {
+    return { bg: GB.lightest, fg: GB.darkest, glow: `0 0 10px ${GB.lightest}`, border: "none" };
+  }
+  if (level >= 15) {
+    return { bg: GB.lightest, fg: GB.darkest, glow: `0 0 6px ${GB.lightest}aa`, border: "none" };
+  }
+  if (level >= 10) {
+    return { bg: GB_LEGEND, fg: GB.darkest, border: `1px solid ${GB_LEGEND}` };
+  }
+  return { bg: `${GB.darkest}dd`, fg: GB.lightest, border: `1px solid ${rarityColor}` };
+}
+
 /** 스탯 key 를 한국어로 */
 const STAT_LABEL: Record<string, string> = {
   str: "STR",
@@ -121,6 +145,10 @@ export default function EquipmentCard({
   const statEntries = Object.entries(equipment.stats).filter(
     ([, v]) => v != null && v !== 0,
   );
+  // Phase 5-B — 칭호는 저장하지 않고 레벨에서 파생. md/lg 에서만 칩으로 그린다.
+  const enhanceLevel = equipment.enhanceLevel ?? 0;
+  const enhanceTitle = getEnhanceTitle(enhanceLevel);
+  const chipTone = enhanceChipTone(enhanceLevel, rarityColor);
 
   const content = (
     <div
@@ -164,6 +192,25 @@ export default function EquipmentCard({
           />
         )}
       </div>
+
+      {/* Phase 5-B — 칭호 칩 (각성/초월). sm 은 공간이 없어 +N 칩만. */}
+      {size !== "sm" && enhanceTitle && (
+        <span
+          className="typo-micro self-start mt-1 px-1 rounded-sm"
+          style={{
+            background: `${GB.lightest}22`,
+            color: GB.lightest,
+            fontSize: 9,
+            lineHeight: 1.4,
+            letterSpacing: "0.02em",
+          }}
+          aria-label={t("uphero.enhance.title.chipAria", {
+            title: t(`uphero.enhance.title.${enhanceTitle}` as const),
+          })}
+        >
+          {t(`uphero.enhance.title.${enhanceTitle}` as const)}
+        </span>
+      )}
 
       {/* 이름 — Phase 8a: mt-auto → mt-1.5 고정 spacing.
            line-clamp-2 로 3줄 이상 wrap 방지, 카드간 bottom alignment 통일. */}
@@ -218,29 +265,24 @@ export default function EquipmentCard({
           </div>
         )}
 
-      {/* Phase 11a — 좌상단 enhance level chip (+1~+10).
+      {/* Phase 11a — 좌상단 enhance level chip (+1~+20).
            name 에 이미 " +N" 이 붙어있지만 line-clamp 로 가려질 수 있어
-           별도 chip 으로 강조. +10 은 legend 톤. */}
-      {(equipment.enhanceLevel ?? 0) > 0 && !selected && (
+           별도 chip 으로 강조. Phase 5-B — 톤은 enhanceChipTone 밴드 표. */}
+      {enhanceLevel > 0 && !selected && (
         <div
           className="absolute top-1 left-1 typo-micro tabular-nums px-1 rounded-sm pointer-events-none"
           style={{
-            background:
-              (equipment.enhanceLevel ?? 0) >= 10
-                ? "#e8b887" // GB_LEGEND
-                : `${GB.darkest}dd`,
-            color:
-              (equipment.enhanceLevel ?? 0) >= 10 ? GB.darkest : GB.lightest,
-            border: `1px solid ${
-              (equipment.enhanceLevel ?? 0) >= 10 ? "#e8b887" : rarityColor
-            }`,
+            background: chipTone.bg,
+            color: chipTone.fg,
+            border: chipTone.border,
+            boxShadow: chipTone.glow,
             fontSize: 9,
             letterSpacing: "0.03em",
             lineHeight: 1.3,
           }}
-          aria-label={t("uphero.equip.enhanceChipAria", { n: equipment.enhanceLevel ?? 0 })}
+          aria-label={t("uphero.equip.enhanceChipAria", { n: enhanceLevel })}
         >
-          +{equipment.enhanceLevel}
+          +{enhanceLevel}
         </div>
       )}
 

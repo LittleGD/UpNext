@@ -39,7 +39,12 @@ export type SoundName =
   | "slotThud"
   | "slotWinSmall"
   | "slotWinMid"
-  | "slotWinBig";
+  | "slotWinBig"
+  // Phase 5-B — 강화 상위 밴드 (+11..+20) 연출. 소리는 ritual 끝에만 (스포일 금지).
+  | "enhanceCharge"
+  | "enhanceSuccessHigh"
+  | "enhanceSuccessMax"
+  | "enhanceShatter";
 
 let audioCtx: AudioContext | null = null;
 
@@ -591,6 +596,75 @@ const sounds: Record<SoundName, () => void> = {
     createOsc(ctx, 2093, t + 0.62, 0.05, MASTER_VOLUME * 0.3);
     createOsc(ctx, 1760, t + 0.74, 0.05, MASTER_VOLUME * 0.22);
   },
+
+  /** Phase 5-B — 강화 충전 (band >= 1 ritual 시작). 700ms triangle riser 220→880Hz */
+  enhanceCharge() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(880, t + 0.7);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(MASTER_VOLUME * 0.45, t + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.71);
+    // 미세한 square 틱이 상승감을 더한다
+    for (let i = 0; i < 5; i++) {
+      createOsc(ctx, 440 + i * 110, t + 0.12 + i * 0.11, 0.03, MASTER_VOLUME * 0.12);
+    }
+  },
+
+  /** Phase 5-B — band 1 성공 (+11..+15). C5-E5-G5 아르페지오 + 차임, 600ms */
+  enhanceSuccessHigh() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    createOsc(ctx, 523, t, 0.1);        // C5
+    createOsc(ctx, 659, t + 0.1, 0.1);  // E5
+    createOsc(ctx, 784, t + 0.2, 0.14); // G5
+    // 차임 — 높은 triangle 두 겹
+    createOsc(ctx, 1568, t + 0.34, 0.26, MASTER_VOLUME * 0.55, "triangle");
+    createOsc(ctx, 2093, t + 0.4, 0.2, MASTER_VOLUME * 0.3, "triangle");
+  },
+
+  /** Phase 5-B — band 2 성공 (+16..+20). 코러스 + 리버스 심벌 느낌, 1100ms */
+  enhanceSuccessMax() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // 리버스 심벌 대용 — 낮은 곳에서 올라오는 sweep 두 겹
+    createSweep(ctx, 120, 1200, t, 0.35, MASTER_VOLUME * 0.35);
+    createSweep(ctx, 180, 1600, t + 0.05, 0.3, MASTER_VOLUME * 0.2);
+    // 코러스 — C5 E5 G5 C6 를 겹쳐 유지
+    const chord = [523, 659, 784, 1047];
+    chord.forEach((f, i) => {
+      createOsc(ctx, f, t + 0.36 + i * 0.03, 0.5, MASTER_VOLUME * 0.45);
+      createOsc(ctx, f * 0.5, t + 0.36 + i * 0.03, 0.5, MASTER_VOLUME * 0.18, "triangle");
+    });
+    // 꼭대기 E6 유지 + 반짝임
+    createOsc(ctx, 1319, t + 0.5, 0.6, MASTER_VOLUME * 0.8);
+    createOsc(ctx, 2637, t + 0.82, 0.06, MASTER_VOLUME * 0.3);
+    createOsc(ctx, 2093, t + 0.94, 0.06, MASTER_VOLUME * 0.22);
+    createOsc(ctx, 3136, t + 1.02, 0.06, MASTER_VOLUME * 0.18);
+  },
+
+  /** Phase 5-B — band >= 1 소실. 노이즈 버스트 + 600→80Hz sweep, 500ms */
+  enhanceShatter() {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+    // 노이즈 버스트 — 짧은 square 클러스터로 근사 (AudioBuffer 없이)
+    const cluster = [1873, 2311, 1493, 2707, 1117];
+    cluster.forEach((f, i) => {
+      createOsc(ctx, f, t + i * 0.012, 0.06, MASTER_VOLUME * 0.28);
+    });
+    // 아래로 꺼지는 sweep
+    createSweep(ctx, 600, 80, t + 0.04, 0.46, MASTER_VOLUME * 0.7);
+    // 몸통 — 낮은 triangle 타격
+    createOsc(ctx, 70, t + 0.02, 0.3, MASTER_VOLUME * 0.6, "triangle");
+  },
 };
 
 export function playSound(name: SoundName): void {
@@ -638,6 +712,11 @@ const VIBRATION_PATTERNS: Record<SoundName, number[] | null> = {
   slotWinSmall:  [20],
   slotWinMid:    [15, 60, 15],
   slotWinBig:    [25, 50, 25, 50, 40],
+  // Phase 5-B — 강화 상위 밴드
+  enhanceCharge:      [10, 40, 10, 40, 15],
+  enhanceSuccessHigh: [20, 30, 40],
+  enhanceSuccessMax:  [30, 40, 30, 40, 60],
+  enhanceShatter:     [60, 30, 20],
 };
 
 const MIN_VIBRATION_MS = 25;
@@ -738,6 +817,13 @@ const HAPTIC_INTENT: Record<SoundName, HapticIntent | null> = {
   slotWinSmall:  "medium",
   slotWinMid:    "double",
   slotWinBig:    "triple",
+
+  // Phase 5-B — 강화 상위 밴드: 충전 light / band1 성공 success /
+  //   band2 성공 celebration / 소실 heavy
+  enhanceCharge:      "light",
+  enhanceSuccessHigh: "success",
+  enhanceSuccessMax:  "celebration",
+  enhanceShatter:     "heavy",
 };
 
 /**

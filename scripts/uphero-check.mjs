@@ -12,6 +12,9 @@ import {
   computeWeeklyScore,
   enhanceSuccessRate,
   enhanceCost,
+  enhanceOutcomeRates,
+  getEnhanceTitle,
+  enhanceRitualBand,
   getHeroAppearanceVariant,
   getEffectiveHeroLevel,
   computeEffectiveStats,
@@ -64,21 +67,37 @@ for (const [fl, t, lv] of [
 ]) {
   lines.push(`computeWeeklyScore(${fl},${t},${lv}) = ${computeWeeklyScore(fl, t, lv)}`);
 }
-// 5. enhanceSuccessRate
+// 5. enhanceSuccessRate — Phase 5-B: 상위 밴드 (10..19) + 밴드 pity 포함
 for (const r of ["normal", "rare", "unique", "legend"]) {
-  for (const lv of [0, 3, 9]) {
-    for (const st of [0, 5, 15]) {
+  for (const lv of [0, 3, 9, 10, 14, 15, 19]) {
+    for (const st of [0, 5, 15, 40]) {
       lines.push(
         `enhanceSuccessRate(${r},${lv},${st}) = ${f(enhanceSuccessRate(r, lv, st))}`,
       );
     }
   }
 }
-// 6. enhanceCost
+// 6. enhanceCost — 밴드 배율 (마지막 인자) 포함
 for (const r of ["normal", "rare", "unique", "legend"]) {
-  for (const lv of [0, 3, 9]) {
+  for (const lv of [0, 3, 9, 10, 14, 15, 19]) {
     lines.push(`enhanceCost(${r},${lv}) = ${enhanceCost(r, lv)}`);
   }
+}
+// 6b. enhanceOutcomeRates — 3분기 (keep 은 1e-12 미만 스냅) 10자리
+for (const r of ["normal", "rare", "unique", "legend"]) {
+  for (const lv of [0, 3, 9, 10, 14, 15, 19, 25]) {
+    const o = enhanceOutcomeRates(r, lv);
+    lines.push(
+      `enhanceOutcomeRates(${r},${lv}) = ${f(o.destroy)},${f(o.down)},${f(o.keep)}`,
+    );
+  }
+}
+// 6c. getEnhanceTitle / enhanceRitualBand
+for (const lv of [0, 14, 15, 19, 20]) {
+  lines.push(`getEnhanceTitle(${lv}) = ${getEnhanceTitle(lv) ?? "null"}`);
+}
+for (const lv of [1, 10, 11, 15, 16, 20]) {
+  lines.push(`enhanceRitualBand(${lv}) = ${enhanceRitualBand(lv)}`);
 }
 // 7. getHeroAppearanceVariant
 for (const lv of [1, 9, 10, 29, 30, 50]) {

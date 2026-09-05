@@ -24,6 +24,13 @@ import { rng } from "@/lib/upHeroRng";
 export const PHOTO_TALISMAN_RITUAL_COST = 80;
 
 /**
+ * Phase 5-B — 사진 부적 강화 상한. 일반 장비가 +20 으로 늘어나도 부적은 +10 에
+ * 머문다 (스킬이 +5/+10 에 열리고 재의식 비용도 10 기준으로 조율돼 있다).
+ * iOS PhotoTalisman.maxEnhanceLevel 과 같은 값.
+ */
+export const PHOTO_TALISMAN_MAX_ENHANCE_LEVEL = 10;
+
+/**
  * Phase 11c R4 — 재의식 (rebind) 비용은 현재 enhance level 기반 스케일.
  *   공식: 80 × (1 + curLevel × 0.3).
  *   +0→+1: 80, +1→+2: 104, +2→+3: 128, ..., +9→+10: 296.
