@@ -8,10 +8,44 @@
 //
 //  challengeCardId 등 챌린지 인증 필드는 Optional 로 둔다 — 슬라이스 28 의 앨범은
 //  챌린지에 묶이지 않은 자유 사진도 담는다. 챌린지 완료 → 사진 연결은 이후 슬라이스.
-//  웹의 Sticker(폴라로이드 데코)는 "추후 확장용"이라 condensed.
+//  Sticker(폴라로이드 데코)도 여기 둔다 — PhotoMeta 가 저장하는 순수 값 타입이라 웹
+//  src/types/growth.ts 와 같은 자리. 화면 조작(드래그·핀치)은 StickerLayer.swift.
+//
+//  이 파일은 Foundation 전용이어야 한다 — scripts/verify-equivalence.sh 의 sync 스위트가
+//  FirestoreModels → Retention → PhotoMeta 체인으로 이 파일을 swiftc 단독 컴파일한다.
+//  (뷰·스토어 타입을 참조하면 그 스위트가 깨진다.)
 //
 
 import Foundation
+
+/// 폴라로이드 위 스티커 한 장. 웹 `Sticker`(src/types/growth.ts).
+struct Sticker: Identifiable, Equatable, Codable {
+    /// 새 id 발급은 init 으로만, 디코드 시엔 저장된 id 보존.
+    let id: UUID
+    var type: StickerType
+    var content: String      // emoji char 또는 asset name ("upnext-logo")
+    var x: Double            // 0-100 (%)
+    var y: Double
+    var rotation: Double     // degrees
+    var scale: Double        // 0.4 ~ 3.0
+    var zIndex: Int
+
+    init(type: StickerType, content: String, x: Double, y: Double,
+         rotation: Double = 0, scale: Double = 1, zIndex: Int = 0) {
+        self.id = UUID()
+        self.type = type
+        self.content = content
+        self.x = x; self.y = y; self.rotation = rotation
+        self.scale = scale; self.zIndex = zIndex
+    }
+
+    enum StickerType: String, Equatable, Codable { case emoji, image }
+}
+
+/// epoch ms — UpHeroStore.nowMillis() 와 같은 값. 스토어를 참조하지 않으려고 여기 둔다.
+private func nowMillis() -> Int {
+    Int(Date().timeIntervalSince1970 * 1000)
+}
 
 /// 인증 사진 메타데이터. 웹 `PhotoMeta`.
 struct PhotoMeta: Codable, Identifiable, Equatable {
@@ -37,13 +71,13 @@ struct PhotoMeta: Codable, Identifiable, Equatable {
 extension PhotoMeta {
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = (try? c.decode(String.self, forKey: .id)) ?? "vp_\(UpHeroStore.nowMillis())"
+        id = (try? c.decode(String.self, forKey: .id)) ?? "vp_\(nowMillis())"
         kind = (try? c.decode(PhotoKind.self, forKey: .kind)) ?? .free
         challengeCardId = try? c.decode(String.self, forKey: .challengeCardId)
         challengeTitle = try? c.decode(String.self, forKey: .challengeTitle)
         category = try? c.decode(Category.self, forKey: .category)
-        date = (try? c.decode(String.self, forKey: .date)) ?? GameStore.todayString()
-        timestamp = (try? c.decode(Int.self, forKey: .timestamp)) ?? UpHeroStore.nowMillis()
+        date = (try? c.decode(String.self, forKey: .date)) ?? AppClock.todayString()
+        timestamp = (try? c.decode(Int.self, forKey: .timestamp)) ?? nowMillis()
         memo = (try? c.decode(String.self, forKey: .memo)) ?? ""
         timeSlot = try? c.decode(String.self, forKey: .timeSlot)
         caption = try? c.decode(String.self, forKey: .caption)

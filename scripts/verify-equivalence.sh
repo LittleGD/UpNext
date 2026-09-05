@@ -115,7 +115,9 @@ run_suite talisman-reward  Card.swift Game.swift UpHero.swift UpHeroRNG.swift Up
 run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift
 run_suite affix-narrative  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift
 run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift FlavorPool.swift
-run_suite sync             Card.swift Game.swift FirestoreModels.swift
+# sync: UserDoc.retention(RetentionState) → Retention.swift → PhotoMeta(GrowthModels.swift) +
+#       CardCatalog(Bundle 로드지만 Foundation 전용). 전부 실제 Models 파일 — 셰임 금지.
+run_suite sync             Card.swift Game.swift FirestoreModels.swift Retention.swift GrowthModels.swift CardCatalog.swift
 run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift SessionReward.swift
 echo "──────────────────────────────────────────"
 echo "결과: $PASS/$((PASS + FAIL)) suite 통과 · 총 $TOTAL 라인 동치"
