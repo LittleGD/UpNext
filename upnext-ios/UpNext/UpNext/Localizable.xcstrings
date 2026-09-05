@@ -56912,6 +56912,644 @@
           }
         }
       }
+    },
+    "uphero.choice.effectSummary.skipFloors": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}층 건너뜀"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skipped {n} floors"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}階スキップ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跳过{n}层"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.runBuff": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% ({floors}층)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% ({floors} floors)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% ({floors}階)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% ({floors}层)"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.runBuffRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% (이번 탐험)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% (this run)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% (今回の探索)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% (本次探索)"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.runCurse": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% ({floors}층)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% ({floors} floors)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% ({floors}階)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% ({floors}层)"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.runCurseRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% (이번 탐험)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% (this run)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% (今回の探索)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% (本次探索)"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.stealth": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 {n}회 조우 회피"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avoid next {n} encounters"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の{n}回の遭遇を回避"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回避接下来{n}次遭遇"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.guaranteedDrop": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 처치 장비 확정 x{n}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guaranteed gear on next kill x{n}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の撃破で装備確定 x{n}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次击杀必掉装备 x{n}"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.bossReveal": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보스 피해 +{pct}%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boss damage +{pct}%"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボスへのダメージ +{pct}%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对首领伤害 +{pct}%"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.stat.all": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전 능력치"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All stats"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全能力値"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全属性"
+          }
+        }
+      }
+    },
+    "uphero.choice.runMods.aria": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 탐험의 버프와 저주"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buffs and curses for this run"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今回の探索のバフと呪い"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本次探索的增益与诅咒"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.runBuff": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}이(가) 오른다 (+{pct}%, {floors}층)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} rises (+{pct}%, {floors} floors)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}が上がる (+{pct}%、{floors}階)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}提升了 (+{pct}%，{floors}层)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.runCurse": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}이(가) 흔들린다 (-{pct}%, {floors}층)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} falters (-{pct}%, {floors} floors)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}が揺らぐ (-{pct}%、{floors}階)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}动摇了 (-{pct}%，{floors}层)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.stealthPass": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster}의 곁을 소리 없이 지나쳤다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slipped past {monster} without a sound."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster}のそばを音もなく通り過ぎた。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "悄无声息地从{monster}身旁经过。"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossNone": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앞길에 더는 보스의 기운이 없다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No boss presence lies ahead."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この先にボスの気配はもうない。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前方再无首领的气息。"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 급소를 읽었다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. You read its weak point (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。急所を読んだ (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。看穿了要害 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.tough": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 두꺼운 가죽, 긴 싸움 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Thick hide, a long fight (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。厚い皮、長い戦い (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。皮糙肉厚，一场持久战 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.fragile": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 껍질이 얇다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Its shell is thin (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。殻が薄い (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。外壳很薄 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.swift": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 빠르다, 잘 피한다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Fast, hard to pin down (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。速い、よく避ける (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。速度快，善于闪避 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.burst": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 한 방이 무겁다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Its blows land heavy (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。一撃が重い (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。一击很重 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.poison": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 독을 품었다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. It carries venom (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。毒を宿している (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。身怀剧毒 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.regen": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 상처가 아문다, 몰아쳐야 한다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Its wounds close, press the attack (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。傷が塞がる、畳みかけろ (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。伤口会愈合，必须速战速决 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.shield": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 첫 공격은 막힌다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. The first strike will be blocked (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。最初の一撃は防がれる (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。第一击会被挡下 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

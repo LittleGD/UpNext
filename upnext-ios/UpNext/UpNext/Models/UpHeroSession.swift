@@ -51,19 +51,28 @@ enum UpHeroSession {
     /// crit / slotBonus 는 곱하지 않는다. crit 은 퍼센트 포인트라 곱하면 의미가
     /// 달라지고, slotBonus 는 스탯이 아니라 장비 슬롯 수 카운터다.
     static func sessionStats(_ s: CombatSession) -> HeroBaseStats {
-        let base = UpHeroRules.computeEffectiveStats(s.hero)
-        guard let buff = s.combatBuff, buff.battlesLeft > 0, buff.pct > 0 else { return base }
-        // 세션 층위의 pct 는 퍼센트 포인트다 (10 = +10%). CombatBuff 주석 참고.
-        let m = 1 + buff.pct / 100
-        // jsRound — 웹 Math.round 는 .5 를 +∞ 쪽으로 올린다. Swift 기본 .rounded()
-        // 와는 음수에서 갈리므로, 다른 전투 계산과 같은 헬퍼를 쓴다.
-        var out = base
-        out.str = UpHeroCombat.jsRound(Double(base.str) * m)
-        out.int = UpHeroCombat.jsRound(Double(base.int) * m)
-        out.vit = UpHeroCombat.jsRound(Double(base.vit) * m)
-        out.dex = UpHeroCombat.jsRound(Double(base.dex) * m)
-        out.agi = UpHeroCombat.jsRound(Double(base.agi) * m)
-        return out
+        // Phase 4-D (Track D) — combatBuff 뒤에 런 한정 보정을 한 번 더 곱하는 순수 본체는
+        //   UpHeroCombat.sessionStats (동치 검증이 세션 없이 부른다).
+        UpHeroCombat.sessionStats(hero: s.hero, combatBuff: s.combatBuff, runStatMods: s.runStatMods)
+    }
+
+    /// Phase 4-D — 한 스탯에 걸린 런 보정 합 (같은 stat + all), [-50, +100] clamp. 웹 `runStatPct`.
+    static func runStatPct(_ s: CombatSession, _ stat: RunModStat) -> Int {
+        UpHeroCombat.runStatPct(s.runStatMods, stat)
+    }
+
+    /// Phase 4-D — 층을 `floors` 만큼 지났다. floorsLeft 가 있는 보정을 줄이고 0 이하는
+    /// 버린다. 비면 필드째 지운다. 층 진입(tickSession) 과 skipFloors 의 실제 이동 수
+    /// (Track C 클램프 뒤) 두 곳에서만 부른다. 웹 `advanceRunModFloors`.
+    static func advanceRunModFloors(_ s: inout CombatSession, _ floors: Int) {
+        guard let mods = s.runStatMods, !mods.isEmpty, floors > 0 else { return }
+        let next = mods
+            .map { m -> RunStatMod in
+                guard let left = m.floorsLeft else { return m }
+                return RunStatMod(stat: m.stat, pct: m.pct, floorsLeft: left - floors)
+            }
+            .filter { $0.floorsLeft == nil || $0.floorsLeft! > 0 }
+        s.runStatMods = next.isEmpty ? nil : next
     }
 
     /// 전투 1회가 끝났을 때 (몬스터 처치) 버프 잔여 횟수 차감. 0 이면 필드째 제거해
@@ -357,16 +366,26 @@ enum UpHeroSession {
                         return s
                     }
                     // 일반 몬스터 drop
+                    // Phase 4-D (Track D) — guaranteedDrop 이 남아 있으면 드롭을 강제하고 등급은
+                    //   floor+5 로 굴린다 (부적 보너스 드롭과 같은 상향). 롤은 강제 여부와
+                    //   무관하게 **항상** 소비해 웹과 시드 스트림이 어긋나지 않게 한다.
                     let dropChance = 0.3 + UpHeroCombat.getBuffBoost(buffs: s.activeBuffs, type: .dropRate) / 100
-                    if rng.chance(dropChance) {
+                    let forcedDrop = (s.runGuaranteedDrops ?? 0) > 0
+                    let dropRoll = rng.unit()
+                    if forcedDrop || dropRoll < dropChance {
                         let rarity = EquipmentPool.rollDropRarity(
-                            floor: s.currentFloor, legendDropBonus: tMods.legendDropBonus + ngBonus,
+                            floor: forcedDrop ? s.currentFloor + 5 : s.currentFloor,
+                            legendDropBonus: tMods.legendDropBonus + ngBonus,
                             flatten: s.flattenDropRarity ?? false, rng: &rng)
                         let eq = EquipmentPool.rollEquipmentDrop(
                             dungeonId: s.dungeonId, floor: s.currentFloor, rarity: rarity,
                             affinitySlot: dungeon?.affinity, rng: &rng)
                         s.log.append(.drop(equipment: eq, timestamp: now()))
                         s.rewards.drops.append(eq)
+                        if forcedDrop {
+                            let left = (s.runGuaranteedDrops ?? 0) - 1
+                            s.runGuaranteedDrops = left <= 0 ? nil : left
+                        }
                     }
                     // "군중의 총애" 보너스 drop (세션당 1회)
                     if s.extraDropAvailable == true, tMods.extraDropChance > 0,
@@ -422,6 +441,8 @@ enum UpHeroSession {
         if advanceFloor {
             s.log.append(.floor(from: s.currentFloor, to: nextFloor, timestamp: now()))
             s.currentFloor = nextFloor
+            // Phase 4-D (Track D) — 런 보정 층 카운트다운 (floorXp 보다 앞, 병합 순서 고정).
+            advanceRunModFloors(&s, 1)
             // Phase 2-A (Track A) — 층 진입 XP. 처치 XP 와 같은 배율(sessionXpMult)을 탄다.
             //   skipFloors 로 건너뛴 층은 받지 않는다 (applyChoiceEffect 는 이 줄을 지나지 않음).
             //   로그 엔트리는 추가하지 않는다 — rewards.xp 에만 누적. 웹 tickSession 동일.
@@ -550,6 +571,22 @@ enum UpHeroSession {
             opts: ScaleOptions(ngPlusLevel: s.ngPlusLevel ?? 0,
                                hpMult: s.monsterHpMult ?? 1, atkMult: s.monsterAtkMult ?? 1),
             rng: &rng)
+        // Phase 4-D (Track D) — 은신. 몬스터 생성 rng 는 그대로 소비한 뒤 (웹 시드 정렬)
+        //   조우 대신 지나침 서사만 남긴다. 보스 분기는 위에서 먼저 갈라지므로 보스는
+        //   절대 은신되지 않는다. 시간은 encounter(2) 가 아니라 narrative(1).
+        if (s.runStealthLeft ?? 0) > 0 {
+            let left = (s.runStealthLeft ?? 0) - 1
+            s.runStealthLeft = left <= 0 ? nil : left
+            s.log.append(.narrative(
+                text: "\(monster.name)의 곁을 소리 없이 지나쳤다.",
+                narrativeKey: "uphero.combat.narrative.stealthPass",
+                narrativeParams: [
+                    "monster": .text(monster.name),
+                    "monsterTemplateId": .text(monster.templateId ?? ""),
+                ], timestamp: now()))
+            _ = consumeTime(&s, delta: -UpHeroCombat.TimeCost.narrative)
+            return s
+        }
         s.log.append(.encounter(monster: monster, timestamp: now()))
         initMonsterTraitState(&s, monster: monster)
         _ = consumeTime(&s, delta: -UpHeroCombat.TimeCost.encounter)
@@ -668,6 +705,11 @@ enum UpHeroSession {
         }
         if heroDmg > 0, let ab = s.heroAtkBonusRounds, ab.rounds > 0 {
             heroDmg = UpHeroCombat.jsRound(Double(heroDmg) * ab.mult)
+        }
+        // Phase 4-D (Track D) — revealBoss 가 쌓은 보스 피해 % (isBoss 몬스터에만).
+        //   heroAtkBonusRounds 바로 뒤, crit 보너스 앞 (병합 순서 고정).
+        if heroDmg > 0, monster.isBoss == true, let bp = s.runBossDmgPct, bp > 0 {
+            heroDmg = UpHeroCombat.jsRound(Double(heroDmg) * (1 + Double(bp) / 100))
         }
         if heroOutcome == .crit, heroDmg > 0, tMods.critDmgBonus > 0 {
             heroDmg = UpHeroCombat.jsRound(Double(heroDmg) * (1 + tMods.critDmgBonus))
@@ -826,23 +868,31 @@ enum UpHeroSession {
             resolvedIndex: optionIndex, variant: variant, timeoutMs: timeoutMs,
             defaultOptionIndex: defaultOptionIndex, isMystery: isMystery, timestamp: ts)
 
+        // Phase 4-D (Track D, 피드백 35) — 효과를 층·영웅 기준으로 스케일한 뒤 요약·적용.
+        //   요약보다 먼저라 칩이 실제 지급 수치를 보여준다. 웹 resolveChoice 와 같은 지점.
+        func scale(_ effects: [ChoiceEffect]) -> [ChoiceEffect] {
+            UpHeroCombat.scaleChoiceEffectsForFloor(
+                effects, floor: s.currentFloor, heroMaxHp: s.hero.maxHp,
+                ngPlusLevel: s.ngPlusLevel ?? 0)
+        }
         if let outcomes = option.outcomes, !outcomes.isEmpty {
             let outcome = UpHeroCombat.pickWeighted(outcomes, rng: &rng)
+            let effects = scale(outcome.effects)
             appendChoiceResult(&s, label: option.label, labelKey: option.labelKey,
                                resultText: outcome.resultText, resultTextKey: outcome.resultTextKey,
-                               effects: outcome.effects)
-            for effect in outcome.effects {
+                               effects: effects)
+            for effect in effects {
                 applyChoiceEffect(&s, effect: effect, slotSpinsToday: slotSpinsToday, rng: &rng)
                 if s.status == .completed { break }
             }
         } else {
-            let legacyEffects = option.effect.map { [$0] } ?? []
+            let legacyEffects = scale(option.effect.map { [$0] } ?? [])
             if let resultText = option.resultText {
                 appendChoiceResult(&s, label: option.label, labelKey: option.labelKey,
                                    resultText: resultText, resultTextKey: option.resultTextKey,
                                    effects: legacyEffects)
             }
-            if let effect = option.effect {
+            for effect in legacyEffects {
                 applyChoiceEffect(&s, effect: effect, slotSpinsToday: slotSpinsToday, rng: &rng)
             }
         }
@@ -874,12 +924,10 @@ enum UpHeroSession {
     ) {
         let summary = UpHeroCombat.summarizeEffects(effects)
         let sd = UpHeroCombat.summarizeEffectsData(effects)
-        let hasData = sd.xp != nil || sd.coins != nil || sd.heal != nil
-            || sd.damage != nil || sd.timeDelta != nil
         s.log.append(.choiceResult(
             text: "> \(label) → \(resultText)",
             effectSummary: summary.isEmpty ? nil : summary,
-            effectSummaryData: hasData ? sd : nil,
+            effectSummaryData: sd.isEmpty ? nil : sd,
             actionLabelKey: labelKey, actionLabelFallback: label,
             resultTextKey: resultTextKey, resultTextFallback: resultText,
             slot: nil, timestamp: now()))
@@ -1072,11 +1120,51 @@ enum UpHeroSession {
             }
             s.currentFloor = target
             s.log.append(.floor(from: cur, to: target, timestamp: now()))
+            // Phase 4-D (Track D) — 실제 이동한 층 수만큼 런 보정 만료. 층 XP 는 없다.
+            advanceRunModFloors(&s, moved)
         case .revealBoss:
+            // Phase 4-D (Track D, 피드백 35) — "보스의 기운" 한 줄이던 효과를 실제 정보로:
+            //   다음 보스층의 보스 이름과 trait 를 서사로 밝히고, 남은 런 동안 보스 피해
+            //   +5% (상한 15) 를 준다. 보스 템플릿은 층으로 결정되고 createMonsterForFloor
+            //   의 보스 분기는 rng 를 소비하지 않으므로 미리보기가 시드를 어긋나게 하지
+            //   않는다. Track C 의 nextBossFloorAfter (보스는 10층마다 영원히) 를 쓰며
+            //   revealBossNone 은 방어 분기일 뿐이다.
+            let nextBossFloor = UpHeroCombat.nextBossFloorAfter(s.currentFloor)
+            guard UpHeroCombat.isBossFloor(nextBossFloor) else {
+                s.log.append(.narrative(
+                    text: "앞길에 더는 보스의 기운이 없다.",
+                    narrativeKey: "uphero.combat.narrative.revealBossNone",
+                    narrativeParams: nil, timestamp: now()))
+                return
+            }
+            let boss = MonsterPool.createMonsterForFloor(
+                dungeonId: s.dungeonId, floor: nextBossFloor, isBoss: true,
+                opts: ScaleOptions(ngPlusLevel: s.ngPlusLevel ?? 0,
+                                   hpMult: s.monsterHpMult ?? 1, atkMult: s.monsterAtkMult ?? 1),
+                rng: &rng)
+            let pct = min(UpHeroCombat.RunMods.bossDmgCap,
+                          (s.runBossDmgPct ?? 0) + UpHeroCombat.RunMods.bossDmgPerReveal)
+            s.runBossDmgPct = pct
+            let trait = boss.trait?.rawValue ?? "none"
             s.log.append(.narrative(
-                text: "보스의 기운이 느껴진다.",
-                narrativeKey: "uphero.combat.narrative.revealBoss",
-                narrativeParams: nil, timestamp: now()))
+                text: "F\(nextBossFloor)의 \(boss.name)가 보인다 (보스 피해 +\(pct)%)",
+                narrativeKey: "uphero.combat.narrative.revealBossTrait.\(trait)",
+                narrativeParams: [
+                    "floor": .number(Double(nextBossFloor)),
+                    "monster": .text(boss.name),
+                    "monsterTemplateId": .text(boss.templateId ?? ""),
+                    "pct": .number(Double(pct)),
+                ], timestamp: now()))
+        case let .runBuff(stat, pct, floors):
+            applyRunStatMod(&s, stat: stat, pct: pct, floors: floors, isBuff: true)
+        case let .runCurse(stat, pct, floors):
+            applyRunStatMod(&s, stat: stat, pct: pct, floors: floors, isBuff: false)
+        case let .stealth(encounters):
+            s.runStealthLeft = min(UpHeroCombat.RunMods.stealthCap,
+                                   (s.runStealthLeft ?? 0) + encounters)
+        case let .guaranteedDrop(count):
+            s.runGuaranteedDrops = min(UpHeroCombat.RunMods.guaranteedDropCap,
+                                       (s.runGuaranteedDrops ?? 0) + (count ?? 1))
         case let .spinSlot(cost):
             applySpinSlot(&s, cost: cost, slotSpinsToday: slotSpinsToday, rng: &rng)
         case .fight:
@@ -1140,6 +1228,34 @@ enum UpHeroSession {
         }
     }
 
+    /// Phase 4-D (Track D, 피드백 15) — 런 한정 능력치 보정 적립. 저주는 음수 pct 로 같은
+    /// 배열에 쌓인다. 상한 초과면 오래된 것부터 버린다. 웹 applyChoiceEffect 의
+    /// runBuff/runCurse 분기.
+    private static func applyRunStatMod(
+        _ s: inout CombatSession, stat: RunModStat, pct: Int, floors: Int?, isBuff: Bool
+    ) {
+        var mods = s.runStatMods ?? []
+        mods.append(RunStatMod(stat: stat, pct: isBuff ? pct : -pct, floorsLeft: floors))
+        while mods.count > UpHeroCombat.RunMods.statModsCap { mods.removeFirst() }
+        s.runStatMods = mods
+        let statKo = UpHeroCombat.runStatKo[stat] ?? stat.rawValue
+        let f = floors ?? 0
+        s.log.append(.narrative(
+            text: isBuff
+                ? "\(statKo)이(가) 오른다 (+\(pct)%, \(f)층)"
+                : "\(statKo)이(가) 흔들린다 (-\(pct)%, \(f)층)",
+            narrativeKey: isBuff
+                ? "uphero.combat.narrative.runBuff"
+                : "uphero.combat.narrative.runCurse",
+            // stat 은 ko fallback, statId 는 resolveLog 가 현재 언어 라벨로 치환하는 키.
+            narrativeParams: [
+                "stat": .text(statKo),
+                "statId": .text(stat.rawValue),
+                "pct": .number(Double(pct)),
+                "floors": .number(Double(f)),
+            ], timestamp: now()))
+    }
+
     // MARK: - resolveMinigame / abandonSession
 
     /// 미니게임 결과 해소. 웹 `resolveMinigame`.
@@ -1150,16 +1266,18 @@ enum UpHeroSession {
             return session
         }
         var s = session
-        let simpleEffects = success ? pending.successEffects : pending.failEffects
+        // Phase 4-D (Track D) — startMinigame 안쪽 배열은 resolveChoice 가 스케일하지
+        //   않으므로 여기 적용 시점에 같은 식으로 스케일한다.
+        let simpleEffects = UpHeroCombat.scaleChoiceEffectsForFloor(
+            success ? pending.successEffects : pending.failEffects,
+            floor: s.currentFloor, heroMaxHp: s.hero.maxHp, ngPlusLevel: s.ngPlusLevel ?? 0)
         let effects = simpleEffects.map { $0.asChoiceEffect }
         let summary = UpHeroCombat.summarizeEffects(effects)
         let sd = UpHeroCombat.summarizeEffectsData(effects)
-        let hasData = sd.xp != nil || sd.coins != nil || sd.heal != nil
-            || sd.damage != nil || sd.timeDelta != nil
         s.log.append(.choiceResult(
             text: success ? "> 도전 성공" : "> 도전 실패",
             effectSummary: summary.isEmpty ? nil : summary,
-            effectSummaryData: hasData ? sd : nil,
+            effectSummaryData: sd.isEmpty ? nil : sd,
             actionLabelKey: success ? "uphero.combat.minigame.success" : "uphero.combat.minigame.fail",
             actionLabelFallback: success ? "도전 성공" : "도전 실패",
             resultTextKey: success ? "uphero.combat.minigame.success" : "uphero.combat.minigame.fail",
@@ -1197,6 +1315,10 @@ private extension SimpleChoiceEffect {
         case let .time(delta): return .time(delta: delta)
         case let .skipFloors(count): return .skipFloors(count: count)
         case .revealBoss: return .revealBoss
+        case let .runBuff(stat, pct, floors): return .runBuff(stat: stat, pct: pct, floors: floors)
+        case let .runCurse(stat, pct, floors): return .runCurse(stat: stat, pct: pct, floors: floors)
+        case let .stealth(encounters): return .stealth(encounters: encounters)
+        case let .guaranteedDrop(count): return .guaranteedDrop(count: count)
         case .nothing: return .nothing
         }
     }

@@ -221,3 +221,75 @@ for c in [ClassType?.none, .priest, .illusionist, .warrior] {
     let label = c.map { $0.rawValue } ?? "null"
     print("applyClassStartEffects(\(label)) = \(fmtHero(UpHeroCombat.applyClassStartEffects(mkHero(classType: c))))")
 }
+// ── 17. floorRewardScale (Phase 4-D) ───────────────────────────
+for (fl, ng) in [(1, 0), (5, 0), (10, 0), (20, 0), (30, 0), (30, 1), (60, 2), (200, 0)] {
+    let r = UpHeroCombat.floorRewardScale(floor: fl, ngPlusLevel: ng)
+    print("floorRewardScale(\(fl),ng\(ng)) = \(r.coins),\(r.xp)")
+}
+// ── 18. scaleChoiceEffectsForFloor (Phase 4-D) ─────────────────
+func fmtFx(_ e: ChoiceEffect) -> String {
+    switch e {
+    case let .reward(c, x, _): return "reward(\(opt(c)),\(opt(x)))"
+    case let .damage(a): return "damage(\(a))"
+    case let .heal(a): return "heal(\(a))"
+    case let .time(d): return "time(\(d))"
+    case let .runBuff(s, p, fl): return "runBuff(\(s.rawValue),\(p),\(opt(fl)))"
+    case let .runCurse(s, p, fl): return "runCurse(\(s.rawValue),\(p),\(opt(fl)))"
+    case let .stealth(n): return "stealth(\(n))"
+    case let .guaranteedDrop(c): return "guaranteedDrop(\(opt(c)))"
+    case .spinSlot: return "spinSlot"
+    case .skipFloors: return "skipFloors"
+    case .revealBoss: return "revealBoss"
+    case .nothing: return "nothing"
+    case .fight: return "fight"
+    case .flee: return "flee"
+    case .startMinigame: return "startMinigame"
+    }
+}
+let scaleFx: [ChoiceEffect] = [
+    .reward(coins: 35, xp: 10, dropEquipmentId: nil),
+    .damage(amount: 15),
+    .heal(amount: 20),
+    .time(delta: -3),
+    .spinSlot(cost: 30),
+    .runBuff(stat: .str, pct: 5, floors: 5),
+]
+for (fl, hp, ng) in [(1, 100, 0), (10, 100, 0), (20, 388, 0), (30, 388, 1)] {
+    let out = UpHeroCombat.scaleChoiceEffectsForFloor(scaleFx, floor: fl, heroMaxHp: hp, ngPlusLevel: ng)
+    print("scaleChoiceEffectsForFloor(F\(fl),hp\(hp),ng\(ng)) = \(out.map(fmtFx).joined(separator: "|"))")
+}
+// ── 19. summarizeEffectsData — 런 한정 효과 (Phase 4-D) ─────────
+let runFx: [ChoiceEffect] = [
+    .runBuff(stat: .str, pct: 5, floors: 5),
+    .runCurse(stat: .agi, pct: 5, floors: 3),
+    .runCurse(stat: .all, pct: 10, floors: nil),
+    .stealth(encounters: 1),
+    .guaranteedDrop(count: nil),
+    .revealBoss,
+    .skipFloors(count: 2),
+    .time(delta: -4),
+]
+do {
+    let d = UpHeroCombat.summarizeEffectsData(runFx)
+    let rm = (d.runMods ?? []).map { "\($0.stat.rawValue)\($0.pct >= 0 ? "+" : "")\($0.pct)/\(opt($0.floorsLeft))" }
+        .joined(separator: ",")
+    print("summarizeEffectsData(runMods) = sk\(opt(d.skipFloors)),rm[\(rm)],st\(opt(d.stealth)),gd\(opt(d.guaranteedDrop)),bp\(opt(d.bossDmgPct)),ti\(opt(d.timeDelta))")
+    print("summarizeEffects(runMods) = [\(UpHeroCombat.summarizeEffects(runFx))]")
+}
+// ── 20. sessionStats — combatBuff 뒤 런 보정 2단 반올림 (Phase 4-D) ──
+do {
+    var statHero = mkHero()
+    statHero.baseStats = HeroBaseStats(str: 20, int: 13, vit: 17, dex: 9, agi: 10, crit: 7, slotBonus: 1)
+    let buff = CombatBuff(pct: 10, battlesLeft: 3)
+    let mods: [RunStatMod] = [
+        RunStatMod(stat: .str, pct: 5, floorsLeft: nil),
+        RunStatMod(stat: .all, pct: -50, floorsLeft: 2),
+        RunStatMod(stat: .agi, pct: 200, floorsLeft: nil),
+    ]
+    func fmtStats(_ st: HeroBaseStats) -> String {
+        "\(st.str),\(st.int),\(st.vit),\(st.dex),\(st.agi),\(st.crit),\(st.slotBonus)"
+    }
+    print("sessionStats(stack) = \(fmtStats(UpHeroCombat.sessionStats(hero: statHero, combatBuff: buff, runStatMods: mods)))")
+    print("sessionStats(noBuff) = \(fmtStats(UpHeroCombat.sessionStats(hero: statHero, combatBuff: nil, runStatMods: mods)))")
+    print("sessionStats(noMods) = \(fmtStats(UpHeroCombat.sessionStats(hero: statHero, combatBuff: buff, runStatMods: nil)))")
+}

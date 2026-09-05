@@ -71,6 +71,146 @@ enum UpHeroCombat {
     /// in-memory log trim 상한. 웹 `SESSION_LOG_RUNTIME_CAP`.
     static let sessionLogRuntimeCap = 600
 
+    /// Phase 4-D (Track D, 피드백 15/35) — 런 한정 빌드 상수. 웹 upHeroCombat.ts 의
+    /// RUN_* / CHOICE_* const 와 같은 값.
+    ///
+    /// 런 보정은 `CombatSession.runStatMods` 에 건별로 쌓이고 `sessionStats()` 가
+    /// 스탯별로 pct 를 **합산** (같은 stat + all) 한 뒤 [-50, +100] 으로 clamp 해 한 번만
+    /// 곱한다. 곱으로 쌓으면 같은 버프 세 번이 +33% 가 아니라 +52% 가 되어 밸런스가
+    /// 무너진다. 건수 상한 8 은 UI 스트립이 읽을 수 있는 한계이자 "오래된 버프가
+    /// 밀려난다" 는 규칙. 보스 피해 +5%/reveal (상한 15) 은 revealBoss 를 "정보 + 준비"
+    /// 로 만든다. 은신 3 / 장비 확정 2 상한은 한 런에서 쌓아두는 이득이 층 보상 몇 개분을
+    /// 넘지 않게 한다.
+    enum RunMods {
+        static let statPctMin = -50
+        static let statPctMax = 100
+        static let statModsCap = 8
+        static let bossDmgPerReveal = 5
+        static let bossDmgCap = 15
+        static let stealthCap = 3
+        static let guaranteedDropCap = 2
+        /// 데이터의 코인 50 / XP 15 가 "그 층 한 층어치" 에 정확히 대응하는 기준값.
+        static let rewardRefCoins = 50
+        static let rewardRefXp = 15
+        /// Lv1 maxHp. 피해/회복 데이터는 이 값 기준으로 쓰여 있다.
+        static let riskRefHp = 100
+    }
+
+    /// Phase 4-D — 층 f 의 "한 층어치" 보상 (power 2 일반 몬스터 1마리 처치 보상,
+    /// `scaleMonster` 의 xp/coin 식에서 power=2, 보스 아님). f 는 1..120 clamp, NG+ 배율
+    /// 반영. 웹 `floorRewardScale` (jsRound).
+    static func floorRewardScale(floor: Int, ngPlusLevel: Int = 0) -> (coins: Int, xp: Int) {
+        let f = max(1, min(120, floor))
+        let ngMult = UpHeroRules.ngPlusScaleMult(ngPlusLevel)
+        let coins = jsRound(Double(3 + 2 * f) * 2 * (f <= 10 ? 1.3 : 1) * ngMult)
+        let xp = jsRound(Double(10 + 3 * f) * 2 * ngMult)
+        return (coins, xp)
+    }
+
+    /// Phase 4-D — 선택 보상 배율. 1 미만으로는 내려가지 않는다 (데이터가 하한). 웹 `choiceRewardMult`.
+    static func choiceRewardMult(floor: Int, ngPlusLevel: Int = 0) -> (coin: Double, xp: Double) {
+        let scale = floorRewardScale(floor: floor, ngPlusLevel: ngPlusLevel)
+        return (max(1, Double(scale.coins) / Double(RunMods.rewardRefCoins)),
+                max(1, Double(scale.xp) / Double(RunMods.rewardRefXp)))
+    }
+
+    /// Phase 4-D (피드백 35) — 선택 효과를 현재 층·영웅 기준으로 스케일한다. flavor 데이터의
+    /// 숫자는 "F1-F10 기준선" 으로 남기고 적용 직전에 층 보상을 따라가게 한다. 코인/XP 는
+    /// `choiceRewardMult`, 피해/회복은 maxHp/100. 그 밖의 kind 는 그대로. startMinigame
+    /// 안쪽 배열은 여기서 건드리지 않고 resolveMinigame 이 적용 시점에 같은 식으로 스케일한다.
+    /// summarize 보다 먼저 불러야 칩이 실제 수치를 보여준다. 웹 `scaleChoiceEffectsForFloor`.
+    static func scaleChoiceEffectsForFloor(
+        _ effects: [ChoiceEffect], floor: Int, heroMaxHp: Int, ngPlusLevel: Int = 0
+    ) -> [ChoiceEffect] {
+        let mult = choiceRewardMult(floor: floor, ngPlusLevel: ngPlusLevel)
+        let riskMult = max(1, Double(heroMaxHp) / Double(RunMods.riskRefHp))
+        return effects.map { e in
+            switch e {
+            case let .reward(coins, xp, dropId):
+                // 웹 `if (e.coins)` — 0 은 falsy 라 그대로 남는다.
+                let c = coins.map { $0 == 0 ? 0 : jsRound(Double($0) * mult.coin) }
+                let x = xp.map { $0 == 0 ? 0 : jsRound(Double($0) * mult.xp) }
+                return .reward(coins: c, xp: x, dropEquipmentId: dropId)
+            case let .damage(amount):
+                return .damage(amount: jsRound(Double(amount) * riskMult))
+            case let .heal(amount):
+                return .heal(amount: jsRound(Double(amount) * riskMult))
+            default:
+                return e
+            }
+        }
+    }
+
+    /// SimpleChoiceEffect 오버로드 (resolveMinigame). 같은 식.
+    static func scaleChoiceEffectsForFloor(
+        _ effects: [SimpleChoiceEffect], floor: Int, heroMaxHp: Int, ngPlusLevel: Int = 0
+    ) -> [SimpleChoiceEffect] {
+        let mult = choiceRewardMult(floor: floor, ngPlusLevel: ngPlusLevel)
+        let riskMult = max(1, Double(heroMaxHp) / Double(RunMods.riskRefHp))
+        return effects.map { e in
+            switch e {
+            case let .reward(coins, xp, dropId):
+                let c = coins.map { $0 == 0 ? 0 : jsRound(Double($0) * mult.coin) }
+                let x = xp.map { $0 == 0 ? 0 : jsRound(Double($0) * mult.xp) }
+                return .reward(coins: c, xp: x, dropEquipmentId: dropId)
+            case let .damage(amount):
+                return .damage(amount: jsRound(Double(amount) * riskMult))
+            case let .heal(amount):
+                return .heal(amount: jsRound(Double(amount) * riskMult))
+            default:
+                return e
+            }
+        }
+    }
+
+    /// Phase 4-D — 한 스탯에 걸린 런 보정 합 (같은 stat + all), [-50, +100] clamp. 웹 `runStatPct`.
+    static func runStatPct(_ mods: [RunStatMod]?, _ stat: RunModStat) -> Int {
+        var sum = 0
+        for m in mods ?? [] where m.stat == stat || m.stat == .all {
+            sum += m.pct
+        }
+        return max(RunMods.statPctMin, min(RunMods.statPctMax, sum))
+    }
+
+    /// **전투에 쓰이는 영웅 스탯의 단일 출처** 의 순수 본체. 웹 `sessionStats`.
+    ///
+    /// `computeEffectiveStats` (base + 장비) 위에 세션 한정 `combatBuff` 를 곱하고, 그 **뒤에**
+    /// 런 한정 보정을 스탯별 합산 pct 로 한 번 더 곱한다 (2단 반올림: combatBuff 반올림 →
+    /// 런 보정 반올림. 웹 Math.round 순서를 jsRound 로 재현해야 1 차이가 안 난다).
+    /// crit / slotBonus 는 곱하지 않는다. `UpHeroSession.sessionStats` 가 세션 필드를 넘긴다;
+    /// 동치 검증 (scripts/equiv/uphero-combat.swift) 은 이 함수를 직접 부른다.
+    static func sessionStats(
+        hero: Hero, combatBuff: CombatBuff?, runStatMods: [RunStatMod]?
+    ) -> HeroBaseStats {
+        let base = UpHeroRules.computeEffectiveStats(hero)
+        var out = base
+        if let buff = combatBuff, buff.battlesLeft > 0, buff.pct > 0 {
+            // 세션 층위의 pct 는 퍼센트 포인트다 (10 = +10%). CombatBuff 주석 참고.
+            let m = 1 + buff.pct / 100
+            out.str = jsRound(Double(base.str) * m)
+            out.int = jsRound(Double(base.int) * m)
+            out.vit = jsRound(Double(base.vit) * m)
+            out.dex = jsRound(Double(base.dex) * m)
+            out.agi = jsRound(Double(base.agi) * m)
+        }
+        guard let mods = runStatMods, !mods.isEmpty else { return out }
+        func apply(_ v: Int, _ stat: RunModStat) -> Int {
+            let pct = runStatPct(mods, stat)
+            return pct == 0 ? v : jsRound(Double(v) * (1 + Double(pct) / 100))
+        }
+        out.str = apply(out.str, .str)
+        out.int = apply(out.int, .int)
+        out.vit = apply(out.vit, .vit)
+        out.dex = apply(out.dex, .dex)
+        out.agi = apply(out.agi, .agi)
+        return out
+    }
+
+    /// 런 보정 스탯의 한국어 이름 (엔진 fallback 문자열 전용, UI 는 카탈로그 라벨). 웹 `RUN_STAT_KO`.
+    static let runStatKo: [RunModStat: String] = [
+        .str: "힘", .int: "지성", .vit: "체력", .dex: "손재주", .agi: "민첩", .all: "전 능력치",
+    ]
+
     // 클래스 패시브 상수 — 웹 upHeroCombat.ts 동명 const.
     static let warriorRegenPerRound = 2     // HP +2/round
     static let mageXpMult = 1.2             // XP +20%
@@ -348,6 +488,9 @@ enum UpHeroCombat {
     /// choice effects 구조 요약. 웹 `summarizeEffectsData`.
     static func summarizeEffectsData(_ effects: [ChoiceEffect]) -> EffectSummaryData {
         var coins = 0, xp = 0, damage = 0, heal = 0, timeDelta = 0
+        // Phase 4-D — 런 한정 효과 누적.
+        var skip = 0, stealth = 0, guaranteed = 0, bossPct = 0
+        var runMods: [RunStatMod] = []
         for e in effects {
             switch e {
             case let .reward(c, x, _):
@@ -359,6 +502,18 @@ enum UpHeroCombat {
                 heal += amount
             case let .time(delta):
                 timeDelta += delta
+            case let .skipFloors(count):
+                skip += count
+            case let .runBuff(stat, pct, floors):
+                runMods.append(RunStatMod(stat: stat, pct: pct, floorsLeft: floors))
+            case let .runCurse(stat, pct, floors):
+                runMods.append(RunStatMod(stat: stat, pct: -pct, floorsLeft: floors))
+            case let .stealth(encounters):
+                stealth += encounters
+            case let .guaranteedDrop(count):
+                guaranteed += count ?? 1
+            case .revealBoss:
+                bossPct += RunMods.bossDmgPerReveal
             default:
                 break
             }
@@ -369,6 +524,11 @@ enum UpHeroCombat {
         if heal > 0 { out.heal = heal }
         if damage > 0 { out.damage = damage }
         if timeDelta != 0 { out.timeDelta = timeDelta }
+        if skip > 0 { out.skipFloors = skip }
+        if !runMods.isEmpty { out.runMods = runMods }
+        if stealth > 0 { out.stealth = stealth }
+        if guaranteed > 0 { out.guaranteedDrop = guaranteed }
+        if bossPct > 0 { out.bossDmgPct = bossPct }
         return out
     }
 
@@ -384,6 +544,15 @@ enum UpHeroCombat {
             if td > 0 { parts.append("시간 +\(td)") }
             else if td < 0 { parts.append("시간 \(td)") }
         }
+        // Phase 4-D — 런 한정 효과 (ko legacy 문자열. UI 는 ChoiceResultTypes.chips 를 쓴다).
+        if let sk = data.skipFloors { parts.append("\(sk)층 건너뜀") }
+        for m in data.runMods ?? [] {
+            let label = runStatKo[m.stat] ?? m.stat.rawValue
+            parts.append("\(label) \(m.pct > 0 ? "+" : "-")\(abs(m.pct))%")
+        }
+        if let st = data.stealth { parts.append("은신 \(st)") }
+        if data.guaranteedDrop != nil { parts.append("장비 확정") }
+        if let bp = data.bossDmgPct { parts.append("보스 피해 +\(bp)%") }
         return parts.joined(separator: " · ")
     }
 
