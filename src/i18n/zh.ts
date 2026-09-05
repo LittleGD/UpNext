@@ -2746,7 +2746,7 @@ const zh: Record<DictKey, string> = {
   "uphero.skill.monk_chainstrike_t3.desc": "下次攻击伤害 2.5 倍。",
   "uphero.skill.druid_vigor_t2.desc": "恢复 HP +60 + 1 回合闪避 100%。",
   "uphero.skill.druid_claw_t3.desc": "3 回合内攻击 +40%。",
-  "uphero.skill.bard_lullaby_t2.desc": "封印敌人行动 1 回合。",
+  "uphero.skill.bard_lullaby_t2.desc": "敌人 1 回合无法行动。",
   "uphero.skill.bard_fortune_t3.desc": "下次击杀金币 2 倍 + 接下来 2 次攻击必定暴击。",
   "uphero.skill.chrono_warp_t2.desc": "2 回合闪避 100%。",
   "uphero.skill.chrono_foresight_t3.desc": "接下来 3 次攻击必定暴击。",

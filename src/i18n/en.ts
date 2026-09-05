@@ -2747,7 +2747,7 @@ const en: Record<DictKey, string> = {
   "uphero.skill.monk_chainstrike_t3.desc": "Next attack deals 2.5x damage.",
   "uphero.skill.druid_vigor_t2.desc": "Heal HP +60 + 100% dodge for 1 round.",
   "uphero.skill.druid_claw_t3.desc": "Attack +40% for 3 rounds.",
-  "uphero.skill.bard_lullaby_t2.desc": "Stun the enemy for 1 round.",
+  "uphero.skill.bard_lullaby_t2.desc": "Stun enemy for 1 round.",
   "uphero.skill.bard_fortune_t3.desc": "Next kill coins x2 + next 2 attacks guaranteed crit.",
   "uphero.skill.chrono_warp_t2.desc": "100% dodge for 2 rounds.",
   "uphero.skill.chrono_foresight_t3.desc": "Next 3 attacks guaranteed crit.",
