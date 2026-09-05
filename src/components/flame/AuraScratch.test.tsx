@@ -147,6 +147,17 @@ describe("AuraScratch", () => {
     expect(sounds.beginSelectionHaptics).toHaveBeenCalledTimes(1);
   });
 
+  it("드래그 중 언마운트되면 햅틱 세션을 닫는다", () => {
+    const onReveal = vi.fn();
+    const { container, unmount } = render(<AuraScratch colorHex="#ff0000" onReveal={onReveal} />);
+    const cover = container.querySelector("button") as HTMLButtonElement;
+    fireEvent.pointerDown(cover, { pointerId: 1, clientX: 10, clientY: 10 });
+    expect(sounds.beginSelectionHaptics).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(sounds.endSelectionHaptics).toHaveBeenCalledTimes(1);
+    expect(onReveal).not.toHaveBeenCalled();
+  });
+
   it("키보드(Enter)는 문지르기 없이 peel → onReveal 경로를 탄다", () => {
     const onReveal = vi.fn();
     const { container, getByRole } = render(<AuraScratch colorHex="#ff0000" onReveal={onReveal} />);

@@ -107,6 +107,13 @@ export default function AuraScratch({
       window.removeEventListener("scroll", invalidate, true);
       window.visualViewport?.removeEventListener("resize", invalidate);
       if (peelTimerRef.current) clearTimeout(peelTimerRef.current);
+      // 드래그 중 언마운트(Esc 로 오버레이 닫힘, 자정 롤오버)되면 pointerup 이
+      // 오지 않는다. 세션을 닫지 않으면 앱 전역 selection 햅틱이 스크래치용
+      // 스로틀 분기에 갇힌다. endSelectionHaptics 는 멱등.
+      if (draggingRef.current) {
+        draggingRef.current = false;
+        endSelectionHaptics();
+      }
     };
   }, []);
 
