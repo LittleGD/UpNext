@@ -61,7 +61,12 @@ enum SessionReward {
 
     /// log 에서 발견한 몬스터/보스/장비를 기존 codex 에 누적. 웹 `calculateCodexDelta`.
     /// (웹 Set 은 삽입 순서 보존 — Swift 는 배열+seen-set 으로 동일 순서 재현.)
-    static func calculateCodexDelta(log: [LogEntry], current: Codex) -> Codex {
+    /// Phase 6-E (Track E, 피드백 18) — `rewardDrops` (session.rewards.drops) 와 합집합.
+    ///   로그는 상한으로 앞부분이 잘리지만 drops 는 전부 남아 있다. 사진 부적은 템플릿이
+    ///   없으므로 도감에 넣지 않는다.
+    static func calculateCodexDelta(
+        log: [LogEntry], current: Codex, rewardDrops: [Equipment] = []
+    ) -> Codex {
         var monsters = current.monsters
         var monsterSeen = Set(monsters)
         var bosses = current.bosses
@@ -83,7 +88,7 @@ enum SessionReward {
                     }
                 }
             }
-            if case let .drop(equip, _) = entry {
+            if case let .drop(equip, _) = entry, equip.photoId == nil {
                 let base = EquipmentPool.equipmentBaseName(equip)
                 if !equipSeen.contains(base) {
                     equipSeen.insert(base)
@@ -91,7 +96,25 @@ enum SessionReward {
                 }
             }
         }
+        for equip in rewardDrops where equip.photoId == nil {
+            let base = EquipmentPool.equipmentBaseName(equip)
+            if !equipSeen.contains(base) {
+                equipSeen.insert(base)
+                equipment.append(base)
+            }
+        }
         return Codex(monsters: monsters, equipment: equipment, bosses: bosses)
+    }
+
+    /// Phase 6-E (Track E, 피드백 22) — 가방 상한 분배. 웹 `splitDropsByCap`.
+    /// room = max(0, cap - inventoryCount); 앞에서부터 room 개는 가방으로, 나머지는
+    /// overflowDrops 로. 순서를 바꾸지 않는다 (드롭 순 = 로그 순).
+    static func splitDropsByCap(
+        inventoryCount: Int, drops: [Equipment], cap: Int
+    ) -> (fits: [Equipment], overflow: [Equipment]) {
+        let room = max(0, cap - inventoryCount)
+        let cut = min(room, drops.count)
+        return (Array(drops[..<cut]), Array(drops[cut...]))
     }
 
     /// 던전 진행 갱신 — 도달 floor max + 보스 처치 반영. 웹 `calculateDungeonProgress`.

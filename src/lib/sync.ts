@@ -115,6 +115,10 @@ export type CloudUpHeroState = Partial<
     UpHeroState,
     | "hero"
     | "inventory"
+    // Phase 6-E (Track E) — 가방 상한 초과분. 와이어 키 = "overflowDrops" (Equipment[],
+    //   inventory 와 같은 디코드, [] 허용, 항상 인코딩, footprint 포함).
+    //   iOS UpHeroCloudSchema CodingKeys 에 같은 철자로 있어야 한다.
+    | "overflowDrops"
     | "coins"
     | "passes"
     | "dungeons"
@@ -207,6 +211,15 @@ function normalizeEquipment(raw: unknown): Equipment | null {
   item.name = asText(r.name) ?? id;
   item.stats = normalizeStats(r.stats);
   return item;
+}
+
+/** Equipment 배열 디코드 — 배열이 아니면 [], 깨진 원소만 버린다. */
+function normalizeEquipmentList(raw: unknown): Equipment[] {
+  return Array.isArray(raw)
+    ? raw
+        .map((item) => normalizeEquipment(item))
+        .filter((item): item is Equipment => item !== null)
+    : [];
 }
 
 /**
@@ -370,6 +383,8 @@ export function hasUpHeroFootprint(raw: unknown): boolean {
   const r = asRecord(raw);
   if (!r) return false;
   if (Array.isArray(r.inventory) && r.inventory.length > 0) return true;
+  // 넘친 전리품도 플레이 흔적이다 — 정산을 거쳐야만 생긴다.
+  if (Array.isArray(r.overflowDrops) && r.overflowDrops.length > 0) return true;
   const codex = asRecord(r.codex);
   if (codex) {
     for (const key of ["monsters", "bosses", "equipment"]) {
@@ -405,11 +420,9 @@ export function normalizeUpHeroState(raw: unknown): CloudUpHeroState {
   const r = asRecord(raw) ?? {};
   const state: CloudUpHeroState = {
     hero: normalizeHero(r.hero),
-    inventory: Array.isArray(r.inventory)
-      ? r.inventory
-          .map((item) => normalizeEquipment(item))
-          .filter((item): item is Equipment => item !== null)
-      : [],
+    inventory: normalizeEquipmentList(r.inventory),
+    // Phase 6-E — inventory 와 같은 디코드. 키가 없거나 배열이 아니면 [].
+    overflowDrops: normalizeEquipmentList(r.overflowDrops),
     coins: Math.max(0, Math.floor(asFinite(r.coins) ?? 0)),
     passes: normalizePasses(r.passes),
     dungeons: normalizeDungeons(r.dungeons),

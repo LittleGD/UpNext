@@ -19,6 +19,7 @@ import {
   type MonsterTemplate,
 } from "@/data/upHeroMonsters";
 import { ALL_EQUIPMENT_TEMPLATES } from "@/data/upHeroEquipment";
+import { normalizeCodexEquipmentKey } from "@/lib/upHeroMigrations";
 import { DUNGEONS, DUNGEON_LIST } from "@/data/upHeroDungeons";
 import {
   GB,
@@ -308,6 +309,7 @@ function MonsterCodex({
                   >
                     <MonsterSprite
                       kind={t.kind}
+                      templateId={t.id}
                       size={28}
                       color={
                         found
@@ -364,10 +366,10 @@ function EquipmentCodex({ codex }: { codex: { equipment: string[] } }) {
   const discoveredSet = new Set<string>(codex.equipment);
   const isDiscovered = (baseName: string): boolean => {
     if (discoveredSet.has(baseName)) return true;
-    // legacy fallback: "eq_{baseName stripped}..."
-    const stripped = baseName.replace(/\s/g, "");
+    // legacy fallback: "eq_{baseName stripped}..." / 접두·강화·affix 가 붙은 키.
+    //   Phase 6-E — v7 수리 전 저장본(구 클라이언트 클라우드 문서) 도 발견으로 친다.
     for (const entry of discoveredSet) {
-      if (entry.startsWith(`eq_${stripped}_`)) return true;
+      if (normalizeCodexEquipmentKey(entry) === baseName) return true;
     }
     return false;
   };

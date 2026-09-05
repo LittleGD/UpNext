@@ -675,10 +675,23 @@ enum UpHeroSession {
 
         gainClassResource(&s, event: .roundStart)
         let skillCdBefore = s.skillCooldown ?? 0
+        // Phase 6-E (Track E, 피드백 21) — 스킬별 쿨다운 맵 스냅샷. canFireSkill / SkillBar 는
+        //   `skillCooldowns` 맵을 읽으므로 아래 스칼라 차감만으로는 평정이 죽어 있었다.
+        let cdsBefore = s.skillCooldowns ?? [:]
         ClassSkills.maybeFireSkill(&s, monster: monster)
         let tModsEarly = sessionMods(s)
         if tModsEarly.classSkillCdReduce > 0, (s.skillCooldown ?? 0) > skillCdBefore {
             s.skillCooldown = max(0, (s.skillCooldown ?? 0) - tModsEarly.classSkillCdReduce)
+        }
+        // 맵 diff — 이번 라운드에 늘어난 키(= 방금 발동한 스킬)만 reduce 만큼 줄인다 (min 0).
+        //   웹 executeCombatRound 동일.
+        if tModsEarly.classSkillCdReduce > 0, var after = s.skillCooldowns {
+            var changed = false
+            for (key, value) in after where value > (cdsBefore[key] ?? 0) {
+                after[key] = max(0, value - tModsEarly.classSkillCdReduce)
+                changed = true
+            }
+            if changed { s.skillCooldowns = after }
         }
 
         let tMods = sessionMods(s)

@@ -77,7 +77,11 @@ export function calculateBossesDefeated(
  * - monsters / bosses: monster.name (템플릿 이름, unique)
  * - equipment: template baseName (rarity prefix 제거한 이름, Phase 5b.2)
  */
-export function calculateCodexDelta(log: LogEntry[], current: Codex): Codex {
+export function calculateCodexDelta(
+  log: LogEntry[],
+  current: Codex,
+  rewardDrops: Equipment[] = [],
+): Codex {
   const monsters = new Set(current.monsters);
   const bosses = new Set(current.bosses);
   const equipment = new Set(current.equipment);
@@ -86,15 +90,37 @@ export function calculateCodexDelta(log: LogEntry[], current: Codex): Codex {
       if (entry.monster.isBoss) bosses.add(entry.monster.name);
       else monsters.add(entry.monster.name);
     }
-    if (entry.type === "drop") {
+    if (entry.type === "drop" && !entry.equipment.photoId) {
       equipment.add(getEquipmentBaseName(entry.equipment));
     }
+  }
+  // Phase 6-E (Track E, 피드백 18) — session.rewards.drops 와 합집합. 로그는
+  //   SESSION_LOG 상한으로 앞부분이 잘리지만 drops 는 전부 남아 있다. 사진 부적은
+  //   템플릿이 없으므로 도감에 넣지 않는다.
+  for (const eq of rewardDrops) {
+    if (eq.photoId) continue;
+    equipment.add(getEquipmentBaseName(eq));
   }
   return {
     monsters: [...monsters],
     bosses: [...bosses],
     equipment: [...equipment],
   };
+}
+
+/**
+ * Phase 6-E (Track E, 피드백 22) — 가방 상한 분배.
+ * room = max(0, cap - inventoryCount); 앞에서부터 room 개는 가방으로, 나머지는
+ * overflowDrops 로. 순서를 바꾸지 않는다 (드롭 순 = 로그 순).
+ * iOS SessionReward.splitDropsByCap 미러.
+ */
+export function splitDropsByCap(
+  inventoryCount: number,
+  drops: Equipment[],
+  cap: number,
+): { fits: Equipment[]; overflow: Equipment[] } {
+  const room = Math.max(0, cap - inventoryCount);
+  return { fits: drops.slice(0, room), overflow: drops.slice(room) };
 }
 
 /**

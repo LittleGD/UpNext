@@ -56,7 +56,7 @@ beforeEach(() => {
 });
 
 describe("v6 시드 — 레거시 저장본", () => {
-  it("heroStartLevel 1 + 계정 Lv47 → heroXp 39,031, 영웅 Lv47, 스키마 6 persist", () => {
+  it("heroStartLevel 1 + 계정 Lv47 → heroXp 39,031, 영웅 Lv47, 현재 스키마로 persist", () => {
     seedGame(47);
     stored.uphero = { schemaVersion: 5, heroStartLevel: 1, coins: 10 };
     const st = reinit();
@@ -64,7 +64,8 @@ describe("v6 시드 — 레거시 저장본", () => {
     expect(heroLevel()).toBe(47);
     const saved = stored.uphero as { heroXp?: number; schemaVersion?: number };
     expect(saved.heroXp).toBe(39031);
-    expect(saved.schemaVersion).toBe(6);
+    // Phase 6-E (Track E) 가 스키마를 7 로 올렸다 — v6 시드 자체는 그대로다.
+    expect(saved.schemaVersion).toBeGreaterThanOrEqual(6);
   });
 
   it("heroStartLevel 41 + 계정 Lv43 → 영웅 Lv3 → 245", () => {

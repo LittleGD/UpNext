@@ -35,6 +35,7 @@ import {
 import { useHeroLevel, useHeroXpProgress } from "./useHeroLevel";
 import type { DungeonId } from "@/types/uphero";
 import { isAdAvailable, showRewardedAd } from "@/lib/ads";
+import { isBagOverflowVisible } from "@/lib/bagOverflowGate";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
@@ -53,6 +54,8 @@ import NumberRoll from "./NumberRoll";
 //   lazy 로 내려 초기 번들에서 제외. Suspense fallback 으로 skeleton 제공.
 //   EquipmentInventory 는 EquipmentCard + 템플릿 데이터까지 끌고 오므로 특히 무거움.
 const EquipmentInventory = lazy(() => import("./EquipmentInventory"));
+// Phase 6-E — 넘친 전리품 모달. 정산 뒤에만 생기므로 게이트가 열릴 때만 로드.
+const BagOverflowModal = lazy(() => import("./BagOverflowModal"));
 const HeroCodex = lazy(() => import("./HeroCodex"));
 const HeroStatPanel = lazy(() => import("./HeroStatPanel"));
 // 아지트 첫 진입 튜토리얼 — 1회용 리소스라 lazy 로 내려 초기 번들 제외.
@@ -95,6 +98,8 @@ export default function CampPlaceholder() {
   const [statsOpen, setStatsOpen] = useState(false);
   // 아지트 첫 진입 튜토리얼 — 유저가 완료/Skip 누르면 persist 되어 재등장 안 함.
   const hasSeenCampTutorial = useUpHeroStore((s) => s.hasSeenCampTutorial ?? false);
+  // Phase 6-E — 가방 초과 모달 게이트: 세션 없음 · 레벨업 오버레이 없음 · 전직 제안 없음.
+  const bagOverflowVisible = useUpHeroStore(isBagOverflowVisible);
   const [tutorialOpen, setTutorialOpen] = useState(() => !hasSeenCampTutorial);
 
   const totalPasses = Object.values(passes).reduce(
@@ -261,6 +266,13 @@ export default function CampPlaceholder() {
       {statsOpen && (
         <Suspense fallback={null}>
           <HeroStatPanel onClose={() => setStatsOpen(false)} />
+        </Suspense>
+      )}
+      {/* Phase 6-E (Track E) — 가방 초과 전리품. 오버레이 순서: HeroLevelUpOverlay →
+          ClassChoiceModal → 이 모달 (isBagOverflowVisible 이 잡는다). 닫기 불가. */}
+      {bagOverflowVisible && (
+        <Suspense fallback={null}>
+          <BagOverflowModal onNotify={notify} />
         </Suspense>
       )}
 

@@ -62,7 +62,9 @@ enum PhotoTalisman {
         let mult = rarityStatMult[rarity] ?? 1
         let statVal = Int((4.0 * mult).rounded())
         var stats: [StatKey: Int] = [primary: statVal]
-        if rarity == .unique || rarity == .legend { stats[.slotBonus] = 1 }
+        // Phase 6-E (Track E, 피드백 21) — 부적은 등급과 무관하게 slotBonus +1
+        //   (EquipmentPool.createEquipmentFromTemplate 의 talisman 규칙과 같다). 웹 동일.
+        stats[.slotBonus] = 1
         if rarity == .legend { stats[.crit] = 3 }
 
         // 이름은 생성 시점 데이터에 구워지는 구조 — 생성 시점 인앱 언어로 현지화(플레이버와 동일).

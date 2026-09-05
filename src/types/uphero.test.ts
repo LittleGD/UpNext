@@ -26,6 +26,12 @@ import {
   revertEnhanceStatGrowth,
   enhancePrimaryGrowthTotal,
   stripEnhanceSuffix,
+  sellPrice,
+  SELL_PRICE,
+  SELL_PRICE_BASE,
+  NEXT_RARITY,
+  INVENTORY_CAP,
+  SYNTHESIS_INPUT_COUNT,
 } from "./uphero";
 import { createRng } from "@/lib/upHeroRng";
 import type { Rarity } from "@/types/card";
@@ -536,3 +542,39 @@ describe("computeStatMax", () => {
 // Note: computeHeroForLevel / getBuffSlotCount 는 Hero 객체 인자 필요.
 //   순수 계산 검증은 enhanceSuccessRate / enhanceCost / computeStatMax 로 충분.
 //   Hero-dependent 함수는 차후 fixture 정비 후 테스트 추가.
+
+/**
+ * Phase 6-E (Track E) — 인벤토리 경제 상수. iOS UpHeroRules 와 같은 픽스처.
+ */
+describe("sellPrice (Track E)", () => {
+  it.each([
+    ["normal", 0, 0, 5],
+    ["normal", 30, 0, 35],
+    ["rare", 12, 3, 57],
+    ["unique", 20, 10, 280],
+    ["legend", 30, 10, 840],
+    // 층 99 · 강화 20 (MAX_ENHANCE_LEVEL) 으로 clamp: 200 + 8×99 + 40×20.
+    ["legend", 120, 25, 1792],
+  ] as const)("%s F%i +%i = %i", (rarity, floor, level, expected) => {
+    expect(sellPrice(rarity, floor, level)).toBe(expected);
+  });
+
+  it("undefined / 음수 / 소수는 0 층·+0 으로 접는다", () => {
+    expect(sellPrice("rare", undefined, undefined)).toBe(15);
+    expect(sellPrice("rare", -5, -1)).toBe(15);
+    expect(sellPrice("rare", 2.9, 1.9)).toBe(15 + 4 + 6);
+  });
+
+  it("SELL_PRICE 별칭은 BASE 표와 같고 +0/F0 가격은 예전 그대로", () => {
+    expect(SELL_PRICE).toBe(SELL_PRICE_BASE);
+    for (const r of ["normal", "rare", "unique", "legend"] as const) {
+      expect(sellPrice(r, 0, 0)).toBe(SELL_PRICE_BASE[r]);
+    }
+  });
+
+  it("NEXT_RARITY / INVENTORY_CAP / SYNTHESIS_INPUT_COUNT", () => {
+    expect(NEXT_RARITY).toEqual({ normal: "rare", rare: "unique", unique: "legend", legend: null });
+    expect(INVENTORY_CAP).toBe(30);
+    expect(SYNTHESIS_INPUT_COUNT).toBe(3);
+  });
+});

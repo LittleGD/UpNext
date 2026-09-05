@@ -8,11 +8,12 @@
  */
 
 import type { Equipment, EquipSlot, DungeonId } from "@/types/uphero";
+import { NEXT_RARITY, SYNTHESIS_INPUT_COUNT, stripEnhanceSuffix } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
 import { rng } from "@/lib/upHeroRng";
 
 /** 장비 템플릿 — instance 생성 시 랜덤 ID 부여 */
-interface EquipmentTemplate {
+export interface EquipmentTemplate {
   /**
    * Phase 13a — 다국어 이름 lookup 용 stable id. ko 키 `uphero.equip.<baseId>.name`
    * 으로 매핑됨. baseName 은 한국어 fallback 으로 유지.
@@ -56,7 +57,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "끈기의 완대",
     type: "accessory",
     category: "fitness",
-    iconName: "Armor",
+    iconName: "Hand",
     statBoost: "str",
     flavor: "포기 직전의 한 번 더",
     rarityMult: { normal: 1, rare: 1.4, unique: 1.9, legend: 2.6 },
@@ -68,7 +69,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "지혜의 안경",
     type: "accessory",
     category: "learning",
-    iconName: "EyeClosed",
+    iconName: "Sunglasses",
     statBoost: "int",
     flavor: "숨은 진리를 드러내는 렌즈",
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
@@ -78,7 +79,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "메모의 펜",
     type: "weapon",
     category: "learning",
-    iconName: "Edit",
+    iconName: "PenSquare",
     statBoost: "int",
     flavor: "글자 한 줄이 적을 베는 도구",
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
@@ -110,7 +111,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "선정의 염주",
     type: "accessory",
     category: "mindfulness",
-    iconName: "Sun",
+    iconName: "CirclePile",
     statBoost: "vit",
     flavor: "마음이 구슬처럼 둥글어진다",
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
@@ -120,7 +121,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "침묵의 로브",
     type: "armor",
     category: "mindfulness",
-    iconName: "Hanger",
+    iconName: "Shirt",
     statBoost: "int",
     flavor: "소리 없이 스며드는 천",
     rarityMult: { normal: 1, rare: 1.4, unique: 1.9, legend: 2.6 },
@@ -132,7 +133,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "곡물의 갑옷",
     type: "armor",
     category: "nutrition",
-    iconName: "Hanger",
+    iconName: "Wall",
     statBoost: "vit",
     flavor: "황금빛 알갱이가 상처를 막는다",
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
@@ -142,7 +143,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "절제의 수저",
     type: "weapon",
     category: "nutrition",
-    iconName: "Fork",
+    iconName: "Pipette",
     statBoost: "dex",
     flavor: "정량을 재어 공격하는 도구",
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
@@ -152,7 +153,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "향기의 부적",
     type: "talisman",
     category: "nutrition",
-    iconName: "Star",
+    iconName: "Potion",
     statBoost: "int",
     flavor: "향으로 적을 홀리는",
     rarityMult: { normal: 1, rare: 1.4, unique: 1.9, legend: 2.6 },
@@ -164,7 +165,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "미소의 반지",
     type: "accessory",
     category: "social",
-    iconName: "Heart",
+    iconName: "Smile",
     statBoost: "agi",
     flavor: "적을 웃게 만드는 힘",
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
@@ -184,7 +185,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "우정의 망토",
     type: "armor",
     category: "social",
-    iconName: "Hanger",
+    iconName: "Flag",
     statBoost: "vit",
     flavor: "친구들의 온기로 보호받는",
     rarityMult: { normal: 1, rare: 1.4, unique: 1.9, legend: 2.6 },
@@ -206,7 +207,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "효율의 도끼",
     type: "weapon",
     category: "productivity",
-    iconName: "Tool",
+    iconName: "Cut",
     statBoost: "str",
     flavor: "한 번에 한 번만 휘두른다",
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
@@ -216,7 +217,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "타임블록 부적",
     type: "talisman",
     category: "productivity",
-    iconName: "Grid",
+    iconName: "Grid3x3",
     statBoost: "agi",
     flavor: "시간을 블록으로 묶는 힘",
     rarityMult: { normal: 1, rare: 1.4, unique: 1.9, legend: 2.6 },
@@ -238,7 +239,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "숙면의 부적",
     type: "talisman",
     category: "wellness",
-    iconName: "Moon",
+    iconName: "Bed",
     statBoost: "vit",
     flavor: "꿈이 현실을 치료한다",
     rarityMult: { normal: 1, rare: 1.5, unique: 2, legend: 2.8 },
@@ -260,7 +261,7 @@ const TEMPLATES: EquipmentTemplate[] = [
     baseName: "변화의 부적",
     type: "talisman",
     category: "trending",
-    iconName: "Flash",
+    iconName: "Shuffle",
     statBoost: "dex",
     flavor: "매번 다른 형태로 변한다",
     rarityMult: { normal: 1, rare: 1.6, unique: 2.2, legend: 3 },
@@ -301,12 +302,45 @@ export const RARITY_PREFIX: Record<Rarity, string> = {
 export function getEquipmentBaseName(eq: {
   name: string;
   rarity: Rarity;
+  baseId?: string;
 }): string {
-  const prefix = RARITY_PREFIX[eq.rarity];
-  if (prefix && eq.name.startsWith(prefix)) {
-    return eq.name.slice(prefix.length);
+  // Phase 6-E (Track E, 피드백 18) — baseId 가 있으면 템플릿이 정본이다.
+  //   이름은 강화 " +N" / affix " of ..." 가 붙어 codex 키가 갈라졌었다.
+  if (eq.baseId) {
+    const template = findTemplateByBaseId(eq.baseId);
+    if (template) return template.baseName;
   }
-  return eq.name;
+  let name = eq.name;
+  const prefix = RARITY_PREFIX[eq.rarity];
+  if (prefix && name.startsWith(prefix)) name = name.slice(prefix.length);
+  name = stripEnhanceSuffix(name);
+  const ofIdx = name.indexOf(" of ");
+  if (ofIdx >= 0) name = name.slice(0, ofIdx);
+  return name;
+}
+
+/**
+ * Phase 6-E (Track E) — 옛 iconName → pixelarticons 2.x 실제 이름.
+ * v7 수리에서 템플릿(baseId → legacy id) 으로 못 찾은 아이템의 마지막 폴백.
+ * 템플릿 iconName 은 이미 새 이름이라 여기엔 옛 이름만 있다.
+ */
+export const ICON_LEGACY_REMAP: Record<string, string> = {
+  Armor: "Hand",
+  EyeClosed: "Sunglasses",
+  Edit: "PenSquare",
+  Sun: "CirclePile",
+  Hanger: "Shirt",
+  Fork: "Pipette",
+  Star: "Potion",
+  Tool: "Cut",
+  Grid: "Grid3x3",
+  Flash: "Shuffle",
+};
+
+/** Phase 6-E — baseId 로 템플릿 조회. 없으면 null. */
+export function findTemplateByBaseId(baseId: string): EquipmentTemplate | null {
+  for (const t of TEMPLATES) if (t.baseId === baseId) return t;
+  return null;
 }
 
 /**
@@ -365,11 +399,13 @@ export function createEquipmentFromTemplate(
   const critBonus =
     rarity === "legend" ? 7 : rarity === "unique" ? 3 : 0;
 
-  // Phase 4b — accessory / talisman 타입이면서 unique 이상이면 slotBonus +1
+  // Phase 4b — accessory 는 unique 이상일 때 slotBonus +1
   // (Lv5+ 기본 2슬롯 + 최대 +2 = 4개 슬롯까지 가능)
+  // Phase 6-E (Track E, 피드백 21) — 부적(talisman) 은 등급과 무관하게 항상 +1.
+  //   "부적 = 버프 슬롯" 이라는 역할이 등급에 가려지지 않게. iOS EquipmentPool 동일.
   const isSlotBearer =
-    (template.type === "accessory" || template.type === "talisman") &&
-    (rarity === "unique" || rarity === "legend");
+    template.type === "talisman" ||
+    (template.type === "accessory" && (rarity === "unique" || rarity === "legend"));
 
   const stats: Partial<import("@/types/uphero").HeroBaseStats> = {
     [template.statBoost]: baseStatValue,
@@ -419,6 +455,8 @@ export function createEquipmentFromTemplate(
     iconName: template.iconName,
     stats,
     flavor: template.flavor,
+    // Phase 6-E — 드롭 층 기록 (판매가 / 합성 층 규칙).
+    dropFloor: dungeonFloor,
     ...(affixList.length === 1 ? { affix: affixList[0] } : {}),
     ...(affixList.length > 1 ? { affixes: affixList } : {}),
   };
@@ -442,6 +480,33 @@ export function rollEquipmentDrop(
 
   const template = chosenPool[Math.floor(rng() * chosenPool.length)];
   return createEquipmentFromTemplate(template, rarity, floor);
+}
+
+/**
+ * Phase 6-E (Track E, 피드백 22) — 합성.
+ *
+ * 정확히 3개, 같은 등급, legend 아님, 사진 부적 아님 → 다음 등급 1개.
+ * 템플릿 풀 = 재료 카테고리 합집합에 속한 템플릿 (없으면 전체), `rng()` 로 균등 선택.
+ * 결과는 `createEquipmentFromTemplate(template, NEXT_RARITY[r], max(dropFloor ?? 0))`
+ * 이라 일반 드롭과 같은 롤(주스탯·crit·slotBonus·affix)을 그대로 쓴다. 강화 단계는
+ * 잃는다. rng 호출 순서: 풀 인덱스 1회 → createEquipmentFromTemplate 내부 순서.
+ * iOS `EquipmentPool.synthesizeEquipment(_:rng:)` 미러 (RandomSource 시드로 바이트 일치).
+ *
+ * @returns 조건을 하나라도 어기면 null (호출측이 사유를 따로 판정한다).
+ */
+export function synthesizeEquipment(sources: Equipment[]): Equipment | null {
+  if (sources.length !== SYNTHESIS_INPUT_COUNT) return null;
+  const rarity = sources[0].rarity;
+  if (sources.some((e) => e.rarity !== rarity)) return null;
+  if (sources.some((e) => e.photoId)) return null;
+  const next = NEXT_RARITY[rarity];
+  if (!next) return null;
+  const categories = new Set(sources.map((e) => e.category));
+  const themed = TEMPLATES.filter((t) => categories.has(t.category));
+  const pool = themed.length > 0 ? themed : TEMPLATES;
+  const template = pool[Math.floor(rng() * pool.length)];
+  const maxFloor = Math.max(0, ...sources.map((e) => e.dropFloor ?? 0));
+  return createEquipmentFromTemplate(template, next, maxFloor);
 }
 
 /**

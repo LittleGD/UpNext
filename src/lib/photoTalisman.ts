@@ -109,10 +109,9 @@ export function buildPhotoTalisman(
   const statVal = Math.round(baseVal * mult);
   const stats: Partial<HeroBaseStats> = { [primaryStat]: statVal };
 
-  // unique / legend 는 slotBonus +1 (버프 슬롯 확장) — 기존 accessory/talisman 규칙
-  if (rarity === "unique" || rarity === "legend") {
-    stats.slotBonus = 1;
-  }
+  // Phase 6-E (Track E, 피드백 21) — 부적은 등급과 무관하게 slotBonus +1
+  //   (createEquipmentFromTemplate 의 talisman 규칙과 같다). iOS PhotoTalisman 동일.
+  stats.slotBonus = 1;
   // legend 는 crit +3% 추가
   if (rarity === "legend") {
     stats.crit = 3;

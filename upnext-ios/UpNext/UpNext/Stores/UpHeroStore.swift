@@ -252,6 +252,9 @@ final class UpHeroStore: ObservableObject {
     /// 직접 savePersisted — onPersist 훅을 타지 않아 채택 직후 재업로드 echo 가 없다.
     func adoptCloudState(_ cloud: CloudUpHeroState) {
         var s = cloud.toState()
+        // Phase 6-E (Track E) — 장비/도감 수리를 게이트 없이 다시 돈다 (멱등). 구 클라이언트가
+        //   옛 iconName/도감 키를 올릴 수 있다 (웹 _setFromCloud 동일).
+        EquipmentRepair.repairState(&s)
         s.currentSession = state.currentSession
         s.pendingDungeon = state.pendingDungeon
         // 시작 선물은 계정 단위 1회 — 클라우드가 "이미 받음" 이면 로컬 예약을 거둔다.
@@ -290,11 +293,12 @@ final class UpHeroStore: ObservableObject {
         SoundPlayer.shared.play(.cardSelect)
     }
 
-    /// 인벤토리 장비 판매 — 등급별 코인 환급. 반환: 환급액(없으면 0). 웹 sellItem.
+    /// 인벤토리 장비 판매 — 등급 + 드롭 층 + 강화 단계 가산 환급 (Phase 6-E).
+    /// 반환: 환급액(없으면 0). 웹 sellItem.
     @discardableResult
     func sellItem(_ itemId: String) -> Int {
         guard let item = state.inventory.first(where: { $0.id == itemId }) else { return 0 }
-        let refund = UpHeroRules.sellPrice[item.rarity] ?? 0
+        let refund = Self.sellPrice(item)
         mutate { s in
             s.inventory.removeAll { $0.id == itemId }
             s.coins += refund
@@ -304,13 +308,95 @@ final class UpHeroStore: ObservableObject {
         return refund
     }
 
-    /// 인벤토리 장비 버리기 — 환급 없음. 웹 discardItem.
+    /// 인벤토리 장비 버리기 — 환급 없음. 웹 discardItem (액션 시트에서는 빠졌고 overflow
+    /// 시트만 쓴다 — Phase 6-E).
     func discardItem(_ itemId: String) {
         mutate { s in
             s.inventory.removeAll { $0.id == itemId }
         }
         Haptics.play(.light)
         SoundPlayer.shared.play(.cancel)
+    }
+
+    /// 장비 판매가 — 단일 출처 (UI 라벨과 실제 환급이 같은 함수). 웹 sellPrice(item).
+    static func sellPrice(_ item: Equipment) -> Int {
+        UpHeroRules.sellPrice(
+            rarity: item.rarity, dropFloor: item.dropFloor, enhanceLevel: item.enhanceLevel)
+    }
+
+    // MARK: - Phase 6-E (Track E) — 합성 / 넘친 전리품 (웹 synthesizeItems / resolveOverflowItem / sellAllOverflow)
+
+    /// 합성 실패 사유. 웹 `SynthesisResult` 의 reason.
+    enum SynthesisFailure: Equatable { case count, notFound, rarity, legend, photo }
+    enum SynthesisResult: Equatable {
+        case ok(Equipment)
+        case fail(SynthesisFailure)
+    }
+
+    /// 가방의 같은 등급 3개(legend·사진 부적 제외)를 다음 등급 1개로. 결과는 인벤토리 끝에
+    /// 붙고 도감에 즉시 기록된다. 장착 중 아이템은 재료가 될 수 없다 (`notFound`).
+    @discardableResult
+    func synthesizeItems(_ ids: [String]) -> SynthesisResult {
+        var rng = SystemRandom()
+        return synthesizeItems(ids, rng: &rng)
+    }
+
+    func synthesizeItems<R: RandomSource>(_ ids: [String], rng: inout R) -> SynthesisResult {
+        guard ids.count == UpHeroRules.synthesisInputCount, Set(ids).count == ids.count else {
+            return .fail(.count)
+        }
+        var items: [Equipment] = []
+        for id in ids {
+            guard let found = state.inventory.first(where: { $0.id == id }) else {
+                return .fail(.notFound)
+            }
+            items.append(found)
+        }
+        if items.contains(where: { $0.photoId != nil }) { return .fail(.photo) }
+        let rarity = items[0].rarity
+        if items.contains(where: { $0.rarity != rarity }) { return .fail(.rarity) }
+        guard UpHeroRules.nextRarity[rarity] != nil else { return .fail(.legend) }
+        guard let item = EquipmentPool.synthesizeEquipment(items, rng: &rng) else {
+            return .fail(.count)
+        }
+        let idSet = Set(ids)
+        let baseName = EquipmentPool.equipmentBaseName(item)
+        mutate { s in
+            s.inventory.removeAll { idSet.contains($0.id) }
+            s.inventory.append(item)
+            // 도감 즉시 기록 — 정산을 거치지 않는 유일한 장비 획득 경로.
+            if !s.codex.equipment.contains(baseName) { s.codex.equipment.append(baseName) }
+        }
+        return .ok(item)
+    }
+
+    /// 넘친 전리품 한 개 처리. sell 이면 sellPrice 만큼 코인 지급 후 반환, 아니면 0. 없는 id 는 0.
+    @discardableResult
+    func resolveOverflowItem(_ id: String, sell: Bool) -> Int {
+        guard let item = state.overflowDrops.first(where: { $0.id == id }) else { return 0 }
+        let refund = sell ? Self.sellPrice(item) : 0
+        mutate { s in
+            s.overflowDrops.removeAll { $0.id == id }
+            s.coins += refund
+        }
+        Haptics.play(.light)
+        SoundPlayer.shared.play(sell ? .collect : .cancel)
+        return refund
+    }
+
+    /// 넘친 전리품 모두 판매. 합계 코인 반환 후 목록을 비운다.
+    @discardableResult
+    func sellAllOverflow() -> Int {
+        let list = state.overflowDrops
+        if list.isEmpty { return 0 }
+        let total = list.reduce(0) { $0 + Self.sellPrice($1) }
+        mutate { s in
+            s.overflowDrops = []
+            s.coins += total
+        }
+        Haptics.play(.success)
+        SoundPlayer.shared.play(.collect)
+        return total
     }
 
     /// 상태 변경 + 발행 + 로컬 영속화 — 상태를 바꾸는 Up Hero 액션의 공통 경로.
@@ -410,8 +496,9 @@ final class UpHeroStore: ObservableObject {
             log: session.log, existing: prevBosses)
         let newDungeonProgress = SessionReward.calculateDungeonProgress(
             session: session, existing: prevProgress, newBossesDefeated: newBosses)
+        // Phase 6-E — rewards.drops 도 합집합 (로그 trim 으로 초반 드롭이 빠지지 않게).
         let newCodex = SessionReward.calculateCodexDelta(
-            log: session.log, current: state.codex)
+            log: session.log, current: state.codex, rewardDrops: session.rewards.drops)
         // NG+ — F30 보스를 이번 세션에 처음 처치 시 +1 (weekly variant 제외).
         let clearedF30Newly = newBosses.contains(30) && !prevBosses.contains(30)
         // Phase 16 (Track C, 피드백 30) — 주간 악몽 보상. 파생값이라 저장 필드 없음.
@@ -449,7 +536,12 @@ final class UpHeroStore: ObservableObject {
             //   Track E 는 splitDropsByCap 을 끼운다 (공통 규칙 병합 순서).
             if let settled { s.heroXp = settled.heroXp }
             s.coins += session.rewards.coins + (weeklyReward?.coins ?? 0)
-            s.inventory.append(contentsOf: keptDrops)
+            // Phase 6-E (Track E, 피드백 22) — 가방 상한. 넘친 만큼은 overflowDrops 로 가고
+            //   캠프의 BagOverflowSheet 가 (레벨업/전직 뒤에) 처리한다.
+            let split = SessionReward.splitDropsByCap(
+                inventoryCount: s.inventory.count, drops: keptDrops, cap: UpHeroRules.inventoryCap)
+            s.inventory.append(contentsOf: split.fits)
+            s.overflowDrops.append(contentsOf: split.overflow)
             // Phase 15 — 이번 탐험에서 번 방지권을 지갑으로 합산 (상한 99).
             // 보스 드롭·보물상자·굴림틀이 전부 session.rewards 에 쌓아둔 것이고,
             // Phase 16 (Track C) 주간 첫 클리어/올클리어 방지권도 여기서 같이 더한다.
@@ -1205,6 +1297,10 @@ final class UpHeroStore: ObservableObject {
                                      equipped: state.hero.equipped) else {
             return talismanFail(AppConfig.loc("이미 부적으로 만든 사진이에요"))
         }
+        // Phase 6-E — 가방이 가득 차면 의식을 거절한다 (정산 외 유일한 신규 획득 경로).
+        guard state.inventory.count < UpHeroRules.inventoryCap else {
+            return talismanFail(AppConfig.loc("가방이 가득 찼어요 (\(UpHeroRules.inventoryCap)칸)"))
+        }
         guard state.coins >= PhotoTalisman.ritualCost else {
             return talismanFail(AppConfig.loc("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)"))
         }
@@ -1271,6 +1367,9 @@ final class UpHeroStore: ObservableObject {
         if PhotoTalisman.isBound(photo.id, inventory: state.inventory, equipped: state.hero.equipped) {
             return talismanFail(AppConfig.loc("이미 부적으로 만든 사진이에요"))
         }
+        if state.inventory.count >= UpHeroRules.inventoryCap {
+            return talismanFail(AppConfig.loc("가방이 가득 찼어요 (\(UpHeroRules.inventoryCap)칸)"))
+        }
         if state.coins < PhotoTalisman.ritualCost {
             return talismanFail(AppConfig.loc("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)"))
         }
@@ -1316,6 +1415,9 @@ final class UpHeroStore: ObservableObject {
         // Phase 2-A — 영웅 XP 풀: 키가 있으면 [0, cap] 으로 접고, 없으면 nil 유지(미시드 →
         // initialize/ensureHeroXp 가 레거시 레벨로 시드). 웹 normalizeHeroXp.
         if let x = restored.heroXp { restored.heroXp = UpHeroRules.clampHeroXp(x) }
+        // Phase 6-E (Track E) — 장비/도감 수리 (iconName 리맵 · baseId · dropFloor 역추정 ·
+        // 부적 slotBonus · 도감 키). 버전 게이트 없이 매 로드 — 멱등이라 안전하다.
+        EquipmentRepair.repairState(&restored)
         // 오늘 굴림 횟수 — 구 저장본은 키가 없어 nil(=0), 손상 값은 [0, 100] 으로 접는다
         // (웹 loadFromStorage 의 normalizeSlotSpins 와 같은 계약). 날짜 롤오버는 읽는
         // 쪽(currentShopDaily)이 처리하므로 여기서 날짜를 건드리지 않는다.
@@ -1366,6 +1468,7 @@ final class UpHeroStore: ObservableObject {
         return UpHeroState(
             hero: UpHeroRules.createDefaultHero(language: appLang),
             inventory: [],
+            overflowDrops: [],
             coins: 0,
             passes: [:],
             dungeons: [:],

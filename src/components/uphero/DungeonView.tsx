@@ -430,6 +430,7 @@ export default function DungeonView() {
               >
                 <MonsterSprite
                   kind={currentEnemy.kind}
+                  templateId={currentEnemy.templateId}
                   size={32}
                   color={currentEnemy.isBoss ? GB_ENEMY : GB.lightest}
                 />
