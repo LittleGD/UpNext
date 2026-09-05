@@ -149,7 +149,10 @@ export const UNIVERSAL_EVENTS: DungeonEvent[] = [
             weight: 100,
             resultText: "아무 일 없이 지나간다.",
             resultTextKey: "uphero.flavor.uni.1.opt2.out0.result",
-            effects: [{ kind: "time", delta: -1 }],
+            effects: [
+              { kind: "time", delta: -1 },
+              { kind: "runCurse", stat: "agi", pct: 5, floors: 3 },
+            ],
           },
         ],
       },
@@ -201,7 +204,10 @@ export const UNIVERSAL_EVENTS: DungeonEvent[] = [
             weight: 80,
             resultText: "마음이 무겁다.",
             resultTextKey: "uphero.flavor.uni.2.opt1.out0.result",
-            effects: [{ kind: "time", delta: -2 }],
+            effects: [
+              { kind: "time", delta: -2 },
+              { kind: "runCurse", stat: "dex", pct: 5, floors: 3 },
+            ],
           },
           {
             weight: 20,
@@ -264,7 +270,10 @@ export const UNIVERSAL_EVENTS: DungeonEvent[] = [
             weight: 100,
             resultText: "상인이 아쉬워하며 떠났다.",
             resultTextKey: "uphero.flavor.uni.3.opt1.out0.result",
-            effects: [{ kind: "time", delta: -1 }],
+            effects: [
+              { kind: "time", delta: -1 },
+              { kind: "runCurse", stat: "agi", pct: 5, floors: 3 },
+            ],
           },
         ],
       },
@@ -291,7 +300,10 @@ export const UNIVERSAL_EVENTS: DungeonEvent[] = [
             weight: 30,
             resultText: "시간을 써 돌봤지만 그저 사라졌다.",
             resultTextKey: "uphero.flavor.uni.4.opt0.out1.result",
-            effects: [{ kind: "time", delta: -6 }],
+            effects: [
+              { kind: "time", delta: -6 },
+              { kind: "runBuff", stat: "all", pct: 3, floors: 5 },
+            ],
           },
           {
             weight: 15,
@@ -313,7 +325,10 @@ export const UNIVERSAL_EVENTS: DungeonEvent[] = [
             weight: 100,
             resultText: "마음이 편치 않다.",
             resultTextKey: "uphero.flavor.uni.4.opt1.out0.result",
-            effects: [{ kind: "time", delta: -1 }],
+            effects: [
+              { kind: "time", delta: -1 },
+              { kind: "runCurse", stat: "dex", pct: 5, floors: 3 },
+            ],
           },
         ],
       },

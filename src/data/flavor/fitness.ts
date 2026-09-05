@@ -52,7 +52,10 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
               weight: 80,
               resultText: "안전하게 우회했다.",
               resultTextKey: "uphero.flavor.fit.0.opt1.out0.result",
-              effects: [{ kind: "time", delta: -10 }],
+              effects: [
+                { kind: "time", delta: -10 },
+                { kind: "stealth", encounters: 1 },
+              ],
             },
             {
               weight: 20,
@@ -100,7 +103,10 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "안전하지만 느린 길.",
               resultTextKey: "uphero.flavor.fit.1.opt1.out0.result",
-              effects: [{ kind: "time", delta: -10 }],
+              effects: [
+                { kind: "time", delta: -10 },
+                { kind: "stealth", encounters: 1 },
+              ],
             },
           ],
         },
@@ -200,7 +206,10 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
               weight: 85,
               resultText: "동굴에서 폭풍이 지나가길 기다렸다.",
               resultTextKey: "uphero.flavor.fit.3.opt1.out0.result",
-              effects: [{ kind: "time", delta: -15 }],
+              effects: [
+                { kind: "time", delta: -15 },
+                { kind: "stealth", encounters: 1 },
+              ],
             },
             {
               weight: 15,
@@ -269,7 +278,10 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
               weight: 30,
               resultText: "길이 더 길었다. 예상보다 오래 걸린다.",
               resultTextKey: "uphero.flavor.fit.4.opt1.out1.result",
-              effects: [{ kind: "time", delta: -12 }],
+              effects: [
+                { kind: "time", delta: -12 },
+                { kind: "stealth", encounters: 1 },
+              ],
             },
           ],
         },
@@ -320,7 +332,10 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "포기하고 다시 위로.",
               resultTextKey: "uphero.flavor.fit.5.opt1.out0.result",
-              effects: [{ kind: "time", delta: -8 }],
+              effects: [
+                { kind: "time", delta: -8 },
+                { kind: "stealth", encounters: 1 },
+              ],
             },
           ],
         },
@@ -357,7 +372,10 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
               weight: 75,
               resultText: "산양이 지나갈 때까지 숨을 죽였다.",
               resultTextKey: "uphero.flavor.fit.6.opt1.out0.result",
-              effects: [{ kind: "time", delta: -8 }],
+              effects: [
+                { kind: "time", delta: -8 },
+                { kind: "stealth", encounters: 1 },
+              ],
             },
             {
               weight: 25,
@@ -403,7 +421,10 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
               weight: 90,
               resultText: "낙석이 멈출 때까지 한참을 기다렸다.",
               resultTextKey: "uphero.flavor.fit.7.opt1.out0.result",
-              effects: [{ kind: "time", delta: -12 }],
+              effects: [
+                { kind: "time", delta: -12 },
+                { kind: "stealth", encounters: 1 },
+              ],
             },
             {
               weight: 10,
@@ -449,7 +470,10 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
               weight: 70,
               resultText: "사냥꾼은 웃으며 길을 알려 주었다.",
               resultTextKey: "uphero.flavor.fit.8.opt1.out0.result",
-              effects: [{ kind: "time", delta: -5 }],
+              effects: [
+                { kind: "time", delta: -5 },
+                { kind: "runBuff", stat: "str", pct: 5, floors: 5 },
+              ],
             },
             {
               weight: 30,

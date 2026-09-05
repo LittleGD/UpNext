@@ -292,6 +292,26 @@ export interface DungeonProgress {
   bossesDefeated: number[];
 }
 
+/**
+ * Phase 4-D (Track D, 피드백 15) — 런 한정 능력치 보정의 대상 스탯.
+ *   "all" 은 str/int/vit/dex/agi 다섯 개 전부. crit/slotBonus 는 대상이 아니다
+ *   (crit 은 퍼센트 포인트, slotBonus 는 슬롯 수 카운터라 곱하면 의미가 깨진다).
+ *   iOS UpHero.swift RunModStat 미러.
+ */
+export type RunModStat = "str" | "int" | "vit" | "dex" | "agi" | "all";
+
+/**
+ * Phase 4-D — 세션에 쌓이는 런 한정 능력치 보정 한 건.
+ *   `pct` 는 부호 있는 퍼센트 포인트 (음수 = 저주). `floorsLeft` 가 없으면 런
+ *   끝까지. 적용은 `upHeroCombat.sessionStats()` 한 곳 (스탯별 합산 → clamp →
+ *   1회 곱). iOS RunStatMod 미러.
+ */
+export interface RunStatMod {
+  stat: RunModStat;
+  pct: number;
+  floorsLeft?: number;
+}
+
 /** 이벤트 선택지 효과 */
 export type ChoiceEffect =
   | { kind: "reward"; coins?: number; xp?: number; dropEquipmentId?: string }
@@ -299,6 +319,17 @@ export type ChoiceEffect =
   | { kind: "heal"; amount: number }
   | { kind: "skipFloors"; count: number }
   | { kind: "revealBoss" }
+  /**
+   * Phase 4-D (Track D) — 런 한정 빌드 효과 4종. 전부 `CombatSession` 의
+   *   세션 전용 필드에 쌓이고 탐험이 끝나면 사라진다 (클라우드 제외).
+   *   - runBuff / runCurse: stat 에 ±pct% 를 `floors` 층 동안 (없으면 런 끝까지).
+   *   - stealth: 다음 `encounters` 회 일반 조우를 전투 없이 지나친다 (보스 제외).
+   *   - guaranteedDrop: 다음 `count` (기본 1) 회 처치에서 장비 드롭 확정 (floor+5 등급).
+   */
+  | { kind: "runBuff"; stat: RunModStat; pct: number; floors?: number }
+  | { kind: "runCurse"; stat: RunModStat; pct: number; floors?: number }
+  | { kind: "stealth"; encounters: number }
+  | { kind: "guaranteedDrop"; count?: number }
   | { kind: "nothing" }
   /** 탐험 시간 조정 — 음수 = 소모, 양수 = 회복 */
   | { kind: "time"; delta: number }
@@ -362,7 +393,36 @@ export type SimpleChoiceEffect =
   | { kind: "time"; delta: number }
   | { kind: "skipFloors"; count: number }
   | { kind: "revealBoss" }
+  /** Phase 4-D — 런 한정 빌드 효과 (ChoiceEffect 와 같은 shape). */
+  | { kind: "runBuff"; stat: RunModStat; pct: number; floors?: number }
+  | { kind: "runCurse"; stat: RunModStat; pct: number; floors?: number }
+  | { kind: "stealth"; encounters: number }
+  | { kind: "guaranteedDrop"; count?: number }
   | { kind: "nothing" };
+
+/**
+ * Phase 13b / 4-D — 선택 결과의 구조화된 효과 요약. 엔진(`summarizeEffectsData`)이
+ *   만들고 UI(`buildSummaryChips`)가 현재 언어 칩으로 푼다. 로그 엔트리에 그대로
+ *   저장되므로 필드는 추가만 한다 (legacy save 호환). iOS EffectSummaryData 미러.
+ */
+export interface EffectSummaryData {
+  xp?: number;
+  coins?: number;
+  heal?: number;
+  damage?: number;
+  /** 음수 = 시간 소모, 양수 = 시간 회복 */
+  timeDelta?: number;
+  /** Phase 4-D — 건너뛴 층 수 (skipFloors count 합) */
+  skipFloors?: number;
+  /** Phase 4-D — 런 한정 보정 (runBuff 는 +pct, runCurse 는 -pct) */
+  runMods?: Array<{ stat: RunModStat; pct: number; floors?: number }>;
+  /** Phase 4-D — 은신 조우 수 */
+  stealth?: number;
+  /** Phase 4-D — 장비 확정 처치 수 */
+  guaranteedDrop?: number;
+  /** Phase 4-D — revealBoss 가 더한 보스 피해 % */
+  bossDmgPct?: number;
+}
 
 /**
  * Choice entry 구분자.
@@ -591,13 +651,7 @@ export type LogEntry =
        * Phase 13b — 다국어 effectSummary. 컴포넌트가 있으면 우선 사용, 없으면
        * effectSummary string fallback. legacy save 호환.
        */
-      effectSummaryData?: {
-        xp?: number;
-        coins?: number;
-        heal?: number;
-        damage?: number;
-        timeDelta?: number;
-      };
+      effectSummaryData?: EffectSummaryData;
       /**
        * Phase 13b — 다국어 narrative 빌딩 보조. text 는 한국어 fallback.
        * 컴포넌트는 actionKey/resultKey 가 있으면 t() 로 풀어서 빌드.
@@ -742,6 +796,24 @@ export interface CombatSession {
    * (웹 CloudUpHeroState + iOS UpHeroCloudSchema CodingKeys 양쪽) 를 함께 넓혀야 한다.
    */
   combatBuff?: { pct: number; battlesLeft: number };
+  /**
+   * Phase 4-D (Track D, 피드백 15) — 런 한정 빌드 상태 4종. 전부 세션 전용이다:
+   *   `UpHeroState` 로 승격하지 않고 클라우드 페이로드(sync.ts 는 currentSession
+   *   을 제외한다)에도 실리지 않는다. 옵셔널이라 예전 저장 세션은 전부 undefined
+   *   로 로드되며 그건 "런 보정 없음" 과 같다 (스키마 버전 불변).
+   *
+   *   - runStatMods: `sessionStats()` 가 combatBuff 뒤에 스탯별 합산 pct 로 1회 곱.
+   *     `advanceRunModFloors` 가 층 이동마다 floorsLeft 를 줄이고 만료를 지운다.
+   *     최대 RUN_STAT_MODS_CAP 건 (오래된 것부터 버림).
+   *   - runBossDmgPct: revealBoss 1회당 +5 (상한 15). executeCombatRound 가
+   *     isBoss 몬스터에게 주는 영웅 피해에만 곱한다.
+   *   - runStealthLeft: tickSession 의 일반 조우 분기에서 1씩 소모 (보스층 제외).
+   *   - runGuaranteedDrops: victory 드롭 판정을 강제 (floor+5 등급) 하고 1씩 소모.
+   */
+  runStatMods?: RunStatMod[];
+  runBossDmgPct?: number;
+  runStealthLeft?: number;
+  runGuaranteedDrops?: number;
   /**
    * Phase 6b — 다음 영웅 공격 damage 배율 (warrior 강타 등).
    * 1 이상 — 공격 발생 후 reset (1 로 돌아감).

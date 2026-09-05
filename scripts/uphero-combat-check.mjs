@@ -30,6 +30,9 @@ import {
   dedupeDrops,
   amplifyChoiceOptions,
   generateMysteryFloors,
+  floorRewardScale,
+  scaleChoiceEffectsForFloor,
+  sessionStats,
 } from "../src/lib/upHeroCombat.ts";
 import { setRngSeed } from "../src/lib/upHeroRng.ts";
 
@@ -206,6 +209,76 @@ lines.push(`applyStatAndHealBuffs(D) = ${fmtHero(applyStatAndHealBuffs(mkHero(),
 // ── 16. applyClassStartEffects ─────────────────────────────────
 for (const c of [null, "priest", "illusionist", "warrior"]) {
   lines.push(`applyClassStartEffects(${c}) = ${fmtHero(applyClassStartEffects(mkHero({ classType: c })))}`);
+}
+
+// ── 17. floorRewardScale (Phase 4-D) ───────────────────────────
+for (const [fl, ng] of [[1, 0], [5, 0], [10, 0], [20, 0], [30, 0], [30, 1], [60, 2], [200, 0]]) {
+  const r = floorRewardScale(fl, ng);
+  lines.push(`floorRewardScale(${fl},ng${ng}) = ${r.coins},${r.xp}`);
+}
+// ── 18. scaleChoiceEffectsForFloor (Phase 4-D) ─────────────────
+const fmtFx = (e) => {
+  switch (e.kind) {
+    case "reward": return `reward(${e.coins ?? "-"},${e.xp ?? "-"})`;
+    case "damage": return `damage(${e.amount})`;
+    case "heal": return `heal(${e.amount})`;
+    case "time": return `time(${e.delta})`;
+    case "runBuff": return `runBuff(${e.stat},${e.pct},${e.floors ?? "-"})`;
+    case "runCurse": return `runCurse(${e.stat},${e.pct},${e.floors ?? "-"})`;
+    case "stealth": return `stealth(${e.encounters})`;
+    case "guaranteedDrop": return `guaranteedDrop(${e.count ?? "-"})`;
+    default: return e.kind;
+  }
+};
+const scaleFx = [
+  { kind: "reward", coins: 35, xp: 10 },
+  { kind: "damage", amount: 15 },
+  { kind: "heal", amount: 20 },
+  { kind: "time", delta: -3 },
+  { kind: "spinSlot", cost: 30 },
+  { kind: "runBuff", stat: "str", pct: 5, floors: 5 },
+];
+for (const [fl, hp, ng] of [[1, 100, 0], [10, 100, 0], [20, 388, 0], [30, 388, 1]]) {
+  lines.push(
+    `scaleChoiceEffectsForFloor(F${fl},hp${hp},ng${ng}) = ${scaleChoiceEffectsForFloor(scaleFx, fl, hp, ng).map(fmtFx).join("|")}`,
+  );
+}
+// ── 19. summarizeEffectsData — 런 한정 효과 (Phase 4-D) ─────────
+const runFx = [
+  { kind: "runBuff", stat: "str", pct: 5, floors: 5 },
+  { kind: "runCurse", stat: "agi", pct: 5, floors: 3 },
+  { kind: "runCurse", stat: "all", pct: 10 },
+  { kind: "stealth", encounters: 1 },
+  { kind: "guaranteedDrop" },
+  { kind: "revealBoss" },
+  { kind: "skipFloors", count: 2 },
+  { kind: "time", delta: -4 },
+];
+{
+  const d = summarizeEffectsData(runFx);
+  const rm = (d.runMods ?? []).map((m) => `${m.stat}${m.pct >= 0 ? "+" : ""}${m.pct}/${m.floors ?? "-"}`).join(",");
+  lines.push(
+    `summarizeEffectsData(runMods) = sk${d.skipFloors ?? "-"},rm[${rm}],st${d.stealth ?? "-"},gd${d.guaranteedDrop ?? "-"},bp${d.bossDmgPct ?? "-"},ti${d.timeDelta ?? "-"}`,
+  );
+  lines.push(`summarizeEffects(runMods) = [${summarizeEffects(runFx)}]`);
+}
+// ── 20. sessionStats — combatBuff 뒤 런 보정 2단 반올림 (Phase 4-D) ──
+const statSession = {
+  hero: mkHero({ baseStats: { str: 20, int: 13, vit: 17, dex: 9, agi: 10, crit: 7, slotBonus: 1 } }),
+  combatBuff: { pct: 10, battlesLeft: 3 },
+  runStatMods: [
+    { stat: "str", pct: 5 },
+    { stat: "all", pct: -50, floorsLeft: 2 },
+    { stat: "agi", pct: 200 },
+  ],
+};
+{
+  const st = sessionStats(statSession);
+  lines.push(`sessionStats(stack) = ${st.str},${st.int},${st.vit},${st.dex},${st.agi},${st.crit},${st.slotBonus}`);
+  const st2 = sessionStats({ ...statSession, combatBuff: undefined });
+  lines.push(`sessionStats(noBuff) = ${st2.str},${st2.int},${st2.vit},${st2.dex},${st2.agi},${st2.crit},${st2.slotBonus}`);
+  const st3 = sessionStats({ ...statSession, runStatMods: undefined });
+  lines.push(`sessionStats(noMods) = ${st3.str},${st3.int},${st3.vit},${st3.dex},${st3.agi},${st3.crit},${st3.slotBonus}`);
 }
 
 console.log(lines.join("\n"));

@@ -26,6 +26,8 @@ import {
   flavorText,
   resolveMonsterInParams,
   resolveDungeonInParams,
+  resolveStatInParams,
+  affixStatLabel,
   equipmentNameById,
   buildSummaryFromData,
 } from "@/lib/upHeroI18n";
@@ -56,6 +58,8 @@ function resolveNarrative(
   let params = resolveMonsterInParams(narrativeParams, language) ?? {};
   // dungeonId 가 있으면 dungeon name 도 현재 언어로 resolve (floorArrive 등).
   params = resolveDungeonInParams(params, language) ?? params;
+  // Phase 4-D — statId 가 있으면 런 보정 스탯 라벨을 현재 언어로 (runBuff/runCurse).
+  params = resolveStatInParams(params, language) ?? params;
   // Phase 14 — descriptionKey 를 현재 언어 문자열로 풀어 `{description}` slot 에 덮어쓰기.
   //   legacy save (descriptionKey 없음) 는 기존 `description` (한국어) 을 그대로 사용.
   if (typeof params.descriptionKey === "string" && params.descriptionKey.length > 0) {
@@ -241,7 +245,9 @@ const LogLine = memo(function LogLine({
       // effectSummaryData (structured) 가 있으면 현재 언어로 빌드.
       // 없으면 legacy effectSummary 한국어 string fallback (Phase 13b 이전 save).
       const effectChip = entry.effectSummaryData
-        ? buildSummaryFromData(entry.effectSummaryData, t)
+        ? buildSummaryFromData(entry.effectSummaryData, t, (s) =>
+            affixStatLabel(s, language),
+          )
         : entry.effectSummary ?? "";
       return (
         <div style={{ ...style, color: GB.lightest }} className="opacity-90">

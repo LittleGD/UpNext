@@ -13,6 +13,7 @@
 
 import { GB, GB_ENEMY, GB_LEGEND } from "@/lib/upHeroPalette";
 import { SLOT_CELEBRATION_TIER, type SlotOutcomeId, type SlotTier } from "@/lib/upHeroSlot";
+import type { EffectSummaryData } from "@/types/uphero";
 
 /**
  * 결과의 정서적 톤. 색·입자 방향·진입 모션·글로우 속도를 전부 이 값이 결정한다.
@@ -49,6 +50,12 @@ export type ChoiceResultMotif =
   | "damage"
   /** 탐험 시간 변동 */
   | "time"
+  /** Phase 4-D — 런 한정 저주 (능력치 하락) */
+  | "curse"
+  /** Phase 4-D — 은신 (조우 회피) */
+  | "stealth"
+  /** Phase 4-D — 층 건너뜀 */
+  | "skip"
   /** 분류 없음 */
   | "generic";
 
@@ -64,15 +71,11 @@ export interface ChoiceResultPresentation {
   rewardLabel?: string | null;
 }
 
-/** ChoiceResultModal 이 받는 수치 요약 (combat 의 summarizeEffectsData 반환형). */
-export interface ChoiceResultSummaryData {
-  xp?: number;
-  coins?: number;
-  heal?: number;
-  damage?: number;
-  /** 음수 = 시간 소모, 양수 = 시간 회복 (types/uphero.ts ChoiceEffect 규약) */
-  timeDelta?: number;
-}
+/**
+ * ChoiceResultModal 이 받는 수치 요약 (combat 의 summarizeEffectsData 반환형).
+ *   Phase 4-D — types/uphero.ts 의 EffectSummaryData 로 승격, 여기서는 별칭만.
+ */
+export type ChoiceResultSummaryData = EffectSummaryData;
 
 /** 톤별 대표 색 — GB 팔레트 안에서만 고른다. */
 export const CHOICE_TONE_COLOR: Record<ChoiceResultTone, string> = {
@@ -98,8 +101,32 @@ const MOTIF_ICON: Record<ChoiceResultMotif, string> = {
   heal: "Heart",
   damage: "Skull",
   time: "Clock",
+  curse: "Moon",
+  stealth: "Eye",
+  skip: "Forward",
   generic: "Zap",
 };
+
+/**
+ * Phase 4-D — 런 한정 효과의 톤 가중치. 수치가 아닌 효과라 정성적으로 정한다:
+ *   버프/스킵 = 평범한 이벤트 보상(≈40) 하나, 은신/보스 정보 = 그보다 조금 작게,
+ *   장비 확정 = 가장 크게 (드롭 하나가 코인 수십 개 가치). 저주는 같은 크기의 손해.
+ */
+const RUN_MOD_TONE_WEIGHT = 40;
+const STEALTH_TONE_WEIGHT = 30;
+const GUARANTEED_DROP_TONE_WEIGHT = 60;
+const SKIP_TONE_WEIGHT = 40;
+const BOSS_REVEAL_TONE_WEIGHT = 30;
+
+function runModCounts(d: ChoiceResultSummaryData): { pos: number; neg: number } {
+  let pos = 0;
+  let neg = 0;
+  for (const m of d.runMods ?? []) {
+    if (m.pct > 0) pos += 1;
+    else if (m.pct < 0) neg += 1;
+  }
+  return { pos, neg };
+}
 
 /**
  * 아이콘 이름 확정. generic + jackpot 은 트로피로 승격 —
@@ -126,9 +153,19 @@ export function deriveChoiceResultTone(
 ): ChoiceResultTone {
   if (!d) return "neutral";
   const timeDelta = d.timeDelta ?? 0;
+  const { pos, neg } = runModCounts(d);
   const gain =
-    (d.xp ?? 0) + (d.coins ?? 0) + (d.heal ?? 0) + Math.max(0, timeDelta) * 2;
-  const loss = (d.damage ?? 0) * 3 + Math.max(0, -timeDelta) * 2;
+    (d.xp ?? 0) +
+    (d.coins ?? 0) +
+    (d.heal ?? 0) +
+    Math.max(0, timeDelta) * 2 +
+    pos * RUN_MOD_TONE_WEIGHT +
+    (d.stealth ?? 0) * STEALTH_TONE_WEIGHT +
+    (d.guaranteedDrop ?? 0) * GUARANTEED_DROP_TONE_WEIGHT +
+    (d.skipFloors ?? 0) * SKIP_TONE_WEIGHT +
+    ((d.bossDmgPct ?? 0) > 0 ? BOSS_REVEAL_TONE_WEIGHT : 0);
+  const loss =
+    (d.damage ?? 0) * 3 + Math.max(0, -timeDelta) * 2 + neg * RUN_MOD_TONE_WEIGHT;
   if (gain === 0 && loss === 0) return "neutral";
   if (loss > gain) return "bane";
   if (loss === 0 && gain >= 120) return "jackpot";
@@ -188,6 +225,14 @@ export function deriveChoiceResultMotif(
 ): ChoiceResultMotif {
   if (!d) return "generic";
   const timeDelta = d.timeDelta ?? 0;
+  // Phase 4-D — 런 한정 효과가 있으면 그 쪽이 결과의 정체다 (시간/코인보다 우선).
+  //   장비 확정 > 저주(양수 보정 없음) > 버프·보스 정보 > 은신 > 스킵.
+  const { pos, neg } = runModCounts(d);
+  if ((d.guaranteedDrop ?? 0) > 0) return "gear";
+  if (neg > 0 && pos === 0) return "curse";
+  if (pos > 0 || (d.bossDmgPct ?? 0) > 0) return "buff";
+  if ((d.stealth ?? 0) > 0) return "stealth";
+  if ((d.skipFloors ?? 0) > 0) return "skip";
   const gain = (d.xp ?? 0) + (d.coins ?? 0) + (d.heal ?? 0);
   if ((d.damage ?? 0) > 0 && gain === 0) return "damage";
   if ((d.heal ?? 0) > 0 && (d.xp ?? 0) === 0 && (d.coins ?? 0) === 0) return "heal";
