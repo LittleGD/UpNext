@@ -9,6 +9,7 @@
 
 import { readFileSync } from "node:fs";
 import { hydrateDaily, dehydrateDaily, isValidProgress } from "../src/lib/sync.ts";
+import { normalizeRetentionState } from "../src/lib/retention.ts";
 
 const fx = JSON.parse(readFileSync("scripts/equiv/user-doc.json", "utf8"));
 const lines = [];
@@ -47,6 +48,17 @@ function dumpProgress(tag, p) {
   });
 }
 
+// 웹 sync.ts onSnapshot 과 같은 식: 필드 부재/null 은 null(로컬 유지 신호), 있으면 관용 디코드.
+const retentionOf = (d) => (d.retention == null ? null : normalizeRetentionState(d.retention));
+
+function dumpRetention(tag, r) {
+  if (r === null) { lines.push(`${tag}.retention nil`); return; }
+  lines.push(`${tag}.retention streak=${r.currentLightStreak}/${r.bestLightStreak} last=${r.lastCheckInDate ?? "nil"} savers=${r.streakSavers} month=${r.saverRefreshMonth} checkIns=${r.checkInDates.join(",")} usedSavers=${r.usedSaverDates.join(",")} reports=${r.weeklyReports.length}`);
+  r.weeklyReports.forEach((w, i) => {
+    lines.push(`${tag}.retention report${i}=${w.weekStart}..${w.weekEnd} gen=${w.generatedAt} checkIns=${w.checkInCount} cards=${w.completedCardCount} top=${w.topCategory ?? "nil"} hl=${w.highlightCardTitle ?? "nil"} photos=${w.photoLogCount} saver=${w.usedSaver}`);
+  });
+}
+
 // full — 완전한 문서 (모든 필드 + __ghost__ 미존재 ID 탈락)
 {
   const d = fx.full;
@@ -55,6 +67,7 @@ function dumpProgress(tag, p) {
   dumpDaily("full", st);
   dumpRedehydrate("full", dehydrateDaily(st));
   dumpProgress("full", d.progress);
+  dumpRetention("full", retentionOf(d));
 }
 
 // legacy — 옛 버전 최소 문서 (hydrateDaily 기본값 경로)
@@ -64,6 +77,12 @@ function dumpProgress(tag, p) {
   const st = hydrateDaily(d.daily);
   dumpDaily("legacy", st);
   dumpRedehydrate("legacy", dehydrateDaily(st));
+  dumpRetention("legacy", retentionOf(d));
+}
+
+// retentionPartial — retention 만 있는 부분 문서 (누락 필드 기본값, 깨진 weeklyReports 원소 → 배열 전체 탈락)
+{
+  dumpRetention("partial", retentionOf(fx.retentionPartial));
 }
 
 // corrupt — unlockedCardIds 에 비-문자열 혼입 → isValidProgress 거부

@@ -4,7 +4,11 @@
 // FirestoreSchema.hydrateDaily/dehydrateDaily 처리 → 구조적 사실 dump.
 // scripts/sync-check.mjs 가 같은 픽스처를 웹 sync.ts 로 처리한 출력과 비교.
 //
-// 컴파일: Card + Game + FirestoreModels  ↔  scripts/sync-check.mjs
+// 컴파일: Card + Game + FirestoreModels + Retention + GrowthModels + CardCatalog (+ AppConfig)
+//   ↔  scripts/sync-check.mjs. UserDoc.retention(RetentionState) 이 Retention.swift 를,
+//   Retention 의 주간 리포트가 PhotoMeta(GrowthModels) 와 CardCatalog 를 끌어온다 —
+//   전부 실제 Models 파일 (셰임·포팅 복사본 금지). 모델 파일이 뷰/스토어를 참조하면
+//   여기서 컴파일이 깨진다 — 그것이 이 스위트의 두 번째 역할이다.
 
 import Foundation
 
@@ -73,6 +77,16 @@ func dumpProgress(_ tag: String, _ p: UserProgress) {
     }
 }
 
+/// 웹 sync.ts onSnapshot: `data.retention == null ? null : normalizeRetentionState(...)`.
+/// Swift 는 UserDoc.retention 옵셔널 + RetentionState.init(from:) 관용 디코드가 그 역할.
+func dumpRetention(_ tag: String, _ r: RetentionState?) {
+    guard let r else { lines.append("\(tag).retention nil"); return }
+    lines.append("\(tag).retention streak=\(r.currentLightStreak)/\(r.bestLightStreak) last=\(r.lastCheckInDate ?? "nil") savers=\(r.streakSavers) month=\(r.saverRefreshMonth) checkIns=\(r.checkInDates.joined(separator: ",")) usedSavers=\(r.usedSaverDates.joined(separator: ",")) reports=\(r.weeklyReports.count)")
+    for (i, w) in r.weeklyReports.enumerated() {
+        lines.append("\(tag).retention report\(i)=\(w.weekStart)..\(w.weekEnd) gen=\(w.generatedAt) checkIns=\(w.checkInCount) cards=\(w.completedCardCount) top=\(w.topCategory?.rawValue ?? "nil") hl=\(w.highlightCardTitle ?? "nil") photos=\(w.photoLogCount) saver=\(w.usedSaver)")
+    }
+}
+
 // MARK: - full — 완전한 문서
 
 do {
@@ -82,6 +96,7 @@ do {
     dumpDaily("full", st)
     dumpRedehydrate("full", FirestoreSchema.dehydrateDaily(st))
     dumpProgress("full", d.progress!)
+    dumpRetention("full", d.retention)
 } catch {
     lines.append("full DECODE FAILED: \(error)")
 }
@@ -94,8 +109,18 @@ do {
     let st = FirestoreSchema.hydrateDaily(d.daily!, catalog: lookup)
     dumpDaily("legacy", st)
     dumpRedehydrate("legacy", FirestoreSchema.dehydrateDaily(st))
+    dumpRetention("legacy", d.retention)
 } catch {
     lines.append("legacy DECODE FAILED: \(error)")
+}
+
+// MARK: - retentionPartial — retention 만 있는 부분 문서 (관용 디코드 기본값 경로)
+
+do {
+    let d = try dec.decode(UserDoc.self, from: docData("retentionPartial"))
+    dumpRetention("partial", d.retention)
+} catch {
+    lines.append("partial DECODE FAILED: \(error)")
 }
 
 // MARK: - corrupt — UserProgress 필수 필드 검증 실패 → UserDoc 디코딩 throw 기대

@@ -35,10 +35,16 @@ BASELINE = Path(__file__).resolve().parent / "ios-i18n-baseline.json"
 LANGS = ["en", "ja", "zh-Hans"]
 
 # 전문이 의도적 한국어인 파일 (감사 확정: 자체 4언어 구조/법률 전문/개발용 갤러리)
-EXCLUDED_FILES = {"QuotePool.swift", "PrivacyView.swift", "DesignSystemGallery.swift"}
-# 개발자 전용 메시지 (사용자 비노출)
+# FortunePool / TarotPool 은 웹 원본에서 자동 생성되는 [ko, en, ja, zh] 묶음 풀 —
+# QuotePool 과 같은 구조라 카탈로그 대상이 아니다 (2026-09 감사).
+EXCLUDED_FILES = {
+    "QuotePool.swift", "PrivacyView.swift", "DesignSystemGallery.swift",
+    "FortunePool.swift", "TarotPool.swift",
+}
+# 개발자 전용 메시지 (사용자 비노출). #Preview("이름") 은 Xcode 캔버스 라벨.
 DEV_ONLY_RE = re.compile(
     r"\b(precondition|preconditionFailure|fatalError|assert|assertionFailure|print|os_log)\s*\("
+    r"|#Preview\s*\("
 )
 
 LIT_RE = re.compile(r'"((?:[^"\\]|\\.)*[가-힣](?:[^"\\]|\\.)*)"')
@@ -77,11 +83,15 @@ def split_interpolations(s):
 
 
 def format_key_candidates(s):
-    """보간 리터럴이 매칭될 수 있는 카탈로그 포맷키 후보 전부 (%@/%lld 조합)."""
+    """보간 리터럴이 매칭될 수 있는 카탈로그 포맷키 후보 전부 (%@/%lld 조합).
+    보간이 있으면 키가 포맷 문자열이 되므로 리터럴 `%` 는 `%%` 로 이스케이프된다
+    (String.LocalizationValue 규칙 — 카탈로그의 "성공률 %lld%%" 가 그 예).
+    보간이 없는 리터럴은 키가 원문 그대로다("3 round 공격 +25%")."""
     parts = split_interpolations(s)
     holes = sum(1 for p in parts if p is None)
     if holes == 0:
         return [s]
+    parts = [None if p is None else p.replace("%", "%%") for p in parts]
     out = []
     for combo in product(["%@", "%lld"], repeat=holes):
         it = iter(combo)
@@ -93,14 +103,53 @@ def unescape(s):
     return s.replace("\\n", "\n").replace('\\"', '"').replace("\\\\", "\\")
 
 
+def strip_comments(line, in_block):
+    """한 줄에서 주석을 걷어낸 코드 부분과, 줄 끝의 블록 주석 상태를 돌려준다.
+    문자열 리터럴 안의 `//` `/*` 는 주석이 아니므로 따옴표 상태를 추적한다
+    (예: "http://…"). 블록 주석 `/** … */` 은 여러 줄에 걸치므로 상태를 넘긴다."""
+    out, i, n, in_str = [], 0, len(line), False
+    while i < n:
+        if in_block:
+            j = line.find("*/", i)
+            if j < 0:
+                return "".join(out), True
+            i, in_block = j + 2, False
+            continue
+        ch = line[i]
+        if in_str:
+            out.append(ch)
+            if ch == "\\" and i + 1 < n:
+                out.append(line[i + 1])
+                i += 2
+                continue
+            if ch == '"':
+                in_str = False
+            i += 1
+            continue
+        if ch == '"':
+            in_str = True
+            out.append(ch)
+        elif line.startswith("//", i):
+            break
+        elif line.startswith("/*", i):
+            in_block = True
+            i += 2
+            continue
+        else:
+            out.append(ch)
+        i += 1
+    return "".join(out), in_block
+
+
 def scan_missing_literals(catalog_keys):
     """카탈로그에 없는 한국어 리터럴 → {"file:literal": [lines]}"""
     found = {}
     for path in swift_files():
         rel = str(path.relative_to(REPO))
-        for lineno, line in enumerate(path.read_text().split("\n"), 1):
-            stripped = line.strip()
-            if stripped.startswith("//"):
+        in_block = False
+        for lineno, raw in enumerate(path.read_text().split("\n"), 1):
+            line, in_block = strip_comments(raw, in_block)
+            if not line.strip():
                 continue
             if DEV_ONLY_RE.search(line):
                 continue
