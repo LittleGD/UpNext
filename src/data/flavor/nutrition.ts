@@ -25,7 +25,7 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
             },
             {
               weight: 30,
-              resultText: "쓴맛이 돈다 — 독 열매였다.",
+              resultText: "쓴맛이 돈다. 독 열매였다.",
               resultTextKey: "uphero.flavor.ntr.0.opt0.out1.result",
               effects: [
                 { kind: "damage", amount: 15 },
@@ -296,7 +296,7 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
           outcomes: [
             {
               weight: 55,
-              resultText: "말린 고기와 곡식 — 오래됐지만 먹을 만하다.",
+              resultText: "말린 고기와 곡식, 오래됐지만 먹을 만하다.",
               resultTextKey: "uphero.flavor.ntr.5.opt0.out0.result",
               effects: [
                 { kind: "heal", amount: 20 },

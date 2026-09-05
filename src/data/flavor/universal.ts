@@ -363,7 +363,7 @@ export const UNIVERSAL_EVENTS: DungeonEvent[] = [
           },
           {
             weight: 15,
-            resultText: "잘못된 기도였다 — 제단이 분노했다.",
+            resultText: "잘못된 기도였다. 제단이 분노했다.",
             resultTextKey: "uphero.flavor.uni.5.opt0.out2.result",
             effects: [
               { kind: "reward", coins: -30 },

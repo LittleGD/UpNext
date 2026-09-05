@@ -236,7 +236,7 @@ export const MYSTERY_EVENTS: DungeonEvent[] = [
     ],
   },
   {
-    prompt: "희미한 목소리가 선택을 제안한다 — 하나를 바친다.",
+    prompt: "희미한 목소리가 선택을 제안한다. 하나를 바친다.",
     promptKey: "uphero.flavor.mst.4.prompt",
     options: [
       {
@@ -297,7 +297,7 @@ export const MYSTERY_EVENTS: DungeonEvent[] = [
         outcomes: [
           {
             weight: 45,
-            resultText: "바람의 축복 — 다음 층까지 한걸음에.",
+            resultText: "바람의 축복: 다음 층까지 한걸음에.",
             resultTextKey: "uphero.flavor.mst.5.opt0.out0.result",
             effects: [
               { kind: "skipFloors", count: 1 },
@@ -316,7 +316,7 @@ export const MYSTERY_EVENTS: DungeonEvent[] = [
           },
           {
             weight: 20,
-            resultText: "새가 돌아와 영웅 곁에 머문다 — 보물 발견.",
+            resultText: "새가 돌아와 영웅 곁에 머문다, 보물 발견.",
             resultTextKey: "uphero.flavor.mst.5.opt0.out2.result",
             effects: [
               { kind: "reward", coins: 120, xp: 60 },

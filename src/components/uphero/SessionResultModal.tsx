@@ -223,7 +223,7 @@ export default function SessionResultModal() {
           style={{ borderBottom: `1px solid ${GB.dark}` }}
         >
           <div className="typo-caption" style={{ color: GB.light }}>
-            {dungeonName(dungeon.id, dungeon.name, language)} — F{session.currentFloor}
+            {dungeonName(dungeon.id, dungeon.name, language)}: F{session.currentFloor}
           </div>
           <PixelIcon
             name={iconName}

@@ -129,7 +129,7 @@ export function buildPhotoTalisman(
   // flavor 에 rarity prefix 텍스트 흡수 ("빛바랜 100 Jump Ropes — 2026.04.16")
   const flavorOriginal = photo.memo
     ? photo.memo.slice(0, 60)
-    : `${dateLabel} — ${photo.challengeTitle}`;
+    : `${dateLabel}: ${photo.challengeTitle}`;
   const flavor = `${RARITY_PREFIX[rarity]}${flavorOriginal}`;
 
   return {

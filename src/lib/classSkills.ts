@@ -140,7 +140,7 @@ const warriorT1: ClassSkill = {
       s,
       "warrior",
       "강타",
-      "영웅이 강타를 준비한다 — 다음 공격 2배",
+      "영웅이 강타를 준비한다: 다음 공격 2배",
       "warrior_smash_t1",
     );
   },
@@ -165,7 +165,7 @@ const warriorT2: ClassSkill = {
       s,
       "warrior",
       "광폭화",
-      "영웅이 광폭화 — 3 round 공격 +30%",
+      "영웅이 광폭화: 3 round 공격 +30%",
       "warrior_berserk_t2",
     );
   },
@@ -217,7 +217,7 @@ const warriorT3: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `분쇄가 ${m.name} 을 강타한다 — ${dmg} 피해`,
+      narrative: `분쇄가 ${m.name} 을 강타한다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.warrior_crush_t3",
       narrativeParams: {
         monster: m.name,
@@ -283,7 +283,7 @@ const warriorT4: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `영웅이 분노를 폭발시킨다 — ${m.name} 에 ${dmg} 고정 피해`,
+      narrative: `영웅이 분노를 폭발시킨다, ${m.name} 에 ${dmg} 고정 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.warrior_rage_burst_t4",
       narrativeParams: {
         monster: m.name,
@@ -327,7 +327,7 @@ const mageT1: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `영웅의 번개가 ${m.name} 을 꿰뚫는다 — ${dmg} 피해`,
+      narrative: `영웅의 번개가 ${m.name} 을 꿰뚫는다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.mage_lightning_t1",
       narrativeParams: {
         monster: m.name,
@@ -366,7 +366,7 @@ const mageT2: ClassSkill = {
       s,
       "mage",
       "빙결",
-      "적이 얼어붙었다 — 1 round 공격 불가",
+      "적이 얼어붙었다: 1 round 공격 불가",
       "mage_freeze_t2",
     );
   },
@@ -418,7 +418,7 @@ const mageT3: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `불꽃이 ${m.name} 을 휩싼다 — ${dmg} 피해`,
+      narrative: `불꽃이 ${m.name} 을 휩싼다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.mage_fireball_t3",
       narrativeParams: {
         monster: m.name,
@@ -500,7 +500,7 @@ const mageT4: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `메테오가 ${m.name} 을 내리친다 — ${dmg} 피해`,
+      narrative: `메테오가 ${m.name} 을 내리친다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.mage_meteor_t4",
       narrativeParams: {
         monster: m.name,
@@ -541,7 +541,7 @@ const monkT1: ClassSkill = {
       s,
       "monk",
       "선정",
-      "영웅이 선정에 든다 — 2 round 회피 100%",
+      "영웅이 선정에 든다: 2 round 회피 100%",
       "monk_zen_t1",
     );
   },
@@ -568,7 +568,7 @@ const monkT2: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `일섬 — ${m.name} 을 베어낸다 — ${dmg} 피해`,
+      narrative: `일섬: ${m.name} 을 베어낸다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.monk_flash_t2",
       narrativeParams: {
         monster: m.name,
@@ -684,7 +684,7 @@ const monkT4: ClassSkill = {
       s,
       "monk",
       "연화",
-      "연꽃이 영웅을 감싼다 — 3 round 무적",
+      "연꽃이 영웅을 감싼다: 3 round 무적",
       "monk_lotus_t4",
     );
   },
@@ -739,7 +739,7 @@ const druidT2: ClassSkill = {
       s,
       "druid",
       "뿌리옥죄기",
-      "뿌리가 적을 잡아챈다 — 2 round 봉인",
+      "뿌리가 적을 잡아챈다: 2 round 봉인",
       "druid_root_t2",
     );
   },
@@ -848,7 +848,7 @@ const druidT4: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `야생의 짐승이 ${m.name} 을 공격한다 — ${dmg} 피해`,
+      narrative: `야생의 짐승이 ${m.name} 을 공격한다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.druid_wild_call_t4",
       narrativeParams: {
         monster: m.name,
@@ -891,7 +891,7 @@ const bardT1: ClassSkill = {
       s,
       "bard",
       "노래",
-      "용기의 노래 — 다음 처치 보상 1.5배",
+      "용기의 노래: 다음 처치 보상 1.5배",
       "bard_song_t1",
     );
   },
@@ -1133,7 +1133,7 @@ const chronoT3: ClassSkill = {
       s,
       "chronomancer",
       "시간 정지",
-      "시간이 멈춘다 — 2 round 봉인",
+      "시간이 멈춘다: 2 round 봉인",
       "chrono_stop_t3",
     );
   },
@@ -1294,7 +1294,7 @@ const priestT3: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `심판 — ${m.name} 이 빛에 타들어간다 — ${dmg} 피해`,
+      narrative: `심판: ${m.name} 이 빛에 타들어간다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.priest_judgment_t3",
       narrativeParams: {
         monster: m.name,
@@ -1392,7 +1392,7 @@ const illusT1: ClassSkill = {
       s,
       "illusionist",
       "환영",
-      "환영 — 다음 3 공격 miss",
+      "환영: 다음 3 공격 miss",
       "illus_mirage_t1",
     );
   },
@@ -1467,7 +1467,7 @@ const illusT3: ClassSkill = {
       s,
       "illusionist",
       "환혹",
-      "적이 홀려 움직이지 못한다 — 2 round",
+      "적이 홀려 움직이지 못한다: 2 round",
       "illus_charm_t3",
     );
   },
@@ -1532,7 +1532,7 @@ const illusT4: ClassSkill = {
       s,
       "illusionist",
       "환몽",
-      "영웅이 꿈 속으로 — 3 round 무적",
+      "영웅이 꿈 속으로: 3 round 무적",
       "illus_dreamscape_t4",
     );
   },
@@ -1600,7 +1600,7 @@ const noviceFocus: ClassSkill = {
       s,
       "novice",
       "집중 일격",
-      "영웅이 깊게 호흡한다 — 다음 공격 +50%.",
+      "영웅이 깊게 호흡한다: 다음 공격 +50%.",
       "novice_focus",
     );
   },
@@ -1628,7 +1628,7 @@ const noviceBrace: ClassSkill = {
       s,
       "novice",
       "방어 자세",
-      "영웅이 자세를 낮춘다 — 다음 피해 -50%.",
+      "영웅이 자세를 낮춘다: 다음 피해 -50%.",
       "novice_brace",
     );
   },

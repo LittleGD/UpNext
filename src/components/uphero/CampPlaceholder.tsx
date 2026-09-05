@@ -468,7 +468,7 @@ function HomeView({
               aria-live="off"
             >
               {/* Phase 12 i18n — key → 현재 언어 조회. DictKey 제약상 cast. */}
-              — {t(ambienceKey as import("@/i18n").DictKey)} —
+              · {t(ambienceKey as import("@/i18n").DictKey)} ·
             </div>
           </div>
         </div>
@@ -1477,7 +1477,7 @@ function WeeklyNightmareRibbon({
             className="typo-caption truncate"
             style={{ color: GB.lightest }}
           >
-            {t("uphero.ribbon.weeklyTitle")} · {affixDisplayName || "—"}
+            {t("uphero.ribbon.weeklyTitle")} · {affixDisplayName || "-"}
           </div>
           <div
             className="typo-micro truncate tabular-nums"

@@ -258,7 +258,7 @@ export function createSession(
     log: [
       {
         type: "narrative",
-        text: `${DUNGEONS[dungeonId].name} — Floor ${startFloor} 에 도착했다.`,
+        text: `${DUNGEONS[dungeonId].name}: Floor ${startFloor} 에 도착했다.`,
         narrativeKey: "uphero.combat.narrative.floorArrive",
         narrativeParams: {
           dungeon: DUNGEONS[dungeonId].name,
@@ -944,7 +944,7 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
             classType: "priest",
             skillId: "priest_revive_t4",
             skillName: "부활",
-            narrative: `영웅이 부활한다 — HP +${revivedHp}`,
+            narrative: `영웅이 부활한다, HP +${revivedHp}`,
             narrativeKey: "uphero.combat.narrative.priestRevive",
             narrativeParams: { heal: revivedHp },
             timestamp: Date.now(),
@@ -1310,7 +1310,7 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
       s.log.push({
         type: "treasure",
         coins: 0,
-        description: `${rest.text} — 시간 +${recoverAmount}`,
+        description: `${rest.text}: 시간 +${recoverAmount}`,
         narrativeKey: "uphero.combat.narrative.restArea",
         narrativeParams: {
           description: rest.text,
@@ -2382,7 +2382,7 @@ function executeCombatRound(
       attacker: "hero",
       damage: counterDmg,
       outcome: "hit",
-      narrative: `영웅이 반사적으로 반격한다 — ${counterDmg} 피해`,
+      narrative: `영웅이 반사적으로 반격한다, ${counterDmg} 피해`,
       narrativeKey: "uphero.combat.narrative.heroCounter",
       narrativeParams: { damage: counterDmg },
       timestamp: Date.now(),

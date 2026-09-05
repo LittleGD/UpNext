@@ -69,6 +69,21 @@ describe("i18n dictionaries", () => {
     }
     expect(mismatches).toEqual([]);
   });
+
+  it("사전 값에 em-dash(U+2014) 가 없음 (쉼표·콜론·가운뎃점·문장 분리로 대체)", () => {
+    const offenders: string[] = [];
+    for (const [lang, dict] of [
+      ["ko", ko],
+      ["en", en],
+      ["ja", ja],
+      ["zh", zh],
+    ] as const) {
+      for (const [key, value] of Object.entries(dict)) {
+        if (value.includes("—")) offenders.push(`[${lang}] ${key}: ${value}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
 });
 
 describe("t() translation function", () => {

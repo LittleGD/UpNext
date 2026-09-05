@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:i18n": "npx tsx scripts/check-i18n-placeholders.ts",
+    "check:copy": "node scripts/check-no-em-dash.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

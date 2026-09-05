@@ -416,7 +416,7 @@ const LogLine = memo(function LogLine({
           <PixelIcon name="Coins" size={14} color={GB_LEGEND} />
           <span>
             {localizedDesc}
-            {entry.coins > 0 ? ` — ${t("common.unit.coinGain", { n: entry.coins })}` : ""}
+            {entry.coins > 0 ? ` · ${t("common.unit.coinGain", { n: entry.coins })}` : ""}
           </span>
         </div>
       );
@@ -510,7 +510,7 @@ const LogLine = memo(function LogLine({
           <div className="flex-1">
             <div>{t(labelKey)}</div>
             {localizedDetail && (
-              <div className={gbClass.textDim}>— {localizedDetail}</div>
+              <div className={gbClass.textDim}>· {localizedDetail}</div>
             )}
           </div>
         </div>

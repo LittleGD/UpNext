@@ -81,7 +81,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
           outcomes: [
             {
               weight: 50,
-              resultText: "화면이 웃는 듯 흔들린다 — 보상 분출!",
+              resultText: "화면이 웃는 듯 흔들린다, 보상 분출!",
               resultTextKey: "uphero.flavor.trd.1.opt0.out0.result",
               effects: [
                 { kind: "reward", coins: 30, xp: 20 },
