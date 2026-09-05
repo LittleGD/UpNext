@@ -756,14 +756,18 @@ struct EquipmentSlotCard: View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: 6) {
                 HStack(spacing: 4) {
+                    // 칩 3개(등급·슬롯·+N)가 3열 카드에 나란히 설 때 SwiftUI 가 슬롯 칩을
+                    // 두 줄("방어\n구")로 접던 문제 — 칩은 항상 한 줄, 고유 폭을 고정한다.
                     Text(item.rarity.displayName)
                         .typography(.micro)
+                        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
                         .foregroundStyle(Color.bgPrimary)
                         .padding(.horizontal, 5).padding(.vertical, 1)
                         .background(item.rarity.color, in: Capsule())
                     // Phase 6-E — 슬롯 칩 (텍스트만, GB.dark 배경 단계). 웹 slot chip.
                     Text(slotChipLabel)
                         .typography(.micro)
+                        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
                         .foregroundStyle(GBPalette.light)
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(GBPalette.dark, in: RoundedRectangle(cornerRadius: 3))
@@ -774,6 +778,7 @@ struct EquipmentSlotCard: View {
                         let tone = EnhanceChipTone.forLevel(lvl)
                         Text("+\(lvl)")
                             .typography(.micro).monospacedDigit()
+                            .lineLimit(1).fixedSize(horizontal: true, vertical: false)
                             .foregroundStyle(tone.fg)
                             .padding(.horizontal, 4).padding(.vertical, 1)
                             .background(tone.bg, in: RoundedRectangle(cornerRadius: 3))
