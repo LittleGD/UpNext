@@ -108,11 +108,15 @@ export default function Home() {
   // PWA/TWA/Capacitor → 앱 열 때마다 모션 스플래시 표시 (세션당 1회).
   // 서버·첫 hydration 은 standalone=false 로 평가 → SSR HTML 은 OnboardingFlow 이고,
   // hydration 완료 직후 getSnapshot=true 로 전환되며 splashDismissed=false 이면 스플래시로 교체.
-  // 그 사이 OnboardingFlow 가 한 프레임 페인트될 수 있다. 이 프레임을 가리는 것은 네이티브 셸의 책임:
-  //   - TWA: 시스템 스플래시가 web load 까지 화면을 덮는다.
-  //   - Capacitor 안드로이드: launchShowDuration(3000) 으로 붙잡아 둔 네이티브 스플래시를
-  //     NativeSplashHide 가 splashActive=true 순간에 걷어낸다(0 이면 이 프레임이 그대로 노출된다).
-  //   - 일반 브라우저: standalone=false 라 스플래시 자체를 쓰지 않으므로 해당 없음.
+  // 그 사이 OnboardingFlow 가 한 프레임 페인트될 수 있다. SSR/첫 하이드레이션 프레임이
+  // OnboardingFlow 인 것은 LCP 를 위한 의도이며(getStandaloneServerSnapshot 은 false 유지),
+  // standalone / Capacitor 문맥에서는 SSR 부트 커버(layout.tsx + src/lib/bootCover.ts)가 그
+  // 프레임을 다크로 가린다. 커버는 SplashScreen 이 splashActive 를 켜는 순간 NativeSplashHide 가
+  // 걷는다(비루트 진입은 하이드레이션 후 600ms 폴백, JS 실패 시 8초 CSS 만료).
+  //   - TWA / 설치형 PWA: OS 스플래시가 page load 에서 사라져도 커버가 이어받는다.
+  //   - Capacitor 안드로이드: launchShowDuration(6000) 상한 아래 커버가 겹쳐 있어, 타이머가
+  //     먼저 끝나도 앱 UI 가 새지 않는다. 같은 브리지가 SplashScreen.hide() 도 부른다.
+  //   - 일반 브라우저: 커버가 켜지지 않고 스플래시 자체도 쓰지 않으므로 해당 없음.
   const standalone = useSyncExternalStore(
     subscribeNoop,
     getStandaloneSnapshot,
@@ -183,7 +187,8 @@ export default function Home() {
         {/* P2 — 미로그인 + 진행 누적된 사용자에게 백업 안내. 카드팩 오픈 / 컬렉션
             축하 등 모달이 띄워진 상태에서는 자동으로 가려지므로 항상 마운트 가능.
             TWA 에서는 Capacitor 전환 예고 배너가 백업 배너를 대체한다 (같은 대상,
-            문구가 백업+마이그레이션을 함께 다루므로 이중 노출 방지). */}
+            문구가 백업+마이그레이션을 함께 다루므로 이중 노출 방지). 그 배너는 Chrome 기반
+            셸(TWA · 설치형 PWA)의 "브라우저 데이터 삭제 = 진행도 소실" 위험 문구도 함께 싣는다. */}
         {!isOpeningPack &&
           (isTwaClient ? (
             <AndroidMigrationBanner onLogin={() => setOverlayOverride("open")} />

@@ -7,9 +7,11 @@ android {
         applicationId "app.vercel.upnext"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // TWA 마지막 릴리스가 versionCode 2 (v1.1.0). Capacitor 전환 빌드는 3부터.
-        versionCode 3
-        versionName "2.0.0"
+        // TWA 마지막 릴리스 versionCode 2 (v1.1.0). Capacitor 3 은 8/27 내부 빌드.
+        // 4 = 콜드 스타트 수정(launchShowDuration 6000 + errorPath + 웹 SSR 부트 커버).
+        // 롤백용 TWA 는 5 로 예약되어 있으므로 그 뒤의 Capacitor 는 6 이상이어야 한다.
+        versionCode 4
+        versionName "2.0.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

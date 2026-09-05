@@ -12,6 +12,7 @@ const zh: Record<DictKey, string> = {
   // === android first launch ===
   "androidMigration.banner.title": "重大更新即将到来",
   "androidMigration.banner.body": "9月内将切换到新版应用。现在登录，连胜、XP和进度都会保留。照片仅保存在本设备上，不会转移。",
+  "androidMigration.banner.risk": "清除浏览器数据也会一并删除本设备上的进度。登录后随时都能找回。",
   "androidMigration.banner.cta": "登录以保留进度",
   "androidMigration.banner.later": "稍后",
   "androidFirstLaunch.title": "数据保护提醒",

@@ -12,6 +12,7 @@ const ja: Record<DictKey, string> = {
   // === android first launch ===
   "androidMigration.banner.title": "まもなく大型アップデートが届きます",
   "androidMigration.banner.body": "9月中に新しいアプリへ切り替わります。今ログインしておけば、ストリーク・XP・進捗はそのまま引き継がれます。写真はこの端末のみに保存され、引き継がれません。",
+  "androidMigration.banner.risk": "ブラウザのデータを消去すると、この端末の進捗も一緒に消えます。ログインしておけばいつでも取り戻せます。",
   "androidMigration.banner.cta": "ログインして守る",
   "androidMigration.banner.later": "あとで",
   "androidFirstLaunch.title": "データ保護のお知らせ",

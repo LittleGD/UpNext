@@ -42,8 +42,11 @@ Next.js 웹앱(`up-next-phi.vercel.app`)을 감싸는 iOS 네이티브 쉘. 안�
 | 1. iOS 시스템 LaunchScreen | ✅ 로고 제거 완료 | `LaunchScreen.storyboard`를 단색 `#0A0A0A` View로 교체. iOS 하드 플로어(~300ms)만 남음 |
 | 2. Capacitor 플러그인 스플래시 오버레이 | ✅ 0프레임 세팅 완료 | `launchShowDuration: 0` + `launchFadeOutDuration: 0` |
 | 3. 웹 모션 스플래시 | ✅ 유지 | `SplashScreen.tsx` (U↗Next 2.8s + fade 0.4s) — 실제 브랜드 모먼트 |
+| 0. SSR 부트 커버 (웹, 모든 standalone 셸) | ✅ 추가 | `src/lib/bootCover.ts` + `layout.tsx`: 첫 페인트 ~ 모션 스플래시 사이의 OnboardingFlow 프레임을 `#0A0A0A` 로 가림. `NativeSplashHide` 가 `splashActive` 에 걷음, JS 실패 시 8s CSS 만료 |
 
 **결과**: 앱 탭 → 검은 화면 깜박(~300ms, iOS 하드 플로어) → 바로 웹 로드 → U↗Next 모션.
+
+**안드로이드(Capacitor)**: `capacitor.config.ts` 의 `SplashScreen.launchShowDuration 6000` 은 오프라인·멈춘 로드용 상한이고, 정상 경로는 `NativeSplashHide` 가 `splashActive` 순간 `hide()` 로 걷는다. `server.errorPath: 'index.html'` 로 메인 프레임 오류 시 Chromium 흰 오류 페이지 대신 다크 `www/index.html`(자동 재시도)이 뜬다.
 
 #### 3. Apple Developer 포털 설정
 1. https://developer.apple.com/account/resources/identifiers → **+** → App IDs
