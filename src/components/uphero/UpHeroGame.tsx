@@ -3,7 +3,7 @@
 /**
  * Up Hero (갓생 영웅) — 메인 entry.
  *
- * currentSession 의 status 가 "active" | "paused" | "awaitingChoice" 면 DungeonView,
+ * currentSession 의 status 가 "active" | "paused" | "awaitingChoice" | "awaitingMinigame" 면 DungeonView,
  * 아니면 CampPlaceholder 로 라우팅.
  */
 
@@ -74,9 +74,12 @@ export default function UpHeroGame() {
     );
   }
 
+  // Phase 16 (Track C) — awaitingMinigame 도 던전 안이다. 미니게임은 DungeonView
+  //   가 MinigameModal 로 띄우므로, 여기서 캠프로 떨어뜨리면 도전이 고아가 된다.
   const inDungeon =
     sessionStatus === "active" ||
     sessionStatus === "awaitingChoice" ||
+    sessionStatus === "awaitingMinigame" ||
     sessionStatus === "paused";
 
   return (

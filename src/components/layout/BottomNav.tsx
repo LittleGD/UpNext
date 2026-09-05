@@ -94,7 +94,8 @@ export default function BottomNav() {
     pathname === "/playground" &&
     (upHeroStatus === "active" ||
       upHeroStatus === "paused" ||
-      upHeroStatus === "awaitingChoice");
+      upHeroStatus === "awaitingChoice" ||
+      upHeroStatus === "awaitingMinigame");
 
   if (
     !isLoaded ||
