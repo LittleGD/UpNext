@@ -774,6 +774,8 @@ export async function uploadLocalData(
     await setDoc(
       docRef,
       {
+        // progress 는 통째로 올라간다 — pendingFullPacks 등 새 키는 allowlist 없이 그대로 실린다
+        // (iOS Models/Game.swift UserProgress 가 lenient decode 로 미러).
         progress: stripUndefined(progress),
         daily: stripUndefined(dehydrateDaily(daily)),
         ...(includeRetention ? { retention: stripUndefined(retention) } : {}),

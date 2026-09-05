@@ -90,6 +90,7 @@ export interface UserProgress {
   daysTowardNextLevel: number;     // 다음 레벨까지 완료한 일수
   pendingPacks: number;            // 미개봉 카드팩 수 (레벨업 시 3장)
   pendingBonusCards: number;       // 추가/슈퍼 풀클리어로 적립된 랜덤 카드 1장 큐
+  pendingFullPacks: number;        // 상점 풀 카드팩 큐 — 항상 FULL_PACK_CARD_COUNT(5) 장, tier 하한 rare (data/packTier.ts)
   cardCompletions: Record<string, number>; // 카드별 완수 횟수
   extraChallengesCompleted: number;          // 추가 챌린지 완료 횟수
   superChallengesCompleted: number;          // 슈퍼 챌린지 완료 횟수
@@ -140,6 +141,21 @@ export const XP_PER_RARITY: Record<string, number> = {
   unique: 50,
   legend: 100,
 };
+
+// === 챌린지 완료 결과 (completeChallenge / completePhaseChallenge 반환값) ===
+// 셀레브레이션이 실제로 progress.xp 에 더해진 값을 그대로 보여주기 위한 스냅샷.
+//  - baseXp: 카드 등급 XP (XP_PER_RARITY)
+//  - bonusXp: 컬렉션 100% 완료자의 환산 보상 XP (rollCompensationForLevels /
+//    COLLECTION_COMPENSATION_BONUS). 미완료자는 항상 0.
+//  - totalXp: baseXp + bonusXp (= 이번 호출로 늘어난 progress.xp)
+//  - levelsGained: 이번 호출로 오른 레벨 수
+// 영속되지 않는 반환 전용 타입.
+export interface ChallengeCompletionResult {
+  baseXp: number;
+  bonusXp: number;
+  totalXp: number;
+  levelsGained: number;
+}
 
 // === 특정 레벨까지 필요한 총 누적 XP ===
 export function totalXPForLevel(level: number): number {

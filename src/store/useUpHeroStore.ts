@@ -1789,12 +1789,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const state = get();
     const price = size === "full" ? SHOP_PRICES.cardPackFull : SHOP_PRICES.cardPackSmall;
     if (state.coins < price) return false;
+    const gameStore = useGameStore.getState();
+    // 컬렉션 100% 상태에서는 팩을 팔지 않는다 — 환급 케이스를 새로 만들지 않기 위해.
+    if (gameStore.progress.unlockedCardIds.length >= ALL_CARDS.length) return false;
     const newCoins = state.coins - price;
 
-    const gameStore = useGameStore.getState();
     const newProgress = { ...gameStore.progress };
     if (size === "full") {
-      newProgress.pendingPacks = (newProgress.pendingPacks ?? 0) + 1;
+      // 풀 카드팩은 레벨업 팩(pendingPacks) 이 아니라 별도 큐 — 항상 5장, rare+ 보장.
+      newProgress.pendingFullPacks = (newProgress.pendingFullPacks ?? 0) + 1;
     } else {
       newProgress.pendingBonusCards = (newProgress.pendingBonusCards ?? 0) + 1;
     }

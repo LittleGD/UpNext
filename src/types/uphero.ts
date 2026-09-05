@@ -82,7 +82,7 @@ export const CLASS_META: Record<
   { name: string; passive: string; icon: string }
 > = {
   warrior: { name: "전사", passive: "전투 round 당 HP +2 회복", icon: "Sword" },
-  mage: { name: "마법사", passive: "모든 XP 획득 +20%", icon: "BookOpen" },
+  mage: { name: "마법사", passive: "던전 XP 획득 +20%", icon: "BookOpen" },
   monk: { name: "수도승", passive: "회피 확률 +10%", icon: "Moon" },
   druid: { name: "드루이드", passive: "회복 효과 +30%", icon: "Coffee" },
   bard: { name: "음유시인", passive: "코인 획득 +25%", icon: "Message" },

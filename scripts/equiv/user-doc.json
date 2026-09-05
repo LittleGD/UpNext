@@ -31,6 +31,7 @@
       "daysTowardNextLevel": 3,
       "pendingPacks": 2,
       "pendingBonusCards": 1,
+      "pendingFullPacks": 1,
       "cardCompletions": { "fitness-001": 15, "fitness-002": 7 },
       "extraChallengesCompleted": 22,
       "superChallengesCompleted": 5,

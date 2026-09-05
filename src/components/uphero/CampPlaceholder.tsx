@@ -22,6 +22,7 @@ import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore, getTodayString } from "@/store/useGameStore";
 import { DAILY_CARDMATCH_TICKET_CAP, getXPProgress } from "@/types/game";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
+import { ALL_CARDS } from "@/data/cards";
 import { pickCampAmbience } from "@/data/upHeroFlavor";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import {
@@ -692,6 +693,10 @@ function ShopView({
   const passes = useUpHeroStore((s) => s.passes);
   // Phase 12a — 카드매치 티켓 하루 구매 현황.
   const cardmatchShopDaily = useGameStore((s) => s.progress.cardmatchShopDaily);
+  // 컬렉션 100% — 카드팩 매진 (purchaseCardPack 도 false 를 돌려준다).
+  const collectionComplete = useGameStore(
+    (s) => s.progress.unlockedCardIds.length >= ALL_CARDS.length,
+  );
   const cardmatchBoughtToday =
     cardmatchShopDaily?.date === getTodayString()
       ? cardmatchShopDaily.bought
@@ -761,7 +766,11 @@ function ShopView({
       play("collect");
       onNotify(t("uphero.shop.packSmall"));
     } else {
-      onNotify(t("uphero.shop.insufficient"));
+      onNotify(
+        coins < SHOP_PRICES.cardPackSmall
+          ? t("uphero.shop.insufficient")
+          : t("uphero.shop.packSoldOut"),
+      );
     }
   };
 
@@ -772,7 +781,11 @@ function ShopView({
       play("collect");
       onNotify(t("uphero.shop.packFull"));
     } else {
-      onNotify(t("uphero.shop.insufficient"));
+      onNotify(
+        coins < SHOP_PRICES.cardPackFull
+          ? t("uphero.shop.insufficient")
+          : t("uphero.shop.packSoldOut"),
+      );
     }
   };
 
@@ -1056,7 +1069,7 @@ function ShopView({
           desc={t("uphero.shop.bonusCard.desc")}
           price={SHOP_PRICES.cardPackSmall}
           onBuy={() => onBuyPack("small")}
-          canAfford={coins >= SHOP_PRICES.cardPackSmall}
+          canAfford={coins >= SHOP_PRICES.cardPackSmall && !collectionComplete}
         />
         <ShopRow
           iconName="Package"
@@ -1064,7 +1077,7 @@ function ShopView({
           desc={t("uphero.shop.fullPack.desc")}
           price={SHOP_PRICES.cardPackFull}
           onBuy={() => onBuyPack("full")}
-          canAfford={coins >= SHOP_PRICES.cardPackFull}
+          canAfford={coins >= SHOP_PRICES.cardPackFull && !collectionComplete}
         />
 
         <div
