@@ -331,6 +331,8 @@ interface UpHeroActions {
    * Phase 2-A — 클라우드 heroXp 단조 병합: `heroXp = max(local ?? -1, cloud)`.
    *   cloud 가 없거나 비유한이면 no-op (절대 지어내지 않는다). 흔적 게이트와 무관하게
    *   SyncProvider.adoptCloudUpHero 가 매 스냅샷마다 호출한다.
+   *   hydrate 전(isLoaded=false)엔 in-memory 를 건드리지 않고 저장본 레코드에만
+   *   병합한다 — 기본값을 persist 해 로컬 흔적(코인·인벤·영웅)을 지우면 안 된다.
    */
   mergeCloudHeroXp(cloudHeroXp: number | undefined): void;
   /**
@@ -1066,6 +1068,20 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     const cloud = normalizeHeroXp(cloudHeroXp);
     if (cloud === undefined) return;
     const state = get();
+    if (!state.isLoaded) {
+      // 아직 hydrate 전 (아지트를 안 거친 라우트에서 로그인/리스너 스냅샷이 먼저 온
+      //   경우: /settings, /collection, /minigame). 이때 in-memory 는 기본값이라
+      //   pickPersisted(get()) 로 persist 하면 저장본의 코인·인벤·영웅이 기본값으로
+      //   덮여 흔적이 사라지고, 바로 뒤의 adoptCloudUpHero 흔적 게이트가 뚫려
+      //   "로컬 흔적 우선" 계약이 깨진다. 저장본 레코드에만 heroXp 를 병합한다 —
+      //   heroXp 단독 레코드는 흔적이 아니므로 게이트는 그대로고, initialize 가
+      //   normalizeHeroXp(saved?.heroXp) 로 읽어 간다. 마일스톤 정리도 initialize 몫.
+      const saved = loadFromStorage<Record<string, unknown>>(STORAGE_KEY);
+      const localSaved = normalizeHeroXp(saved?.heroXp) ?? -1;
+      if (cloud <= localSaved) return;
+      saveToStorage(STORAGE_KEY, { ...(saved ?? {}), heroXp: cloud });
+      return;
+    }
     const local = state.heroXp ?? -1;
     if (cloud <= local) return;
     set({ heroXp: cloud });

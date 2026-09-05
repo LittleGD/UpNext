@@ -27,7 +27,7 @@ vi.mock("@/lib/storage", () => ({
 import { useUpHeroStore, pickPersisted } from "./useUpHeroStore";
 import { useGameStore } from "./useGameStore";
 import { saveToStorage } from "@/lib/storage";
-import { normalizeUpHeroState } from "@/lib/sync";
+import { normalizeUpHeroState, hasUpHeroFootprint } from "@/lib/sync";
 import { HERO_XP_CAP, resolveHeroLevel } from "@/types/uphero";
 
 function seedGame(level: number, loaded = true) {
@@ -239,6 +239,64 @@ describe("클라우드 — mergeCloudHeroXp (단조 병합)", () => {
     useUpHeroStore.setState({ heroXp: 0, pendingHeroLevelUp: null });
     useUpHeroStore.getState().mergeCloudHeroXp(39031);
     expect(useUpHeroStore.getState().pendingHeroLevelUp).toBeNull();
+  });
+});
+
+describe("클라우드 — mergeCloudHeroXp (hydrate 전, 저장본 레코드에만 병합)", () => {
+  // 아지트를 안 거친 라우트(/settings 로그인, /collection, /minigame)에서 리스너
+  //   스냅샷이 initialize 보다 먼저 온다. 이때 in-memory 는 기본값이므로 그걸
+  //   persist 하면 로컬 흔적이 지워지고 adoptCloudUpHero 의 "로컬 흔적 우선" 게이트가
+  //   뚫린다 (익명 플레이 뒤 설정에서 로그인 → 코인·인벤 소실).
+  const localSave = () => ({
+    schemaVersion: 6,
+    heroStartLevel: 1,
+    coins: 500,
+    inventory: [{ id: "it-1", baseId: "sword_iron", type: "weapon", rarity: "rare" }],
+    hero: { name: "Teo" },
+    heroXp: 40000,
+  });
+
+  it("클라우드가 더 크면 저장본의 코인·인벤·영웅은 유지하고 heroXp 만 올린다, 스토어는 그대로", () => {
+    stored.uphero = localSave();
+    expect(useUpHeroStore.getState().isLoaded).toBe(false);
+    useUpHeroStore.getState().mergeCloudHeroXp(45000);
+    const saved = stored.uphero as ReturnType<typeof localSave>;
+    expect(saved.coins).toBe(500);
+    expect(saved.inventory).toHaveLength(1);
+    expect(saved.hero.name).toBe("Teo");
+    expect(saved.heroXp).toBe(45000);
+    expect(hasUpHeroFootprint(saved)).toBe(true);
+    // in-memory 는 손대지 않는다 — hydrate 는 initialize 몫.
+    const st = useUpHeroStore.getState();
+    expect(st.isLoaded).toBe(false);
+    expect(st.heroXp).toBeUndefined();
+    expect(st.coins).toBe(0);
+    // 이어서 initialize 가 저장본에서 병합값을 읽는다.
+    seedGame(47);
+    useUpHeroStore.getState().initialize();
+    expect(useUpHeroStore.getState().heroXp).toBe(45000);
+    expect(useUpHeroStore.getState().coins).toBe(500);
+  });
+
+  it("클라우드가 저장본 이하면 저장소를 건드리지 않는다", () => {
+    stored.uphero = localSave();
+    vi.mocked(saveToStorage).mockClear();
+    useUpHeroStore.getState().mergeCloudHeroXp(40000);
+    useUpHeroStore.getState().mergeCloudHeroXp(12345);
+    expect(vi.mocked(saveToStorage)).not.toHaveBeenCalled();
+    expect((stored.uphero as { heroXp?: number }).heroXp).toBe(40000);
+    expect(useUpHeroStore.getState().isLoaded).toBe(false);
+  });
+
+  it("저장본이 없으면 heroXp 단독 레코드만 남긴다 — 흔적이 아니라 게이트는 그대로", () => {
+    useUpHeroStore.getState().mergeCloudHeroXp(45000);
+    expect(stored.uphero).toEqual({ heroXp: 45000 });
+    expect(hasUpHeroFootprint(stored.uphero)).toBe(false);
+    expect(useUpHeroStore.getState().isLoaded).toBe(false);
+    // 레거시 공식(39,031)보다 알려진 클라우드 값이 우선.
+    seedGame(47);
+    useUpHeroStore.getState().initialize();
+    expect(useUpHeroStore.getState().heroXp).toBe(45000);
   });
 });
 
