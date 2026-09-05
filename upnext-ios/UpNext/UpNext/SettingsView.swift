@@ -294,7 +294,7 @@ struct SettingsView: View {
                 HStack(spacing: 8) {
                     PixelIcon(unlocked ? .check : .lock,
                               size: 11, color: unlocked ? Color.accentPrimary : Color.textTertiary)
-                    Text("Lv. \(bp.0)+ — \(bp.1)")
+                    Text("Lv. \(bp.0)+: \(bp.1)")
                         .typography(.caption)
                         .foregroundStyle(unlocked ? Color.textPrimary : Color.textTertiary)
                     Spacer(minLength: 0)
@@ -400,7 +400,7 @@ struct SettingsView: View {
             isDeletingAccount = false
             if !ok {
                 deleteAccountError = store.auth.lastError
-                    ?? AppConfig.loc("계정 삭제에 실패했어요 — 잠시 후 다시 시도해주세요")
+                    ?? AppConfig.loc("계정 삭제에 실패했어요. 잠시 후 다시 시도해주세요")
             }
         }
     }
@@ -563,9 +563,9 @@ struct SettingsView: View {
 
     private func modeDesc(_ m: GameMode) -> LocalizedStringKey {
         switch m {
-        case .normal:  return "하루에 카드 1장 — 가볍게"
-        case .godlife: return "하루에 카드 2장 — 갓생 모드"
-        case .ultra:   return "하루에 카드 3장 — 초갓생 모드"
+        case .normal:  return "하루에 카드 1장: 가볍게"
+        case .godlife: return "하루에 카드 2장: 갓생 모드"
+        case .ultra:   return "하루에 카드 3장: 초갓생 모드"
         }
     }
 

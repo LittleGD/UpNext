@@ -114,7 +114,7 @@ struct EquipmentInventoryView: View {
             // Phase 6-E — 버리기는 액션에서 빠졌다 (판매가 항상 우세, 넘친 전리품 시트만 버리기).
             if let pending = pendingAction, pending.kind == .sell {
                 GbConfirm(
-                    title: "\(pending.item.localizedDisplayName) — 판매할까요?",
+                    title: "\(pending.item.localizedDisplayName): 판매할까요?",
                     message: "+\(UpHeroStore.sellPrice(pending.item)) 코인",
                     confirmLabel: "판매",
                     danger: true,
@@ -407,7 +407,7 @@ struct EquipmentInventoryView: View {
             lines.append(AppConfig.loc("이번 시도: \(p.cost) 코인 + \(wards.joined(separator: " + "))"))
         }
         if p.equipped {
-            lines.append(AppConfig.loc("장착 중 — 소실 시 스탯이 즉시 하락합니다"))
+            lines.append(AppConfig.loc("장착 중: 소실 시 스탯이 즉시 하락합니다"))
         }
         return lines.joined(separator: "\n")
     }
@@ -498,7 +498,7 @@ struct EquipmentInventoryView: View {
             startRitual(item, .success, band, withSpent(title, spent))
         case .keep(_, let spent):
             startRitual(item, .keep, band,
-                        withSpent(AppConfig.loc("강화 실패 — 아이템은 남았다"), spent))
+                        withSpent(AppConfig.loc("강화 실패: 아이템은 남았다"), spent))
         case .down(_, _, let spent):
             startRitual(item, .keep, band, withSpent(AppConfig.loc("한 단계 내려갔다"), spent))
         case .guarded(_, let kind, let spent):
@@ -601,7 +601,7 @@ struct EquipmentInventoryView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("사진 부적 만들기")
                         .typography(.body).foregroundStyle(Color.textPrimary)
-                    Text("성장의 순간을 부적으로 — 코인 \(PhotoTalisman.ritualCost)")
+                    Text("성장의 순간을 부적으로: 코인 \(PhotoTalisman.ritualCost)")
                         .typography(.caption).foregroundStyle(Color.textTertiary)
                 }
                 Spacer(minLength: 0)

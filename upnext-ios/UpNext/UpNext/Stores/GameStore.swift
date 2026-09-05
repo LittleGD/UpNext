@@ -568,7 +568,7 @@ final class GameStore: ObservableObject {
         case .failed:
             // 조회 실패 — 기본 상태로 덮어쓰지 않는다 (기존 클라우드 데이터 보호).
             bootstrappedUid = nil
-            phase = .failed("클라우드 데이터를 불러오지 못했습니다 — 네트워크 확인 후 다시 시도")
+            phase = .failed("클라우드 데이터를 불러오지 못했습니다. 네트워크 확인 후 다시 시도")
         }
     }
 

@@ -1746,7 +1746,7 @@ enum ChoiceEffectDecoding {
     static func unknownKind(_ kind: String, in type: String) {
         #if DEBUG
         if !tolerateUnknownKinds {
-            assertionFailure("\(type): unknown effect kind '\(kind)' — decoded as .nothing")
+            assertionFailure("\(type): unknown effect kind '\(kind)', decoded as .nothing")
         }
         #endif
     }

@@ -42,7 +42,7 @@ struct BuffDrawPanel: View {
             header
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("버프 슬롯 \(slotCount)개 — 카드를 골라 영웅을 강화하세요")
+                    Text("버프 슬롯 \(slotCount)개: 카드를 골라 영웅을 강화하세요")
                         .typography(.caption)
                         .foregroundStyle(Color.textTertiary)
                     grid

@@ -389,7 +389,7 @@ final class GrowthStore: ObservableObject {
                 c.restoreGState()
             }
         }
-        savePhoto(image: img, signature: nil, memo: "오늘도 한 걸음 — 시드 메모",
+        savePhoto(image: img, signature: nil, memo: "오늘도 한 걸음: 시드 메모",
                   challengeCardId: card.id, challengeTitle: card.title,
                   category: card.category, stickers: [])
     }

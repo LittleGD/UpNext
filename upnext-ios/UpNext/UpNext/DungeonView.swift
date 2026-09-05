@@ -623,13 +623,13 @@ struct DungeonView: View {
             if let key { return R(key, params, "\(monster.name) 처치") }
             return R("ios.log.victory",
                      ["monster": .text(monster.name), "xp": .number(Double(xp)), "coins": .number(Double(coins))],
-                     "\(monster.name) 처치 — XP +\(xp), 코인 +\(coins)")
+                     "\(monster.name) 처치: XP +\(xp), 코인 +\(coins)")
         case let .drop(equipment, _):
             return R("ios.log.drop", ["equipment": .text(EquipmentPool.equipmentBaseName(equipment))], "\(equipment.name) 획득!")
         case let .treasure(coins, description, key, params, _):
             if let key { return R(key, params, description) }
             return description.isEmpty
-                ? R("ios.log.treasureFallback", ["coins": .number(Double(coins))], "보물 발견 — 코인 +\(coins)")
+                ? R("ios.log.treasureFallback", ["coins": .number(Double(coins))], "보물 발견: 코인 +\(coins)")
                 : AppConfig.locRuntime(description)
         case let .floor(_, to, _):
             return R("ios.log.floorEnter", ["floor": .number(Double(to))], "\(to)층 진입")
@@ -680,8 +680,8 @@ struct DungeonView: View {
 
     private func sessionEndText(_ reason: SessionEndReason) -> String {
         switch reason {
-        case .bossDefeated:  return AppConfig.loc("보스 격파 — 탐험 성공")
-        case .heroDied:      return AppConfig.loc("영웅이 쓰러졌다 — 탐험 실패")
+        case .bossDefeated:  return AppConfig.loc("보스 격파: 탐험 성공")
+        case .heroDied:      return AppConfig.loc("영웅이 쓰러졌다: 탐험 실패")
         case .timeExpired:   return AppConfig.loc("탐험 시간 소진")
         case .heroAbandoned: return AppConfig.loc("캠프로 복귀")
         case .victory:       return AppConfig.loc("탐험 성공")

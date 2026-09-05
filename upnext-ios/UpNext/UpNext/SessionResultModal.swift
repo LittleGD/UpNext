@@ -60,7 +60,7 @@ struct SessionResultModal: View {
         let reasonInfo = resolveReason(session)
         return VStack(spacing: 8) {
             // 던전 · 층
-            Text("던전 — F\(session.currentFloor)")
+            Text("던전: F\(session.currentFloor)")
                 .typography(.caption)
                 .foregroundStyle(GBPalette.light)
             // 아이콘

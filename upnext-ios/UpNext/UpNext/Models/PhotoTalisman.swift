@@ -87,7 +87,7 @@ enum PhotoTalisman {
         let dateLabel = photo.date
         let flavorBody = (photo.memo.isEmpty == false)
             ? String(photo.memo.prefix(60))
-            : "\(dateLabel) — \(rawTitle)"
+            : "\(dateLabel): \(rawTitle)"
         let flavor = (rarityPrefix[rarity] ?? "") + flavorBody
 
         return Equipment(

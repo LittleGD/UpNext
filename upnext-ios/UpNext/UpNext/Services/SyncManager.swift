@@ -293,7 +293,7 @@ final class SyncManager: ObservableObject {
             // 다음 로컬 write 가 들어오면 새 enqueue 가 재시도를 다시 킥오프.
             hasLocalPendingWrite = false
             retryAttempt = 0
-            status = .error("동기화 재시도 소진 — 다음 변경 시 재시도")
+            status = .error("동기화 재시도 소진: 다음 변경 시 재시도")
             return
         }
         let delay = Self.retryDelaySeconds(attempt: retryAttempt)
