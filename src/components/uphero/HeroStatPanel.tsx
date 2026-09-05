@@ -71,7 +71,9 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
 
   // 격자 가방 시너지 — 세션 시작 때 baseStats 에 가산되는 값과 **같은 순수 함수**로
   //   라이브 계산한다. 여기서 따로 더하면 화면과 전투가 갈린다.
-  const bagSynergy = computeBagSynergy(hero.equipped, inventory, bagRows(level));
+  //   행 수는 레벨이 아니라 상점 구매분에서 온다 (숫자를 구독해 구매 즉시 반영).
+  const bagRowCount = useUpHeroStore((s) => bagRows(s.bagRowsBought));
+  const bagSynergy = computeBagSynergy(hero.equipped, inventory, bagRowCount);
   const bagSynergyText = (
     Object.keys(bagSynergy.bonuses) as Array<keyof HeroBaseStats>
   )

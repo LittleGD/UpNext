@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { normalizeUpHeroState, hasUpHeroFootprint } from "./sync";
+import {
+  normalizeUpHeroState,
+  hasUpHeroFootprint,
+  encodeUpHeroForCloud,
+} from "./sync";
 import { ENHANCE_GUARD_MAX } from "@/types/uphero";
 
 /**
@@ -163,5 +167,37 @@ describe("normalizeUpHeroState — 장비 좌표·null 키", () => {
       bagRot: 1,
     });
     expect(hasCoords(decode({}))).toBe(false);
+  });
+});
+
+/**
+ * 가방 확장 (`bagRowsBought`) — 상점에서만 오르는 영구 자산이라 기기를 옮겨도
+ * 그대로 따라와야 한다. 와이어 키는 iOS `UpHeroCloudSchema.CodingKeys` 와 같은
+ * 철자여야 하고 (화이트리스트 디코드라 어긋나면 조용히 사라진다), 0 에서도
+ * 키를 남겨야 한다 — merge 가 클라우드의 옛 행 수를 되살리면 안 되기 때문이다.
+ */
+describe("normalizeUpHeroState — 가방 확장", () => {
+  it("정상 값은 그대로 왕복한다", () => {
+    expect(normalizeUpHeroState({ bagRowsBought: 2 }).bagRowsBought).toBe(2);
+  });
+
+  it("범위 밖·타입 불일치·부재를 관용적으로 접는다", () => {
+    expect(normalizeUpHeroState({ bagRowsBought: 7 }).bagRowsBought).toBe(4);
+    expect(normalizeUpHeroState({ bagRowsBought: -1 }).bagRowsBought).toBe(0);
+    expect(normalizeUpHeroState({ bagRowsBought: "2" }).bagRowsBought).toBe(0);
+    expect(normalizeUpHeroState({ bagRowsBought: 2.9 }).bagRowsBought).toBe(2);
+    expect(normalizeUpHeroState({}).bagRowsBought).toBe(0);
+  });
+
+  it("0 이어도 페이로드에 실린다 (merge 로 옛 행 수가 부활하면 안 된다)", () => {
+    const payload = encodeUpHeroForCloud(normalizeUpHeroState({}));
+    expect(Object.keys(payload)).toContain("bagRowsBought");
+    expect(payload.bagRowsBought).toBe(0);
+  });
+
+  it("행을 한 번이라도 샀으면 그 자체가 플레이 흔적이다", () => {
+    // 코인을 써야만 오르는 값이라 갓 설치한 기기에서는 0 일 수밖에 없다.
+    expect(hasUpHeroFootprint({ bagRowsBought: 1 })).toBe(true);
+    expect(hasUpHeroFootprint({ bagRowsBought: 0 })).toBe(false);
   });
 });

@@ -7,6 +7,7 @@
  * Set/Map 순회 순서·RNG·시계에 의존하지 않는다.
  *
  * 보드 좌표계 (데이터): 원점 row 0 이 십자. 렌더는 `visualRow` 로 뒤집는다.
+ * 행 수는 상점 구매(`UpHeroState.bagRowsBought`)로만 는다: 4행 시작, 최대 8행.
  *
  *        (2,0) weapon
  *  (1,1) armor   (2,1) HERO   (3,1) accessory
@@ -27,8 +28,17 @@ import type { Rarity } from "@/types/card";
 // ─── 상수 ────────────────────────────────────────────────────────────────
 
 export const BAG_COLS = 5;
-export const BAG_ROWS_MIN = 5;
+/** 시작 행 수 — 십자 3행 + 가방 1행 = 가방칸 15. "처음엔 작게" (2026-09-05 사용자 결정). */
+export const BAG_ROWS_MIN = 4;
 export const BAG_ROWS_MAX = 8;
+/** 상점에서 살 수 있는 행 수 (4 → 8). */
+export const BAG_ROWS_BUYABLE = BAG_ROWS_MAX - BAG_ROWS_MIN;
+/**
+ * 가방 확장 가격표 — index = 지금까지 산 행 수(0..3), 값 = **다음** 행의 가격.
+ * 탐험권 80 · 하락방지권 150 · 풀 카드팩 800 사이에서 영구 가치라 점증한다. 총 2900.
+ * iOS `UpHeroBag.rowPrices` 와 같은 값이어야 한다.
+ */
+export const BAG_ROW_PRICES: readonly number[] = [200, 400, 800, 1500];
 /** 셀 사이 간격(px/pt). 웹·iOS 공통. */
 export const BAG_GAP = 4;
 export const BAG_CELL_MIN = 44;
@@ -69,11 +79,27 @@ const RARITY_RANK: Record<Rarity, number> = {
 
 // ─── 보드 크기 ───────────────────────────────────────────────────────────
 
-/** 행 수 = clamp(5 + floor(level/10), 5, 8). Lv1~9: 5, Lv10~19: 6, Lv20~29: 7, Lv30+: 8. */
-export function bagRows(heroLevel: number): number {
-  const lv = Number.isFinite(heroLevel) ? Math.max(1, Math.floor(heroLevel)) : 1;
-  const rows = BAG_ROWS_MIN + Math.floor(lv / 10);
-  return Math.min(BAG_ROWS_MAX, Math.max(BAG_ROWS_MIN, rows));
+/**
+ * 산 행 수 정규화: 유한수 → floor → [0, BAG_ROWS_BUYABLE], 아니면 0.
+ * `UpHeroState.bagRowsBought` 의 유일한 판독 규칙 (iOS `normalizeBagRowsBought` 동일).
+ */
+export function normalizeBagRowsBought(v: unknown): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
+  return Math.min(BAG_ROWS_BUYABLE, Math.max(0, Math.floor(v)));
+}
+
+/**
+ * 행 수 = BAG_ROWS_MIN + 산 행 수. 레벨과 무관하다 — 가방은 상점에서만 커진다.
+ *   0장: 4행(가방칸 15) · 1장: 5행(20) · 2장: 6행(25) · 3장: 7행(30) · 4장: 8행(35)
+ */
+export function bagRows(rowsBought: number | undefined): number {
+  return BAG_ROWS_MIN + normalizeBagRowsBought(rowsBought);
+}
+
+/** 다음 행의 가격. 다 샀으면 null. */
+export function bagRowPrice(rowsBought: number | undefined): number | null {
+  const n = normalizeBagRowsBought(rowsBought);
+  return n >= BAG_ROWS_BUYABLE ? null : BAG_ROW_PRICES[n];
 }
 
 /** 가방칸 수 = 전체 - 십자 5칸. */

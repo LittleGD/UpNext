@@ -49,7 +49,7 @@ export function calculateKeptDrops(session: CombatSession): Equipment[] {
  * `trayOverflow` 의 "최저 등급 먼저, 같은 등급이면 오래된 것 먼저" 다.
  * 판매가는 `SELL_PRICE` 한 곳에서만 온다 — 판매가 개편이 이 한 줄만 바꾸면 되게 둔다.
  *
- * @param rows 현재 영웅 레벨 기준 보드 행 수 (`bagRows`)
+ * @param rows 현재 보드 행 수 (`currentBagRows`, 상점에서 산 행 수로 정해진다)
  * @returns inventory = 정산 후 인벤토리, sold = 자동 판매된 아이템, coins = 환급 코인
  */
 export function settleBagAfterSession(

@@ -1136,6 +1136,11 @@ const ja: Record<DictKey, string> = {
   "uphero.shop.guard.downDesc": "強化失敗で段階が下がりそうな時だけ1枚消費 · 所持 {held}",
   "uphero.shop.guard.bought": "{name} を購入 · 所持 {n}",
   "uphero.shop.guard.full": "所持上限に達しました ({max}枚)",
+  "uphero.shop.bagRow.name": "かばん拡張",
+  "uphero.shop.bagRow.desc": "{rows}行 → {next}行 · かばんマス +{cells}",
+  "uphero.shop.bagRow.maxed": "最大サイズ (8行)",
+  "uphero.shop.bagRowBought": "かばんが{rows}行に広がりました",
+  "uphero.shop.bagRowMaxed": "かばんはすでに最大サイズです",
 
   // === Misc hero UI (residuals) ===
   "uphero.boss.appearAria": "ボス出現 — タップでスキップ",
@@ -1207,7 +1212,7 @@ const ja: Record<DictKey, string> = {
   "uphero.bag.trayEmpty": "整理待ちなし",
   "uphero.bag.suspended": "保留",
   "uphero.bag.hint.idle": "アイテムをタップして選んでください",
-  "uphero.bag.hint.full": "かばんがいっぱいです。売るか整理してください",
+  "uphero.bag.hint.full": "かばんがいっぱいです。売るかショップで拡張してください",
   "uphero.bag.hint.placing": "空きマスをタップして置いてください",
   "uphero.bag.action.place": "配置",
   "uphero.bag.action.rotate": "回転",

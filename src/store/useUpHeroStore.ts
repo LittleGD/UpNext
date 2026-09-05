@@ -70,10 +70,12 @@ import { calculateIdleReward, detectClockRewind } from "@/lib/idleAccrual";
 import {
   BAG_ROWS_MAX,
   applyBagSynergy,
+  bagRowPrice,
   bagRows,
   checkPlacement,
   inheritPlacement,
   normalizeBagLayout,
+  normalizeBagRowsBought,
   packAllIfNonePlaced,
   packInventory,
   pickPrimaryStatKey,
@@ -435,6 +437,15 @@ interface UpHeroActions {
   purchaseDownGuard(): boolean;
 
   /**
+   * 격자 가방 1행 확장 구매. 가방은 레벨이 아니라 **이 액션으로만** 커진다
+   * (2026-09-05 사용자 결정). 가격은 200 → 400 → 800 → 1500 으로 점증한다:
+   * 영구히 남는 자산이라 소모품(탐험권 80 · 하락방지권 150)과 같은 값이면
+   * 후반에 사실상 공짜가 되기 때문이다. 4행을 다 사면 8행에서 멈춘다.
+   * @returns "ok" 구매 성공 · "noCoin" 코인 부족 · "maxed" 이미 최대 크기
+   */
+  purchaseBagRow(): "ok" | "noCoin" | "maxed";
+
+  /**
    * Phase 15 — 방지권 지급. 보스 처치 드롭 · 던전 이벤트(보물상자) · 슬롯머신이
    * 쓰는 유일한 입구다. 음수·비정수는 무시하고, 상한을 넘는 만큼은 버린다.
    * @returns 실제로 늘어난 개수 (상한에 걸려 일부만 들어갔을 수 있다).
@@ -569,17 +580,15 @@ function normalizeCombatBuff(raw: unknown): UpHeroState["combatBuff"] {
 }
 
 /**
- * 지금 보드의 행 수. 세션 시작이 쓰는 유효 영웅 레벨(`getEffectiveHeroLevel`)과
- * **같은 값**을 근거로 삼는다 — 로드 시점이 아니라 매 호출 시점에 계산해야
- * 레벨업 직후에도 보드와 세션 스냅샷이 어긋나지 않는다.
+ * 지금 보드의 행 수. 근거는 **상점에서 산 행 수 하나뿐**이다 (2026-09-05 사용자 결정):
+ * 레벨과 무관하므로 진행도 스토어를 읽지 않고, 레벨이 오르내려도 보드가 흔들리지 않는다.
+ * 가방이 커지는 순간은 `purchaseBagRow` 하나뿐이라 세션 스냅샷과도 어긋날 일이 없다.
  *
  * @param state 판정에 쓸 스냅샷. 생략하면 현재 스토어 상태 (클라우드 병합처럼
  *   아직 커밋되지 않은 상태를 넘길 수 있게 열어 둔다 — 그래서 부분 스냅샷도 받는다).
  */
-export function currentBagRows(state?: Pick<UpHeroState, "heroStartLevel">): number {
-  const heroStartLevel = (state ?? useUpHeroStore.getState()).heroStartLevel;
-  const gameLevel = useGameStore.getState().progress.level ?? 1;
-  return bagRows(getEffectiveHeroLevel(gameLevel, heroStartLevel));
+export function currentBagRows(state?: Pick<UpHeroState, "bagRowsBought">): number {
+  return bagRows((state ?? useUpHeroStore.getState()).bagRowsBought);
 }
 
 /**
@@ -608,6 +617,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     downGuards,
     combatBuff,
     slotBlankStreak,
+    bagRowsBought,
   } = s;
   // Phase 13 review C#2 — session.log tail-slice 로 persist payload 감축.
   const trimmedSession =
@@ -639,6 +649,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     downGuards,
     combatBuff,
     slotBlankStreak,
+    bagRowsBought,
   };
 }
 
@@ -711,6 +722,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   combatBuff: undefined,
   // 굴림틀 pity 스트릭 — 탐험을 넘어 영속. 0 = 연속 꽝 없음.
   slotBlankStreak: 0,
+  // 격자 가방 — 상점에서 산 행 수. 0 = 시작 크기(4행). 레벨로는 절대 늘지 않는다.
+  bagRowsBought: 0,
   // Phase 11c — 초기 undefined. initialize 에서 이번 주 id 로 seed/갱신.
   weeklyVariant: undefined,
   idleReward: null,
@@ -880,11 +893,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     //   3) packAllIfNonePlaced: 버전과 무관한 복구 — 구버전 iOS 가 좌표를 벗겨
     //      올린 문서도 여기서 되살아난다 (유저는 아이템을 트레이로 옮길 수 없으므로
     //      "배치 0개" 는 정당한 상태가 아니다).
-    //   행 수는 로드 시점엔 항상 BAG_ROWS_MAX 다. 레벨은 다른 스토어(진행도)에서 오고 클라우드
-    //   충돌 해소로 내려갈 수도 있어, 지금 보드보다 아래 행의 좌표를 여기서 지우면 레이아웃을
-    //   영구히 잃는다. 마이그레이션 팩도 8행 기준 — 지금 레벨 보드 밖에 놓인 아이템은
-    //   suspended(보류)로 트레이에 보이다가 레벨이 오르면 제자리에 나타난다. 미배치로 보내
-    //   자동 판매 후보가 되게 하지 않는다 (iOS loadPersisted 와 같은 규칙).
+    //   행 수는 로드 시점엔 항상 BAG_ROWS_MAX 다. 실제 행 수(bagRowsBought)는 클라우드
+    //   병합으로 나중에 내려올 수도 있어, 지금 보드보다 아래 행의 좌표를 여기서 지우면
+    //   레이아웃을 영구히 잃는다. 마이그레이션 팩도 8행 기준 — 아직 안 산 행에 놓인
+    //   아이템은 suspended(보류)로 트레이에 보이다가 그 행을 사면 제자리에 나타난다.
+    //   미배치로 보내 자동 판매 후보가 되게 하지 않는다 (iOS loadPersisted 와 같은 규칙).
     let inventory = normalizeBagLayout(saved?.inventory ?? [], BAG_ROWS_MAX).inventory;
     if (savedVersion < 6) inventory = packInventory(inventory, BAG_ROWS_MAX);
     inventory = packAllIfNonePlaced(inventory);
@@ -922,6 +935,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       combatBuff: normalizeCombatBuff(saved?.combatBuff),
       // 굴림틀 pity 스트릭 — 필드가 없는 기존 저장본은 0. 손상 값은 [0,1000] 정수로.
       slotBlankStreak: normalizeSlotBlankStreak(saved?.slotBlankStreak),
+      // 격자 가방 확장 — 필드가 없는 저장본은 0(=4행 시작). 손상 값도 여기서 [0,4] 로 접는다.
+      bagRowsBought: normalizeBagRowsBought(saved?.bagRowsBought),
       weeklyVariant,
       idleReward,
       pendingClassAwaken: null, // transient
@@ -1442,7 +1457,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const leveledHero = applyBagSynergy(
       computeHeroForLevel(state.hero, heroLvl),
       state.inventory,
-      bagRows(heroLvl),
+      currentBagRows(state),
     );
     const session: CombatSession = buildSession(
       dungeonId,
@@ -1487,7 +1502,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const leveledHero = applyBagSynergy(
       computeHeroForLevel(state.hero, heroLvl),
       state.inventory,
-      bagRows(heroLvl),
+      currentBagRows(state),
     );
     const session = buildSession(dungeonId, leveledHero, startFloor, undefined, {
       ngPlusLevel: state.ngPlusLevel ?? 0,
@@ -1524,7 +1539,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const leveledHero = applyBagSynergy(
       computeHeroForLevel(state.hero, heroLvl),
       state.inventory,
-      bagRows(heroLvl),
+      currentBagRows(state),
     );
 
     // 주간 던전은 F30 고정 시작 (짧은 도전 run). ngPlusLevel 은 영향 X —
@@ -1935,6 +1950,23 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     return true;
   },
 
+  purchaseBagRow() {
+    const state = get();
+    const bought = normalizeBagRowsBought(state.bagRowsBought);
+    const price = bagRowPrice(bought);
+    // null = 이미 최대(8행). 코인만 빼가는 결제가 없도록 잔액 확인보다 먼저 막는다.
+    if (price === null) return "maxed";
+    if (state.coins < price) return "noCoin";
+    const newCoins = state.coins - price;
+    const next = bought + 1;
+    set({ coins: newCoins, bagRowsBought: next });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, coins: newCoins, bagRowsBought: next }),
+    );
+    return "ok";
+  },
+
   grantEnhanceGuards({ destroy = 0, down = 0 }) {
     const state = get();
     const wantDestroy = Number.isFinite(destroy) ? Math.max(0, Math.floor(destroy)) : 0;
@@ -2304,7 +2336,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   _setFromCloud: (state) => {
     // 격자 가방 — 들어온 인벤토리도 로컬 로드와 같은 계약으로 접는다. 백필은
     //   여기서만 한다 (sync 의 디코드는 iOS 와 바이트 동일해야 해서 손대지 않는다).
-    // 로드와 같은 규칙: 행 수는 BAG_ROWS_MAX. 레벨 하락으로 아래 행 좌표를 잃지 않고,
+    // 로드와 같은 규칙: 행 수는 BAG_ROWS_MAX. 아직 안 산 행의 좌표를 잃지 않고,
     //   팩도 8행에 놓아 보드 밖 아이템은 suspended(보류)로 남긴다 (자동 판매 후보가 아님).
     const inventory = packAllIfNonePlaced(
       normalizeBagLayout(state.inventory ?? [], BAG_ROWS_MAX).inventory,
@@ -2320,6 +2352,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       combatBuff: normalizeCombatBuff(state.combatBuff),
       // 굴림틀 pity 스트릭 — 키가 없는 옛 문서는 0. 손상 값은 같은 계약으로 접는다.
       slotBlankStreak: normalizeSlotBlankStreak(state.slotBlankStreak),
+      // 가방 확장도 같은 계약 — 키가 없는 옛 문서는 0(4행)으로 읽는다.
+      bagRowsBought: normalizeBagRowsBought(state.bagRowsBought),
       // 시작 선물은 계정 단위 1회 — 클라우드가 "이미 받음" 이면 로컬 예약을 거둔다.
       // (그대로 두면 오버레이가 떴다가 claimWelcomeGrant 가 0 을 반환해 빈손으로 닫힌다.)
       ...(state.welcomeGrantClaimed ? { pendingWelcomeGrant: null } : {}),
@@ -2359,6 +2393,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       downGuards: 0,
       combatBuff: undefined,
       slotBlankStreak: 0,
+      // 가방 확장은 계정 자산이다 — 로그아웃하면 시작 크기(4행)로 되돌린다.
+      bagRowsBought: 0,
       weeklyVariant: undefined,
       idleReward: null,
       pendingClassAwaken: null,

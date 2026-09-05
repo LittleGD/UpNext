@@ -83,10 +83,13 @@ func mkHero(_ equipped: [EquipSlot: Equipment]) -> Hero {
 
 // ── 1. 보드 크기 ─────────────────────────────────────────────────────────
 say("== 1 board ==")
-for lv in [1, 9, 10, 19, 20, 29, 30, 45] {
-    say("bagRows(\(lv)) = \(UpHeroBag.bagRows(lv))")
+// 행 수는 상점에서 산 행 수로만 정해진다 (4 + bought, 최대 8). 웹은 2.9 를 floor 하므로 여기선 2 로 넣는다.
+let boughtCases: [(String, Int?)] = [("undefined", nil), ("0", 0), ("1", 1), ("2", 2), ("3", 3), ("4", 4), ("5", 5), ("-1", -1), ("2.9", 2)]
+for (label, b) in boughtCases {
+    let price = UpHeroBag.bagRowPrice(rowsBought: b).map { String($0) } ?? "null"
+    say("bagRows(\(label)) = \(UpHeroBag.bagRows(rowsBought: b)) price=\(price)")
 }
-for r in [5, 6, 7, 8] {
+for r in [4, 5, 6, 7, 8] {
     say("bagCellCount(\(r)) = \(UpHeroBag.bagCellCount(rows: r))")
 }
 let cellSizeCases: [(Int, Int, Int)] = [(336, 431, 5), (336, 431, 8), (300, 300, 8), (390, 520, 6)]

@@ -3,6 +3,8 @@ import {
   BAG_COLS,
   BAG_ROWS_MIN,
   BAG_ROWS_MAX,
+  BAG_ROWS_BUYABLE,
+  BAG_ROW_PRICES,
   BAG_GAP,
   BAG_CELL_MIN,
   BAG_CELL_MAX,
@@ -12,6 +14,8 @@ import {
   BAG_ANCHOR_ORDER,
   BAG_HERO_CELL,
   bagRows,
+  bagRowPrice,
+  normalizeBagRowsBought,
   bagCellCount,
   isCrossCell,
   anchorAt,
@@ -116,31 +120,52 @@ function ids(items: Equipment[]): string[] {
 
 // ─── 보드 크기 ───────────────────────────────────────────────────────────
 
-describe("bagRows", () => {
-  it("레벨 구간별 행 수 (clamp(5 + floor(lv/10), 5, 8))", () => {
+describe("bagRows / bagRowPrice / normalizeBagRowsBought", () => {
+  it("행 수 = 4 + 상점에서 산 행 수 (레벨과 무관)", () => {
+    expect(bagRows(undefined)).toBe(4);
+    expect(bagRows(0)).toBe(4);
     expect(bagRows(1)).toBe(5);
-    expect(bagRows(9)).toBe(5);
-    expect(bagRows(10)).toBe(6);
-    expect(bagRows(19)).toBe(6);
-    expect(bagRows(20)).toBe(7);
-    expect(bagRows(29)).toBe(7);
-    expect(bagRows(30)).toBe(8);
-    expect(bagRows(45)).toBe(8);
+    expect(bagRows(2)).toBe(6);
+    expect(bagRows(3)).toBe(7);
+    expect(bagRows(4)).toBe(8);
   });
 
-  it("상한 밖·비정상 입력은 최소 5행", () => {
-    expect(bagRows(0)).toBe(BAG_ROWS_MIN);
-    expect(bagRows(-99)).toBe(BAG_ROWS_MIN);
+  it("손상 값은 정규화 계약대로 접힌다", () => {
+    expect(bagRows(5)).toBe(BAG_ROWS_MAX);
+    expect(bagRows(1000)).toBe(BAG_ROWS_MAX);
+    expect(bagRows(-1)).toBe(BAG_ROWS_MIN);
     expect(bagRows(Number.NaN)).toBe(BAG_ROWS_MIN);
     expect(bagRows(Number.POSITIVE_INFINITY)).toBe(BAG_ROWS_MIN);
-    expect(bagRows(9.9)).toBe(5);
-    expect(bagRows(10.1)).toBe(6);
-    expect(bagRows(1000)).toBe(BAG_ROWS_MAX);
+    // floor: 2.9 장을 산 상태는 있을 수 없지만, 있어도 2 장으로 읽는다.
+    expect(bagRows(2.9)).toBe(6);
+  });
+
+  it("normalizeBagRowsBought — 유한수만 floor 후 [0,4]", () => {
+    expect(normalizeBagRowsBought(undefined)).toBe(0);
+    expect(normalizeBagRowsBought(null)).toBe(0);
+    expect(normalizeBagRowsBought("2")).toBe(0);
+    expect(normalizeBagRowsBought(Number.NaN)).toBe(0);
+    expect(normalizeBagRowsBought(-1)).toBe(0);
+    expect(normalizeBagRowsBought(0)).toBe(0);
+    expect(normalizeBagRowsBought(2.9)).toBe(2);
+    expect(normalizeBagRowsBought(4)).toBe(BAG_ROWS_BUYABLE);
+    expect(normalizeBagRowsBought(9)).toBe(BAG_ROWS_BUYABLE);
+  });
+
+  it("bagRowPrice — 다음 행 가격, 다 사면 null", () => {
+    expect(bagRowPrice(undefined)).toBe(200);
+    expect(bagRowPrice(0)).toBe(200);
+    expect(bagRowPrice(1)).toBe(400);
+    expect(bagRowPrice(2)).toBe(800);
+    expect(bagRowPrice(3)).toBe(1500);
+    expect(bagRowPrice(4)).toBeNull();
+    expect(bagRowPrice(99)).toBeNull();
   });
 });
 
 describe("bagCellCount", () => {
   it("전체 칸에서 십자 5칸을 뺀다", () => {
+    expect(bagCellCount(BAG_ROWS_MIN)).toBe(15);
     expect(bagCellCount(5)).toBe(20);
     expect(bagCellCount(6)).toBe(25);
     expect(bagCellCount(7)).toBe(30);
@@ -1413,7 +1438,9 @@ describe("applyBagSynergy", () => {
 describe("상수", () => {
   it("iOS 미러가 같은 값을 써야 한다", () => {
     expect(BAG_COLS).toBe(5);
-    expect(BAG_ROWS_MIN).toBe(5);
+    expect(BAG_ROWS_MIN).toBe(4);
+    expect(BAG_ROWS_BUYABLE).toBe(4);
+    expect(BAG_ROW_PRICES).toEqual([200, 400, 800, 1500]);
     expect(BAG_ROWS_MAX).toBe(8);
     expect(BAG_GAP).toBe(4);
     expect(BAG_CELL_MIN).toBe(44);
@@ -1440,10 +1467,12 @@ describe("trayOverflow — candidateIds (판매 후보 제한)", () => {
       iconName: "Zap",
       stats: { str: 1 },
     }) as unknown as import("@/types/uphero").Equipment;
-  // 20 칸 보드를 꽉 채우고 트레이 13 개.
+  // 5행(가방칸 20) 보드를 꽉 채우고 트레이 13 개. 시작 크기가 아니라 명시 행 수를
+  //   쓰는 이유 — 이 테스트가 검증하는 건 보드 크기가 아니라 트레이 초과분 판정이다.
+  const ROWS = 5;
   const board = packInventory(
-    Array.from({ length: 20 }, (_, i) => mk(`b${i}`)),
-    BAG_ROWS_MIN,
+    Array.from({ length: bagCellCount(ROWS) }, (_, i) => mk(`b${i}`)),
+    ROWS,
   );
   const tray = [
     mk("t0"), mk("t1", "rare"), mk("t2"), mk("t3", "legend"), mk("t4", "rare"),
@@ -1453,12 +1482,12 @@ describe("trayOverflow — candidateIds (판매 후보 제한)", () => {
   const inv = [...board, ...tray];
 
   it("null 이면 트레이 전체가 후보 (기존 동작)", () => {
-    const { sell } = trayOverflow(inv, BAG_ROWS_MIN, BAG_TRAY_CAP, null);
+    const { sell } = trayOverflow(inv, ROWS, BAG_TRAY_CAP, null);
     expect(sell.map((s) => s.id)).toEqual(["t0", "t2", "t5"]);
   });
 
   it("후보 안에서만 최저 등급 → 오래된 index 순으로 초과분만큼 판다", () => {
-    const { sell, keep } = trayOverflow(inv, BAG_ROWS_MIN, BAG_TRAY_CAP, [
+    const { sell, keep } = trayOverflow(inv, ROWS, BAG_TRAY_CAP, [
       "t10", "t11", "t12", "t0",
     ]);
     expect(sell.map((s) => s.id)).toEqual(["t0", "t10", "t12"]);
@@ -1466,13 +1495,13 @@ describe("trayOverflow — candidateIds (판매 후보 제한)", () => {
   });
 
   it("후보가 초과분보다 적으면 후보만 팔고 트레이는 캡을 넘긴 채 남는다", () => {
-    const { sell, keep } = trayOverflow(inv, BAG_ROWS_MIN, BAG_TRAY_CAP, ["t3"]);
+    const { sell, keep } = trayOverflow(inv, ROWS, BAG_TRAY_CAP, ["t3"]);
     expect(sell.map((s) => s.id)).toEqual(["t3"]);
     expect(keep).toHaveLength(inv.length - 1);
   });
 
   it("후보가 비어 있으면 아무것도 팔지 않는다", () => {
-    const { sell, keep } = trayOverflow(inv, BAG_ROWS_MIN, BAG_TRAY_CAP, []);
+    const { sell, keep } = trayOverflow(inv, ROWS, BAG_TRAY_CAP, []);
     expect(sell).toEqual([]);
     expect(keep).toHaveLength(inv.length);
   });
@@ -1493,11 +1522,13 @@ describe("originsCovering / firstValidOriginCovering — 탭한 칸을 덮는 �
   });
 
   it("맨 윗줄(y=rows-1)에 세로 무기를 탭하면 한 칸 아래 원점으로 들어간다", () => {
-    const occ = emptyOccupancy(BAG_ROWS_MIN);
-    expect(firstValidOriginCovering(occ, BAG_ROWS_MIN, "weapon", 0, 0, 4)).toEqual({ x: 0, y: 3 });
+    // 5행 보드 기준 (맨 윗줄 y=4). 시작 크기와 무관하게 "윗줄 클램프" 만 본다.
+    const rows = 5;
+    const occ = emptyOccupancy(rows);
+    expect(firstValidOriginCovering(occ, rows, "weapon", 0, 0, 4)).toEqual({ x: 0, y: 3 });
     // 십자 위(2,3)를 탭한 세로 무기: 원점 (2,3) 은 (2,4) 까지 OK.
-    expect(firstValidOriginCovering(occ, BAG_ROWS_MIN, "weapon", 0, 2, 3)).toEqual({ x: 2, y: 3 });
+    expect(firstValidOriginCovering(occ, rows, "weapon", 0, 2, 3)).toEqual({ x: 2, y: 3 });
     // 앵커 옆 (1,0) 을 탭한 세로 무기: (1,0)-(1,1) 은 armor 앵커에 막히고, (1,-1) 은 OOB → null.
-    expect(firstValidOriginCovering(occ, BAG_ROWS_MIN, "weapon", 0, 1, 0)).toBeNull();
+    expect(firstValidOriginCovering(occ, rows, "weapon", 0, 1, 0)).toBeNull();
   });
 });

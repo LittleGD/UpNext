@@ -19,6 +19,7 @@ import {
   bagCellCount,
   bagCellSize,
   bagRows,
+  bagRowPrice,
   computeBagSynergy,
   footprint,
   normalizeBagLayout,
@@ -90,10 +91,11 @@ const mkHero = (equipped) => ({
 
 // ── 1. 보드 크기 ─────────────────────────────────────────────────────────
 say("== 1 board ==");
-for (const lv of [1, 9, 10, 19, 20, 29, 30, 45]) {
-  say(`bagRows(${lv}) = ${bagRows(lv)}`);
+// 행 수는 상점에서 산 행 수로만 정해진다 (4 + bought, 최대 8). 가격표는 다음 행의 값.
+for (const b of [undefined, 0, 1, 2, 3, 4, 5, -1, 2.9]) {
+  say(`bagRows(${String(b)}) = ${bagRows(b)} price=${String(bagRowPrice(b))}`);
 }
-for (const r of [5, 6, 7, 8]) {
+for (const r of [4, 5, 6, 7, 8]) {
   say(`bagCellCount(${r}) = ${bagCellCount(r)}`);
 }
 for (const [w, h, r] of [

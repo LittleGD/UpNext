@@ -26,8 +26,10 @@ import { useGameStore } from "./useGameStore";
 import { settleBagAfterSession } from "@/lib/sessionReward";
 import {
   applyBagSynergy,
+  bagCellCount,
   packInventory,
   BAG_ROWS_MIN,
+  BAG_ROWS_MAX,
   BAG_TRAY_CAP,
 } from "@/lib/upHeroBag";
 import { createDefaultHero, SELL_PRICE } from "@/types/uphero";
@@ -65,7 +67,7 @@ function makeItem(
   return item;
 }
 
-/** 이 테스트의 기준 보드는 영웅 Lv1 (5행). */
+/** 이 테스트의 기준 보드는 확장 0회 (BAG_ROWS_MIN 행). */
 function seed(inventory: Equipment[], equipped: Partial<Record<EquipSlot, Equipment>> = {}) {
   useGameStore.setState({
     progress: { ...useGameStore.getState().progress, level: 1 },
@@ -75,6 +77,7 @@ function seed(inventory: Equipment[], equipped: Partial<Record<EquipSlot, Equipm
     inventory,
     coins: 0,
     heroStartLevel: 1,
+    bagRowsBought: 0,
     isLoaded: true,
     uiBagOpen: false,
   });
@@ -113,15 +116,59 @@ afterEach(() => {
 });
 
 describe("currentBagRows", () => {
-  it("영웅 레벨 기준으로 행 수를 낸다 (Lv1 = 최소 행)", () => {
+  it("상점에서 산 행 수만이 근거다 — 레벨은 행을 못 늘린다", () => {
     expect(currentBagRows(useUpHeroStore.getState())).toBe(BAG_ROWS_MIN);
+    // 챌린지 레벨을 끝까지 올려도 보드는 그대로다 (2026-09-05 결정).
     useGameStore.setState({
-      progress: { ...useGameStore.getState().progress, level: 30 },
+      progress: { ...useGameStore.getState().progress, level: 60 },
     });
-    expect(currentBagRows(useUpHeroStore.getState())).toBe(8);
-    // 챌린지 Lv 가 아니라 **영웅** Lv 다 — heroStartLevel 이 밀면 행도 같이 밀린다.
-    useUpHeroStore.setState({ heroStartLevel: 30 });
     expect(currentBagRows(useUpHeroStore.getState())).toBe(BAG_ROWS_MIN);
+    useUpHeroStore.setState({ bagRowsBought: 2 });
+    expect(currentBagRows(useUpHeroStore.getState())).toBe(BAG_ROWS_MIN + 2);
+    // 인자 없이 부르면 현재 스토어 상태를 읽는다.
+    expect(currentBagRows()).toBe(BAG_ROWS_MIN + 2);
+    // 손상 값도 판독 계약(normalizeBagRowsBought)대로 접힌다.
+    useUpHeroStore.setState({ bagRowsBought: 99 });
+    expect(currentBagRows(useUpHeroStore.getState())).toBe(BAG_ROWS_MAX);
+  });
+});
+
+describe("purchaseBagRow", () => {
+  it("가격이 점증하고 코인만큼 깎이며 행이 하나씩 는다", () => {
+    seed([]);
+    useUpHeroStore.setState({ coins: 700 });
+    expect(useUpHeroStore.getState().purchaseBagRow()).toBe("ok");
+    expect(useUpHeroStore.getState().coins).toBe(500);
+    expect(useUpHeroStore.getState().bagRowsBought).toBe(1);
+    expect(currentBagRows(useUpHeroStore.getState())).toBe(BAG_ROWS_MIN + 1);
+    // 두 번째 행은 400 — 같은 값이 아니라 점증한다.
+    expect(useUpHeroStore.getState().purchaseBagRow()).toBe("ok");
+    expect(useUpHeroStore.getState().coins).toBe(100);
+    expect(useUpHeroStore.getState().bagRowsBought).toBe(2);
+
+    // persist 페이로드에 실려야 다음 로드에서 행이 유지된다.
+    const last = savedSpy.mock.calls[savedSpy.mock.calls.length - 1];
+    expect(last[0]).toBe("uphero");
+    expect(last[1]).toMatchObject({ bagRowsBought: 2, coins: 100 });
+  });
+
+  it("코인이 모자라면 noCoin — 상태도 persist 도 건드리지 않는다", () => {
+    seed([]);
+    useUpHeroStore.setState({ coins: 199 });
+    expect(useUpHeroStore.getState().purchaseBagRow()).toBe("noCoin");
+    expect(useUpHeroStore.getState().coins).toBe(199);
+    expect(useUpHeroStore.getState().bagRowsBought).toBe(0);
+    expect(savedSpy).not.toHaveBeenCalled();
+  });
+
+  it("다 사면 maxed — 코인이 아무리 많아도 8행에서 멈춘다", () => {
+    seed([]);
+    useUpHeroStore.setState({ coins: 99999, bagRowsBought: 4 });
+    savedSpy.mockClear();
+    expect(useUpHeroStore.getState().purchaseBagRow()).toBe("maxed");
+    expect(useUpHeroStore.getState().coins).toBe(99999);
+    expect(currentBagRows(useUpHeroStore.getState())).toBe(BAG_ROWS_MAX);
+    expect(savedSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -242,9 +289,11 @@ describe("장착 · 해제", () => {
   });
 
   it("자리가 없으면 해제는 정리 대기 트레이로 떨어진다 (실패하지 않는다)", () => {
-    // 5행 보드의 가방칸 20 개를 1x1 로 전부 채운다.
+    // 시작 보드의 가방칸을 1x1 로 전부 채운다.
     const full = packInventory(
-      Array.from({ length: 20 }, (_, i) => makeItem(`f${i}`, "accessory")),
+      Array.from({ length: bagCellCount(BAG_ROWS_MIN) }, (_, i) =>
+        makeItem(`f${i}`, "accessory"),
+      ),
       BAG_ROWS_MIN,
     );
     expect(full.every((it) => it.bagX !== undefined)).toBe(true);
@@ -259,7 +308,9 @@ describe("장착 · 해제", () => {
 describe("탐험 정산 — 트레이 초과 자동 판매", () => {
   it("최저 등급 먼저, 같은 등급이면 오래된 것 먼저 판다", () => {
     const board = packInventory(
-      Array.from({ length: 20 }, (_, i) => makeItem(`f${i}`, "accessory")),
+      Array.from({ length: bagCellCount(BAG_ROWS_MIN) }, (_, i) =>
+        makeItem(`f${i}`, "accessory"),
+      ),
       BAG_ROWS_MIN,
     );
     // 보드가 꽉 찼으므로 아래 아이템은 전부 트레이로 간다.
@@ -302,7 +353,9 @@ describe("탐험 정산 — 트레이 초과 자동 판매", () => {
 
   it("이미 갖고 있던 트레이 아이템은 캡을 넘어도 절대 자동 판매되지 않는다 (격자 도입 전 저장본 보호)", () => {
     const board = packInventory(
-      Array.from({ length: 20 }, (_, i) => makeItem(`f${i}`, "accessory")),
+      Array.from({ length: bagCellCount(BAG_ROWS_MIN) }, (_, i) =>
+        makeItem(`f${i}`, "accessory"),
+      ),
       BAG_ROWS_MIN,
     );
     // 격자 도입 전 저장본처럼 트레이가 이미 캡(10)을 넘은 상태: 12 개.

@@ -1003,6 +1003,14 @@ export interface UpHeroState {
    */
   slotBlankStreak?: number;
   /**
+   * 격자 가방 — 상점에서 산 행 수 (0..4). 보드 행 = 4 + bagRowsBought (`bagRows`).
+   *   레벨과 무관하며 상점 `purchaseBagRow` 만 올린다. 필드가 없는 저장본은 0.
+   *   판독은 `normalizeBagRowsBought` 하나만 쓴다 (floor, 0..4 로 접음).
+   *   와이어 키도 그대로 `bagRowsBought`, 0 이어도 항상 싣는다 (merge 에서 빠지면 옛 값이
+   *   되살아나도 무해하지만 규칙을 하나로). iOS `UpHeroCloudSchema` CodingKeys 동시 갱신.
+   */
+  bagRowsBought?: number;
+  /**
    * Phase 11c — 주간 악몽 던전 진행 상태.
    * week: ISO week id (예: "2026-W16"). 바뀌면 자동 리셋.
    * affixId: 이번 주 랜덤 pick 된 affix. 모든 유저 동일 (seed = week).

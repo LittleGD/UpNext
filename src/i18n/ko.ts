@@ -1136,6 +1136,11 @@ const ko = {
   "uphero.shop.guard.downDesc": "강화 실패로 단계가 내려갈 뻔한 순간에만 1장 소모 · 보유 {held}",
   "uphero.shop.guard.bought": "{name} 구매 · 보유 {n}",
   "uphero.shop.guard.full": "보유 한도에 닿았어요 ({max}장)",
+  "uphero.shop.bagRow.name": "가방 확장",
+  "uphero.shop.bagRow.desc": "{rows}행 → {next}행 · 가방칸 +{cells}",
+  "uphero.shop.bagRow.maxed": "최대 크기 (8행)",
+  "uphero.shop.bagRowBought": "가방이 {rows}행으로 커졌어요",
+  "uphero.shop.bagRowMaxed": "가방이 이미 최대 크기예요",
 
   // === Misc hero UI (residuals) ===
   "uphero.boss.appearAria": "보스 등장 — 탭해서 건너뛰기",
@@ -1207,7 +1212,7 @@ const ko = {
   "uphero.bag.trayEmpty": "정리 대기 없음",
   "uphero.bag.suspended": "보류",
   "uphero.bag.hint.idle": "아이템을 탭해서 선택하세요",
-  "uphero.bag.hint.full": "가방이 꽉 찼어요. 판매하거나 정리하세요",
+  "uphero.bag.hint.full": "가방이 꽉 찼어요. 판매하거나 상점에서 가방을 늘리세요",
   "uphero.bag.hint.placing": "빈 칸을 탭해서 놓으세요",
   "uphero.bag.action.place": "배치",
   "uphero.bag.action.rotate": "회전",

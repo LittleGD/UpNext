@@ -4,7 +4,10 @@ import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { ALL_CARDS } from "@/data/cards";
 import { normalizeRetentionState, stripUndefined } from "@/lib/retention";
 import { normalizeSlotBlankStreak, normalizeSlotSpins } from "@/lib/upHeroSlot";
-import { normalizeEquipmentPlacement } from "@/lib/upHeroBag";
+import {
+  normalizeBagRowsBought,
+  normalizeEquipmentPlacement,
+} from "@/lib/upHeroBag";
 import {
   createDefaultHero,
   DUNGEON_BY_CLASS,
@@ -133,6 +136,9 @@ export type CloudUpHeroState = Partial<
     | "combatBuff"
     // 굴림틀 pity 스트릭. 와이어 키 = "slotBlankStreak" (정수 0..1000).
     | "slotBlankStreak"
+    // 격자 가방 확장 — 와이어 키 = "bagRowsBought" (정수 0..4), 0 이어도 항상 인코드.
+    //   상점에서만 오르는 영구 자산이라 기기를 옮겨도 그대로 따라와야 한다.
+    | "bagRowsBought"
     | "weeklyVariant"
     | "schemaVersion"
     | "hasSeenCampTutorial"
@@ -393,6 +399,8 @@ export function hasUpHeroFootprint(raw: unknown): boolean {
   // 방지권은 드롭이나 코인으로만 생긴다 — 보유 자체가 플레이 흔적이다.
   if ((asFinite(r.destroyGuards) ?? 0) > 0) return true;
   if ((asFinite(r.downGuards) ?? 0) > 0) return true;
+  // 가방 확장은 코인을 써야만 는다 — 갓 설치한 기기에서는 절대 0 이 아닐 수 없다.
+  if (normalizeBagRowsBought(r.bagRowsBought) > 0) return true;
   const cosmetics = asRecord(r.cosmetics);
   if (cosmetics && Object.keys(cosmetics).length > 0) return true;
   return false;
@@ -439,6 +447,10 @@ export function normalizeUpHeroState(raw: unknown): CloudUpHeroState {
     //   클라우드의 옛 스트릭이 되살아나 받을 자격이 없는 pity 가 발동한다.
     //   레거시(키 없음)·손상 값은 0, 정수 [0, SLOT_BLANK_STREAK_MAX] 로 접는다.
     slotBlankStreak: normalizeSlotBlankStreak(r.slotBlankStreak),
+    // 가방 확장 — slotBlankStreak 와 같은 이유로 0 에서도 키를 남긴다. 로그아웃/초기화로
+    //   0 이 된 상태에서 키가 빠지면 merge 가 클라우드의 옛 행 수를 되살린다.
+    //   레거시(키 없음)·손상 값은 0, 정수 [0, BAG_ROWS_BUYABLE] 로 접는다.
+    bagRowsBought: normalizeBagRowsBought(r.bagRowsBought),
     hasSeenCampTutorial: asBool(r.hasSeenCampTutorial) ?? false,
     welcomeGrantClaimed: asBool(r.welcomeGrantClaimed) ?? false,
   };

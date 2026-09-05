@@ -193,8 +193,8 @@ export default function EquipmentInventory({
   const { play } = useSound();
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
 
-  /** 보드 행 수는 렌더 시점에 계산한다 — 레벨업 직후에도 스토어와 어긋나지 않게. */
-  const rows = bagRows(level);
+  /** 보드 행 수 — 상점에서 산 행 수만이 근거다. 숫자 자체를 구독해 구매 즉시 다시 그린다. */
+  const rows = useUpHeroStore((s) => bagRows(s.bagRowsBought));
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<EquipSlot | null>(null);

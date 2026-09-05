@@ -25,6 +25,12 @@ import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { pickCampAmbience } from "@/data/upHeroFlavor";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import {
+  BAG_COLS,
+  bagRowPrice,
+  bagRows,
+  normalizeBagRowsBought,
+} from "@/lib/upHeroBag";
+import {
   SHOP_PRICES,
   ENHANCE_GUARD_MAX,
   PASS_CAP_PER_CATEGORY,
@@ -702,6 +708,9 @@ function ShopView({
   // Phase 15 — 하락방지권. 소실방지권은 상점 품목이 아니다 (드롭 전용).
   const purchaseDownGuard = useUpHeroStore((s) => s.purchaseDownGuard);
   const downGuards = useUpHeroStore((s) => s.downGuards ?? 0);
+  // 가방 확장 — 산 행 수를 구독해야 구매 직후 가격/설명이 다음 행으로 넘어간다.
+  const purchaseBagRow = useUpHeroStore((s) => s.purchaseBagRow);
+  const bagRowsBought = useUpHeroStore((s) => normalizeBagRowsBought(s.bagRowsBought));
   const shopDaily = useUpHeroStore((s) => s.shopDaily);
   const passes = useUpHeroStore((s) => s.passes);
   // Phase 12a — 카드매치 티켓 하루 구매 현황.
@@ -738,6 +747,18 @@ function ShopView({
       );
     } else if (downGuards >= ENHANCE_GUARD_MAX) {
       onNotify(t("uphero.shop.guard.full", { max: ENHANCE_GUARD_MAX }));
+    } else {
+      onNotify(t("uphero.shop.insufficient"));
+    }
+  };
+
+  const onBuyBagRow = () => {
+    const r = purchaseBagRow();
+    if (r === "ok") {
+      play("collect");
+      onNotify(t("uphero.shop.bagRowBought", { rows: bagRows(bagRowsBought + 1) }));
+    } else if (r === "maxed") {
+      onNotify(t("uphero.shop.bagRowMaxed"));
     } else {
       onNotify(t("uphero.shop.insufficient"));
     }
@@ -1047,6 +1068,27 @@ function ShopView({
             coins >= SHOP_PRICES.downGuard && downGuards < ENHANCE_GUARD_MAX
           }
         />
+        {/* 가방 확장 — 가방이 커지는 유일한 경로다 (레벨로는 늘지 않는다).
+            강화·방지권과 함께 아지트의 주요 코인 소비처라 방지권 바로 아래. */}
+        <ShopRow
+          iconName="Package"
+          name={t("uphero.shop.bagRow.name")}
+          desc={
+            bagRowPrice(bagRowsBought) === null
+              ? t("uphero.shop.bagRow.maxed")
+              : t("uphero.shop.bagRow.desc", {
+                  rows: bagRows(bagRowsBought),
+                  next: bagRows(bagRowsBought + 1),
+                  cells: BAG_COLS,
+                })
+          }
+          price={bagRowPrice(bagRowsBought)}
+          onBuy={onBuyBagRow}
+          canAfford={
+            bagRowPrice(bagRowsBought) !== null &&
+            coins >= (bagRowPrice(bagRowsBought) ?? 0)
+          }
+        />
         <ShopRow
           iconName="Card"
           name={t("uphero.shop.cardmatchTicket.name")}
@@ -1283,7 +1325,8 @@ function ShopRow({
   iconName: string;
   name: string;
   desc: string;
-  price: number;
+  /** null = 살 수 없는 상태(최대치). 가격 배지를 아예 그리지 않는다. */
+  price: number | null;
   onBuy: () => void;
   canAfford: boolean;
 }) {
@@ -1310,13 +1353,15 @@ function ShopRow({
           </div>
         </div>
         {/* typo-micro 예외: 작은 가격 배지 */}
-        <div
-          className="typo-micro px-2 py-0.5 rounded tabular-nums inline-flex items-center gap-1"
-          style={{ border: `1px solid ${GB.light}`, color: GB.lightest }}
-        >
-          <PixelIcon name="Coins" size={12} color={GB.lightest} />
-          {price}
-        </div>
+        {price !== null && (
+          <div
+            className="typo-micro px-2 py-0.5 rounded tabular-nums inline-flex items-center gap-1"
+            style={{ border: `1px solid ${GB.light}`, color: GB.lightest }}
+          >
+            <PixelIcon name="Coins" size={12} color={GB.lightest} />
+            {price}
+          </div>
+        )}
       </div>
     </PressButton>
   );

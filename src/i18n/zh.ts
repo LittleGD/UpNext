@@ -1136,6 +1136,11 @@ const zh: Record<DictKey, string> = {
   "uphero.shop.guard.downDesc": "仅在强化失败即将掉级时消耗1张 · 持有 {held}",
   "uphero.shop.guard.bought": "购买{name} · 持有 {n}",
   "uphero.shop.guard.full": "已达持有上限 ({max}张)",
+  "uphero.shop.bagRow.name": "背包扩容",
+  "uphero.shop.bagRow.desc": "{rows}行 → {next}行 · 背包格 +{cells}",
+  "uphero.shop.bagRow.maxed": "已是最大尺寸 (8行)",
+  "uphero.shop.bagRowBought": "背包扩大到{rows}行了",
+  "uphero.shop.bagRowMaxed": "背包已经是最大尺寸了",
 
   // === Misc hero UI (residuals) ===
   "uphero.boss.appearAria": "首领登场 — 点击跳过",
@@ -1207,7 +1212,7 @@ const zh: Record<DictKey, string> = {
   "uphero.bag.trayEmpty": "没有待整理物品",
   "uphero.bag.suspended": "暂存",
   "uphero.bag.hint.idle": "点击道具进行选择",
-  "uphero.bag.hint.full": "背包满了。请出售或整理",
+  "uphero.bag.hint.full": "背包满了。请出售或在商店扩容",
   "uphero.bag.hint.placing": "点击空格放置",
   "uphero.bag.action.place": "放置",
   "uphero.bag.action.rotate": "旋转",

@@ -20,7 +20,8 @@ vi.mock("@/lib/storage", () => ({
   clearAllAppStorage: vi.fn(),
 }));
 
-import { useUpHeroStore } from "./useUpHeroStore";
+import { useUpHeroStore, currentBagRows } from "./useUpHeroStore";
+import { BAG_ROWS_MIN, BAG_ROWS_MAX } from "@/lib/upHeroBag";
 import { loadFromStorage } from "@/lib/storage";
 import { normalizeUpHeroState } from "@/lib/sync";
 import { createSession, tickSession } from "@/lib/upHeroCombat";
@@ -162,7 +163,7 @@ describe("격자 가방 좌표가 없는 저장본", () => {
     }) as Equipment;
 
   it("v5 저장본은 배열 순서 first-fit 으로 결정적으로 팩된다", () => {
-    // 영웅 Lv1 (5행) 보드. 십자 5칸을 피해 좌상 → 우하로 채워진다.
+    // 확장 0회 보드. 팩은 항상 8행 기준이라 십자 5칸을 피해 좌상 → 우하로 채워진다.
     useGameStore.setState({
       progress: { ...useGameStore.getState().progress, level: 1 },
     });
@@ -204,6 +205,34 @@ describe("격자 가방 좌표가 없는 저장본", () => {
     expect(inv.every((i) => !inTray(i))).toBe(true);
     expect(inv[0]).toMatchObject({ bagX: 0, bagY: 0 });
     expect(inv[1]).toMatchObject({ bagX: 1, bagY: 0 });
+  });
+
+  it("bagRowsBought 가 없는 저장본은 0 = 시작 크기(4행)로 읽힌다", () => {
+    vi.mocked(loadFromStorage).mockImplementation((key: string) =>
+      key === "uphero"
+        ? ({ schemaVersion: 6, heroStartLevel: 1, coins: 10 } as never)
+        : (null as never),
+    );
+    useUpHeroStore.setState({ isLoaded: false, bagRowsBought: 3 });
+    useUpHeroStore.getState().initialize();
+    expect(useUpHeroStore.getState().bagRowsBought).toBe(0);
+    expect(currentBagRows(useUpHeroStore.getState())).toBe(BAG_ROWS_MIN);
+    vi.mocked(loadFromStorage).mockImplementation(() => null as never);
+  });
+
+  it("클라우드가 실어 온 확장분은 그대로 보드 행이 된다 (손상 값은 접는다)", () => {
+    useUpHeroStore.getState()._setFromCloud({
+      ...useUpHeroStore.getState(),
+      bagRowsBought: 2,
+    });
+    expect(currentBagRows(useUpHeroStore.getState())).toBe(BAG_ROWS_MIN + 2);
+    // 상한 밖 값은 최대가 아니라 **정규화 계약**대로 잘린다: 9 → 4 장 → 8행.
+    useUpHeroStore.getState()._setFromCloud({
+      ...useUpHeroStore.getState(),
+      bagRowsBought: 9,
+    });
+    expect(useUpHeroStore.getState().bagRowsBought).toBe(4);
+    expect(currentBagRows(useUpHeroStore.getState())).toBe(BAG_ROWS_MAX);
   });
 
   it("좌표가 이미 있는 문서는 그대로 둔다 (백필이 배치를 흔들지 않는다)", () => {

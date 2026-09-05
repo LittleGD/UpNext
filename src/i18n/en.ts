@@ -1136,6 +1136,11 @@ const en: Record<DictKey, string> = {
   "uphero.shop.guard.downDesc": "Used only when a failed enhance would drop a level · you have {held}",
   "uphero.shop.guard.bought": "{name} bought · you now have {n}",
   "uphero.shop.guard.full": "You are at the carry limit ({max}).",
+  "uphero.shop.bagRow.name": "Bag expansion",
+  "uphero.shop.bagRow.desc": "{rows} rows → {next} rows · +{cells} slots",
+  "uphero.shop.bagRow.maxed": "Largest size (8 rows)",
+  "uphero.shop.bagRowBought": "Your bag grew to {rows} rows",
+  "uphero.shop.bagRowMaxed": "Your bag is already the largest size.",
 
   // === Misc hero UI (residuals) ===
   "uphero.boss.appearAria": "Boss appears — tap to skip",
@@ -1207,7 +1212,7 @@ const en: Record<DictKey, string> = {
   "uphero.bag.trayEmpty": "Nothing unsorted",
   "uphero.bag.suspended": "Held",
   "uphero.bag.hint.idle": "Tap an item to select it",
-  "uphero.bag.hint.full": "Your bag is full. Sell or tidy up",
+  "uphero.bag.hint.full": "Your bag is full. Sell items or expand it in the shop",
   "uphero.bag.hint.placing": "Tap an empty cell to place it",
   "uphero.bag.action.place": "Place",
   "uphero.bag.action.rotate": "Rotate",
