@@ -55299,7 +55299,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "3ラウンドの間、被ダメージ -40%。"
+            "value": "3ターンの間、被ダメージ -40%。"
           }
         },
         "zh-Hans": {
@@ -55328,7 +55328,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "英雄が鉄壁のように耐える。3ラウンド被ダメージ -40%"
+            "value": "英雄が鉄壁のように耐える。3ターン被ダメージ -40%"
           }
         },
         "zh-Hans": {
@@ -55374,7 +55374,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "敵を1ラウンド封じる + 次の2ラウンド攻撃 +40%。"
+            "value": "敵を1ターン封じる + 次の2ターン攻撃 +40%。"
           }
         },
         "zh-Hans": {
@@ -55403,7 +55403,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "戦いの雄叫びが響く。敵を1ラウンド封印、2ラウンド攻撃 +40%"
+            "value": "戦いの雄叫びが響く。敵を1ターン封印、2ターン攻撃 +40%"
           }
         },
         "zh-Hans": {
@@ -55449,7 +55449,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "2ラウンドの間、被ダメージ -50%。"
+            "value": "2ターンの間、被ダメージ -50%。"
           }
         },
         "zh-Hans": {
@@ -55478,7 +55478,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "マナシールドが展開する。2ラウンド被ダメージ -50%"
+            "value": "マナシールドが展開する。2ターン被ダメージ -50%"
           }
         },
         "zh-Hans": {
@@ -55524,7 +55524,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "敵の現在HP30%のダメージ + 1ラウンド封印。"
+            "value": "敵の現在HP30%のダメージ + 1ターン封印。"
           }
         },
         "zh-Hans": {
@@ -55553,7 +55553,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "連鎖雷撃が敵を貫く ({damage})、1ラウンド封印"
+            "value": "連鎖雷撃が敵を貫く ({damage})、1ターン封印"
           }
         },
         "zh-Hans": {
@@ -55599,7 +55599,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "3ラウンドの間、被ダメージ -35%。"
+            "value": "3ターンの間、被ダメージ -35%。"
           }
         },
         "zh-Hans": {
@@ -55628,7 +55628,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "英雄の体が鋼になる。3ラウンド被ダメージ -35%"
+            "value": "英雄の体が鋼になる。3ターン被ダメージ -35%"
           }
         },
         "zh-Hans": {
@@ -55749,7 +55749,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "HP +60 回復 + 1ラウンド回避 100%。"
+            "value": "HP +60 回復 + 1ターン回避 100%。"
           }
         },
         "zh-Hans": {
@@ -55778,7 +55778,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "自然の活力が流れる。HP +{heal}、1ラウンド回避"
+            "value": "自然の活力が流れる。HP +{heal}、1ターン回避"
           }
         },
         "zh-Hans": {
@@ -55824,7 +55824,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "3ラウンドの間、攻撃 +40%。"
+            "value": "3ターンの間、攻撃 +40%。"
           }
         },
         "zh-Hans": {
@@ -55853,7 +55853,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "猛獣の爪が生える。3ラウンド攻撃 +40%"
+            "value": "猛獣の爪が生える。3ターン攻撃 +40%"
           }
         },
         "zh-Hans": {
@@ -55905,7 +55905,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "子守唄が敵を眠らせる。1ラウンド封印"
+            "value": "子守唄が敵を眠らせる。1ターン封印"
           }
         },
         "zh-Hans": {
@@ -56032,7 +56032,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "時間が歪む。2ラウンド回避 100%"
+            "value": "時間が歪む。2ターン回避 100%"
           }
         },
         "zh-Hans": {
@@ -56153,7 +56153,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "1ラウンド無敵。"
+            "value": "1ターン無敵。"
           }
         },
         "zh-Hans": {
@@ -56182,7 +56182,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "神の加護が降りる。1ラウンド無敵"
+            "value": "神の加護が降りる。1ターン無敵"
           }
         },
         "zh-Hans": {
@@ -56228,7 +56228,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "HP +60 回復 + 3ラウンド攻撃 +25%。"
+            "value": "HP +60 回復 + 3ターン攻撃 +25%。"
           }
         },
         "zh-Hans": {
@@ -56257,7 +56257,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "祝福が降りる。HP +{heal}、3ラウンド攻撃 +25%"
+            "value": "祝福が降りる。HP +{heal}、3ターン攻撃 +25%"
           }
         },
         "zh-Hans": {
@@ -56309,7 +56309,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "影の中に消える。2ラウンド回避 100%"
+            "value": "影の中に消える。2ターン回避 100%"
           }
         },
         "zh-Hans": {
@@ -56649,7 +56649,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "英雄が鉄壁のように耐える。3ラウンド被ダメージ -40%"
+            "value": "英雄が鉄壁のように耐える。3ターン被ダメージ -40%"
           }
         },
         "zh-Hans": {
@@ -56672,7 +56672,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "戦いの雄叫びが響く。敵を1ラウンド封印、2ラウンド攻撃 +40%"
+            "value": "戦いの雄叫びが響く。敵を1ターン封印、2ターン攻撃 +40%"
           }
         },
         "zh-Hans": {
@@ -56695,7 +56695,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "マナシールドが展開する。2ラウンド被ダメージ -50%"
+            "value": "マナシールドが展開する。2ターン被ダメージ -50%"
           }
         },
         "zh-Hans": {
@@ -56718,7 +56718,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "英雄の体が鋼になる。3ラウンド被ダメージ -35%"
+            "value": "英雄の体が鋼になる。3ターン被ダメージ -35%"
           }
         },
         "zh-Hans": {
@@ -56764,7 +56764,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "猛獣の爪が生える。3ラウンド攻撃 +40%"
+            "value": "猛獣の爪が生える。3ターン攻撃 +40%"
           }
         },
         "zh-Hans": {
@@ -56787,7 +56787,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "子守唄が敵を眠らせる。1ラウンド封印"
+            "value": "子守唄が敵を眠らせる。1ターン封印"
           }
         },
         "zh-Hans": {
@@ -56833,7 +56833,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "時間が歪む。2ラウンド回避 100%"
+            "value": "時間が歪む。2ターン回避 100%"
           }
         },
         "zh-Hans": {
@@ -56879,7 +56879,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "神の加護が降りる。1ラウンド無敵"
+            "value": "神の加護が降りる。1ターン無敵"
           }
         },
         "zh-Hans": {
@@ -56902,7 +56902,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "影の中に消える。2ラウンド回避 100%"
+            "value": "影の中に消える。2ターン回避 100%"
           }
         },
         "zh-Hans": {
