@@ -32,7 +32,7 @@ import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useTranslation } from "@/hooks/useTranslation";
-import { buildSummaryFromData } from "@/lib/upHeroI18n";
+import { affixStatLabel, buildSummaryChips } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 import ChoiceResultAura from "./ChoiceResultAura";
 import {
@@ -125,7 +125,7 @@ export default function ChoiceResultModal({
   autoMs = 3000,
 }: ChoiceResultModalProps) {
   const reducedMotion = useReducedMotion();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   // 진입 시 SR 이 결과 본문을 읽도록 본문 블록에 initial focus.
   //   기본값(첫 focusable = "계속" CTA)이면 "계속" 만 읽히고 결과를 놓친다.
@@ -276,8 +276,16 @@ export default function ChoiceResultModal({
                 id="choice-result-effects"
                 className="mt-2 flex flex-wrap items-center gap-1.5"
               >
-                {(summaryData || summary) && (
+                {/* Phase 4-D — 효과 하나에 칩 하나 (배경 단계만, 보더/아이콘 없음).
+                     legacy save 의 summary 문자열은 칩 하나로 그대로. */}
+                {(summaryData
+                  ? buildSummaryChips(summaryData, t, (s) => affixStatLabel(s, language))
+                  : summary
+                    ? [summary]
+                    : []
+                ).map((chip, i) => (
                   <span
+                    key={`${i}-${chip}`}
                     className="typo-caption tabular-nums"
                     style={{
                       color: GB.lightest,
@@ -287,9 +295,9 @@ export default function ChoiceResultModal({
                       display: "inline-block",
                     }}
                   >
-                    {summaryData ? buildSummaryFromData(summaryData, t) : summary}
+                    {chip}
                   </span>
-                )}
+                ))}
                 {rewardLabel && (
                   <span
                     className="typo-caption"

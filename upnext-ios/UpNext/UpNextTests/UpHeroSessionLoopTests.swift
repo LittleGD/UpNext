@@ -123,7 +123,13 @@ final class UpHeroSessionLoopTests: XCTestCase {
             armChoice(sessionAt(.learning, 5), minigameEffect), optionIndex: 0, rng: &rng)
         let xpBefore = armed.rewards.xp
         let s = UpHeroSession.resolveMinigame(armed, success: true, rng: &rng)
-        XCTAssertEqual(s.rewards.xp, xpBefore + 30)
+        // Phase 4-D (Track D) — 미니게임 보상도 층 기준으로 스케일된다 (F5: xp ×50/15). 웹 동일.
+        guard case let .startMinigame(_, _, successEffects, _) = minigameEffect else { return XCTFail() }
+        let scaled = UpHeroCombat.scaleChoiceEffectsForFloor(
+            successEffects, floor: armed.currentFloor, heroMaxHp: armed.hero.maxHp,
+            ngPlusLevel: armed.ngPlusLevel ?? 0)
+        XCTAssertEqual(scaled, [.reward(coins: nil, xp: 100, dropEquipmentId: nil)])
+        XCTAssertEqual(s.rewards.xp, xpBefore + 100)
         XCTAssertEqual(s.status, .active)
         XCTAssertNil(s.pendingMinigame)
         if case let .choiceResult(_, _, _, actionLabelKey, _, _, _, _, _)? = s.log.last {
@@ -139,7 +145,10 @@ final class UpHeroSessionLoopTests: XCTestCase {
             armChoice(sessionAt(.learning, 5), minigameEffect), optionIndex: 0, rng: &rng)
         let hpBefore = armed.hero.hp
         let s = UpHeroSession.resolveMinigame(armed, success: false, rng: &rng)
-        XCTAssertEqual(s.hero.hp, hpBefore - 10)
+        // Phase 4-D (Track D) — 피해는 maxHp/100 배 (Lv1 기준 비율 보존). 웹 동일.
+        let expectedDamage = UpHeroCombat.jsRound(10 * max(1, Double(armed.hero.maxHp) / 100))
+        XCTAssertGreaterThan(expectedDamage, 10)
+        XCTAssertEqual(s.hero.hp, hpBefore - expectedDamage)
         XCTAssertEqual(s.status, .active)
     }
 

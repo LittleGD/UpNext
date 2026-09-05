@@ -10,6 +10,7 @@ import {
   resolveChoice,
   resolveMinigame,
   rollEnemyOutcome,
+  scaleChoiceEffectsForFloor,
   tickSession,
 } from "./upHeroCombat";
 import { setRngSeed, resetRng } from "./upHeroRng";
@@ -121,7 +122,15 @@ describe("미니게임 진입 / 해소 (피드백 14)", () => {
     const armed = resolveChoice(armChoice(sessionAt("learning", 5), minigameEffect), 0);
     const xpBefore = armed.rewards.xp;
     const s = resolveMinigame(armed, true);
-    expect(s.rewards.xp).toBe(xpBefore + 30);
+    // Phase 4-D (Track D) — 미니게임 보상도 층 기준으로 스케일된다 (F5: xp ×50/15).
+    const [scaled] = scaleChoiceEffectsForFloor(
+      minigameEffect.successEffects,
+      armed.currentFloor,
+      armed.hero.maxHp,
+      armed.ngPlusLevel ?? 0,
+    );
+    expect(scaled).toEqual({ kind: "reward", xp: 100 });
+    expect(s.rewards.xp).toBe(xpBefore + 100);
     expect(s.status).toBe("active");
     expect(s.pendingMinigame).toBeUndefined();
     expect(lastEntry(s)).toMatchObject({
@@ -134,7 +143,10 @@ describe("미니게임 진입 / 해소 (피드백 14)", () => {
     const armed = resolveChoice(armChoice(sessionAt("learning", 5), minigameEffect), 0);
     const hpBefore = armed.hero.hp;
     const s = resolveMinigame(armed, false);
-    expect(s.hero.hp).toBe(hpBefore - 10);
+    // Phase 4-D (Track D) — 피해는 maxHp/100 배 (Lv1 기준 비율 보존).
+    const expectedDamage = Math.round(10 * Math.max(1, armed.hero.maxHp / 100));
+    expect(expectedDamage).toBeGreaterThan(10);
+    expect(s.hero.hp).toBe(hpBefore - expectedDamage);
     expect(s.status).toBe("active");
   });
 

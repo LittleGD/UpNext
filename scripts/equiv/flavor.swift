@@ -21,6 +21,10 @@ func simpleKind(_ e: SimpleChoiceEffect) -> String {
     case .time: return "time"
     case .skipFloors: return "skipFloors"
     case .revealBoss: return "revealBoss"
+    case .runBuff: return "runBuff"
+    case .runCurse: return "runCurse"
+    case .stealth: return "stealth"
+    case .guaranteedDrop: return "guaranteedDrop"
     case .nothing: return "nothing"
     }
 }
@@ -31,6 +35,10 @@ func effectKind(_ e: ChoiceEffect) -> String {
     case .heal: return "heal"
     case .skipFloors: return "skipFloors"
     case .revealBoss: return "revealBoss"
+    case .runBuff: return "runBuff"
+    case .runCurse: return "runCurse"
+    case .stealth: return "stealth"
+    case .guaranteedDrop: return "guaranteedDrop"
     case .nothing: return "nothing"
     case .time: return "time"
     case .fight: return "fight"
@@ -71,6 +79,11 @@ func fmtFx(_ e: ChoiceEffect) -> String {
     case let .startMinigame(minigame, difficulty, succ, fail):
         return "startMinigame(\(minigame.rawValue),\(difficulty),s\(succ.count),f\(fail.count))"
     case .revealBoss: return "revealBoss"
+    // Phase 4-D — 웹 fmtFx 의 default 분기 (`e.kind`) 와 같은 문자열.
+    case .runBuff: return "runBuff"
+    case .runCurse: return "runCurse"
+    case .stealth: return "stealth"
+    case .guaranteedDrop: return "guaranteedDrop"
     case .nothing: return "nothing"
     case .fight: return "fight"
     case .spinSlot: return "spinSlot"

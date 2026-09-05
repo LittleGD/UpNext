@@ -31,7 +31,13 @@ enum UpHeroNarrative {
     static func resolveLog(_ key: String, _ params: NarrativeParams?, fallback: String) -> String {
         let template = AppConfig.loc(String.LocalizationValue(key))
         if template == key { return fallback }   // 미등록 키 → 한국어 fallback
-        guard let params, !params.isEmpty else { return template }
+        guard var params, !params.isEmpty else { return template }
+        // Phase 4-D — statId (RunModStat 키) 가 있으면 현재 언어 스탯 라벨을 `stat` 에 주입.
+        //   엔진은 언어를 모르므로 ko fallback 만 적어 두고 여기서 치환한다
+        //   (웹 resolveStatInParams 와 같은 패턴).
+        if case let .text(statId)? = params["statId"], !statId.isEmpty {
+            params["stat"] = .text(runStatLabel(statId))
+        }
         var s = template
         let contentParams: Set<String> = ["monster", "dungeon", "description", "equipment", "who"]
         for (name, val) in params {
@@ -45,6 +51,18 @@ enum UpHeroNarrative {
             s = s.replacingOccurrences(of: "{\(name)}", with: rep)
         }
         return s
+    }
+
+    /// Phase 4-D — 런 보정 스탯 id (`RunModStat` rawValue) 의 현재 언어 라벨. 다섯 스탯은
+    /// 카탈로그 런타임 키("힘"·"지성"…, 웹 affixStatLabel 과 같은 원문), all 은 dotted 키.
+    /// 서사(resolveLog 의 statId 치환)와 결과 칩(ChoiceResultTypes.chips)이 같은 정본을 쓴다.
+    static func runStatLabel(_ statId: String) -> String {
+        if statId == RunModStat.all.rawValue {
+            return AppConfig.loc("uphero.choice.effectSummary.stat.all")
+        }
+        guard let stat = RunModStat(rawValue: statId),
+              let ko = UpHeroCombat.runStatKo[stat] else { return statId }
+        return AppConfig.locRuntime(ko)
     }
 
     /// 몬스터 이름/templateId params.

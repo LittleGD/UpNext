@@ -267,6 +267,23 @@ struct DungeonProgress: Equatable {
 
 // MARK: - 이벤트 효과 (discriminated union)
 
+/// Phase 4-D (Track D, 피드백 15) — 런 한정 능력치 보정의 대상 스탯. 웹 `RunModStat`.
+/// `all` 은 str/int/vit/dex/agi 다섯 개 전부. crit/slotBonus 는 대상이 아니다
+/// (crit 은 퍼센트 포인트, slotBonus 는 슬롯 수 카운터라 곱하면 의미가 깨진다).
+enum RunModStat: String, Codable, Equatable {
+    case str, int, vit, dex, agi, all
+}
+
+/// Phase 4-D — 세션에 쌓이는 런 한정 능력치 보정 한 건. 웹 `RunStatMod`.
+/// `pct` 는 부호 있는 퍼센트 포인트 (음수 = 저주). `floorsLeft` 가 nil 이면 런 끝까지.
+/// 적용은 `UpHeroSession.sessionStats` 한 곳 (스탯별 합산 → clamp → 1회 곱).
+/// `EffectSummaryData.runMods` 에서는 같은 구조체의 `floorsLeft` 가 웹 `floors` 를 나른다.
+struct RunStatMod: Equatable, Codable {
+    var stat: RunModStat
+    var pct: Int
+    var floorsLeft: Int?
+}
+
 /// 미니게임 결과에 적용 가능한 단순 효과 (재귀 방지용 — startMinigame/fight/flee 제외).
 /// 웹 `SimpleChoiceEffect`.
 enum SimpleChoiceEffect: Equatable {
@@ -276,6 +293,11 @@ enum SimpleChoiceEffect: Equatable {
     case time(delta: Int)              // 음수 = 소모, 양수 = 회복
     case skipFloors(count: Int)
     case revealBoss
+    /// Phase 4-D — 런 한정 빌드 효과 (ChoiceEffect 와 같은 shape).
+    case runBuff(stat: RunModStat, pct: Int, floors: Int?)
+    case runCurse(stat: RunModStat, pct: Int, floors: Int?)
+    case stealth(encounters: Int)
+    case guaranteedDrop(count: Int?)
     case nothing
 }
 
@@ -286,6 +308,15 @@ enum ChoiceEffect: Equatable {
     case heal(amount: Int)
     case skipFloors(count: Int)
     case revealBoss
+    /// Phase 4-D (Track D) — 런 한정 빌드 효과 4종. 전부 `CombatSession` 의 세션 전용
+    /// 필드에 쌓이고 탐험이 끝나면 사라진다 (클라우드 제외).
+    ///  - runBuff / runCurse: stat 에 ±pct% 를 `floors` 층 동안 (nil 이면 런 끝까지).
+    ///  - stealth: 다음 `encounters` 회 일반 조우를 전투 없이 지나친다 (보스 제외).
+    ///  - guaranteedDrop: 다음 `count` (기본 1) 회 처치에서 장비 드롭 확정 (floor+5 등급).
+    case runBuff(stat: RunModStat, pct: Int, floors: Int?)
+    case runCurse(stat: RunModStat, pct: Int, floors: Int?)
+    case stealth(encounters: Int)
+    case guaranteedDrop(count: Int?)
     case nothing
     case time(delta: Int)              // 음수 = 소모, 양수 = 회복
     case fight                         // 즉시 전투 round 시작
@@ -332,13 +363,33 @@ enum NarrativeValue: Equatable {
 /// narrative i18n 파라미터 맵. 웹 `NarrativeParams = Record<string, string|number>`.
 typealias NarrativeParams = [String: NarrativeValue]
 
-/// choiceResult 로그의 효과 요약 (다국어). 웹 LogEntry 의 `effectSummaryData`.
+/// choiceResult 로그의 효과 요약 (다국어). 웹 LogEntry 의 `effectSummaryData`
+/// (= 웹 `EffectSummaryData`). 엔진(`UpHeroCombat.summarizeEffectsData`)이 만들고
+/// UI(`ChoiceResultTypes.chips`)가 현재 언어 칩으로 푼다. 필드는 추가만 한다.
 struct EffectSummaryData: Equatable {
     var xp: Int?
     var coins: Int?
     var heal: Int?
     var damage: Int?
+    /// 음수 = 시간 소모, 양수 = 시간 회복
     var timeDelta: Int?
+    /// Phase 4-D — 건너뛴 층 수 (skipFloors count 합)
+    var skipFloors: Int?
+    /// Phase 4-D — 런 한정 보정 (runBuff 는 +pct, runCurse 는 -pct). `floorsLeft` = 웹 `floors`.
+    var runMods: [RunStatMod]?
+    /// Phase 4-D — 은신 조우 수
+    var stealth: Int?
+    /// Phase 4-D — 장비 확정 처치 수
+    var guaranteedDrop: Int?
+    /// Phase 4-D — revealBoss 가 더한 보스 피해 %
+    var bossDmgPct: Int?
+
+    /// 하나라도 채워졌는가 — 로그 엔트리에 nil 대신 실을지 결정 (웹은 빈 객체를 싣는다).
+    var isEmpty: Bool {
+        xp == nil && coins == nil && heal == nil && damage == nil && timeDelta == nil
+            && skipFloors == nil && runMods == nil && stealth == nil
+            && guaranteedDrop == nil && bossDmgPct == nil
+    }
 }
 
 /// 전투 로그 엔트리. 웹 `LogEntry` (13-case discriminated union).
@@ -484,6 +535,20 @@ struct CombatSession: Equatable {
     /// `UpHeroState.combatBuff` 로 적어 다음 탐험이 이어받는다.
     /// `pct` 는 퍼센트 포인트다 (10 = +10%). 상태·클라우드 층위도 같은 단위다.
     var combatBuff: CombatBuff?
+    /// Phase 4-D (Track D, 피드백 15) — 런 한정 빌드 상태 4종. 전부 세션 전용이다:
+    /// `UpHeroState` 로 승격하지 않고 클라우드 페이로드(UpHeroCloudSchema 는 세션을
+    /// 싣지 않는다)에도 실리지 않는다. 옵셔널이라 없으면 "런 보정 없음" 과 같다.
+    ///  - runStatMods: `sessionStats()` 가 combatBuff 뒤에 스탯별 합산 pct 로 1회 곱.
+    ///    `advanceRunModFloors` 가 층 이동마다 floorsLeft 를 줄이고 만료를 지운다.
+    ///    최대 `UpHeroCombat.RunMods.statModsCap` 건 (오래된 것부터 버림).
+    ///  - runBossDmgPct: revealBoss 1회당 +5 (상한 15). executeCombatRound 가 isBoss
+    ///    몬스터에게 주는 영웅 피해에만 곱한다.
+    ///  - runStealthLeft: tickSession 의 일반 조우 분기에서 1씩 소모 (보스층 제외).
+    ///  - runGuaranteedDrops: victory 드롭 판정을 강제 (floor+5 등급) 하고 1씩 소모.
+    var runStatMods: [RunStatMod]? = nil
+    var runBossDmgPct: Int? = nil
+    var runStealthLeft: Int? = nil
+    var runGuaranteedDrops: Int? = nil
     /// 굴림 횟수는 세션이 세지 않는다 — 하루 상한(`UpHeroSlot.dailySpinCap`)의 진실은
     /// `UpHeroState.shopDaily.slotSpins` 이고, 스토어가 오늘 값을 스냅샷으로 세션
     /// 배선(`tickSession` / `resolveChoice` 의 `slotSpinsToday`)에 넘긴다. 예전에 여기
@@ -1421,9 +1486,29 @@ extension NarrativeValue: Decodable {
     }
 }
 
+/// Phase 4-D (Track D) — 효과 디코더의 "모르는 kind" 정책.
+///
+/// Flavor.json 은 웹 데이터에서 추출되므로 웹이 먼저 새 kind 를 실으면 오래된 iOS
+/// 빌드가 그 JSON 을 만날 수 있다. 예전엔 throw → `FlavorPool.loadData` 의 fatalError
+/// 로 앱이 죽었다. 이제는 `.nothing` 으로 관용 디코드하고, DEBUG 에서만 assertion 으로
+/// 개발자에게 알린다. 테스트는 `tolerateUnknownKinds` 를 켜 assertion 없이 관용
+/// 경로를 검증한다.
+enum ChoiceEffectDecoding {
+    static var tolerateUnknownKinds = false
+
+    static func unknownKind(_ kind: String, in type: String) {
+        #if DEBUG
+        if !tolerateUnknownKinds {
+            assertionFailure("\(type): unknown effect kind '\(kind)' — decoded as .nothing")
+        }
+        #endif
+    }
+}
+
 extension SimpleChoiceEffect: Decodable {
     private enum K: String, CodingKey {
-        case kind, coins, xp, dropEquipmentId, amount, delta, count
+        case kind, coins, xp, dropEquipmentId, amount, delta, count,
+             stat, pct, floors, encounters
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
@@ -1438,10 +1523,23 @@ extension SimpleChoiceEffect: Decodable {
         case "time": self = .time(delta: try c.decode(Int.self, forKey: .delta))
         case "skipFloors": self = .skipFloors(count: try c.decode(Int.self, forKey: .count))
         case "revealBoss": self = .revealBoss
+        case "runBuff":
+            self = .runBuff(
+                stat: try c.decode(RunModStat.self, forKey: .stat),
+                pct: try c.decode(Int.self, forKey: .pct),
+                floors: try c.decodeIfPresent(Int.self, forKey: .floors))
+        case "runCurse":
+            self = .runCurse(
+                stat: try c.decode(RunModStat.self, forKey: .stat),
+                pct: try c.decode(Int.self, forKey: .pct),
+                floors: try c.decodeIfPresent(Int.self, forKey: .floors))
+        case "stealth": self = .stealth(encounters: try c.decode(Int.self, forKey: .encounters))
+        case "guaranteedDrop":
+            self = .guaranteedDrop(count: try c.decodeIfPresent(Int.self, forKey: .count))
         case "nothing": self = .nothing
         case let k:
-            throw DecodingError.dataCorruptedError(
-                forKey: K.kind, in: c, debugDescription: "SimpleChoiceEffect kind: \(k)")
+            ChoiceEffectDecoding.unknownKind(k, in: "SimpleChoiceEffect")
+            self = .nothing
         }
     }
 }
@@ -1449,7 +1547,8 @@ extension SimpleChoiceEffect: Decodable {
 extension ChoiceEffect: Decodable {
     private enum K: String, CodingKey {
         case kind, coins, xp, dropEquipmentId, amount, count, delta, successChance,
-             minigame, difficulty, successEffects, failEffects
+             minigame, difficulty, successEffects, failEffects,
+             stat, pct, floors, encounters
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
@@ -1463,6 +1562,19 @@ extension ChoiceEffect: Decodable {
         case "heal": self = .heal(amount: try c.decode(Int.self, forKey: .amount))
         case "skipFloors": self = .skipFloors(count: try c.decode(Int.self, forKey: .count))
         case "revealBoss": self = .revealBoss
+        case "runBuff":
+            self = .runBuff(
+                stat: try c.decode(RunModStat.self, forKey: .stat),
+                pct: try c.decode(Int.self, forKey: .pct),
+                floors: try c.decodeIfPresent(Int.self, forKey: .floors))
+        case "runCurse":
+            self = .runCurse(
+                stat: try c.decode(RunModStat.self, forKey: .stat),
+                pct: try c.decode(Int.self, forKey: .pct),
+                floors: try c.decodeIfPresent(Int.self, forKey: .floors))
+        case "stealth": self = .stealth(encounters: try c.decode(Int.self, forKey: .encounters))
+        case "guaranteedDrop":
+            self = .guaranteedDrop(count: try c.decodeIfPresent(Int.self, forKey: .count))
         case "nothing": self = .nothing
         case "time": self = .time(delta: try c.decode(Int.self, forKey: .delta))
         case "fight": self = .fight
@@ -1474,8 +1586,8 @@ extension ChoiceEffect: Decodable {
                 successEffects: try c.decode([SimpleChoiceEffect].self, forKey: .successEffects),
                 failEffects: try c.decode([SimpleChoiceEffect].self, forKey: .failEffects))
         case let k:
-            throw DecodingError.dataCorruptedError(
-                forKey: K.kind, in: c, debugDescription: "ChoiceEffect kind: \(k)")
+            ChoiceEffectDecoding.unknownKind(k, in: "ChoiceEffect")
+            self = .nothing
         }
     }
 }
