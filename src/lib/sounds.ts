@@ -656,7 +656,12 @@ function normalizePattern(pattern: number[]): number[] {
  * 디자이너 의도(사운드의 무게감/감정)와 햅틱 강도가 1:1로 보이게 만들어 추후 튜닝 용이.
  *
  * iOS Apple HIG 매핑:
- * - "selection": UISelectionFeedbackGenerator — 가벼운 선택/스크롤
+ * - "selection": UISelectionFeedbackGenerator — 가벼운 선택/스크롤.
+ *                Capacitor Haptics 는 selectionStart() 뒤에만 selectionChanged() 를
+ *                실제로 울린다(start 없이는 no-op). 그래서 계약은 start → changed* → end:
+ *                문지르기처럼 연속 틱이 필요한 곳은 beginSelectionHaptics()/
+ *                endSelectionHaptics() 로 세션을 열고, 세션 밖의 단발 호출은
+ *                triggerNativeHaptic 이 start/changed/end 를 스스로 감싼다.
  * - "light":     UIImpactFeedbackGenerator(.light) — 작은 물리 이벤트
  * - "medium":    UIImpactFeedbackGenerator(.medium) — 분명한 물리 이벤트
  * - "heavy":     UIImpactFeedbackGenerator(.heavy) — 강한 충격/대미지
@@ -735,13 +740,72 @@ const HAPTIC_INTENT: Record<SoundName, HapticIntent | null> = {
   slotWinBig:    "triple",
 };
 
+/**
+ * 선택 햅틱 세션 — 연속 틱(문지르기 등)을 위한 start/end 괄호.
+ *
+ * 네이티브(Capacitor): selectionStart() 로 제너레이터를 준비해 두면 이후
+ * `triggerHaptic("select")` 가 selectionChanged() 만 울린다(iOS Haptics.prepare(.selection)
+ * + 반복 .selection 재생과 같은 효과). 세션 밖에서는 changed 가 no-op 라 단발 호출은
+ * triggerNativeHaptic 이 start/changed/end 를 스스로 감싼다.
+ *
+ * 비네이티브(TWA/PWA, navigator.vibrate): 세션 중 `triggerHaptic("select")` 는
+ * 60ms 당 최대 1회 `vibrate(10)` 만 보낸다. 평소 경로의 vibrate(0) 리셋과
+ * MIN_VIBRATION_MS(25) 클램프를 거치면 40ms 틱마다 25ms 진동이 다음 틱의 리셋에
+ * 잘려 뭉개진 한 덩어리로 느껴진다. 짧고 잘리지 않는 틱이 "사각사각"에 가깝다.
+ */
+let selectionSessionOpen = false;
+/** 비네이티브 세션 틱 스로틀 기준 시각(performance.now) */
+let lastSelectionVibrateAt = -Infinity;
+const SELECTION_VIBRATE_MIN_GAP_MS = 60;
+const SELECTION_VIBRATE_MS = 10;
+
+/**
+ * Capacitor Haptics 모듈은 한 번만 동적 import 한다. 40ms 틱마다 import() 를
+ * 새로 부르면 매 틱이 모듈 로더를 거치고, 동시에 들어온 틱끼리 순서가 뒤섞인다.
+ */
+let hapticsModule: Promise<typeof import("@capacitor/haptics")> | null = null;
+function loadHaptics(): Promise<typeof import("@capacitor/haptics")> {
+  hapticsModule ??= import("@capacitor/haptics");
+  return hapticsModule;
+}
+
+export function beginSelectionHaptics(): void {
+  selectionSessionOpen = true;
+  lastSelectionVibrateAt = -Infinity;
+  if (!isNative()) return;
+  void loadHaptics()
+    .then(({ Haptics }) => Haptics.selectionStart())
+    .catch(() => { /* non-critical */ });
+}
+
+export function endSelectionHaptics(): void {
+  selectionSessionOpen = false;
+  if (!isNative()) return;
+  void loadHaptics()
+    .then(({ Haptics }) => Haptics.selectionEnd())
+    .catch(() => { /* non-critical */ });
+}
+
+/** 테스트 전용 — 모듈 상태 초기화 */
+export function __resetSelectionHapticsForTests(): void {
+  selectionSessionOpen = false;
+  lastSelectionVibrateAt = -Infinity;
+}
+
 async function triggerNativeHaptic(intent: HapticIntent): Promise<void> {
   try {
-    const { Haptics, ImpactStyle, NotificationType } = await import("@capacitor/haptics");
+    const { Haptics, ImpactStyle, NotificationType } = await loadHaptics();
 
     switch (intent) {
       case "selection":
-        await Haptics.selectionChanged();
+        if (selectionSessionOpen) {
+          await Haptics.selectionChanged();
+        } else {
+          // 세션 밖의 단발 선택 틱 — start 없이는 changed 가 무음이라 스스로 감싼다.
+          await Haptics.selectionStart();
+          await Haptics.selectionChanged();
+          await Haptics.selectionEnd();
+        }
         return;
       case "light":
         await Haptics.impact({ style: ImpactStyle.Light });
@@ -798,6 +862,14 @@ export function triggerHaptic(name: SoundName): void {
   const pattern = VIBRATION_PATTERNS[name];
   if (!pattern) return;
   if (typeof navigator !== "undefined" && navigator.vibrate) {
+    // 선택 세션 중의 선택 틱 — 리셋·클램프 없이 짧은 진동을 60ms 당 1회만.
+    if (selectionSessionOpen && HAPTIC_INTENT[name] === "selection") {
+      const now = performance.now();
+      if (now - lastSelectionVibrateAt < SELECTION_VIBRATE_MIN_GAP_MS) return;
+      lastSelectionVibrateAt = now;
+      try { navigator.vibrate(SELECTION_VIBRATE_MS); } catch { /* non-critical */ }
+      return;
+    }
     try {
       const normalized = normalizePattern(pattern);
       // vibrate(0)으로 이전 패턴을 취소한 뒤 약간의 딜레이를 두고 새 패턴 실행
