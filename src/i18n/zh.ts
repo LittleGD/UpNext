@@ -815,6 +815,9 @@ const zh: Record<DictKey, string> = {
   "uphero.weekly.f30Badge": "F30 变异",
   "uphero.weekly.f30Locked": "F30 未通关",
   "uphero.weekly.defaultName": "本周噩梦",
+  "uphero.weekly.rewardHint": "每个地下城首次通关：金币 +{coins} · 防消失券 1 张",
+  "uphero.weekly.allClearHint": "8 处全部通关：金币 +{coins} · 防消失券 {wards} 张 · 防降级券 {downs} 张",
+  "uphero.weekly.allClearDone": "本周噩梦已全部征服",
 
   // === Camp ambience (15) ===
   "uphero.camp.ambience.1": "篝火静静地燃烧着",
@@ -1407,6 +1410,11 @@ const zh: Record<DictKey, string> = {
   "uphero.session.f30FirstClear": "F30 首次通关",
   "uphero.session.ngPlusUnlocked": "NG+ · 周噩梦解锁",
   "uphero.session.ngPlusUnlockedAnnounce": "NG+ 和周噩梦已解锁。",
+  "uphero.session.weeklyFirstClear": "周噩梦首次通关",
+  "uphero.session.weeklyFirstClearReward": "金币 +{coins} · 防消失券 +{wards}",
+  "uphero.session.weeklyAllClear": "本周 8 处噩梦全部征服",
+  "uphero.session.weeklyAllClearReward": "金币 +{coins} · 防消失券 +{wards} · 防降级券 +{downs}",
+  "uphero.session.weeklyRewardAnnounce": "已获得周噩梦奖励。{detail}",
   "uphero.session.tapCardHint": "点击卡片查看",
 
   // 会话结束原因 detail 模式
@@ -2078,6 +2086,7 @@ const zh: Record<DictKey, string> = {
   "uphero.combat.narrative.fleeFail": "想要逃跑,却被 {monster} 拦住!",
   "uphero.combat.narrative.revealBoss": "感受到了首领的气息。",
   "uphero.combat.narrative.challengeStart": "挑战开始……",
+  "uphero.combat.narrative.skipBlocked": "通道在魔王之门前中断了",
   "uphero.combat.narrative.restArea": "{description} — 时间 +{time}",
   "uphero.combat.narrative.treasureFound": "{description}",
   "uphero.combat.narrative.choiceReward": "选择的奖励",

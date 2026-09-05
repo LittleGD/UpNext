@@ -26,6 +26,7 @@ import {
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
 import type { CombatSession, Monster } from "@/types/uphero";
+import { nextBossFloorAfter } from "@/lib/upHeroCombat";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -244,7 +245,8 @@ export default function DungeonView() {
 
   // Phase 9a — GbConfirm 으로 교체. body 텍스트는 render 시 계산.
   const onExit = () => setAbandonOpen(true);
-  const nextBossFloor = [10, 20, 30].find((f) => f > session.currentFloor);
+  // Phase 16 (Track C, 피드백 28) — 보스는 10층마다 영원히. 항상 정의된다.
+  const nextBossFloor = nextBossFloorAfter(session.currentFloor);
 
   return createPortal(
     <div
@@ -913,7 +915,11 @@ export default function DungeonView() {
             Phase 11c R4 — effectSummary 로 구체 수치 노출 (XP/코인/시간/HP 변화). */}
       {/* 굴림틀 결과 — 드럼 연출 모달이 일반 결과 모달을 대신한다.
              결과는 이미 확정·지급된 상태로 로그에 실려 오고, 모달은 그리기만 한다. */}
-      {activeChoiceResult?.slot && (
+      {/* Phase 16 (Track C, 피드백 14) — awaitingMinigame 동안은 결과 모달을 그리지
+             않는다. 그 층의 "> 도전 → ..." 결과와 미니게임 모달이 겹쳐 쌓이던 문제.
+             resolveMinigame 이 "> 도전 성공/실패" 를 push 하면 그게 최신 결과가 되고,
+             닫으면 이전 것도 함께 seen 처리된다. */}
+      {session.status !== "awaitingMinigame" && activeChoiceResult?.slot && (
         <SlotMachineModal
           // 로그 idx 를 key 로 — "한 번 더" 로 새 결과가 오면 새 인스턴스(레버·드럼 초기화).
           key={activeChoiceResult.idx}
@@ -934,7 +940,9 @@ export default function DungeonView() {
         />
       )}
 
-      {activeChoiceResult && !activeChoiceResult.slot && (
+      {session.status !== "awaitingMinigame" &&
+        activeChoiceResult &&
+        !activeChoiceResult.slot && (
         <ChoiceResultModal
           text={activeChoiceResult.text}
           summary={activeChoiceResult.summary}
@@ -977,12 +985,8 @@ export default function DungeonView() {
         body={
           <>
             {t("uphero.combat.confirm.keepRewards")}
-            {nextBossFloor && (
-              <>
-                <br />
-                {t("uphero.combat.confirm.missBoss", { floor: nextBossFloor })}
-              </>
-            )}
+            <br />
+            {t("uphero.combat.confirm.missBoss", { floor: nextBossFloor })}
           </>
         }
         confirmLabel={t("uphero.combat.abandon")}

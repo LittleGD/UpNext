@@ -815,6 +815,9 @@ const ko = {
   "uphero.weekly.f30Badge": "F30 변이",
   "uphero.weekly.f30Locked": "F30 미도달",
   "uphero.weekly.defaultName": "이번 주 악몽",
+  "uphero.weekly.rewardHint": "던전마다 첫 클리어 시 코인 +{coins} · 소실방지권 1장",
+  "uphero.weekly.allClearHint": "8곳 모두 클리어 시 코인 +{coins} · 소실방지권 {wards}장 · 하락방지권 {downs}장",
+  "uphero.weekly.allClearDone": "이번 주 악몽을 모두 정복했다",
 
   // === Camp ambience (15 rotating lines) ===
   "uphero.camp.ambience.1": "모닥불이 조용히 타오른다",
@@ -1407,6 +1410,11 @@ const ko = {
   "uphero.session.f30FirstClear": "F30 최초 돌파",
   "uphero.session.ngPlusUnlocked": "NG+ · 주간 악몽 해금",
   "uphero.session.ngPlusUnlockedAnnounce": "NG+ 와 주간 악몽이 해금되었습니다.",
+  "uphero.session.weeklyFirstClear": "주간 악몽 첫 클리어",
+  "uphero.session.weeklyFirstClearReward": "코인 +{coins} · 소실방지권 +{wards}",
+  "uphero.session.weeklyAllClear": "이번 주 악몽 8곳 정복",
+  "uphero.session.weeklyAllClearReward": "코인 +{coins} · 소실방지권 +{wards} · 하락방지권 +{downs}",
+  "uphero.session.weeklyRewardAnnounce": "주간 악몽 보상을 받았습니다. {detail}",
   "uphero.session.tapCardHint": "카드를 탭해서 확인",
 
   // 세션 종료 사유 detail (monster killed 시 패턴)
@@ -2086,6 +2094,7 @@ const ko = {
   "uphero.combat.narrative.fleeFail": "도망치려 했지만 {monster} 에게 막혔다!",
   "uphero.combat.narrative.revealBoss": "보스의 기운이 느껴진다.",
   "uphero.combat.narrative.challengeStart": "도전이 시작된다...",
+  "uphero.combat.narrative.skipBlocked": "통로가 보스의 문 앞에서 끊겨 있다",
   "uphero.combat.narrative.restArea": "{description} — 시간 +{time}",
   "uphero.combat.narrative.treasureFound": "{description}",
   "uphero.combat.narrative.choiceReward": "선택의 대가",

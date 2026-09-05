@@ -284,7 +284,8 @@ export interface DungeonProgress {
   floorReached: number;
   /** 역대 최고 도달 floor — 사망/체크포인트 미달과 무관하게 절대 후퇴 안 함. UI "최고 기록" 표시용. */
   bestFloorReached: number;
-  bossesDefeated: number[]; // [10, 20, 30] 중 처치한 floor
+  /** 처치한 보스층 전부 (10/20/30/40/... 상한 없음, Phase 16 Track C). 정렬된 배열. */
+  bossesDefeated: number[];
 }
 
 /** 이벤트 선택지 효과 */
@@ -711,6 +712,8 @@ export interface CombatSession {
   /**
    * Phase 12e — 진행 중인 미니게임 상태. session.status === "awaitingMinigame" 시 set.
    *   결과 resolveMinigame(success) 호출 시 effects 적용 + status=active.
+   *   Phase 16 (Track C) — status 가 awaitingMinigame 이 아닌데 남아 있으면
+   *   `normalizeSessionForLoad` (upHeroCombat.ts) 가 로드 시 제거한다.
    */
   pendingMinigame?: {
     minigame: MinigameId;

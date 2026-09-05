@@ -354,3 +354,159 @@ describe("grantCombatBuff — 슬롯 보상", () => {
     expect(useUpHeroStore.getState().combatBuff).toBeUndefined();
   });
 });
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Phase 16 (Track C) — 던전 코어: 재진입 시작층 + 주간 악몽 보상 지급
+ * ══════════════════════════════════════════════════════════════════════ */
+
+// 주간 점수 업로드는 Firestore 로 나간다 — 정산 테스트에선 통째로 대체.
+vi.mock("@/lib/weeklyLeaderboard", () => ({
+  uploadWeeklyScore: vi.fn(async () => "skipped"),
+  getDisplayName: vi.fn(async (fallback: string) => fallback),
+}));
+
+import { createMonsterForFloor } from "@/data/upHeroMonsters";
+import { createSession } from "@/lib/upHeroCombat";
+import {
+  WEEKLY_ALL_CLEAR_COINS,
+  WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
+  WEEKLY_ALL_CLEAR_DOWN_GUARDS,
+  WEEKLY_FIRST_CLEAR_COINS,
+  WEEKLY_FIRST_CLEAR_DESTROY_GUARDS,
+} from "@/lib/sessionReward";
+import { DUNGEON_LIST } from "@/data/upHeroDungeons";
+import type { CombatSession, DungeonId } from "@/types/uphero";
+
+describe("enterDungeon — 미처치 보스층에서 시작 (피드백 19/26)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("floorReached 21, bossesDefeated [10] → F20 시작 + 보스 스폰 + paused", () => {
+    seedStore({});
+    useUpHeroStore.setState({
+      passes: { fitness: 1 },
+      dungeons: {
+        fitness: {
+          dungeonId: "fitness",
+          floorReached: 21,
+          bestFloorReached: 21,
+          bossesDefeated: [10],
+        },
+      },
+      currentSession: null,
+    });
+    expect(useUpHeroStore.getState().enterDungeon("fitness")).toBe(true);
+    const session = useUpHeroStore.getState().currentSession;
+    expect(session?.startFloor).toBe(20);
+    expect(session?.currentFloor).toBe(20);
+    expect(session?.status).toBe("paused");
+    const last = session?.log[session.log.length - 1];
+    expect(last).toMatchObject({ type: "boss", floor: 20 });
+  });
+
+  it("보스를 다 잡았으면 floorReached + 1 에서 시작 (기존 동작)", () => {
+    seedStore({});
+    useUpHeroStore.setState({
+      passes: { fitness: 1 },
+      dungeons: {
+        fitness: {
+          dungeonId: "fitness",
+          floorReached: 21,
+          bestFloorReached: 21,
+          bossesDefeated: [10, 20],
+        },
+      },
+      currentSession: null,
+    });
+    expect(useUpHeroStore.getState().enterDungeon("fitness")).toBe(true);
+    const session = useUpHeroStore.getState().currentSession;
+    expect(session?.startFloor).toBe(22);
+    expect(session?.status).toBe("active");
+  });
+});
+
+describe("acknowledgeSessionEnd — 주간 악몽 보상 (피드백 30)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** F30 보스를 처치하고 끝난 주간 세션. 코인 보상은 0 으로 두어 주간분만 센다. */
+  function weeklyClearSession(dungeonId: DungeonId): CombatSession {
+    const s = createSession(dungeonId, createDefaultHero(), 30, undefined, {
+      isWeeklyVariant: true,
+      heroLevel: 30,
+    });
+    const boss = createMonsterForFloor(dungeonId, 30, true);
+    s.log.push({ type: "encounter", monster: boss, timestamp: Date.now() });
+    s.log.push({ type: "victory", monster: boss, xp: 0, coins: 0, timestamp: Date.now() });
+    s.log.push({ type: "sessionEnd", reason: "bossDefeated", timestamp: Date.now() });
+    s.status = "completed";
+    s.rewards = { xp: 0, coins: 0, drops: [] };
+    return s;
+  }
+
+  function seedWeekly(cleared: DungeonId[], guards = 0) {
+    seedStore({ destroy: guards, down: guards });
+    useUpHeroStore.setState({
+      coins: 1000,
+      dungeons: {},
+      weeklyVariant: {
+        week: "2026-W36",
+        affixId: "glass_cannon",
+        clearedDungeons: cleared,
+        // 점수 업로드 분기 (isNewBest) 를 피하려 최고점을 높게 둔다.
+        bestScore: 1_000_000,
+      },
+      currentSession: weeklyClearSession("fitness"),
+    });
+  }
+
+  it("첫 클리어 → 코인 +600, 소실방지권 +1, clearedDungeons 에 추가", () => {
+    seedWeekly([]);
+    useUpHeroStore.getState().acknowledgeSessionEnd();
+    const st = useUpHeroStore.getState();
+    expect(st.coins).toBe(1000 + WEEKLY_FIRST_CLEAR_COINS);
+    expect(st.destroyGuards).toBe(WEEKLY_FIRST_CLEAR_DESTROY_GUARDS);
+    expect(st.downGuards).toBe(0);
+    expect(st.weeklyVariant?.clearedDungeons).toContain("fitness");
+    expect(st.currentSession).toBeNull();
+  });
+
+  it("같은 주 같은 던전 두 번째 정산은 보상 없음", () => {
+    seedWeekly([]);
+    useUpHeroStore.getState().acknowledgeSessionEnd();
+    const after1 = useUpHeroStore.getState();
+    useUpHeroStore.setState({ currentSession: weeklyClearSession("fitness") });
+    useUpHeroStore.getState().acknowledgeSessionEnd();
+    const after2 = useUpHeroStore.getState();
+    expect(after2.coins).toBe(after1.coins);
+    expect(after2.destroyGuards).toBe(after1.destroyGuards);
+    expect(after2.weeklyVariant?.clearedDungeons).toHaveLength(1);
+  });
+
+  it("7 → 8 전환이면 올클리어 보너스까지", () => {
+    const others = DUNGEON_LIST.map((d) => d.id).filter((id) => id !== "fitness");
+    seedWeekly(others);
+    useUpHeroStore.getState().acknowledgeSessionEnd();
+    const st = useUpHeroStore.getState();
+    expect(st.coins).toBe(1000 + WEEKLY_FIRST_CLEAR_COINS + WEEKLY_ALL_CLEAR_COINS);
+    expect(st.destroyGuards).toBe(
+      WEEKLY_FIRST_CLEAR_DESTROY_GUARDS + WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
+    );
+    expect(st.downGuards).toBe(WEEKLY_ALL_CLEAR_DOWN_GUARDS);
+    expect(st.weeklyVariant?.clearedDungeons).toHaveLength(8);
+  });
+
+  it("방지권은 상한 (ENHANCE_GUARD_MAX) 에서 잘린다", () => {
+    seedWeekly([], ENHANCE_GUARD_MAX);
+    useUpHeroStore.getState().acknowledgeSessionEnd();
+    expect(useUpHeroStore.getState().destroyGuards).toBe(ENHANCE_GUARD_MAX);
+  });
+
+  it("일반 (비주간) 세션은 주간 보상이 없다", () => {
+    seedWeekly([]);
+    const s = weeklyClearSession("fitness");
+    s.isWeeklyVariant = undefined;
+    useUpHeroStore.setState({ currentSession: s });
+    useUpHeroStore.getState().acknowledgeSessionEnd();
+    expect(useUpHeroStore.getState().coins).toBe(1000);
+    expect(useUpHeroStore.getState().destroyGuards).toBe(0);
+  });
+});

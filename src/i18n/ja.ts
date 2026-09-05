@@ -815,6 +815,9 @@ const ja: Record<DictKey, string> = {
   "uphero.weekly.f30Badge": "F30 変異",
   "uphero.weekly.f30Locked": "F30 未到達",
   "uphero.weekly.defaultName": "今週の悪夢",
+  "uphero.weekly.rewardHint": "各ダンジョン初クリアでコイン +{coins} · 消失防止券 1枚",
+  "uphero.weekly.allClearHint": "8か所すべてクリアでコイン +{coins} · 消失防止券 {wards}枚 · 下落防止券 {downs}枚",
+  "uphero.weekly.allClearDone": "今週の悪夢をすべて制覇した",
 
   // === Camp ambience (15) ===
   "uphero.camp.ambience.1": "焚き火が静かに燃えている",
@@ -1407,6 +1410,11 @@ const ja: Record<DictKey, string> = {
   "uphero.session.f30FirstClear": "F30 初突破",
   "uphero.session.ngPlusUnlocked": "NG+ · 週間悪夢 解放",
   "uphero.session.ngPlusUnlockedAnnounce": "NG+ と週間悪夢が解放されました。",
+  "uphero.session.weeklyFirstClear": "週間悪夢 初クリア",
+  "uphero.session.weeklyFirstClearReward": "コイン +{coins} · 消失防止券 +{wards}",
+  "uphero.session.weeklyAllClear": "今週の悪夢 8か所を制覇",
+  "uphero.session.weeklyAllClearReward": "コイン +{coins} · 消失防止券 +{wards} · 下落防止券 +{downs}",
+  "uphero.session.weeklyRewardAnnounce": "週間悪夢の報酬を受け取りました。{detail}",
   "uphero.session.tapCardHint": "カードをタップして確認",
 
   // セッション終了理由 detail パターン
@@ -2078,6 +2086,7 @@ const ja: Record<DictKey, string> = {
   "uphero.combat.narrative.fleeFail": "逃走失敗 — {monster} に阻まれる!",
   "uphero.combat.narrative.revealBoss": "ボスの気配を感じる。",
   "uphero.combat.narrative.challengeStart": "挑戦が始まる...",
+  "uphero.combat.narrative.skipBlocked": "通路はボスの扉の手前で途切れている",
   "uphero.combat.narrative.restArea": "{description} — 時間 +{time}",
   "uphero.combat.narrative.treasureFound": "{description}",
   "uphero.combat.narrative.choiceReward": "選択の報酬",

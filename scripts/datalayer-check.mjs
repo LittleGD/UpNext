@@ -1,13 +1,18 @@
 // datalayer-check.mjs — Phase 2.4 데이터 레이어 동치성 검증 (웹 측).
 //
 // 던전 데이터 + scaleMonster(결정론) + rollDropRarity/createEquipmentFromTemplate/
-// rollEquipmentDrop (시드 가능 rng) 를 검증. createMonsterForFloor 는 Math.random
-// (시드 불가) 라 제외 — scaleMonster 가 그 결정론 코어.
+// rollEquipmentDrop (시드 가능 rng) 를 검증. Phase 16 (Track C) 부터
+// createMonsterForFloor 도 rng() (시드 가능) 라 섹션 6 에서 템플릿 선택을 대조한다
+// (호출 순서: newbie roll → power 티어 roll → 티어 내 인덱스 roll).
 //
 // 실행: cd /Users/jmlee/Documents/UpNext && npx tsx scripts/datalayer-check.mjs
 
 import { DUNGEON_LIST } from "../src/data/upHeroDungeons.ts";
-import { scaleMonster, ALL_MONSTER_TEMPLATES } from "../src/data/upHeroMonsters.ts";
+import {
+  scaleMonster,
+  createMonsterForFloor,
+  ALL_MONSTER_TEMPLATES,
+} from "../src/data/upHeroMonsters.ts";
 import {
   rollDropRarity,
   createEquipmentFromTemplate,
@@ -81,6 +86,21 @@ for (const dg of ["fitness", "learning"]) {
       setRngSeed(seed);
       lines.push(`rollEquipDrop:${dg}:${rarity}:s${seed} = ${fmtEq(rollEquipmentDrop(dg, 15, rarity, "weapon"))}`);
     }
+  }
+}
+
+// ── 6. createMonsterForFloor (시드, 템플릿 선택 + 보스 사이클 인덱스) ──
+for (const dg of ["fitness", "learning"]) {
+  for (const floor of [3, 8, 15, 25, 45]) {
+    for (let seed = 1; seed <= 3; seed++) {
+      setRngSeed(seed);
+      const m = createMonsterForFloor(dg, floor, false);
+      lines.push(`createMonster:${dg}:f${floor}:s${seed} = ${m.templateId} hp${m.hp} atk${m.atk} def${m.def}`);
+    }
+  }
+  for (const floor of [10, 20, 30, 40, 50, 60]) {
+    const b = createMonsterForFloor(dg, floor, true);
+    lines.push(`createBoss:${dg}:f${floor} = ${b.templateId} hp${b.hp} atk${b.atk} def${b.def} xp${b.xpReward} coin${b.coinReward}`);
   }
 }
 

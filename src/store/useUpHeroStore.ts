@@ -65,6 +65,8 @@ import {
   calculateBossesDefeated,
   calculateCodexDelta,
   calculateDungeonProgress,
+  computeWeeklyClearReward,
+  resolveStartFloor,
 } from "@/lib/sessionReward";
 import { calculateIdleReward, detectClockRewind } from "@/lib/idleAccrual";
 import {
@@ -73,6 +75,7 @@ import {
   findLastEncounterIndex,
   computeMonsterHp,
   resolveMinigame as applyResolveMinigame,
+  normalizeSessionForLoad,
 } from "@/lib/upHeroCombat";
 import {
   findSkillById,
@@ -830,7 +833,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       coins,
       passes: saved?.passes ?? {},
       dungeons: dungeonsBackfilled,
-      currentSession: saved?.currentSession ?? null,
+      // Phase 16 (Track C) — 고아 pendingMinigame / 깨진 대기 상태를 로드 시 교정
+      //   (순수, 멱등, 스키마 버전 게이트 없음). 공통 규칙 3단계.
+      currentSession: saved?.currentSession
+        ? normalizeSessionForLoad(saved.currentSession)
+        : null,
       pendingDungeon: null, // transient, 재시작 시 항상 null
       codex,
       cosmetics: saved?.cosmetics ?? {},
@@ -1356,7 +1363,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // Phase 5a.1: level 에 따라 base stat 이 자동 성장한 hero 를 전달.
     // Phase 9d: 챌린지 레벨이 아닌 영웅 레벨 (gameLevel - heroStartLevel + 1) 사용.
     const progress = state.dungeons[dungeonId];
-    const startFloor = (progress?.floorReached ?? 0) + 1;
+    // Phase 16 (Track C, 피드백 19/26) — 미처치 보스층이 floorReached 이하에
+    //   있으면 거기서 시작 (createSession 이 보스를 바로 스폰).
+    const startFloor = resolveStartFloor(progress);
     const gameLevel = useGameStore.getState().progress.level ?? 1;
     const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
     const leveledHero = computeHeroForLevel(state.hero, heroLvl);
@@ -1395,7 +1404,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const updatedPasses = consumeAnyPass(state.passes, dungeonId);
     if (updatedPasses === null) return false;
     const progress = state.dungeons[dungeonId];
-    const startFloor = (progress?.floorReached ?? 0) + 1;
+    const startFloor = resolveStartFloor(progress);
     // Phase 5a.1: level 기반 성장 반영. Phase 9d: 영웅 레벨 사용.
     const gameLevel = useGameStore.getState().progress.level ?? 1;
     const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
@@ -1601,6 +1610,13 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     //   F30 까지 도달 안 했어도 점수는 산출 (floorsCleared 기반).
     //   최고 점수 경신 시 Firestore 업로드 (로그인 유저만, 비동기).
     let newWeeklyVariant = state.weeklyVariant;
+    // Phase 16 (Track C, 피드백 30) — 주간 악몽 보상. 파생값이라 저장 필드 없음.
+    //   SessionResultModal 이 같은 함수로 미리 보여준다. 상태 커밋 전에 계산해야
+    //   clearedDungeons 갱신 전의 "첫 클리어 / 7→8" 판정이 맞다.
+    const weeklyReward =
+      session.isWeeklyVariant && state.weeklyVariant
+        ? computeWeeklyClearReward(session, state.weeklyVariant)
+        : null;
     if (session.isWeeklyVariant && state.weeklyVariant) {
       // Phase 11c R2 — weekly 는 F30 start 라 `currentFloor - startFloor + 1 = 1` 이 되며,
       //   보스 미처치 실패에도 floorsCleared=1 점수가 들어감. 실제 "클리어" 로 간주하려면
@@ -1669,17 +1685,24 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     }
 
     // state commit + persist — 업로드 microtask 보다 먼저 실행 보장.
-    const newCoins = state.coins + session.rewards.coins;
+    // Track C: 주간 보상 (weeklyReward) 합산. Track A 는 이 앞에 settleHeroXp,
+    //   Track E 는 splitDropsByCap 을 끼운다 (공통 규칙 병합 순서).
+    const newCoins =
+      state.coins + session.rewards.coins + (weeklyReward?.coins ?? 0);
     const newInventory = [...state.inventory, ...keptDrops];
     // 탐험 중 모은 방지권 정산. 보스 드롭·보물상자·굴림틀이 session.rewards 에
     //   쌓아둔 것을 여기서 한 번에 합산한다. 상한 초과분은 조용히 잘린다.
     const newDestroyGuards = Math.min(
       ENHANCE_GUARD_MAX,
-      clampGuards(state.destroyGuards) + (session.rewards.destroyGuards ?? 0),
+      clampGuards(state.destroyGuards) +
+        (session.rewards.destroyGuards ?? 0) +
+        (weeklyReward?.destroyGuards ?? 0),
     );
     const newDownGuards = Math.min(
       ENHANCE_GUARD_MAX,
-      clampGuards(state.downGuards) + (session.rewards.downGuards ?? 0),
+      clampGuards(state.downGuards) +
+        (session.rewards.downGuards ?? 0) +
+        (weeklyReward?.downGuards ?? 0),
     );
     // 전투 버프 잔여 횟수를 세션에서 되받는다. 전투마다 닳는 곳은 전투 로직
     //   한 곳뿐이고 (upHeroCombat.consumeCombatBuff), 여기서는 결과만 옮긴다.

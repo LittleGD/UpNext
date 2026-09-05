@@ -1375,6 +1375,13 @@ function PressButton({
  * ══════════════════════════════════════════════════════════════════════ */
 
 import { getWeeklyAffixById } from "@/data/weeklyAffixes";
+import {
+  WEEKLY_ALL_CLEAR_COINS,
+  WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
+  WEEKLY_ALL_CLEAR_DOWN_GUARDS,
+  WEEKLY_DUNGEON_COUNT,
+  WEEKLY_FIRST_CLEAR_COINS,
+} from "@/lib/sessionReward";
 
 /**
  * 홈 CTA 스택 내에서 PrimaryCTA 아래 표시되는 compact ribbon.
@@ -1402,6 +1409,19 @@ function WeeklyNightmareRibbon({
     ? weeklyAffixName(affix.id, affix.name, language)
     : "";
   const SAND = "#e8b887";
+  // Phase 16 (Track C, 피드백 30) — 주간 보상 안내. 0~6 클리어: 던전당 첫 클리어
+  //   보상, 7 클리어: 마지막 한 곳이 올클리어 보너스임을 예고, 8: 완료.
+  //   상수는 sessionReward 의 단일 출처. 카피에 em-dash 없음.
+  const rewardHint =
+    clearedCount >= WEEKLY_DUNGEON_COUNT
+      ? t("uphero.weekly.allClearDone")
+      : clearedCount === WEEKLY_DUNGEON_COUNT - 1
+        ? t("uphero.weekly.allClearHint", {
+            coins: WEEKLY_ALL_CLEAR_COINS,
+            wards: WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
+            downs: WEEKLY_ALL_CLEAR_DOWN_GUARDS,
+          })
+        : t("uphero.weekly.rewardHint", { coins: WEEKLY_FIRST_CLEAR_COINS });
   // Phase 11c R4 — SR 전용 label. 기존 innerText 는 맥락 없이 조각으로 읽힘.
   const srLabel = [
     t("uphero.ribbon.weeklyTitle"),
@@ -1413,6 +1433,7 @@ function WeeklyNightmareRibbon({
     bestScore > 0
       ? t("uphero.weekly.bestScore", { score: bestScore.toLocaleString() })
       : null,
+    rewardHint,
   ]
     .filter(Boolean)
     .join(", ");
@@ -1446,6 +1467,12 @@ function WeeklyNightmareRibbon({
             {clearedCount > 0 && ` · ${t("uphero.ribbon.weeklyProgress", { cleared: clearedCount, total: 8 })}`}
             {bestScore > 0 &&
               ` · ${t("uphero.weekly.bestScore", { score: bestScore.toLocaleString() })}`}
+          </div>
+          <div
+            className="typo-micro truncate"
+            style={{ color: SAND, opacity: 0.85 }}
+          >
+            {rewardHint}
           </div>
         </div>
         <PixelIcon name="ChevronRight" size={12} color={GB.light} />

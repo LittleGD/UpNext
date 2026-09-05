@@ -17,6 +17,7 @@ import {
   type MonsterKind,
   type MonsterTrait,
 } from "@/types/uphero";
+import { rng } from "@/lib/upHeroRng";
 
 /** 몬스터 템플릿 — 정확한 stats 는 floor 에 따라 스케일링 */
 export interface MonsterTemplate {
@@ -208,16 +209,72 @@ export const ALL_MONSTER_TEMPLATES: MonsterTemplate[] = (() => {
 
 /**
  * 던전/floor 에 맞는 몬스터 랜덤 선택 후 stats 스케일링.
- * floor 10/20/30 에서는 보스 사용 (caller 가 결정).
+ * 보스층 (10 의 배수, 상한 없음) 에서는 보스 사용 (caller 가 결정).
  *
  * Phase 11c — `ngPlusLevel` 인자 추가. 0 (기본) 이면 legacy. 1+ 이면 hp/atk/def 에
- * `(1 + 0.5 × n)` 곱해서 NG+ 반복 플레이 난이도 상승. xp/coin 보상도 같은 비율로 ↑.
+ * `(1 + 0.4 × n)` 곱해서 NG+ 반복 플레이 난이도 상승. xp/coin 보상도 같은 비율로 ↑.
  * Phase 11c-balance — `hpMult` / `atkMult` 추가 (weekly affix 페널티). 기본 1.
+ * Phase 16 (Track C) — Math.random → rng(). 시드 테스트 (세션 루프·밸런스
+ *   시뮬레이션) 가 가능해지고 iOS (이미 RandomSource 주입) 와 호출 순서가 맞는다:
+ *   [newbie 풀 roll] → [power 티어 roll] → [티어 내 인덱스 roll].
  */
 export interface ScaleOptions {
   ngPlusLevel?: number;
   hpMult?: number;
   atkMult?: number;
+}
+
+/**
+ * Phase 16 (Track C, 피드백 33) — 층 구간별 power 티어 가중치 (p1/p2/p3).
+ *
+ * 이전엔 풀에서 균등 추첨이라 F5 에서도 power 3 (ATK ×3) 이 1/7 로 나와 같은 층
+ * 안의 편차가 층 20개분에 달했다 ("구간 편차"). 초반은 p1 위주, 후반으로 갈수록
+ * p3 비중이 오른다. newbie 풀 (F1-10 의 100%/40% 규칙) 은 그대로.
+ * 풀에 없는 티어는 버리고 남은 가중치를 재정규화한다.
+ * iOS MonsterPool.powerWeightsByFloor 미러.
+ */
+export const POWER_WEIGHTS_BY_FLOOR: ReadonlyArray<
+  Readonly<Record<1 | 2 | 3, number>>
+> = [
+  { 1: 70, 2: 30, 3: 0 }, // F1-10
+  { 1: 50, 2: 40, 3: 10 }, // F11-20
+  { 1: 35, 2: 45, 3: 20 }, // F21-30
+  { 1: 25, 2: 45, 3: 30 }, // F31+
+];
+
+export function powerWeightBand(floor: number): number {
+  return floor <= 10 ? 0 : floor <= 20 ? 1 : floor <= 30 ? 2 : 3;
+}
+
+/** rng 두 번 소비: 티어 → 티어 내 균등. 풀이 비면 undefined 가 아니라 풀 균등 폴백. */
+function pickTemplateByFloorWeight(
+  pool: MonsterTemplate[],
+  floor: number,
+): MonsterTemplate {
+  const weights = POWER_WEIGHTS_BY_FLOOR[powerWeightBand(floor)];
+  const tiers: Array<{ power: 1 | 2 | 3; items: MonsterTemplate[]; w: number }> = [];
+  for (const power of [1, 2, 3] as const) {
+    const items = pool.filter((t) => t.power === power);
+    if (items.length === 0) continue;
+    tiers.push({ power, items, w: weights[power] });
+  }
+  const total = tiers.reduce((sum, t) => sum + t.w, 0);
+  let chosen = tiers[tiers.length - 1];
+  if (total > 0) {
+    let roll = rng() * total;
+    for (const tier of tiers) {
+      roll -= tier.w;
+      if (roll < 0) {
+        chosen = tier;
+        break;
+      }
+    }
+  } else {
+    // 모든 가중치 0 (풀에 있는 티어가 전부 0 가중) — 풀 균등 폴백.
+    rng();
+    return pool[Math.floor(rng() * pool.length)];
+  }
+  return chosen.items[Math.floor(rng() * chosen.items.length)];
 }
 
 export function createMonsterForFloor(
@@ -228,8 +285,10 @@ export function createMonsterForFloor(
 ): Monster {
   const pool = TEMPLATES[dungeonId];
   if (isBoss) {
-    // 10F / 20F / 30F 에 각각 다른 보스
-    const bossIdx = Math.min(Math.floor((floor - 1) / 10), 2);
+    // Phase 16 (Track C, 피드백 28) — 던전의 3 보스를 사이클마다 순서대로 재사용.
+    //   F10:0 F20:1 F30:2 F40:0 F50:1 F60:2 ... (rng 소비 없음 — revealBoss 미리보기가
+    //   같은 함수를 호출해도 시드가 어긋나지 않는다.)
+    const bossIdx = floor < 10 ? 0 : (((Math.floor(floor / 10) - 1) % 3) + 3) % 3;
     const template = pool.bosses[bossIdx];
     return scaleMonster(template, dungeonId, floor, opts);
   }
@@ -242,14 +301,62 @@ export function createMonsterForFloor(
   let chosenPool: MonsterTemplate[];
   if (floor <= 3 && newbies.length > 0) {
     chosenPool = newbies;
-  } else if (floor <= 10 && newbies.length > 0 && Math.random() < 0.4) {
+  } else if (floor <= 10 && newbies.length > 0 && rng() < 0.4) {
     chosenPool = newbies;
   } else {
     chosenPool = normals.length > 0 ? normals : pool.normal;
   }
-  const template = chosenPool[Math.floor(Math.random() * chosenPool.length)];
+  const template = pickTemplateByFloorWeight(chosenPool, floor);
   return scaleMonster(template, dungeonId, floor, opts);
 }
+
+/**
+ * Phase 16 (Track C, 피드백 16/33) — 보스 배율을 사이클 (0 = F1-30, 1 = F31-60, ...)
+ * 별로 테이퍼. 이전 단일 상수 HP ×4 / ATK ×1.7 은 F10 보스도 35+ 라운드, F20+ 는
+ * regen 과 결합해 수학적으로 잡을 수 없었다. 사이클이 오를수록 영웅 스탯 성장
+ * (+1/Lv) 이 몬스터 선형 스케일 (+5 HP·+1.3 ATK/층 × power) 을 못 따라가므로
+ * 뒤 사이클일수록 배율을 낮춘다. 마지막 원소가 그 이후 모든 사이클에 적용된다.
+ * ngMult (NG+) 는 여전히 별도로 곱한다.
+ *
+ * 기준 영웅 (Track A 곡선, STR/VIT = 10+(Lv-1)+장비, maxHp 100+12(Lv-1)):
+ *   F10 Lv8 rare+0 / F20 Lv16 rare+0 / F30 Lv22 rare+5 / F40 Lv29 rare+5 /
+ *   F50 Lv35 rare+10 / F60 Lv40 rare+10. 장비 = round((5+0.5f)×1.5) +
+ *   floor(min(enh,10)/2) + max(0, enh-10).
+ * 시드 200런 (8 던전 × 25 시드, upHeroMonsters.test.ts) 승률 목표:
+ *   F10/F20 ≥ 80%, F30 ≥ 55%, 뒤 사이클도 같은 기준.
+ * 확정값 (2026-09-04, 시작 상수 그대로 목표 충족, 튜닝 없음):
+ *   HP [1.2, 1.0, 0.9, 0.85] / ATK [0.9, 0.8, 0.75, 0.7] / BOSS_REGEN_PCT 0.01
+ *   측정 승률 (8 던전 × 시드 1..25, upHeroMonsters.test.ts 와 같은 시뮬):
+ *   F10 100% · F20 100% · F30 70% · F40 93% · F50 100% · F60 64% · F90 (unique+15) 80.5%
+ *   F30/F60 의 손실은 poison 보스 3 종 (learning/social/wellness) 에 집중된다
+ *   (F30 20%, F60 4%) — 나머지 5 던전은 100%. 사이클 평균은 목표 안이라 두되,
+ *   poison DoT (floor×0.5/라운드 ×3) 가 후반에 과한지는 텔레메트리 뒤 판단.
+ * iOS MonsterPool.bossHpMultByCycle / bossAtkMultByCycle 미러.
+ */
+export const BOSS_HP_MULT_BY_CYCLE: readonly number[] = [1.2, 1.0, 0.9, 0.85];
+export const BOSS_ATK_MULT_BY_CYCLE: readonly number[] = [0.9, 0.8, 0.75, 0.7];
+/** 보스 XP 배율 — 스탯이 아니라 xpReward 에만. 이전 bossHpMult(4) 가 겸했던 값. */
+export const BOSS_XP_MULT = 4;
+
+export function bossCycleIndex(floor: number): number {
+  return Math.max(0, Math.floor((floor - 1) / 30));
+}
+
+function cycleMult(table: readonly number[], floor: number): number {
+  return table[Math.min(table.length - 1, bossCycleIndex(floor))];
+}
+
+/**
+ * Phase 16 (Track C, 피드백 33) — power 가 ATK/DEF 에 곱하는 배율. HP 는 여전히
+ * ×power (1/2/3) 라 "센 놈은 오래 버틴다" 는 유지하고, 한 방 데미지 편차만
+ * 3.0× → 2.2× 로 압축. 보스 (power 3) 도 같은 표를 쓴다.
+ * iOS MonsterPool.powerAtkDefMult 미러.
+ */
+export const POWER_ATK_DEF_MULT: Readonly<Record<1 | 2 | 3, number>> = {
+  1: 1,
+  2: 1.6,
+  3: 2.2,
+};
 
 /**
  * floor + power 기반 stats 스케일링 (+ NG+ / weekly affix / trait 보정).
@@ -263,7 +370,18 @@ export function createMonsterForFloor(
  *   - ATK 성장률: floor ×1.5 → ×1.3 (영웅 STR 성장 ×1.0 과의 격차 완화)
  *   - DEF 성장률: floor ×1.0 → ×0.5 (영웅 공격이 "씨알도 안 먹히는" 문제 해결)
  *   - 영웅 측 computeHeroDamage 공식도 DR 기반으로 전환 (대칭).
- *   모두 power / NG+ / trait / earlyNerf 스케일은 유지 — 고난도 루트의 도전성 보전.
+ *
+ * Phase 16 (Track C) 표 — 기준 영웅 대비 (trait 미반영, NG+0):
+ *   | floor | 보스 hp/atk/def | 일반 p1 / p2 / p3 (hp/atk/def)               |
+ *   | F5    | -               | 34/9/3  · 68/14/5  · 101/19/7 (p3 가중 0)   |
+ *   | F10   | 189/27/12       |                                             |
+ *   | F15   | -               | 95/25/10 · 190/39/15 · 285/54/21           |
+ *   | F20   | 432/61/26       |                                             |
+ *   | F25   | -               | 145/38/15 · 290/60/23 · 435/83/32          |
+ *   | F30   | 612/87/37       |                                             |
+ *   | F40   | 660/100/48 (cycle 1: hp ×1.0, atk ×0.8)                       |
+ *   | F60   | 960/146/70                                                    |
+ *   보스 xp 는 BOSS_XP_MULT(4) 로 이전과 동일, 코인 ×10 유지.
  */
 export function scaleMonster(
   t: MonsterTemplate,
@@ -272,8 +390,11 @@ export function scaleMonster(
   opts: ScaleOptions = {},
 ): Monster {
   const { ngPlusLevel = 0, hpMult = 1, atkMult = 1 } = opts;
-  const bossHpMult = t.isBoss ? 4 : 1;
-  const bossAtkMult = t.isBoss ? 1.7 : 1;
+  // Phase 16 (Track C) — 보스 배율은 사이클 테이퍼 표에서. 근거는 BOSS_HP_MULT_BY_CYCLE 주석.
+  const bossHpMult = t.isBoss ? cycleMult(BOSS_HP_MULT_BY_CYCLE, floor) : 1;
+  const bossAtkMult = t.isBoss ? cycleMult(BOSS_ATK_MULT_BY_CYCLE, floor) : 1;
+  const bossXpMult = t.isBoss ? BOSS_XP_MULT : 1;
+  const powerAtkDef = POWER_ATK_DEF_MULT[t.power];
   const ngMult = ngPlusScaleMult(ngPlusLevel);
   const base = 20 + floor * 5;
   const earlyCoinBoost = !t.isBoss && floor <= 10 ? 1.3 : 1;
@@ -298,9 +419,10 @@ export function scaleMonster(
   // Phase 15 — ATK 성장률 ×1.5 → ×1.3. 영웅 STR 성장 (level 당 +1.0) 과의 격차 완화.
   //   F14 power2: (5+14×1.3)×2 = 46 (기존 52, ≈12% 하향)
   //   F30 power3 보스: (5+30×1.3)×3×1.7 = 224 (기존 265)
+  // Phase 16 (Track C) — ×power → ×POWER_ATK_DEF_MULT[power] (1 / 1.6 / 2.2).
   const finalAtk = Math.round(
     (5 + floor * 1.3) *
-      t.power *
+      powerAtkDef *
       bossAtkMult *
       ngMult *
       atkMult *
@@ -311,7 +433,7 @@ export function scaleMonster(
   //   (영웅 측 computeHeroDamage 도 DR 공식으로 전환됨 — 두 변경은 세트로 설계)
   //   F14 power2: (2+7)×2 = 18 (기존 32, ≈44% 하향)
   //   F30 power3: (2+15)×3 = 51 (기존 96)
-  const finalDef = Math.round((2 + floor * 0.5) * t.power * ngMult * earlyNerf);
+  const finalDef = Math.round((2 + floor * 0.5) * powerAtkDef * ngMult * earlyNerf);
 
   return {
     id: `${t.id}_f${floor}_${Date.now() % 10000}`,
@@ -323,7 +445,7 @@ export function scaleMonster(
     maxHp: finalHp,
     atk: finalAtk,
     def: finalDef,
-    xpReward: Math.round((10 + floor * 3) * t.power * bossHpMult * ngMult),
+    xpReward: Math.round((10 + floor * 3) * t.power * bossXpMult * ngMult),
     coinReward: Math.round(
       (3 + floor * 2) * t.power * (t.isBoss ? 10 : 1) * ngMult * earlyCoinBoost,
     ),
