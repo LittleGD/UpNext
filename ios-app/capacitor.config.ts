@@ -10,6 +10,11 @@ const config: CapacitorConfig = {
     url: 'https://up-next-phi.vercel.app',
     cleartext: false,
     iosScheme: 'https',
+    // 메인 프레임 로드 실패(오프라인, DNS, 5xx)에 Chromium 의 밝은 오류 페이지 대신 로컬 다크
+    // 페이지(www/index.html)를 띄운다. 그 페이지는 플러그인 접근이 없어 스플래시를 직접 걷지
+    // 못하며, 아래 SplashScreen.launchShowDuration 타이머가 걷는다. 페이지 자체의 재시도
+    // 스크립트(online 이벤트 + 8s/20s 폴링)가 원격 origin 으로 되돌린다.
+    errorPath: 'index.html',
   },
   ios: {
     // 'never': WebView 네이티브 safe-area 패딩 OFF. CSS env(safe-area-inset-*)가
@@ -49,12 +54,16 @@ const config: CapacitorConfig = {
     // Capacitor 8 안드로이드는 Android 12 SplashScreen API(setKeepOnScreenCondition)로
     // 시스템 스플래시를 그대로 붙잡아 두므로, 여기서 0 을 주면 WebView 의 원격 로드·SSR·
     // 하이드레이션(온보딩 첫 화면 1프레임 번쩍)이 전부 노출된다.
-    // launchShowDuration 3000 = 오프라인·느린 망에서도 안전한 상한. 웹은 모션 스플래시가
-    // 마운트되는 순간 NativeSplashHide(src/components/native)가 SplashScreen.hide() 로
-    // 즉시 걷어내므로 실제 체감은 "웹 준비 즉시, 아니면 3초 뒤".
+    // 정상 경로: 웹 모션 스플래시가 마운트되어 splashActive 가 켜지는 순간(보통 2~5초)
+    //   NativeSplashHide(src/components/native)가 SplashScreen.hide() 로 즉시 걷는다.
+    //   hide() 는 pre-draw 리스너를 제거하므로 뒤늦게 도는 아래 타이머는 no-op.
+    // launchShowDuration 6000 = 오프라인·멈춘 로드용 네이티브 상한. 느린 망에서 먼저 끝나도
+    //   아래 WebView 는 이미 다크(android.backgroundColor + 웹 SSR 부트 커버, src/lib/bootCover.ts)
+    //   라 앱 UI 가 새지 않는다. launchAutoHide false 는 "JS 가 hide() 를 못 부르면 영원히
+    //   검은 화면"(errorPath 페이지는 플러그인 접근 불가)이라 채택하지 않는다.
     // launchFadeOutDuration 0: 다크(#0A0A0A) → 다크 위 모션이라 페이드가 필요 없다.
     SplashScreen: {
-      launchShowDuration: 3000,
+      launchShowDuration: 6000,
       launchAutoHide: true,
       launchFadeOutDuration: 0,
       backgroundColor: '#0A0A0A',
