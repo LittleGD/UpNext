@@ -1795,19 +1795,28 @@ function applyChoiceEffect(
       while (mods.length > RUN_STAT_MODS_CAP) mods.shift();
       session.runStatMods = mods;
       const statKo = effect.stat === "all" ? "전 능력치" : RUN_STAT_KO[effect.stat];
+      const isBuff = effect.kind === "runBuff";
+      // floors 가 없으면 이번 탐험 내내 유지되는 보정 — "(…, 0층)" 으로 찍히지 않게
+      //   전용 서사 키(runBuffRun/runCurseRun)를 쓰고 floors 파라미터를 싣지 않는다.
+      const runScoped = effect.floors == null;
       const floors = effect.floors ?? 0;
+      const span = runScoped ? "이번 탐험" : `${floors}층`;
       session.log.push({
         type: "narrative",
-        text:
-          effect.kind === "runBuff"
-            ? `${statKo}이(가) 오른다 (+${effect.pct}%, ${floors}층)`
-            : `${statKo}이(가) 흔들린다 (-${effect.pct}%, ${floors}층)`,
-        narrativeKey:
-          effect.kind === "runBuff"
+        text: isBuff
+          ? `${statKo}이(가) 오른다 (+${effect.pct}%, ${span})`
+          : `${statKo}이(가) 흔들린다 (-${effect.pct}%, ${span})`,
+        narrativeKey: runScoped
+          ? isBuff
+            ? "uphero.combat.narrative.runBuffRun"
+            : "uphero.combat.narrative.runCurseRun"
+          : isBuff
             ? "uphero.combat.narrative.runBuff"
             : "uphero.combat.narrative.runCurse",
         // stat 은 ko fallback, statId 는 CombatLog 가 현재 언어 라벨로 치환하는 키.
-        narrativeParams: { stat: statKo, statId: effect.stat, pct: effect.pct, floors },
+        narrativeParams: runScoped
+          ? { stat: statKo, statId: effect.stat, pct: effect.pct }
+          : { stat: statKo, statId: effect.stat, pct: effect.pct, floors },
         timestamp: Date.now(),
       });
       break;

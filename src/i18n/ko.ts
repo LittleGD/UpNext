@@ -2165,6 +2165,8 @@ const ko = {
   // Phase 4-D (Track D) — 런 한정 효과 서사
   "uphero.combat.narrative.runBuff": "{stat}이(가) 오른다 (+{pct}%, {floors}층)",
   "uphero.combat.narrative.runCurse": "{stat}이(가) 흔들린다 (-{pct}%, {floors}층)",
+  "uphero.combat.narrative.runBuffRun": "{stat}이(가) 오른다 (+{pct}%, 이번 탐험)",
+  "uphero.combat.narrative.runCurseRun": "{stat}이(가) 흔들린다 (-{pct}%, 이번 탐험)",
   "uphero.combat.narrative.stealthPass": "{monster}의 곁을 소리 없이 지나쳤다.",
   "uphero.combat.narrative.revealBossNone": "앞길에 더는 보스의 기운이 없다.",
   "uphero.combat.narrative.revealBossTrait.none": "F{floor}의 {monster}가 보인다. 급소를 읽었다 (보스 피해 +{pct}%)",

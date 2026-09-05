@@ -2157,6 +2157,8 @@ const ja: Record<DictKey, string> = {
   // Phase 4-D (Track D) — 런 한정 효과 서사
   "uphero.combat.narrative.runBuff": "{stat}が上がる (+{pct}%、{floors}階)",
   "uphero.combat.narrative.runCurse": "{stat}が揺らぐ (-{pct}%、{floors}階)",
+  "uphero.combat.narrative.runBuffRun": "{stat}が上がる (+{pct}%、今回の探索)",
+  "uphero.combat.narrative.runCurseRun": "{stat}が揺らぐ (-{pct}%、今回の探索)",
   "uphero.combat.narrative.stealthPass": "{monster}のそばを音もなく通り過ぎた。",
   "uphero.combat.narrative.revealBossNone": "この先にボスの気配はもうない。",
   "uphero.combat.narrative.revealBossTrait.none": "F{floor}の{monster}が見える。急所を読んだ (ボスへのダメージ +{pct}%)",

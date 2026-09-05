@@ -2158,6 +2158,8 @@ const en: Record<DictKey, string> = {
   // Phase 4-D (Track D) — 런 한정 효과 서사
   "uphero.combat.narrative.runBuff": "{stat} rises (+{pct}%, {floors} floors)",
   "uphero.combat.narrative.runCurse": "{stat} falters (-{pct}%, {floors} floors)",
+  "uphero.combat.narrative.runBuffRun": "{stat} rises (+{pct}%, this run)",
+  "uphero.combat.narrative.runCurseRun": "{stat} falters (-{pct}%, this run)",
   "uphero.combat.narrative.stealthPass": "Slipped past {monster} without a sound.",
   "uphero.combat.narrative.revealBossNone": "No boss presence lies ahead.",
   "uphero.combat.narrative.revealBossTrait.none": "{monster} on F{floor} comes into view. You read its weak point (boss damage +{pct}%)",

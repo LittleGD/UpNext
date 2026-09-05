@@ -1252,21 +1252,26 @@ enum UpHeroSession {
         while mods.count > UpHeroCombat.RunMods.statModsCap { mods.removeFirst() }
         s.runStatMods = mods
         let statKo = UpHeroCombat.runStatKo[stat] ?? stat.rawValue
+        // floors 가 없으면 이번 탐험 내내 유지되는 보정 — "(…, 0층)" 으로 찍히지 않게
+        //   전용 서사 키(runBuffRun/runCurseRun)를 쓰고 floors 파라미터를 싣지 않는다 (웹 동일).
+        let runScoped = floors == nil
         let f = floors ?? 0
+        let span = runScoped ? "이번 탐험" : "\(f)층"
+        var params: NarrativeParams = [
+            "stat": .text(statKo),
+            "statId": .text(stat.rawValue),
+            "pct": .number(Double(pct)),
+        ]
+        if !runScoped { params["floors"] = .number(Double(f)) }
         s.log.append(.narrative(
             text: isBuff
-                ? "\(statKo)이(가) 오른다 (+\(pct)%, \(f)층)"
-                : "\(statKo)이(가) 흔들린다 (-\(pct)%, \(f)층)",
-            narrativeKey: isBuff
-                ? "uphero.combat.narrative.runBuff"
-                : "uphero.combat.narrative.runCurse",
+                ? "\(statKo)이(가) 오른다 (+\(pct)%, \(span))"
+                : "\(statKo)이(가) 흔들린다 (-\(pct)%, \(span))",
+            narrativeKey: runScoped
+                ? (isBuff ? "uphero.combat.narrative.runBuffRun" : "uphero.combat.narrative.runCurseRun")
+                : (isBuff ? "uphero.combat.narrative.runBuff" : "uphero.combat.narrative.runCurse"),
             // stat 은 ko fallback, statId 는 resolveLog 가 현재 언어 라벨로 치환하는 키.
-            narrativeParams: [
-                "stat": .text(statKo),
-                "statId": .text(stat.rawValue),
-                "pct": .number(Double(pct)),
-                "floors": .number(Double(f)),
-            ], timestamp: now()))
+            narrativeParams: params, timestamp: now()))
     }
 
     // MARK: - resolveMinigame / abandonSession

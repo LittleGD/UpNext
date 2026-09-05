@@ -58390,6 +58390,64 @@
           }
         }
       }
+    },
+    "uphero.combat.narrative.runBuffRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}이(가) 오른다 (+{pct}%, 이번 탐험)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} rises (+{pct}%, this run)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}が上がる (+{pct}%、今回の探索)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}提升了 (+{pct}%，本次探索)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.runCurseRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}이(가) 흔들린다 (-{pct}%, 이번 탐험)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} falters (-{pct}%, this run)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}が揺らぐ (-{pct}%、今回の探索)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}动摇了 (-{pct}%，本次探索)"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -88,10 +88,21 @@ final class UpHeroRunModsTests: XCTestCase {
         XCTAssertEqual(lastResultData(s), expected)
     }
 
+    func testRunScopedBuffUsesRunNarrativeWithoutFloors() {
+        let s = resolve(armChoice(newSession(), [.runBuff(stat: .str, pct: 5, floors: nil)]))
+        XCTAssertEqual(s.runStatMods, [RunStatMod(stat: .str, pct: 5, floorsLeft: nil)])
+        XCTAssertTrue(narratives(s, key: "uphero.combat.narrative.runBuff").isEmpty)
+        let narr = narratives(s, key: "uphero.combat.narrative.runBuffRun")
+        XCTAssertEqual(narr.count, 1)
+        XCTAssertNil(num(narr.first ?? nil, "floors"))
+        XCTAssertEqual(num(narr.first ?? nil, "pct"), 5)
+        XCTAssertEqual(text(narr.first ?? nil, "statId"), "str")
+    }
+
     func testRunCurseStoresNegativePct() {
         let s = resolve(armChoice(newSession(), [.runCurse(stat: .agi, pct: 5, floors: nil)]))
         XCTAssertEqual(s.runStatMods, [RunStatMod(stat: .agi, pct: -5, floorsLeft: nil)])
-        XCTAssertEqual(narratives(s, key: "uphero.combat.narrative.runCurse").count, 1)
+        XCTAssertEqual(narratives(s, key: "uphero.combat.narrative.runCurseRun").count, 1)
         var expected = EffectSummaryData()
         expected.runMods = [RunStatMod(stat: .agi, pct: -5, floorsLeft: nil)]
         XCTAssertEqual(lastResultData(s), expected)

@@ -2157,6 +2157,8 @@ const zh: Record<DictKey, string> = {
   // Phase 4-D (Track D) — 런 한정 효과 서사
   "uphero.combat.narrative.runBuff": "{stat}提升了 (+{pct}%，{floors}层)",
   "uphero.combat.narrative.runCurse": "{stat}动摇了 (-{pct}%，{floors}层)",
+  "uphero.combat.narrative.runBuffRun": "{stat}提升了 (+{pct}%，本次探索)",
+  "uphero.combat.narrative.runCurseRun": "{stat}动摇了 (-{pct}%，本次探索)",
   "uphero.combat.narrative.stealthPass": "悄无声息地从{monster}身旁经过。",
   "uphero.combat.narrative.revealBossNone": "前方再无首领的气息。",
   "uphero.combat.narrative.revealBossTrait.none": "看见了F{floor}的{monster}。看穿了要害 (对首领伤害 +{pct}%)",

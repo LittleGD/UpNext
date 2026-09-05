@@ -85,6 +85,21 @@ function lastResult(s: CombatSession) {
 describe("런 한정 빌드 — 버프/저주 적립", () => {
   afterEach(() => resetRng());
 
+  it("floors 가 없는 런 종료 버프는 runBuffRun 서사를 남기고 floors 파라미터가 없다", () => {
+    setRngSeed(1);
+    const s = resolveChoice(
+      armChoice(newSession(), [{ kind: "runBuff", stat: "str", pct: 5 }]),
+      0,
+    );
+    expect(s.runStatMods).toEqual([{ stat: "str", pct: 5 }]);
+    expect(narrativesWithKey(s, "uphero.combat.narrative.runBuff")).toHaveLength(0);
+    const narr = narrativesWithKey(s, "uphero.combat.narrative.runBuffRun");
+    expect(narr).toHaveLength(1);
+    expect(narr[0].narrativeParams).toMatchObject({ statId: "str", pct: 5 });
+    expect(narr[0].narrativeParams).not.toHaveProperty("floors");
+    expect(narr[0].text).toContain("이번 탐험");
+  });
+
   it("runBuff 는 runStatMods 에 쌓이고 runBuff 서사를 남긴다", () => {
     setRngSeed(1);
     const s = resolveChoice(
@@ -107,7 +122,8 @@ describe("런 한정 빌드 — 버프/저주 적립", () => {
       0,
     );
     expect(s.runStatMods).toEqual([{ stat: "agi", pct: -5 }]);
-    expect(narrativesWithKey(s, "uphero.combat.narrative.runCurse")).toHaveLength(1);
+    expect(narrativesWithKey(s, "uphero.combat.narrative.runCurse")).toHaveLength(0);
+    expect(narrativesWithKey(s, "uphero.combat.narrative.runCurseRun")).toHaveLength(1);
     expect(lastResult(s)?.effectSummaryData).toEqual({
       runMods: [{ stat: "agi", pct: -5 }],
     });
