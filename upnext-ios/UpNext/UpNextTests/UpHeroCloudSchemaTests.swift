@@ -107,6 +107,45 @@ final class UpHeroCloudSchemaTests: XCTestCase {
             CloudUpHeroState.self, from: Data(Self.webFixture.utf8))
     }
 
+    // MARK: - Phase 5-B — enhanceLevel 20 왕복
+
+    /// enhanceLevel 0..20 은 와이어 키 변경 없이 그대로 왕복한다 (웹 sync.test.ts
+    /// "enhanceLevel 20 왕복" 과 같은 픽스처). 사진 부적의 talismanSkills 도 남는다.
+    func testEnhanceLevel20RoundTrips() throws {
+        let json = """
+        {
+          "inventory": [
+            {
+              "id": "it-20", "baseId": "sword_iron", "name": "쇠검 +20", "type": "weapon",
+              "rarity": "rare", "category": "fitness", "iconName": "Sword",
+              "stats": { "str": 25, "dex": 8 }, "enhanceLevel": 20, "enhanceFailStreak": 0
+            },
+            {
+              "id": "ph-10", "name": "추억의 부적 +10", "type": "talisman", "rarity": "rare",
+              "category": "fitness", "iconName": "Photo", "photoId": "photo-1",
+              "stats": { "vit": 5 }, "enhanceLevel": 10, "talismanSkills": ["fit5", "fit10"]
+            }
+          ]
+        }
+        """
+        let decoded = try JSONDecoder().decode(CloudUpHeroState.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.inventory.count, 2)
+        XCTAssertEqual(decoded.inventory[0].enhanceLevel, 20)
+        XCTAssertEqual(decoded.inventory[0].stats, [.str: 25, .dex: 8])
+        XCTAssertEqual(decoded.inventory[1].enhanceLevel, 10)
+        XCTAssertEqual(decoded.inventory[1].talismanSkills, ["fit5", "fit10"])
+
+        let payload = try XCTUnwrap(decoded.firestoreValue())
+        let inv = try XCTUnwrap(payload["inventory"] as? [[String: Any]])
+        XCTAssertEqual(inv[0]["enhanceLevel"] as? Int, 20)
+        XCTAssertEqual(inv[1]["enhanceLevel"] as? Int, 10)
+
+        let reencoded = try JSONEncoder().encode(decoded)
+        let again = try JSONDecoder().decode(CloudUpHeroState.self, from: reencoded)
+        XCTAssertEqual(again.inventory[0].enhanceLevel, 20)
+        XCTAssertEqual(again.toState().inventory[0].enhanceLevel, 20)
+    }
+
     // MARK: - 웹 픽스처 왕복
 
     /// 웹이 쓴 JSON 을 읽고 → 같은 JSON 으로 다시 쓰는지 (요구 계약의 핵심).

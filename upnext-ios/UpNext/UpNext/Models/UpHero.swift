@@ -221,7 +221,7 @@ struct Equipment: Equatable, Identifiable {
     var effects: [String]?           // 특수 효과 설명
     var flavor: String?
     var photoId: String?             // Phase 7 — 사진 부적 원본 photo id
-    var enhanceLevel: Int?           // Phase 11a — 강화 레벨 0~10
+    var enhanceLevel: Int?           // Phase 11a — 강화 레벨 0~20 (Phase 5-B, 사진 부적은 0~10)
     var enhanceFailStreak: Int?      // Phase 11c — 연속 강화 실패 streak
     var affix: StatKey?              // Phase 11a — 2차 affix stat key
     var affixes: [StatKey]?          // Phase 11a — legend 전용 3차 affix
@@ -690,29 +690,58 @@ struct EnhanceOutcomeRates: Equatable {
 }
 
 /// 이번 강화 시도에 걸 방지권. UI 토글이 그대로 매핑된다. 웹 `EnhanceGuardArm`.
+/// Phase 5-B — 걸면(보유 > 0, 그 결과가 가능한 레벨) 결과와 무관하게 이번 시도에서
+/// 1장 소모된다.
 struct EnhanceGuardArm {
-    /// 소실방지권을 걸지 (보유 0 이면 무시)
+    /// 소실방지권을 걸지 (보유 0 이거나 소실 0 인 레벨이면 무시)
     var destroy: Bool = false
-    /// 하락방지권을 걸지 (보유 0 이면 무시)
+    /// 하락방지권을 걸지 (보유 0 이거나 하락 0 인 레벨이면 무시)
     var down: Bool = false
+}
+
+/// 한 번의 강화 시도에서 소모된 방지권 (0 또는 1). 웹 `EnhanceGuardSpend`.
+/// 시도 시작 시 걸려 있고(보유 > 0, 그 결과가 이 레벨에서 가능) 결과와 무관하게 1장
+/// 나간다. 결과 문구가 "무엇을 썼는지" 말한다.
+struct EnhanceGuardSpend: Equatable {
+    var destroy: Int = 0
+    var down: Int = 0
+
+    /// 아무것도 나가지 않은 시도 (시도 불성립 갈래 포함).
+    static let zero = EnhanceGuardSpend(destroy: 0, down: 0)
 }
 
 /// `UpHeroStore.enhanceItem` 반환값. 웹 `EnhanceResult` 유니온 1:1
 /// (success / keep / down / guarded / destroyed / coin / maxed / not-found).
 ///
-/// `guarded` 는 방지권이 결과를 막아낸 분기이고, **이 분기에서만** 해당 방지권이
-/// 1장 소모된다. `guard` 가 무엇을 막았는지 말해준다 — "사라질 뻔했다" 와
-/// "내려갈 뻔했다" 는 문구가 달라야 한다.
+/// `guarded` 는 방지권이 결과를 막아낸 분기다. `guard` 가 무엇을 막았는지 말해준다 —
+/// "사라질 뻔했다" 와 "내려갈 뻔했다" 는 문구가 달라야 한다.
+/// Phase 5-B — 시도가 성립한 다섯 갈래는 모두 `spent`(이번 시도에 나간 방지권)를 싣는다.
 enum EnhanceResult {
-    case success(newItem: Equipment, prevLevel: Int)
-    case keep(item: Equipment)
+    case success(newItem: Equipment, prevLevel: Int, spent: EnhanceGuardSpend)
+    case keep(item: Equipment, spent: EnhanceGuardSpend)
     /// 실패로 단계가 1 내려갔다. `prevLevel` 은 내려가기 **전** 레벨 (UI 가 "+7 → +6").
-    case down(item: Equipment, prevLevel: Int)
-    case guarded(item: Equipment, guard: EnhanceGuardKind)
-    case destroyed(lostItemName: String)
+    case down(item: Equipment, prevLevel: Int, spent: EnhanceGuardSpend)
+    case guarded(item: Equipment, guard: EnhanceGuardKind, spent: EnhanceGuardSpend)
+    case destroyed(lostItemName: String, spent: EnhanceGuardSpend)
     case coinShort(need: Int)
     case maxed
     case notFound
+
+    /// 이번 시도에 나간 방지권. 시도가 성립하지 않은 갈래(coin/maxed/notFound)는 0.
+    var spent: EnhanceGuardSpend {
+        switch self {
+        case .success(_, _, let s), .keep(_, let s), .down(_, _, let s),
+             .guarded(_, _, let s), .destroyed(_, let s):
+            return s
+        case .coinShort, .maxed, .notFound:
+            return .zero
+        }
+    }
+}
+
+/// 강화 칭호 — 저장하지 않고 enhanceLevel 에서 파생. 웹 `EnhanceTitle`.
+enum EnhanceTitle: String {
+    case awakened, transcended
 }
 
 /// 방지권 종류. 웹 `guard: "destroy" | "down"`.
@@ -882,8 +911,45 @@ enum UpHeroRules {
 
     // ── 강화 시스템 ───────────────────────────────────────────────
 
-    /// 강화 가능 최대 레벨. 웹 `MAX_ENHANCE_LEVEL`.
-    static let maxEnhanceLevel = 10
+    /// 강화 가능 최대 레벨. 웹 `MAX_ENHANCE_LEVEL`. Phase 5-B 에서 10 → 20.
+    /// 사진 부적은 별도 상한 `PhotoTalisman.maxEnhanceLevel`(10) 을 쓴다.
+    static let maxEnhanceLevel = 20
+
+    // ── Phase 5-B — 상위 밴드 (+11..+20) ─────────────────────────────
+    //
+    // 0..9 의 선형 감쇠는 legend 가 +10 에서 이미 5% 바닥에 닿아 10..19 를 만들 수
+    // 없다. 그래서 currentLevel >= 10 은 등급별 명시 표로 간다. 0..9 의 값은 바이트
+    // 단위로 그대로다.
+
+    /// 상위 밴드가 시작하는 currentLevel (+10 → +11 시도부터). 웹 `ENHANCE_HIGH_BAND_START`.
+    static let enhanceHighBandStart = 10
+
+    /// 상위 밴드 성공률 (백분율). index = currentLevel - enhanceHighBandStart.
+    /// 웹 `ENHANCE_HIGH_SUCCESS_BY_LEVEL`.
+    static let enhanceHighSuccessByLevel: [Rarity: [Int]] = [
+        .normal: [50, 40, 31, 24, 18, 13, 9, 5, 3, 1],
+        .rare:   [40, 32, 25, 19, 14, 10, 7, 4, 2, 1],
+        .unique: [24, 20, 16, 12, 9, 7, 5, 3, 2, 1],
+        .legend: [12, 10, 8, 6, 5, 4, 3, 2, 2, 1],
+    ]
+
+    /// 상위 밴드 성공률 바닥 (1%). 웹 `ENHANCE_HIGH_MIN_SUCCESS`.
+    static let enhanceHighMinSuccess = 0.01
+
+    /// 상위 밴드 pity (연속 실패당 가산). 밴드 안에서는 `enhancePityBonusPerFail` 을
+    /// **대체** 한다 (더하지 않는다). 웹 `ENHANCE_HIGH_PITY_PER_FAIL`.
+    static let enhanceHighPityPerFail: [Rarity: Double] = [
+        .normal: 0.02, .rare: 0.02, .unique: 0.02, .legend: 0.03,
+    ]
+
+    /// 밴드별 비용 배율 0..9 ×1, 10..14 ×1.5, 15..19 ×2. 곱셈의 **마지막** 인자다 —
+    /// 모든 중간 곱이 0.25 의 배수라 JS Math.round 와 Swift .rounded() 가 같은 정수를
+    /// 낸다. 웹 `ENHANCE_COST_BAND_MULT`.
+    static let enhanceCostBandMult: [Double] = [1, 1.5, 2]
+
+    /// 칭호가 붙는 레벨 경계. 웹 `ENHANCE_TITLE_LEVELS`.
+    static let enhanceTitleAwakenedLevel = 15
+    static let enhanceTitleTranscendedLevel = 20
 
     /// 등급별 base 성공률 (백분율 0-100). 웹 `ENHANCE_BASE_SUCCESS`.
     static let enhanceBaseSuccess: [Rarity: Int] = [
@@ -921,6 +987,9 @@ enum UpHeroRules {
 
     /// 실패 시 **소실** 확률의 레벨별 기준값. index = currentLevel (시도 전 레벨).
     /// 웹 `ENHANCE_DESTROY_ON_FAIL_BY_LEVEL` 과 값이 같아야 한다.
+    /// Phase 5-B 밴드: 10..14 (+10→+15) 소실 0 / 하락 100%, 15..19 (+15→+20) 소실
+    /// 30→70% 기본, 나머지는 하락 (유지 0; 등급 배율로 소실이 깎인 unique/legend 만
+    /// 그 차이만큼 유지가 남는다).
     static let enhanceDestroyOnFail: [Double] = [
         0, 0, 0,   // +0→+3 : 완전 안전 구간
         0.01,      // +3→+4
@@ -930,6 +999,12 @@ enum UpHeroRules {
         0.14,      // +7→+8
         0.20,      // +8→+9
         0.26,      // +9→+10
+        0, 0, 0, 0, 0,  // +10→+15 : 소실 없음 (하락 100%)
+        0.3,       // +15→+16
+        0.4,       // +16→+17
+        0.5,       // +17→+18
+        0.6,       // +18→+19
+        0.7,       // +19→+20
     ]
 
     /// 실패 시 **하락**(+L → +L-1) 확률. 소실과 배타적이며 소실 판정이 먼저다.
@@ -944,6 +1019,12 @@ enum UpHeroRules {
         0.35,      // +7→+8
         0.40,      // +8→+9
         0.45,      // +9→+10
+        1, 1, 1, 1, 1,  // +10→+15 : 실패는 전부 하락
+        0.7,       // +15→+16
+        0.6,       // +16→+17
+        0.5,       // +17→+18
+        0.4,       // +18→+19
+        0.3,       // +19→+20
     ]
 
     /// 등급별 **소실** 확률 배율 (0.7 = 원래 소실 확률의 70%). 가산이 아니라 곱인 이유는
@@ -1066,9 +1147,22 @@ enum UpHeroRules {
 
     /// 현재 level → 다음 level 강화 성공률 (0-1). 웹 `enhanceSuccessRate`.
     /// rarity/level 4종 dict 는 모두 정의됨 — 강제 언랩 안전.
+    ///
+    /// Phase 5-B — currentLevel >= enhanceHighBandStart 는 명시 표 + 밴드 pity.
+    ///   rate = min(1, max(0.01, table/100) + streak × enhanceHighPityPerFail).
+    ///   0..9 는 예전 4줄 그대로다.
     static func enhanceSuccessRate(
         rarity: Rarity, currentLevel: Int, failStreak: Int = 0
     ) -> Double {
+        let level = max(0, currentLevel)
+        if level >= enhanceHighBandStart {
+            let idx = min(level, maxEnhanceLevel - 1) - enhanceHighBandStart
+            let rawRate = max(
+                enhanceHighMinSuccess,
+                Double(enhanceHighSuccessByLevel[rarity]![idx]) / 100.0)
+            let bandPity = Double(max(0, failStreak)) * enhanceHighPityPerFail[rarity]!
+            return min(1.0, rawRate + bandPity)
+        }
         let base = Double(enhanceBaseSuccess[rarity]!)
         let decay = Double(enhanceDecayPerLevel[rarity]!)
         let raw = base - Double(max(0, currentLevel)) * decay
@@ -1077,12 +1171,40 @@ enum UpHeroRules {
         return min(1.0, rawRate + pityBonus)
     }
 
-    /// 강화 시도 코인 비용. 웹 `enhanceCost` — base 30 × (1 + level×0.5) × rarityMult.
+    /// 밴드별 비용 배율 (마지막 인자). 웹 `enhanceCostBandMult`.
+    static func enhanceCostBandMult(currentLevel: Int) -> Double {
+        let level = max(0, currentLevel)
+        if level < enhanceHighBandStart { return enhanceCostBandMult[0] }
+        if level < 15 { return enhanceCostBandMult[1] }
+        return enhanceCostBandMult[2]
+    }
+
+    /// 강화 시도 코인 비용. 웹 `enhanceCost` — base 30 × (1 + level×0.5) × rarityMult
+    /// × 밴드 배율(마지막 인자). rare +11 → 30 × 6.5 × 1.5 × 1.5 = 438.75 → 439.
     static func enhanceCost(rarity: Rarity, currentLevel: Int) -> Int {
         let base = Double(ShopPrices.enhance)
-        let levelMult = 1.0 + Double(max(0, currentLevel)) * 0.5
+        let level = max(0, currentLevel)
+        let levelMult = 1.0 + Double(level) * 0.5
         let rarityMult = enhanceCostRarityMult[rarity]!
-        return Int((base * levelMult * rarityMult).rounded())
+        return Int((base * levelMult * rarityMult
+                    * enhanceCostBandMult(currentLevel: level)).rounded())
+    }
+
+    // ── Phase 5-B — 칭호 / 연출 밴드 ─────────────────────────────────
+
+    /// +15..+19 각성, +20 초월, 그 외 nil. 웹 `getEnhanceTitle`.
+    static func enhanceTitle(level: Int) -> EnhanceTitle? {
+        if level >= enhanceTitleTranscendedLevel { return .transcended }
+        if level >= enhanceTitleAwakenedLevel { return .awakened }
+        return nil
+    }
+
+    /// 강화 연출 밴드. targetLevel(= currentLevel + 1) 기준.
+    ///   0: 목표 +1..+10 (기존 2초) / 1: +11..+15 / 2: +16..+20. 웹 `enhanceRitualBand`.
+    static func enhanceRitualBand(targetLevel: Int) -> Int {
+        if targetLevel <= enhanceHighBandStart { return 0 }
+        if targetLevel <= enhanceTitleAwakenedLevel { return 1 }
+        return 2
     }
 
     /// **실패 시** 3분기 확률의 단일 출처. UI 표기와 스토어 판정이 같은 값을 쓰도록
@@ -1104,8 +1226,12 @@ enum UpHeroRules {
         let destroy = min(1.0, max(0.0, enhanceDestroyOnFail[idx] * mult))
         // 소실 판정이 먼저이므로 하락은 남은 확률 공간을 넘지 못한다.
         let down = min(min(1.0, max(0.0, enhanceDownOnFail[idx])), 1 - destroy)
-        return EnhanceOutcomeRates(
-            destroy: destroy, down: down, keep: max(0, 1 - destroy - down))
+        // Phase 5-B — 0.7 + 0.3 같은 조합은 IEEE double 에서 1 - d - w 가 5e-17 로 남는다.
+        //   "유지 0" 을 표와 UI 가 정직하게 말할 수 있도록 1e-12 미만은 0 으로 스냅한다
+        //   (웹 enhanceOutcomeRates 와 동일; equiv 스크립트는 10자리로 비교).
+        let keepRaw = max(0, 1 - destroy - down)
+        let keep = keepRaw < 1e-12 ? 0 : keepRaw
+        return EnhanceOutcomeRates(destroy: destroy, down: down, keep: keep)
     }
 
     /// 강화 **실패 시** 아이템이 그대로 남을 확률 (0-1) = 3분기의 keep.
@@ -1142,17 +1268,89 @@ enum UpHeroRules {
         return r.destroy == 0 && r.down == 0
     }
 
+    // ── Phase 5-B — 강화 스탯 성장 순수 헬퍼 (웹/iOS 공유 규칙) ──────────
+    //
+    // 성공 (applyEnhanceStatGrowth, newLevel 기준):
+    //   primary   : 짝수 레벨 ≤ 10 에서 +1 (기존), 11..20 은 매 레벨 +1.
+    //   secondary : +15 에서 +2, +20 에서 +3.
+    // 하락 (revertEnhanceStatGrowth, 잃는 레벨 기준) 은 정확한 역이며 0 아래로 내리지
+    // 않는다. 성공 규칙을 바꾸면 반드시 둘을 같이 바꾼다.
+
+    /// primary 선택 순서. 웹 `ENHANCE_STAT_ORDER`.
+    private static let enhanceStatOrder: [StatKey] = [.str, .int, .vit, .dex, .agi, .crit, .slotBonus]
+    /// secondary 후보 풀 — crit / slotBonus 제외. 웹 `ENHANCE_SECONDARY_POOL`.
+    private static let enhanceSecondaryPool: [StatKey] = [.str, .int, .vit, .dex, .agi]
+
     /// 장비의 primary stat key — stats 최대값 키. 동률은 선언 순서로 tie-break.
-    /// 웹 `pickPrimaryStatKey` (useUpHeroStore.ts) 와 같은 순서/규칙.
+    /// 웹 `pickPrimaryStatKey` (types/uphero.ts) 와 같은 순서/규칙.
     static func pickPrimaryStatKey(_ stats: [StatKey: Int]) -> StatKey? {
-        let order: [StatKey] = [.str, .int, .vit, .dex, .agi, .crit, .slotBonus]
         var best: StatKey?
         var bestVal = Int.min
-        for key in order {
+        for key in enhanceStatOrder {
             guard let v = stats[key] else { continue }
             if v > bestVal { best = key; bestVal = v }
         }
         return best
+    }
+
+    /// 마일스톤(+15/+20) 보너스를 받을 secondary key — [str,int,vit,dex,agi] 에서
+    /// primary 를 뺀 최대값 (동률은 그 순서). 후보가 없으면 primary. 웹 `pickSecondaryStatKey`.
+    static func pickSecondaryStatKey(_ stats: [StatKey: Int], primary: StatKey) -> StatKey {
+        var best: StatKey?
+        var bestVal = Int.min
+        for key in enhanceSecondaryPool where key != primary {
+            guard let v = stats[key] else { continue }
+            if v > bestVal { best = key; bestVal = v }
+        }
+        return best ?? primary
+    }
+
+    private static func enhancePrimaryGrowthAt(level: Int) -> Int {
+        if level <= 0 { return 0 }
+        if level > enhanceHighBandStart { return 1 }
+        return level % 2 == 0 ? 1 : 0
+    }
+
+    private static func enhanceSecondaryGrowthAt(level: Int) -> Int {
+        if level == enhanceTitleTranscendedLevel { return 3 }
+        if level == enhanceTitleAwakenedLevel { return 2 }
+        return 0
+    }
+
+    /// newLevel 에 도달했을 때의 스탯. 웹 `applyEnhanceStatGrowth`.
+    static func applyEnhanceStatGrowth(_ stats: [StatKey: Int], newLevel: Int) -> [StatKey: Int] {
+        var next = stats
+        guard let primary = pickPrimaryStatKey(stats) else { return next }
+        let p = enhancePrimaryGrowthAt(level: newLevel)
+        if p > 0 { next[primary] = (next[primary] ?? 0) + p }
+        let sBonus = enhanceSecondaryGrowthAt(level: newLevel)
+        if sBonus > 0 {
+            let secondary = pickSecondaryStatKey(stats, primary: primary)
+            next[secondary] = (next[secondary] ?? 0) + sBonus
+        }
+        return next
+    }
+
+    /// lostLevel 을 잃을 때(+L → +L-1) 의 스탯. applyEnhanceStatGrowth(·, L) 의 정확한 역.
+    /// 웹 `revertEnhanceStatGrowth`. 0 아래로는 내리지 않는다.
+    static func revertEnhanceStatGrowth(_ stats: [StatKey: Int], lostLevel: Int) -> [StatKey: Int] {
+        var next = stats
+        guard let primary = pickPrimaryStatKey(stats) else { return next }
+        let p = enhancePrimaryGrowthAt(level: lostLevel)
+        if p > 0 { next[primary] = max(0, (next[primary] ?? 0) - p) }
+        let sBonus = enhanceSecondaryGrowthAt(level: lostLevel)
+        if sBonus > 0 {
+            let secondary = pickSecondaryStatKey(stats, primary: primary)
+            next[secondary] = max(0, (next[secondary] ?? 0) - sBonus)
+        }
+        return next
+    }
+
+    /// +0 → +level 까지 primary 에 누적된 증가량 = floor(min(L,10)/2) + max(0, L-10).
+    /// 웹 `enhancePrimaryGrowthTotal` (Track E 의 dropFloor 역추정이 쓴다).
+    static func enhancePrimaryGrowthTotal(level: Int) -> Int {
+        let l = max(0, level)
+        return min(l, enhanceHighBandStart) / 2 + max(0, l - enhanceHighBandStart)
     }
 
     /// 이름에서 " +N" / legacy " +" 접미사 제거. 웹 `stripEnhanceSuffix` (정규식 동일:

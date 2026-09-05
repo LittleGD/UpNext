@@ -87,6 +87,40 @@ struct GbConfirmStandardFooter: View {
     }
 }
 
+// MARK: - 섹션 패널 (웹 GbConfirmPanel)
+
+/// Phase 5-B — 확인 다이얼로그 안의 섹션 패널. 배경 단계(어두운 dark → active 면
+/// dark 원색)와 라임 글로우로 "걸림" 을 말한다. 보더는 쓰지 않는다 — 카드/버튼
+/// 보더 금지 규칙. `trailing` 은 헤더 오른쪽 칩(보유 개수 등) 자리다.
+/// 웹 GbConfirm.tsx `GbConfirmPanel` 1:1 (radius 6 · padding 8/10 · glow 10px 44).
+struct GbConfirmPanel<Trailing: View, Content: View>: View {
+    let active: Bool
+    let title: String
+    @ViewBuilder let trailing: () -> Trailing
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .typography(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(active ? GBPalette.lightest : GBPalette.light)
+                Spacer(minLength: 0)
+                trailing()
+            }
+            content()
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            active ? GBPalette.dark : GBPalette.dark.opacity(0.53),
+            in: RoundedRectangle(cornerRadius: 6))
+        .shadow(color: active ? GBPalette.lightest.opacity(0.27) : .clear, radius: 5)
+        .animation(Anim.easeOut(0.16), value: active)
+    }
+}
+
 // MARK: - GbConfirm
 
 struct GbConfirm<Footer: View>: View {
