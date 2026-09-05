@@ -1,5 +1,5 @@
 {
-  "_comment": "Phase 3.1 동치성 검증 픽스처 — Firestore /users/{uid} 문서 3종. full=완전한 문서(모든 필드), legacy=옛 버전이 쓴 최소 문서(기본값 경로), corrupt=손상 문서(isValidProgress 거부). 카드 ID는 Cards.json에 실재하는 것 + __ghost__ (없는 ID, hydrate 시 탈락 검증).",
+  "_comment": "Phase 3.1 동치성 검증 픽스처 — Firestore /users/{uid} 문서 4종. full=완전한 문서(모든 필드, retention 포함), legacy=옛 버전이 쓴 최소 문서(기본값 경로, retention 부재 → nil), corrupt=손상 문서(isValidProgress 거부), retentionPartial=retention 만 있는 부분 문서(관용 디코드 기본값 경로 — 깨진 weeklyReports 원소는 배열 전체 탈락). 카드 ID는 Cards.json에 실재하는 것 + __ghost__ (없는 ID, hydrate 시 탈락 검증).",
   "full": {
     "progress": {
       "currentStreak": 12,
@@ -31,6 +31,7 @@
       "daysTowardNextLevel": 3,
       "pendingPacks": 2,
       "pendingBonusCards": 1,
+      "pendingFullPacks": 1,
       "cardCompletions": { "fitness-001": 15, "fitness-002": 7 },
       "extraChallengesCompleted": 22,
       "superChallengesCompleted": 5,
@@ -73,7 +74,38 @@
       "extraNudgeScheduled": true
     },
     "onboardingComplete": true,
-    "meta": { "lastDeviceId": "dev-7f3a9c" }
+    "meta": { "lastDeviceId": "dev-7f3a9c" },
+    "retention": {
+      "currentLightStreak": 4,
+      "bestLightStreak": 9,
+      "lastCheckInDate": "2026-05-20",
+      "streakSavers": 1,
+      "saverRefreshMonth": "2026-05",
+      "checkInDates": ["2026-05-17", "2026-05-18", "2026-05-19", "2026-05-20"],
+      "usedSaverDates": ["2026-05-19"],
+      "weeklyReports": [
+        {
+          "weekStart": "2026-05-11",
+          "weekEnd": "2026-05-17",
+          "generatedAt": 1747612800000,
+          "checkInCount": 5,
+          "completedCardCount": 8,
+          "topCategory": "fitness",
+          "highlightCardTitle": "아침 스트레칭",
+          "photoLogCount": 2,
+          "usedSaver": false
+        },
+        {
+          "weekStart": "2026-05-04",
+          "weekEnd": "2026-05-10",
+          "generatedAt": 1747008000000,
+          "checkInCount": 3,
+          "completedCardCount": 4,
+          "photoLogCount": 0,
+          "usedSaver": true
+        }
+      ]
+    }
   },
   "legacy": {
     "progress": {
@@ -88,6 +120,15 @@
     "progress": {
       "totalDaysCompleted": 5,
       "unlockedCardIds": ["fitness-001", 42, "fitness-002"]
+    }
+  },
+  "retentionPartial": {
+    "retention": {
+      "currentLightStreak": 2,
+      "lastCheckInDate": "2026-01-03",
+      "saverRefreshMonth": "2026-01",
+      "checkInDates": ["2026-01-02", "2026-01-03"],
+      "weeklyReports": [{ "weekStart": "2025-12-29" }]
     }
   }
 }

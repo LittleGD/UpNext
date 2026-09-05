@@ -7,6 +7,8 @@
 //
 //  Kinds: beast / goblin / spirit / construct / book / creature / large
 //  각 [frame1, frame2] — `#` filled, `.` transparent.
+//  Phase 6-E (Track E, 피드백 29) — `templateId` 가 보스면 Models/BossSprites.swift 의 전용
+//  프레임을 먼저 쓰고, 없으면 kind 프레임 (레거시 세이브·일반 몬스터 경로 동일).
 //  기본 animationMs 700, glow=true 면 drop-shadow 4px @ 50% 알파.
 //
 
@@ -15,6 +17,8 @@ import Combine
 
 struct MonsterSprite: View {
     let kind: MonsterKind
+    /// 보스 템플릿 id — BossSprites 카탈로그에 있으면 전용 실루엣. 웹 `templateId?`.
+    var templateId: String? = nil
     var size: CGFloat = 32
     var color: Color = Color.textPrimary
     var glow: Bool = false
@@ -23,7 +27,7 @@ struct MonsterSprite: View {
     @State private var frame = 0
 
     var body: some View {
-        let grid = Self.frames[kind]![min(frame, 1)]
+        let grid = Self.resolveFrames(kind: kind, templateId: templateId)[min(frame, 1)]
         Canvas { ctx, sz in
             let cell = sz.width / 12.0
             for (y, row) in grid.enumerated() {
@@ -39,6 +43,11 @@ struct MonsterSprite: View {
         .onReceive(Timer.publish(every: animationMs / 1000 / 2, on: .main, in: .common).autoconnect()) { _ in
             frame = 1 - frame
         }
+    }
+
+    /// 프레임 해석 — 보스 카탈로그 우선, 없으면 kind 프레임. 웹 `getMonsterFrames`.
+    static func resolveFrames(kind: MonsterKind, templateId: String?) -> [[String]] {
+        BossSprites.frames(templateId: templateId) ?? frames[kind]!
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -99,7 +108,7 @@ struct MonsterSprite: View {
              "##..####..##", "############", "############", "##..####..##",
              ".##########.", ".##.####.##.", ".##......##.", "............"],
             [".##......##.", "###......###", "############", "##.######.##",
-             "##..####..##", "############", "############", "##########..",
+             "##..####..##", "############", "############", "############",
              ".##########.", ".##.####.##.", "##........##", "............"],
         ],
     ]

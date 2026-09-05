@@ -24,6 +24,13 @@ import { rng } from "@/lib/upHeroRng";
 export const PHOTO_TALISMAN_RITUAL_COST = 80;
 
 /**
+ * Phase 5-B — 사진 부적 강화 상한. 일반 장비가 +20 으로 늘어나도 부적은 +10 에
+ * 머문다 (스킬이 +5/+10 에 열리고 재의식 비용도 10 기준으로 조율돼 있다).
+ * iOS PhotoTalisman.maxEnhanceLevel 과 같은 값.
+ */
+export const PHOTO_TALISMAN_MAX_ENHANCE_LEVEL = 10;
+
+/**
  * Phase 11c R4 — 재의식 (rebind) 비용은 현재 enhance level 기반 스케일.
  *   공식: 80 × (1 + curLevel × 0.3).
  *   +0→+1: 80, +1→+2: 104, +2→+3: 128, ..., +9→+10: 296.
@@ -102,10 +109,9 @@ export function buildPhotoTalisman(
   const statVal = Math.round(baseVal * mult);
   const stats: Partial<HeroBaseStats> = { [primaryStat]: statVal };
 
-  // unique / legend 는 slotBonus +1 (버프 슬롯 확장) — 기존 accessory/talisman 규칙
-  if (rarity === "unique" || rarity === "legend") {
-    stats.slotBonus = 1;
-  }
+  // Phase 6-E (Track E, 피드백 21) — 부적은 등급과 무관하게 slotBonus +1
+  //   (createEquipmentFromTemplate 의 talisman 규칙과 같다). iOS PhotoTalisman 동일.
+  stats.slotBonus = 1;
   // legend 는 crit +3% 추가
   if (rarity === "legend") {
     stats.crit = 3;
@@ -123,7 +129,7 @@ export function buildPhotoTalisman(
   // flavor 에 rarity prefix 텍스트 흡수 ("빛바랜 100 Jump Ropes — 2026.04.16")
   const flavorOriginal = photo.memo
     ? photo.memo.slice(0, 60)
-    : `${dateLabel} — ${photo.challengeTitle}`;
+    : `${dateLabel}: ${photo.challengeTitle}`;
   const flavor = `${RARITY_PREFIX[rarity]}${flavorOriginal}`;
 
   return {

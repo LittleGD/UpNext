@@ -39,20 +39,35 @@ let wsInputs: [(Int, Int, Int)] = [(0, 0, 1), (15, 50, 10), (30, 100, 30), (45, 
 for (fl, t, lv) in wsInputs {
     print("computeWeeklyScore(\(fl),\(t),\(lv)) = \(UpHeroRules.computeWeeklyScore(floorsCleared: fl, remainingTime: t, heroLevel: lv))")
 }
-// 5. enhanceSuccessRate
+// 5. enhanceSuccessRate — Phase 5-B: 상위 밴드 (10..19) + 밴드 pity 포함
 for r in [Rarity.normal, .rare, .unique, .legend] {
-    for lv in [0, 3, 9] {
-        for st in [0, 5, 15] {
+    for lv in [0, 3, 9, 10, 14, 15, 19] {
+        for st in [0, 5, 15, 40] {
             let rate = UpHeroRules.enhanceSuccessRate(rarity: r, currentLevel: lv, failStreak: st)
             print("enhanceSuccessRate(\(r.rawValue),\(lv),\(st)) = \(f(rate))")
         }
     }
 }
-// 6. enhanceCost
+// 6. enhanceCost — 밴드 배율 (마지막 인자) 포함
 for r in [Rarity.normal, .rare, .unique, .legend] {
-    for lv in [0, 3, 9] {
+    for lv in [0, 3, 9, 10, 14, 15, 19] {
         print("enhanceCost(\(r.rawValue),\(lv)) = \(UpHeroRules.enhanceCost(rarity: r, currentLevel: lv))")
     }
+}
+// 6b. enhanceOutcomeRates — 3분기 (keep 은 1e-12 미만 스냅) 10자리
+for r in [Rarity.normal, .rare, .unique, .legend] {
+    for lv in [0, 3, 9, 10, 14, 15, 19, 25] {
+        let o = UpHeroRules.enhanceOutcomeRates(rarity: r, currentLevel: lv)
+        print("enhanceOutcomeRates(\(r.rawValue),\(lv)) = \(f(o.destroy)),\(f(o.down)),\(f(o.keep))")
+    }
+}
+// 6c. enhanceTitle / enhanceRitualBand
+for lv in [0, 14, 15, 19, 20] {
+    let title = UpHeroRules.enhanceTitle(level: lv).map { $0.rawValue } ?? "null"
+    print("getEnhanceTitle(\(lv)) = \(title)")
+}
+for lv in [1, 10, 11, 15, 16, 20] {
+    print("enhanceRitualBand(\(lv)) = \(UpHeroRules.enhanceRitualBand(targetLevel: lv))")
 }
 // 7. getHeroAppearanceVariant
 for lv in [1, 9, 10, 29, 30, 50] {
@@ -125,4 +140,35 @@ let cases12: [(Hero, Int)] = [
 ]
 for (i, pair) in cases12.enumerated() {
     print("getBuffSlotCount(case\(i),\(pair.1)) = \(UpHeroRules.getBuffSlotCount(hero: pair.0, level: pair.1))")
+}
+
+// ── Phase 2-A (Track A) — 영웅 XP 풀 곡선 / SP 파생 / XP 소스 ──────────────
+// 13. heroXpToNextLevel / heroTotalXPForLevel — 표 + clamp (0, -5, 1000 → cap)
+for lv in [0, -5, 1, 2, 5, 10, 20, 22, 30, 40, 45, 47, 50, 60, 100, 999, 1000] {
+    print("heroXpToNextLevel(\(lv)) = \(UpHeroRules.heroXpToNextLevel(lv))")
+    print("heroTotalXPForLevel(\(lv)) = \(UpHeroRules.heroTotalXPForLevel(lv))")
+}
+// 14. heroLevelFromXP — 역함수 경계 + 상한 + 음수
+for xp in [0, 120, 121, 509, 510, 1365, 5831, 12035, 39031, 331955259, 2000000000, 1000000000000, -1] {
+    print("heroLevelFromXP(\(xp)) = \(UpHeroRules.heroLevelFromXP(xp))")
+}
+// 15. heroXPProgress
+for (xp, lv) in [(0, 1), (1000, 1), (39031, 47), (5000, 10), (331955259, 999)] {
+    let pr = UpHeroRules.heroXPProgress(totalXp: xp, level: lv)
+    print("getHeroXPProgress(\(xp),\(lv)) = \(pr.current),\(pr.needed)")
+}
+// 16. skillPointsTotalForLevel
+for lv in [1, 29, 30, 31, 45, 999, 1000] {
+    print("skillPointsTotalForLevel(\(lv)) = \(UpHeroRules.skillPointsTotalForLevel(lv))")
+}
+// 17. bossClearXp / floorXp / resolveHeroLevel
+for (fl, ng) in [(10, 0), (20, 0), (30, 0), (30, 1), (45, 1), (60, 2), (1, 0)] {
+    print("bossClearXp(\(fl),\(ng)) = \(UpHeroRules.bossClearXp(floor: fl, ngPlusLevel: ng))")
+    print("floorXp(\(fl),\(ng)) = \(UpHeroRules.floorXp(floor: fl, ngPlusLevel: ng))")
+}
+let cases17: [(Int?, Int, Int?)] = [(nil, 47, 1), (0, 47, 1), (245, 47, 41), (39031, 47, 1), (nil, 43, 41)]
+for (xp, g, h) in cases17 {
+    let xpLabel = xp.map { String($0) } ?? "undefined"
+    let hLabel = h.map { String($0) } ?? "undefined"
+    print("resolveHeroLevel(\(xpLabel),\(g),\(hLabel)) = \(UpHeroRules.resolveHeroLevel(heroXp: xp, gameLevel: g, heroStartLevel: h))")
 }

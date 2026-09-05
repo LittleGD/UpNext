@@ -17,15 +17,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore, slotSpinsLeft } from "@/store/useUpHeroStore";
-import { useGameStore } from "@/store/useGameStore";
+import { useHeroLevel } from "./useHeroLevel";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import {
   computeEffectiveStats,
   getHeroAppearanceVariant,
-  getEffectiveHeroLevel,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
-import type { CombatSession, Monster } from "@/types/uphero";
+import type { CombatSession, EffectSummaryData, Monster } from "@/types/uphero";
+import { nextBossFloorAfter } from "@/lib/upHeroCombat";
+import { affixStatLabel, buildSummaryChips } from "@/lib/upHeroI18n";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -94,10 +95,8 @@ export default function DungeonView() {
   // 오늘 굴림 횟수는 세션이 아니라 shopDaily 에 산다 (하루 상한, 탐험을 넘어 합산).
   const shopDaily = useUpHeroStore((s) => s.shopDaily);
   const spinSlotAgain = useUpHeroStore((s) => s.spinSlotAgain);
-  // Phase 9d — 영웅 전용 레벨 사용. variant 결정 등.
-  const gameLevel = useGameStore((s) => s.progress.level);
-  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
-  const heroLevel = getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  // Phase 2-A — 영웅 레벨은 heroXp 풀 기준 (useHeroLevel). variant 결정 등.
+  const heroLevel = useHeroLevel();
 
   const [speed, setSpeed] = useState<1 | 2 | 4>(1);
   const [paused, setPaused] = useState(false);
@@ -244,7 +243,8 @@ export default function DungeonView() {
 
   // Phase 9a — GbConfirm 으로 교체. body 텍스트는 render 시 계산.
   const onExit = () => setAbandonOpen(true);
-  const nextBossFloor = [10, 20, 30].find((f) => f > session.currentFloor);
+  // Phase 16 (Track C, 피드백 28) — 보스는 10층마다 영원히. 항상 정의된다.
+  const nextBossFloor = nextBossFloorAfter(session.currentFloor);
 
   return createPortal(
     <div
@@ -430,6 +430,7 @@ export default function DungeonView() {
               >
                 <MonsterSprite
                   kind={currentEnemy.kind}
+                  templateId={currentEnemy.templateId}
                   size={32}
                   color={currentEnemy.isBoss ? GB_ENEMY : GB.lightest}
                 />
@@ -798,6 +799,10 @@ export default function DungeonView() {
             ))}
         </div>
 
+        {/* Phase 4-D (Track D, 피드백 15) — 런 보정 스트립. TIME 바 아래에 이번 탐험의
+             버프/저주/보스 피해/은신/장비 확정을 칩으로. 넷 다 비면 아무것도 안 그린다. */}
+        <RunModsStrip session={session} />
+
         {/* Phase 12d — 클래스 자원 bar (warrior 분노 / mage 마나 등). 전직 후만 노출. */}
         {session.hero.classType && (
           <div className="mt-1.5">
@@ -913,7 +918,11 @@ export default function DungeonView() {
             Phase 11c R4 — effectSummary 로 구체 수치 노출 (XP/코인/시간/HP 변화). */}
       {/* 굴림틀 결과 — 드럼 연출 모달이 일반 결과 모달을 대신한다.
              결과는 이미 확정·지급된 상태로 로그에 실려 오고, 모달은 그리기만 한다. */}
-      {activeChoiceResult?.slot && (
+      {/* Phase 16 (Track C, 피드백 14) — awaitingMinigame 동안은 결과 모달을 그리지
+             않는다. 그 층의 "> 도전 → ..." 결과와 미니게임 모달이 겹쳐 쌓이던 문제.
+             resolveMinigame 이 "> 도전 성공/실패" 를 push 하면 그게 최신 결과가 되고,
+             닫으면 이전 것도 함께 seen 처리된다. */}
+      {session.status !== "awaitingMinigame" && activeChoiceResult?.slot && (
         <SlotMachineModal
           // 로그 idx 를 key 로 — "한 번 더" 로 새 결과가 오면 새 인스턴스(레버·드럼 초기화).
           key={activeChoiceResult.idx}
@@ -934,7 +943,9 @@ export default function DungeonView() {
         />
       )}
 
-      {activeChoiceResult && !activeChoiceResult.slot && (
+      {session.status !== "awaitingMinigame" &&
+        activeChoiceResult &&
+        !activeChoiceResult.slot && (
         <ChoiceResultModal
           text={activeChoiceResult.text}
           summary={activeChoiceResult.summary}
@@ -977,12 +988,8 @@ export default function DungeonView() {
         body={
           <>
             {t("uphero.combat.confirm.keepRewards")}
-            {nextBossFloor && (
-              <>
-                <br />
-                {t("uphero.combat.confirm.missBoss", { floor: nextBossFloor })}
-              </>
-            )}
+            <br />
+            {t("uphero.combat.confirm.missBoss", { floor: nextBossFloor })}
           </>
         }
         confirmLabel={t("uphero.combat.abandon")}
@@ -1110,5 +1117,58 @@ function DangerButton({
         }
       `}</style>
     </button>
+  );
+}
+
+/**
+ * Phase 4-D (Track D, 피드백 15) — 런 보정 스트립. 세션의 런 한정 상태 4종을
+ *   `EffectSummaryData` 로 합성해 결과 모달과 같은 칩 빌더(buildSummaryChips)로
+ *   그린다 (라벨 정본 하나). 배경 단계만, 보더/아이콘 없음. 저주는 위험 신호색.
+ */
+function RunModsStrip({ session }: { session: CombatSession }) {
+  const { t, language } = useTranslation();
+  const mods = session.runStatMods ?? [];
+  const data: EffectSummaryData = {};
+  if (mods.length > 0) {
+    data.runMods = mods.map((m) =>
+      m.floorsLeft == null
+        ? { stat: m.stat, pct: m.pct }
+        : { stat: m.stat, pct: m.pct, floors: m.floorsLeft },
+    );
+  }
+  if (session.runBossDmgPct) data.bossDmgPct = session.runBossDmgPct;
+  if (session.runStealthLeft) data.stealth = session.runStealthLeft;
+  if (session.runGuaranteedDrops) data.guaranteedDrop = session.runGuaranteedDrops;
+  if (Object.keys(data).length === 0) return null;
+  const chips = buildSummaryChips(data, t, (s) => affixStatLabel(s, language));
+  // 저주 칩(음수 보정)만 색을 달리한다 — 칩 순서는 buildSummaryChips 가 runMods 를
+  //   먼저 내므로 앞 mods.length 개가 runMods 에 대응한다.
+  const curseIdx = new Set(
+    mods.map((m, i) => (m.pct < 0 ? i : -1)).filter((i) => i >= 0),
+  );
+  return (
+    <div
+      className="mt-1.5 flex flex-wrap items-center gap-1"
+      role="list"
+      aria-label={t("uphero.choice.runMods.aria")}
+    >
+      {chips.map((chip, i) => (
+        <span
+          key={`${i}-${chip}`}
+          role="listitem"
+          className="typo-micro tabular-nums"
+          style={{
+            color: curseIdx.has(i) ? GB_ENEMY : GB.lightest,
+            background: `${GB.dark}80`,
+            padding: "2px 6px",
+            borderRadius: 4,
+            display: "inline-block",
+            letterSpacing: "0.02em",
+          }}
+        >
+          {chip}
+        </span>
+      ))}
+    </div>
   );
 }

@@ -49,6 +49,12 @@ struct PersistedUpHeroState: Codable {
     var schemaVersion: Int?
     var hasSeenCampTutorial: Bool?
     var welcomeGiftClaimed: Bool?
+    /// Phase 2-A — 영웅 XP 풀. nil = 미시드 (구 저장본). 웹 pickPersisted 의 heroXp.
+    /// 마지막 필드로 두어 기존 memberwise init 호출부가 그대로 컴파일된다.
+    var heroXp: Int? = nil
+    /// Phase 6-E (Track E) — 가방 상한을 넘긴 전리품. nil = 구 저장본 → []. 웹 pickPersisted 의
+    /// overflowDrops. 마지막 필드로 두어 기존 memberwise init 호출부가 그대로 컴파일된다.
+    var overflowDrops: [Equipment]? = nil
     // currentSession 은 전투 슬라이스에서 Optional 필드로 추가 (구 저장 파일 호환).
 }
 
@@ -77,6 +83,8 @@ extension PersistedUpHeroState {
         schemaVersion = s.schemaVersion
         hasSeenCampTutorial = s.hasSeenCampTutorial
         welcomeGiftClaimed = s.welcomeGiftClaimed
+        heroXp = s.heroXp
+        overflowDrops = s.overflowDrops
     }
 
     /// 영속 스냅샷 → 살아있는 상태 (hydrate). currentSession 은 nil, transient 필드는
@@ -85,6 +93,7 @@ extension PersistedUpHeroState {
         UpHeroState(
             hero: hero,
             inventory: inventory,
+            overflowDrops: overflowDrops ?? [],   // Phase 6-E — 구 저장본은 []
             coins: coins,
             passes: passes,
             dungeons: dungeons,
@@ -99,6 +108,7 @@ extension PersistedUpHeroState {
             lastIdleAccrualAt: lastIdleAccrualAt,
             lastSeenAt: lastSeenAt,
             heroStartLevel: heroStartLevel,
+            heroXp: heroXp,            // Phase 2-A — nil 이면 nil 그대로 (미시드 유지)
             shopDaily: shopDaily,
             ngPlusLevel: ngPlusLevel,
             weeklyVariant: weeklyVariant,
@@ -109,6 +119,7 @@ extension PersistedUpHeroState {
             idleReward: nil,
             pendingClassAwaken: nil,
             pendingClassChoice: nil,
+            pendingHeroLevelUp: nil,   // transient
             isLoaded: false
         )
     }

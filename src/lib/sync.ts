@@ -8,6 +8,7 @@ import {
   createDefaultHero,
   DUNGEON_BY_CLASS,
   ENHANCE_GUARD_MAX,
+  clampHeroXp,
 } from "@/types/uphero";
 import type { DailyState, UserProgress } from "@/types/game";
 import type { ChallengeCard } from "@/types/card";
@@ -114,6 +115,10 @@ export type CloudUpHeroState = Partial<
     UpHeroState,
     | "hero"
     | "inventory"
+    // Phase 6-E (Track E) — 가방 상한 초과분. 와이어 키 = "overflowDrops" (Equipment[],
+    //   inventory 와 같은 디코드, [] 허용, 항상 인코딩, footprint 포함).
+    //   iOS UpHeroCloudSchema CodingKeys 에 같은 철자로 있어야 한다.
+    | "overflowDrops"
     | "coins"
     | "passes"
     | "dungeons"
@@ -122,6 +127,10 @@ export type CloudUpHeroState = Partial<
     | "lastIdleAccrualAt"
     | "lastSeenAt"
     | "heroStartLevel"
+    // Phase 2-A (Track A) — 영웅 XP 풀. 와이어 키 = "heroXp" (정수 [0, HERO_XP_CAP]).
+    //   없으면 로컬 유지(절대 지어내지 않는다), 시드된 뒤엔 0 이어도 항상 인코딩.
+    //   iOS UpHeroCloudSchema CodingKeys 에 같은 철자로 있어야 한다.
+    | "heroXp"
     | "shopDaily"
     | "ngPlusLevel"
     // Phase 15 — 방지권 2종 + 슬롯머신 전투 버프.
@@ -201,7 +210,24 @@ function normalizeEquipment(raw: unknown): Equipment | null {
   const item = { ...r } as unknown as Equipment;
   item.name = asText(r.name) ?? id;
   item.stats = normalizeStats(r.stats);
+  // 숫자로 신뢰하는 필드는 iOS CloudEquipment(lenientInt)와 같이 강제한다.
+  // 깨진 값(예: "abc")을 그대로 두면 sellPrice 가 NaN 을 내고 coins 에 NaN 이 저장된다.
+  const enhanceLevel = asFinite(r.enhanceLevel);
+  if (enhanceLevel === undefined) delete item.enhanceLevel;
+  else item.enhanceLevel = enhanceLevel;
+  const dropFloor = asFinite(r.dropFloor);
+  if (dropFloor === undefined) delete item.dropFloor;
+  else item.dropFloor = dropFloor;
   return item;
+}
+
+/** Equipment 배열 디코드 — 배열이 아니면 [], 깨진 원소만 버린다. */
+function normalizeEquipmentList(raw: unknown): Equipment[] {
+  return Array.isArray(raw)
+    ? raw
+        .map((item) => normalizeEquipment(item))
+        .filter((item): item is Equipment => item !== null)
+    : [];
 }
 
 /**
@@ -365,6 +391,8 @@ export function hasUpHeroFootprint(raw: unknown): boolean {
   const r = asRecord(raw);
   if (!r) return false;
   if (Array.isArray(r.inventory) && r.inventory.length > 0) return true;
+  // 넘친 전리품도 플레이 흔적이다 — 정산을 거쳐야만 생긴다.
+  if (Array.isArray(r.overflowDrops) && r.overflowDrops.length > 0) return true;
   const codex = asRecord(r.codex);
   if (codex) {
     for (const key of ["monsters", "bosses", "equipment"]) {
@@ -400,11 +428,9 @@ export function normalizeUpHeroState(raw: unknown): CloudUpHeroState {
   const r = asRecord(raw) ?? {};
   const state: CloudUpHeroState = {
     hero: normalizeHero(r.hero),
-    inventory: Array.isArray(r.inventory)
-      ? r.inventory
-          .map((item) => normalizeEquipment(item))
-          .filter((item): item is Equipment => item !== null)
-      : [],
+    inventory: normalizeEquipmentList(r.inventory),
+    // Phase 6-E — inventory 와 같은 디코드. 키가 없거나 배열이 아니면 [].
+    overflowDrops: normalizeEquipmentList(r.overflowDrops),
     coins: Math.max(0, Math.floor(asFinite(r.coins) ?? 0)),
     passes: normalizePasses(r.passes),
     dungeons: normalizeDungeons(r.dungeons),
@@ -452,6 +478,12 @@ export function normalizeUpHeroState(raw: unknown): CloudUpHeroState {
   } else if (hasUpHeroFootprint(state)) {
     state.heroStartLevel = 1;
   }
+  // heroXp — 영웅 XP 풀 (Phase 2-A). 키가 있을 때만 싣고 [0, HERO_XP_CAP] 정수로 접는다.
+  // 구 클라이언트 문서(키 없음)는 생략 → _setFromCloud 가 undefined 로 두고 ensureHeroXp
+  // 가 progress.level 로 시드한다. 여기서 0 이나 레거시 공식으로 지어내면 두 기기의
+  // 풀이 서로를 덮는다 (mergeCloudHeroXp 의 단조 병합 전제가 깨진다).
+  const heroXp = asFinite(r.heroXp);
+  if (heroXp !== undefined) state.heroXp = clampHeroXp(heroXp);
   return state;
 }
 
@@ -774,6 +806,8 @@ export async function uploadLocalData(
     await setDoc(
       docRef,
       {
+        // progress 는 통째로 올라간다 — pendingFullPacks 등 새 키는 allowlist 없이 그대로 실린다
+        // (iOS Models/Game.swift UserProgress 가 lenient decode 로 미러).
         progress: stripUndefined(progress),
         daily: stripUndefined(dehydrateDaily(daily)),
         ...(includeRetention ? { retention: stripUndefined(retention) } : {}),

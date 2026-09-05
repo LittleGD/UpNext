@@ -221,11 +221,18 @@ struct Equipment: Equatable, Identifiable {
     var effects: [String]?           // 특수 효과 설명
     var flavor: String?
     var photoId: String?             // Phase 7 — 사진 부적 원본 photo id
-    var enhanceLevel: Int?           // Phase 11a — 강화 레벨 0~10
+    var enhanceLevel: Int?           // Phase 11a — 강화 레벨 0~20 (Phase 5-B, 사진 부적은 0~10)
     var enhanceFailStreak: Int?      // Phase 11c — 연속 강화 실패 streak
     var affix: StatKey?              // Phase 11a — 2차 affix stat key
     var affixes: [StatKey]?          // Phase 11a — legend 전용 3차 affix
     var talismanSkills: [String]?    // Phase 11b — 사진 부적 passive skill id
+    /// Phase 6-E (Track E) — 드롭된 층. `EquipmentPool.createEquipmentFromTemplate(dungeonFloor:)`
+    /// 와 합성(재료의 max) 이 기록한다. 판매가(`UpHeroRules.sellPrice`) 와 합성 층 규칙이 읽는다.
+    /// 레거시 저장본은 `EquipmentRepair` 가 주스탯에서 역추정해 채운다 (없으면 nil).
+    /// 사진 부적은 층이 없다 (판매가는 0 층). 와이어 키 `dropFloor` (int optional).
+    /// ⚠️ 반드시 **마지막** 저장 프로퍼티로 둔다 — 기본값 nil 이라 기존 memberwise init
+    /// 호출부(talismanSkills 가 마지막 인자)가 그대로 컴파일된다.
+    var dropFloor: Int? = nil
 }
 
 // MARK: - 몬스터 / 던전
@@ -267,6 +274,23 @@ struct DungeonProgress: Equatable {
 
 // MARK: - 이벤트 효과 (discriminated union)
 
+/// Phase 4-D (Track D, 피드백 15) — 런 한정 능력치 보정의 대상 스탯. 웹 `RunModStat`.
+/// `all` 은 str/int/vit/dex/agi 다섯 개 전부. crit/slotBonus 는 대상이 아니다
+/// (crit 은 퍼센트 포인트, slotBonus 는 슬롯 수 카운터라 곱하면 의미가 깨진다).
+enum RunModStat: String, Codable, Equatable {
+    case str, int, vit, dex, agi, all
+}
+
+/// Phase 4-D — 세션에 쌓이는 런 한정 능력치 보정 한 건. 웹 `RunStatMod`.
+/// `pct` 는 부호 있는 퍼센트 포인트 (음수 = 저주). `floorsLeft` 가 nil 이면 런 끝까지.
+/// 적용은 `UpHeroSession.sessionStats` 한 곳 (스탯별 합산 → clamp → 1회 곱).
+/// `EffectSummaryData.runMods` 에서는 같은 구조체의 `floorsLeft` 가 웹 `floors` 를 나른다.
+struct RunStatMod: Equatable, Codable {
+    var stat: RunModStat
+    var pct: Int
+    var floorsLeft: Int?
+}
+
 /// 미니게임 결과에 적용 가능한 단순 효과 (재귀 방지용 — startMinigame/fight/flee 제외).
 /// 웹 `SimpleChoiceEffect`.
 enum SimpleChoiceEffect: Equatable {
@@ -276,6 +300,11 @@ enum SimpleChoiceEffect: Equatable {
     case time(delta: Int)              // 음수 = 소모, 양수 = 회복
     case skipFloors(count: Int)
     case revealBoss
+    /// Phase 4-D — 런 한정 빌드 효과 (ChoiceEffect 와 같은 shape).
+    case runBuff(stat: RunModStat, pct: Int, floors: Int?)
+    case runCurse(stat: RunModStat, pct: Int, floors: Int?)
+    case stealth(encounters: Int)
+    case guaranteedDrop(count: Int?)
     case nothing
 }
 
@@ -286,6 +315,15 @@ enum ChoiceEffect: Equatable {
     case heal(amount: Int)
     case skipFloors(count: Int)
     case revealBoss
+    /// Phase 4-D (Track D) — 런 한정 빌드 효과 4종. 전부 `CombatSession` 의 세션 전용
+    /// 필드에 쌓이고 탐험이 끝나면 사라진다 (클라우드 제외).
+    ///  - runBuff / runCurse: stat 에 ±pct% 를 `floors` 층 동안 (nil 이면 런 끝까지).
+    ///  - stealth: 다음 `encounters` 회 일반 조우를 전투 없이 지나친다 (보스 제외).
+    ///  - guaranteedDrop: 다음 `count` (기본 1) 회 처치에서 장비 드롭 확정 (floor+5 등급).
+    case runBuff(stat: RunModStat, pct: Int, floors: Int?)
+    case runCurse(stat: RunModStat, pct: Int, floors: Int?)
+    case stealth(encounters: Int)
+    case guaranteedDrop(count: Int?)
     case nothing
     case time(delta: Int)              // 음수 = 소모, 양수 = 회복
     case fight                         // 즉시 전투 round 시작
@@ -332,13 +370,33 @@ enum NarrativeValue: Equatable {
 /// narrative i18n 파라미터 맵. 웹 `NarrativeParams = Record<string, string|number>`.
 typealias NarrativeParams = [String: NarrativeValue]
 
-/// choiceResult 로그의 효과 요약 (다국어). 웹 LogEntry 의 `effectSummaryData`.
+/// choiceResult 로그의 효과 요약 (다국어). 웹 LogEntry 의 `effectSummaryData`
+/// (= 웹 `EffectSummaryData`). 엔진(`UpHeroCombat.summarizeEffectsData`)이 만들고
+/// UI(`ChoiceResultTypes.chips`)가 현재 언어 칩으로 푼다. 필드는 추가만 한다.
 struct EffectSummaryData: Equatable {
     var xp: Int?
     var coins: Int?
     var heal: Int?
     var damage: Int?
+    /// 음수 = 시간 소모, 양수 = 시간 회복
     var timeDelta: Int?
+    /// Phase 4-D — 건너뛴 층 수 (skipFloors count 합)
+    var skipFloors: Int?
+    /// Phase 4-D — 런 한정 보정 (runBuff 는 +pct, runCurse 는 -pct). `floorsLeft` = 웹 `floors`.
+    var runMods: [RunStatMod]?
+    /// Phase 4-D — 은신 조우 수
+    var stealth: Int?
+    /// Phase 4-D — 장비 확정 처치 수
+    var guaranteedDrop: Int?
+    /// Phase 4-D — revealBoss 가 더한 보스 피해 %
+    var bossDmgPct: Int?
+
+    /// 하나라도 채워졌는가 — 로그 엔트리에 nil 대신 실을지 결정 (웹은 빈 객체를 싣는다).
+    var isEmpty: Bool {
+        xp == nil && coins == nil && heal == nil && damage == nil && timeDelta == nil
+            && skipFloors == nil && runMods == nil && stealth == nil
+            && guaranteedDrop == nil && bossDmgPct == nil
+    }
 }
 
 /// 전투 로그 엔트리. 웹 `LogEntry` (13-case discriminated union).
@@ -484,6 +542,20 @@ struct CombatSession: Equatable {
     /// `UpHeroState.combatBuff` 로 적어 다음 탐험이 이어받는다.
     /// `pct` 는 퍼센트 포인트다 (10 = +10%). 상태·클라우드 층위도 같은 단위다.
     var combatBuff: CombatBuff?
+    /// Phase 4-D (Track D, 피드백 15) — 런 한정 빌드 상태 4종. 전부 세션 전용이다:
+    /// `UpHeroState` 로 승격하지 않고 클라우드 페이로드(UpHeroCloudSchema 는 세션을
+    /// 싣지 않는다)에도 실리지 않는다. 옵셔널이라 없으면 "런 보정 없음" 과 같다.
+    ///  - runStatMods: `sessionStats()` 가 combatBuff 뒤에 스탯별 합산 pct 로 1회 곱.
+    ///    `advanceRunModFloors` 가 층 이동마다 floorsLeft 를 줄이고 만료를 지운다.
+    ///    최대 `UpHeroCombat.RunMods.statModsCap` 건 (오래된 것부터 버림).
+    ///  - runBossDmgPct: revealBoss 1회당 +5 (상한 15). executeCombatRound 가 isBoss
+    ///    몬스터에게 주는 영웅 피해에만 곱한다.
+    ///  - runStealthLeft: tickSession 의 일반 조우 분기에서 1씩 소모 (보스층 제외).
+    ///  - runGuaranteedDrops: victory 드롭 판정을 강제 (floor+5 등급) 하고 1씩 소모.
+    var runStatMods: [RunStatMod]? = nil
+    var runBossDmgPct: Int? = nil
+    var runStealthLeft: Int? = nil
+    var runGuaranteedDrops: Int? = nil
     /// 굴림 횟수는 세션이 세지 않는다 — 하루 상한(`UpHeroSlot.dailySpinCap`)의 진실은
     /// `UpHeroState.shopDaily.slotSpins` 이고, 스토어가 오늘 값을 스냅샷으로 세션
     /// 배선(`tickSession` / `resolveChoice` 의 `slotSpinsToday`)에 넘긴다. 예전에 여기
@@ -610,6 +682,12 @@ struct PendingClassChoice: Equatable {
 struct UpHeroState: Equatable {
     var hero: Hero
     var inventory: [Equipment]
+    /// Phase 6-E (Track E, 피드백 22) — 정산 때 가방 상한(`UpHeroRules.inventoryCap`)을 넘긴
+    /// 전리품. `SessionReward.splitDropsByCap` 이 나눠 담고, 캠프의 BagOverflowSheet 가 한 개씩
+    /// 판매/버리기 또는 모두 판매로 비운다. 인벤토리와 별개라 `inventory.count <= inventoryCap`
+    /// 불변식이 정산 뒤 항상 성립한다. 영속 + 클라우드 동기화 (와이어 키 `overflowDrops`,
+    /// [] 허용, footprint 포함). 레거시 저장본은 []. 웹 `UpHeroState.overflowDrops`.
+    var overflowDrops: [Equipment] = []
     var coins: Int
     /// 탐험권 보유량 — 카테고리별. 웹 `ExpeditionPasses`.
     var passes: [DungeonId: Int]
@@ -640,6 +718,17 @@ struct UpHeroState: Equatable {
     var lastIdleAccrualAt: Int
     var lastSeenAt: Int?              // Phase 14 — 시계 되감기 탐지용
     var heroStartLevel: Int?          // Phase 9d — 영웅 시작 시점 챌린지 레벨
+    /// Phase 2-A (Track A, 피드백 7/20/32) — 영웅 전용 누적 XP 풀. 계정 XP(progress.xp)
+    /// 와 완전히 분리된다: 던전 정산과 방치 보상만 여기에 더하고, 챌린지 완료는 절대
+    /// 건드리지 않는다. 영웅 Lv = `UpHeroRules.heroLevelFromXP(heroXp)`.
+    ///
+    /// nil = 아직 시드되지 않음 (레거시 저장본 / 구 클라이언트 클라우드 문서). 그동안은
+    /// `UpHeroRules.resolveHeroLevel` 이 레거시 공식(getEffectiveHeroLevel)로 표시하고,
+    /// `UpHeroStore.ensureHeroXp(gameLevel:)` 이 `heroTotalXPForLevel(레거시 Lv)` 로 정확히
+    /// 같은 레벨에서 시드한다. 0 으로 시드하는 경로는 없다 (Lv47 영웅이 Lv1 로 주저앉는
+    /// 사고 방지). 정수 [0, `UpHeroRules.heroXpCap`]. 와이어 키 `heroXp` — 없으면 로컬
+    /// 유지, 시드 뒤엔 항상 인코딩 (웹 `UpHeroState.heroXp` 와 철자 동일).
+    var heroXp: Int? = nil
     var shopDaily: ShopDaily?
     var ngPlusLevel: Int?             // Phase 11c — NG+ 레벨
     var weeklyVariant: WeeklyVariant?
@@ -653,7 +742,17 @@ struct UpHeroState: Equatable {
     var idleReward: IdleRewardSnapshot?    // transient — persist X
     var pendingClassAwaken: ClassType?     // transient — persist X
     var pendingClassChoice: PendingClassChoice?  // transient — persist X
+    /// Phase 2-A — 방금 일어난 영웅 레벨업 (HeroLevelUpOverlay 표시용). 정산/방치에서
+    /// new > prev 일 때 세팅, `acknowledgeHeroLevelUp` 이 nil 로 내린다. Lv30 전직 제안은
+    /// 이 오버레이가 닫힌 뒤에만 뜬다. transient — persist X. 웹 `pendingHeroLevelUp`.
+    var pendingHeroLevelUp: HeroLevelUpEvent? = nil
     var isLoaded: Bool
+}
+
+/// 영웅 레벨업 이벤트 (from → to). 웹 `UpHeroState.pendingHeroLevelUp` 의 `{from,to}`.
+struct HeroLevelUpEvent: Equatable {
+    let from: Int
+    let to: Int
 }
 
 // MARK: - 강화 결과
@@ -669,29 +768,58 @@ struct EnhanceOutcomeRates: Equatable {
 }
 
 /// 이번 강화 시도에 걸 방지권. UI 토글이 그대로 매핑된다. 웹 `EnhanceGuardArm`.
+/// Phase 5-B — 걸면(보유 > 0, 그 결과가 가능한 레벨) 결과와 무관하게 이번 시도에서
+/// 1장 소모된다.
 struct EnhanceGuardArm {
-    /// 소실방지권을 걸지 (보유 0 이면 무시)
+    /// 소실방지권을 걸지 (보유 0 이거나 소실 0 인 레벨이면 무시)
     var destroy: Bool = false
-    /// 하락방지권을 걸지 (보유 0 이면 무시)
+    /// 하락방지권을 걸지 (보유 0 이거나 하락 0 인 레벨이면 무시)
     var down: Bool = false
+}
+
+/// 한 번의 강화 시도에서 소모된 방지권 (0 또는 1). 웹 `EnhanceGuardSpend`.
+/// 시도 시작 시 걸려 있고(보유 > 0, 그 결과가 이 레벨에서 가능) 결과와 무관하게 1장
+/// 나간다. 결과 문구가 "무엇을 썼는지" 말한다.
+struct EnhanceGuardSpend: Equatable {
+    var destroy: Int = 0
+    var down: Int = 0
+
+    /// 아무것도 나가지 않은 시도 (시도 불성립 갈래 포함).
+    static let zero = EnhanceGuardSpend(destroy: 0, down: 0)
 }
 
 /// `UpHeroStore.enhanceItem` 반환값. 웹 `EnhanceResult` 유니온 1:1
 /// (success / keep / down / guarded / destroyed / coin / maxed / not-found).
 ///
-/// `guarded` 는 방지권이 결과를 막아낸 분기이고, **이 분기에서만** 해당 방지권이
-/// 1장 소모된다. `guard` 가 무엇을 막았는지 말해준다 — "사라질 뻔했다" 와
-/// "내려갈 뻔했다" 는 문구가 달라야 한다.
+/// `guarded` 는 방지권이 결과를 막아낸 분기다. `guard` 가 무엇을 막았는지 말해준다 —
+/// "사라질 뻔했다" 와 "내려갈 뻔했다" 는 문구가 달라야 한다.
+/// Phase 5-B — 시도가 성립한 다섯 갈래는 모두 `spent`(이번 시도에 나간 방지권)를 싣는다.
 enum EnhanceResult {
-    case success(newItem: Equipment, prevLevel: Int)
-    case keep(item: Equipment)
+    case success(newItem: Equipment, prevLevel: Int, spent: EnhanceGuardSpend)
+    case keep(item: Equipment, spent: EnhanceGuardSpend)
     /// 실패로 단계가 1 내려갔다. `prevLevel` 은 내려가기 **전** 레벨 (UI 가 "+7 → +6").
-    case down(item: Equipment, prevLevel: Int)
-    case guarded(item: Equipment, guard: EnhanceGuardKind)
-    case destroyed(lostItemName: String)
+    case down(item: Equipment, prevLevel: Int, spent: EnhanceGuardSpend)
+    case guarded(item: Equipment, guard: EnhanceGuardKind, spent: EnhanceGuardSpend)
+    case destroyed(lostItemName: String, spent: EnhanceGuardSpend)
     case coinShort(need: Int)
     case maxed
     case notFound
+
+    /// 이번 시도에 나간 방지권. 시도가 성립하지 않은 갈래(coin/maxed/notFound)는 0.
+    var spent: EnhanceGuardSpend {
+        switch self {
+        case .success(_, _, let s), .keep(_, let s), .down(_, _, let s),
+             .guarded(_, _, let s), .destroyed(_, let s):
+            return s
+        case .coinShort, .maxed, .notFound:
+            return .zero
+        }
+    }
+}
+
+/// 강화 칭호 — 저장하지 않고 enhanceLevel 에서 파생. 웹 `EnhanceTitle`.
+enum EnhanceTitle: String {
+    case awakened, transcended
 }
 
 /// 방지권 종류. 웹 `guard: "destroy" | "down"`.
@@ -726,6 +854,11 @@ enum ShopPrices {
     ///   **소실방지권은 여기 없다** — 상점에서 팔지 않고 보스·상자·슬롯에서만 나온다.
     ///   웹 `SHOP_PRICES.downGuard` 와 같은 값이어야 한다.
     static let downGuard = 150
+    /// Phase 3-F — 스킬 초기화(리스펙) 1회. learnedSkills 를 [T1] 로 되돌리면 SP 는
+    ///   레벨 파생값이라 자동으로 복구된다 (환급 산술 없음). T2/T3 가 택일이라 후회의
+    ///   출구가 필요하고, 코인 싱크로 downGuard(150) 두 배 자리에 둔다.
+    ///   웹 `SHOP_PRICES.skillRespec` 과 같은 값이어야 한다.
+    static let skillRespec = 300
 }
 
 // MARK: - 클래스 메타
@@ -771,7 +904,7 @@ enum UpHeroRules {
     /// 클래스 메타 (이름/패시브/아이콘). 웹 `CLASS_META`.
     static let classMeta: [ClassType: ClassMeta] = [
         .warrior: ClassMeta(name: "전사", passive: "전투 round 당 HP +2 회복", icon: "Sword"),
-        .mage: ClassMeta(name: "마법사", passive: "모든 XP 획득 +20%", icon: "BookOpen"),
+        .mage: ClassMeta(name: "마법사", passive: "던전 XP 획득 +20%", icon: "BookOpen"),
         .monk: ClassMeta(name: "수도승", passive: "회피 확률 +10%", icon: "Moon"),
         .druid: ClassMeta(name: "드루이드", passive: "회복 효과 +30%", icon: "Coffee"),
         .bard: ClassMeta(name: "음유시인", passive: "코인 획득 +25%", icon: "Message"),
@@ -856,8 +989,45 @@ enum UpHeroRules {
 
     // ── 강화 시스템 ───────────────────────────────────────────────
 
-    /// 강화 가능 최대 레벨. 웹 `MAX_ENHANCE_LEVEL`.
-    static let maxEnhanceLevel = 10
+    /// 강화 가능 최대 레벨. 웹 `MAX_ENHANCE_LEVEL`. Phase 5-B 에서 10 → 20.
+    /// 사진 부적은 별도 상한 `PhotoTalisman.maxEnhanceLevel`(10) 을 쓴다.
+    static let maxEnhanceLevel = 20
+
+    // ── Phase 5-B — 상위 밴드 (+11..+20) ─────────────────────────────
+    //
+    // 0..9 의 선형 감쇠는 legend 가 +10 에서 이미 5% 바닥에 닿아 10..19 를 만들 수
+    // 없다. 그래서 currentLevel >= 10 은 등급별 명시 표로 간다. 0..9 의 값은 바이트
+    // 단위로 그대로다.
+
+    /// 상위 밴드가 시작하는 currentLevel (+10 → +11 시도부터). 웹 `ENHANCE_HIGH_BAND_START`.
+    static let enhanceHighBandStart = 10
+
+    /// 상위 밴드 성공률 (백분율). index = currentLevel - enhanceHighBandStart.
+    /// 웹 `ENHANCE_HIGH_SUCCESS_BY_LEVEL`.
+    static let enhanceHighSuccessByLevel: [Rarity: [Int]] = [
+        .normal: [50, 40, 31, 24, 18, 13, 9, 5, 3, 1],
+        .rare:   [40, 32, 25, 19, 14, 10, 7, 4, 2, 1],
+        .unique: [24, 20, 16, 12, 9, 7, 5, 3, 2, 1],
+        .legend: [12, 10, 8, 6, 5, 4, 3, 2, 2, 1],
+    ]
+
+    /// 상위 밴드 성공률 바닥 (1%). 웹 `ENHANCE_HIGH_MIN_SUCCESS`.
+    static let enhanceHighMinSuccess = 0.01
+
+    /// 상위 밴드 pity (연속 실패당 가산). 밴드 안에서는 `enhancePityBonusPerFail` 을
+    /// **대체** 한다 (더하지 않는다). 웹 `ENHANCE_HIGH_PITY_PER_FAIL`.
+    static let enhanceHighPityPerFail: [Rarity: Double] = [
+        .normal: 0.02, .rare: 0.02, .unique: 0.02, .legend: 0.03,
+    ]
+
+    /// 밴드별 비용 배율 0..9 ×1, 10..14 ×1.5, 15..19 ×2. 곱셈의 **마지막** 인자다 —
+    /// 모든 중간 곱이 0.25 의 배수라 JS Math.round 와 Swift .rounded() 가 같은 정수를
+    /// 낸다. 웹 `ENHANCE_COST_BAND_MULT`.
+    static let enhanceCostBandMult: [Double] = [1, 1.5, 2]
+
+    /// 칭호가 붙는 레벨 경계. 웹 `ENHANCE_TITLE_LEVELS`.
+    static let enhanceTitleAwakenedLevel = 15
+    static let enhanceTitleTranscendedLevel = 20
 
     /// 등급별 base 성공률 (백분율 0-100). 웹 `ENHANCE_BASE_SUCCESS`.
     static let enhanceBaseSuccess: [Rarity: Int] = [
@@ -895,6 +1065,9 @@ enum UpHeroRules {
 
     /// 실패 시 **소실** 확률의 레벨별 기준값. index = currentLevel (시도 전 레벨).
     /// 웹 `ENHANCE_DESTROY_ON_FAIL_BY_LEVEL` 과 값이 같아야 한다.
+    /// Phase 5-B 밴드: 10..14 (+10→+15) 소실 0 / 하락 100%, 15..19 (+15→+20) 소실
+    /// 30→70% 기본, 나머지는 하락 (유지 0; 등급 배율로 소실이 깎인 unique/legend 만
+    /// 그 차이만큼 유지가 남는다).
     static let enhanceDestroyOnFail: [Double] = [
         0, 0, 0,   // +0→+3 : 완전 안전 구간
         0.01,      // +3→+4
@@ -904,6 +1077,12 @@ enum UpHeroRules {
         0.14,      // +7→+8
         0.20,      // +8→+9
         0.26,      // +9→+10
+        0, 0, 0, 0, 0,  // +10→+15 : 소실 없음 (하락 100%)
+        0.3,       // +15→+16
+        0.4,       // +16→+17
+        0.5,       // +17→+18
+        0.6,       // +18→+19
+        0.7,       // +19→+20
     ]
 
     /// 실패 시 **하락**(+L → +L-1) 확률. 소실과 배타적이며 소실 판정이 먼저다.
@@ -918,6 +1097,12 @@ enum UpHeroRules {
         0.35,      // +7→+8
         0.40,      // +8→+9
         0.45,      // +9→+10
+        1, 1, 1, 1, 1,  // +10→+15 : 실패는 전부 하락
+        0.7,       // +15→+16
+        0.6,       // +16→+17
+        0.5,       // +17→+18
+        0.4,       // +18→+19
+        0.3,       // +19→+20
     ]
 
     /// 등급별 **소실** 확률 배율 (0.7 = 원래 소실 확률의 70%). 가산이 아니라 곱인 이유는
@@ -941,9 +1126,45 @@ enum UpHeroRules {
         .normal: 1, .rare: 1.5, .unique: 2.5, .legend: 4,
     ]
 
-    /// 장비 판매 환급. 웹 `SELL_PRICE`.
-    static let sellPrice: [Rarity: Int] = [
+    // ── Phase 6-E (Track E) — 인벤토리 경제: 판매가 / 가방 상한 / 합성 ────────
+
+    /// 장비 판매 환급의 기본값 (Phase 4a 의 `SELL_PRICE` 표). +0 / 0층 가격은 그대로다.
+    /// 실제 환급은 `sellPrice(rarity:dropFloor:enhanceLevel:)`. 웹 `SELL_PRICE_BASE`.
+    static let sellPriceBase: [Rarity: Int] = [
         .normal: 5, .rare: 15, .unique: 50, .legend: 200,
+    ]
+    /// 드롭 층당 가산 (층은 0..99 로 clamp). 웹 `SELL_PRICE_FLOOR_MULT`.
+    static let sellPriceFloorMult: [Rarity: Int] = [
+        .normal: 1, .rare: 2, .unique: 4, .legend: 8,
+    ]
+    /// 강화 단계당 가산 (단계는 0..maxEnhanceLevel 로 clamp). 웹 `SELL_PRICE_ENHANCE_MULT`.
+    static let sellPriceEnhanceMult: [Rarity: Int] = [
+        .normal: 3, .rare: 6, .unique: 15, .legend: 40,
+    ]
+    /// 판매가 층 clamp 상한. 웹 `SELL_PRICE_FLOOR_CAP`.
+    static let sellPriceFloorCap = 99
+
+    /// 판매 환급 = BASE[r] + FLOOR_MULT[r] × clamp(dropFloor ?? 0, 0, 99)
+    ///                     + ENHANCE_MULT[r] × clamp(enhanceLevel ?? 0, 0, 20).
+    /// 전부 정수 산술 — 웹 `sellPrice` 와 동일 픽스처
+    ///   (normal,0,0)=5 · (normal,30,0)=35 · (rare,12,3)=57 · (unique,20,10)=280 ·
+    ///   (legend,30,10)=840 · (legend,120,25)=1792 (층 99 · 단계 20 clamp).
+    static func sellPrice(rarity: Rarity, dropFloor: Int?, enhanceLevel: Int?) -> Int {
+        let f = min(sellPriceFloorCap, max(0, dropFloor ?? 0))
+        let l = min(maxEnhanceLevel, max(0, enhanceLevel ?? 0))
+        return (sellPriceBase[rarity] ?? 0)
+            + (sellPriceFloorMult[rarity] ?? 0) * f
+            + (sellPriceEnhanceMult[rarity] ?? 0) * l
+    }
+
+    /// 가방 상한. 정산(`acknowledgeSessionEnd` → `splitDropsByCap`) 과 사진 부적 생성에서만
+    /// 강제한다 — 장착 해제/합성은 막지 않는다. 웹 `INVENTORY_CAP`.
+    static let inventoryCap = 30
+    /// 합성 재료 개수 — 같은 등급 3개 → 다음 등급 1개. 웹 `SYNTHESIS_INPUT_COUNT`.
+    static let synthesisInputCount = 3
+    /// 합성 결과 등급. legend 는 합성 불가 (nil). 웹 `NEXT_RARITY`.
+    static let nextRarity: [Rarity: Rarity] = [
+        .normal: .rare, .rare: .unique, .unique: .legend,
     ]
 
     // ── 영웅 이름 풀 ──────────────────────────────────────────────
@@ -1040,9 +1261,22 @@ enum UpHeroRules {
 
     /// 현재 level → 다음 level 강화 성공률 (0-1). 웹 `enhanceSuccessRate`.
     /// rarity/level 4종 dict 는 모두 정의됨 — 강제 언랩 안전.
+    ///
+    /// Phase 5-B — currentLevel >= enhanceHighBandStart 는 명시 표 + 밴드 pity.
+    ///   rate = min(1, max(0.01, table/100) + streak × enhanceHighPityPerFail).
+    ///   0..9 는 예전 4줄 그대로다.
     static func enhanceSuccessRate(
         rarity: Rarity, currentLevel: Int, failStreak: Int = 0
     ) -> Double {
+        let level = max(0, currentLevel)
+        if level >= enhanceHighBandStart {
+            let idx = min(level, maxEnhanceLevel - 1) - enhanceHighBandStart
+            let rawRate = max(
+                enhanceHighMinSuccess,
+                Double(enhanceHighSuccessByLevel[rarity]![idx]) / 100.0)
+            let bandPity = Double(max(0, failStreak)) * enhanceHighPityPerFail[rarity]!
+            return min(1.0, rawRate + bandPity)
+        }
         let base = Double(enhanceBaseSuccess[rarity]!)
         let decay = Double(enhanceDecayPerLevel[rarity]!)
         let raw = base - Double(max(0, currentLevel)) * decay
@@ -1051,12 +1285,40 @@ enum UpHeroRules {
         return min(1.0, rawRate + pityBonus)
     }
 
-    /// 강화 시도 코인 비용. 웹 `enhanceCost` — base 30 × (1 + level×0.5) × rarityMult.
+    /// 밴드별 비용 배율 (마지막 인자). 웹 `enhanceCostBandMult`.
+    static func enhanceCostBandMult(currentLevel: Int) -> Double {
+        let level = max(0, currentLevel)
+        if level < enhanceHighBandStart { return enhanceCostBandMult[0] }
+        if level < 15 { return enhanceCostBandMult[1] }
+        return enhanceCostBandMult[2]
+    }
+
+    /// 강화 시도 코인 비용. 웹 `enhanceCost` — base 30 × (1 + level×0.5) × rarityMult
+    /// × 밴드 배율(마지막 인자). rare +11 → 30 × 6.5 × 1.5 × 1.5 = 438.75 → 439.
     static func enhanceCost(rarity: Rarity, currentLevel: Int) -> Int {
         let base = Double(ShopPrices.enhance)
-        let levelMult = 1.0 + Double(max(0, currentLevel)) * 0.5
+        let level = max(0, currentLevel)
+        let levelMult = 1.0 + Double(level) * 0.5
         let rarityMult = enhanceCostRarityMult[rarity]!
-        return Int((base * levelMult * rarityMult).rounded())
+        return Int((base * levelMult * rarityMult
+                    * enhanceCostBandMult(currentLevel: level)).rounded())
+    }
+
+    // ── Phase 5-B — 칭호 / 연출 밴드 ─────────────────────────────────
+
+    /// +15..+19 각성, +20 초월, 그 외 nil. 웹 `getEnhanceTitle`.
+    static func enhanceTitle(level: Int) -> EnhanceTitle? {
+        if level >= enhanceTitleTranscendedLevel { return .transcended }
+        if level >= enhanceTitleAwakenedLevel { return .awakened }
+        return nil
+    }
+
+    /// 강화 연출 밴드. targetLevel(= currentLevel + 1) 기준.
+    ///   0: 목표 +1..+10 (기존 2초) / 1: +11..+15 / 2: +16..+20. 웹 `enhanceRitualBand`.
+    static func enhanceRitualBand(targetLevel: Int) -> Int {
+        if targetLevel <= enhanceHighBandStart { return 0 }
+        if targetLevel <= enhanceTitleAwakenedLevel { return 1 }
+        return 2
     }
 
     /// **실패 시** 3분기 확률의 단일 출처. UI 표기와 스토어 판정이 같은 값을 쓰도록
@@ -1078,8 +1340,12 @@ enum UpHeroRules {
         let destroy = min(1.0, max(0.0, enhanceDestroyOnFail[idx] * mult))
         // 소실 판정이 먼저이므로 하락은 남은 확률 공간을 넘지 못한다.
         let down = min(min(1.0, max(0.0, enhanceDownOnFail[idx])), 1 - destroy)
-        return EnhanceOutcomeRates(
-            destroy: destroy, down: down, keep: max(0, 1 - destroy - down))
+        // Phase 5-B — 0.7 + 0.3 같은 조합은 IEEE double 에서 1 - d - w 가 5e-17 로 남는다.
+        //   "유지 0" 을 표와 UI 가 정직하게 말할 수 있도록 1e-12 미만은 0 으로 스냅한다
+        //   (웹 enhanceOutcomeRates 와 동일; equiv 스크립트는 10자리로 비교).
+        let keepRaw = max(0, 1 - destroy - down)
+        let keep = keepRaw < 1e-12 ? 0 : keepRaw
+        return EnhanceOutcomeRates(destroy: destroy, down: down, keep: keep)
     }
 
     /// 강화 **실패 시** 아이템이 그대로 남을 확률 (0-1) = 3분기의 keep.
@@ -1116,17 +1382,89 @@ enum UpHeroRules {
         return r.destroy == 0 && r.down == 0
     }
 
+    // ── Phase 5-B — 강화 스탯 성장 순수 헬퍼 (웹/iOS 공유 규칙) ──────────
+    //
+    // 성공 (applyEnhanceStatGrowth, newLevel 기준):
+    //   primary   : 짝수 레벨 ≤ 10 에서 +1 (기존), 11..20 은 매 레벨 +1.
+    //   secondary : +15 에서 +2, +20 에서 +3.
+    // 하락 (revertEnhanceStatGrowth, 잃는 레벨 기준) 은 정확한 역이며 0 아래로 내리지
+    // 않는다. 성공 규칙을 바꾸면 반드시 둘을 같이 바꾼다.
+
+    /// primary 선택 순서. 웹 `ENHANCE_STAT_ORDER`.
+    private static let enhanceStatOrder: [StatKey] = [.str, .int, .vit, .dex, .agi, .crit, .slotBonus]
+    /// secondary 후보 풀 — crit / slotBonus 제외. 웹 `ENHANCE_SECONDARY_POOL`.
+    private static let enhanceSecondaryPool: [StatKey] = [.str, .int, .vit, .dex, .agi]
+
     /// 장비의 primary stat key — stats 최대값 키. 동률은 선언 순서로 tie-break.
-    /// 웹 `pickPrimaryStatKey` (useUpHeroStore.ts) 와 같은 순서/규칙.
+    /// 웹 `pickPrimaryStatKey` (types/uphero.ts) 와 같은 순서/규칙.
     static func pickPrimaryStatKey(_ stats: [StatKey: Int]) -> StatKey? {
-        let order: [StatKey] = [.str, .int, .vit, .dex, .agi, .crit, .slotBonus]
         var best: StatKey?
         var bestVal = Int.min
-        for key in order {
+        for key in enhanceStatOrder {
             guard let v = stats[key] else { continue }
             if v > bestVal { best = key; bestVal = v }
         }
         return best
+    }
+
+    /// 마일스톤(+15/+20) 보너스를 받을 secondary key — [str,int,vit,dex,agi] 에서
+    /// primary 를 뺀 최대값 (동률은 그 순서). 후보가 없으면 primary. 웹 `pickSecondaryStatKey`.
+    static func pickSecondaryStatKey(_ stats: [StatKey: Int], primary: StatKey) -> StatKey {
+        var best: StatKey?
+        var bestVal = Int.min
+        for key in enhanceSecondaryPool where key != primary {
+            guard let v = stats[key] else { continue }
+            if v > bestVal { best = key; bestVal = v }
+        }
+        return best ?? primary
+    }
+
+    private static func enhancePrimaryGrowthAt(level: Int) -> Int {
+        if level <= 0 { return 0 }
+        if level > enhanceHighBandStart { return 1 }
+        return level % 2 == 0 ? 1 : 0
+    }
+
+    private static func enhanceSecondaryGrowthAt(level: Int) -> Int {
+        if level == enhanceTitleTranscendedLevel { return 3 }
+        if level == enhanceTitleAwakenedLevel { return 2 }
+        return 0
+    }
+
+    /// newLevel 에 도달했을 때의 스탯. 웹 `applyEnhanceStatGrowth`.
+    static func applyEnhanceStatGrowth(_ stats: [StatKey: Int], newLevel: Int) -> [StatKey: Int] {
+        var next = stats
+        guard let primary = pickPrimaryStatKey(stats) else { return next }
+        let p = enhancePrimaryGrowthAt(level: newLevel)
+        if p > 0 { next[primary] = (next[primary] ?? 0) + p }
+        let sBonus = enhanceSecondaryGrowthAt(level: newLevel)
+        if sBonus > 0 {
+            let secondary = pickSecondaryStatKey(stats, primary: primary)
+            next[secondary] = (next[secondary] ?? 0) + sBonus
+        }
+        return next
+    }
+
+    /// lostLevel 을 잃을 때(+L → +L-1) 의 스탯. applyEnhanceStatGrowth(·, L) 의 정확한 역.
+    /// 웹 `revertEnhanceStatGrowth`. 0 아래로는 내리지 않는다.
+    static func revertEnhanceStatGrowth(_ stats: [StatKey: Int], lostLevel: Int) -> [StatKey: Int] {
+        var next = stats
+        guard let primary = pickPrimaryStatKey(stats) else { return next }
+        let p = enhancePrimaryGrowthAt(level: lostLevel)
+        if p > 0 { next[primary] = max(0, (next[primary] ?? 0) - p) }
+        let sBonus = enhanceSecondaryGrowthAt(level: lostLevel)
+        if sBonus > 0 {
+            let secondary = pickSecondaryStatKey(stats, primary: primary)
+            next[secondary] = max(0, (next[secondary] ?? 0) - sBonus)
+        }
+        return next
+    }
+
+    /// +0 → +level 까지 primary 에 누적된 증가량 = floor(min(L,10)/2) + max(0, L-10).
+    /// 웹 `enhancePrimaryGrowthTotal` (Track E 의 dropFloor 역추정이 쓴다).
+    static func enhancePrimaryGrowthTotal(level: Int) -> Int {
+        let l = max(0, level)
+        return min(l, enhanceHighBandStart) / 2 + max(0, l - enhanceHighBandStart)
     }
 
     /// 이름에서 " +N" / legacy " +" 접미사 제거. 웹 `stripEnhanceSuffix` (정규식 동일:
@@ -1148,9 +1486,114 @@ enum UpHeroRules {
     }
 
     /// 영웅 전용 레벨 = max(1, gameLevel − heroStartLevel + 1). 웹 `getEffectiveHeroLevel`.
+    ///
+    /// Phase 2-A 이후 영웅 레벨은 `heroXp` 풀(`heroLevelFromXP`)이 진실이다. 이 공식은
+    /// (1) `UpHeroStore.ensureHeroXp` 가 레거시 저장본을 딱 한 번 시드할 때, (2) 시드 전
+    /// `resolveHeroLevel` 의 표시 폴백으로만 남는다. 새 코드는 `resolveHeroLevel` /
+    /// `UpHeroStore.heroLevel` 을 쓸 것.
     static func getEffectiveHeroLevel(gameLevel: Int, heroStartLevel: Int?) -> Int {
         let startLvl = heroStartLevel ?? 1
         return max(1, gameLevel - startLvl + 1)
+    }
+
+    // ── Phase 2-A (Track A) — 영웅 XP 풀 / 레벨 곡선 / 스킬 포인트 파생 ────────
+    //
+    // 웹 src/types/uphero.ts 의 같은 블록을 1:1 미러. 전부 정수 산술이라 결과가 비트
+    // 단위로 같아야 한다 (scripts/verify-equivalence.sh uphero 섹션 13-17).
+    //
+    // 곡선: gap(L) = A·L² + B·L + C = L² + 120 (heroXpGapA/B/C = 1/0/120).
+    //   heroTotalXPForLevel(L) = Σ_{k=1}^{L-1} gap(k) = n(n+1)(2n+1)/6 + 120n (n = L-1).
+    //   표: 1:0 2:121 5:510 10:1,365 20:4,750 22:5,831 30:12,035 40:25,220
+    //       45:34,650 47:39,031 50:46,305 60:77,290 999:331,955,259.
+    // 순수 함수는 입력을 접는다: 음수 XP → 0, 레벨 → [1, heroLevelCap].
+    // (웹의 비유한(NaN/Infinity) 분기는 Int 에 존재하지 않는다.)
+
+    /// 영웅 레벨 상한. 곡선/스킬 포인트/역함수 모두 이 값에서 멈춘다. 웹 `HERO_LEVEL_CAP`.
+    static let heroLevelCap = 999
+    /// 스킬 포인트는 Lv31 부터 레벨당 1. 웹 `HERO_SP_LEVEL_FLOOR`.
+    static let heroSpLevelFloor = 30
+    /// gap(L) = A·L² + B·L + C. 웹 `HERO_XP_GAP_A/B/C`.
+    static let heroXpGapA = 1
+    static let heroXpGapB = 0
+    static let heroXpGapC = 120
+    /// 보스 처치 보너스 XP 계수. 웹 `BOSS_CLEAR_XP_PER_FLOOR`.
+    static let bossClearXpPerFloor = 20
+    /// 층 진입 XP 기본값. 웹 `FLOOR_XP_BASE`.
+    static let floorXpBase = 5
+
+    /// 레벨 입력 정규화 — [1, heroLevelCap]. 웹 `clampHeroLevel`.
+    private static func clampHeroLevel(_ level: Int) -> Int {
+        min(heroLevelCap, max(1, level))
+    }
+
+    /// Lv L → L+1 에 필요한 XP (gap). 입력은 [1, cap] 으로 접는다. 웹 `heroXpToNextLevel`.
+    static func heroXpToNextLevel(_ level: Int) -> Int {
+        let L = clampHeroLevel(level)
+        return heroXpGapA * L * L + heroXpGapB * L + heroXpGapC
+    }
+
+    /// Lv L 에 도달하는 데 필요한 누적 XP (닫힌 형식, 정수). Lv1 = 0. 웹 `heroTotalXPForLevel`.
+    static func heroTotalXPForLevel(_ level: Int) -> Int {
+        let n = clampHeroLevel(level) - 1
+        let sumSq = n * (n + 1) * (2 * n + 1) / 6
+        let sumLin = n * (n + 1) / 2
+        return heroXpGapA * sumSq + heroXpGapB * sumLin + heroXpGapC * n
+    }
+
+    /// 영웅 XP 풀 상한 = heroTotalXPForLevel(heroLevelCap) = 331,955,259. 웹 `HERO_XP_CAP`.
+    static let heroXpCap: Int = heroTotalXPForLevel(heroLevelCap)
+
+    /// XP 값 정규화 — 음수 → 0, 상한 heroXpCap. 웹 `clampHeroXp`.
+    static func clampHeroXp(_ xp: Int) -> Int {
+        min(heroXpCap, max(0, xp))
+    }
+
+    /// 누적 XP → 영웅 레벨 (역함수, 선형 스캔). heroLevelFromXP(total(L)) == L,
+    /// heroLevelFromXP(total(L) - 1) == L - 1. 상한에서 멈춘다. 웹 `heroLevelFromXP`.
+    static func heroLevelFromXP(_ totalXp: Int) -> Int {
+        let xp = clampHeroXp(totalXp)
+        var level = 1
+        while level < heroLevelCap, heroTotalXPForLevel(level + 1) <= xp {
+            level += 1
+        }
+        return level
+    }
+
+    /// 현재 레벨 안의 진행도 (XP 바 표시용). 웹 `getHeroXPProgress`.
+    static func heroXPProgress(totalXp: Int, level: Int) -> (current: Int, needed: Int) {
+        let xp = clampHeroXp(totalXp)
+        let L = clampHeroLevel(level)
+        return (max(0, xp - heroTotalXPForLevel(L)), heroXpToNextLevel(L))
+    }
+
+    /// 레벨이 누적으로 부여한 스킬 포인트 총량 = max(0, min(cap, L) - 30). 남은 SP 는
+    /// 여기서 learnedSkills 의 pointCost 합을 뺀 파생값이다 (UpHeroStore.deriveSkillPoints).
+    /// 별도 지급/차감 카운터는 없다. 웹 `skillPointsTotalForLevel`.
+    static func skillPointsTotalForLevel(_ level: Int) -> Int {
+        max(0, clampHeroLevel(level) - heroSpLevelFloor)
+    }
+
+    /// 보스 처치 보너스 XP = round(floor × 20 × ngMult) — victory 엔트리의 xp 에 합산
+    /// (xpMult 적용 전 값). 양수 Double 의 `.rounded()` 는 웹 Math.round 와 같다.
+    /// 웹 `bossClearXp`.
+    static func bossClearXp(floor: Int, ngPlusLevel: Int?) -> Int {
+        Int((Double(floor * bossClearXpPerFloor) * ngPlusScaleMult(ngPlusLevel)).rounded())
+    }
+
+    /// 층 진입 XP = round((5 + floor) × ngMult) — 층 전환 때 rewards.xp 에 더한다
+    /// (xpMult 적용 전 값). 웹 `floorXp`.
+    static func floorXp(floor: Int, ngPlusLevel: Int?) -> Int {
+        Int((Double(floorXpBase + floor) * ngPlusScaleMult(ngPlusLevel)).rounded())
+    }
+
+    /// 표시/판정용 영웅 레벨 단일 진입점 — heroXp 가 시드됐으면 곡선의 역함수, 아직이면
+    /// 레거시 공식으로 폴백한다 (시드 전 잠깐 동안에도 Lv47 영웅이 Lv1 로 깜빡이지 않게).
+    /// 웹 `resolveHeroLevel`.
+    static func resolveHeroLevel(heroXp: Int?, gameLevel: Int, heroStartLevel: Int?) -> Int {
+        guard let heroXp else {
+            return getEffectiveHeroLevel(gameLevel: gameLevel, heroStartLevel: heroStartLevel)
+        }
+        return heroLevelFromXP(heroXp)
     }
 
     // ── 영웅 생성 (비결정론) ──────────────────────────────────────
@@ -1290,9 +1733,29 @@ extension NarrativeValue: Decodable {
     }
 }
 
+/// Phase 4-D (Track D) — 효과 디코더의 "모르는 kind" 정책.
+///
+/// Flavor.json 은 웹 데이터에서 추출되므로 웹이 먼저 새 kind 를 실으면 오래된 iOS
+/// 빌드가 그 JSON 을 만날 수 있다. 예전엔 throw → `FlavorPool.loadData` 의 fatalError
+/// 로 앱이 죽었다. 이제는 `.nothing` 으로 관용 디코드하고, DEBUG 에서만 assertion 으로
+/// 개발자에게 알린다. 테스트는 `tolerateUnknownKinds` 를 켜 assertion 없이 관용
+/// 경로를 검증한다.
+enum ChoiceEffectDecoding {
+    static var tolerateUnknownKinds = false
+
+    static func unknownKind(_ kind: String, in type: String) {
+        #if DEBUG
+        if !tolerateUnknownKinds {
+            assertionFailure("\(type): unknown effect kind '\(kind)', decoded as .nothing")
+        }
+        #endif
+    }
+}
+
 extension SimpleChoiceEffect: Decodable {
     private enum K: String, CodingKey {
-        case kind, coins, xp, dropEquipmentId, amount, delta, count
+        case kind, coins, xp, dropEquipmentId, amount, delta, count,
+             stat, pct, floors, encounters
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
@@ -1307,10 +1770,23 @@ extension SimpleChoiceEffect: Decodable {
         case "time": self = .time(delta: try c.decode(Int.self, forKey: .delta))
         case "skipFloors": self = .skipFloors(count: try c.decode(Int.self, forKey: .count))
         case "revealBoss": self = .revealBoss
+        case "runBuff":
+            self = .runBuff(
+                stat: try c.decode(RunModStat.self, forKey: .stat),
+                pct: try c.decode(Int.self, forKey: .pct),
+                floors: try c.decodeIfPresent(Int.self, forKey: .floors))
+        case "runCurse":
+            self = .runCurse(
+                stat: try c.decode(RunModStat.self, forKey: .stat),
+                pct: try c.decode(Int.self, forKey: .pct),
+                floors: try c.decodeIfPresent(Int.self, forKey: .floors))
+        case "stealth": self = .stealth(encounters: try c.decode(Int.self, forKey: .encounters))
+        case "guaranteedDrop":
+            self = .guaranteedDrop(count: try c.decodeIfPresent(Int.self, forKey: .count))
         case "nothing": self = .nothing
         case let k:
-            throw DecodingError.dataCorruptedError(
-                forKey: K.kind, in: c, debugDescription: "SimpleChoiceEffect kind: \(k)")
+            ChoiceEffectDecoding.unknownKind(k, in: "SimpleChoiceEffect")
+            self = .nothing
         }
     }
 }
@@ -1318,7 +1794,8 @@ extension SimpleChoiceEffect: Decodable {
 extension ChoiceEffect: Decodable {
     private enum K: String, CodingKey {
         case kind, coins, xp, dropEquipmentId, amount, count, delta, successChance,
-             minigame, difficulty, successEffects, failEffects
+             minigame, difficulty, successEffects, failEffects,
+             stat, pct, floors, encounters
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
@@ -1332,6 +1809,19 @@ extension ChoiceEffect: Decodable {
         case "heal": self = .heal(amount: try c.decode(Int.self, forKey: .amount))
         case "skipFloors": self = .skipFloors(count: try c.decode(Int.self, forKey: .count))
         case "revealBoss": self = .revealBoss
+        case "runBuff":
+            self = .runBuff(
+                stat: try c.decode(RunModStat.self, forKey: .stat),
+                pct: try c.decode(Int.self, forKey: .pct),
+                floors: try c.decodeIfPresent(Int.self, forKey: .floors))
+        case "runCurse":
+            self = .runCurse(
+                stat: try c.decode(RunModStat.self, forKey: .stat),
+                pct: try c.decode(Int.self, forKey: .pct),
+                floors: try c.decodeIfPresent(Int.self, forKey: .floors))
+        case "stealth": self = .stealth(encounters: try c.decode(Int.self, forKey: .encounters))
+        case "guaranteedDrop":
+            self = .guaranteedDrop(count: try c.decodeIfPresent(Int.self, forKey: .count))
         case "nothing": self = .nothing
         case "time": self = .time(delta: try c.decode(Int.self, forKey: .delta))
         case "fight": self = .fight
@@ -1343,8 +1833,8 @@ extension ChoiceEffect: Decodable {
                 successEffects: try c.decode([SimpleChoiceEffect].self, forKey: .successEffects),
                 failEffects: try c.decode([SimpleChoiceEffect].self, forKey: .failEffects))
         case let k:
-            throw DecodingError.dataCorruptedError(
-                forKey: K.kind, in: c, debugDescription: "ChoiceEffect kind: \(k)")
+            ChoiceEffectDecoding.unknownKind(k, in: "ChoiceEffect")
+            self = .nothing
         }
     }
 }

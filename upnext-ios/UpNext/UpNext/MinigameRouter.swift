@@ -248,7 +248,7 @@ private struct ReactionTapGame: View {
                 statusText
                 signalLight
                 if phase == .success, let ms = reactionMs {
-                    Text("\(ms)ms — 성공!")
+                    Text("\(ms)ms: 성공!")
                         .typography(.body)
                         .foregroundStyle(Color.accentPrimary)
                 } else if phase == .fail {

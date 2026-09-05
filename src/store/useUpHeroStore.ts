@@ -3,7 +3,11 @@
  *
  * 영속 데이터 (localStorage "uphero"): hero, inventory, coins, passes, dungeons, codex, cosmetics.
  * currentSession 도 저장 (resume 용).
- * level/xp 는 useGameStore 가 source of truth — 여기선 진행 중 session 에만 snapshot.
+ *
+ * Phase 2-A (Track A) — 영웅 XP/레벨은 이 스토어의 `heroXp` 풀이 source of truth 다.
+ *   계정 XP(useGameStore.progress)와 완전히 분리됐다: 던전 정산과 방치 보상은
+ *   heroXp 에만 더하고, 챌린지 완료는 영웅에게 아무것도 주지 않는다.
+ *   스킬 포인트는 레벨에서 파생(`deriveSkillPoints`)하며 별도 지급 카운터가 없다.
  */
 
 import { create } from "zustand";
@@ -16,7 +20,10 @@ import {
   PASS_GRANT_BY_RARITY,
   PASS_CAP_PER_CATEGORY,
   SHOP_PRICES,
-  SELL_PRICE,
+  sellPrice,
+  INVENTORY_CAP,
+  NEXT_RARITY,
+  SYNTHESIS_INPUT_COUNT,
   MAX_ENHANCE_LEVEL,
   ENHANCE_GUARD_MAX,
   enhanceOutcomeRates,
@@ -26,6 +33,10 @@ import {
   WELCOME_GRANT_COINS,
   enhanceSuccessRate,
   enhanceCost,
+  applyEnhanceStatGrowth,
+  revertEnhanceStatGrowth,
+  stripEnhanceSuffix,
+  type EnhanceGuardSpend,
   getISOWeekId,
   computeWeeklyScore,
   type UpHeroState,
@@ -36,14 +47,19 @@ import {
   type EquipSlot,
   type CombatSession,
   type CardBuff,
-  type HeroBaseStats,
   type Monster,
+  type Hero,
   getEffectiveHeroLevel,
+  heroTotalXPForLevel,
+  heroLevelFromXP,
+  resolveHeroLevel,
+  skillPointsTotalForLevel,
+  clampHeroXp,
 } from "@/types/uphero";
 import { pickWeeklyAffix } from "@/data/weeklyAffixes";
 import type { Category } from "@/types/card";
 import type { Rarity } from "@/types/card";
-import { getLevelFromXP, DAILY_CARDMATCH_TICKET_CAP } from "@/types/game";
+import { DAILY_CARDMATCH_TICKET_CAP } from "@/types/game";
 import {
   createSession as buildSession,
   tickSession as stepSession,
@@ -65,7 +81,15 @@ import {
   calculateBossesDefeated,
   calculateCodexDelta,
   calculateDungeonProgress,
+  computeWeeklyClearReward,
+  resolveStartFloor,
+  splitDropsByCap,
 } from "@/lib/sessionReward";
+import {
+  repairCodexEquipment,
+  repairEquipmentList,
+  repairEquippedMap,
+} from "@/lib/upHeroMigrations";
 import { calculateIdleReward, detectClockRewind } from "@/lib/idleAccrual";
 import {
   classXpMult,
@@ -73,15 +97,19 @@ import {
   findLastEncounterIndex,
   computeMonsterHp,
   resolveMinigame as applyResolveMinigame,
+  normalizeSessionForLoad,
 } from "@/lib/upHeroCombat";
 import {
   findSkillById,
   canFireSkill,
   fireSkill,
+  getSkillLearnStatus,
   CLASS_SKILL_TREES,
   NOVICE_SKILLS,
 } from "@/lib/classSkills";
+import { computeTalismanSkillIds } from "@/lib/talismanSkills";
 import {
+  PHOTO_TALISMAN_MAX_ENHANCE_LEVEL,
   PHOTO_TALISMAN_RITUAL_COST,
   buildPhotoTalisman,
   findBoundPhotoTalisman,
@@ -94,7 +122,11 @@ import { useGrowthStore } from "./useGrowthStore";
 import { getCardBuff } from "@/data/cardBuffs";
 import { ALL_CARDS } from "@/data/cards";
 import { ALL_MONSTER_TEMPLATES } from "@/data/upHeroMonsters";
-import { findTemplateByLegacyId } from "@/data/upHeroEquipment";
+import {
+  findTemplateByLegacyId,
+  getEquipmentBaseName,
+  synthesizeEquipment,
+} from "@/data/upHeroEquipment";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
 import { useGameStore, getTodayString } from "./useGameStore";
 import { t } from "@/i18n";
@@ -110,8 +142,23 @@ import type { CloudUpHeroState } from "@/lib/sync";
  * v4: shopDaily seed — 상점 하루 탐험권 구매 cap.
  * v5: ngPlusLevel seed (0) + weeklyVariant 는 initialize 에서 이번 주 id 로 갱신.
  *     기존 유저도 F30 처음 처치 시점부터 NG+ 자연 해금.
+ * v6: (Phase 2-A, Track A) heroXp seed — 영웅 XP 풀을 계정 XP 에서 분리.
+ *     `heroXp === undefined` 이면 `heroTotalXPForLevel(레거시 영웅 Lv)` 로 시드
+ *     (Lv47 → 39,031). progress.level 을 읽을 수 없으면 미시드로 두고
+ *     `ensureHeroXp` 가 나중에 채운다 (0 으로 시드하는 경로 없음).
+ *     hero.skillPoints 는 레벨 파생값으로 재계산 (`reconcileSkillPoints`).
+ * v7: (Phase 6-E, Track E) 장비 수리 — iconName 을 템플릿의 pixelarticons 2.x 이름으로,
+ *     baseId 시드, dropFloor 역추정, 부적 slotBonus ≥ 1, codex.equipment 키 정규화,
+ *     overflowDrops 시드 []. 모두 멱등 (`upHeroMigrations.ts`) 이라 `_setFromCloud`
+ *     에서도 게이트 없이 다시 돈다.
+ *
+ * 마이그레이션 순서(공통 규칙): v1/v2 코덱스 → [E, <7] 장비 수리 →
+ *   [C] normalizeSessionForLoad → heroStartLevel seed → [A] heroXp seed →
+ *   shopDaily/weeklyVariant/dungeons 백필 → set → [A] reconcile → 안전망 → persist.
  */
-const CURRENT_SCHEMA_VERSION = 5;
+const CURRENT_SCHEMA_VERSION = 7;
+/** Track E 수리 단계 게이트 (v7). */
+const SCHEMA_V7_EQUIPMENT_REPAIR = 7;
 
 /**
  * Phase 4c-fix: Codex legacy ID → name migration.
@@ -210,6 +257,11 @@ function totalPassCount(passes: Partial<Record<DungeonId, number>>): number {
   return total;
 }
 
+/** Phase 6-E — synthesizeItems 결과. */
+export type SynthesisResult =
+  | { ok: true; item: Equipment }
+  | { ok: false; reason: "count" | "not-found" | "rarity" | "legend" | "photo" };
+
 interface UpHeroActions {
   initialize(): void;
 
@@ -297,16 +349,57 @@ interface UpHeroActions {
   toggleAutoSkill(): void;
   /** Phase 12a — 영웅 이름 변경 (최대 16자, 공백만 입력은 무시). */
   renameHero(name: string): void;
-  /** Phase 12d — 레벨업 시 스킬 포인트 부여. */
-  grantSkillPoints(amount: number): void;
+  /**
+   * Phase 2-A — 영웅 XP 풀 시드 보장. `heroXp` 가 아직 undefined 이고 progress.level
+   *   을 읽을 수 있으면 (useGameStore 로드됨 → 그 값, 아니면 localStorage "progress")
+   *   `heroTotalXPForLevel(레거시 영웅 Lv)` 로 시드하고 persist + 마일스톤 정리.
+   *   이미 시드됐거나 progress 를 못 읽으면 no-op. initialize 끝 / acknowledgeSessionEnd
+   *   맨 앞 / _setFromCloud 뒤(microtask) / UpHeroGame 효과에서 호출한다.
+   */
+  ensureHeroXp(): void;
+  /**
+   * Phase 2-A — 클라우드 heroXp 단조 병합: `heroXp = max(local ?? -1, cloud)`.
+   *   cloud 가 없거나 비유한이면 no-op (절대 지어내지 않는다). 흔적 게이트와 무관하게
+   *   SyncProvider.adoptCloudUpHero 가 매 스냅샷마다 호출한다.
+   *   hydrate 전(isLoaded=false)엔 in-memory 를 건드리지 않고 저장본 레코드에만
+   *   병합한다 — 기본값을 persist 해 로컬 흔적(코인·인벤·영웅)을 지우면 안 된다.
+   */
+  mergeCloudHeroXp(cloudHeroXp: number | undefined): void;
+  /**
+   * Phase 2-A — hero.skillPoints 를 파생값으로 재계산해 캐시한다
+   *   (`skillPointsTotalForLevel(영웅 Lv) - Σ pointCost(learnedSkills)`, 0 미만 없음).
+   *   값이 바뀔 때만 set + persist. 멱등.
+   */
+  reconcileSkillPoints(): void;
+  /**
+   * Phase 2-A — HeroLevelUpOverlay 닫힘. pendingHeroLevelUp 을 null 로 내리고,
+   *   그 레벨업이 Lv30 을 넘겼는데 아직 전직 전이면 여기서 전직을 제안한다
+   *   (오버레이 → ClassChoiceModal 순서 보장).
+   */
+  acknowledgeHeroLevelUp(): void;
   /**
    * Phase 14 — 전직 전 튜토리얼 novice 스킬 레벨별 자동 지급.
    *   currentLevel 기준으로 아직 learned 가 아닌 novice skill 중 requiredLevel
    *   충족 된 것들을 모두 learnedSkills 에 추가. idempotent (이미 있으면 skip).
    */
   grantNoviceSkills(currentLevel: number): void;
-  /** Phase 12d — 스킬 해금 (skill points 소모). */
-  learnSkill(skillId: string): "ok" | "no-points" | "already" | "not-found" | "level" | "class";
+  /**
+   * Phase 12d — 스킬 해금 (skill points 소모).
+   *   Phase 3-F — 판정은 getSkillLearnStatus 한 곳. "branch" = 같은 tier 형제를 이미
+   *   배움, "requires" = 선행 스킬 미충족.
+   */
+  learnSkill(
+    skillId: string,
+  ): "ok" | "no-points" | "already" | "not-found" | "level" | "class" | "branch" | "requires";
+  /**
+   * Phase 3-F — 스킬 초기화. SHOP_PRICES.skillRespec 코인을 내고 learnedSkills 를
+   *   [해당 class T1] 로 되돌린다. SP 는 pointCost 합에서 파생되므로 환급 산술이
+   *   없다 (reconcileSkillPoints 가 다시 계산). 진행 중 세션이 있으면 session.hero
+   *   스냅샷과 skillCooldowns 에서 사라진 스킬을 정리한다 (assignClass 패턴).
+   *   반환: ok | no-coins(코인 부족) | nothing(T2+ 배운 게 없음) | class(전직 전).
+   *   검사 순서: class → nothing → no-coins.
+   */
+  respecSkills(): "ok" | "no-coins" | "nothing" | "class";
   /** Phase 12d — 전투 중 수동 스킬 발동. 자원 + 쿨다운 체크 후 apply. */
   fireSkillManual(skillId: string): "ok" | "no-session" | "cooldown" | "resource" | "locked" | "no-monster" | "no-target";
   /** Phase 12e — 미니게임 결과 해소. success 에 따라 effects 적용 + status=active. */
@@ -357,8 +450,21 @@ interface UpHeroActions {
   unequipItem(slot: EquipSlot): void;
   /** 판매 — inventory 제거 + 등급별 코인 환급 */
   sellItem(itemId: string): number; // 환급 코인 반환
-  /** 버리기 — inventory 제거, 환급 없음 */
+  /** 버리기 — inventory 제거, 환급 없음 (액션바에서는 빠졌고 overflow 모달만 쓴다) */
   discardItem(itemId: string): void;
+  /**
+   * Phase 6-E (Track E, 피드백 22) — 합성. 가방의 같은 등급 3개(legend·사진 부적 제외)
+   *   를 다음 등급 1개로. 결과는 인벤토리 끝에 붙고 도감에 즉시 기록된다.
+   *   장착 중 아이템은 재료가 될 수 없다 (`not-found`).
+   */
+  synthesizeItems(ids: string[]): SynthesisResult;
+  /**
+   * Phase 6-E — 넘친 전리품 한 개 처리. "sell" 은 sellPrice 만큼 코인 지급 후 반환,
+   *   "discard" 는 0. 없는 id 는 0.
+   */
+  resolveOverflowItem(id: string, mode: "sell" | "discard"): number;
+  /** Phase 6-E — 넘친 전리품 모두 판매. 합계 코인 반환 후 목록을 비운다. */
+  sellAllOverflow(): number;
 
   // 갓생 코인 sink
   purchaseTicket(): boolean;
@@ -436,46 +542,77 @@ interface UpHeroActions {
 
   /**
    * Phase 11a — 장비 +N 강화 (기존 2→1 합성 대체).
-   * 단일 아이템 + 코인 → 확률적으로 enhanceLevel +1. 최대 +10.
+   * 단일 아이템 + 코인 → 확률적으로 enhanceLevel +1. 최대 +20 (사진 부적은 +10).
    * 실패 시 enhanceOutcomeRates(rarity, level) 로 소실 / 하락 / 유지 3분기.
    * 성공률 / 코인 비용 공식은 types/uphero.ts 의 enhanceSuccessRate / enhanceCost 참고.
    *
    * @param guards 이번 시도에 걸 방지권 (기본 둘 다 false).
-   *   **소모 계약**: 방지권은 그 결과가 **실제로 나서 막아낸 순간에만** 1장 소모된다.
-   *   성공했거나, 실패했지만 그냥 유지로 끝났으면 소모하지 않는다. 보유가 0 이면
-   *   true 를 넘겨도 무시된다 (조용히 진행 — UI 가 먼저 토글을 막는 게 정상 경로).
-   *   소실과 하락은 배타적이라 한 번의 시도에서 두 종류가 동시에 소모되는 일은 없다.
+   *   **소모 계약 (Phase 5-B, 시도당 소모)**: 걸린 방지권은 보유가 1 이상이고 그
+   *   결과(소실/하락)가 이 레벨에서 가능할 때 **시도 시작에 1장 소모된다**. 결과가
+   *   성공이든 유지든 소실이든 관계없이 나간다. 보유가 0 이거나 그 결과가 불가능한
+   *   레벨(소실 0 인 +10..+14, 안전 구간 0..2)이면 걸어도 소모되지 않고 막지도 않는다.
+   *   소실과 하락은 배타적이지만 둘을 같이 걸면 둘 다 나간다 (한 시도의 값).
    *
-   * UI 는 이 반환값 기반으로 Ritual overlay + Result modal 분기.
+   * UI 는 이 반환값 기반으로 Ritual overlay + Result modal 분기. 모든 시도 결과에
+   * `spent` 가 실려 결과 모달이 "무엇을 썼는지" 말한다.
    */
   enhanceItem(id: string, guards?: EnhanceGuardArm): EnhanceResult;
 }
 
-/** Phase 15 — 이번 강화 시도에 걸 방지권. UI 토글이 그대로 매핑된다. */
+/**
+ * Phase 15 → 5-B — 이번 강화 시도에 걸 방지권. UI 토글이 그대로 매핑된다.
+ * 걸면(보유 > 0, 그 결과가 가능한 레벨) 결과와 무관하게 이번 시도에서 1장 소모된다.
+ */
 export interface EnhanceGuardArm {
-  /** 소실방지권을 걸지 (보유 0 이면 무시) */
+  /** 소실방지권을 걸지 (보유 0 이거나 소실 0 인 레벨이면 무시) */
   destroy?: boolean;
-  /** 하락방지권을 걸지 (보유 0 이면 무시) */
+  /** 하락방지권을 걸지 (보유 0 이거나 하락 0 인 레벨이면 무시) */
   down?: boolean;
 }
 
-/** Phase 11a — 강화 결과 discriminated union. UI 는 이 타입 기반 분기. */
+/**
+ * Phase 11a — 강화 결과 discriminated union. UI 는 이 타입 기반 분기.
+ * Phase 5-B — 시도가 성립한 다섯 갈래는 모두 `spent`(이번 시도에 나간 방지권)를 싣는다.
+ */
 export type EnhanceResult =
-  | { ok: true; reason: "success"; newItem: Equipment; prevLevel: number }
-  /** 실패했지만 아무 일도 없었다. 방지권도 소모되지 않았다. */
-  | { ok: false; reason: "keep"; item: Equipment }
+  | {
+      ok: true;
+      reason: "success";
+      newItem: Equipment;
+      prevLevel: number;
+      spent: EnhanceGuardSpend;
+    }
+  /** 실패했지만 아무 일도 없었다. 걸어둔 방지권은 그래도 나갔다 (spent 참고). */
+  | { ok: false; reason: "keep"; item: Equipment; spent: EnhanceGuardSpend }
   /**
    * 실패로 강화 단계가 1 내려갔다. prevLevel 은 내려가기 **전** 레벨이라
    * UI 가 "+7 → +6" 을 그릴 수 있다. item 은 내려간 뒤의 아이템이다.
    */
-  | { ok: false; reason: "down"; item: Equipment; prevLevel: number }
+  | {
+      ok: false;
+      reason: "down";
+      item: Equipment;
+      prevLevel: number;
+      spent: EnhanceGuardSpend;
+    }
   /**
    * 방지권이 결과를 막아냈다. guard 가 무엇을 막았는지 말해준다 —
-   * "소실될 뻔했다" 와 "하락할 뻔했다" 는 연출이 달라야 한다.
-   * 이 분기에서만 해당 방지권이 1장 소모된다.
+   * "소실될 뻔했다" 와 "하락할 뻔했다" 는 연출이 달라야 한다. 아이템은 같은 레벨.
    */
-  | { ok: false; reason: "guarded"; item: Equipment; guard: "destroy" | "down" }
-  | { ok: false; reason: "destroyed"; lostItemName: string; lostBaseId?: string }
+  | {
+      ok: false;
+      reason: "guarded";
+      item: Equipment;
+      guard: "destroy" | "down";
+      spent: EnhanceGuardSpend;
+    }
+  | {
+      ok: false;
+      reason: "destroyed";
+      lostItemName: string;
+      lostBaseId?: string;
+      spent: EnhanceGuardSpend;
+    }
   | { ok: false; reason: "coin"; cost: number }
   | { ok: false; reason: "maxed" }
   | { ok: false; reason: "not-found" };
@@ -531,6 +668,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
   const {
     hero,
     inventory,
+    overflowDrops,
     coins,
     passes,
     dungeons,
@@ -540,6 +678,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     lastIdleAccrualAt,
     lastSeenAt,
     heroStartLevel,
+    heroXp,
     shopDaily,
     ngPlusLevel,
     weeklyVariant,
@@ -562,6 +701,8 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
   return {
     hero,
     inventory,
+    // Phase 6-E — 넘친 전리품 (레거시 저장본은 undefined → initialize 가 [] 로).
+    overflowDrops,
     coins,
     passes,
     dungeons,
@@ -571,6 +712,7 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     lastIdleAccrualAt,
     lastSeenAt,
     heroStartLevel,
+    heroXp,
     shopDaily,
     ngPlusLevel,
     weeklyVariant,
@@ -582,6 +724,69 @@ export function pickPersisted(s: UpHeroState): Partial<UpHeroState> {
     combatBuff,
     slotBlankStreak,
   };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Phase 2-A (Track A) — 영웅 XP 풀 / 스킬 포인트 파생 순수 헬퍼 (테스트용 export)
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/** 저장본/클라우드의 heroXp 를 읽는다 — 숫자가 아니면 undefined(미시드), 숫자면 clamp. */
+export function normalizeHeroXp(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) ? clampHeroXp(v) : undefined;
+}
+
+/** learnedSkills 가 소모한 스킬 포인트 합 (findSkillById 로 해석되는 것만; novice/T1 은 0). */
+export function spentSkillPoints(hero: Pick<Hero, "learnedSkills">): number {
+  let spent = 0;
+  for (const id of hero.learnedSkills ?? []) {
+    spent += findSkillById(id)?.pointCost ?? 0;
+  }
+  return spent;
+}
+
+/** 남은 스킬 포인트 = max(0, 레벨 누적 SP - 소모 SP). 별도 카운터 없이 항상 재계산. */
+export function deriveSkillPoints(
+  hero: Pick<Hero, "learnedSkills">,
+  level: number,
+): number {
+  return Math.max(0, skillPointsTotalForLevel(level) - spentSkillPoints(hero));
+}
+
+/** 정산: 풀에 XP 를 더하고 (상한 clamp) 전후 레벨을 돌려준다. */
+export function settleHeroXp(
+  prevXp: number,
+  gain: number,
+): { heroXp: number; prevLevel: number; newLevel: number } {
+  const before = clampHeroXp(prevXp);
+  const safeGain = Number.isFinite(gain) ? Math.max(0, Math.floor(gain)) : 0;
+  const heroXp = clampHeroXp(before + safeGain);
+  return {
+    heroXp,
+    prevLevel: heroLevelFromXP(before),
+    newLevel: heroLevelFromXP(heroXp),
+  };
+}
+
+/**
+ * 시드에 쓸 계정 레벨. useGameStore 가 로드됐으면 그 값, 아니면 localStorage 의
+ * "progress" (useGameStore.initialize 가 읽을 바로 그 저장본). 둘 다 없으면 undefined
+ * — 그 기기는 진행이 전무하므로 시드를 미룬다 (0 으로 시드하지 않는다).
+ */
+function readSeedGameLevel(): number | undefined {
+  const gs = useGameStore.getState();
+  if (gs.isLoaded) return gs.progress.level ?? 1;
+  const saved = loadFromStorage<{ level?: number }>("progress");
+  const level = saved?.level;
+  return typeof level === "number" && Number.isFinite(level) ? level : undefined;
+}
+
+/** 스토어 상태 기준 영웅 레벨 — 시드 전엔 레거시 공식 폴백 (resolveHeroLevel). */
+function heroLevelOf(
+  state: Pick<UpHeroState, "heroXp" | "heroStartLevel">,
+): number {
+  if (state.heroXp !== undefined) return heroLevelFromXP(state.heroXp);
+  const gameLevel = readSeedGameLevel() ?? 1;
+  return resolveHeroLevel(undefined, gameLevel, state.heroStartLevel);
 }
 
 /**
@@ -628,9 +833,33 @@ export function slotSpinsLeft(shopDaily: UpHeroState["shopDaily"]): number {
   return Math.max(0, SLOT_DAILY_SPIN_CAP - slotSpinsToday(shopDaily));
 }
 
-export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
+export const useUpHeroStore = create<UpHeroStore>((set, get) => {
+  /**
+   * Phase 2-A — 영웅 레벨 마일스톤 단일 진입점 (정산 / 방치 / 시드 / 병합 뒤).
+   *   - reconcileSkillPoints + grantNoviceSkills(new) 는 **무조건** (prev == new 여도;
+   *     첫 부트스트랩의 Lv1 novice 지급과 소급 지급이 여기 걸려 있다).
+   *   - new > prev 면 pendingHeroLevelUp 세팅 → HeroLevelUpOverlay.
+   *   - Lv30 이상인데 전직 전이면 전직 제안. 단 이번 호출이 30 을 **넘긴** 레벨업이면
+   *     오버레이가 닫힌 뒤(acknowledgeHeroLevelUp)로 미룬다 — 오버레이와 ClassChoiceModal
+   *     이 동시에 뜨지 않게.
+   */
+  const applyHeroLevelMilestones = (prevLevel: number, newLevel: number): void => {
+    get().reconcileSkillPoints();
+    get().grantNoviceSkills(newLevel);
+    const leveledUp = newLevel > prevLevel;
+    if (leveledUp) {
+      set({ pendingHeroLevelUp: { from: prevLevel, to: newLevel } });
+    }
+    const crossed30 = leveledUp && prevLevel < 30 && newLevel >= 30;
+    if (newLevel >= 30 && get().hero.classType === null && !crossed30) {
+      get().proposeClassChoice();
+    }
+  };
+
+  return {
   hero: createDefaultHero(),
   inventory: [],
+  overflowDrops: [],
   coins: 0,
   passes: {},
   dungeons: {},
@@ -642,6 +871,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   lastSeenAt: Date.now(),
   // Phase 9d — 초기값 undefined. initialize 에서 seed.
   heroStartLevel: undefined,
+  // Phase 2-A — 영웅 XP 풀. undefined = 미시드. initialize/ensureHeroXp 에서 seed.
+  heroXp: undefined,
+  pendingHeroLevelUp: null,
   // Phase 11a — 초기값 undefined. initialize 에서 오늘 날짜로 seed.
   shopDaily: undefined,
   // Phase 11c — 초기 0 (미해금). F30 보스 처치 시 +1.
@@ -679,7 +911,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       useGameStore.getState().progress.language ??
       "en";
     const defaults = createDefaultHero(langForDefault);
-    const mergedHero = saved?.hero
+    const mergedHeroRaw = saved?.hero
       ? {
           ...defaults,
           ...saved.hero,
@@ -693,6 +925,18 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const savedVersion = saved?.schemaVersion ?? 0;
     const needsMigration = savedVersion < CURRENT_SCHEMA_VERSION;
     const rawCodex = saved?.codex ?? { monsters: [], equipment: [], bosses: [] };
+    // Phase 6-E (Track E, v7) — 장비 수리 (공통 규칙 2단계, v1/v2 코덱스 뒤·C 앞).
+    //   iconName/baseId/dropFloor/부적 slotBonus. 멱등이라 재실행에도 안전하다.
+    const repairEquipment = savedVersion < SCHEMA_V7_EQUIPMENT_REPAIR;
+    const mergedHero = repairEquipment
+      ? { ...mergedHeroRaw, equipped: repairEquippedMap(mergedHeroRaw.equipped) }
+      : mergedHeroRaw;
+    const inventory = repairEquipment
+      ? repairEquipmentList(saved?.inventory ?? [])
+      : (saved?.inventory ?? []);
+    const overflowDrops = repairEquipment
+      ? repairEquipmentList(saved?.overflowDrops ?? [])
+      : (saved?.overflowDrops ?? []);
 
     const monsters =
       savedVersion < 1
@@ -702,10 +946,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       savedVersion < 1
         ? migrateCodexMonsters(rawCodex.bosses ?? [])
         : (rawCodex.bosses ?? []);
-    const equipment =
+    const equipmentV2 =
       savedVersion < 2
         ? migrateCodexEquipment(rawCodex.equipment ?? [])
         : (rawCodex.equipment ?? []);
+    // v7 — 접두/강화/affix 가 붙은 도감 키를 템플릿 baseName 으로 (피드백 18).
+    const equipment = repairEquipment ? repairCodexEquipment(equipmentV2) : equipmentV2;
     const codex = { monsters, bosses, equipment };
 
     // Phase 5b.1 — idle accrual: 마지막 실행 이후 경과 시간 ≥5분이면 보상.
@@ -722,6 +968,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const clockRewound = detectClockRewind(now, saved?.lastSeenAt, lastIdleAt);
     const gameStore = useGameStore.getState();
     const curLevel = gameStore.progress.level ?? 1;
+    // Phase 2-A — 시드에 쓸 계정 레벨 한 곳. useGameStore 가 로드됐으면 그 값, 아니면
+    //   localStorage "progress" (initialize 가 곧 읽을 바로 그 저장본). 둘 다 없으면
+    //   undefined. heroStartLevel 시드와 heroXp 시드가 같은 값을 봐야 한다 — 로드 전
+    //   기본값(level 0)으로 heroStartLevel 을 굳히면 Lv47 계정의 첫 영웅이 Lv48 로 뜬다.
+    const seedGameLevel = gameStore.isLoaded ? curLevel : readSeedGameLevel();
 
     // Phase 9d — heroStartLevel seed / migration.
     //   - saved 에 이미 heroStartLevel 있으면 그대로 사용 (반복 초기화 포함).
@@ -750,16 +1001,35 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         hasPassesRecord ||
         (saved?.coins ?? 0) > 0 ||
         Object.keys(saved?.cosmetics ?? {}).length > 0;
-      heroStartLevel = hasPlayedUpHero ? 1 : curLevel;
+      heroStartLevel = hasPlayedUpHero ? 1 : (seedGameLevel ?? curLevel);
     }
-    // 영웅 레벨 — 이후 로직 (idle 스케일 등) 에서 사용
-    const heroLevel = Math.max(1, curLevel - heroStartLevel + 1);
+
+    // Phase 2-A (Track A, v6) — heroXp seed. 저장본에 있으면 clamp 해서 그대로,
+    //   없으면(레거시 v5 이하) 레거시 영웅 Lv 를 곡선으로 옮긴다: Lv47 → 39,031.
+    //   progress.level 소스는 useGameStore 가 로드됐으면 그 값, 아니면 localStorage
+    //   "progress". 둘 다 없으면 미시드로 두고 ensureHeroXp 가 나중에 채운다 —
+    //   0 으로 시드하면 Lv47 영웅이 Lv1 로 주저앉으므로 절대 하지 않는다.
+    let heroXp = normalizeHeroXp(saved?.heroXp);
+    if (heroXp === undefined && seedGameLevel !== undefined) {
+      heroXp = heroTotalXPForLevel(
+        getEffectiveHeroLevel(seedGameLevel, heroStartLevel),
+      );
+    }
+    // 영웅 레벨 — 이후 로직 (idle 스케일 등) 에서 사용. 시드 전엔 레거시 공식 폴백.
+    const heroLevel = resolveHeroLevel(
+      heroXp,
+      seedGameLevel ?? curLevel,
+      heroStartLevel,
+    );
 
     // idle accrual 도 heroLevel 기준으로 — 챌린지 Lv 41 에 영웅 Lv 1 유저가
     // Lv 41 수준의 idle reward 를 받으면 "영웅 Lv 1 인데 거대 보상" 이 부자연.
-    const rawIdleReward = clockRewound
-      ? null
-      : calculateIdleReward(now - lastIdleAt, heroLevel);
+    // Phase 2-A — 방치 XP 는 영웅 XP 풀로 간다. 풀이 아직 미시드면 이번 hydrate 에선
+    //   지급하지 않고 lastIdleAccrualAt 도 건드리지 않는다 (다음 시드된 init 에 누적).
+    const rawIdleReward =
+      clockRewound || heroXp === undefined
+        ? null
+        : calculateIdleReward(now - lastIdleAt, heroLevel);
     const heroClass = mergedHero.classType;
     const idleReward = rawIdleReward
       ? {
@@ -769,23 +1039,18 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         }
       : null;
 
-    // 지급 — useGameStore.xp 증가 + coins 증가 (Up Hero store).
-    // Phase 9d-fix — xp 만 더하고 level 을 재계산 안 하면 Header / BottomNav 가
-    //   stale level 을 표시한다. getLevelFromXP 로 즉시 재계산 + Header 의 레벨업
-    //   애니메이션 trigger 도 작동.
+    // 지급 — heroXp 증가 + coins 증가 (둘 다 Up Hero store). 계정 XP 는 불변.
     let coins = saved?.coins ?? 0;
-    if (idleReward) {
-      const newXp = (gameStore.progress.xp ?? 0) + idleReward.xp;
-      const newLevel = getLevelFromXP(newXp);
-      const newProgress = {
-        ...gameStore.progress,
-        xp: newXp,
-        level: newLevel,
-      };
-      useGameStore.setState({ progress: newProgress });
-      saveToStorage("progress", newProgress);
+    const heroLevelBeforeIdle = heroLevel;
+    if (idleReward && heroXp !== undefined) {
+      heroXp = clampHeroXp(heroXp + idleReward.xp);
       coins = coins + idleReward.coins;
     }
+    const heroLevelAfterIdle = resolveHeroLevel(
+      heroXp,
+      seedGameLevel ?? curLevel,
+      heroStartLevel,
+    );
 
     // Phase 5c-fix #2: lastIdleAccrualAt 는 reward 가 실제로 지급됐을 때만
     // now 로 갱신. 5분 미만 reload 시에는 기존 timestamp 유지 → 누적 보전.
@@ -826,17 +1091,24 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
 
     set({
       hero: mergedHero,
-      inventory: saved?.inventory ?? [],
+      inventory,
+      overflowDrops,
       coins,
       passes: saved?.passes ?? {},
       dungeons: dungeonsBackfilled,
-      currentSession: saved?.currentSession ?? null,
+      // Phase 16 (Track C) — 고아 pendingMinigame / 깨진 대기 상태를 로드 시 교정
+      //   (순수, 멱등, 스키마 버전 게이트 없음). 공통 규칙 3단계.
+      currentSession: saved?.currentSession
+        ? normalizeSessionForLoad(saved.currentSession)
+        : null,
       pendingDungeon: null, // transient, 재시작 시 항상 null
       codex,
       cosmetics: saved?.cosmetics ?? {},
       lastIdleAccrualAt: newLastIdleAt,
       lastSeenAt: now,
       heroStartLevel,
+      heroXp,
+      pendingHeroLevelUp: null, // transient
       shopDaily,
       ngPlusLevel: saved?.ngPlusLevel ?? 0,
       // Phase 15 — 필드가 없는 기존 저장본은 0 (미보유). 음수·소수·상한 초과 저장본도
@@ -873,21 +1145,80 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       saveToStorage(STORAGE_KEY, pickPersisted(get()));
     }
 
-    // Phase 5c.1 safety — 이미 Lv30+ 인데 classType 이 null 인 영웅
-    // (이 기능 출시 전 Lv30 도달한 유저) 은 여기서 분화 제안 시도.
-    // Bug 2026-04 — assignClass (자동) → proposeClassChoice (선택 UI) 로 교체.
-    //   init 직후 ClassChoiceModal 이 자동으로 열림. 아직 proposal 없을 때만.
-    // Phase 9d — 챌린지 레벨이 아닌 영웅 레벨 기준 (heroLevel >= 30).
-    //   신규 영웅 유저는 heroStartLevel 부터 30 단계 성장해야 class 분화.
-    if (heroLevel >= 30 && mergedHero.classType === null) {
+    // Phase 2-A — 마일스톤 정리 (공통 규칙 8단계):
+    //   reconcileSkillPoints (SP 파생 캐시 재계산) → 기존 class-choice 안전망
+    //   (Lv30+ 인데 classType null → 전직 제안; 이 hydrate 의 방치 XP 로 30 을
+    //   넘겼으면 오버레이 뒤로 미룸) → grantNoviceSkills(heroLevel) 소급 지급.
+    //   전부 applyHeroLevelMilestones 한 곳에서. 방치 XP 로 레벨이 올랐으면
+    //   pendingHeroLevelUp 도 여기서 예약된다 (IdleRewardToast 닫힌 뒤 표시).
+    applyHeroLevelMilestones(heroLevelBeforeIdle, heroLevelAfterIdle);
+
+    // 공통 규칙: initialize 끝에서 한 번 더 — 위에서 progress 를 못 읽어 미시드로
+    //   남았어도 여기서 읽을 수 있게 됐다면 즉시 채운다 (멱등).
+    get().ensureHeroXp();
+  },
+
+  ensureHeroXp() {
+    const state = get();
+    if (state.heroXp !== undefined) return;
+    const seedGameLevel = readSeedGameLevel();
+    if (seedGameLevel === undefined) return;
+    // 클라우드 값이 있었다면 mergeCloudHeroXp / _setFromCloud 가 이미 heroXp 를
+    //   채웠으므로 여기까지 오지 않는다 — 레거시 공식은 마지막 폴백이다.
+    const level = getEffectiveHeroLevel(seedGameLevel, state.heroStartLevel);
+    const heroXp = heroTotalXPForLevel(level);
+    set({ heroXp });
+    saveToStorage(STORAGE_KEY, pickPersisted(get()));
+    applyHeroLevelMilestones(level, level);
+  },
+
+  mergeCloudHeroXp(cloudHeroXp) {
+    const cloud = normalizeHeroXp(cloudHeroXp);
+    if (cloud === undefined) return;
+    const state = get();
+    if (!state.isLoaded) {
+      // 아직 hydrate 전 (아지트를 안 거친 라우트에서 로그인/리스너 스냅샷이 먼저 온
+      //   경우: /settings, /collection, /minigame). 이때 in-memory 는 기본값이라
+      //   pickPersisted(get()) 로 persist 하면 저장본의 코인·인벤·영웅이 기본값으로
+      //   덮여 흔적이 사라지고, 바로 뒤의 adoptCloudUpHero 흔적 게이트가 뚫려
+      //   "로컬 흔적 우선" 계약이 깨진다. 저장본 레코드에만 heroXp 를 병합한다 —
+      //   heroXp 단독 레코드는 흔적이 아니므로 게이트는 그대로고, initialize 가
+      //   normalizeHeroXp(saved?.heroXp) 로 읽어 간다. 마일스톤 정리도 initialize 몫.
+      const saved = loadFromStorage<Record<string, unknown>>(STORAGE_KEY);
+      const localSaved = normalizeHeroXp(saved?.heroXp) ?? -1;
+      if (cloud <= localSaved) return;
+      saveToStorage(STORAGE_KEY, { ...(saved ?? {}), heroXp: cloud });
+      return;
+    }
+    const local = state.heroXp ?? -1;
+    if (cloud <= local) return;
+    set({ heroXp: cloud });
+    saveToStorage(STORAGE_KEY, pickPersisted(get()));
+    // 레벨이 바뀌었을 수 있다 — SP 캐시/novice/전직 안전망만 정리한다. 다른 기기가
+    //   이미 본 레벨업이라 오버레이는 띄우지 않는다 (prev == new 로 호출).
+    const level = heroLevelFromXP(cloud);
+    applyHeroLevelMilestones(level, level);
+  },
+
+  reconcileSkillPoints() {
+    const state = get();
+    const derived = deriveSkillPoints(state.hero, heroLevelOf(state));
+    if (state.hero.skillPoints === derived) return;
+    const newHero = { ...state.hero, skillPoints: derived };
+    set({ hero: newHero });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+  },
+
+  acknowledgeHeroLevelUp() {
+    const state = get();
+    const pending = state.pendingHeroLevelUp;
+    if (!pending) return;
+    set({ pendingHeroLevelUp: null });
+    // 이번 레벨업이 Lv30 을 넘겼고 아직 전직 전이면 이제 전직을 제안한다
+    //   (applyHeroLevelMilestones 가 오버레이 뒤로 미뤄둔 몫).
+    if (pending.from < 30 && pending.to >= 30 && state.hero.classType === null) {
       get().proposeClassChoice();
     }
-
-    // Phase 14 retroactive — 업데이트 전부터 Lv5+/Lv15+ 도달했던 영웅에게
-    //   novice 스킬을 소급 지급. grantNoviceSkills 는 idempotent 라 매 init
-    //   마다 호출해도 중복 추가되지 않는다. (levelUp 훅에서만 지급하던 기존
-    //   구현으로는 "이미 Lv20 인 유저가 Lv21 될 때까지 스킬이 안 생김" 회귀)
-    get().grantNoviceSkills(heroLevel);
   },
 
   acknowledgeIdleReward() {
@@ -1006,18 +1337,6 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   },
 
   /**
-   * Phase 12d — 스킬 포인트 부여 (레벨업 훅 용). 음수/0 은 무시.
-   */
-  grantSkillPoints(amount: number) {
-    if (amount <= 0) return;
-    const state = get();
-    const cur = state.hero.skillPoints ?? 0;
-    const newHero = { ...state.hero, skillPoints: cur + amount };
-    set({ hero: newHero });
-    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
-  },
-
-  /**
    * Phase 14 — 전직 전 영웅용 novice 스킬 자동 지급.
    *   레벨업 hook 에서 매번 호출. 이미 learned 인 skill 은 skip → idempotent.
    */
@@ -1106,10 +1425,11 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   /**
    * Phase 12d — 스킬트리 해금.
    *   - 해당 skill 이 hero.classType 와 일치해야 함
-   *   - hero level ≥ skill.requiredLevel
-   *   - hero.skillPoints ≥ skill.pointCost
+   *   - hero level ≥ skill.requiredLevel (Phase 2-A: heroXp 풀 기준)
+   *   - 남은 SP(파생) ≥ skill.pointCost
    *   - 아직 learned 에 없어야 함
-   *   성공 시 learnedSkills 에 추가 + skillPoints 차감.
+   *   성공 시 learnedSkills 에 추가. SP 는 pointCost 합에서 다시 파생돼 캐시된다 —
+   *   pointCost 가 유일한 소비 경로다 (Track F 의 리스펙은 learnedSkills 리셋만으로 복원).
    */
   learnSkill(skillId) {
     const state = get();
@@ -1117,23 +1437,73 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     if (!cls) return "class";
     const skill = findSkillById(skillId);
     if (!skill) return "not-found";
-    if (skill.class !== cls) return "class";
-    const heroLevel = getEffectiveHeroLevel(
-      useGameStore.getState().progress.level,
-      state.heroStartLevel,
-    );
-    if (heroLevel < skill.requiredLevel) return "level";
+    const heroLevel = heroLevelOf(state);
     const learned = state.hero.learnedSkills ?? [];
-    if (learned.includes(skillId)) return "already";
-    const points = state.hero.skillPoints ?? 0;
-    if (points < skill.pointCost) return "no-points";
+    const points = deriveSkillPoints(state.hero, heroLevel);
+    const status = getSkillLearnStatus(skill, {
+      classType: cls,
+      heroLevel,
+      learned,
+      points,
+    });
+    if (status === "learned") return "already";
+    if (status === "points") return "no-points";
+    if (status !== "ok") return status;
+    const learnedSkills = [...learned, skillId];
     const newHero = {
       ...state.hero,
-      learnedSkills: [...learned, skillId],
-      skillPoints: points - skill.pointCost,
+      learnedSkills,
+      skillPoints: deriveSkillPoints({ learnedSkills }, heroLevel),
     };
     set({ hero: newHero });
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, hero: newHero }));
+    return "ok";
+  },
+
+  respecSkills() {
+    const state = get();
+    const cls = state.hero.classType;
+    if (!cls) return "class";
+    const learned = state.hero.learnedSkills ?? [];
+    const removed = learned.filter((id) => {
+      const sk = findSkillById(id);
+      return !!sk && sk.class === cls && sk.tier >= 2;
+    });
+    if (removed.length === 0) return "nothing";
+    const cost = SHOP_PRICES.skillRespec;
+    if (state.coins < cost) return "no-coins";
+    const t1 = CLASS_SKILL_TREES[cls].find((s) => s.tier === 1);
+    const learnedSkills = t1 ? [t1.id] : [];
+    const heroLevel = heroLevelOf(state);
+    const newHero = {
+      ...state.hero,
+      learnedSkills,
+      // 환급 산술 없음 — SP 는 pointCost 합에서 다시 파생된다.
+      skillPoints: deriveSkillPoints({ learnedSkills }, heroLevel),
+    };
+    const newCoins = state.coins - cost;
+    // assignClass 와 같은 세션 미러: hero 스냅샷 + 사라진 스킬의 쿨다운 정리.
+    const prevSession = state.currentSession;
+    let newSession = prevSession;
+    if (prevSession) {
+      const cds = { ...(prevSession.skillCooldowns ?? {}) };
+      for (const id of removed) delete cds[id];
+      newSession = {
+        ...prevSession,
+        hero: { ...prevSession.hero, learnedSkills: [...learnedSkills] },
+        skillCooldowns: cds,
+      };
+    }
+    set({ hero: newHero, coins: newCoins, currentSession: newSession });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({
+        ...state,
+        hero: newHero,
+        coins: newCoins,
+        currentSession: newSession,
+      }),
+    );
     return "ok";
   },
 
@@ -1202,6 +1572,14 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     if (isPhotoBound(photoId, state.inventory, state.hero.equipped)) {
       return { ok: false, errorKey: "uphero.photo.error.alreadyBound" };
     }
+    // Phase 6-E — 가방이 가득 차면 의식을 거절한다 (정산 외 유일한 신규 획득 경로).
+    if (state.inventory.length >= INVENTORY_CAP) {
+      return {
+        ok: false,
+        errorKey: "uphero.equip.toast.bagFull",
+        errorParams: { cap: INVENTORY_CAP } as Record<string, string | number>,
+      };
+    }
     if (state.coins < PHOTO_TALISMAN_RITUAL_COST) {
       return {
         ok: false,
@@ -1238,7 +1616,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     }
     const current = found.item;
     const curLevel = current.enhanceLevel ?? 0;
-    if (curLevel >= MAX_ENHANCE_LEVEL) {
+    // Phase 5-B — 사진 부적 상한은 10 으로 고정 (일반 장비 20 과 별개).
+    if (curLevel >= PHOTO_TALISMAN_MAX_ENHANCE_LEVEL) {
       return { ok: false, reason: "maxed", errorKey: "uphero.photo.error.maxEnhance" };
     }
 
@@ -1354,11 +1733,12 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     // stat / affinity / healStart / critBonus 를 반영한다. 따라서 buffs 는
     // 반드시 네 번째 인자로 넘겨줘야 실제 전투에 효과가 적용된다.
     // Phase 5a.1: level 에 따라 base stat 이 자동 성장한 hero 를 전달.
-    // Phase 9d: 챌린지 레벨이 아닌 영웅 레벨 (gameLevel - heroStartLevel + 1) 사용.
+    // Phase 2-A: 영웅 레벨은 heroXp 풀에서 (시드 전엔 레거시 공식 폴백).
     const progress = state.dungeons[dungeonId];
-    const startFloor = (progress?.floorReached ?? 0) + 1;
-    const gameLevel = useGameStore.getState().progress.level ?? 1;
-    const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
+    // Phase 16 (Track C, 피드백 19/26) — 미처치 보스층이 floorReached 이하에
+    //   있으면 거기서 시작 (createSession 이 보스를 바로 스폰).
+    const startFloor = resolveStartFloor(progress);
+    const heroLvl = heroLevelOf(state);
     const leveledHero = computeHeroForLevel(state.hero, heroLvl);
     const session: CombatSession = buildSession(
       dungeonId,
@@ -1395,10 +1775,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const updatedPasses = consumeAnyPass(state.passes, dungeonId);
     if (updatedPasses === null) return false;
     const progress = state.dungeons[dungeonId];
-    const startFloor = (progress?.floorReached ?? 0) + 1;
-    // Phase 5a.1: level 기반 성장 반영. Phase 9d: 영웅 레벨 사용.
-    const gameLevel = useGameStore.getState().progress.level ?? 1;
-    const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
+    const startFloor = resolveStartFloor(progress);
+    // Phase 5a.1: level 기반 성장 반영. Phase 2-A: heroXp 풀 기준 영웅 레벨.
+    const heroLvl = heroLevelOf(state);
     const leveledHero = computeHeroForLevel(state.hero, heroLvl);
     const session = buildSession(dungeonId, leveledHero, startFloor, undefined, {
       ngPlusLevel: state.ngPlusLevel ?? 0,
@@ -1429,8 +1808,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       );
     if (!f30EverCleared) return "not-unlocked";
 
-    const gameLevel = useGameStore.getState().progress.level ?? 1;
-    const heroLvl = Math.max(1, gameLevel - (state.heroStartLevel ?? 1) + 1);
+    // Phase 2-A: heroXp 풀 기준 영웅 레벨.
+    const heroLvl = heroLevelOf(state);
     const leveledHero = computeHeroForLevel(state.hero, heroLvl);
 
     // 주간 던전은 F30 고정 시작 (짧은 도전 run). ngPlusLevel 은 영향 X —
@@ -1541,6 +1920,10 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
   },
 
   acknowledgeSessionEnd() {
+    // Phase 2-A — 정산 전에 풀 시드를 보장한다 (공통 규칙: "acknowledgeSessionEnd 맨 앞").
+    //   여기서도 시드하지 못하면(progress 가 어디에도 없음) 이번 정산은 heroXp 를
+    //   쓰지 않는다 — undefined 를 0 + gain 으로 굳히면 레거시 레벨을 영영 잃는다.
+    get().ensureHeroXp();
     const state = get();
     const session = state.currentSession;
     if (!session || session.status !== "completed") return;
@@ -1580,27 +1963,30 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     };
 
     // 4. codex (monster/boss/equipment 발견 기록)
-    const codex = calculateCodexDelta(session.log, state.codex);
+    //    Phase 6-E — rewards.drops 도 합집합 (로그 trim 으로 초반 드롭이 빠지지 않게).
+    const codex = calculateCodexDelta(session.log, state.codex, session.rewards.drops);
 
-    // 5. 외부 store (useGameStore) 로 XP 반영 — cross-store 는 여기 남김.
-    //    Phase 9d-fix — xp 누적 후 getLevelFromXP 로 level 도 재계산.
-    //    누락되면 Header 가 stale level 을 유지하고 영웅 레벨 (= gameLevel -
-    //    heroStartLevel + 1) 이 밀림.
-    const gameStore = useGameStore.getState();
-    const newXp = gameStore.progress.xp + session.rewards.xp;
-    const newLevel = getLevelFromXP(newXp);
-    const newProgress = {
-      ...gameStore.progress,
-      xp: newXp,
-      level: newLevel,
-    };
-    useGameStore.setState({ progress: newProgress });
-    saveToStorage("progress", newProgress);
+    // 5. Phase 2-A (Track A) — 세션 XP 를 **영웅 XP 풀** 에 정산한다. 계정
+    //    XP(useGameStore.progress)는 건드리지 않는다 (피드백 32: 완전 분리).
+    //    미시드(ensureHeroXp 도 실패)면 settled = null → heroXp 를 쓰지 않는다.
+    const settled =
+      state.heroXp === undefined
+        ? null
+        : settleHeroXp(state.heroXp, session.rewards.xp);
+    // 주간 점수/리더보드에 쓰는 영웅 레벨 — 정산 후 풀 기준.
+    const heroLv = settled ? settled.newLevel : heroLevelOf(state);
 
     // Phase 11c — weekly variant 세션이었으면 clearedDungeons / bestScore 업데이트.
     //   F30 까지 도달 안 했어도 점수는 산출 (floorsCleared 기반).
     //   최고 점수 경신 시 Firestore 업로드 (로그인 유저만, 비동기).
     let newWeeklyVariant = state.weeklyVariant;
+    // Phase 16 (Track C, 피드백 30) — 주간 악몽 보상. 파생값이라 저장 필드 없음.
+    //   SessionResultModal 이 같은 함수로 미리 보여준다. 상태 커밋 전에 계산해야
+    //   clearedDungeons 갱신 전의 "첫 클리어 / 7→8" 판정이 맞다.
+    const weeklyReward =
+      session.isWeeklyVariant && state.weeklyVariant
+        ? computeWeeklyClearReward(session, state.weeklyVariant)
+        : null;
     if (session.isWeeklyVariant && state.weeklyVariant) {
       // Phase 11c R2 — weekly 는 F30 start 라 `currentFloor - startFloor + 1 = 1` 이 되며,
       //   보스 미처치 실패에도 floorsCleared=1 점수가 들어감. 실제 "클리어" 로 간주하려면
@@ -1617,8 +2003,6 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       // clearedF30 (이번 세션 자체에서 F30 보스 처치했는지) + 기존 변수명 유지.
       const clearedF30 = clearedF30InSession;
       const floorsCleared = clearedF30 ? reachedFloors + 1 : reachedFloors;
-      const gameLv = useGameStore.getState().progress.level ?? 1;
-      const heroLv = Math.max(1, gameLv - (state.heroStartLevel ?? 1) + 1);
       const score = computeWeeklyScore(floorsCleared, session.time, heroLv);
       const isNewBest = score > state.weeklyVariant.bestScore;
       newWeeklyVariant = {
@@ -1669,17 +2053,32 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     }
 
     // state commit + persist — 업로드 microtask 보다 먼저 실행 보장.
-    const newCoins = state.coins + session.rewards.coins;
-    const newInventory = [...state.inventory, ...keptDrops];
+    // Track C: 주간 보상 (weeklyReward) 합산. Track A 는 이 앞에 settleHeroXp,
+    //   Track E 는 splitDropsByCap 을 끼운다 (공통 규칙 병합 순서).
+    const newCoins =
+      state.coins + session.rewards.coins + (weeklyReward?.coins ?? 0);
+    // Phase 6-E (Track E, 피드백 22) — 가방 상한. 넘친 만큼은 overflowDrops 로 가고
+    //   캠프의 BagOverflowModal 이 (레벨업/전직 모달 뒤에) 처리한다.
+    const { fits, overflow } = splitDropsByCap(
+      state.inventory.length,
+      keptDrops,
+      INVENTORY_CAP,
+    );
+    const newInventory = [...state.inventory, ...fits];
+    const newOverflowDrops = [...(state.overflowDrops ?? []), ...overflow];
     // 탐험 중 모은 방지권 정산. 보스 드롭·보물상자·굴림틀이 session.rewards 에
     //   쌓아둔 것을 여기서 한 번에 합산한다. 상한 초과분은 조용히 잘린다.
     const newDestroyGuards = Math.min(
       ENHANCE_GUARD_MAX,
-      clampGuards(state.destroyGuards) + (session.rewards.destroyGuards ?? 0),
+      clampGuards(state.destroyGuards) +
+        (session.rewards.destroyGuards ?? 0) +
+        (weeklyReward?.destroyGuards ?? 0),
     );
     const newDownGuards = Math.min(
       ENHANCE_GUARD_MAX,
-      clampGuards(state.downGuards) + (session.rewards.downGuards ?? 0),
+      clampGuards(state.downGuards) +
+        (session.rewards.downGuards ?? 0) +
+        (weeklyReward?.downGuards ?? 0),
     );
     // 전투 버프 잔여 횟수를 세션에서 되받는다. 전투마다 닳는 곳은 전투 로직
     //   한 곳뿐이고 (upHeroCombat.consumeCombatBuff), 여기서는 결과만 옮긴다.
@@ -1687,6 +2086,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const newState = {
       coins: newCoins,
       inventory: newInventory,
+      overflowDrops: newOverflowDrops,
       dungeons,
       codex,
       ngPlusLevel: newNgPlusLevel,
@@ -1694,10 +2094,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       destroyGuards: newDestroyGuards,
       downGuards: newDownGuards,
       combatBuff: newCombatBuff,
+      // Phase 2-A — 정산된 영웅 XP 풀 (미시드면 키를 싣지 않아 undefined 유지).
+      ...(settled ? { heroXp: settled.heroXp } : {}),
       currentSession: null,
     };
     set(newState);
     saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...newState }));
+    // Phase 2-A — 레벨 마일스톤 (SP 재계산 · novice · 레벨업 오버레이 · 전직 제안).
+    //   persist 뒤에 호출 — 마일스톤이 hero 를 바꾸면 각자 다시 persist 한다.
+    if (settled) applyHeroLevelMilestones(settled.prevLevel, settled.newLevel);
   },
 
   equipItem(itemId, slot) {
@@ -1731,7 +2136,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const state = get();
     const item = state.inventory.find((i) => i.id === itemId);
     if (!item) return 0;
-    const refund = SELL_PRICE[item.rarity];
+    // Phase 6-E — 등급 + 드롭 층 + 강화 단계 가산.
+    const refund = sellPrice(item.rarity, item.dropFloor, item.enhanceLevel);
     const newInventory = state.inventory.filter((i) => i.id !== itemId);
     const newCoins = state.coins + refund;
     set({ inventory: newInventory, coins: newCoins });
@@ -1752,6 +2158,66 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       STORAGE_KEY,
       pickPersisted({ ...state, inventory: newInventory }),
     );
+  },
+
+  synthesizeItems(ids) {
+    const state = get();
+    if (ids.length !== SYNTHESIS_INPUT_COUNT || new Set(ids).size !== ids.length) {
+      return { ok: false, reason: "count" };
+    }
+    const items: Equipment[] = [];
+    for (const id of ids) {
+      const found = state.inventory.find((i) => i.id === id);
+      if (!found) return { ok: false, reason: "not-found" };
+      items.push(found);
+    }
+    if (items.some((i) => i.photoId)) return { ok: false, reason: "photo" };
+    const rarity = items[0].rarity;
+    if (items.some((i) => i.rarity !== rarity)) return { ok: false, reason: "rarity" };
+    if (!NEXT_RARITY[rarity]) return { ok: false, reason: "legend" };
+    const item = synthesizeEquipment(items);
+    if (!item) return { ok: false, reason: "count" };
+    const idSet = new Set(ids);
+    const newInventory = [...state.inventory.filter((i) => !idSet.has(i.id)), item];
+    // 도감 즉시 기록 — 정산을 거치지 않는 유일한 장비 획득 경로.
+    const baseName = getEquipmentBaseName(item);
+    const codex = state.codex.equipment.includes(baseName)
+      ? state.codex
+      : { ...state.codex, equipment: [...state.codex.equipment, baseName] };
+    set({ inventory: newInventory, codex });
+    saveToStorage(
+      STORAGE_KEY,
+      pickPersisted({ ...state, inventory: newInventory, codex }),
+    );
+    return { ok: true, item };
+  },
+
+  resolveOverflowItem(id, mode) {
+    const state = get();
+    const list = state.overflowDrops ?? [];
+    const item = list.find((i) => i.id === id);
+    if (!item) return 0;
+    const refund =
+      mode === "sell" ? sellPrice(item.rarity, item.dropFloor, item.enhanceLevel) : 0;
+    const overflowDrops = list.filter((i) => i.id !== id);
+    const coins = state.coins + refund;
+    set({ overflowDrops, coins });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, overflowDrops, coins }));
+    return refund;
+  },
+
+  sellAllOverflow() {
+    const state = get();
+    const list = state.overflowDrops ?? [];
+    if (list.length === 0) return 0;
+    let total = 0;
+    for (const item of list) {
+      total += sellPrice(item.rarity, item.dropFloor, item.enhanceLevel);
+    }
+    const coins = state.coins + total;
+    set({ overflowDrops: [], coins });
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, overflowDrops: [], coins }));
+    return total;
   },
 
   purchaseTicket() {
@@ -1789,12 +2255,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const state = get();
     const price = size === "full" ? SHOP_PRICES.cardPackFull : SHOP_PRICES.cardPackSmall;
     if (state.coins < price) return false;
+    const gameStore = useGameStore.getState();
+    // 컬렉션 100% 상태에서는 팩을 팔지 않는다 — 환급 케이스를 새로 만들지 않기 위해.
+    if (gameStore.progress.unlockedCardIds.length >= ALL_CARDS.length) return false;
     const newCoins = state.coins - price;
 
-    const gameStore = useGameStore.getState();
     const newProgress = { ...gameStore.progress };
     if (size === "full") {
-      newProgress.pendingPacks = (newProgress.pendingPacks ?? 0) + 1;
+      // 풀 카드팩은 레벨업 팩(pendingPacks) 이 아니라 별도 큐 — 항상 5장, rare+ 보장.
+      newProgress.pendingFullPacks = (newProgress.pendingFullPacks ?? 0) + 1;
     } else {
       newProgress.pendingBonusCards = (newProgress.pendingBonusCards ?? 0) + 1;
     }
@@ -1958,17 +2427,15 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     const useDestroyGuard = guards.destroy === true;
     const useDownGuard = guards.down === true;
     // Phase 11a 재작성 — 단일 아이템 + 코인 → 확률적 +1 level 시도.
+    // Phase 5-B — +20 확장, 시도당 방지권 소모, 밴드 스탯 성장, 사진 부적 상한 10.
     //
     // 흐름:
-    //   1. 아이템 & 비용 검증
-    //   2. Math.random() < successRate 체크
-    //   3. 성공: enhanceLevel+1, stats 미미 증가 (+0.5 반올림/키), 이름 suffix 갱신
-    //   4. 실패-보존 (30%): 아이템 그대로 유지
-    //   5. 실패-소실 (70%): inventory 에서 제거
-    //   6. 코인은 성공/실패 무관 차감 (시도 자체의 비용)
-    //
-    // stats 상승 규칙: primary stat 키 한정 +1 (level 이 짝수일 때),
-    // 그 외 기존 키는 +0 (매우 미미). 총 +10 달성 시 primary stat +5 증가.
+    //   1. 아이템 & 상한 & 비용 검증
+    //   2. 실패 3분기 확률과 방지권 arm(소모) 을 **성공 롤 전에** 확정
+    //   3. rng() < successRate 체크 → 성공: 레벨 +1, applyEnhanceStatGrowth, 이름 갱신
+    //   4. 실패: rng() 한 번으로 소실 / 하락 / 유지 3분기. 걸린 방지권이 그 결과를
+    //      막으면 "guarded" (아이템 그대로).
+    //   5. 코인은 성공/실패 무관 차감, 걸린 방지권도 결과 무관 차감.
     const state = get();
     // Phase 11c R4 — 장착 중 아이템도 강화 가능. inventory → equipped slot 순 탐색.
     //   성공/실패 시 원래 위치 (inventory 혹은 equipped slot) 에 맞게 반영.
@@ -1989,13 +2456,35 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     if (!item) return { ok: false, reason: "not-found" };
 
     const curLevel = item.enhanceLevel ?? 0;
-    if (curLevel >= MAX_ENHANCE_LEVEL) return { ok: false, reason: "maxed" };
+    // Phase 5-B — 사진 부적은 +10 이 상한 (스킬이 +5/+10 에 열리고 재의식 비용도
+    //   10 기준). 정식 경로는 rebindPhotoTalisman 이지만 여기로 와도 같은 상한을 지킨다.
+    const cap = item.photoId ? PHOTO_TALISMAN_MAX_ENHANCE_LEVEL : MAX_ENHANCE_LEVEL;
+    if (curLevel >= cap) return { ok: false, reason: "maxed" };
 
     const cost = enhanceCost(item.rarity, curLevel);
     if (state.coins < cost) return { ok: false, reason: "coin", cost };
 
+    // Phase 5-B 방지권 계약 — 여기가 그 계약의 유일한 집행 지점이다:
+    //   1) 걸린 방지권은 보유 > 0 이고 그 결과가 이 레벨에서 가능(확률 > 0)할 때만
+    //      arm 된다. 소실 0 인 +10..+14 에서 소실방지권을 걸어도 arm 되지 않는다.
+    //   2) arm 된 방지권은 **결과와 무관하게** 이번 시도에서 1장 나간다 — 성공이든
+    //      유지든 소실이든. 그래서 아래 모든 set() 이 같은 next*Guards 를 쓴다.
+    //   3) 판정은 방지권과 무관하게 원래 확률로 굴리고, 소실/하락이 나왔을 때 arm 된
+    //      방지권이 있으면 "guarded" (아이템 그대로) 로 바꾼다.
+    const rates = enhanceOutcomeRates(item.rarity, curLevel);
+    const heldDestroyGuards = clampGuards(state.destroyGuards);
+    const heldDownGuards = clampGuards(state.downGuards);
+    const armDestroy = useDestroyGuard && heldDestroyGuards > 0 && rates.destroy > 0;
+    const armDown = useDownGuard && heldDownGuards > 0 && rates.down > 0;
+    const nextDestroyGuards = heldDestroyGuards - (armDestroy ? 1 : 0);
+    const nextDownGuards = heldDownGuards - (armDown ? 1 : 0);
+    const spent: EnhanceGuardSpend = {
+      destroy: armDestroy ? 1 : 0,
+      down: armDown ? 1 : 0,
+    };
+    const newCoins = state.coins - cost;
+
     // Phase 11c R4 — pity 적용. 누적된 failStreak 가 성공률 가산.
-    //   legend +4%p / fail, unique +2%p / fail. normal/rare 는 미적용.
     const curStreak = item.enhanceFailStreak ?? 0;
     const rate = enhanceSuccessRate(item.rarity, curLevel, curStreak);
     const roll = rng();
@@ -2023,18 +2512,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         hero: state.hero,
       };
     };
+    // Phase 5-B — 사진 부적이 여기로 오면 +5/+10 스킬을 레벨에 맞게 다시 계산한다.
+    //   일반 장비는 talismanSkills 를 건드리지 않는다 (키 자체를 추가하지 않는다).
+    const talismanPatch = (level: number): Pick<Equipment, "talismanSkills"> | Record<string, never> => {
+      if (!item.photoId) return {};
+      const ids = computeTalismanSkillIds(item.category, level);
+      return { talismanSkills: ids.length > 0 ? ids : undefined };
+    };
 
     if (success) {
       const newLevel = curLevel + 1;
-      // stats 미미 상승 — primary stat 키에만 짝수 level 에서 +1 (총 10 단계 중 5 회).
-      //   즉 +2, +4, +6, +8, +10 에서 primary +1 누적. "스킬이 주 보상" 원칙 유지.
-      const newStats: Equipment["stats"] = { ...item.stats };
-      if (newLevel % 2 === 0) {
-        const primaryKey = pickPrimaryStatKey(item.stats);
-        if (primaryKey) {
-          newStats[primaryKey] = (newStats[primaryKey] ?? 0) + 1;
-        }
-      }
+      // 스탯 성장 — 규칙은 types/uphero.ts applyEnhanceStatGrowth 단일 출처
+      //   (짝수 ≤10 primary +1, 11..20 매 레벨 primary +1, +15 secondary +2, +20 +3).
+      const newStats = applyEnhanceStatGrowth(item.stats, newLevel);
       // 이름에 +N suffix. 기존 "+" 가 legacy 합성 표기로 남아있을 수 있어 strip 후 재부여.
       const baseName = stripEnhanceSuffix(item.name);
       const newName = newLevel >= 1 ? `${baseName} +${newLevel}` : baseName;
@@ -2045,28 +2535,24 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         enhanceLevel: newLevel,
         // Phase 11c R4 — 성공 시 streak 리셋. pity 보너스 초기화.
         enhanceFailStreak: 0,
+        ...talismanPatch(newLevel),
       };
       const { inventory: newInventory, hero: newHero } = replaceItem(newItem);
-      const newCoins = state.coins - cost;
-      set({ inventory: newInventory, hero: newHero, coins: newCoins });
-      saveToStorage(
-        STORAGE_KEY,
-        pickPersisted({ ...state, inventory: newInventory, hero: newHero, coins: newCoins }),
-      );
-      return { ok: true, reason: "success", newItem, prevLevel: curLevel };
+      const patch = {
+        inventory: newInventory,
+        hero: newHero,
+        coins: newCoins,
+        destroyGuards: nextDestroyGuards,
+        downGuards: nextDownGuards,
+      };
+      set(patch);
+      saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
+      return { ok: true, reason: "success", newItem, prevLevel: curLevel, spent };
     }
 
     // 실패 — 코인은 어쨌든 차감. 실패의 결과는 소실 / 하락 / 유지 3분기다.
     //   확률은 enhanceOutcomeRates 단일 출처에서 온다 (UI 표기와 같은 값).
     //   currentLevel 0..2 는 셋 다 keep=1 이라 안전 구간이다.
-    //
-    // Phase 15 방지권 계약 — 여기가 그 계약의 유일한 집행 지점이다:
-    //   1) 판정은 방지권 보유·장착 여부와 무관하게 원래 확률로 굴린다.
-    //   2) 결과가 유지면 막을 것이 없으므로 **아무것도 소모하지 않는다**.
-    //   3) 소실이 났고 소실방지권을 걸었고 보유가 1 이상일 때만 1장 태우고 지킨다.
-    //   4) 하락도 같은 규칙으로 하락방지권이 막는다.
-    // 소실과 하락은 배타적이므로 한 시도에서 두 종류가 같이 소모되지 않는다.
-    const rates = enhanceOutcomeRates(item.rarity, curLevel);
     // 누적 구간 한 번의 롤로 3분기를 가른다 — 두 번 굴리면 두 표의 확률이
     // 조건부로 얽혀 UI 에 적어둔 숫자와 실제가 달라진다.
     const outcomeRoll = rng();
@@ -2077,16 +2563,9 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
           ? "down"
           : "keep";
 
-    const heldDestroyGuards = clampGuards(state.destroyGuards);
-    const heldDownGuards = clampGuards(state.downGuards);
-    const guardedDestroy =
-      rolled === "destroy" && useDestroyGuard && heldDestroyGuards > 0;
-    const guardedDown = rolled === "down" && useDownGuard && heldDownGuards > 0;
-    const nextDestroyGuards = guardedDestroy
-      ? heldDestroyGuards - 1
-      : heldDestroyGuards;
-    const nextDownGuards = guardedDown ? heldDownGuards - 1 : heldDownGuards;
-    const newCoins = state.coins - cost;
+    // arm 여부만 본다 — 보유·가능성 검사는 arm 계산에 이미 접혀 있다.
+    const guardedDestroy = rolled === "destroy" && armDestroy;
+    const guardedDown = rolled === "down" && armDown;
 
     // 실패 공통 — failStreak +1 (다음 시도에 pity 보너스 적용).
     //   Phase 14 code-review Medium #14 — pity 포뮬러는 streak 15~20 에서 이미
@@ -2107,29 +2586,19 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       set(patch);
       saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
       if (guardedDestroy) {
-        return { ok: false, reason: "guarded", item: newItem, guard: "destroy" };
+        return { ok: false, reason: "guarded", item: newItem, guard: "destroy", spent };
       }
       if (guardedDown) {
-        return { ok: false, reason: "guarded", item: newItem, guard: "down" };
+        return { ok: false, reason: "guarded", item: newItem, guard: "down", spent };
       }
-      return { ok: false, reason: "keep", item: newItem };
+      return { ok: false, reason: "keep", item: newItem, spent };
     }
 
     if (rolled === "down") {
-      // 하락 — 성공 경로의 정확한 역연산이어야 한다. 성공은 "새 레벨이 짝수일 때
-      //   primary stat +1" 이었으므로, 없어지는 레벨(curLevel)이 짝수면 그때 붙은
-      //   +1 을 같은 키에서 뺀다. 성공 직후에도 그 키가 여전히 최대값이라
-      //   (증가시킨 키가 최대였고 +1 로 더 커졌다) pickPrimaryStatKey 는 같은 키를
-      //   돌려준다 — 그래서 왕복이 닫힌다. 성공 규칙을 바꾸면 여기도 같이 바꿀 것.
+      // 하락 — 성공 경로의 정확한 역연산. revertEnhanceStatGrowth 가 잃는 레벨
+      //   (curLevel) 에 붙었던 증가분을 같은 키에서 뺀다 (0 아래로는 내리지 않는다).
       const newLevel = Math.max(0, curLevel - 1);
-      const newStats: Equipment["stats"] = { ...item.stats };
-      if (curLevel % 2 === 0 && curLevel > 0) {
-        const primaryKey = pickPrimaryStatKey(item.stats);
-        if (primaryKey) {
-          // 0 미만으로는 내리지 않는다 — 손상된 저장본이 음수 스탯을 만들지 않게.
-          newStats[primaryKey] = Math.max(0, (newStats[primaryKey] ?? 0) - 1);
-        }
-      }
+      const newStats = revertEnhanceStatGrowth(item.stats, curLevel);
       const baseName = stripEnhanceSuffix(item.name);
       const newItem: Equipment = {
         ...item,
@@ -2137,6 +2606,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         stats: newStats,
         enhanceLevel: newLevel,
         enhanceFailStreak: nextStreak,
+        ...talismanPatch(newLevel),
       };
       const { inventory: newInventory, hero: newHero } = replaceItem(newItem);
       const patch = {
@@ -2148,24 +2618,51 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       };
       set(patch);
       saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
-      return { ok: false, reason: "down", item: newItem, prevLevel: curLevel };
+      return { ok: false, reason: "down", item: newItem, prevLevel: curLevel, spent };
     }
 
-    // 소실 — inventory 혹은 equipped slot 에서 제거.
+    // 소실 — inventory 혹은 equipped slot 에서 제거. 걸어둔 하락방지권도 나간다.
     const { inventory: newInventory, hero: newHero } = removeItem();
     const lostName = item.name;
     const lostBaseId = item.baseId;
-    set({ inventory: newInventory, hero: newHero, coins: newCoins });
-    saveToStorage(
-      STORAGE_KEY,
-      pickPersisted({ ...state, inventory: newInventory, hero: newHero, coins: newCoins }),
-    );
-    return { ok: false, reason: "destroyed", lostItemName: lostName, lostBaseId };
+    const patch = {
+      inventory: newInventory,
+      hero: newHero,
+      coins: newCoins,
+      destroyGuards: nextDestroyGuards,
+      downGuards: nextDownGuards,
+    };
+    set(patch);
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, ...patch }));
+    return {
+      ok: false,
+      reason: "destroyed",
+      lostItemName: lostName,
+      lostBaseId,
+      spent,
+    };
   },
 
   _setFromCloud: (state) => {
     set({
       ...state,
+      // Phase 6-E (Track E) — 장비/도감 수리를 게이트 없이 다시 돈다 (멱등). 구 클라이언트가
+      //   옛 iconName/도감 키를 올릴 수 있다. 페이로드에 없는 키는 건드리지 않는다.
+      ...(state.hero
+        ? { hero: { ...state.hero, equipped: repairEquippedMap(state.hero.equipped) } }
+        : {}),
+      ...(state.inventory ? { inventory: repairEquipmentList(state.inventory) } : {}),
+      ...(state.overflowDrops
+        ? { overflowDrops: repairEquipmentList(state.overflowDrops) }
+        : {}),
+      ...(state.codex
+        ? { codex: { ...state.codex, equipment: repairCodexEquipment(state.codex.equipment) } }
+        : {}),
+      // Phase 2-A — heroXp 는 spread 에 맡기지 않고 **명시적으로** 페이로드 값을 쓴다
+      //   (없으면 undefined). 온보딩 레이스에서 로컬이 progress Lv1 기준 0 으로
+      //   먼저 시드됐어도, 구 클라이언트 문서(키 없음)를 채택하는 순간 미시드로
+      //   되돌려 아래 ensureHeroXp 가 클라우드 progress(Lv47) 로 다시 시드하게 한다.
+      heroXp: normalizeHeroXp(state.heroXp),
       // Phase 15 — 방지권/버프는 클라우드에서 온 값도 로컬과 같은 계약으로 접는다.
       //   와이어는 만료된 버프를 {pct:0,battlesLeft:0} 껍데기로 실어 보내므로
       //   (merge 로 되살아나는 걸 막으려고) 여기서 undefined 로 되돌려야 한다.
@@ -2190,6 +2687,16 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
         // storage full / private mode: 메모리 상태만 유지
       }
     }
+    // Phase 2-A — 시드/SP 정리는 microtask 로 미룬다. 이 함수는 (1) 클라우드
+    //   리스너 콜백 안(isUpdatingFromCloud=true) 이나 (2) 부트스트랩의 setSyncReady
+    //   이전에 불리므로, 동기적으로 persist 하면 syncToCloud 가 조용히 버려 시드값이
+    //   업로드되지 않는다. microtask 는 리스너의 finally / 동기 setSyncReady(true)
+    //   뒤에 돌아 업로드 게이트를 통과한다 (두 번째 기기가 레거시 공식으로 재시드하는
+    //   핑퐁 차단).
+    queueMicrotask(() => {
+      get().ensureHeroXp();
+      get().reconcileSkillPoints();
+    });
   },
 
   resetForSignOut: () => {
@@ -2197,6 +2704,7 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
     set({
       hero: createDefaultHero(),
       inventory: [],
+      overflowDrops: [],
       coins: 0,
       passes: {},
       dungeons: {},
@@ -2207,6 +2715,8 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       lastIdleAccrualAt: now,
       lastSeenAt: now,
       heroStartLevel: undefined,
+      heroXp: undefined,
+      pendingHeroLevelUp: null,
       shopDaily: undefined,
       ngPlusLevel: 0,
       destroyGuards: 0,
@@ -2224,47 +2734,6 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => ({
       isLoaded: false,
     });
   },
-}));
+  };
+});
 
-/* ═══════════════════════════════════════════════════════════════════════
- * Phase 11a — enhanceItem 헬퍼
- * ═══════════════════════════════════════════════════════════════════════ */
-
-/**
- * 장비의 "primary stat key" 를 찾는다. 드롭 템플릿의 statBoost 가 primary 이지만
- * Equipment 타입에는 statBoost 가 저장 안 돼 있어 stats 객체에서 최대값 key 로 추정.
- * 동률 시 defined order (str/int/vit/dex/agi/crit/slotBonus) 로 tie-break.
- */
-function pickPrimaryStatKey(
-  stats: Equipment["stats"],
-): keyof HeroBaseStats | null {
-  const order: Array<keyof HeroBaseStats> = [
-    "str",
-    "int",
-    "vit",
-    "dex",
-    "agi",
-    "crit",
-    "slotBonus",
-  ];
-  let best: keyof HeroBaseStats | null = null;
-  let bestVal = -Infinity;
-  for (const key of order) {
-    const v = stats[key];
-    if (v == null) continue;
-    if (v > bestVal) {
-      best = key;
-      bestVal = v;
-    }
-  }
-  return best;
-}
-
-/**
- * 이름에서 " +N" 또는 legacy " +" suffix 제거. enhanceItem 성공 시 매번 재부여.
- *   "자기절제의 검 +3" → "자기절제의 검"
- *   "꾸준함의 방패 +"  → "꾸준함의 방패" (legacy 합성 표기)
- */
-function stripEnhanceSuffix(name: string): string {
-  return name.replace(/\s+\+\d*$/, "");
-}

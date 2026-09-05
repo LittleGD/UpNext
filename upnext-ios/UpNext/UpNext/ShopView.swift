@@ -43,12 +43,14 @@ struct ShopView: View {
                         expeditionPassSection
                         downGuardItem
                         shopItem(name: AppConfig.loc("작은 카드팩"), desc: AppConfig.loc("새 카드 1장"),
-                                 price: ShopPrices.cardPackSmall) {
-                            store.buyCardPack(full: false)
+                                 price: ShopPrices.cardPackSmall,
+                                 soldOut: store.isCollectionComplete) {
+                            buyPack(full: false)
                         }
                         shopItem(name: AppConfig.loc("카드팩"), desc: AppConfig.loc("새 카드 5장"),
-                                 price: ShopPrices.cardPackFull) {
-                            store.buyCardPack(full: true)
+                                 price: ShopPrices.cardPackFull,
+                                 soldOut: store.isCollectionComplete) {
+                            buyPack(full: true)
                         }
                     }
                     .padding(16)
@@ -297,6 +299,14 @@ struct ShopView: View {
     private func showToast(_ msg: String) {
         toast = msg
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { if toast == msg { toast = nil } }
+    }
+
+    /// 카드팩 구매 — 거절 사유를 토스트로. 웹 CampPlaceholder.onBuyPack / confirmFullPackPurchase.
+    private func buyPack(full: Bool) {
+        let price = full ? ShopPrices.cardPackFull : ShopPrices.cardPackSmall
+        if !store.buyCardPack(full: full) {
+            showToast(AppConfig.loc(upHero.state.coins < price ? "코인이 부족해요" : "모든 카드를 이미 모았어요"))
+        }
     }
 
     // MARK: - 상점 항목 (기존 카드팩 — 슬라이스 25)

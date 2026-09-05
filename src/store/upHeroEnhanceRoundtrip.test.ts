@@ -5,9 +5,11 @@ import { describe, it, expect, afterEach, vi } from "vitest";
  *
  * 하락(+L → +L-1)은 성공(+L-1 → +L)의 정확한 역연산이어야 한다. 어긋나면
  * 올렸다 내리기를 반복하는 것만으로 스탯이 새거나 불어나는 무한 구멍이 된다.
- * 성공은 "새 레벨이 짝수일 때 primary stat +1", 하락은 "없어지는 레벨이 짝수면
- * primary stat -1" 이고, 둘 다 `pickPrimaryStatKey`(최대값, 동률은 정의 순서)를
- * 쓴다. 그래서 왕복이 닫히려면 **+1 한 뒤에도 같은 키가 뽑혀야** 한다.
+ * 성공은 applyEnhanceStatGrowth (짝수 ≤10 primary +1, 11..20 매 레벨 +1, +15
+ * secondary +2, +20 +3), 하락은 revertEnhanceStatGrowth 이고, 둘 다 같은 선택기
+ * (`pickPrimaryStatKey` 최대값 / `pickSecondaryStatKey` 풀 내 최대값, 동률은 정의
+ * 순서)를 쓴다. 그래서 왕복이 닫히려면 **올린 뒤에도 같은 키가 뽑혀야** 한다.
+ * Phase 5-B — TOP 이 19 로 늘어 등반/하강이 15 의 마일스톤과 11..19 를 가로지른다.
  *
  * 이 파일은 그 성질을 등급·스탯 모양을 바꿔가며 실제 스토어로 확인한다.
  */
@@ -22,6 +24,7 @@ import { useUpHeroStore } from "./useUpHeroStore";
 import {
   createDefaultHero,
   enhanceOutcomeRates,
+  revertEnhanceStatGrowth,
   ENHANCE_SAFE_MAX_LEVEL,
   MAX_ENHANCE_LEVEL,
 } from "@/types/uphero";
@@ -78,6 +81,12 @@ function forceSuccess(spy: ReturnType<typeof mockRolls>) {
 function forceDown(spy: ReturnType<typeof mockRolls>, rarity: Rarity, level: number) {
   const rates = enhanceOutcomeRates(rarity, level);
   expect(rates.down).toBeGreaterThan(0);
+  // Phase 5-B — 19 단 연속 하강은 pity 를 포화(legend +4%p × 16회 → 100%)시켜
+  //   ROLL_FAIL 로도 실패시킬 수 없게 된다. 이 파일의 관심사는 스탯 왕복이지 pity 가
+  //   아니므로 매 하락 전에 streak 을 0 으로 되돌린다.
+  useUpHeroStore.setState({
+    inventory: [{ ...cur(), enhanceFailStreak: 0 }],
+  });
   spy.mockReturnValueOnce(ROLL_FAIL);
   spy.mockReturnValueOnce(rates.destroy + rates.down / 2);
   const r = useUpHeroStore.getState().enhanceItem("it-1");
@@ -105,10 +114,11 @@ describe("하락 stats 왕복 — 등반 스냅샷과 정확히 일치한다", (
         const spy = mockRolls();
         seed(makeItem(stats, rarity));
 
-        // 등반: +0 → +9, 각 레벨의 stats 를 기록한다.
-        // +10 까지 올리지 않는 이유는 아래 "최대 레벨은 종착점" 테스트 참고 —
-        // +10 에서는 시도 자체가 막혀 하락이 발생할 수 없다.
+        // 등반: +0 → +19, 각 레벨의 stats 를 기록한다.
+        // +20 까지 올리지 않는 이유는 아래 "최대 레벨은 종착점" 테스트 참고 —
+        // +20 에서는 시도 자체가 막혀 하락이 발생할 수 없다.
         const TOP = MAX_ENHANCE_LEVEL - 1;
+        expect(TOP).toBe(19);
         const climb: string[] = [snap(cur())];
         const names: string[] = [cur().name];
         for (let L = 0; L < TOP; L += 1) {
@@ -118,7 +128,7 @@ describe("하락 stats 왕복 — 등반 스냅샷과 정확히 일치한다", (
         }
         expect(cur().enhanceLevel).toBe(TOP);
 
-        // 하강: +9 → 안전 구간 경계까지 하락만으로 내려온다.
+        // 하강: +19 → 안전 구간 경계까지 하락만으로 내려온다 (15 마일스톤 역도 포함).
         // 하락은 안전 구간(0..ENHANCE_SAFE_MAX_LEVEL) 밖에서만 발생하므로
         // 도달 가능한 바닥은 ENHANCE_SAFE_MAX_LEVEL 이다.
         for (let L = TOP; L > ENHANCE_SAFE_MAX_LEVEL; L -= 1) {
@@ -179,6 +189,43 @@ describe("무한 이득/손실 구멍 없음", () => {
     });
     expect(useUpHeroStore.getState().coins).toBe(before);
     expect(cur().enhanceLevel).toBe(MAX_ENHANCE_LEVEL);
+  });
+
+  it("마일스톤 +15 의 secondary 보너스는 하락에서 정확히 되돌아온다", () => {
+    const spy = mockRolls();
+    seed(makeItem({ str: 5, dex: 2 }, "rare"));
+    for (let i = 0; i < 14; i += 1) forceSuccess(spy);
+    expect(cur().enhanceLevel).toBe(14);
+    const at14 = snap(cur());
+    expect(cur().stats).toEqual({ str: 14, dex: 2 });
+
+    forceSuccess(spy);
+    expect(cur().enhanceLevel).toBe(15);
+    expect(cur().stats).toEqual({ str: 15, dex: 4 });
+    expect(cur().name).toBe("쇠검 +15");
+
+    forceDown(spy, "rare", 15);
+    expect(cur().enhanceLevel).toBe(14);
+    expect(snap(cur())).toBe(at14);
+    expect(cur().name).toBe("쇠검 +14");
+
+    // 다시 올렸다 내리기를 반복해도 표류하지 않는다.
+    for (let i = 0; i < 10; i += 1) {
+      forceSuccess(spy);
+      forceDown(spy, "rare", 15);
+      expect(snap(cur())).toBe(at14);
+    }
+  });
+
+  it("+20 (secondary +3) 도 하락으로 정확히 되돌아온다", () => {
+    const spy = mockRolls();
+    seed(makeItem({ str: 5, int: 5, vit: 2 }, "legend"));
+    for (let i = 0; i < 19; i += 1) forceSuccess(spy);
+    const at19 = snap(cur());
+    forceSuccess(spy);
+    expect(cur().enhanceLevel).toBe(MAX_ENHANCE_LEVEL);
+    // +20 은 종착점이라 스토어 하락은 없지만, 헬퍼의 역은 닫혀야 한다.
+    expect(JSON.stringify(revertEnhanceStatGrowth(cur().stats, 20))).toBe(at19);
   });
 
   it("안전 구간에서는 하락 자체가 나오지 않는다", () => {

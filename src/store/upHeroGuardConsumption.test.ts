@@ -1,14 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 
 /**
- * Phase 15 — 방지권 소모 계약의 **통계적** 회귀 테스트.
+ * Phase 15 → 5-B — 방지권 소모 계약의 **통계적** 회귀 테스트.
  *
  * useUpHeroStore.test.ts 는 outcome roll 을 손으로 집어 각 갈래를 하나씩 못박는다.
  * 여기서는 반대로, 확률을 실제로 굴린 채 스토어를 2만 번 돌려 계약이 총량으로도
  * 성립하는지 본다. 손으로 집은 롤은 "그 갈래가 맞다" 만 보증하고, 갈래를 가르는
  * 경계가 어긋났는지는 못 잡는다 — 그건 분포로만 드러난다.
  *
- * 계약: **막아낸 순간에만** 1장 소모된다. 성공·유지에서는 0장.
+ * 계약 (시도당 소모): **소모 총량 == armed 시도 수.** 걸린 방지권은 결과와 무관하게
+ * 매 시도 1장씩 나가고, 그 결과가 불가능한 레벨에서는 걸어도 나가지 않는다.
  */
 vi.mock("@/lib/storage", () => ({
   saveToStorage: vi.fn(),
@@ -53,7 +54,7 @@ function seedState(destroyGuards: number, downGuards: number): void {
 }
 
 describe("방지권 소모 계약 — 확률을 실제로 굴린 총량 검증", () => {
-  it("소모 총량이 '막아낸 횟수' 와 정확히 일치한다", () => {
+  it("소모 총량이 'armed 시도 수' 와 정확히 일치한다 (rare +8, 둘 다 걸기)", () => {
     setRngSeed(424242);
     let guardedDestroy = 0;
     let guardedDown = 0;
@@ -76,30 +77,29 @@ describe("방지권 소모 계약 — 확률을 실제로 굴린 총량 검증",
       destroyGuardSpent += spentD;
       downGuardSpent += spentU;
 
+      // 시도당 소모 — 결과가 무엇이든 걸어둔 두 장이 나간다.
+      expect(spentD).toBe(1);
+      expect(spentU).toBe(1);
       if (r.ok) {
         success += 1;
-        expect(spentD).toBe(0); // 성공에서는 절대 소모하지 않는다
-        expect(spentU).toBe(0);
+        expect(r.spent).toEqual({ destroy: 1, down: 1 });
       } else if (r.reason === "keep") {
         keep += 1;
-        expect(spentD).toBe(0); // 막을 것이 없던 실패도 소모하지 않는다
-        expect(spentU).toBe(0);
+        expect(r.spent).toEqual({ destroy: 1, down: 1 });
       } else if (r.reason === "guarded" && r.guard === "destroy") {
         guardedDestroy += 1;
-        expect(spentD).toBe(1);
-        expect(spentU).toBe(0); // 소실·하락은 배타적 — 한 시도에 둘이 같이 나가지 않는다
+        expect(r.spent).toEqual({ destroy: 1, down: 1 });
       } else if (r.reason === "guarded" && r.guard === "down") {
         guardedDown += 1;
-        expect(spentU).toBe(1);
-        expect(spentD).toBe(0);
+        expect(r.spent).toEqual({ destroy: 1, down: 1 });
       } else {
         // 방지권을 둘 다 걸고 보유도 충분하므로 실제 소실/하락은 나올 수 없다.
         throw new Error(`막혔어야 할 결과가 그대로 났다: ${JSON.stringify(r)}`);
       }
     }
 
-    expect(destroyGuardSpent).toBe(guardedDestroy);
-    expect(downGuardSpent).toBe(guardedDown);
+    expect(destroyGuardSpent).toBe(N);
+    expect(downGuardSpent).toBe(N);
 
     // 막아낸 비율이 표기 확률과 일치하는가 — UI 숫자와 판정이 같은 표를 쓰는지의 증거.
     const fails = guardedDestroy + guardedDown + keep;
@@ -138,6 +138,45 @@ describe("방지권 소모 계약 — 확률을 실제로 굴린 총량 검증",
     // 보유가 없으면 원래 위험이 그대로 굴러야 한다 — 조용히 봐주는 경로가 없는지 확인.
     expect(Math.abs(destroyed / fails - rates.destroy)).toBeLessThan(TOLERANCE);
     expect(Math.abs(down / fails - rates.down)).toBeLessThan(TOLERANCE);
+    resetRng();
+  }, 120000);
+
+  it("rare +12 (소실 0) 둘 다 걸기 — 소실방지권은 한 장도 안 나가고 하락방지권만 매 시도 1장", () => {
+    setRngSeed(777001);
+    let success = 0;
+    let guardedDown = 0;
+    let destroyGuardSpent = 0;
+    let downGuardSpent = 0;
+    const MID_N = 5000;
+
+    for (let i = 0; i < MID_N; i += 1) {
+      seedState(50, 50);
+      useUpHeroStore.setState({
+        inventory: [{ ...makeItem(), enhanceLevel: 12, name: "쇠검 +12" }],
+      });
+      const r = useUpHeroStore
+        .getState()
+        .enhanceItem("sim", { destroy: true, down: true });
+      const after = useUpHeroStore.getState();
+      destroyGuardSpent += 50 - (after.destroyGuards ?? 0);
+      downGuardSpent += 50 - (after.downGuards ?? 0);
+      if (r.ok) {
+        success += 1;
+        expect(r.spent).toEqual({ destroy: 0, down: 1 });
+      } else if (r.reason === "guarded" && r.guard === "down") {
+        guardedDown += 1;
+        expect(r.spent).toEqual({ destroy: 0, down: 1 });
+      } else {
+        // 중간 밴드는 유지 0 / 소실 0 이라 성공 아니면 막힌 하락뿐이다.
+        throw new Error(`중간 밴드에서 나올 수 없는 결과: ${JSON.stringify(r)}`);
+      }
+    }
+
+    expect(destroyGuardSpent).toBe(0);
+    expect(downGuardSpent).toBe(MID_N);
+    expect(success + guardedDown).toBe(MID_N);
+    // rare +12 성공률 25% (streak 0) — 표기와 분포가 같은 표를 쓰는지.
+    expect(Math.abs(success / MID_N - 0.25)).toBeLessThan(0.03);
     resetRng();
   }, 120000);
 });

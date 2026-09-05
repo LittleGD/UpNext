@@ -72,6 +72,8 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
   const [revealedCards, setRevealedCards] = useState<ChallengeCard[]>([]);
   const [packTier, setPackTier] = useState<Rarity>("normal");
   const [phase, setPhase] = useState<Phase>("shaking");
+  // 부족분 보상 코인 — 잠긴 카드가 기대 장수보다 적어 코인으로 대신 받은 경우 캡션 표시.
+  const [shortfallCoins, setShortfallCoins] = useState(0);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // reduced-motion 시 모든 tier 의 fx 를 minimal 로 다운그레이드.
@@ -110,6 +112,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
       return;
     }
     setPackTier(result.tier);
+    setShortfallCoins(result.shortfallCoins);
     const initialFx = reducedMotion ? REDUCED_FX : PACK_FX[result.tier];
     addTimer(() => {
       setRevealedCards(result.cards);
@@ -141,7 +144,10 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
     });
 
     addTimer(() => {
-      const remaining = (progress.pendingPacks || 0) + (progress.pendingBonusCards || 0);
+      const remaining =
+        (progress.pendingFullPacks || 0) +
+        (progress.pendingPacks || 0) +
+        (progress.pendingBonusCards || 0);
       if (remaining > 0) {
         // 다음 팩 굴림 — tier 가 바뀌면 shake 길이/연출도 바뀜
         const next = openCardPack();
@@ -151,6 +157,7 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
         }
         setRevealedCards([]);
         setPackTier(next.tier);
+        setShortfallCoins(next.shortfallCoins);
         setPhase("shaking");
         const nextFx = reducedMotion ? REDUCED_FX : PACK_FX[next.tier];
         addTimer(() => {
@@ -360,6 +367,16 @@ export default function CardPackOpener({ onComplete }: CardPackOpenerProps) {
             >
               {t("cards.pack.addedToCollection")}
             </motion.p>
+            {shortfallCoins > 0 && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.9 }}
+                className="typo-caption text-text-tertiary text-center"
+              >
+                {t("pack.shortfallCoins", { coins: shortfallCoins })}
+              </motion.p>
+            )}
 
             <motion.button
               initial={{ opacity: 0, y: 20 }}

@@ -19,6 +19,14 @@ import { useAnnounce } from "@/hooks/useAnnounce";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { DictKey } from "@/i18n";
 import { dungeonName, monsterNameById } from "@/lib/upHeroI18n";
+import {
+  computeWeeklyClearReward,
+  WEEKLY_ALL_CLEAR_COINS,
+  WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
+  WEEKLY_ALL_CLEAR_DOWN_GUARDS,
+  WEEKLY_FIRST_CLEAR_COINS,
+  WEEKLY_FIRST_CLEAR_DESTROY_GUARDS,
+} from "@/lib/sessionReward";
 import PixelIcon from "@/components/icons/PixelIcon";
 import DropRevealCard from "./DropRevealCard";
 
@@ -41,6 +49,31 @@ export default function SessionResultModal() {
     session ? s.dungeons[session.dungeonId] : null,
   );
   const isWeeklyVariant = !!session?.isWeeklyVariant;
+  // Phase 16 (Track C, 피드백 30) — 주간 악몽 보상 미리보기. acknowledge() 가 같은
+  //   순수 함수로 지급하므로 여기 보이는 것이 곧 받는 것. 상태 커밋 전이라
+  //   clearedDungeons 는 아직 이 던전을 포함하지 않는다.
+  const weeklyVariant = useUpHeroStore((s) => s.weeklyVariant);
+  const weeklyReward =
+    session && weeklyVariant
+      ? computeWeeklyClearReward(session, weeklyVariant)
+      : null;
+  const weeklyRewardDetail = weeklyReward
+    ? [
+        t("uphero.session.weeklyFirstClearReward", {
+          coins: WEEKLY_FIRST_CLEAR_COINS,
+          wards: WEEKLY_FIRST_CLEAR_DESTROY_GUARDS,
+        }),
+        weeklyReward.allClear
+          ? t("uphero.session.weeklyAllClearReward", {
+              coins: WEEKLY_ALL_CLEAR_COINS,
+              wards: WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
+              downs: WEEKLY_ALL_CLEAR_DOWN_GUARDS,
+            })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
   const f30FirstClear =
     !!session &&
     !isWeeklyVariant &&
@@ -77,6 +110,19 @@ export default function SessionResultModal() {
     // Phase 11c R4 R3 — title 이 이미 "F30 최초 돌파" 공지하므로 unlock 내용만 중계.
     announce(t("uphero.session.ngPlusUnlockedAnnounce"), "assertive");
   }, [detailMounted, f30FirstClear, announce, t]);
+
+  // Phase 16 (Track C) — 주간 보상도 시각 등장과 sync 해 한 번만 공지.
+  const didAnnounceWeeklyRef = useRef(false);
+  useEffect(() => {
+    if (!detailMounted) return;
+    if (!weeklyReward) return;
+    if (didAnnounceWeeklyRef.current) return;
+    didAnnounceWeeklyRef.current = true;
+    announce(
+      t("uphero.session.weeklyRewardAnnounce", { detail: weeklyRewardDetail }),
+      "polite",
+    );
+  }, [detailMounted, weeklyReward, weeklyRewardDetail, announce, t]);
 
   // Phase 8b — count-up: detail 등장 이후 시작해서 visual hierarchy 지킴.
   //   결산 타이틀 → detail fade-in (280ms) → reward 숫자 count-up (700ms)
@@ -177,7 +223,7 @@ export default function SessionResultModal() {
           style={{ borderBottom: `1px solid ${GB.dark}` }}
         >
           <div className="typo-caption" style={{ color: GB.light }}>
-            {dungeonName(dungeon.id, dungeon.name, language)} — F{session.currentFloor}
+            {dungeonName(dungeon.id, dungeon.name, language)}: F{session.currentFloor}
           </div>
           <PixelIcon
             name={iconName}
@@ -222,6 +268,58 @@ export default function SessionResultModal() {
               }}
             >
               {t("uphero.session.ngPlusUnlocked")}
+            </div>
+          )}
+          {/* Phase 16 (Track C, 피드백 30) — 주간 악몽 첫 클리어 / 올클리어 보상.
+               텍스트 + 글로우만 (아이콘 박스·보더 없음, 디자인 규칙). */}
+          {weeklyReward && detailMounted && (
+            <div
+              className="flex flex-col items-center gap-0.5 mt-1"
+              style={{
+                transition: `opacity 300ms ${EASE_OUT}, transform 300ms ${EASE_OUT}`,
+              }}
+            >
+              <div
+                className="typo-caption"
+                style={{
+                  color: GB_LEGEND,
+                  textShadow: `0 0 8px ${GB_LEGEND}88`,
+                }}
+              >
+                {t("uphero.session.weeklyFirstClear")}
+              </div>
+              <div
+                className="typo-micro tabular-nums"
+                style={{ color: GB_LEGEND, opacity: 0.85 }}
+              >
+                {t("uphero.session.weeklyFirstClearReward", {
+                  coins: WEEKLY_FIRST_CLEAR_COINS,
+                  wards: WEEKLY_FIRST_CLEAR_DESTROY_GUARDS,
+                })}
+              </div>
+              {weeklyReward.allClear && (
+                <>
+                  <div
+                    className="typo-caption mt-1"
+                    style={{
+                      color: GB_LEGEND,
+                      textShadow: `0 0 10px ${GB_LEGEND}aa`,
+                    }}
+                  >
+                    {t("uphero.session.weeklyAllClear")}
+                  </div>
+                  <div
+                    className="typo-micro tabular-nums"
+                    style={{ color: GB_LEGEND, opacity: 0.85 }}
+                  >
+                    {t("uphero.session.weeklyAllClearReward", {
+                      coins: WEEKLY_ALL_CLEAR_COINS,
+                      wards: WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
+                      downs: WEEKLY_ALL_CLEAR_DOWN_GUARDS,
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

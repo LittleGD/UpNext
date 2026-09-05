@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { ChallengeCard, Rarity } from "@/types/card";
-import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase } from "@/types/game";
+import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase, ChallengeCompletionResult } from "@/types/game";
 import { MODE_CARD_COUNT, XP_PER_RARITY, totalXPForLevel, getLevelFromXP, normalizeProgressXpLevel, PHASE_MIN_CARDS, PHASE_MAX_CARDS, MINIGAME_TICKET_CAP } from "@/types/game";
 import { ALL_CARDS, STARTER_CARD_IDS } from "@/data/cards";
 import { drawCards, drawFromPool } from "@/lib/deck";
@@ -12,7 +12,12 @@ import {
   COLLECTION_COMPENSATION_BONUS,
   COLLECTION_FIRST_CLEAR_BONUS,
   rollCompensationForLevels,
+  FULL_PACK_CARD_COUNT,
+  FULL_PACK_COLLECTION_REFUND_COINS,
+  rollFullPackTier,
+  shortfallCompensation,
 } from "@/data/packTier";
+import type { PackKind } from "@/data/packTier";
 import { saveToStorage, loadFromStorage } from "@/lib/storage";
 import { compareProgress } from "@/lib/progressCompare";
 import { STARTER_PACKS } from "@/data/starterPacks";
@@ -65,6 +70,7 @@ function getInitialProgress(): UserProgress {
     daysTowardNextLevel: 0,
     pendingPacks: 0,
     pendingBonusCards: 0,
+    pendingFullPacks: 0,
     cardCompletions: {},
     extraChallengesCompleted: 0,
     superChallengesCompleted: 0,
@@ -166,13 +172,19 @@ interface GameStore {
   selectCard: (card: ChallengeCard) => void;
   deselectCard: (cardId: string) => void;
   confirmSelection: () => void;
-  completeChallenge: (cardId: string) => void;
+  completeChallenge: (cardId: string) => ChallengeCompletionResult | null;
   setMode: (mode: GameMode) => void;
   cancelPendingMode: () => void;
   checkDailyReset: () => void;
   completeOnboarding: () => void;
   selectStarterPack: (packId: string) => void;
-  openCardPack: () => { cards: ChallengeCard[]; tier: Rarity };
+  openCardPack: () => {
+    cards: ChallengeCard[];
+    tier: Rarity;
+    kind: PackKind;
+    shortfall: number;
+    shortfallCoins: number;
+  };
   dismissPackOpener: () => void;
   dismissCollectionCelebration: () => void;
   setLanguage: (lang: Language) => void;
@@ -212,7 +224,7 @@ interface GameStore {
   selectPhaseCard: (card: ChallengeCard) => void;
   deselectPhaseCard: (cardId: string) => void;
   confirmPhaseSelection: () => void;
-  completePhaseChallenge: (cardId: string) => void;
+  completePhaseChallenge: (cardId: string) => ChallengeCompletionResult | null;
 
   // 미니게임
   spendTicket: () => boolean;  // true면 성공(차감됨), false면 티켓 부족
@@ -358,7 +370,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     //   cloud↔local 양방향에서 음수 XP 재발 방지.
     Object.assign(progress, normalizeProgressXpLevel(progress).progress);
 
-    const isOpeningPack = (progress.pendingPacks || 0) > 0 || (progress.pendingBonusCards || 0) > 0;
+    const isOpeningPack =
+      (progress.pendingPacks || 0) > 0 ||
+      (progress.pendingBonusCards || 0) > 0 ||
+      (progress.pendingFullPacks || 0) > 0;
     const isLocalEmpty = !savedOnboarding && !savedProgress;
     set({ daily, progress, isLoaded: true, hasCompletedOnboarding: !!savedOnboarding, isOpeningPack, isLocalEmpty });
 
@@ -497,19 +512,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // 챌린지 완료
   completeChallenge: (cardId: string) => {
-    if (completingCardIds.has(cardId)) return;
+    if (completingCardIds.has(cardId)) return null;
     completingCardIds.add(cardId);
 
     const { daily, progress } = get();
     if (daily.completedIds.includes(cardId)) {
       completingCardIds.delete(cardId);
-      return;
+      return null;
     }
 
     const card = daily.selectedCards.find((c) => c.id === cardId);
     if (!card) {
       completingCardIds.delete(cardId);
-      return;
+      return null;
     }
 
     const updatedDaily = {
@@ -570,15 +585,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // XP 기반 레벨업 체크
+    // 셀레브레이션 정직성 — 실제로 progress.xp 에 더해진 보상 XP 를 반환값에 담는다.
+    let bonusXp = 0;
+    let levelsGained = 0;
     const prevLevel = updatedProgress.level;
     const newLevel = getLevelFromXP(updatedProgress.xp);
     if (newLevel > prevLevel) {
-      const levelsGained = newLevel - prevLevel;
+      levelsGained = newLevel - prevLevel;
       updatedProgress.level = newLevel;
       // 컬렉션 100% 완료자: pendingPacks 증가 대신 즉시 환산 보상 (모달 무한 트리거 차단).
       if (updatedProgress.unlockedCardIds.length >= ALL_CARDS.length) {
         const comp = rollCompensationForLevels(levelsGained);
         updatedProgress.xp += comp.xp;
+        bonusXp += comp.xp;
         if (comp.coins > 0) {
           try { useUpHeroStore.getState().addCoins(comp.coins); }
           catch (e) {
@@ -588,35 +607,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       } else {
         updatedProgress.pendingPacks += levelsGained;
       }
-      // Phase 12d — Lv30+ (전직 후) 레벨업마다 스킬 포인트 +1 지급.
-      //   Lv31 부터 유효. prevLevel < 30, newLevel = 35 라면 35-30 = 5 포인트.
-      try {
-        if (newLevel > 30) {
-          const pointsToGrant =
-            prevLevel < 30
-              ? newLevel - 30 // 첫 전직 구간 : Lv31 ~ newLevel 까지 total
-              : levelsGained; // 이미 Lv30+ 였으면 획득한 level 만큼
-          if (pointsToGrant > 0) {
-            const heroStore = useUpHeroStore.getState();
-            const curPoints = heroStore.hero.skillPoints ?? 0;
-            heroStore.grantSkillPoints(pointsToGrant);
-            void curPoints;
-          }
-        }
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useGameStore] grantSkillPoints failed:", e);
-        }
-      }
-      // Phase 14 — 전직 전 튜토리얼 novice 스킬 자동 지급 (Lv5, Lv15).
-      //   grantNoviceSkills 는 idempotent — requiredLevel 충족 & 미보유 만 추가.
-      try {
-        useUpHeroStore.getState().grantNoviceSkills(newLevel);
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useGameStore] grantNoviceSkills failed:", e);
-        }
-      }
+      // Phase 2-A (Track A, 피드백 7/32) — 계정 레벨업은 영웅에게 아무것도 주지 않는다.
+      //   스킬 포인트·novice 스킬·전직 제안은 전부 영웅 XP 풀(useUpHeroStore.heroXp)의
+      //   레벨 마일스톤(applyHeroLevelMilestones)이 담당한다. 여기 남아 있던 세 개의
+      //   역방향 게이트(grantSkillPoints / grantNoviceSkills / proposeClassChoice)는 제거.
     }
 
     const shouldOpenPack = updatedProgress.pendingPacks > (progress.pendingPacks || 0);
@@ -636,20 +630,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
-    // Phase 5c.1: Lv 30 도달 시 영웅 class 분화.
-    // Bug 2026-04 — 자동 할당 → "추천 + 선택" UX 로 변경. proposeClassChoice 가
-    //   pendingClassChoice 를 세팅하면 ClassChoiceModal 이 열리고, 유저가 8개
-    //   중 하나를 고르면 confirmClassChoice 로 실제 분화가 이뤄진다.
-    // 이전 레벨 < 30 & 새 레벨 >= 30 인 edge 에서만 시도.
-    if (prevLevel < 30 && updatedProgress.level >= 30) {
-      try {
-        useUpHeroStore.getState().proposeClassChoice();
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useGameStore] proposeClassChoice failed:", e);
-        }
-      }
-    }
+    // 완료 결과 스냅샷 — DailyBoard 셀레브레이션이 실제 지급된 XP 를 표시한다.
+    //   앵커: grantExpeditionPass 블록 직후 (레벨업/전직 블록 안이 아님).
+    const result: ChallengeCompletionResult = {
+      baseXp: xpGain,
+      bonusXp,
+      totalXp: xpGain + bonusXp,
+      levelsGained,
+    };
 
     // 알림 갱신
     if (updatedProgress.notificationsEnabled) {
@@ -683,6 +671,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         })));
       }
     }
+
+    return result;
   },
 
   // 모드 변경 (다음 날부터 적용)
@@ -764,20 +754,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ collectionCelebration: false });
   },
 
-  // 카드팩 열기
-  // - 보너스 카드(pendingBonusCards) 우선 소진: 1장
+  // 카드팩 열기 — 큐 소진 순서 full > bonus > levelUp (유료 팩이 1장 보너스 뒤로 밀리지 않게).
+  // - 풀 카드팩(pendingFullPacks): rollFullPackTier (rare 60% / unique 30% / legend 10%),
+  //   항상 FULL_PACK_CARD_COUNT(5) 장.
+  // - 보너스 카드(pendingBonusCards): normal tier · 1 장 (기존 그대로)
   // - 레벨업 팩(pendingPacks): 등급 굴림 (normal 50% / rare 30% / unique 15% / legend 5%)
   //   → 등급별 2/3/4/5 장. 카드 등급은 우선 같은 tier, 부족 시 fallback (drawTierPack).
-  // - 보너스 카드(pendingBonusCards): normal tier · 1 장 (기존 그대로)
+  // - 잠긴 카드가 기대 장수보다 적으면 부족분을 shortfallCompensation 으로 보상
+  //   (full: 160 코인/장, levelUp: 25 XP + 50 코인/장). 코인은 useUpHeroStore.addCoins.
   // - lockedCards.length === 0 (컬렉션 100% 상태) 인데 큐가 쌓여있으면:
-  //   tier 별 환산 보상(XP + 영웅 코인) 으로 자동 전환. 첫 회면 축하 모달.
-  // 둘 다 없으면 빈 결과
+  //   tier 별 환산 보상(XP + 영웅 코인) 으로 자동 전환. 풀팩은 800 코인 환급. 첫 회면 축하 모달.
+  // 셋 다 없으면 빈 결과
   openCardPack: () => {
     const { progress } = get();
     const pendingPacks = progress.pendingPacks || 0;
     const pendingBonusCards = progress.pendingBonusCards || 0;
-    if (pendingPacks <= 0 && pendingBonusCards <= 0) {
-      return { cards: [], tier: "normal" as Rarity };
+    const pendingFullPacks = progress.pendingFullPacks || 0;
+    const empty = {
+      cards: [] as ChallengeCard[],
+      tier: "normal" as Rarity,
+      kind: "levelUp" as PackKind,
+      shortfall: 0,
+      shortfallCoins: 0,
+    };
+    if (pendingFullPacks <= 0 && pendingPacks <= 0 && pendingBonusCards <= 0) {
+      return empty;
     }
 
     const lockedCards = ALL_CARDS.filter(
@@ -799,6 +800,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         xpGain += COLLECTION_COMPENSATION_PER_TIER[t].xp;
         coinGain += COLLECTION_COMPENSATION_PER_TIER[t].coins;
       }
+      // 풀 카드팩 큐 — 결제액 전액(800 코인) 환급. 상점은 100% 상태에서 구매를 막지만
+      // 완료 직전에 사둔 팩이 남아 있을 수 있다.
+      coinGain += pendingFullPacks * FULL_PACK_COLLECTION_REFUND_COINS;
 
       // 첫 회 컬렉션 완료 보너스는 unlockedCardIds 가 마지막 카드를 채워 완료된
       // 직후 (정상 흐름에서) 부여되므로, 이 분기(이미 완료) 에서는 추가하지 않음.
@@ -807,6 +811,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...progress,
         pendingPacks: 0,
         pendingBonusCards: 0,
+        pendingFullPacks: 0,
         xp: progress.xp + xpGain,
       };
       set({ progress: updatedProgress });
@@ -823,19 +828,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
       }
 
-      return { cards: [], tier: "normal" as Rarity };
+      return empty;
     }
 
-    const isBonus = pendingBonusCards > 0;
+    const kind: PackKind =
+      pendingFullPacks > 0 ? "full" : pendingBonusCards > 0 ? "bonus" : "levelUp";
     let tier: Rarity;
     let newCards: ChallengeCard[];
-    if (isBonus) {
+    let expected: number;
+    if (kind === "full") {
+      tier = rollFullPackTier();
+      expected = FULL_PACK_CARD_COUNT;
+      newCards = drawTierPack(lockedCards, tier, expected);
+    } else if (kind === "bonus") {
       tier = "normal";
+      expected = 1;
       newCards = drawFromPool(lockedCards, 1);
     } else {
       tier = rollPackTier();
-      newCards = drawTierPack(lockedCards, tier, PACK_TIER_COUNT[tier]);
+      expected = PACK_TIER_COUNT[tier];
+      newCards = drawTierPack(lockedCards, tier, expected);
     }
+    // 부족분 보상 — 잠긴 카드가 기대 장수보다 적을 때. bonus 는 부족분 개념 없음.
+    const shortfall = Math.max(0, expected - newCards.length);
+    const comp = kind === "bonus" ? { xp: 0, coins: 0 } : shortfallCompensation(kind, shortfall);
 
     const newUnlockedIds = [
       ...progress.unlockedCardIds,
@@ -849,12 +865,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const updatedProgress: UserProgress = {
       ...progress,
-      pendingPacks: isBonus ? pendingPacks : pendingPacks - 1,
-      pendingBonusCards: isBonus ? pendingBonusCards - 1 : pendingBonusCards,
+      pendingPacks: kind === "levelUp" ? pendingPacks - 1 : pendingPacks,
+      pendingBonusCards: kind === "bonus" ? pendingBonusCards - 1 : pendingBonusCards,
+      pendingFullPacks: kind === "full" ? pendingFullPacks - 1 : pendingFullPacks,
       unlockedCardIds: newUnlockedIds,
+      xp: progress.xp + comp.xp + (justCompleted ? COLLECTION_FIRST_CLEAR_BONUS.xp : 0),
       ...(justCompleted && {
         collectionCompletedAt: new Date().toISOString(),
-        xp: progress.xp + COLLECTION_FIRST_CLEAR_BONUS.xp,
       }),
     };
 
@@ -871,7 +888,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
-    return { cards: newCards, tier };
+    if (comp.coins > 0) {
+      try {
+        useUpHeroStore.getState().addCoins(comp.coins);
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useGameStore] shortfall addCoins failed:", e);
+        }
+      }
+    }
+
+    return { cards: newCards, tier, kind, shortfall, shortfallCoins: comp.coins };
   },
 
   // 언어 변경
@@ -993,7 +1020,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (cmp === "aAhead") {
         if (process.env.NODE_ENV !== "production") {
           console.warn(
-            "[useGameStore._setFromCloud] cloud progress strictly behind local — skipping to prevent data loss.",
+            "[useGameStore._setFromCloud] cloud progress strictly behind local, skipping to prevent data loss.",
             { localDays: localProgress.totalDaysCompleted, cloudDays: normalized.totalDaysCompleted },
           );
         }
@@ -1144,7 +1171,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // phase에 맞는 챌린지 완료 (XP 배율 적용)
   completePhaseChallenge: (cardId: string) => {
-    if (completingCardIds.has(cardId)) return;
+    if (completingCardIds.has(cardId)) return null;
     completingCardIds.add(cardId);
 
     const { daily, progress } = get();
@@ -1160,20 +1187,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     if (completedIds.includes(cardId)) {
       completingCardIds.delete(cardId);
-      return;
+      return null;
     }
 
     const card = selectedCards.find((c) => c.id === cardId);
     if (!card) {
       completingCardIds.delete(cardId);
-      return;
+      return null;
     }
 
     // daily phase는 기존 completeChallenge 사용
     if (phase === "daily") {
       completingCardIds.delete(cardId);
-      get().completeChallenge(cardId);
-      return;
+      return get().completeChallenge(cardId);
     }
 
     const newCompletedIds = [...completedIds, cardId];
@@ -1199,6 +1225,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     updatedProgress.xp = (updatedProgress.xp || 0) + xpGain;
     updatedProgress.pendingPacks = updatedProgress.pendingPacks || 0;
     updatedProgress.pendingBonusCards = updatedProgress.pendingBonusCards || 0;
+    // 셀레브레이션 정직성 — 컬렉션 100% 환산 보상 XP 를 반환값에 담는다.
+    let bonusXp = 0;
+    let levelsGained = 0;
 
     // 새 카드 해금 체크
     const newUnlocks = ALL_CARDS.filter(
@@ -1226,6 +1255,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       } else {
         // 컬렉션 완료자 — 보너스 카드를 환산 보상으로 직접 지급.
         updatedProgress.xp += COLLECTION_COMPENSATION_BONUS.xp;
+        bonusXp += COLLECTION_COMPENSATION_BONUS.xp;
         try { useUpHeroStore.getState().addCoins(COLLECTION_COMPENSATION_BONUS.coins); }
         catch (e) {
           if (process.env.NODE_ENV !== "production") console.warn("[useGameStore] bonus-card addCoins failed:", e);
@@ -1243,11 +1273,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const prevLevel = updatedProgress.level;
     const newLevel = getLevelFromXP(updatedProgress.xp);
     if (newLevel > prevLevel) {
-      const levelsGained = newLevel - prevLevel;
+      levelsGained = newLevel - prevLevel;
       updatedProgress.level = newLevel;
       if (updatedProgress.unlockedCardIds.length >= ALL_CARDS.length) {
         const comp = rollCompensationForLevels(levelsGained);
         updatedProgress.xp += comp.xp;
+        bonusXp += comp.xp;
         if (comp.coins > 0) {
           try { useUpHeroStore.getState().addCoins(comp.coins); }
           catch (e) {
@@ -1290,6 +1321,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         lang,
       );
     }
+
+    return { baseXp: xpGain, bonusXp, totalXp: xpGain + bonusXp, levelsGained };
   },
 
   // === 미니게임 ===

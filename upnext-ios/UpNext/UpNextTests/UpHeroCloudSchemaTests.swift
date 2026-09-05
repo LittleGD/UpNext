@@ -6,6 +6,12 @@
 //  src/lib/sync.ts 의 normalizeUpHeroState → encodeUpHeroForCloud 를 vitest 로
 //  실행한 출력 (2026-08-29, 웹 커밋 9c2bf93 계약). Swift 가 이 JSON 을 읽고
 //  같은 JSON 으로 다시 쓰면 웹↔iOS 가 같은 Firestore 필드를 안전하게 공유한다.
+//  재생성 #1 (Phase 2-A, Track A): `heroXp: 39031` (레거시 Lv47 시드값) 추가 —
+//  src/lib/sync.test.ts "픽스처 왕복 — heroXp 39031" 과 같은 값.
+//  재생성 #2 (Phase 6-E, Track E): 상위집합 — `overflowDrops` (dropFloor 31 아이템 1개),
+//  장착 무기 `dropFloor: 10`, 가방 아이템 `dropFloor: 3`, `schemaVersion: 7`. 웹 sync.ts 의
+//  normalizeUpHeroState → encodeUpHeroForCloud 실측 출력 (2026-09-05, 웹 커밋 23140c1) —
+//  src/lib/sync.test.ts "normalizeUpHeroState — overflowDrops / dropFloor (Track E)" 계약.
 //
 
 import XCTest
@@ -22,7 +28,15 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         "name": "테오",
         "hp": 84,
         "maxHp": 120,
-        "baseStats": { "str": 12, "int": 7, "vit": 9, "dex": 5, "agi": 6, "crit": 2, "slotBonus": 1 },
+        "baseStats": {
+          "str": 12,
+          "int": 7,
+          "vit": 9,
+          "dex": 5,
+          "agi": 6,
+          "crit": 2,
+          "slotBonus": 1
+        },
         "equipped": {
           "weapon": {
             "id": "sword_f10_1700000000000",
@@ -32,9 +46,13 @@ final class UpHeroCloudSchemaTests: XCTestCase {
             "rarity": "rare",
             "category": "fitness",
             "iconName": "sword",
-            "stats": { "str": 4, "crit": 1 },
+            "stats": {
+              "str": 4,
+              "crit": 1
+            },
             "enhanceLevel": 3,
-            "affix": "agi"
+            "affix": "agi",
+            "dropFloor": 10
           },
           "armor": null,
           "accessory": null,
@@ -45,17 +63,25 @@ final class UpHeroCloudSchemaTests: XCTestCase {
             "rarity": "unique",
             "category": "mindfulness",
             "iconName": "talisman",
-            "stats": { "vit": 3 },
+            "stats": {
+              "vit": 3
+            },
             "photoId": "photo_abc",
-            "talismanSkills": ["ts_guard"],
-            "effects": ["eff_1"],
+            "talismanSkills": [
+              "ts_guard"
+            ],
+            "effects": [
+              "eff_1"
+            ],
             "flavor": "flavor text"
           }
         },
         "classType": null,
         "appearanceVariant": 1,
         "autoSkillEnabled": false,
-        "learnedSkills": ["warrior_smash_t1"],
+        "learnedSkills": [
+          "warrior_smash_t1"
+        ],
         "skillPoints": 2
       },
       "inventory": [
@@ -67,41 +93,131 @@ final class UpHeroCloudSchemaTests: XCTestCase {
           "rarity": "normal",
           "category": "wellness",
           "iconName": "armor",
-          "stats": { "vit": 2 }
+          "stats": {
+            "vit": 2
+          },
+          "dropFloor": 3
+        }
+      ],
+      "overflowDrops": [
+        {
+          "id": "sword_f31_1700000000003",
+          "name": "빛나는 자기절제의 검 of 힘",
+          "baseId": "self_control_sword",
+          "type": "weapon",
+          "rarity": "rare",
+          "category": "fitness",
+          "iconName": "Sword",
+          "stats": {
+            "str": 32,
+            "int": 2
+          },
+          "affix": "int",
+          "dropFloor": 31
         }
       ],
       "coins": 264,
-      "passes": { "fitness": 2, "learning": 0 },
-      "dungeons": {
-        "fitness": { "dungeonId": "fitness", "floorReached": 12, "bestFloorReached": 14, "bossesDefeated": [10] }
+      "passes": {
+        "fitness": 2,
+        "learning": 0
       },
-      "codex": { "monsters": ["슬라임"], "equipment": ["iron_sword"], "bosses": [] },
-      "cosmetics": { "tentColor": "#CDF564" },
-      "destroyGuards": 2,
-      "downGuards": 1,
-      "combatBuff": { "pct": 10, "battlesLeft": 3 },
-      "slotBlankStreak": 2,
+      "dungeons": {
+        "fitness": {
+          "dungeonId": "fitness",
+          "floorReached": 12,
+          "bestFloorReached": 14,
+          "bossesDefeated": [
+            10
+          ]
+        }
+      },
+      "codex": {
+        "monsters": [
+          "슬라임"
+        ],
+        "equipment": [
+          "iron_sword"
+        ],
+        "bosses": []
+      },
+      "cosmetics": {
+        "tentColor": "#CDF564"
+      },
       "lastIdleAccrualAt": 1756400000000,
       "ngPlusLevel": 1,
+      "destroyGuards": 2,
+      "downGuards": 1,
+      "combatBuff": {
+        "pct": 10,
+        "battlesLeft": 3
+      },
+      "slotBlankStreak": 2,
       "hasSeenCampTutorial": true,
       "welcomeGrantClaimed": true,
       "lastSeenAt": 1756400001000,
-      "schemaVersion": 5,
-      "shopDaily": { "coinPouchClaimed": false, "date": "2026-08-28", "passesBought": 1, "slotSpins": 2 },
+      "schemaVersion": 7,
+      "shopDaily": {
+        "coinPouchClaimed": false,
+        "slotSpins": 2,
+        "date": "2026-08-28",
+        "passesBought": 1
+      },
       "weeklyVariant": {
         "week": "2026-W35",
         "affixId": "frenzy",
-        "clearedDungeons": ["fitness"],
+        "clearedDungeons": [
+          "fitness"
+        ],
         "bestScore": 3140,
         "lastUploadedAt": 1756400002000
       },
-      "heroStartLevel": 3
+      "heroStartLevel": 3,
+      "heroXp": 39031
     }
     """
 
     private func decodeFixture() throws -> CloudUpHeroState {
         try JSONDecoder().decode(
             CloudUpHeroState.self, from: Data(Self.webFixture.utf8))
+    }
+
+    // MARK: - Phase 5-B — enhanceLevel 20 왕복
+
+    /// enhanceLevel 0..20 은 와이어 키 변경 없이 그대로 왕복한다 (웹 sync.test.ts
+    /// "enhanceLevel 20 왕복" 과 같은 픽스처). 사진 부적의 talismanSkills 도 남는다.
+    func testEnhanceLevel20RoundTrips() throws {
+        let json = """
+        {
+          "inventory": [
+            {
+              "id": "it-20", "baseId": "sword_iron", "name": "쇠검 +20", "type": "weapon",
+              "rarity": "rare", "category": "fitness", "iconName": "Sword",
+              "stats": { "str": 25, "dex": 8 }, "enhanceLevel": 20, "enhanceFailStreak": 0
+            },
+            {
+              "id": "ph-10", "name": "추억의 부적 +10", "type": "talisman", "rarity": "rare",
+              "category": "fitness", "iconName": "Photo", "photoId": "photo-1",
+              "stats": { "vit": 5 }, "enhanceLevel": 10, "talismanSkills": ["fit5", "fit10"]
+            }
+          ]
+        }
+        """
+        let decoded = try JSONDecoder().decode(CloudUpHeroState.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.inventory.count, 2)
+        XCTAssertEqual(decoded.inventory[0].enhanceLevel, 20)
+        XCTAssertEqual(decoded.inventory[0].stats, [.str: 25, .dex: 8])
+        XCTAssertEqual(decoded.inventory[1].enhanceLevel, 10)
+        XCTAssertEqual(decoded.inventory[1].talismanSkills, ["fit5", "fit10"])
+
+        let payload = try XCTUnwrap(decoded.firestoreValue())
+        let inv = try XCTUnwrap(payload["inventory"] as? [[String: Any]])
+        XCTAssertEqual(inv[0]["enhanceLevel"] as? Int, 20)
+        XCTAssertEqual(inv[1]["enhanceLevel"] as? Int, 10)
+
+        let reencoded = try JSONEncoder().encode(decoded)
+        let again = try JSONDecoder().decode(CloudUpHeroState.self, from: reencoded)
+        XCTAssertEqual(again.inventory[0].enhanceLevel, 20)
+        XCTAssertEqual(again.toState().inventory[0].enhanceLevel, 20)
     }
 
     // MARK: - 웹 픽스처 왕복
@@ -140,6 +256,14 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         XCTAssertEqual(decoded.shopDaily?.slotSpins, 2)          // 와이어 키 "slotSpins"
         XCTAssertEqual(decoded.weeklyVariant?.clearedDungeons, [.fitness])
         XCTAssertEqual(decoded.heroStartLevel, 3)
+        XCTAssertEqual(decoded.heroXp, 39031)                   // Phase 2-A 와이어 키 "heroXp"
+        // Phase 6-E 와이어 키 "overflowDrops" / "dropFloor"
+        XCTAssertEqual(decoded.overflowDrops.map(\.id), ["sword_f31_1700000000003"])
+        XCTAssertEqual(decoded.overflowDrops.first?.dropFloor, 31)
+        XCTAssertEqual(decoded.inventory.first?.dropFloor, 3)
+        XCTAssertEqual(decoded.hero.equipped[.weapon]?.dropFloor, 10)
+        XCTAssertNil(decoded.hero.equipped[.talisman]?.dropFloor)  // 사진 부적은 층이 없다
+        XCTAssertEqual(decoded.schemaVersion, 7)
         XCTAssertEqual(decoded.destroyGuards, 2)
         XCTAssertEqual(decoded.downGuards, 1)
         XCTAssertEqual(decoded.combatBuff.buff, CombatBuff(pct: 10, battlesLeft: 3))
@@ -357,5 +481,126 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         var zeroPasses = empty
         zeroPasses.passes = [.fitness: 0]
         XCTAssertFalse(zeroPasses.hasUpHeroFootprint)
+    }
+
+    // MARK: - Phase 6-E (Track E) — 넘친 전리품 / 드롭 층 (와이어 키 "overflowDrops" / "dropFloor")
+    //
+    // 웹 sync.ts: overflowDrops 는 inventory 와 같은 디코드 (키 없음·비배열 → [], 깨진 원소만
+    // 버림), 항상 인코딩([] 허용), 흔적(footprint) 포함. dropFloor 는 int optional 로 보존.
+
+    private func decodeCloud(_ json: String) throws -> CloudUpHeroState {
+        try JSONDecoder().decode(CloudUpHeroState.self, from: Data(json.utf8))
+    }
+
+    private static let overflowItemJSON = #"""
+    {"id": "ov-1", "baseId": "self_control_sword", "name": "빛나는 자기절제의 검", "type": "weapon",
+     "rarity": "rare", "category": "fitness", "iconName": "Sword", "stats": {"str": 24},
+     "dropFloor": 20, "enhanceLevel": 3}
+    """#
+
+    func testOverflowDropsDecodesLikeInventoryAndKeepsDropFloor() throws {
+        let decoded = try decodeCloud(#"{"overflowDrops": [\#(Self.overflowItemJSON)], "inventory": [\#(Self.overflowItemJSON)]}"#)
+        XCTAssertEqual(decoded.overflowDrops.count, 1)
+        XCTAssertEqual(decoded.overflowDrops[0].dropFloor, 20)
+        XCTAssertEqual(decoded.overflowDrops[0].enhanceLevel, 3)
+        XCTAssertEqual(decoded.inventory[0].dropFloor, 20)
+    }
+
+    func testOverflowDropsMissingOrNotArrayDecodesEmptyAndIsAlwaysEncoded() throws {
+        XCTAssertEqual(try decodeCloud("{}").overflowDrops, [])
+        XCTAssertEqual(try decodeCloud(#"{"overflowDrops": "nope"}"#).overflowDrops, [])
+        let payload = try XCTUnwrap(try decodeCloud("{}").firestoreValue())
+        XCTAssertNotNil(payload["overflowDrops"], "비어 있어도 항상 싣는다 (웹 encodeUpHeroForCloud)")
+        XCTAssertEqual((payload["overflowDrops"] as? [Any])?.count, 0)
+    }
+
+    func testOverflowDropsDropsOnlyCorruptElements() throws {
+        let decoded = try decodeCloud(#"{"overflowDrops": [\#(Self.overflowItemJSON), {"id": "x"}, 42]}"#)
+        XCTAssertEqual(decoded.overflowDrops.map(\.id), ["ov-1"])
+    }
+
+    func testOverflowDropsAloneIsFootprint() throws {
+        XCTAssertTrue(try decodeCloud(#"{"overflowDrops": [\#(Self.overflowItemJSON)]}"#).hasFootprint)
+        XCTAssertFalse(try decodeCloud(#"{"overflowDrops": []}"#).hasFootprint)
+    }
+
+    func testDropFloorLenientDecodeAndRoundTrip() throws {
+        // 소수 내림 · 비숫자는 부재 (웹 normalizeEquipment 는 값을 보존하고 iOS 는 Int 로 접는다).
+        let decoded = try decodeCloud(#"{"inventory": [{"id": "a", "type": "weapon", "dropFloor": 12.9}, {"id": "b", "type": "armor", "dropFloor": "x"}, {"id": "c", "type": "armor"}]}"#)
+        XCTAssertEqual(decoded.inventory[0].dropFloor, 12)
+        XCTAssertNil(decoded.inventory[1].dropFloor)
+        XCTAssertNil(decoded.inventory[2].dropFloor)
+        let payload = try XCTUnwrap(decoded.firestoreValue())
+        let inv = try XCTUnwrap(payload["inventory"] as? [[String: Any]])
+        XCTAssertEqual(inv[0]["dropFloor"] as? Int, 12)
+        XCTAssertNil(inv[2]["dropFloor"], "없으면 키를 싣지 않는다 (encodeIfPresent)")
+
+        var state = UpHeroStore.makeDefaultState()
+        state.overflowDrops = decoded.inventory
+        let wire = try JSONEncoder().encode(CloudUpHeroState(state))
+        let again = try JSONDecoder().decode(CloudUpHeroState.self, from: wire)
+        XCTAssertEqual(again.overflowDrops.map(\.dropFloor), [12, nil, nil])
+        XCTAssertEqual(again.toState().overflowDrops.map(\.id), ["a", "b", "c"])
+    }
+
+    // MARK: - 영웅 XP 풀 (와이어 키 "heroXp", Phase 2-A)
+    //
+    // 웹 normalizeUpHeroState: 키가 있을 때만 싣고 [0, HERO_XP_CAP] 정수로 접는다. 구
+    // 클라이언트 문서(키 없음)는 nil 유지 — 0 이나 레거시 공식으로 지어내면 두 기기의 풀이
+    // 서로를 덮어 mergeCloudHeroXp 의 단조 병합 전제가 깨진다.
+
+    private func decodeHeroXp(_ json: String) throws -> Int? {
+        try JSONDecoder().decode(CloudUpHeroState.self, from: Data(json.utf8)).heroXp
+    }
+
+    /// 구 클라이언트 문서(heroXp 없음) → nil 로 디코드하고, 재인코딩에도 키가 없다.
+    func testLegacyDocWithoutHeroXpStaysAbsent() throws {
+        let decoded = try JSONDecoder().decode(
+            CloudUpHeroState.self, from: Data(#"{"coins": 12, "heroStartLevel": 1}"#.utf8))
+        XCTAssertNil(decoded.heroXp)
+        let payload = try XCTUnwrap(decoded.firestoreValue())
+        XCTAssertNil(payload["heroXp"], "미시드 풀을 지어내 올리면 안 된다")
+        // 상태로 옮겨도 미시드 유지 (GameStore.adoptCloudUpHero 가 ensureHeroXp 로 시드).
+        XCTAssertNil(decoded.toState().heroXp)
+    }
+
+    /// 시드된 값은 0 이어도 항상 싣는다 (setDoc(merge) 가 옛 값을 되살리지 않게).
+    func testHeroXpAlwaysEncodedOnceSeeded() throws {
+        var state = UpHeroStore.makeDefaultState()
+        state.heroXp = 0
+        let payload = try XCTUnwrap(CloudUpHeroState(state).firestoreValue())
+        XCTAssertEqual(payload["heroXp"] as? Int, 0)
+        state.heroXp = 39031
+        let again = try XCTUnwrap(CloudUpHeroState(state).firestoreValue())
+        XCTAssertEqual(again["heroXp"] as? Int, 39031)
+    }
+
+    /// 클램프 — 음수 → 0, 소수 내림, 상한 heroXpCap. 웹 clampHeroXp 와 동일.
+    func testHeroXpClampsLikeWeb() throws {
+        XCTAssertEqual(try decodeHeroXp(#"{"heroXp": -5}"#), 0)
+        XCTAssertEqual(try decodeHeroXp(#"{"heroXp": 12.9}"#), 12)
+        XCTAssertEqual(try decodeHeroXp(#"{"heroXp": 1000000000000}"#), UpHeroRules.heroXpCap)
+        XCTAssertNil(try decodeHeroXp(#"{"heroXp": "abc"}"#), "비숫자는 부재로 취급 (지어내지 않는다)")
+        var state = UpHeroStore.makeDefaultState()
+        state.heroXp = -1
+        XCTAssertEqual(CloudUpHeroState(state).heroXp, 0)
+    }
+
+    /// 왕복 — 상태 → 클라우드 → 상태 를 지나도 heroXp 가 같다.
+    func testHeroXpRoundTripsThroughCloudWire() throws {
+        var state = UpHeroStore.makeDefaultState()
+        state.heroXp = 39031
+        let data = try JSONEncoder().encode(CloudUpHeroState(state))
+        let decoded = try JSONDecoder().decode(CloudUpHeroState.self, from: data)
+        XCTAssertEqual(decoded.heroXp, 39031)
+        XCTAssertEqual(decoded.toState().heroXp, 39031)
+    }
+
+    /// heroXp 만으로는 플레이 흔적이 아니다 (footprint 게이트 불변, 웹 hasUpHeroFootprint).
+    func testHeroXpAloneIsNotFootprint() throws {
+        let decoded = try JSONDecoder().decode(
+            CloudUpHeroState.self, from: Data(#"{"heroXp": 39031}"#.utf8))
+        XCTAssertFalse(decoded.hasFootprint)
+        XCTAssertEqual(decoded.heroXp, 39031)
     }
 }

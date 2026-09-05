@@ -82,7 +82,7 @@ export const CLASS_META: Record<
   { name: string; passive: string; icon: string }
 > = {
   warrior: { name: "전사", passive: "전투 round 당 HP +2 회복", icon: "Sword" },
-  mage: { name: "마법사", passive: "모든 XP 획득 +20%", icon: "BookOpen" },
+  mage: { name: "마법사", passive: "던전 XP 획득 +20%", icon: "BookOpen" },
   monk: { name: "수도승", passive: "회피 확률 +10%", icon: "Moon" },
   druid: { name: "드루이드", passive: "회복 효과 +30%", icon: "Coffee" },
   bard: { name: "음유시인", passive: "코인 획득 +25%", icon: "Message" },
@@ -138,8 +138,12 @@ export interface Hero {
    */
   learnedSkills?: string[];
   /**
-   * Phase 12d — 남은 스킬 포인트. 레벨업 (Lv31+) 마다 +1.
-   *   T2 해금에 1, T3 에 1, T4 에 2 포인트 필요.
+   * Phase 12d — 남은 스킬 포인트. T2 해금에 1, T3 에 1, T4 에 2 포인트 필요.
+   *
+   * Phase 2-A — **파생 캐시**다. 진실은 `skillPointsTotalForLevel(영웅 Lv) -
+   *   Σ pointCost(learnedSkills)` 이고, `useUpHeroStore.reconcileSkillPoints` 가
+   *   초기화/정산/해금 뒤 다시 계산해 여기 적는다. 구 클라이언트가 그대로 읽을 수
+   *   있게 와이어(`skillPoints`)에는 남긴다. 별도 지급 카운터는 없다.
    */
   skillPoints?: number;
 }
@@ -170,7 +174,7 @@ export interface Equipment {
    */
   photoId?: string;
   /**
-   * Phase 11a — 강화 레벨. 0 = 미강화, 최대 10.
+   * Phase 11a — 강화 레벨. 0 = 미강화. Phase 5-B 부터 최대 20 (사진 부적은 10).
    * `undefined` 는 legacy 저장본으로 0 과 동일하게 취급.
    * 이름 표기: `${baseName} +${enhanceLevel}` (N≥1).
    * stats 는 enhanceItem 호출 시 각 key 에 누적 가산 (미미한 +0.5 반올림 수준).
@@ -182,6 +186,14 @@ export interface Equipment {
    *   legend: streak 당 +4%p, unique: +2%p. 이 item 에만 축적 (다른 item 은 독립).
    */
   enhanceFailStreak?: number;
+  /**
+   * Phase 6-E (Track E) — 드롭된 층. createEquipmentFromTemplate(dungeonFloor) 와
+   *   합성(sources 의 max) 이 기록한다. 판매가(`sellPrice`) 와 합성 층 규칙이 읽는다.
+   *   레거시 저장본은 v7 마이그레이션이 주스탯에서 역추정해 채운다 (없으면 undefined).
+   *   사진 부적은 층이 없다 (판매가는 0 층으로 계산).
+   *   클라우드 와이어 키 `dropFloor` (int optional) — iOS CloudEquipment CodingKeys 동일.
+   */
+  dropFloor?: number;
   /**
    * Phase 11a — 2차 affix stat key (rare+ 드롭에 부여).
    * primary stat 과 별개로 stats 객체에도 반영됨 — 이 필드는 "어떤 key 가 affix
@@ -284,7 +296,28 @@ export interface DungeonProgress {
   floorReached: number;
   /** 역대 최고 도달 floor — 사망/체크포인트 미달과 무관하게 절대 후퇴 안 함. UI "최고 기록" 표시용. */
   bestFloorReached: number;
-  bossesDefeated: number[]; // [10, 20, 30] 중 처치한 floor
+  /** 처치한 보스층 전부 (10/20/30/40/... 상한 없음, Phase 16 Track C). 정렬된 배열. */
+  bossesDefeated: number[];
+}
+
+/**
+ * Phase 4-D (Track D, 피드백 15) — 런 한정 능력치 보정의 대상 스탯.
+ *   "all" 은 str/int/vit/dex/agi 다섯 개 전부. crit/slotBonus 는 대상이 아니다
+ *   (crit 은 퍼센트 포인트, slotBonus 는 슬롯 수 카운터라 곱하면 의미가 깨진다).
+ *   iOS UpHero.swift RunModStat 미러.
+ */
+export type RunModStat = "str" | "int" | "vit" | "dex" | "agi" | "all";
+
+/**
+ * Phase 4-D — 세션에 쌓이는 런 한정 능력치 보정 한 건.
+ *   `pct` 는 부호 있는 퍼센트 포인트 (음수 = 저주). `floorsLeft` 가 없으면 런
+ *   끝까지. 적용은 `upHeroCombat.sessionStats()` 한 곳 (스탯별 합산 → clamp →
+ *   1회 곱). iOS RunStatMod 미러.
+ */
+export interface RunStatMod {
+  stat: RunModStat;
+  pct: number;
+  floorsLeft?: number;
 }
 
 /** 이벤트 선택지 효과 */
@@ -294,6 +327,17 @@ export type ChoiceEffect =
   | { kind: "heal"; amount: number }
   | { kind: "skipFloors"; count: number }
   | { kind: "revealBoss" }
+  /**
+   * Phase 4-D (Track D) — 런 한정 빌드 효과 4종. 전부 `CombatSession` 의
+   *   세션 전용 필드에 쌓이고 탐험이 끝나면 사라진다 (클라우드 제외).
+   *   - runBuff / runCurse: stat 에 ±pct% 를 `floors` 층 동안 (없으면 런 끝까지).
+   *   - stealth: 다음 `encounters` 회 일반 조우를 전투 없이 지나친다 (보스 제외).
+   *   - guaranteedDrop: 다음 `count` (기본 1) 회 처치에서 장비 드롭 확정 (floor+5 등급).
+   */
+  | { kind: "runBuff"; stat: RunModStat; pct: number; floors?: number }
+  | { kind: "runCurse"; stat: RunModStat; pct: number; floors?: number }
+  | { kind: "stealth"; encounters: number }
+  | { kind: "guaranteedDrop"; count?: number }
   | { kind: "nothing" }
   /** 탐험 시간 조정 — 음수 = 소모, 양수 = 회복 */
   | { kind: "time"; delta: number }
@@ -357,7 +401,36 @@ export type SimpleChoiceEffect =
   | { kind: "time"; delta: number }
   | { kind: "skipFloors"; count: number }
   | { kind: "revealBoss" }
+  /** Phase 4-D — 런 한정 빌드 효과 (ChoiceEffect 와 같은 shape). */
+  | { kind: "runBuff"; stat: RunModStat; pct: number; floors?: number }
+  | { kind: "runCurse"; stat: RunModStat; pct: number; floors?: number }
+  | { kind: "stealth"; encounters: number }
+  | { kind: "guaranteedDrop"; count?: number }
   | { kind: "nothing" };
+
+/**
+ * Phase 13b / 4-D — 선택 결과의 구조화된 효과 요약. 엔진(`summarizeEffectsData`)이
+ *   만들고 UI(`buildSummaryChips`)가 현재 언어 칩으로 푼다. 로그 엔트리에 그대로
+ *   저장되므로 필드는 추가만 한다 (legacy save 호환). iOS EffectSummaryData 미러.
+ */
+export interface EffectSummaryData {
+  xp?: number;
+  coins?: number;
+  heal?: number;
+  damage?: number;
+  /** 음수 = 시간 소모, 양수 = 시간 회복 */
+  timeDelta?: number;
+  /** Phase 4-D — 건너뛴 층 수 (skipFloors count 합) */
+  skipFloors?: number;
+  /** Phase 4-D — 런 한정 보정 (runBuff 는 +pct, runCurse 는 -pct) */
+  runMods?: Array<{ stat: RunModStat; pct: number; floors?: number }>;
+  /** Phase 4-D — 은신 조우 수 */
+  stealth?: number;
+  /** Phase 4-D — 장비 확정 처치 수 */
+  guaranteedDrop?: number;
+  /** Phase 4-D — revealBoss 가 더한 보스 피해 % */
+  bossDmgPct?: number;
+}
 
 /**
  * Choice entry 구분자.
@@ -586,13 +659,7 @@ export type LogEntry =
        * Phase 13b — 다국어 effectSummary. 컴포넌트가 있으면 우선 사용, 없으면
        * effectSummary string fallback. legacy save 호환.
        */
-      effectSummaryData?: {
-        xp?: number;
-        coins?: number;
-        heal?: number;
-        damage?: number;
-        timeDelta?: number;
-      };
+      effectSummaryData?: EffectSummaryData;
       /**
        * Phase 13b — 다국어 narrative 빌딩 보조. text 는 한국어 fallback.
        * 컴포넌트는 actionKey/resultKey 가 있으면 t() 로 풀어서 빌드.
@@ -711,6 +778,8 @@ export interface CombatSession {
   /**
    * Phase 12e — 진행 중인 미니게임 상태. session.status === "awaitingMinigame" 시 set.
    *   결과 resolveMinigame(success) 호출 시 effects 적용 + status=active.
+   *   Phase 16 (Track C) — status 가 awaitingMinigame 이 아닌데 남아 있으면
+   *   `normalizeSessionForLoad` (upHeroCombat.ts) 가 로드 시 제거한다.
    */
   pendingMinigame?: {
     minigame: MinigameId;
@@ -735,6 +804,24 @@ export interface CombatSession {
    * (웹 CloudUpHeroState + iOS UpHeroCloudSchema CodingKeys 양쪽) 를 함께 넓혀야 한다.
    */
   combatBuff?: { pct: number; battlesLeft: number };
+  /**
+   * Phase 4-D (Track D, 피드백 15) — 런 한정 빌드 상태 4종. 전부 세션 전용이다:
+   *   `UpHeroState` 로 승격하지 않고 클라우드 페이로드(sync.ts 는 currentSession
+   *   을 제외한다)에도 실리지 않는다. 옵셔널이라 예전 저장 세션은 전부 undefined
+   *   로 로드되며 그건 "런 보정 없음" 과 같다 (스키마 버전 불변).
+   *
+   *   - runStatMods: `sessionStats()` 가 combatBuff 뒤에 스탯별 합산 pct 로 1회 곱.
+   *     `advanceRunModFloors` 가 층 이동마다 floorsLeft 를 줄이고 만료를 지운다.
+   *     최대 RUN_STAT_MODS_CAP 건 (오래된 것부터 버림).
+   *   - runBossDmgPct: revealBoss 1회당 +5 (상한 15). executeCombatRound 가
+   *     isBoss 몬스터에게 주는 영웅 피해에만 곱한다.
+   *   - runStealthLeft: tickSession 의 일반 조우 분기에서 1씩 소모 (보스층 제외).
+   *   - runGuaranteedDrops: victory 드롭 판정을 강제 (floor+5 등급) 하고 1씩 소모.
+   */
+  runStatMods?: RunStatMod[];
+  runBossDmgPct?: number;
+  runStealthLeft?: number;
+  runGuaranteedDrops?: number;
   /**
    * Phase 6b — 다음 영웅 공격 damage 배율 (warrior 강타 등).
    * 1 이상 — 공격 발생 후 reset (1 로 돌아감).
@@ -893,6 +980,14 @@ export interface Cosmetics {
 export interface UpHeroState {
   hero: Hero;
   inventory: Equipment[];
+  /**
+   * Phase 6-E (Track E, 피드백 22) — 정산 때 가방 상한(`INVENTORY_CAP`)을 넘긴 전리품.
+   *   `splitDropsByCap` 이 나눠 담고, 캠프의 BagOverflowModal 이 한 개씩 판매/버리기
+   *   또는 모두 판매로 비운다. 인벤토리와 별개라 `inventory.length <= INVENTORY_CAP`
+   *   불변식이 정산 뒤 항상 성립한다. 영속 + 클라우드 동기화 (와이어 키
+   *   `overflowDrops`, Equipment[], [] 허용, footprint 에 포함). 레거시 저장본은 [].
+   */
+  overflowDrops: Equipment[];
   coins: number;
   passes: ExpeditionPasses;
   dungeons: Partial<Record<DungeonId, DungeonProgress>>;
@@ -1054,6 +1149,29 @@ export interface UpHeroState {
    *   transient — persist 되지 않음.
    */
   pendingClassChoice: { recommended: ClassType } | null;
+  /**
+   * Phase 2-A (Track A, 피드백 7/20/32) — 영웅 전용 누적 XP 풀.
+   *   계정 XP(progress.xp)와 완전히 분리된다. 던전 정산(`settleHeroXp`)과 방치
+   *   보상만 여기에 더하고, 챌린지 완료는 절대 건드리지 않는다.
+   *   영웅 Lv = `heroLevelFromXP(heroXp)` (곡선 `heroTotalXPForLevel`).
+   *
+   *   undefined = 아직 시드되지 않음 (레거시 저장본 / progress 를 못 읽은 초기화).
+   *   그동안은 `resolveHeroLevel` 이 레거시 공식(getEffectiveHeroLevel)로 표시하고,
+   *   `ensureHeroXp` 가 progress.level 을 읽을 수 있게 되는 즉시
+   *   `heroTotalXPForLevel(레거시 Lv)` 로 정확히 같은 레벨에서 시드한다.
+   *   0 으로 시드하는 경로는 없다 (Lv47 영웅이 Lv1 로 주저앉는 사고 방지).
+   *
+   *   정수 [0, HERO_XP_CAP]. 와이어 키 `heroXp` — 없으면 로컬 유지, 시드 뒤엔 항상
+   *   인코딩. iOS `UpHeroCloudSchema` CodingKeys 와 철자를 맞출 것.
+   */
+  heroXp?: number;
+  /**
+   * Phase 2-A — 방금 일어난 영웅 레벨업 (HeroLevelUpOverlay 표시용).
+   *   `applyHeroLevelMilestones` 가 new > prev 일 때 세팅, `acknowledgeHeroLevelUp`
+   *   이 null 로 내린다. Lv30 전직 제안은 이 오버레이가 닫힌 뒤에만 뜬다.
+   *   transient — persist 되지 않음.
+   */
+  pendingHeroLevelUp: { from: number; to: number } | null;
   isLoaded: boolean;
 }
 
@@ -1130,6 +1248,14 @@ export const SHOP_PRICES = {
    * iOS `ShopPrices.downGuard` 와 같은 값이어야 한다.
    */
   downGuard: 150,
+  /**
+   * Phase 3-F — 스킬 초기화(리스펙) 1회. learnedSkills 를 [T1] 로 되돌리면 SP 는
+   * 레벨 파생값이라 자동으로 복구된다 (환급 산술 없음). T2/T3 가 택일이라 후회의
+   * 출구가 필요하고, 코인 싱크로 downGuard(150) 두 배 자리에 둔다.
+   *
+   * iOS `ShopPrices.skillRespec` 과 같은 값이어야 한다.
+   */
+  skillRespec: 300,
 } as const;
 
 /**
@@ -1220,12 +1346,16 @@ export function computeWeeklyScore(
 /* ══════════════════════════════════════════════════════════════════════
  * Phase 11a — 강화 (enhanceItem) 시스템 상수
  *
- * 단일 아이템 + 코인 → 확률적 +1 level 시도. 최대 +10.
- * 성공률: base - enhanceLevel × decay (등급별 decay 다름).
+ * 단일 아이템 + 코인 → 확률적 +1 level 시도. 최대 +20.
+ *   +0..+10 (currentLevel 0..9): 성공률 base - level × decay (등급별 decay).
+ *   +11..+20 (currentLevel 10..19, Phase 5-B "상위 밴드"): 등급별 명시 표.
  * ══════════════════════════════════════════════════════════════════════ */
 
-/** 강화 가능 최대 레벨 (inclusive). */
-export const MAX_ENHANCE_LEVEL = 10;
+/**
+ * 강화 가능 최대 레벨 (inclusive). Phase 5-B 에서 10 → 20.
+ * 사진 부적은 별도 상한 PHOTO_TALISMAN_MAX_ENHANCE_LEVEL(10) 을 쓴다.
+ */
+export const MAX_ENHANCE_LEVEL = 20;
 
 // Phase 11c R2 — 이전 `ENHANCE_PRESERVE_ON_FAIL` 상수 제거.
 // Phase 15 — 그 후계인 `ENHANCE_PRESERVE_BY_RARITY`(레벨 무관 고정 보존률) 도 퇴역.
@@ -1276,6 +1406,43 @@ const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
   legend: 0.04, // +4%p / fail
 };
 
+/* ── Phase 5-B — 상위 밴드 (+11..+20) ─────────────────────────────────────
+ *
+ * 0..9 의 선형 감쇠는 legend 가 +10 에서 이미 5% 바닥에 닿아 10..19 를 만들 수
+ * 없다. 그래서 currentLevel >= 10 은 등급별 명시 표로 간다. 0..9 의 값은 바이트
+ * 단위로 그대로다 (기존 여정 회귀 테스트가 그 증거).
+ */
+
+/** 상위 밴드가 시작하는 currentLevel (+10 → +11 시도부터). */
+export const ENHANCE_HIGH_BAND_START = 10;
+
+/**
+ * 상위 밴드 성공률 (백분율). index = currentLevel - ENHANCE_HIGH_BAND_START.
+ * +19 → +20 은 모든 등급에서 1%. 바닥은 ENHANCE_HIGH_MIN_SUCCESS.
+ */
+export const ENHANCE_HIGH_SUCCESS_BY_LEVEL: Record<Rarity, readonly number[]> = {
+  normal: [50, 40, 31, 24, 18, 13, 9, 5, 3, 1],
+  rare: [40, 32, 25, 19, 14, 10, 7, 4, 2, 1],
+  unique: [24, 20, 16, 12, 9, 7, 5, 3, 2, 1],
+  legend: [12, 10, 8, 6, 5, 4, 3, 2, 2, 1],
+};
+
+/** 상위 밴드 성공률 바닥 (1%). */
+export const ENHANCE_HIGH_MIN_SUCCESS = 0.01;
+
+/**
+ * 상위 밴드 pity (연속 실패당 가산, 0-1). 밴드 안에서는
+ * ENHANCE_PITY_BONUS_PER_FAIL 을 **대체** 한다 (더하지 않는다).
+ * 완전 방어 시 +10 → +20 기대 시도 수: normal 50.7 / rare 55.5 / unique 63.2 /
+ * legend 63.8. 등급 순서가 유지되도록 legend 만 0.03.
+ */
+export const ENHANCE_HIGH_PITY_PER_FAIL: Record<Rarity, number> = {
+  normal: 0.02,
+  rare: 0.02,
+  unique: 0.02,
+  legend: 0.03,
+};
+
 /* ── Phase 15 — 실패를 소실 / 하락 / 유지 3분기로 재설계 ────────────────────
  *
  * 무엇이 문제였나: 직전 모델 `ENHANCE_PRESERVE_BY_RARITY` 는 레벨과 무관하게
@@ -1287,7 +1454,7 @@ const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
  * 파괴가 붙는다. 그리고 그 사이 구간을 채우는 것이 **등급 하락**이다 — 아이템이
  * 사라지지는 않지만 한 단계 내려가므로, 손실감은 주되 판을 엎지는 않는다.
  *
- * 새 모델 (MAX_ENHANCE_LEVEL=10 에 맞춰 축약):
+ * 새 모델 (Phase 5-B 에서 20 단계로 확장):
  *   실패했을 때 아래 셋 중 하나로 갈린다.
  *     destroy : ENHANCE_DESTROY_ON_FAIL_BY_LEVEL[L] × ENHANCE_DESTROY_RARITY_MULT[rarity]
  *     down    : ENHANCE_DOWN_ON_FAIL_BY_LEVEL[L]
@@ -1301,7 +1468,13 @@ const ENHANCE_PITY_BONUS_PER_FAIL: Record<Rarity, number> = {
  *
  * 아래 두 표는 **실패했을 때** 의 조건부 확률이다. 시도당 확률은 (1 - 성공률) ×
  * 이 값이라 훨씬 낮다. 예: normal +5 는 실패율 20% × 소실 5% = 시도당 1.0%.
- * index = currentLevel (0..9). +9→+10 이 마지막 시도라 index 9 까지만 쓴다.
+ * index = currentLevel (0..19). +19→+20 이 마지막 시도라 index 19 까지 쓴다.
+ *
+ * Phase 5-B 밴드 (검키우기 레퍼런스):
+ *   10..14 (+10→+15): 소실 0 / 하락 100%. 실패는 반드시 한 단계 내려간다.
+ *     +9 로 내려가면 index 9 의 소실 위험이 다시 생긴다 — 힌트 카피가 이를 말한다.
+ *   15..19 (+15→+20): 소실 30→70% 기본, 나머지는 하락. 유지는 0 (등급 배율로
+ *     소실이 깎인 unique/legend 만 그 차이만큼 유지가 남는다).
  */
 export const ENHANCE_DESTROY_ON_FAIL_BY_LEVEL: readonly number[] = [
   0, 0, 0, // +0→+3: 완전 안전 구간.
@@ -1312,6 +1485,12 @@ export const ENHANCE_DESTROY_ON_FAIL_BY_LEVEL: readonly number[] = [
   0.14, // +7→+8
   0.2, // +8→+9
   0.26, // +9→+10
+  0, 0, 0, 0, 0, // +10→+15: 소실 없음 (하락 100%).
+  0.3, // +15→+16
+  0.4, // +16→+17
+  0.5, // +17→+18
+  0.6, // +18→+19
+  0.7, // +19→+20
 ];
 
 /**
@@ -1329,6 +1508,12 @@ export const ENHANCE_DOWN_ON_FAIL_BY_LEVEL: readonly number[] = [
   0.35, // +7→+8
   0.4, // +8→+9
   0.45, // +9→+10
+  1, 1, 1, 1, 1, // +10→+15: 실패는 전부 하락.
+  0.7, // +15→+16
+  0.6, // +16→+17
+  0.5, // +17→+18
+  0.4, // +18→+19
+  0.3, // +19→+20
 ];
 
 /**
@@ -1384,7 +1569,12 @@ export function enhanceOutcomeRates(
   const destroy = clamp01((ENHANCE_DESTROY_ON_FAIL_BY_LEVEL[idx] ?? 0) * mult);
   // 소실 판정이 먼저이므로 하락은 남은 확률 공간을 넘지 못한다.
   const down = Math.min(clamp01(ENHANCE_DOWN_ON_FAIL_BY_LEVEL[idx] ?? 0), 1 - destroy);
-  return { destroy, down, keep: Math.max(0, 1 - destroy - down) };
+  // Phase 5-B — 0.7 + 0.3 같은 조합은 IEEE double 에서 1 - d - w 가 5e-17 로 남는다.
+  //   "유지 0" 을 표와 UI 가 정직하게 말할 수 있도록 1e-12 미만은 0 으로 스냅한다
+  //   (iOS enhanceOutcomeRates 와 동일; equiv 스크립트는 10자리로 비교).
+  const keepRaw = Math.max(0, 1 - destroy - down);
+  const keep = keepRaw < 1e-12 ? 0 : keepRaw;
+  return { destroy, down, keep };
 }
 
 function clamp01(n: number): number {
@@ -1444,12 +1634,26 @@ export const ENHANCE_COST_RARITY_MULT: Record<Rarity, number> = {
 /**
  * 현재 level → 다음 level 시도의 성공률 (0-1 범위).
  * targetLevel = currentLevel + 1.
+ *
+ * Phase 5-B — currentLevel >= ENHANCE_HIGH_BAND_START 는 명시 표 + 밴드 pity.
+ *   rate = min(1, max(0.01, table/100) + streak × ENHANCE_HIGH_PITY_PER_FAIL).
+ *   0..9 는 예전 4줄 그대로다.
  */
 export function enhanceSuccessRate(
   rarity: Rarity,
   currentLevel: number,
   failStreak: number = 0,
 ): number {
+  const level = Math.max(0, Math.floor(currentLevel));
+  if (level >= ENHANCE_HIGH_BAND_START) {
+    const idx = Math.min(level, MAX_ENHANCE_LEVEL - 1) - ENHANCE_HIGH_BAND_START;
+    const rawRate = Math.max(
+      ENHANCE_HIGH_MIN_SUCCESS,
+      ENHANCE_HIGH_SUCCESS_BY_LEVEL[rarity][idx] / 100,
+    );
+    const bandPity = Math.max(0, failStreak) * ENHANCE_HIGH_PITY_PER_FAIL[rarity];
+    return Math.min(1, rawRate + bandPity);
+  }
   const base = ENHANCE_BASE_SUCCESS[rarity];
   const decay = ENHANCE_DECAY_PER_LEVEL[rarity];
   // +0 → +1 시도는 level=0 으로 base 그대로, +9 → +10 은 level=9 로 decay × 9 차감.
@@ -1461,22 +1665,284 @@ export function enhanceSuccessRate(
 }
 
 /**
- * 강화 시도 코인 비용 계산. base 30 + level 당 50% 증가 + rarity mult.
+ * Phase 5-B — 밴드별 비용 배율. 0..9 ×1, 10..14 ×1.5, 15..19 ×2.
+ * 곱셈의 **마지막** 인자다 — 모든 중간 곱이 0.25 의 배수라 JS Math.round 와
+ * Swift .rounded() 가 같은 정수를 낸다 (인자 순서를 바꾸면 그 보장이 깨진다).
+ */
+export const ENHANCE_COST_BAND_MULT: readonly [number, number, number] = [1, 1.5, 2];
+
+export function enhanceCostBandMult(currentLevel: number): number {
+  const level = Math.max(0, Math.floor(currentLevel));
+  if (level < ENHANCE_HIGH_BAND_START) return ENHANCE_COST_BAND_MULT[0];
+  if (level < 15) return ENHANCE_COST_BAND_MULT[1];
+  return ENHANCE_COST_BAND_MULT[2];
+}
+
+/**
+ * 강화 시도 코인 비용 계산. base 30 + level 당 50% 증가 + rarity mult + 밴드 배율.
  *   e.g., unique +3 → 30 × (1 + 3 × 0.5) × 2.5 = 30 × 2.5 × 2.5 = 187.5 → 188.
+ *   rare +11 → 30 × 6.5 × 1.5 × 1.5 = 438.75 → 439.
  */
 export function enhanceCost(rarity: Rarity, currentLevel: number): number {
   const base = SHOP_PRICES.enhance;
   const levelMult = 1 + Math.max(0, currentLevel) * 0.5;
   const rarityMult = ENHANCE_COST_RARITY_MULT[rarity];
-  return Math.round(base * levelMult * rarityMult);
+  return Math.round(
+    base * levelMult * rarityMult * enhanceCostBandMult(Math.max(0, currentLevel)),
+  );
 }
 
-/** 장비 판매 환급 (Phase 4a) */
-export const SELL_PRICE: Record<Rarity, number> = {
+/* ── Phase 5-B — 칭호 / 연출 밴드 / 방지권 소모 ─────────────────────────── */
+
+/** 칭호가 붙는 레벨 경계. 칭호는 저장하지 않고 enhanceLevel 에서 파생한다. */
+export const ENHANCE_TITLE_LEVELS = { awakened: 15, transcended: 20 } as const;
+
+export type EnhanceTitle = "awakened" | "transcended";
+
+/** +15..+19 각성, +20 초월, 그 외 null. */
+export function getEnhanceTitle(level: number): EnhanceTitle | null {
+  const l = Math.floor(level);
+  if (l >= ENHANCE_TITLE_LEVELS.transcended) return "transcended";
+  if (l >= ENHANCE_TITLE_LEVELS.awakened) return "awakened";
+  return null;
+}
+
+/**
+ * 강화 연출 밴드. targetLevel(= currentLevel + 1) 기준.
+ *   0: 목표 +1..+10 (기존 2초 연출) / 1: +11..+15 / 2: +16..+20.
+ */
+export function enhanceRitualBand(targetLevel: number): 0 | 1 | 2 {
+  const l = Math.floor(targetLevel);
+  if (l <= ENHANCE_HIGH_BAND_START) return 0;
+  if (l <= ENHANCE_TITLE_LEVELS.awakened) return 1;
+  return 2;
+}
+
+/**
+ * 한 번의 강화 시도에서 소모된 방지권. 시도 시작 시 걸려 있고(보유 > 0, 그 결과가
+ * 이 레벨에서 가능) 결과와 무관하게 1장 나간다. 결과 모달이 "무엇을 썼는지" 말한다.
+ */
+export interface EnhanceGuardSpend {
+  destroy: 0 | 1;
+  down: 0 | 1;
+}
+
+/* ── Phase 5-B — 강화 스탯 성장 순수 헬퍼 (웹/iOS 공유 규칙) ────────────────
+ *
+ * 성공 (applyEnhanceStatGrowth, newLevel 기준):
+ *   primary   : 짝수 레벨 ≤ 10 에서 +1 (기존), 11..20 은 매 레벨 +1.
+ *   secondary : +15 에서 +2, +20 에서 +3.
+ * 하락 (revertEnhanceStatGrowth, 잃는 레벨 기준) 은 정확한 역이며 0 아래로 내리지
+ * 않는다. 성공 규칙을 바꾸면 반드시 둘을 같이 바꾼다 — 왕복이 어긋나면 올렸다
+ * 내리기만으로 스탯이 새거나 불어난다.
+ */
+
+const ENHANCE_STAT_ORDER: ReadonlyArray<keyof HeroBaseStats> = [
+  "str",
+  "int",
+  "vit",
+  "dex",
+  "agi",
+  "crit",
+  "slotBonus",
+];
+
+/** secondary 후보 풀 — crit / slotBonus 제외 (AFFIX_POOL 과 같은 제외 규칙). */
+const ENHANCE_SECONDARY_POOL: ReadonlyArray<keyof HeroBaseStats> = [
+  "str",
+  "int",
+  "vit",
+  "dex",
+  "agi",
+];
+
+/**
+ * 장비의 "primary stat key". 드롭 템플릿의 statBoost 가 primary 이지만
+ * Equipment 타입에는 statBoost 가 저장 안 돼 있어 stats 객체에서 최대값 key 로 추정.
+ * 동률 시 정의 순서 (str/int/vit/dex/agi/crit/slotBonus) 로 tie-break.
+ */
+export function pickPrimaryStatKey(
+  stats: Equipment["stats"],
+): keyof HeroBaseStats | null {
+  let best: keyof HeroBaseStats | null = null;
+  let bestVal = -Infinity;
+  for (const key of ENHANCE_STAT_ORDER) {
+    const v = stats[key];
+    if (v == null) continue;
+    if (v > bestVal) {
+      best = key;
+      bestVal = v;
+    }
+  }
+  return best;
+}
+
+/**
+ * 마일스톤(+15/+20) 보너스를 받을 secondary key.
+ * [str,int,vit,dex,agi] 에서 primary 를 뺀 최대값 (동률은 그 순서). 후보가 없으면
+ * primary 로 돌린다 (단일 스탯 장비). crit / slotBonus 는 퍼센트·슬롯 스탯이라 제외.
+ */
+export function pickSecondaryStatKey(
+  stats: Equipment["stats"],
+  primary: keyof HeroBaseStats,
+): keyof HeroBaseStats {
+  let best: keyof HeroBaseStats | null = null;
+  let bestVal = -Infinity;
+  for (const key of ENHANCE_SECONDARY_POOL) {
+    if (key === primary) continue;
+    const v = stats[key];
+    if (v == null) continue;
+    if (v > bestVal) {
+      best = key;
+      bestVal = v;
+    }
+  }
+  return best ?? primary;
+}
+
+function enhancePrimaryGrowthAt(level: number): number {
+  if (level <= 0) return 0;
+  if (level > ENHANCE_HIGH_BAND_START) return 1;
+  return level % 2 === 0 ? 1 : 0;
+}
+
+function enhanceSecondaryGrowthAt(level: number): number {
+  if (level === ENHANCE_TITLE_LEVELS.transcended) return 3;
+  if (level === ENHANCE_TITLE_LEVELS.awakened) return 2;
+  return 0;
+}
+
+/** newLevel 에 도달했을 때의 스탯. 입력은 건드리지 않고 새 객체를 돌려준다. */
+export function applyEnhanceStatGrowth(
+  stats: Equipment["stats"],
+  newLevel: number,
+): Equipment["stats"] {
+  const next: Equipment["stats"] = { ...stats };
+  const primary = pickPrimaryStatKey(stats);
+  if (!primary) return next;
+  const p = enhancePrimaryGrowthAt(newLevel);
+  if (p > 0) next[primary] = (next[primary] ?? 0) + p;
+  const sBonus = enhanceSecondaryGrowthAt(newLevel);
+  if (sBonus > 0) {
+    const secondary = pickSecondaryStatKey(stats, primary);
+    next[secondary] = (next[secondary] ?? 0) + sBonus;
+  }
+  return next;
+}
+
+/**
+ * lostLevel 을 잃을 때(+L → +L-1) 의 스탯. applyEnhanceStatGrowth(·, L) 의 정확한
+ * 역. 성공 직후에도 primary 는 여전히 최대(증가한 키가 최대였다)이고 secondary 도
+ * 풀 안 최대로 남으므로 같은 선택기가 같은 키를 돌려준다.
+ */
+export function revertEnhanceStatGrowth(
+  stats: Equipment["stats"],
+  lostLevel: number,
+): Equipment["stats"] {
+  const next: Equipment["stats"] = { ...stats };
+  const primary = pickPrimaryStatKey(stats);
+  if (!primary) return next;
+  const p = enhancePrimaryGrowthAt(lostLevel);
+  if (p > 0) next[primary] = Math.max(0, (next[primary] ?? 0) - p);
+  const sBonus = enhanceSecondaryGrowthAt(lostLevel);
+  if (sBonus > 0) {
+    const secondary = pickSecondaryStatKey(stats, primary);
+    next[secondary] = Math.max(0, (next[secondary] ?? 0) - sBonus);
+  }
+  return next;
+}
+
+/**
+ * +0 → +level 까지 primary 에 누적된 증가량 = floor(min(level,10)/2) + max(0, level-10).
+ * Track E 의 dropFloor 역추정이 쓴다 (secondary 는 primary 가 아니라 보정 불필요).
+ */
+export function enhancePrimaryGrowthTotal(level: number): number {
+  const l = Math.max(0, Math.floor(level));
+  return (
+    Math.floor(Math.min(l, ENHANCE_HIGH_BAND_START) / 2) +
+    Math.max(0, l - ENHANCE_HIGH_BAND_START)
+  );
+}
+
+/**
+ * 이름에서 " +N" 또는 legacy " +" suffix 제거. enhanceItem 성공/하락 시 매번 재부여.
+ *   "자기절제의 검 +3" → "자기절제의 검"
+ *   "꾸준함의 방패 +"  → "꾸준함의 방패" (legacy 합성 표기)
+ */
+export function stripEnhanceSuffix(name: string): string {
+  return name.replace(/\s+\+\d*$/, "");
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Phase 6-E (Track E) — 인벤토리 경제: 판매가 / 가방 상한 / 합성
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 장비 판매 환급의 기본값 (Phase 4a 의 `SELL_PRICE` 표). +0 / 0층 가격은 그대로다.
+ * 실제 환급은 `sellPrice(rarity, dropFloor, enhanceLevel)` — 층·강화 가산이 붙는다.
+ */
+export const SELL_PRICE_BASE: Record<Rarity, number> = {
   normal: 5,
   rare: 15,
   unique: 50,
   legend: 200,
+};
+/** @deprecated `SELL_PRICE_BASE` / `sellPrice()` 를 쓸 것. 한 릴리스 동안만 유지. */
+export const SELL_PRICE = SELL_PRICE_BASE;
+/** 드롭 층당 가산 (층은 0..99 로 clamp). */
+export const SELL_PRICE_FLOOR_MULT: Record<Rarity, number> = {
+  normal: 1,
+  rare: 2,
+  unique: 4,
+  legend: 8,
+};
+/** 강화 단계당 가산 (단계는 0..MAX_ENHANCE_LEVEL 로 clamp). */
+export const SELL_PRICE_ENHANCE_MULT: Record<Rarity, number> = {
+  normal: 3,
+  rare: 6,
+  unique: 15,
+  legend: 40,
+};
+/** 판매가 층 clamp 상한. */
+export const SELL_PRICE_FLOOR_CAP = 99;
+
+/**
+ * 판매 환급 = BASE[r] + FLOOR_MULT[r] × clamp(dropFloor ?? 0, 0, 99)
+ *                     + ENHANCE_MULT[r] × clamp(enhanceLevel ?? 0, 0, 20).
+ * 전부 정수 산술 — iOS `UpHeroRules.sellPrice` 와 동일 픽스처
+ *   (normal,0,0)=5 · (normal,30,0)=35 · (rare,12,3)=57 · (unique,20,10)=280 ·
+ *   (legend,30,10)=840 · (legend,120,25)=1792 (강화는 +20 에서 clamp).
+ */
+export function sellPrice(
+  rarity: Rarity,
+  dropFloor: number | undefined,
+  enhanceLevel: number | undefined,
+): number {
+  const fRaw = Number.isFinite(dropFloor) ? (dropFloor as number) : 0;
+  const lRaw = Number.isFinite(enhanceLevel) ? (enhanceLevel as number) : 0;
+  const f = Math.min(SELL_PRICE_FLOOR_CAP, Math.max(0, Math.floor(fRaw)));
+  const l = Math.min(MAX_ENHANCE_LEVEL, Math.max(0, Math.floor(lRaw)));
+  return (
+    SELL_PRICE_BASE[rarity] +
+    SELL_PRICE_FLOOR_MULT[rarity] * f +
+    SELL_PRICE_ENHANCE_MULT[rarity] * l
+  );
+}
+
+/**
+ * 가방 상한. 정산(`acknowledgeSessionEnd` → `splitDropsByCap`) 과 사진 부적 생성에서만
+ * 강제한다 — 장착 해제/합성은 막지 않는다 (가득 찬 가방에서 장비 교체가 죽는 것을 방지).
+ * 후속 격자 인벤토리의 칸 수와 같은 값이다.
+ */
+export const INVENTORY_CAP = 30;
+/** 합성 재료 개수 — 같은 등급 3개 → 다음 등급 1개. */
+export const SYNTHESIS_INPUT_COUNT = 3;
+/** 합성 결과 등급. legend 는 합성 불가 (null). */
+export const NEXT_RARITY: Record<Rarity, Rarity | null> = {
+  normal: "rare",
+  rare: "unique",
+  unique: "legend",
+  legend: null,
 };
 
 /** 영웅 외형 variant 결정 (레벨 기반) */
@@ -1504,6 +1970,11 @@ export function getHeroAppearanceVariant(level: number): number {
  *
  * 영웅 Lv 기반 요소 — appearanceVariant, base stat 성장, class 분화 (Lv30+),
  *   idle accrual 스케일 등 — 전부 이 effective 값 사용.
+ *
+ * @deprecated Phase 2-A 이후 영웅 레벨은 `heroXp` 풀(`heroLevelFromXP`)이 진실이다.
+ *   이 공식은 (1) `ensureHeroXp` 가 레거시 저장본을 딱 한 번 시드할 때, (2) 아직
+ *   시드 전인 잠깐 동안 `resolveHeroLevel` 의 표시 폴백으로만 남는다.
+ *   새 코드는 `resolveHeroLevel` / `useHeroLevel()` 을 쓸 것.
  */
 export function getEffectiveHeroLevel(
   gameLevel: number,
@@ -1511,6 +1982,125 @@ export function getEffectiveHeroLevel(
 ): number {
   const startLvl = heroStartLevel ?? 1;
   return Math.max(1, gameLevel - startLvl + 1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Phase 2-A (Track A) — 영웅 XP 풀 / 레벨 곡선 / 스킬 포인트 파생
+ *
+ * 영웅 XP 풀(`UpHeroState.heroXp`)은 계정 XP(progress.xp)와 완전히 분리된다.
+ * heroStartLevel 은 레거시 저장본을 한 번 시드하는 데만 쓰인다.
+ *
+ * 곡선: gap(L) = A·L² + B·L + C = L² + 120 (HERO_XP_GAP_A/B/C = 1/0/120).
+ *   heroTotalXPForLevel(L) = Σ_{k=1}^{L-1} gap(k) = n(n+1)(2n+1)/6 + 120n (n = L-1).
+ *   전부 정수 산술 — iOS UpHeroRules 와 결과가 비트 단위로 같아야 한다.
+ *   표: 1:0 2:121 5:510 10:1,365 20:4,750 22:5,831 30:12,035 40:25,220
+ *       45:34,650 47:39,031 50:46,305 60:77,290 999:331,955,259.
+ *   페이싱(보스 10층마다, xpMult 전): 1사이클(F1-30) → Lv22, 누적 2사이클(NG+1,
+ *   F31-60) → Lv40. 전직(Lv30)은 F45 부근. 방치 XP(idleAccrual, XP_PER_MIN 0.5)는
+ *   Lv22 기준 8시간 상한이 0.8 레벨 정도 — 단일 노브로 두고 관찰한다.
+ *
+ * 순수 함수는 입력을 clamp 한다: 비유한/음수 XP → 0, 레벨 → [1, HERO_LEVEL_CAP].
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/** 영웅 레벨 상한. 곡선/스킬 포인트/역함수 모두 이 값에서 멈춘다. */
+export const HERO_LEVEL_CAP = 999;
+/** 스킬 포인트는 Lv31 부터 레벨당 1 — `skillPointsTotalForLevel(L) = max(0, L-30)`. */
+export const HERO_SP_LEVEL_FLOOR = 30;
+/** gap(L) = A·L² + B·L + C. */
+export const HERO_XP_GAP_A = 1;
+export const HERO_XP_GAP_B = 0;
+export const HERO_XP_GAP_C = 120;
+/** 보스 처치 보너스 XP: `bossClearXp(f, ng) = round(f × 20 × ngMult)`. */
+export const BOSS_CLEAR_XP_PER_FLOOR = 20;
+/** 층 진입 XP: `floorXp(f, ng) = round((5 + f) × ngMult)`. 스킵으로 건너뛴 층은 없음. */
+export const FLOOR_XP_BASE = 5;
+
+/** 레벨 입력 정규화 — 비유한 → 1, 정수화, [1, HERO_LEVEL_CAP]. */
+function clampHeroLevel(level: number): number {
+  if (!Number.isFinite(level)) return 1;
+  return Math.min(HERO_LEVEL_CAP, Math.max(1, Math.floor(level)));
+}
+
+/** Lv L → L+1 에 필요한 XP (gap). 입력은 [1, cap] 으로 접는다. */
+export function heroXpToNextLevel(level: number): number {
+  const L = clampHeroLevel(level);
+  return HERO_XP_GAP_A * L * L + HERO_XP_GAP_B * L + HERO_XP_GAP_C;
+}
+
+/** Lv L 에 도달하는 데 필요한 누적 XP (닫힌 형식, 정수). Lv1 = 0. */
+export function heroTotalXPForLevel(level: number): number {
+  const n = clampHeroLevel(level) - 1;
+  const sumSq = (n * (n + 1) * (2 * n + 1)) / 6;
+  const sumLin = (n * (n + 1)) / 2;
+  return HERO_XP_GAP_A * sumSq + HERO_XP_GAP_B * sumLin + HERO_XP_GAP_C * n;
+}
+
+/** 영웅 XP 풀 상한 = heroTotalXPForLevel(HERO_LEVEL_CAP) = 331,955,259. */
+export const HERO_XP_CAP = heroTotalXPForLevel(HERO_LEVEL_CAP);
+
+/** XP 값 정규화 — 비유한/음수 → 0, 정수화, 상한 HERO_XP_CAP. sync/store 공용. */
+export function clampHeroXp(xp: number): number {
+  if (!Number.isFinite(xp)) return 0;
+  return Math.min(HERO_XP_CAP, Math.max(0, Math.floor(xp)));
+}
+
+/**
+ * 누적 XP → 영웅 레벨 (역함수, 선형 스캔). heroLevelFromXP(total(L)) == L,
+ * heroLevelFromXP(total(L) - 1) == L - 1. 상한에서 멈춘다 (1e12 → 999).
+ */
+export function heroLevelFromXP(totalXp: number): number {
+  const xp = clampHeroXp(totalXp);
+  let level = 1;
+  while (level < HERO_LEVEL_CAP && heroTotalXPForLevel(level + 1) <= xp) {
+    level += 1;
+  }
+  return level;
+}
+
+/** 현재 레벨 안의 진행도 — `{ current, needed }` (XP 바 표시용). */
+export function getHeroXPProgress(
+  totalXp: number,
+  level: number,
+): { current: number; needed: number } {
+  const xp = clampHeroXp(totalXp);
+  const L = clampHeroLevel(level);
+  return {
+    current: Math.max(0, xp - heroTotalXPForLevel(L)),
+    needed: heroXpToNextLevel(L),
+  };
+}
+
+/**
+ * 레벨이 누적으로 부여한 스킬 포인트 총량 = max(0, min(cap, L) - 30).
+ *   남은 SP 는 여기서 learnedSkills 의 pointCost 합을 뺀 파생값이다
+ *   (useUpHeroStore.deriveSkillPoints). 별도 지급/차감 카운터는 없다.
+ */
+export function skillPointsTotalForLevel(level: number): number {
+  return Math.max(0, clampHeroLevel(level) - HERO_SP_LEVEL_FLOOR);
+}
+
+/** 보스 처치 보너스 XP — victory 엔트리의 xp 에 합산된다 (xpMult 적용 전 값). */
+export function bossClearXp(floor: number, ngPlusLevel: number | undefined): number {
+  return Math.round(floor * BOSS_CLEAR_XP_PER_FLOOR * ngPlusScaleMult(ngPlusLevel));
+}
+
+/** 층 진입 XP — tickSession 의 층 전환 때 rewards.xp 에 더한다 (xpMult 적용 전 값). */
+export function floorXp(floor: number, ngPlusLevel: number | undefined): number {
+  return Math.round((FLOOR_XP_BASE + floor) * ngPlusScaleMult(ngPlusLevel));
+}
+
+/**
+ * 표시/판정용 영웅 레벨 단일 진입점.
+ *   heroXp 가 시드됐으면 곡선의 역함수, 아직이면 레거시 공식으로 폴백한다.
+ *   폴백 덕에 시드 전 잠깐 동안에도 Lv47 영웅이 Lv1 로 깜빡이지 않는다.
+ */
+export function resolveHeroLevel(
+  heroXp: number | undefined,
+  gameLevel: number,
+  heroStartLevel: number | undefined,
+): number {
+  if (heroXp === undefined) return getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  return heroLevelFromXP(heroXp);
 }
 
 /**

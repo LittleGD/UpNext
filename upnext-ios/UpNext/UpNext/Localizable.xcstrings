@@ -120,6 +120,28 @@
         }
       }
     },
+    "%@: 버릴까요?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard %@?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を捨てますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "丢弃 %@?"
+          }
+        }
+      }
+    },
     "%@ — 카드 고르기": {
       "localizations": {
         "en": {
@@ -142,7 +164,51 @@
         }
       }
     },
+    "%@: 카드 고르기": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: Pick a Card"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@：カードを選ぶ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@：选择卡牌"
+          }
+        }
+      }
+    },
     "%@ — 판매할까요?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sell %@?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を売却しますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出售 %@?"
+          }
+        }
+      }
+    },
+    "%@: 판매할까요?": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -890,6 +956,29 @@
         }
       }
     },
+    "%lldms: 성공!": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldms: Success!"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldms：成功！"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldms：成功！"
+          }
+        }
+      }
+    },
     "%llds 남음": {
       "extractionState": "manual",
       "localizations": {
@@ -1173,6 +1262,29 @@
       }
     },
     "%lld일째 진행 중 — 백업이 안 되어 있어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Day %lld and going strong, but your progress isn't backed up"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld日目、でもまだバックアップされていません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已坚持第%lld天，但进度还没备份哦"
+          }
+        }
+      }
+    },
+    "%lld일째 진행 중: 백업이 안 되어 있어요": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -1583,6 +1695,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "达成100天 — 传说之火焰"
+          }
+        }
+      }
+    },
+    "100일 달성: 전설의 불꽃": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "100 Days Reached: Legendary Flame"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "100日達成：伝説の炎"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "达成100天：传说之火焰"
           }
         }
       }
@@ -2083,6 +2218,28 @@
         }
       }
     },
+    "Apple 로그인을 처리할 수 없어요. 잠시 후 다시 시도해주세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't process Apple sign-in. Please try again in a moment"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appleサインインを処理できませんでした。しばらくしてからもう一度お試しください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法处理 Apple 登录，请稍后再试"
+          }
+        }
+      }
+    },
     "Apple 로그인이 실패했어요 — 다시 시도해주세요": {
       "localizations": {
         "en": {
@@ -2101,6 +2258,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apple 登录失败 — 请再试一次"
+          }
+        }
+      }
+    },
+    "Apple 로그인이 실패했어요. 다시 시도해주세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple sign-in failed. Please try again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appleサインインに失敗しました。もう一度お試しください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple 登录失败，请再试一次"
           }
         }
       }
@@ -2178,6 +2357,28 @@
         }
       }
     },
+    "Body: 매일 6장의 카드를 뽑아 2개를 수행하세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Body: Draw 6 cards every day and complete 2 of them"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Body：毎日6枚のカードを引いて2つをこなしましょう"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Body：每天抽 6 张卡牌，完成其中 2 个"
+          }
+        }
+      }
+    },
     "Caption — 연속 7일 달성 중": {
       "localizations": {
         "en": {
@@ -2196,6 +2397,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Caption — 已连续达成 7 天"
+          }
+        }
+      }
+    },
+    "Caption: 연속 7일 달성 중": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caption: On a 7-day streak"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caption：7日連続達成中"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caption：已连续达成 7 天"
           }
         }
       }
@@ -2240,6 +2463,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Display — 开启充实生活"
+          }
+        }
+      }
+    },
+    "Display: 갓생 시작": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display: Start your go-getter life"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display：理想の毎日を始めよう"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display：开启充实生活"
           }
         }
       }
@@ -2570,6 +2815,28 @@
         }
       }
     },
+    "Heading: 카드 컬렉션": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heading: Card Collection"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heading：カードコレクション"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heading：卡牌收藏"
+          }
+        }
+      }
+    },
     "LEVEL 1": {
       "extractionState": "manual",
       "localizations": {
@@ -2784,6 +3051,29 @@
         }
       }
     },
+    "Lv.30: 전문 클래스 선택": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lv.30: Pick your specialist class"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lv.30：専門クラスを選ぼう"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lv.30：挑选专精职业"
+          }
+        }
+      }
+    },
     "Micro — 2026.05.15 업데이트": {
       "localizations": {
         "en": {
@@ -2806,6 +3096,28 @@
         }
       }
     },
+    "Micro: 2026.05.15 업데이트": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Micro: Updated 2026.05.15"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Micro：2026.05.15 アップデート"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Micro：2026.05.15 更新"
+          }
+        }
+      }
+    },
     "Phase 1 — 색상 46 · 타이포 6단계 · 아이콘 34": {
       "localizations": {
         "en": {
@@ -2824,6 +3136,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Phase 1 — 配色 46 · 字体 6 级 · 图标 34"
+          }
+        }
+      }
+    },
+    "Phase 1: 색상 46 · 타이포 6단계 · 아이콘 34": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phase 1: 46 colors · 6 type scales · 34 icons"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phase 1：カラー46 · タイポ6段階 · アイコン34"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phase 1：配色 46 · 字体 6 级 · 图标 34"
           }
         }
       }
@@ -2869,6 +3203,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Title — 今日挑战"
+          }
+        }
+      }
+    },
+    "Title: 오늘의 챌린지": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Title: Today's Challenge"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Title：今日のチャレンジ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Title：今日挑战"
           }
         }
       }
@@ -3010,6 +3366,29 @@
         }
       }
     },
+    "U↗Next 2.8s 시퀀스: spring duration 0.7 bounce 0.3 을 SwiftUI response/dampingFraction 수학 변환.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "U↗Next 2.8s sequence: spring duration 0.7 bounce 0.3 converted into SwiftUI response/dampingFraction math."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "U↗Next 2.8sシーケンス：spring duration 0.7 bounce 0.3をSwiftUIのresponse/dampingFraction数学に変換。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "U↗Next 2.8s 序列：把 spring duration 0.7 bounce 0.3 换算成 SwiftUI 的 response/dampingFraction 数学。"
+          }
+        }
+      }
+    },
     "XP": {
       "extractionState": "manual",
       "localizations": {
@@ -3142,25 +3521,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "{who}의 치명타! — {damage} 피해"
+            "value": "{who}의 치명타! {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "{who} crit! — {damage} damage"
+            "value": "{who} crit! {damage} damage"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{who}のクリティカル！ — {damage} ダメージ"
+            "value": "{who}のクリティカル！{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "{who}暴击！ — {damage} 伤害"
+            "value": "{who}暴击！{damage} 伤害"
           }
         }
       }
@@ -3200,25 +3579,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "{who}의 공격 — {damage} 피해"
+            "value": "{who}의 공격: {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "{who}'s attack — {damage} damage"
+            "value": "{who}'s attack: {damage} damage"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{who}の攻撃 — {damage} ダメージ"
+            "value": "{who}の攻撃：{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "{who}的攻击 — {damage} 伤害"
+            "value": "{who}的攻击：{damage} 伤害"
           }
         }
       }
@@ -3374,25 +3753,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "보물 발견 — 코인 +{coins}"
+            "value": "보물 발견: 코인 +{coins}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Treasure found — Coins +{coins}"
+            "value": "Treasure found: Coins +{coins}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "宝物発見 — コイン +{coins}"
+            "value": "宝物発見：コイン +{coins}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "发现宝藏 — 金币 +{coins}"
+            "value": "发现宝藏：金币 +{coins}"
           }
         }
       }
@@ -3403,25 +3782,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "{monster} 처치 — XP +{xp}, 코인 +{coins}"
+            "value": "{monster} 처치: XP +{xp}, 코인 +{coins}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Defeated {monster} — XP +{xp}, Coins +{coins}"
+            "value": "Defeated {monster}: XP +{xp}, Coins +{coins}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{monster} を倒した — XP +{xp}、コイン +{coins}"
+            "value": "{monster} を倒した：XP +{xp}、コイン +{coins}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "击败 {monster} — XP +{xp}，金币 +{coins}"
+            "value": "击败 {monster}：XP +{xp}，金币 +{coins}"
           }
         }
       }
@@ -3473,6 +3852,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "shake → flash → 3-halo expand → reveal 交错动画 — 强度按稀有度分级。"
+          }
+        }
+      }
+    },
+    "shake → flash → 3-halo expand → reveal 스태거, 등급별 강도 차등.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "shake → flash → 3-halo expand → reveal stagger, intensity scales by rarity."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "shake → flash → 3-halo expand → reveal のスタッガー、レアリティごとに強度を差別化。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "shake → flash → 3-halo expand → reveal 交错动画，强度按稀有度分级。"
           }
         }
       }
@@ -4295,25 +4697,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "원정 진행도 — 이번 cycle F{start}~F{end}"
+            "value": "원정 진행도: 이번 cycle F{start}~F{end}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Expedition progress — this cycle F{start}–F{end}"
+            "value": "Expedition progress: this cycle F{start}–F{end}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "遠征進行度 — 今サイクル F{start}~F{end}"
+            "value": "遠征進行度：今サイクル F{start}~F{end}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "远征进度 — 本周期 F{start}–F{end}"
+            "value": "远征进度：本周期 F{start}–F{end}"
           }
         }
       }
@@ -4672,25 +5074,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "F{floor} — 수상한 이벤트"
+            "value": "F{floor}: 수상한 이벤트"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "F{floor} — mystery event"
+            "value": "F{floor}: mystery event"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "F{floor} — 怪しいイベント"
+            "value": "F{floor}：怪しいイベント"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "F{floor} — 神秘事件"
+            "value": "F{floor}：神秘事件"
           }
         }
       }
@@ -4771,13 +5173,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "クリティカル!{monster} の渾身の一撃 — {damage} ダメージ"
+            "value": "クリティカル!{monster} の渾身の一撃、{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "暴击!{monster} 造成重创 — {damage} 伤害"
+            "value": "暴击!{monster} 造成重创，{damage} 伤害"
           }
         }
       }
@@ -4800,13 +5202,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{monster} の攻撃 — {damage} ダメージ"
+            "value": "{monster} の攻撃：{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "{monster} 攻击勇者 — {damage} 伤害"
+            "value": "{monster} 攻击勇者：{damage} 伤害"
           }
         }
       }
@@ -4829,7 +5231,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "逃走失敗 — {monster} に阻まれる!"
+            "value": "逃走失敗：{monster} に阻まれる!"
           }
         },
         "zh-Hans": {
@@ -4875,25 +5277,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "{dungeon} — {floor}층에 도착했다."
+            "value": "{dungeon}: {floor}층에 도착했다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "{dungeon} — arrived at Floor {floor}."
+            "value": "{dungeon}: arrived at Floor {floor}."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{dungeon} — F{floor} に到着。"
+            "value": "{dungeon}：F{floor} に到着。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "{dungeon} — 到达 F{floor}。"
+            "value": "{dungeon}：到达 F{floor}。"
           }
         }
       }
@@ -4904,25 +5306,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 반사적으로 반격한다 — {damage} 피해"
+            "value": "영웅이 반사적으로 반격한다, {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero counter-struck reflexively — {damage} damage."
+            "value": "The hero counter-struck reflexively, {damage} damage."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者の反撃 — {damage} ダメージ"
+            "value": "勇者の反撃：{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者反击 — {damage} 伤害"
+            "value": "勇者反击：{damage} 伤害"
           }
         }
       }
@@ -4945,13 +5347,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "クリティカル!勇者が {monster} の弱点を突く — {damage} ダメージ"
+            "value": "クリティカル!勇者が {monster} の弱点を突く、{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "暴击!勇者命中 {monster} 弱点 — {damage} 伤害"
+            "value": "暴击!勇者命中 {monster} 弱点，{damage} 伤害"
           }
         }
       }
@@ -5003,13 +5405,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者の攻撃 — {monster} に {damage} ダメージ"
+            "value": "勇者の攻撃：{monster} に {damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者攻击 {monster} — {damage} 伤害"
+            "value": "勇者攻击 {monster}：{damage} 伤害"
           }
         }
       }
@@ -5107,25 +5509,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 부활한다 — HP +{heal}"
+            "value": "영웅이 부활한다, HP +{heal}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero was revived — HP +{heal}."
+            "value": "The hero was revived, HP +{heal}."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者が復活 — HP +{heal}"
+            "value": "勇者が復活：HP +{heal}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者复活 — HP +{heal}"
+            "value": "勇者复活：HP +{heal}"
           }
         }
       }
@@ -5136,25 +5538,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "{description} — 시간 +{time}"
+            "value": "{description}: 시간 +{time}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "{description} — time +{time}."
+            "value": "{description}: time +{time}."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{description} — 時間 +{time}"
+            "value": "{description}：時間 +{time}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "{description} — 时间 +{time}"
+            "value": "{description}：时间 +{time}"
           }
         }
       }
@@ -5194,25 +5596,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "야생의 짐승이 {monster} 을 공격한다 — {damage} 피해"
+            "value": "야생의 짐승이 {monster} 을 공격한다, {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A wild beast mauled {monster} — {damage} damage."
+            "value": "A wild beast mauled {monster}, {damage} damage."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "野生の獣が {monster} を襲う — {damage} ダメージ"
+            "value": "野生の獣が {monster} を襲う：{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "野兽袭击 {monster} — {damage} 伤害"
+            "value": "野兽袭击 {monster}：{damage} 伤害"
           }
         }
       }
@@ -5223,25 +5625,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "불꽃이 {monster} 을 휩싼다 — {damage} 피해"
+            "value": "불꽃이 {monster} 을 휩싼다, {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Flames engulfed {monster} — {damage} damage."
+            "value": "Flames engulfed {monster}, {damage} damage."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "炎が {monster} を包む — {damage} ダメージ"
+            "value": "炎が {monster} を包む：{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "烈焰包裹 {monster} — {damage} 伤害"
+            "value": "烈焰包裹 {monster}：{damage} 伤害"
           }
         }
       }
@@ -5252,25 +5654,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅의 번개가 {monster} 을 꿰뚫는다 — {damage} 피해"
+            "value": "영웅의 번개가 {monster} 을 꿰뚫는다, {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero's lightning pierced {monster} — {damage} damage."
+            "value": "The hero's lightning pierced {monster}, {damage} damage."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者の雷が {monster} を貫く — {damage} ダメージ"
+            "value": "勇者の雷が {monster} を貫く：{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者的雷电贯穿 {monster} — {damage} 伤害"
+            "value": "勇者的雷电贯穿 {monster}：{damage} 伤害"
           }
         }
       }
@@ -5281,25 +5683,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "메테오가 {monster} 을 내리친다 — {damage} 피해"
+            "value": "메테오가 {monster} 을 내리친다, {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A meteor crashed down on {monster} — {damage} damage."
+            "value": "A meteor crashed down on {monster}, {damage} damage."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "メテオが {monster} に降り注ぐ — {damage} ダメージ"
+            "value": "メテオが {monster} に降り注ぐ：{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "陨石砸向 {monster} — {damage} 伤害"
+            "value": "陨石砸向 {monster}：{damage} 伤害"
           }
         }
       }
@@ -5310,25 +5712,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "일섬 — {monster} 을 베어낸다 — {damage} 피해"
+            "value": "일섬: {monster} 을 베어낸다, {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Flash Strike sliced {monster} — {damage} damage."
+            "value": "Flash Strike sliced {monster}, {damage} damage."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "一閃 — {monster} を斬り裂く — {damage} ダメージ"
+            "value": "一閃：{monster} を斬り裂く、{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "一闪 — 斩裂 {monster} — {damage} 伤害"
+            "value": "一闪：斩裂 {monster}，{damage} 伤害"
           }
         }
       }
@@ -5339,25 +5741,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "심판 — {monster} 이 빛에 타들어간다 — {damage} 피해"
+            "value": "심판: {monster} 이 빛에 타들어간다, {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Judgment — {monster} burned in the light — {damage} damage."
+            "value": "Judgment: {monster} burned in the light, {damage} damage."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "審判 — {monster} が光に焼かれる — {damage} ダメージ"
+            "value": "審判：{monster} が光に焼かれる、{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "审判 — {monster} 在光中燃烧 — {damage} 伤害"
+            "value": "审判：{monster} 在光中燃烧，{damage} 伤害"
           }
         }
       }
@@ -5368,25 +5770,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "분쇄가 {monster} 을 강타한다 — {damage} 피해"
+            "value": "분쇄가 {monster} 을 강타한다, {damage} 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Crush smashed {monster} — {damage} damage."
+            "value": "Crush smashed {monster}, {damage} damage."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "粉砕が {monster} を打ちのめす — {damage} ダメージ"
+            "value": "粉砕が {monster} を打ちのめす：{damage} ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "粉碎重击 {monster} — {damage} 伤害"
+            "value": "粉碎重击 {monster}：{damage} 伤害"
           }
         }
       }
@@ -5397,25 +5799,54 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 분노를 폭발시킨다 — {monster} 에 {damage} 고정 피해"
+            "value": "영웅이 분노를 폭발시킨다, {monster} 에 {damage} 고정 피해"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero unleashed rage — {damage} fixed damage to {monster}."
+            "value": "The hero unleashed rage, {damage} fixed damage to {monster}."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者が怒りを爆発させる — {monster} に {damage} 固定ダメージ"
+            "value": "勇者が怒りを爆発させる：{monster} に {damage} 固定ダメージ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者释放怒火 — 对 {monster} 造成 {damage} 固定伤害"
+            "value": "勇者释放怒火：对 {monster} 造成 {damage} 固定伤害"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.skipBlocked": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "통로가 보스의 문 앞에서 끊겨 있다"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The passage ends right before the boss's door"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通路はボスの扉の手前で途切れている"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通道在魔王之门前中断了"
           }
         }
       }
@@ -5687,25 +6118,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "독이 퍼진다 — HP -{amount}"
+            "value": "독이 퍼진다, HP -{amount}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Poison courses through — HP -{amount}"
+            "value": "Poison courses through: HP -{amount}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "毒が体を蝕む — HP -{amount}"
+            "value": "毒が体を蝕む：HP -{amount}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "毒素蔓延 — HP -{amount}"
+            "value": "毒素蔓延：HP -{amount}"
           }
         }
       }
@@ -5716,25 +6147,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "{monster} 이(가) 스스로를 치유한다 — HP +{amount}"
+            "value": "{monster} 이(가) 스스로를 치유한다, HP +{amount}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The {monster} heals itself — HP +{amount}"
+            "value": "The {monster} heals itself, HP +{amount}"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "{monster} が自らを癒す — HP +{amount}"
+            "value": "{monster} が自らを癒す：HP +{amount}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "{monster} 自我治愈 — HP +{amount}"
+            "value": "{monster} 自我治愈：HP +{amount}"
           }
         }
       }
@@ -5745,25 +6176,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "방패가 공격을 막아낸다 — 피해 {amount} 차단"
+            "value": "방패가 공격을 막아낸다, 피해 {amount} 차단"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A shield absorbs the blow — {amount} damage blocked"
+            "value": "A shield absorbs the blow, {amount} damage blocked"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "盾が攻撃を受け止めた — {amount} ダメージ軽減"
+            "value": "盾が攻撃を受け止めた：{amount} ダメージ軽減"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "盾牌挡下攻击 — 减免 {amount} 伤害"
+            "value": "盾牌挡下攻击：减免 {amount} 伤害"
           }
         }
       }
@@ -6592,7 +7023,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A brutal climb — but treasure awaited."
+            "value": "A brutal climb, but treasure awaited."
           }
         },
         "ja": {
@@ -6749,7 +7180,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "路途更长——比预期耗费更多时间。"
+            "value": "路途更长，比预期耗费更多时间。"
           }
         }
       }
@@ -7549,7 +7980,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Answered correctly — wisdom gained!"
+            "value": "Answered correctly: wisdom gained!"
           }
         },
         "ja": {
@@ -7810,7 +8241,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A forbidden tome — deep insight opened."
+            "value": "A forbidden tome: deep insight opened."
           }
         },
         "ja": {
@@ -7822,7 +8253,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "竟是禁书——深邃的洞见自此开启。"
+            "value": "竟是禁书，深邃的洞见自此开启。"
           }
         }
       }
@@ -8048,13 +8479,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "謎の扉 — 記憶の絵札が散らばる。同じ対を見つけて扉を開け。"
+            "value": "謎の扉：記憶の絵札が散らばる。同じ対を見つけて扉を開け。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "谜之门——记忆图案散落各处。找出配对开启此门。"
+            "value": "谜之门：记忆图案散落各处。找出配对开启此门。"
           }
         }
       }
@@ -8193,13 +8624,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "石板の謎 — 古代の呪文が明滅する。順序を記憶せよ。"
+            "value": "石板の謎：古代の呪文が明滅する。順序を記憶せよ。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "石板之谜——古老咒文闪烁不定。记住它的顺序。"
+            "value": "石板之谜：古老咒文闪烁不定。记住它的顺序。"
           }
         }
       }
@@ -8338,13 +8769,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "学者の図面 — 古い配管が詰まっている。繋ぎを復元せよ。"
+            "value": "学者の図面：古い配管が詰まっている。繋ぎを復元せよ。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "学者的图纸——老旧管道被堵住了。须恢复其连接。"
+            "value": "学者的图纸：老旧管道被堵住了。须恢复其连接。"
           }
         }
       }
@@ -8541,7 +8972,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "学者の亡霊が手帳を差し出す — 「写本しますか？」"
+            "value": "学者の亡霊が手帳を差し出す：「写本しますか？」"
           }
         },
         "zh-Hans": {
@@ -8593,7 +9024,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wise counsel — experience deepened."
+            "value": "Wise counsel: experience deepened."
           }
         },
         "ja": {
@@ -8605,7 +9036,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "睿智的箴言——阅历愈加深厚。"
+            "value": "睿智的箴言，阅历愈加深厚。"
           }
         }
       }
@@ -9533,7 +9964,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "记忆之池——水面浮现的影像模糊难辨。找出配对。"
+            "value": "记忆之池：水面浮现的影像模糊难辨。找出配对。"
           }
         }
       }
@@ -9608,7 +10039,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Focus slipped — no progress made."
+            "value": "Focus slipped: no progress made."
           }
         },
         "ja": {
@@ -9782,7 +10213,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "It rang too loud — a guardian awoke."
+            "value": "It rang too loud: a guardian awoke."
           }
         },
         "ja": {
@@ -9956,7 +10387,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The truth revealed — the boss's location is known."
+            "value": "The truth revealed: the boss's location is known."
           }
         },
         "ja": {
@@ -9968,7 +10399,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "真相浮现——已知晓首领的方位。"
+            "value": "真相浮现，已知晓首领的方位。"
           }
         }
       }
@@ -10107,7 +10538,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "影が語りかける — 真実を見たいか？"
+            "value": "影が語りかける：真実を見たいか？"
           }
         },
         "zh-Hans": {
@@ -10594,7 +11025,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The mark warmed — power seeped in."
+            "value": "The mark warmed: power seeped in."
           }
         },
         "ja": {
@@ -10635,7 +11066,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "指尖冻结——代价不小。"
+            "value": "指尖冻结，代价不小。"
           }
         }
       }
@@ -10797,7 +11228,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grasped something on the other side — a shining stone."
+            "value": "Grasped something on the other side, a shining stone."
           }
         },
         "ja": {
@@ -10809,7 +11240,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在另一端握住了什么——一颗闪亮的石头。"
+            "value": "在另一端握住了什么，一颗闪亮的石头。"
           }
         }
       }
@@ -10954,7 +11385,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "空气扭曲——空间中有一道细细的裂隙。"
+            "value": "空气扭曲，空间中有一道细细的裂隙。"
           }
         }
       }
@@ -11029,7 +11460,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rewound too far — strength drains away."
+            "value": "Rewound too far: strength drains away."
           }
         },
         "ja": {
@@ -11203,7 +11634,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Flaws revealed — and overcome."
+            "value": "Flaws revealed, and overcome."
           }
         },
         "ja": {
@@ -11360,7 +11791,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "路中央立着一面空镜——映不出任何影像。"
+            "value": "路中央立着一面空镜，映不出任何影像。"
           }
         }
       }
@@ -11406,7 +11837,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "HP drained heavily — but the purse grew fat."
+            "value": "HP drained heavily, but the purse grew fat."
           }
         },
         "ja": {
@@ -11418,7 +11849,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "HP 大幅流失——钱袋却鼓了起来。"
+            "value": "HP 大幅流失，钱袋却鼓了起来。"
           }
         }
       }
@@ -11545,25 +11976,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "희미한 목소리가 선택을 제안한다 — 하나를 바친다."
+            "value": "희미한 목소리가 선택을 제안한다. 하나를 바친다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A faint voice offers a bargain — give up one thing."
+            "value": "A faint voice offers a bargain: give up one thing."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "微かな声が選択を迫る — 一つを捧げよ。"
+            "value": "微かな声が選択を迫る。一つを捧げよ。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "幽微的声音提出交易——献上一样东西。"
+            "value": "幽微的声音提出交易，献上一样东西。"
           }
         }
       }
@@ -11603,25 +12034,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "바람의 축복 — 다음 층까지 한걸음에."
+            "value": "바람의 축복: 다음 층까지 한걸음에."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A blessing of wind — the hero advanced one floor."
+            "value": "A blessing of wind: the hero advanced one floor."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "風の祝福 — 次の階まで一歩で。"
+            "value": "風の祝福：次の階まで一歩で。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "风的祝福——一步直抵下一层。"
+            "value": "风的祝福，一步直抵下一层。"
           }
         }
       }
@@ -11661,25 +12092,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "새가 돌아와 영웅 곁에 머문다 — 보물 발견."
+            "value": "새가 돌아와 영웅 곁에 머문다, 보물 발견."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The bird returned and stayed near the hero — treasure found."
+            "value": "The bird returned and stayed near the hero, treasure found."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "鳥が戻り勇者に寄り添う — 宝を発見。"
+            "value": "鳥が戻り勇者に寄り添う、宝を発見。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "鸟儿归来停在勇者身旁——发现宝物。"
+            "value": "鸟儿归来停在勇者身旁，发现宝物。"
           }
         }
       }
@@ -11766,7 +12197,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "黑色羽毛落下的地方——鸟鸣一声,随即消失。"
+            "value": "黑色羽毛落下的地方，鸟鸣一声,随即消失。"
           }
         }
       }
@@ -11812,7 +12243,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The name glowed — recorded deeds returned to the hero."
+            "value": "The name glowed: recorded deeds returned to the hero."
           }
         },
         "ja": {
@@ -11824,7 +12255,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "名字发出光辉——所记功德回流至勇者。"
+            "value": "名字发出光辉，所记功德回流至勇者。"
           }
         }
       }
@@ -11969,7 +12400,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "一块名字被磨去的石碑——无人再记得此人。"
+            "value": "一块名字被磨去的石碑，无人再记得此人。"
           }
         }
       }
@@ -12056,7 +12487,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "光太刺眼——险些失明。"
+            "value": "光太刺眼，险些失明。"
           }
         }
       }
@@ -12172,7 +12603,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "孪生之门——左门渗出光,右门泄出影。"
+            "value": "孪生之门，左门渗出光,右门泄出影。"
           }
         }
       }
@@ -12241,25 +12672,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "쓴맛이 돈다 — 독 열매였다."
+            "value": "쓴맛이 돈다. 독 열매였다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A bitter tang — it was poisonous."
+            "value": "A bitter tang: it was poisonous."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "苦みが走る — 毒の実だった。"
+            "value": "苦みが走る。毒の実だった。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "苦味袭来——竟是毒果。"
+            "value": "苦味袭来，竟是毒果。"
           }
         }
       }
@@ -12288,7 +12719,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "稀有药材——身体变得强健。"
+            "value": "稀有药材，身体变得强健。"
           }
         }
       }
@@ -12885,7 +13316,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Things went wrong — the gear took damage."
+            "value": "Things went wrong: the gear took damage."
           }
         },
         "ja": {
@@ -12897,7 +13328,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "事情出了岔子——装备受损。"
+            "value": "事情出了岔子，装备受损。"
           }
         }
       }
@@ -13059,7 +13490,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hallucinogenic — the head spun."
+            "value": "Hallucinogenic: the head spun."
           }
         },
         "ja": {
@@ -13071,7 +13502,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "竟是致幻蘑菇——头脑一阵晕眩。"
+            "value": "竟是致幻蘑菇，头脑一阵晕眩。"
           }
         }
       }
@@ -13100,7 +13531,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "稀有的药用菌——身体从内暖到外。"
+            "value": "稀有的药用菌，身体从内暖到外。"
           }
         }
       }
@@ -13227,25 +13658,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "말린 고기와 곡식 — 오래됐지만 먹을 만하다."
+            "value": "말린 고기와 곡식, 오래됐지만 먹을 만하다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dried meat and grain — old, but edible."
+            "value": "Dried meat and grain: old, but edible."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "干し肉と穀物 — 古いが食べられる。"
+            "value": "干し肉と穀物、古いが食べられる。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "干肉与谷物——虽然陈旧,但还能吃。"
+            "value": "干肉与谷物，虽然陈旧,但还能吃。"
           }
         }
       }
@@ -13274,7 +13705,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "早已腐坏的食物——腹中翻腾。"
+            "value": "早已腐坏的食物，腹中翻腾。"
           }
         }
       }
@@ -13987,7 +14418,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pulled deep into the fissure — two floors skipped."
+            "value": "Pulled deep into the fissure, two floors skipped."
           }
         },
         "ja": {
@@ -14364,7 +14795,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Focused hours — experience gained."
+            "value": "Focused hours: experience gained."
           }
         },
         "ja": {
@@ -14376,7 +14807,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "专注的时光——经验在累积。"
+            "value": "专注的时光，经验在累积。"
           }
         }
       }
@@ -14521,7 +14952,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "空白的日程表上有 3 个空格——要填些什么?"
+            "value": "空白的日程表上有 3 个空格，要填些什么?"
           }
         }
       }
@@ -14666,7 +15097,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "工厂的管道断裂——须拼接碎片重新连通。"
+            "value": "工厂的管道断裂，须拼接碎片重新连通。"
           }
         }
       }
@@ -14712,7 +15143,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The clock resumed — revealing hidden treasure."
+            "value": "The clock resumed, revealing hidden treasure."
           }
         },
         "ja": {
@@ -14724,7 +15155,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "钟重新走动——隐藏的宝物随之现形。"
+            "value": "钟重新走动，隐藏的宝物随之现形。"
           }
         }
       }
@@ -15437,7 +15868,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A scam — shoddy goods."
+            "value": "A scam: shoddy goods."
           }
         },
         "ja": {
@@ -15449,7 +15880,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "被骗了——是劣质货色。"
+            "value": "被骗了，是劣质货色。"
           }
         }
       }
@@ -15814,7 +16245,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Swept up in the mood — energy surged."
+            "value": "Swept up in the mood, energy surged."
           }
         },
         "ja": {
@@ -16481,7 +16912,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A map fragment — the path ahead grows clearer."
+            "value": "A map fragment: the path ahead grows clearer."
           }
         },
         "ja": {
@@ -16493,7 +16924,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "是地图残片——接下来的路线清晰了。"
+            "value": "是地图残片，接下来的路线清晰了。"
           }
         }
       }
@@ -16522,7 +16953,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "竟是被诅咒的信件——心头变得沉重。"
+            "value": "竟是被诅咒的信件，心头变得沉重。"
           }
         }
       }
@@ -17403,25 +17834,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "화면이 웃는 듯 흔들린다 — 보상 분출!"
+            "value": "화면이 웃는 듯 흔들린다, 보상 분출!"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The screen shook as if laughing — rewards burst out!"
+            "value": "The screen shook as if laughing, rewards burst out!"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "画面が笑うように揺れる — 報酬が噴出!"
+            "value": "画面が笑うように揺れる、報酬が噴出!"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "屏幕似笑非笑地抖动——奖励喷涌!"
+            "value": "屏幕似笑非笑地抖动，奖励喷涌!"
           }
         }
       }
@@ -17641,7 +18072,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A mood boost — energy flowed."
+            "value": "A mood boost: energy flowed."
           }
         },
         "ja": {
@@ -17653,7 +18084,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "心情一振——能量流转起来。"
+            "value": "心情一振，能量流转起来。"
           }
         }
       }
@@ -17798,7 +18229,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "病毒式梗图占据整个空间——该跟着笑吗?"
+            "value": "病毒式梗图占据整个空间，该跟着笑吗?"
           }
         }
       }
@@ -18842,7 +19273,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "幸好没有陷阱——得到了奖励!"
+            "value": "幸好没有陷阱，得到了奖励!"
           }
         }
       }
@@ -19207,7 +19638,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A trap — the \"adventurer\" revealed their true face."
+            "value": "A trap: the \"adventurer\" revealed their true face."
           }
         },
         "ja": {
@@ -19219,7 +19650,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "竟是陷阱——同行者露出了真面目。"
+            "value": "竟是陷阱，同行者露出了真面目。"
           }
         }
       }
@@ -19393,7 +19824,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "味道甘甜——活力涌上心头。"
+            "value": "味道甘甜，活力涌上心头。"
           }
         }
       }
@@ -19410,7 +19841,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bitter taste — the body flinched. Weak effect."
+            "value": "Bitter taste: the body flinched. Weak effect."
           }
         },
         "ja": {
@@ -19422,7 +19853,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "苦味让身体一颤——效果微弱。"
+            "value": "苦味让身体一颤，效果微弱。"
           }
         }
       }
@@ -19613,7 +20044,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Time spent tending — and it simply wandered off."
+            "value": "Time spent tending, and it simply wandered off."
           }
         },
         "ja": {
@@ -19839,25 +20270,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "잘못된 기도였다 — 제단이 분노했다."
+            "value": "잘못된 기도였다. 제단이 분노했다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A flawed prayer — the altar turned its anger on the hero."
+            "value": "A flawed prayer: the altar turned its anger on the hero."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "誤った祈りだった — 祭壇が怒った。"
+            "value": "誤った祈りだった。祭壇が怒った。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "祈祷方式有误——祭坛为之震怒。"
+            "value": "祈祷方式有误，祭坛为之震怒。"
           }
         }
       }
@@ -20031,7 +20462,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "疲惫一扫而空——HP 大幅回复。"
+            "value": "疲惫一扫而空，HP 大幅回复。"
           }
         }
       }
@@ -20077,7 +20508,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The water ran too hot — minor burn."
+            "value": "The water ran too hot, minor burn."
           }
         },
         "ja": {
@@ -20089,7 +20520,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "水温过高——被烫了一下。"
+            "value": "水温过高，被烫了一下。"
           }
         }
       }
@@ -20379,7 +20810,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "治愈的冷杉林——树液熠熠发光。"
+            "value": "治愈的冷杉林，树液熠熠发光。"
           }
         }
       }
@@ -20582,7 +21013,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "黑暗里有一只猫——目光温柔。"
+            "value": "黑暗里有一只猫，目光温柔。"
           }
         }
       }
@@ -20669,7 +21100,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "沉沉入梦——身体彻底恢复。"
+            "value": "沉沉入梦，身体彻底恢复。"
           }
         }
       }
@@ -20930,7 +21361,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "原来是位老贤者——箴言直入肺腑。"
+            "value": "原来是位老贤者，箴言直入肺腑。"
           }
         }
       }
@@ -21075,7 +21506,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在小小的风铃下伫立良久——呼吸渐趋平静。"
+            "value": "在小小的风铃下伫立良久，呼吸渐趋平静。"
           }
         }
       }
@@ -21092,7 +21523,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "An instrument maker — offered a tiny whistle."
+            "value": "An instrument maker: offered a tiny whistle."
           }
         },
         "ja": {
@@ -21104,7 +21535,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "发声者是乐器匠人——赠予一只小口哨。"
+            "value": "发声者是乐器匠人，赠予一只小口哨。"
           }
         }
       }
@@ -21133,7 +21564,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "原来是迷宫的幻听——险些迷路。"
+            "value": "原来是迷宫的幻听，险些迷路。"
           }
         }
       }
@@ -21220,7 +21651,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "远处传来风铃之声——旋律随风飘来。"
+            "value": "远处传来风铃之声，旋律随风飘来。"
           }
         }
       }
@@ -21498,7 +21929,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A moss-slicked stone bridge — scalding droplets plink down from above."
+            "value": "A moss-slicked stone bridge: scalding droplets plink down from above."
           }
         },
         "ja": {
@@ -21672,7 +22103,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "An herbalist has laid out bundles of healing leaves — one hides a rotten one."
+            "value": "An herbalist has laid out bundles of healing leaves. One hides a rotten one."
           }
         },
         "ja": {
@@ -21685,6 +22116,209 @@
           "stringUnit": {
             "state": "translated",
             "value": "采药人摆放的一摞草药中,夹杂着一片腐坏的叶子。"
+          }
+        }
+      }
+    },
+    "uphero.heroLevelup.announce": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영웅 레벨 업! 영웅 Lv.{to} 에 도달했습니다"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hero level up! Reached hero Lv.{to}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄レベルアップ! 英雄 Lv.{to} に到達しました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄升级！达到英雄 Lv.{to}"
+          }
+        }
+      }
+    },
+    "uphero.heroLevelup.classReady": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이제 전직할 수 있어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can choose a class now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "転職できるようになりました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在可以转职了"
+          }
+        }
+      }
+    },
+    "uphero.heroLevelup.range": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영웅 Lv.{from} → Lv.{to}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hero Lv.{from} → Lv.{to}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄 Lv.{from} → Lv.{to}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄 Lv.{from} → Lv.{to}"
+          }
+        }
+      }
+    },
+    "uphero.heroLevelup.sp": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스킬 포인트 +{n}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill points +{n}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキルポイント +{n}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "技能点 +{n}"
+          }
+        }
+      }
+    },
+    "uphero.heroLevelup.stat.maxHp": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최대 HP"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Max HP"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大HP"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大HP"
+          }
+        }
+      }
+    },
+    "uphero.heroLevelup.statDelta": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{n}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{n}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{n}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{n}"
+          }
+        }
+      }
+    },
+    "uphero.heroLevelup.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영웅 레벨 업"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HERO LEVEL UP"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄レベルアップ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄升级"
           }
         }
       }
@@ -24386,6 +25020,151 @@
         }
       }
     },
+    "uphero.session.weeklyAllClear": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주 악몽 8곳 정복"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All 8 Nightmares Conquered This Week"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今週の悪夢 8か所を制覇"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本周 8 处噩梦全部征服"
+          }
+        }
+      }
+    },
+    "uphero.session.weeklyAllClearReward": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "코인 +{coins} · 소실방지권 +{wards} · 하락방지권 +{downs}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coins +{coins} · Loss Ward +{wards} · Downgrade Ward +{downs}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コイン +{coins} · 消失防止札 +{wards} · 降格防止札 +{downs}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金币 +{coins} · 防消失符 +{wards} · 防降级符 +{downs}"
+          }
+        }
+      }
+    },
+    "uphero.session.weeklyFirstClear": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "주간 악몽 첫 클리어"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly Nightmare First Clear"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週間悪夢 初クリア"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "周噩梦首次通关"
+          }
+        }
+      }
+    },
+    "uphero.session.weeklyFirstClearReward": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "코인 +{coins} · 소실방지권 +{wards}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coins +{coins} · Loss Ward +{wards}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コイン +{coins} · 消失防止札 +{wards}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金币 +{coins} · 防消失符 +{wards}"
+          }
+        }
+      }
+    },
+    "uphero.session.weeklyRewardAnnounce": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "주간 악몽 보상을 받았습니다. {detail}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly nightmare reward received. {detail}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週間悪夢の報酬を受け取りました。{detail}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已获得周噩梦奖励。{detail}"
+          }
+        }
+      }
+    },
     "uphero.skill.bard_anthem_t3.narrative": {
       "extractionState": "manual",
       "localizations": {
@@ -24479,25 +25258,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "용기의 노래 — 다음 처치 보상 1.5배"
+            "value": "용기의 노래: 다음 처치 보상 1.5배"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Song of courage — next kill reward ×1.5."
+            "value": "Song of courage: next kill reward ×1.5."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇気の歌 — 次の撃破報酬 1.5倍"
+            "value": "勇気の歌：次の撃破報酬 1.5倍"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇气之歌 — 下次击杀金币 ×1.5"
+            "value": "勇气之歌：下次击杀金币 ×1.5"
           }
         }
       }
@@ -24595,25 +25374,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "시간이 멈춘다 — 2 round 봉인"
+            "value": "시간이 멈춘다: 2 round 봉인"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Time froze — enemy bound for 2 rounds."
+            "value": "Time froze, enemy bound for 2 rounds."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "時が止まる — 2 ターン封印"
+            "value": "時が止まる：2 ターン封印"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "时间停止 — 2 回合封印"
+            "value": "时间停止：2 回合封印"
           }
         }
       }
@@ -24653,25 +25432,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "뿌리가 적을 잡아챈다 — 2 round 봉인"
+            "value": "뿌리가 적을 잡아챈다: 2 round 봉인"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Roots seized the enemy — bound for 2 rounds."
+            "value": "Roots seized the enemy, bound for 2 rounds."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "根が敵を掴む — 2 ターン封印"
+            "value": "根が敵を掴む：2 ターン封印"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "根须缠住敌人 — 2 回合封印"
+            "value": "根须缠住敌人：2 回合封印"
           }
         }
       }
@@ -24740,25 +25519,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "적이 홀려 움직이지 못한다 — 2 round"
+            "value": "적이 홀려 움직이지 못한다: 2 round"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The enemy was charmed — still for 2 rounds."
+            "value": "The enemy was charmed, still for 2 rounds."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "敵が魅了されて動けない — 2 ターン"
+            "value": "敵が魅了されて動けない：2 ターン"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "敌人被迷惑 — 2 回合无法行动"
+            "value": "敌人被迷惑：2 回合无法行动"
           }
         }
       }
@@ -24798,25 +25577,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 꿈 속으로 — 3 round 무적"
+            "value": "영웅이 꿈 속으로: 3 round 무적"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero dreamed away — invulnerable for 3 rounds."
+            "value": "The hero dreamed away, invulnerable for 3 rounds."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者が夢の中へ — 3 ターン無敵"
+            "value": "勇者が夢の中へ：3 ターン無敵"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者进入梦境 — 3 回合无敌"
+            "value": "勇者进入梦境：3 回合无敌"
           }
         }
       }
@@ -24827,25 +25606,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "환영 — 다음 3 공격 miss"
+            "value": "환영: 다음 3 공격 miss"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mirage — the enemy's next 3 attacks miss."
+            "value": "Mirage: the enemy's next 3 attacks miss."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "幻影 — 次の 3 攻撃は外れる"
+            "value": "幻影：次の 3 攻撃は外れる"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "幻影 — 敌人接下来 3 次攻击必定未命中"
+            "value": "幻影：敌人接下来 3 次攻击必定未命中"
           }
         }
       }
@@ -24885,25 +25664,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "적이 얼어붙었다 — 1 round 공격 불가"
+            "value": "적이 얼어붙었다: 1 round 공격 불가"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The enemy froze — unable to act for 1 round."
+            "value": "The enemy froze, unable to act for 1 round."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "敵が凍りついた — 1 ターン行動不能"
+            "value": "敵が凍りついた：1 ターン行動不能"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "敌人被冰封 — 1 回合无法行动"
+            "value": "敌人被冰封：1 回合无法行动"
           }
         }
       }
@@ -25001,25 +25780,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "연꽃이 영웅을 감싼다 — 3 round 무적"
+            "value": "연꽃이 영웅을 감싼다: 3 round 무적"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A lotus wrapped the hero — invulnerable for 3 rounds."
+            "value": "A lotus wrapped the hero, invulnerable for 3 rounds."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "蓮が勇者を包む — 3 ターン無敵"
+            "value": "蓮が勇者を包む：3 ターン無敵"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "莲花环绕勇者 — 3 回合无敌"
+            "value": "莲花环绕勇者：3 回合无敌"
           }
         }
       }
@@ -25059,25 +25838,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 선정에 든다 — 2 round 회피 100%"
+            "value": "영웅이 선정에 든다: 2 round 회피 100%"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero entered zen — 100% dodge for 2 rounds."
+            "value": "The hero entered zen, 100% dodge for 2 rounds."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者が禅に入る — 2 ターン回避 100%"
+            "value": "勇者が禅に入る：2 ターン回避 100%"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者进入禅定 — 2 回合闪避 100%"
+            "value": "勇者进入禅定：2 回合闪避 100%"
           }
         }
       }
@@ -25088,25 +25867,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 자세를 낮춘다 — 다음 피해 -50%"
+            "value": "영웅이 자세를 낮춘다: 다음 피해 -50%"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero braces low — next damage -50%."
+            "value": "The hero braces low, next damage -50%."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者が身を低くする — 次のダメージ -50%"
+            "value": "勇者が身を低くする：次のダメージ -50%"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者放低身姿 — 下次伤害 -50%"
+            "value": "勇者放低身姿：下次伤害 -50%"
           }
         }
       }
@@ -25117,25 +25896,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 깊게 호흡한다 — 다음 공격 +50%"
+            "value": "영웅이 깊게 호흡한다: 다음 공격 +50%"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero takes a deep breath — next attack +50%."
+            "value": "The hero takes a deep breath, next attack +50%."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者が深く息を吸う — 次の攻撃 +50%"
+            "value": "勇者が深く息を吸う：次の攻撃 +50%"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者深呼吸 — 下次攻击 +50%"
+            "value": "勇者深呼吸：下次攻击 +50%"
           }
         }
       }
@@ -25146,25 +25925,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 상처를 어루만진다 — HP +{heal}"
+            "value": "영웅이 상처를 어루만진다, HP +{heal}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero tends a scrape — HP +{heal}."
+            "value": "The hero tends a scrape, HP +{heal}."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者が傷をなでる — HP +{heal}"
+            "value": "勇者が傷をなでる：HP +{heal}"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者抚摸伤处 — HP +{heal}"
+            "value": "勇者抚摸伤处：HP +{heal}"
           }
         }
       }
@@ -25291,25 +26070,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 광폭화 — 3 round 공격 +30%"
+            "value": "영웅이 광폭화: 3 round 공격 +30%"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero went berserk — attack +30% for 3 rounds."
+            "value": "The hero went berserk, attack +30% for 3 rounds."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者が狂暴化 — 3 ターン攻撃 +30%"
+            "value": "勇者が狂暴化：3 ターン攻撃 +30%"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者狂暴化 — 3 回合攻击 +30%"
+            "value": "勇者狂暴化：3 回合攻击 +30%"
           }
         }
       }
@@ -25378,25 +26157,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "영웅이 강타를 준비한다 — 다음 공격 2배"
+            "value": "영웅이 강타를 준비한다: 다음 공격 2배"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The hero readied a Smash — next attack ×2."
+            "value": "The hero readied a Smash, next attack ×2."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者が強打を構える — 次の攻撃2倍"
+            "value": "勇者が強打を構える：次の攻撃2倍"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "勇者蓄力强击 — 下次攻击 ×2"
+            "value": "勇者蓄力强击：下次攻击 ×2"
           }
         }
       }
@@ -26677,6 +27456,93 @@
         }
       }
     },
+    "uphero.weekly.allClearDone": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주 악몽을 모두 정복했다"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every nightmare conquered this week"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今週の悪夢をすべて制覇した"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本周噩梦已全部征服"
+          }
+        }
+      }
+    },
+    "uphero.weekly.allClearHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "8곳 모두 클리어 시 코인 +{coins} · 소실방지권 {wards}장 · 하락방지권 {downs}장"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear all 8: Coins +{coins} · {wards} Loss Wards · {downs} Downgrade Wards"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "8か所すべてクリアでコイン +{coins} · 消失防止札 {wards}枚 · 降格防止札 {downs}枚"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "8 处全部通关：金币 +{coins} · 防消失符 {wards} 张 · 防降级符 {downs} 张"
+          }
+        }
+      }
+    },
+    "uphero.weekly.rewardHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "던전마다 첫 클리어 시 코인 +{coins} · 소실방지권 {wards}장"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First clear of each dungeon: Coins +{coins} · Loss Ward +{wards}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各ダンジョン初クリアでコイン +{coins} · 消失防止札 {wards}枚"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每个地下城首次通关：金币 +{coins} · 防消失符 {wards} 张"
+          }
+        }
+      }
+    },
     "widget.daily.complete": {
       "extractionState": "manual",
       "localizations": {
@@ -26821,6 +27687,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "轻松入门 — 每天1张卡"
+          }
+        }
+      }
+    },
+    "가볍게 시작: 하루 카드 1장": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start light: 1 card per day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気軽に始める：1日カード1枚"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻松入门：每天1张卡"
           }
         }
       }
@@ -27320,6 +28209,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "强化失败 — 物品保留"
+          }
+        }
+      }
+    },
+    "강화 실패: 아이템은 남았다": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enhancement failed: item kept"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "強化失敗：アイテムは残った"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强化失败：物品保留"
           }
         }
       }
@@ -28096,6 +29008,29 @@
         }
       }
     },
+    "계정 데이터 삭제에 실패했어요. 잠시 후 다시 시도해주세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not delete your account data. Please try again later"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントデータを削除できませんでした。しばらくしてもう一度お試しください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法删除账号数据，请稍后再试"
+          }
+        }
+      }
+    },
     "계정 삭제": {
       "extractionState": "manual",
       "localizations": {
@@ -28184,6 +29119,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "无法删除账号 — 请稍后重试"
+          }
+        }
+      }
+    },
+    "계정 삭제에 실패했어요. 잠시 후 다시 시도해주세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t delete your account. Please try again in a moment"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントを削除できませんでした。しばらくしてからもう一度お試しください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法删除账号，请稍后重试"
           }
         }
       }
@@ -28702,6 +29660,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Google 登录时出错了 — 请重试"
+          }
+        }
+      }
+    },
+    "구글 로그인 중 오류가 발생했어요. 다시 시도해주세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something went wrong during Google sign-in. Please try again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Googleログイン中にエラーが発生しました。もう一度お試しください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google 登录时出错了，请重试"
           }
         }
       }
@@ -29297,6 +30277,29 @@
         }
       }
     },
+    "꺼짐: 자동 발동 안 함": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off · no auto-cast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフ · 自動発動しない"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭 · 不自动释放"
+          }
+        }
+      }
+    },
     "꾸미기 →": {
       "extractionState": "manual",
       "localizations": {
@@ -29408,6 +30411,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "稳步充实 — 每天2张卡"
+          }
+        }
+      }
+    },
+    "꾸준한 갓생: 하루 카드 2장": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Steady challenge: 2 cards per day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ほどよい挑戦：1日カード2枚"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "稳步充实：每天2张卡"
           }
         }
       }
@@ -29546,6 +30572,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "硬核挑战 — 每天3张卡"
+          }
+        }
+      }
+    },
+    "끝까지 간다: 하루 카드 3장": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All in: 3 cards per day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最後までやる：1日カード3枚"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "硬核挑战：每天3张卡"
           }
         }
       }
@@ -29866,6 +30915,29 @@
         }
       }
     },
+    "남은 카드가 부족해 %lld 코인으로 보상했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not enough cards left, so %lld coins were added instead"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残りカードが足りないため %lld コインで補償しました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余卡片不足，已补偿 %lld 金币"
+          }
+        }
+      }
+    },
     "남의 속도와 비교하는 마음을 내려놓으세요. 당신의 셈은 따로 갑니다": {
       "localizations": {
         "en": {
@@ -30090,6 +31162,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "原生 iOS 恢复 — 拍立得、小游戏、战斗视觉全面复活"
+          }
+        }
+      }
+    },
+    "네이티브 iOS 회복: 폴라로이드·미니게임·전투 비주얼 전면 부활": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Native iOS recovery: Polaroid, minigames, and battle visuals fully revived"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ネイティブiOS復活：ポラロイド・ミニゲーム・バトルビジュアルが全面復活"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原生 iOS 恢复：拍立得、小游戏、战斗视觉全面复活"
           }
         }
       }
@@ -31459,6 +32554,29 @@
         }
       }
     },
+    "던전 XP 획득 +20%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dungeon XP +20%"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダンジョン XP +20%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地下城 XP +20%"
+          }
+        }
+      }
+    },
     "던전 — F%lld": {
       "extractionState": "manual",
       "localizations": {
@@ -31478,6 +32596,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "地下城 — F%lld"
+          }
+        }
+      }
+    },
+    "던전: F%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dungeon: F%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダンジョン：F%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地下城：F%lld"
           }
         }
       }
@@ -31714,7 +32855,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Six cards from your deck open up — choose the ones to do today"
+            "value": "Six cards from your deck open up. Choose the ones to do today"
           }
         },
         "ja": {
@@ -32821,6 +33962,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "实时相机 + 5 种相框 + Kodak Gold 滤镜 + 贴纸/签名/备注 + PNG 合成分享 — 照片打卡流程原生回归了。"
+          }
+        }
+      }
+    },
+    "라이브 카메라 + 5종 프레임 + Kodak Gold 필터 + 스티커/서명/메모 + PNG 합성 공유까지, 사진 인증 흐름이 네이티브로 돌아왔습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live camera + 5 frames + Kodak Gold filter + stickers/signature/memo + PNG composite sharing: the photo proof flow is back, natively."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ライブカメラ + 5種フレーム + Kodak Goldフィルター + ステッカー/サイン/メモ + PNG合成シェアまで、写真認証フローがネイティブで戻ってきました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时相机 + 5 种相框 + Kodak Gold 滤镜 + 贴纸/签名/备注 + PNG 合成分享，照片打卡流程原生回归了。"
           }
         }
       }
@@ -34564,6 +35728,29 @@
         }
       }
     },
+    "모든 카드를 이미 모았어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You already own every card"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのカードを集めました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你已经集齐所有卡片"
+          }
+        }
+      }
+    },
     "목표: %@ ± %@": {
       "extractionState": "manual",
       "localizations": {
@@ -35853,13 +37040,36 @@
         }
       }
     },
+    "방패 %lld개: 하루 빠져도 이어져요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Shields: miss a day and still keep going"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シールド%lld個：1日休んでも続きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld个护盾：漏一天也能延续"
+          }
+        }
+      }
+    },
     "방패가 없어요, 오늘은 꼭 켜요": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No Shields — be sure to light it today"
+            "value": "No Shields, be sure to light it today"
           }
         },
         "ja": {
@@ -36008,6 +37218,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld个增益槽 — 选择卡牌强化英雄吧"
+          }
+        }
+      }
+    },
+    "버프 슬롯 %lld개: 카드를 골라 영웅을 강화하세요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Buff slots: pick cards to power up your Hero"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バフスロット%lld個：カードを選んで英雄を強化しよう"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld个增益槽：选择卡牌强化英雄吧"
           }
         }
       }
@@ -36331,6 +37563,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "击败首领 — 探索成功"
+          }
+        }
+      }
+    },
+    "보스 격파: 탐험 성공": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boss defeated: Expedition success"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボス撃破：探索成功"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "击败首领：探索成功"
           }
         }
       }
@@ -37407,6 +38662,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "根须缠住敌人 — 2 回合封印"
+          }
+        }
+      }
+    },
+    "뿌리가 적을 잡아챈다: 2 round 봉인": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roots seized the enemy, bound for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "根が敵を掴む：2 ターン封印"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "根须缠住敌人：2 回合封印"
           }
         }
       }
@@ -38661,6 +39939,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "把成长的瞬间做成护符 — %lld 金币"
+          }
+        }
+      }
+    },
+    "성장의 순간을 부적으로: 코인 %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn a moment of growth into a Talisman: %lld Coins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成長の瞬間をお守りに：コイン%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把成长的瞬间做成护符：%lld 金币"
           }
         }
       }
@@ -40256,6 +41557,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "时间停止 — 2 回合封印"
+          }
+        }
+      }
+    },
+    "시간이 멈춘다: 2 round 봉인": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time froze, enemy bound for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時が止まる：2 ターン封印"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间停止：2 回合封印"
           }
         }
       }
@@ -42017,7 +43341,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This is your Hero's home — a space to prep for exploring, organize your gear, and manage your Coins."
+            "value": "This is your Hero's home, a space to prep for exploring, organize your gear, and manage your Coins."
           }
         },
         "ja": {
@@ -42029,7 +43353,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "这里是英雄的家——准备探索、整理装备、管理金币的地方。"
+            "value": "这里是英雄的家，准备探索、整理装备、管理金币的地方。"
           }
         }
       }
@@ -42167,6 +43491,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "莲花环绕勇者 — 3 回合无敌"
+          }
+        }
+      }
+    },
+    "연꽃이 영웅을 감싼다: 3 round 무적": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A lotus wrapped the hero, invulnerable for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蓮が勇者を包む：3 ターン無敵"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "莲花环绕勇者：3 回合无敌"
           }
         }
       }
@@ -42653,6 +44000,29 @@
         }
       }
     },
+    "영웅이 강타를 준비한다: 다음 공격 2배": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero readied a Smash, next attack ×2."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇者が強打を構える：次の攻撃2倍"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇者蓄力强击：下次攻击 ×2"
+          }
+        }
+      }
+    },
     "영웅이 광폭화 — 3 round 공격 +30%": {
       "extractionState": "manual",
       "localizations": {
@@ -42672,6 +44042,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "勇者狂暴化 — 3 回合攻击 +30%"
+          }
+        }
+      }
+    },
+    "영웅이 광폭화: 3 round 공격 +30%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero went berserk, attack +30% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇者が狂暴化：3 ターン攻撃 +30%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇者狂暴化：3 回合攻击 +30%"
           }
         }
       }
@@ -42699,6 +44092,29 @@
         }
       }
     },
+    "영웅이 꿈 속으로: 3 round 무적": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero dreamed away, invulnerable for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇者が夢の中へ：3 ターン無敵"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇者进入梦境：3 回合无敌"
+          }
+        }
+      }
+    },
     "영웅이 선정에 든다 — 2 round 회피 100%": {
       "extractionState": "manual",
       "localizations": {
@@ -42718,6 +44134,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "勇者进入禅定 — 2 回合闪避 100%"
+          }
+        }
+      }
+    },
+    "영웅이 선정에 든다: 2 round 회피 100%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero entered zen, 100% dodge for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇者が禅に入る：2 ターン回避 100%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇者进入禅定：2 回合闪避 100%"
           }
         }
       }
@@ -42764,6 +44203,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "英雄倒下 — 探索失败"
+          }
+        }
+      }
+    },
+    "영웅이 쓰러졌다: 탐험 실패": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero fell: Expedition failed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄が倒れた：探索失敗"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄倒下：探索失败"
           }
         }
       }
@@ -43089,7 +44551,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "One more today — keep your %lld-day Flame going"
+            "value": "One more today, keep your %lld-day Flame going"
           }
         },
         "ja": {
@@ -43148,6 +44610,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "今天两人都还没 — 慢慢来"
+          }
+        }
+      }
+    },
+    "오늘은 둘 다 아직이에요, 천천히 켜요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neither of you yet today, take your time"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日はまだ二人とも、ゆっくりつけましょう"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天两人都还没，慢慢来"
           }
         }
       }
@@ -44339,6 +45824,29 @@
         }
       }
     },
+    "용기의 노래: 다음 처치 보상 1.5배": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Song of courage: next kill reward ×1.5."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇気の歌：次の撃破報酬 1.5倍"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勇气之歌：下次击杀金币 ×1.5"
+          }
+        }
+      }
+    },
     "우정의 망토": {
       "extractionState": "manual",
       "localizations": {
@@ -44496,6 +46004,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "运动·学习·正念 — 一张卡牌就是一天的小目标"
+          }
+        }
+      }
+    },
+    "운동·학습·마음챙김: 카드 한 장이 하루의 작은 목표": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercise, learning, mindfulness: each card is a small daily goal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "運動・学習・マインドフルネス：1枚のカードが1日の小さな目標"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运动·学习·正念：一张卡牌就是一天的小目标"
           }
         }
       }
@@ -46588,6 +48119,29 @@
         }
       }
     },
+    "장착 중: 소실 시 스탯이 즉시 하락합니다": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currently equipped: stats drop immediately if destroyed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "装備中：消失するとステータスが即座に低下します"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "装备中：消失时属性将立即下降"
+          }
+        }
+      }
+    },
     "재 속에서 붉은 숨이 깜빡인다": {
       "extractionState": "manual",
       "localizations": {
@@ -46725,6 +48279,29 @@
         }
       }
     },
+    "재의식: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Re-ritual: %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再儀式：%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再仪式：%@"
+          }
+        }
+      }
+    },
     "재의식 — 강화 (최대 +%lld)": {
       "extractionState": "manual",
       "localizations": {
@@ -46744,6 +48321,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "再仪式 — 强化（最多 +%lld）"
+          }
+        }
+      }
+    },
+    "재의식: 강화 (최대 +%lld)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Re-ritual: Enhance (max +%lld)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再儀式：強化（最大 +%lld）"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再仪式：强化（最多 +%lld）"
           }
         }
       }
@@ -47235,6 +48835,29 @@
         }
       }
     },
+    "적이 얼어붙었다: 1 round 공격 불가": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The enemy froze, unable to act for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敵が凍りついた：1 ターン行動不能"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敌人被冰封：1 回合无法行动"
+          }
+        }
+      }
+    },
     "적이 홀려 움직이지 못한다 — 2 round": {
       "extractionState": "manual",
       "localizations": {
@@ -47254,6 +48877,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "敌人被迷惑 — 2 回合无法行动"
+          }
+        }
+      }
+    },
+    "적이 홀려 움직이지 못한다: 2 round": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The enemy was charmed, still for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敵が魅了されて動けない：2 ターン"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敌人被迷惑：2 回合无法行动"
           }
         }
       }
@@ -47746,7 +49392,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Measures every portion — strikes just enough."
+            "value": "Measures every portion, strikes just enough."
           }
         },
         "ja": {
@@ -50079,6 +51725,29 @@
         }
       }
     },
+    "충실도 그리드 R0-R7: 디자인 토큰·타이포·스프링 수학·SplashView 1:1 포팅": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fidelity grid R0-R7: design tokens, typography, spring math, and SplashView ported 1:1"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "忠実度グリッドR0-R7：デザイントークン・タイポ・スプリング数学・SplashViewを1:1移植"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保真度网格 R0-R7：设计令牌、排版、弹簧数学、SplashView 1:1 移植"
+          }
+        }
+      }
+    },
     "취소": {
       "extractionState": "manual",
       "localizations": {
@@ -50216,6 +51885,29 @@
         }
       }
     },
+    "친구가 먼저 켰어요: 같이 이어가요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your friend lit theirs first, keep it going together"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "友達が先につけました。一緒に続けましょう"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好友先点燃了，一起延续吧"
+          }
+        }
+      }
+    },
     "친구가 콕 찔렀어요 — 오늘 불꽃을 켜볼까요?": {
       "extractionState": "manual",
       "localizations": {
@@ -50235,6 +51927,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "好友戳了你一下 — 今天来点燃火焰吧?"
+          }
+        }
+      }
+    },
+    "친구가 콕 찔렀어요: 오늘 불꽃을 켜볼까요?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A friend nudged you, ready to light today's Flame?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "友達がつついてきました。今日の炎を灯しませんか?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好友戳了你一下，今天来点燃火焰吧?"
           }
         }
       }
@@ -51393,6 +53108,29 @@
         }
       }
     },
+    "클라우드 데이터를 불러오지 못했습니다. 네트워크 확인 후 다시 시도": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't load cloud data. Check your network and try again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クラウドデータを読み込めませんでした。ネットワークを確認して再試行してください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法加载云端数据，请检查网络后重试"
+          }
+        }
+      }
+    },
     "클래스": {
       "extractionState": "manual",
       "localizations": {
@@ -52235,6 +53973,28 @@
         }
       }
     },
+    "티켓 %lld장: 카드 맞추기": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Tickets: Match Cards"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チケット %lld枚：カードを揃える"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld张门票：卡牌配对"
+          }
+        }
+      }
+    },
     "티켓은 환불되지 않아요": {
       "extractionState": "manual",
       "localizations": {
@@ -52411,6 +54171,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "惩罚 — 必选"
+          }
+        }
+      }
+    },
+    "패널티: 필수": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Penalty: Required"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ペナルティ：必須"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "惩罚：必选"
           }
         }
       }
@@ -53008,6 +54791,29 @@
         }
       }
     },
+    "하루에 수행할 카드 수예요. 설정에서 언제든 바꿀 수 있어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The number of cards to do per day. You can change it anytime in Settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日に行うカードの枚数です。設定からいつでも変更できます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天要完成的卡牌数，可在设置中随时调整"
+          }
+        }
+      }
+    },
     "하루에 카드 1장 — 가볍게": {
       "extractionState": "manual",
       "localizations": {
@@ -53027,6 +54833,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "每天1张卡牌 — 轻松模式"
+          }
+        }
+      }
+    },
+    "하루에 카드 1장: 가볍게": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 card a day: Easy does it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日1枚：軽めに"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天1张卡牌：轻松模式"
           }
         }
       }
@@ -53054,6 +54883,29 @@
         }
       }
     },
+    "하루에 카드 2장: 갓생 모드": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 cards a day: Go-getter mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日2枚：理想の毎日モード"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天2张卡牌：充实生活模式"
+          }
+        }
+      }
+    },
     "하루에 카드 3장 — 초갓생 모드": {
       "extractionState": "manual",
       "localizations": {
@@ -53073,6 +54925,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "每天3张卡牌 — 超充实生活模式"
+          }
+        }
+      }
+    },
+    "하루에 카드 3장: 초갓생 모드": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 cards a day: Ultra go-getter mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日3枚：超・理想の毎日モード"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天3张卡牌：超充实生活模式"
           }
         }
       }
@@ -53264,7 +55139,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "One swing, one strike — never more."
+            "value": "One swing, one strike. Never more."
           }
         },
         "ja": {
@@ -54165,6 +56040,29 @@
         }
       }
     },
+    "환영: 다음 3 공격 miss": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mirage: the enemy's next 3 attacks miss."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影：次の 3 攻撃は外れる"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影：敌人接下来 3 次攻击必定未命中"
+          }
+        }
+      }
+    },
     "환영술사": {
       "localizations": {
         "en": {
@@ -54727,6 +56625,3191 @@
           "stringUnit": {
             "state": "translated",
             "value": "力量"
+          }
+        }
+      }
+    },
+    "철벽": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iron Wall"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄壁"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "铁壁"
+          }
+        }
+      }
+    },
+    "3 round 동안 받는 피해 -40%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damage taken -40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3ターンの間、被ダメージ -40%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 回合内受到的伤害 -40%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.warrior_ironwall_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영웅이 철벽처럼 버틴다. 3 round 피해 -40%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero stands like an iron wall. Damage -40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄が鉄壁のように耐える。3ターン被ダメージ -40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄如铁壁般坚守。3 回合伤害 -40%"
+          }
+        }
+      }
+    },
+    "전쟁의 함성": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "War Cry"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戦いの雄叫び"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "战吼"
+          }
+        }
+      }
+    },
+    "적 1 round 봉인 + 다음 2 round 공격 +40%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stun the enemy for 1 round + attack +40% for the next 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敵を1ターン封じる + 次の2ターン攻撃 +40%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "封印敌人 1 回合 + 接下来 2 回合攻击 +40%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.warrior_warcry_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전쟁의 함성이 울린다. 적 1 round 봉인, 2 round 공격 +40%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A war cry rings out. Enemy stunned for 1 round, attack +40% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戦いの雄叫びが響く。敵を1ターン封印、2ターン攻撃 +40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "战吼响彻。敌人封印 1 回合，2 回合攻击 +40%"
+          }
+        }
+      }
+    },
+    "마나 방패": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mana Shield"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マナシールド"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "魔法护盾"
+          }
+        }
+      }
+    },
+    "2 round 동안 받는 피해 -50%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damage taken -50% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2ターンの間、被ダメージ -50%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 回合内受到的伤害 -50%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.mage_manashield_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "마나 방패가 펼쳐진다. 2 round 피해 -50%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A mana shield unfolds. Damage -50% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マナシールドが展開する。2ターン被ダメージ -50%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "魔法护盾展开。2 回合伤害 -50%"
+          }
+        }
+      }
+    },
+    "연쇄 번개": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain Lightning"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連鎖雷撃"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连锁闪电"
+          }
+        }
+      }
+    },
+    "적 현재 HP 30% 피해 + 1 round 봉인.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deal 30% of enemy current HP + stun for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敵の現在HP30%のダメージ + 1ターン封印。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "造成敌人当前 HP 30% 伤害 + 封印 1 回合。"
+          }
+        }
+      }
+    },
+    "uphero.skill.mage_chain_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연쇄 번개가 적을 관통한다 ({damage}), 1 round 봉인"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain lightning pierces the enemy ({damage}), stunned for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連鎖雷撃が敵を貫く ({damage})、1ターン封印"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连锁闪电贯穿敌人 ({damage})，封印 1 回合"
+          }
+        }
+      }
+    },
+    "철포삼": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iron Body"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄布衫"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "铁布衫"
+          }
+        }
+      }
+    },
+    "3 round 동안 받는 피해 -35%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damage taken -35% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3ターンの間、被ダメージ -35%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 回合内受到的伤害 -35%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.monk_ironbody_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영웅의 몸이 강철이 된다. 3 round 피해 -35%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero's body turns to steel. Damage -35% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄の体が鋼になる。3ターン被ダメージ -35%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄之躯化为钢铁。3 回合伤害 -35%"
+          }
+        }
+      }
+    },
+    "연환격": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain Strike"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連環撃"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连环击"
+          }
+        }
+      }
+    },
+    "다음 공격 피해 2.5배.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next attack deals 2.5x damage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の攻撃ダメージ 2.5倍。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次攻击伤害 2.5 倍。"
+          }
+        }
+      }
+    },
+    "uphero.skill.monk_chainstrike_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연환격을 준비한다. 다음 공격 2.5배"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain strike readied. Next attack x2.5."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連環撃を構える。次の攻撃 2.5倍"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备连环击。下次攻击 2.5 倍"
+          }
+        }
+      }
+    },
+    "자연의 활력": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nature's Vigor"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然の活力"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然活力"
+          }
+        }
+      }
+    },
+    "HP +60 회복 + 1 round 회피 100%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heal HP +60 + 100% dodge for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HP +60 回復 + 1ターン回避 100%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复 HP +60 + 1 回合闪避 100%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.druid_vigor_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자연의 활력이 흐른다. HP +{heal}, 1 round 회피"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nature's vigor flows. HP +{heal}, dodge for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然の活力が流れる。HP +{heal}、1ターン回避"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然活力涌动。HP +{heal}，1 回合闪避"
+          }
+        }
+      }
+    },
+    "맹수의 발톱": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beast Claw"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛獣の爪"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛兽之爪"
+          }
+        }
+      }
+    },
+    "3 round 동안 공격 +40%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attack +40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3ターンの間、攻撃 +40%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 回合内攻击 +40%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.druid_claw_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "맹수의 발톱이 돋는다. 3 round 공격 +40%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beast claws emerge. Attack +40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛獣の爪が生える。3ターン攻撃 +40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛兽之爪显现。3 回合攻击 +40%"
+          }
+        }
+      }
+    },
+    "자장가": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lullaby"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子守唄"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摇篮曲"
+          }
+        }
+      }
+    },
+    "uphero.skill.bard_lullaby_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자장가가 적을 재운다. 1 round 봉인"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A lullaby puts the enemy to sleep. Stunned for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子守唄が敵を眠らせる。1ターン封印"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摇篮曲让敌人入睡。封印 1 回合"
+          }
+        }
+      }
+    },
+    "행운의 노래": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Song of Fortune"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸運の歌"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸运之歌"
+          }
+        }
+      }
+    },
+    "다음 처치 코인 2배 + 다음 2 공격 반드시 crit.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next kill coins x2 + next 2 attacks guaranteed crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の撃破コイン2倍 + 次の2回攻撃は必ずクリティカル。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次击杀金币 2 倍 + 接下来 2 次攻击必定暴击。"
+          }
+        }
+      }
+    },
+    "uphero.skill.bard_fortune_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "행운의 노래. 다음 처치 코인 2배, 다음 2 공격 crit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Song of fortune. Next kill coins x2, next 2 attacks crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸運の歌。次の撃破コイン2倍、次の2回攻撃クリティカル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸运之歌。下次击杀金币 2 倍，接下来 2 次攻击暴击"
+          }
+        }
+      }
+    },
+    "시간 왜곡": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time Warp"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間歪曲"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间扭曲"
+          }
+        }
+      }
+    },
+    "uphero.skill.chrono_warp_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시간이 왜곡된다. 2 round 회피 100%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time warps. 100% dodge for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間が歪む。2ターン回避 100%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间扭曲。2 回合闪避 100%"
+          }
+        }
+      }
+    },
+    "미래 예지": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foresight"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未来予知"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预知未来"
+          }
+        }
+      }
+    },
+    "다음 3 공격 반드시 crit.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next 3 attacks guaranteed crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の3回攻撃は必ずクリティカル。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接下来 3 次攻击必定暴击。"
+          }
+        }
+      }
+    },
+    "uphero.skill.chrono_foresight_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "미래를 본다. 다음 3 공격 반드시 crit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The future is seen. Next 3 attacks guaranteed crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未来を見る。次の3回攻撃は必ずクリティカル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预见未来。接下来 3 次攻击必定暴击"
+          }
+        }
+      }
+    },
+    "신의 가호": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divine Favor"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神の加護"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神之庇护"
+          }
+        }
+      }
+    },
+    "1 round 무적.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invulnerable for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1ターン無敵。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 回合无敌。"
+          }
+        }
+      }
+    },
+    "uphero.skill.priest_favor_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "신의 가호가 내린다. 1 round 무적"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divine favor descends. Invulnerable for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神の加護が降りる。1ターン無敵"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神之庇护降临。1 回合无敌"
+          }
+        }
+      }
+    },
+    "축복": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blessing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "祝福"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "祝福"
+          }
+        }
+      }
+    },
+    "HP +60 회복 + 3 round 공격 +25%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heal HP +60 + attack +25% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HP +60 回復 + 3ターン攻撃 +25%。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复 HP +60 + 3 回合攻击 +25%。"
+          }
+        }
+      }
+    },
+    "uphero.skill.priest_bless_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "축복이 내린다. HP +{heal}, 3 round 공격 +25%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A blessing descends. HP +{heal}, attack +25% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "祝福が降りる。HP +{heal}、3ターン攻撃 +25%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "祝福降临。HP +{heal}，3 回合攻击 +25%"
+          }
+        }
+      }
+    },
+    "그림자 걸음": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shadow Step"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影歩き"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影步"
+          }
+        }
+      }
+    },
+    "uphero.skill.illus_shadow_t2.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그림자 속으로 사라진다. 2 round 회피 100%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vanishes into the shadows. 100% dodge for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影の中に消える。2ターン回避 100%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐入阴影。2 回合闪避 100%"
+          }
+        }
+      }
+    },
+    "환상 폭발": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phantasm Burst"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影爆発"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影爆裂"
+          }
+        }
+      }
+    },
+    "적 현재 HP 30% 피해.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deal 30% of enemy current HP."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敵の現在HP30%のダメージ。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "造成敌人当前 HP 30% 伤害。"
+          }
+        }
+      }
+    },
+    "uphero.skill.illus_burst_t3.narrative": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "환상이 폭발한다 ({damage})"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The phantasm bursts ({damage})."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影が爆発する ({damage})"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影爆裂 ({damage})"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.skillHitMonster.mage_chain_t3": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연쇄 번개가 {monster} 을 관통한다. {damage} 피해"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain lightning pierces {monster}. {damage} damage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連鎖雷撃が {monster} を貫く。{damage} ダメージ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连锁闪电贯穿 {monster}。{damage} 伤害"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.skillHitMonster.illus_burst_t3": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "환상이 {monster} 앞에서 폭발한다. {damage} 피해"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A phantasm bursts before {monster}. {damage} damage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影が {monster} の前で爆発する。{damage} ダメージ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幻影在 {monster} 面前爆裂。{damage} 伤害"
+          }
+        }
+      }
+    },
+    "아직 배운 스킬이 없어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No skills learned yet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ覚えたスキルがありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有学会任何技能"
+          }
+        }
+      }
+    },
+    "이전 단계 필요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs prev tier"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前段階が必要"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要上一阶段"
+          }
+        }
+      }
+    },
+    "선택 완료": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chosen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选择"
+          }
+        }
+      }
+    },
+    "2단계와 3단계는 둘 중 하나만 고를 수 있어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiers 2 and 3: pick only one of the two"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2段階と3段階はどちらか一方だけ選べます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 2 和第 3 阶段只能二选一"
+          }
+        }
+      }
+    },
+    "3단계 스킬 하나를 배우면 열려요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlocks after learning one tier 3 skill"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3段階のスキルを1つ覚えると開きます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "学会一个第 3 阶段技能后解锁"
+          }
+        }
+      }
+    },
+    "스킬 초기화": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset skills"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキル初期化"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置技能"
+          }
+        }
+      }
+    },
+    "스킬 초기화 · %lld 코인": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset skills · %lld coins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキル初期化 · %lld コイン"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置技能 · %lld 金币"
+          }
+        }
+      }
+    },
+    "배운 스킬을 모두 잊고 SP %lld을 돌려받아요. %lld 코인을 쓸까요?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget all learned skills and get SP %lld back. Spend %lld coins?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "覚えたスキルをすべて忘れて SP %lld を取り戻します。%lld コインを使いますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "忘记所有已学技能并取回 SP %lld。要花费 %lld 金币吗？"
+          }
+        }
+      }
+    },
+    "영웅이 철벽처럼 버틴다. 3 round 피해 -40%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero stands like an iron wall. Damage -40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄が鉄壁のように耐える。3ターン被ダメージ -40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄如铁壁般坚守。3 回合伤害 -40%"
+          }
+        }
+      }
+    },
+    "전쟁의 함성이 울린다. 적 1 round 봉인, 2 round 공격 +40%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A war cry rings out. Enemy stunned for 1 round, attack +40% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戦いの雄叫びが響く。敵を1ターン封印、2ターン攻撃 +40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "战吼响彻。敌人封印 1 回合，2 回合攻击 +40%"
+          }
+        }
+      }
+    },
+    "마나 방패가 펼쳐진다. 2 round 피해 -50%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A mana shield unfolds. Damage -50% for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マナシールドが展開する。2ターン被ダメージ -50%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "魔法护盾展开。2 回合伤害 -50%"
+          }
+        }
+      }
+    },
+    "영웅의 몸이 강철이 된다. 3 round 피해 -35%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hero's body turns to steel. Damage -35% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄の体が鋼になる。3ターン被ダメージ -35%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英雄之躯化为钢铁。3 回合伤害 -35%"
+          }
+        }
+      }
+    },
+    "연환격을 준비한다. 다음 공격 2.5배": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chain strike readied. Next attack x2.5."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連環撃を構える。次の攻撃 2.5倍"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备连环击。下次攻击 2.5 倍"
+          }
+        }
+      }
+    },
+    "맹수의 발톱이 돋는다. 3 round 공격 +40%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beast claws emerge. Attack +40% for 3 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛獣の爪が生える。3ターン攻撃 +40%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猛兽之爪显现。3 回合攻击 +40%"
+          }
+        }
+      }
+    },
+    "자장가가 적을 재운다. 1 round 봉인": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A lullaby puts the enemy to sleep. Stunned for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子守唄が敵を眠らせる。1ターン封印"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摇篮曲让敌人入睡。封印 1 回合"
+          }
+        }
+      }
+    },
+    "행운의 노래. 다음 처치 코인 2배, 다음 2 공격 crit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Song of fortune. Next kill coins x2, next 2 attacks crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸運の歌。次の撃破コイン2倍、次の2回攻撃クリティカル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幸运之歌。下次击杀金币 2 倍，接下来 2 次攻击暴击"
+          }
+        }
+      }
+    },
+    "시간이 왜곡된다. 2 round 회피 100%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time warps. 100% dodge for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間が歪む。2ターン回避 100%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间扭曲。2 回合闪避 100%"
+          }
+        }
+      }
+    },
+    "미래를 본다. 다음 3 공격 반드시 crit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The future is seen. Next 3 attacks guaranteed crit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未来を見る。次の3回攻撃は必ずクリティカル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预见未来。接下来 3 次攻击必定暴击"
+          }
+        }
+      }
+    },
+    "신의 가호가 내린다. 1 round 무적": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divine favor descends. Invulnerable for 1 round."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神の加護が降りる。1ターン無敵"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "神之庇护降临。1 回合无敌"
+          }
+        }
+      }
+    },
+    "그림자 속으로 사라진다. 2 round 회피 100%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vanishes into the shadows. 100% dodge for 2 rounds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影の中に消える。2ターン回避 100%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐入阴影。2 回合闪避 100%"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.skipFloors": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}층 건너뜀"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skipped {n} floors"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}階スキップ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跳过{n}层"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.runBuff": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% ({floors}층)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% ({floors} floors)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% ({floors}階)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% ({floors}层)"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.runBuffRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% (이번 탐험)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% (this run)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% (今回の探索)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} +{pct}% (本次探索)"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.runCurse": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% ({floors}층)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% ({floors} floors)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% ({floors}階)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% ({floors}层)"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.runCurseRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% (이번 탐험)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% (this run)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% (今回の探索)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} -{pct}% (本次探索)"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.stealth": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 {n}회 조우 회피"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avoid next {n} encounters"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の{n}回の遭遇を回避"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回避接下来{n}次遭遇"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.guaranteedDrop": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 처치 장비 확정 x{n}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guaranteed gear on next kill x{n}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の撃破で装備確定 x{n}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次击杀必掉装备 x{n}"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.bossReveal": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보스 피해 +{pct}%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boss damage +{pct}%"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボスへのダメージ +{pct}%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对首领伤害 +{pct}%"
+          }
+        }
+      }
+    },
+    "uphero.choice.effectSummary.stat.all": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전 능력치"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All stats"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全能力値"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全属性"
+          }
+        }
+      }
+    },
+    "uphero.choice.runMods.aria": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 탐험의 버프와 저주"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buffs and curses for this run"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今回の探索のバフと呪い"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本次探索的增益与诅咒"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.runBuff": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}이(가) 오른다 (+{pct}%, {floors}층)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} rises (+{pct}%, {floors} floors)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}が上がる (+{pct}%、{floors}階)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}提升了 (+{pct}%，{floors}层)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.runCurse": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}이(가) 흔들린다 (-{pct}%, {floors}층)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} falters (-{pct}%, {floors} floors)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}が揺らぐ (-{pct}%、{floors}階)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}动摇了 (-{pct}%，{floors}层)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.stealthPass": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster}의 곁을 소리 없이 지나쳤다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slipped past {monster} without a sound."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster}のそばを音もなく通り過ぎた。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "悄无声息地从{monster}身旁经过。"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossNone": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앞길에 더는 보스의 기운이 없다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No boss presence lies ahead."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この先にボスの気配はもうない。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前方再无首领的气息。"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 급소를 읽었다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. You read its weak point (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。急所を読んだ (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。看穿了要害 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.tough": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 두꺼운 가죽, 긴 싸움 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Thick hide, a long fight (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。厚い皮、長い戦い (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。皮糙肉厚，一场持久战 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.fragile": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 껍질이 얇다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Its shell is thin (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。殻が薄い (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。外壳很薄 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.swift": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 빠르다, 잘 피한다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Fast, hard to pin down (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。速い、よく避ける (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。速度快，善于闪避 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.burst": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 한 방이 무겁다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Its blows land heavy (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。一撃が重い (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。一击很重 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.poison": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 독을 품었다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. It carries venom (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。毒を宿している (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。身怀剧毒 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.regen": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 상처가 아문다, 몰아쳐야 한다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. Its wounds close, press the attack (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。傷が塞がる、畳みかけろ (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。伤口会愈合，必须速战速决 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.revealBossTrait.shield": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}의 {monster}가 보인다. 첫 공격은 막힌다 (보스 피해 +{pct}%)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{monster} on F{floor} comes into view. The first strike will be blocked (boss damage +{pct}%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "F{floor}の{monster}が見える。最初の一撃は防がれる (ボスへのダメージ +{pct}%)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看见了F{floor}的{monster}。第一击会被挡下 (对首领伤害 +{pct}%)"
+          }
+        }
+      }
+    },
+    "uphero.enhance.title.awakened": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "각성한"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Awakened"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "覚醒した"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觉醒的"
+          }
+        }
+      }
+    },
+    "uphero.enhance.title.transcended": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초월한"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcended"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超越した"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超越的"
+          }
+        }
+      }
+    },
+    "칭호 %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Title %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "称号 %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "称号 %@"
+          }
+        }
+      }
+    },
+    "방지권": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wards"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "防止札"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "防护符"
+          }
+        }
+      }
+    },
+    "보유 %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Held %lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所持 %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持有 %lld"
+          }
+        }
+      }
+    },
+    "이번 시도에 쓰기": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use on this attempt"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この試行で使う"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本次尝试使用"
+          }
+        }
+      }
+    },
+    "켜면 이번 시도에 1장을 씁니다. 결과와 상관없이 소모돼요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arming spends 1 on this attempt, whatever the result"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オンにするとこの試行で1枚使います。結果に関係なく消費されます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启后本次尝试消耗1张，无论结果如何"
+          }
+        }
+      }
+    },
+    "이 단계에서는 소실이 없어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No loss at this step"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この段階では消失しません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此阶段不会消失"
+          }
+        }
+      }
+    },
+    "이 단계에서는 하락이 없어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No downgrade at this step"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この段階では降格しません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此阶段不会降级"
+          }
+        }
+      }
+    },
+    "%@ 1장 사용": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used 1 %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を1枚使用"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用了1张%@"
+          }
+        }
+      }
+    },
+    "각성 강화 성공": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Awakening enhance success"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "覚醒強化成功"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觉醒强化成功"
+          }
+        }
+      }
+    },
+    "초월 강화 성공": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcendent enhance success"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超越強化成功"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超越强化成功"
+          }
+        }
+      }
+    },
+    "+10 이후 실패는 한 단계 내려가요. +9로 내려가면 소실 위험이 다시 생겨요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Past +10 every failure drops one step. At +9 the item is exposed to loss again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+10 以降の失敗は一段階下がります。+9 に戻ると消失の危険が再び生じます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+10 之后失败会掉一级。回到 +9 后会再次面临消失风险"
+          }
+        }
+      }
+    },
+    "+15 이후 실패는 주로 소실이고, 아니면 +14로 내려가요. 두 방지권을 모두 걸어야 제자리에서 버텨요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Past +15 failure mostly means loss, otherwise it drops to +14. Arm both wards to hold your place"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+15 以降の失敗は主に消失で、そうでなければ +14 に下がります。両方の防止札を使えばその場に留まれます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+15 之后失败主要是消失，否则掉到 +14。两种防护符都用上才能原地守住"
+          }
+        }
+      }
+    },
+    "실패 시 한 단계 하락": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fails drop one step"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失敗で一段階降格"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失败掉一级"
+          }
+        }
+      }
+    },
+    "소실 %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loss %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消失 %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消失 %@"
+          }
+        }
+      }
+    },
+    "이번 시도: %lld 코인 + %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This attempt: %lld coins + %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今回の試行: %lld コイン + %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本次尝试: %lld 金币 + %@"
+          }
+        }
+      }
+    },
+    "강화 +%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enhance +%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "強化 +%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强化 +%lld"
+          }
+        }
+      }
+    },
+    "보유 장비 (%lld/%lld)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gear owned (%lld/%lld)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所持装備 (%lld/%lld)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拥有装备 (%lld/%lld)"
+          }
+        }
+      }
+    },
+    "버프 슬롯 +1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buff slot +1"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バフ枠 +1"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "增益槽 +1"
+          }
+        }
+      }
+    },
+    "합성": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthesize"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合成"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合成"
+          }
+        }
+      }
+    },
+    "같은 등급 장비 3개를 고르세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick 3 items of the same rarity"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同じ等級の装備を3つ選んでください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择3件同品级装备"
+          }
+        }
+      }
+    },
+    "합성 %lld/3": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthesize %lld/3"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合成 %lld/3"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合成 %lld/3"
+          }
+        }
+      }
+    },
+    "같은 등급끼리만 합성할 수 있어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only items of the same rarity can be synthesized"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同じ等級同士でのみ合成できます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只能合成同品级的装备"
+          }
+        }
+      }
+    },
+    "전설 장비는 합성할 수 없어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Legend items cannot be synthesized"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伝説の装備は合成できません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "传说装备无法合成"
+          }
+        }
+      }
+    },
+    "사진 부적은 합성할 수 없어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo talismans cannot be synthesized"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真のお守りは合成できません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片护符无法合成"
+          }
+        }
+      }
+    },
+    "%@ 장비 3개를 합성할까요?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthesize 3 %@ items?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@装備3つを合成しますか?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要合成3件%@装备吗?"
+          }
+        }
+      }
+    },
+    "%@ 장비 1개가 나와요. 강화 단계는 사라지고 층수는 가장 높은 것을 따라가요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You get 1 %@ item. Enhance levels are lost and the floor follows the highest one"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@装備が1つ手に入ります。強化段階は消え、階層は最も高いものに従います"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将获得1件%@装备。强化等级会消失，层数取最高的那件"
+          }
+        }
+      }
+    },
+    "합성 완료": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthesis complete"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合成完了"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合成完成"
+          }
+        }
+      }
+    },
+    "%@ 획득": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Got %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を獲得"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获得 %@"
+          }
+        }
+      }
+    },
+    "가방이 가득 찼어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bag is full"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バッグがいっぱいです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包已满"
+          }
+        }
+      }
+    },
+    "가방 %lld칸을 넘긴 전리품 %lld개. 팔거나 버려야 해요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%2$lld drops over the %1$lld-slot bag. Sell or discard them"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バッグ%1$lld枠を超えた戦利品が%2$lld個。売るか捨ててください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超出背包%1$lld格的战利品有%2$lld件。请出售或丢弃"
+          }
+        }
+      }
+    },
+    "판매 +%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sell +%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "売却 +%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出售 +%lld"
+          }
+        }
+      }
+    },
+    "모두 판매 (+%lld)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sell all (+%lld)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべて売却 (+%lld)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部出售 (+%lld)"
+          }
+        }
+      }
+    },
+    "가방이 가득 찼어요 (%lld칸)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bag is full (%lld slots)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バッグがいっぱいです (%lld枠)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包已满 (%lld格)"
+          }
+        }
+      }
+    },
+    "판매 +%lld C": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sold +%lld C"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "売却 +%lld C"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出售 +%lld C"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.runBuffRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}이(가) 오른다 (+{pct}%, 이번 탐험)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} rises (+{pct}%, this run)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}が上がる (+{pct}%、今回の探索)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}提升了 (+{pct}%，本次探索)"
+          }
+        }
+      }
+    },
+    "uphero.combat.narrative.runCurseRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}이(가) 흔들린다 (-{pct}%, 이번 탐험)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat} falters (-{pct}%, this run)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}が揺らぐ (-{pct}%、今回の探索)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stat}动摇了 (-{pct}%，本次探索)"
           }
         }
       }

@@ -2,9 +2,10 @@
 //  EquipmentPool.swift
 //  UpNext 데이터 — Up Hero 장비 템플릿 + 드롭 생성.
 //
-//  웹 src/data/upHeroEquipment.ts (514줄) 포팅 (findTemplateByLegacyId 제외 —
-//  legacy codex 마이그레이션 전용, 오케스트레이션 미사용).
-//  Phase 2.4 (RPG 엔진) 오케스트레이션 데이터 레이어 산출물.
+//  웹 src/data/upHeroEquipment.ts 포팅. Phase 2.4 (RPG 엔진) 오케스트레이션 데이터
+//  레이어 산출물. Phase 6-E (Track E) — findTemplateByLegacyId 포팅(EquipmentRepair 가 쓴다),
+//  iconName 을 pixelarticons 2.x 실제 이름으로 리맵, dropFloor 기록, 부적 slotBonus 규칙,
+//  synthesizeEquipment(합성), EquipSlot 글리프/라벨 키.
 //
 //  결정론: pickAffix/createEquipmentFromTemplate/rollEquipmentDrop/rollDropRarity
 //   는 시드 가능한 rng() 사용 → 같은 seed 면 동일 출력 (id 의 timestamp 만 예외).
@@ -36,14 +37,14 @@ enum EquipmentPool {
             category: .fitness, iconName: "Shield", statBoost: .vit, flavor: "매일의 반복을 막아내는 방패",
             rarityMult: [.normal: 1, .rare: 1.5, .unique: 2, .legend: 2.8]),
         EquipmentTemplate(baseId: "endurance_bracer", baseName: "끈기의 완대", type: .accessory,
-            category: .fitness, iconName: "Armor", statBoost: .str, flavor: "포기 직전의 한 번 더",
+            category: .fitness, iconName: "Hand", statBoost: .str, flavor: "포기 직전의 한 번 더",
             rarityMult: [.normal: 1, .rare: 1.4, .unique: 1.9, .legend: 2.6]),
         // 학습 (learning) — 친화: 액세서리
         EquipmentTemplate(baseId: "wisdom_glasses", baseName: "지혜의 안경", type: .accessory,
-            category: .learning, iconName: "EyeClosed", statBoost: .int, flavor: "숨은 진리를 드러내는 렌즈",
+            category: .learning, iconName: "Sunglasses", statBoost: .int, flavor: "숨은 진리를 드러내는 렌즈",
             rarityMult: [.normal: 1, .rare: 1.6, .unique: 2.2, .legend: 3]),
         EquipmentTemplate(baseId: "memo_pen", baseName: "메모의 펜", type: .weapon,
-            category: .learning, iconName: "Edit", statBoost: .int, flavor: "글자 한 줄이 적을 베는 도구",
+            category: .learning, iconName: "PenSquare", statBoost: .int, flavor: "글자 한 줄이 적을 베는 도구",
             rarityMult: [.normal: 1, .rare: 1.5, .unique: 2, .legend: 2.8]),
         EquipmentTemplate(baseId: "bookmark_charm", baseName: "책갈피의 부적", type: .talisman,
             category: .learning, iconName: "Note", statBoost: .dex, flavor: "잃어버린 페이지를 찾아주는",
@@ -53,54 +54,54 @@ enum EquipmentPool {
             category: .mindfulness, iconName: "Moon", statBoost: .agi, flavor: "숨 한 번으로 모든 공격을 흘려보냄",
             rarityMult: [.normal: 1, .rare: 1.6, .unique: 2.2, .legend: 3]),
         EquipmentTemplate(baseId: "zen_beads", baseName: "선정의 염주", type: .accessory,
-            category: .mindfulness, iconName: "Sun", statBoost: .vit, flavor: "마음이 구슬처럼 둥글어진다",
+            category: .mindfulness, iconName: "CirclePile", statBoost: .vit, flavor: "마음이 구슬처럼 둥글어진다",
             rarityMult: [.normal: 1, .rare: 1.5, .unique: 2, .legend: 2.8]),
         EquipmentTemplate(baseId: "silence_robe", baseName: "침묵의 로브", type: .armor,
-            category: .mindfulness, iconName: "Hanger", statBoost: .int, flavor: "소리 없이 스며드는 천",
+            category: .mindfulness, iconName: "Shirt", statBoost: .int, flavor: "소리 없이 스며드는 천",
             rarityMult: [.normal: 1, .rare: 1.4, .unique: 1.9, .legend: 2.6]),
         // 식단 (nutrition) — 친화: 갑옷
         EquipmentTemplate(baseId: "grain_armor", baseName: "곡물의 갑옷", type: .armor,
-            category: .nutrition, iconName: "Hanger", statBoost: .vit, flavor: "황금빛 알갱이가 상처를 막는다",
+            category: .nutrition, iconName: "Wall", statBoost: .vit, flavor: "황금빛 알갱이가 상처를 막는다",
             rarityMult: [.normal: 1, .rare: 1.6, .unique: 2.2, .legend: 3]),
         EquipmentTemplate(baseId: "moderation_spoon", baseName: "절제의 수저", type: .weapon,
-            category: .nutrition, iconName: "Fork", statBoost: .dex, flavor: "정량을 재어 공격하는 도구",
+            category: .nutrition, iconName: "Pipette", statBoost: .dex, flavor: "정량을 재어 공격하는 도구",
             rarityMult: [.normal: 1, .rare: 1.5, .unique: 2, .legend: 2.8]),
         EquipmentTemplate(baseId: "aroma_charm", baseName: "향기의 부적", type: .talisman,
-            category: .nutrition, iconName: "Star", statBoost: .int, flavor: "향으로 적을 홀리는",
+            category: .nutrition, iconName: "Potion", statBoost: .int, flavor: "향으로 적을 홀리는",
             rarityMult: [.normal: 1, .rare: 1.4, .unique: 1.9, .legend: 2.6]),
         // 소통 (social) — 친화: 액세서리
         EquipmentTemplate(baseId: "smile_ring", baseName: "미소의 반지", type: .accessory,
-            category: .social, iconName: "Heart", statBoost: .agi, flavor: "적을 웃게 만드는 힘",
+            category: .social, iconName: "Smile", statBoost: .agi, flavor: "적을 웃게 만드는 힘",
             rarityMult: [.normal: 1, .rare: 1.6, .unique: 2.2, .legend: 3]),
         EquipmentTemplate(baseId: "dialogue_lute", baseName: "대화의 류트", type: .weapon,
             category: .social, iconName: "Music", statBoost: .int, flavor: "노래가 적을 설득한다",
             rarityMult: [.normal: 1, .rare: 1.5, .unique: 2, .legend: 2.8]),
         EquipmentTemplate(baseId: "friendship_cape", baseName: "우정의 망토", type: .armor,
-            category: .social, iconName: "Hanger", statBoost: .vit, flavor: "친구들의 온기로 보호받는",
+            category: .social, iconName: "Flag", statBoost: .vit, flavor: "친구들의 온기로 보호받는",
             rarityMult: [.normal: 1, .rare: 1.4, .unique: 1.9, .legend: 2.6]),
         // 생산성 (productivity) — 친화: 액세서리
         EquipmentTemplate(baseId: "focus_clock", baseName: "집중의 시계", type: .accessory,
             category: .productivity, iconName: "Clock", statBoost: .dex, flavor: "시간이 한 방향으로 흐른다",
             rarityMult: [.normal: 1, .rare: 1.6, .unique: 2.2, .legend: 3]),
         EquipmentTemplate(baseId: "efficiency_axe", baseName: "효율의 도끼", type: .weapon,
-            category: .productivity, iconName: "Tool", statBoost: .str, flavor: "한 번에 한 번만 휘두른다",
+            category: .productivity, iconName: "Cut", statBoost: .str, flavor: "한 번에 한 번만 휘두른다",
             rarityMult: [.normal: 1, .rare: 1.5, .unique: 2, .legend: 2.8]),
         EquipmentTemplate(baseId: "timeblock_charm", baseName: "타임블록 부적", type: .talisman,
-            category: .productivity, iconName: "Grid", statBoost: .agi, flavor: "시간을 블록으로 묶는 힘",
+            category: .productivity, iconName: "Grid3x3", statBoost: .agi, flavor: "시간을 블록으로 묶는 힘",
             rarityMult: [.normal: 1, .rare: 1.4, .unique: 1.9, .legend: 2.6]),
         // 건강 (wellness) — 친화: 갑옷
         EquipmentTemplate(baseId: "recovery_robe", baseName: "회복의 로브", type: .armor,
             category: .wellness, iconName: "Heart", statBoost: .vit, flavor: "온기가 상처를 치유한다",
             rarityMult: [.normal: 1, .rare: 1.6, .unique: 2.2, .legend: 3]),
         EquipmentTemplate(baseId: "deepsleep_charm", baseName: "숙면의 부적", type: .talisman,
-            category: .wellness, iconName: "Moon", statBoost: .vit, flavor: "꿈이 현실을 치료한다",
+            category: .wellness, iconName: "Bed", statBoost: .vit, flavor: "꿈이 현실을 치료한다",
             rarityMult: [.normal: 1, .rare: 1.5, .unique: 2, .legend: 2.8]),
         EquipmentTemplate(baseId: "balance_bracer", baseName: "균형의 완대", type: .accessory,
             category: .wellness, iconName: "Scale", statBoost: .agi, flavor: "양 끝이 평형을 이룬다",
             rarityMult: [.normal: 1, .rare: 1.4, .unique: 1.9, .legend: 2.6]),
         // 트렌딩 (trending) — 친화: 부적
         EquipmentTemplate(baseId: "mutation_charm", baseName: "변화의 부적", type: .talisman,
-            category: .trending, iconName: "Flash", statBoost: .dex, flavor: "매번 다른 형태로 변한다",
+            category: .trending, iconName: "Shuffle", statBoost: .dex, flavor: "매번 다른 형태로 변한다",
             rarityMult: [.normal: 1, .rare: 1.6, .unique: 2.2, .legend: 3]),
         EquipmentTemplate(baseId: "viral_sword", baseName: "바이럴 검", type: .weapon,
             category: .trending, iconName: "Zap", statBoost: .agi, flavor: "퍼져나가는 한 방",
@@ -115,20 +116,53 @@ enum EquipmentPool {
         .normal: "", .rare: "빛나는 ", .unique: "전설적 ", .legend: "신성한 ",
     ]
 
+    /// Phase 6-E (Track E) — 옛 iconName → pixelarticons 2.x 실제 이름. 수리에서 템플릿
+    /// (baseId → legacy id) 으로 못 찾은 아이템의 마지막 폴백. 웹 `ICON_LEGACY_REMAP`.
+    static let iconLegacyRemap: [String: String] = [
+        "Armor": "Hand", "EyeClosed": "Sunglasses", "Edit": "PenSquare", "Sun": "CirclePile",
+        "Hanger": "Shirt", "Fork": "Pipette", "Star": "Potion", "Tool": "Cut",
+        "Grid": "Grid3x3", "Flash": "Shuffle",
+    ]
+
+    /// baseId 로 템플릿 조회. 웹 `findTemplateByBaseId`.
+    static func findTemplate(baseId: String) -> EquipmentTemplate? {
+        templates.first { $0.baseId == baseId }
+    }
+
+    /// legacy 인스턴스 id `eq_{공백제거 baseName}_{rarity}_{ts}_{rnd}` 에서 템플릿 복원.
+    /// 웹 `findTemplateByLegacyId` (정규식 동일). UUID id(iOS 생성) 는 매칭되지 않는다 —
+    /// 그런 아이템은 baseId 를 항상 갖고 있어 문제없다.
+    static func findTemplateByLegacyId(_ legacyId: String) -> EquipmentTemplate? {
+        guard let re = try? NSRegularExpression(
+            pattern: "^eq_(.+?)_(normal|rare|unique|legend)_\\d+_\\d+$"),
+              let m = re.firstMatch(
+                in: legacyId, range: NSRange(legacyId.startIndex..., in: legacyId)),
+              let r = Range(m.range(at: 1), in: legacyId) else { return nil }
+        let stripped = String(legacyId[r])
+        return templates.first {
+            $0.baseName.replacingOccurrences(of: "\\s", with: "", options: .regularExpression)
+                == stripped
+        }
+    }
+
     /// Equipment 의 baseName 복원. 웹 `getEquipmentBaseName`.
     /// baseId 역참조 우선(신규 드롭은 항상 보유) — name 문자열 파싱은 legacy 전용.
-    /// name 은 "빛나는 자기절제의 검 of 힘, 민첩" 형태라 rarity 접두사와 affix 접미사를
-    /// 모두 벗겨야 카탈로그 키(baseName)와 매칭된다.
+    /// name 은 "빛나는 자기절제의 검 of 힘, 민첩 +7" 형태라 rarity 접두사 → " +N" 강화
+    /// 접미사 → affix 접미사 순으로 벗겨야 카탈로그 키(baseName)와 매칭된다 (Phase 6-E).
     static func equipmentBaseName(_ eq: Equipment) -> String {
-        if let baseId = eq.baseId,
-           let t = templates.first(where: { $0.baseId == baseId }) {
+        equipmentBaseName(name: eq.name, rarity: eq.rarity, baseId: eq.baseId)
+    }
+
+    static func equipmentBaseName(name: String, rarity: Rarity, baseId: String?) -> String {
+        if let baseId, let t = findTemplate(baseId: baseId) {
             return t.baseName
         }
-        var name = eq.name
-        let prefix = rarityPrefix[eq.rarity] ?? ""
+        var name = name
+        let prefix = rarityPrefix[rarity] ?? ""
         if !prefix.isEmpty && name.hasPrefix(prefix) {
             name = String(name.dropFirst(prefix.count))
         }
+        name = UpHeroRules.stripEnhanceSuffix(name)
         if let r = name.range(of: " of ") {
             name = String(name[..<r.lowerBound])
         }
@@ -203,10 +237,11 @@ enum EquipmentPool {
 
         // unique +3% / legend +7% crit.
         let critBonus = rarity == .legend ? 7 : (rarity == .unique ? 3 : 0)
-        // accessory/talisman + unique 이상 → slotBonus +1.
+        // accessory 는 unique 이상일 때 slotBonus +1. Phase 6-E (Track E, 피드백 21) —
+        // 부적(talisman) 은 등급과 무관하게 항상 +1 (웹 동일).
         let isSlotBearer =
-            (template.type == .accessory || template.type == .talisman)
-                && (rarity == .unique || rarity == .legend)
+            template.type == .talisman
+                || (template.type == .accessory && (rarity == .unique || rarity == .legend))
 
         var stats: [StatKey: Int] = [template.statBoost: baseStatValue]
         if critBonus > 0 { stats[.crit] = critBonus }
@@ -256,7 +291,31 @@ enum EquipmentPool {
             enhanceFailStreak: nil,
             affix: affixList.count == 1 ? affixList[0] : nil,
             affixes: affixList.count > 1 ? affixList : nil,
-            talismanSkills: nil)
+            talismanSkills: nil,
+            dropFloor: dungeonFloor)   // Phase 6-E — 드롭 층 기록 (판매가 / 합성 층 규칙)
+    }
+
+    /// Phase 6-E (Track E, 피드백 22) — 합성. 웹 `synthesizeEquipment`.
+    ///
+    /// 정확히 3개, 같은 등급, legend 아님, 사진 부적 아님 → 다음 등급 1개.
+    /// 템플릿 풀 = 재료 카테고리 합집합에 속한 템플릿 (없으면 전체), 균등 선택.
+    /// 결과는 `createEquipmentFromTemplate(next, max(dropFloor ?? 0))` 이라 일반 드롭과 같은
+    /// 롤을 그대로 쓴다. 강화 단계는 잃는다. rng 호출 순서: 풀 인덱스 1회 → create 내부 순서
+    /// (웹과 같은 시드면 id 를 뺀 전 필드가 같다 — datalayer 동치 suite 8).
+    static func synthesizeEquipment<R: RandomSource>(
+        _ sources: [Equipment], rng: inout R
+    ) -> Equipment? {
+        guard sources.count == UpHeroRules.synthesisInputCount,
+              let rarity = sources.first?.rarity,
+              sources.allSatisfy({ $0.rarity == rarity }),
+              sources.allSatisfy({ $0.photoId == nil }),
+              let next = UpHeroRules.nextRarity[rarity] else { return nil }
+        let categories = Set(sources.map(\.category))
+        let themed = templates.filter { categories.contains($0.category) }
+        let pool = themed.isEmpty ? templates : themed
+        let template = pool[rng.int(below: pool.count)]
+        let maxFloor = sources.reduce(0) { max($0, $1.dropFloor ?? 0) }
+        return createEquipmentFromTemplate(template, rarity: next, dungeonFloor: maxFloor, rng: &rng)
     }
 
     /// 던전 + floor 기반 드롭 생성. 웹 `rollEquipmentDrop`.
@@ -306,5 +365,34 @@ extension Equipment {
     var localizedDisplayName: String {
         let prefix = AppConfig.locRuntime(EquipmentPool.rarityPrefix[rarity] ?? "")
         return prefix + EquipmentPool.displayName(forBaseIdOrName: baseId ?? name)
+    }
+}
+
+// MARK: - Phase 6-E (Track E) — 슬롯 분류의 단일 출처 (웹 equipmentSlotMeta.ts)
+
+extension EquipSlot {
+    /// 페이퍼돌·필터·스탯 패널의 슬롯 순서. 웹 `SLOT_ORDER`.
+    static let displayOrder: [EquipSlot] = [.weapon, .armor, .accessory, .talisman]
+
+    /// 슬롯 글리프 (PixelIcon 이름). 빈 슬롯과 스탯 패널 행 라벨에 배경 박스 없이 그린다.
+    /// 웹 `SLOT_GLYPH`.
+    var glyphName: String {
+        switch self {
+        case .weapon:    return "Sword"
+        case .armor:     return "Shield"
+        case .accessory: return "DiamondGem"
+        case .talisman:  return "Sparkles"
+        }
+    }
+
+    /// 슬롯 라벨의 카탈로그 키 (한국어 리터럴). 렌더 시점에 AppConfig.loc 으로 변환한다.
+    /// 웹 `SLOT_LABEL_KEY`.
+    var labelKey: String {
+        switch self {
+        case .weapon:    return "무기"
+        case .armor:     return "방어구"
+        case .accessory: return "장신구"
+        case .talisman:  return "부적"
+        }
     }
 }

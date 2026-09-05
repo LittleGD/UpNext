@@ -74,6 +74,7 @@ private func lenientStatMap<K: CodingKey>(
 /// 인벤 / 도감 / (로컬 판정 한정) 세션 / 던전 / 탐험권>0 / 코인>0 / 꾸미기.
 private func upHeroFootprint(
     inventory: [Equipment],
+    overflowDrops: [Equipment] = [],
     codex: Codex,
     hasSession: Bool,
     dungeons: [DungeonId: DungeonProgress],
@@ -84,6 +85,8 @@ private func upHeroFootprint(
     downGuards: Int
 ) -> Bool {
     if !inventory.isEmpty { return true }
+    // 넘친 전리품도 플레이 흔적이다 — 정산을 거쳐야만 생긴다 (웹 hasUpHeroFootprint).
+    if !overflowDrops.isEmpty { return true }
     if !codex.monsters.isEmpty || !codex.bosses.isEmpty || !codex.equipment.isEmpty { return true }
     if hasSession { return true }
     if !dungeons.isEmpty { return true }
@@ -101,7 +104,8 @@ extension UpHeroState {
     /// 로컬 저장본 흔적 판정 — currentSession 포함 (웹: 로컬 판정에만 세션이 잡힌다).
     var hasUpHeroFootprint: Bool {
         upHeroFootprint(
-            inventory: inventory, codex: codex, hasSession: currentSession != nil,
+            inventory: inventory, overflowDrops: overflowDrops, codex: codex,
+            hasSession: currentSession != nil,
             dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics,
             destroyGuards: destroyGuards ?? 0, downGuards: downGuards ?? 0)
     }
@@ -114,6 +118,9 @@ extension UpHeroState {
 struct CloudUpHeroState: Equatable {
     var hero: Hero
     var inventory: [Equipment]
+    /// Phase 6-E (Track E) — 가방 상한 초과분. 와이어 키 "overflowDrops" (Equipment[],
+    /// inventory 와 같은 디코드, [] 허용, 항상 인코딩, footprint 포함). 웹 sync.ts 와 철자 동일.
+    var overflowDrops: [Equipment]
     var coins: Int
     var passes: [DungeonId: Int]
     var dungeons: [DungeonId: DungeonProgress]
@@ -140,11 +147,16 @@ struct CloudUpHeroState: Equatable {
     var shopDaily: ShopDaily?
     var weeklyVariant: WeeklyVariant?
     var heroStartLevel: Int?
+    /// Phase 2-A (Track A) — 영웅 XP 풀. 와이어 키 "heroXp" (정수 [0, heroXpCap]).
+    /// 없으면 nil 유지 — **절대 지어내지 않는다** (0 이나 레거시 공식으로 채우면 두 기기의
+    /// 풀이 서로를 덮어 `mergeCloudHeroXp` 의 단조 병합 전제가 깨진다). 시드된 뒤엔 0 이어도
+    /// 항상 인코딩. 흔적(footprint) 신호가 아니다. 웹 sync.ts CloudUpHeroState.heroXp.
+    var heroXp: Int?
 
     /// 클라우드 스냅샷 흔적 판정 — 세션 없는 페이로드 축만 (웹 업로드/복원 게이트).
     var hasFootprint: Bool {
         upHeroFootprint(
-            inventory: inventory, codex: codex, hasSession: false,
+            inventory: inventory, overflowDrops: overflowDrops, codex: codex, hasSession: false,
             dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics,
             destroyGuards: destroyGuards, downGuards: downGuards)
     }
@@ -154,6 +166,7 @@ struct CloudUpHeroState: Equatable {
     init(_ s: UpHeroState) {
         hero = s.hero
         inventory = s.inventory
+        overflowDrops = s.overflowDrops
         coins = max(0, s.coins)
         passes = s.passes.mapValues { max(0, $0) }
         dungeons = s.dungeons
@@ -176,6 +189,7 @@ struct CloudUpHeroState: Equatable {
         // 생략하면 복원한 기기의 신규 seed(현재 챌린지 Lv)가 남아 영웅 Lv 가 주저앉는다
         // (웹 normalizeUpHeroState 의 동일 판정).
         if heroStartLevel == nil, hasFootprint { heroStartLevel = 1 }
+        heroXp = s.heroXp.map(UpHeroRules.clampHeroXp)
     }
 
     /// 클라우드 페이로드 → 살아있는 상태. currentSession/transient 는 호출측
@@ -202,7 +216,9 @@ struct CloudUpHeroState: Equatable {
             weeklyVariant: weeklyVariant,
             schemaVersion: schemaVersion,
             hasSeenCampTutorial: hasSeenCampTutorial,
-            welcomeGiftClaimed: welcomeGiftClaimed
+            welcomeGiftClaimed: welcomeGiftClaimed,
+            heroXp: heroXp,  // 없으면 nil = 미시드 (GameStore.adoptCloudUpHero 가 ensureHeroXp)
+            overflowDrops: overflowDrops
         ).toState()
     }
 }
@@ -223,6 +239,12 @@ extension CloudUpHeroState: Codable {
         case lastIdleAccrualAt, ngPlusLevel, hasSeenCampTutorial
         case welcomeGiftClaimed = "welcomeGrantClaimed"
         case lastSeenAt, schemaVersion, shopDaily, weeklyVariant, heroStartLevel
+        // Phase 2-A — 영웅 XP 풀. 웹 sync.ts 와 철자 동일. 빠뜨리면 화이트리스트 디코드에서
+        // 조용히 탈락해 웹에서 쌓은 풀이 iOS 왕복 뒤 레거시 시드값으로 되감긴다.
+        case heroXp
+        // Phase 6-E (Track E) — 넘친 전리품. 웹 sync.ts 와 철자 동일. 빠뜨리면 화이트리스트
+        // 디코드에서 조용히 탈락해 정산 직후 기기를 옮기면 전리품이 사라진다.
+        case overflowDrops
     }
 
     /// 관용 디코드 — 웹 normalizeUpHeroState. 오브젝트이기만 하면 절대 throw 하지
@@ -233,6 +255,9 @@ extension CloudUpHeroState: Codable {
         hero = (try? c.decode(CloudHero.self, forKey: .hero))?.hero
             ?? UpHeroRules.createDefaultHero()
         inventory = ((try? c.decode([UNLossy<CloudEquipment>].self, forKey: .inventory)) ?? [])
+            .compactMap { $0.value?.equipment }
+        // Phase 6-E — inventory 와 같은 디코드. 키가 없거나 배열이 아니면 [].
+        overflowDrops = ((try? c.decode([UNLossy<CloudEquipment>].self, forKey: .overflowDrops)) ?? [])
             .compactMap { $0.value?.equipment }
         coins = max(0, lenientInt(c, .coins) ?? 0)
 
@@ -298,6 +323,9 @@ extension CloudUpHeroState: Codable {
             heroStartLevel = nil
             if hasFootprint { heroStartLevel = 1 }  // legacy 채움 (init(_:) 주석 참고)
         }
+        // heroXp — 키가 있을 때만 싣고 [0, cap] 정수로 접는다 (웹 normalizeUpHeroState 의
+        // asFinite → clampHeroXp). 구 클라이언트 문서(키 없음)는 nil 유지.
+        heroXp = lenientInt(c, .heroXp).map(UpHeroRules.clampHeroXp)
     }
 
     /// 클라우드 쓰기 인코딩 — 웹 encodeUpHeroForCloud. 맵 필드의 "빈 자리" 를
@@ -311,6 +339,9 @@ extension CloudUpHeroState: Codable {
         var c = encoder.container(keyedBy: K.self)
         try c.encode(CloudHero(hero: hero), forKey: .hero)
         try c.encode(inventory.map { CloudEquipment(equipment: $0) }, forKey: .inventory)
+        // 비어 있어도 항상 싣는다 (웹 encodeUpHeroForCloud) — 키를 빼면 setDoc(merge) 가
+        // 클라우드에 남은 옛 전리품을 되살린다.
+        try c.encode(overflowDrops.map { CloudEquipment(equipment: $0) }, forKey: .overflowDrops)
         try c.encode(coins, forKey: .coins)
         try c.encode(
             Dictionary(uniqueKeysWithValues: passes.map { ($0.key.rawValue, $0.value) }),
@@ -342,6 +373,8 @@ extension CloudUpHeroState: Codable {
         }
         try c.encodeIfPresent(weeklyVariant, forKey: .weeklyVariant)
         try c.encodeIfPresent(heroStartLevel, forKey: .heroStartLevel)
+        // 시드된 뒤엔 0 이어도 싣는다 (setDoc(merge) 가 옛 값을 되살리지 않게) — 미시드는 생략.
+        try c.encodeIfPresent(heroXp, forKey: .heroXp)
     }
 }
 
@@ -449,6 +482,9 @@ private struct CloudEquipment: Codable {
         case id, name, baseId, type, rarity, category, iconName, stats
         case effects, flavor, photoId, enhanceLevel, enhanceFailStreak
         case affix, affixes, talismanSkills
+        // Phase 6-E (Track E) — 드롭 층. 웹 normalizeEquipment 는 알 수 없는 키를 보존하므로
+        // 웹 쪽 변경 없이 iOS CodingKeys 만 추가하면 왕복한다.
+        case dropFloor
     }
 
     init(equipment: Equipment) { self.equipment = equipment }
@@ -484,7 +520,8 @@ private struct CloudEquipment: Codable {
             affix: try? c.decode(StatKey.self, forKey: .affix),
             affixes: affixes,
             talismanSkills: c.contains(.talismanSkills)
-                ? (lossyStrings(c, .talismanSkills) ?? []) : nil
+                ? (lossyStrings(c, .talismanSkills) ?? []) : nil,
+            dropFloor: lenientInt(c, .dropFloor)
         )
     }
 
@@ -509,6 +546,7 @@ private struct CloudEquipment: Codable {
         try c.encodeIfPresent(e.affix, forKey: .affix)
         try c.encodeIfPresent(e.affixes, forKey: .affixes)
         try c.encodeIfPresent(e.talismanSkills, forKey: .talismanSkills)
+        try c.encodeIfPresent(e.dropFloor, forKey: .dropFloor)
     }
 }
 

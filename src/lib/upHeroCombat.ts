@@ -19,6 +19,9 @@ import type {
   Equipment,
   ChoiceOption,
   ChoiceEffect,
+  SimpleChoiceEffect,
+  EffectSummaryData,
+  RunModStat,
   SessionEndReason,
   SpecialEffect,
 } from "@/types/uphero";
@@ -26,6 +29,9 @@ import {
   computeEffectiveStats,
   CLASS_RESOURCE,
   CLASS_RESOURCE_MAX,
+  bossClearXp,
+  floorXp,
+  ngPlusScaleMult,
   type ResourceEvent,
 } from "@/types/uphero";
 import { createMonsterForFloor } from "@/data/upHeroMonsters";
@@ -91,6 +97,113 @@ const TIME_COST = {
 } as const;
 
 /**
+ * Phase 16 (Track C) — 몬스터 regen trait 상수.
+ *
+ * 왜 보스만 1% 인가: 이전엔 보스도 일반몹과 같은 5% 라 F20 보스 (HP 1440) 가
+ * 라운드마다 72 를 회복해 영웅 DPS (~30) 를 넘어섰다 — 수학적으로 무적.
+ * 보스 HP 는 일반몹보다 훨씬 크므로 같은 퍼센트면 절대량이 과하다. 1% 면
+ * F30 보스 (612) 기준 6/라운드로 "버티는 느낌" 만 남는다.
+ *
+ * REGEN_STOP_BELOW_HP_RATIO: 현재 HP 가 최대치의 30% 미만이면 어떤 regen
+ * 몬스터도 회복하지 않는다. 마무리 국면에서 "다 잡았는데 계속 차오른다" 는
+ * 좌절을 막는 마감선. executeCombatRound 가 push 자체를 게이트한다 —
+ * computeMonsterHp / UI 는 log 에 있는 엔트리만 접으므로 양쪽이 자동 일치.
+ * iOS UpHeroCombat.swift 의 같은 이름 상수와 값을 맞출 것.
+ */
+export const MONSTER_REGEN_PCT = 0.05;
+export const BOSS_REGEN_PCT = 0.01;
+export const REGEN_STOP_BELOW_HP_RATIO = 0.3;
+
+/**
+ * Phase 4-D (Track D, 피드백 15/35) — 런 한정 빌드 상수.
+ *
+ *   런 보정은 `CombatSession.runStatMods` 에 건별로 쌓이고 `sessionStats()` 가
+ *   스탯별로 pct 를 **합산** (같은 stat + "all") 한 뒤 [-50, +100] 으로 clamp 해
+ *   한 번만 곱한다. 곱으로 쌓으면 같은 버프를 세 번 받았을 때 +33% 가 아니라
+ *   +52% 가 되어 밸런스가 순식간에 무너진다. 건수 상한 8 은 UI 스트립이 읽을 수
+ *   있는 한계이자 "오래된 버프가 밀려난다" 는 규칙을 준다.
+ *   보스 피해 +5%/reveal (상한 15) 은 revealBoss 를 "정보 + 준비" 로 만든다.
+ *   은신 3 / 장비 확정 2 상한은 한 런에서 쌓아두는 이득이 층 보상 몇 개분을
+ *   넘지 않게 한다. iOS UpHeroCombat.RunMods 와 같은 값.
+ */
+export const RUN_STAT_PCT_MIN = -50;
+export const RUN_STAT_PCT_MAX = 100;
+export const RUN_STAT_MODS_CAP = 8;
+export const RUN_BOSS_DMG_PER_REVEAL = 5;
+export const RUN_BOSS_DMG_CAP = 15;
+export const RUN_STEALTH_CAP = 3;
+export const RUN_GUARANTEED_DROP_CAP = 2;
+/** 데이터의 코인 50 / XP 15 가 "그 층 한 층어치" 에 정확히 대응하는 기준값. */
+export const CHOICE_REWARD_REF_COINS = 50;
+export const CHOICE_REWARD_REF_XP = 15;
+/** Lv1 maxHp. 피해/회복 데이터는 이 값 기준으로 쓰여 있다. */
+export const CHOICE_RISK_REF_HP = 100;
+
+/**
+ * Phase 4-D — 층 f 의 "한 층어치" 보상 (power 2 일반 몬스터 1마리 처치 보상,
+ *   `scaleMonster` 의 xp/coin 식에서 power=2, 보스 아님). f 는 1..120 clamp,
+ *   NG+ 배율 반영 (F31+ 에서 선택 이벤트가 처치 보상에 뒤처지지 않게).
+ *   iOS UpHeroCombat.floorRewardScale 미러 (jsRound).
+ */
+export function floorRewardScale(
+  floor: number,
+  ngPlusLevel = 0,
+): { coins: number; xp: number } {
+  const f = Math.max(1, Math.min(120, floor));
+  const ngMult = ngPlusScaleMult(ngPlusLevel);
+  const coins = Math.round((3 + 2 * f) * 2 * (f <= 10 ? 1.3 : 1) * ngMult);
+  const xp = Math.round((10 + 3 * f) * 2 * ngMult);
+  return { coins, xp };
+}
+
+/** Phase 4-D — 선택 보상 배율. 1 미만으로는 내려가지 않는다 (데이터가 하한). */
+export function choiceRewardMult(
+  floor: number,
+  ngPlusLevel = 0,
+): { coin: number; xp: number } {
+  const scale = floorRewardScale(floor, ngPlusLevel);
+  return {
+    coin: Math.max(1, scale.coins / CHOICE_REWARD_REF_COINS),
+    xp: Math.max(1, scale.xp / CHOICE_REWARD_REF_XP),
+  };
+}
+
+/**
+ * Phase 4-D (피드백 35) — 선택 효과를 현재 층·영웅 기준으로 스케일한다.
+ *   flavor 데이터의 숫자는 "F1-F10 기준선" 으로 남기고, 적용 직전에 한 식으로
+ *   층 보상을 따라가게 한다. 코인/XP 는 `choiceRewardMult`, 피해/회복은
+ *   maxHp/100 (Lv1 기준 비율 보존 — 보상만 키우면 mystery 가 저위험·고보상이
+ *   된다). 그 밖의 kind 는 그대로. startMinigame 안쪽 배열은 여기서 건드리지
+ *   않고 resolveMinigame 이 적용 시점에 같은 함수로 스케일한다.
+ *   summarize 보다 먼저 호출해야 칩이 실제 수치를 보여준다.
+ *   iOS UpHeroCombat.scaleChoiceEffectsForFloor 미러.
+ */
+export function scaleChoiceEffectsForFloor<T extends ChoiceEffect | SimpleChoiceEffect>(
+  effects: readonly T[],
+  floor: number,
+  heroMaxHp: number,
+  ngPlusLevel = 0,
+): T[] {
+  const mult = choiceRewardMult(floor, ngPlusLevel);
+  const riskMult = Math.max(1, heroMaxHp / CHOICE_RISK_REF_HP);
+  return effects.map((e) => {
+    switch (e.kind) {
+      case "reward": {
+        const next = { ...e } as T & { kind: "reward"; coins?: number; xp?: number };
+        if (e.coins) next.coins = Math.round(e.coins * mult.coin);
+        if (e.xp) next.xp = Math.round(e.xp * mult.xp);
+        return next as T;
+      }
+      case "damage":
+      case "heal":
+        return { ...e, amount: Math.round(e.amount * riskMult) } as T;
+      default:
+        return e;
+    }
+  });
+}
+
+/**
  * 세션 시작 — 빈 log 로 생성.
  *
  * Phase 4b.3: activeBuffs 를 hero 스냅샷에 적용.
@@ -106,7 +219,7 @@ export interface CreateSessionOptions {
   /** Phase 11c — 주간 affix id (isWeeklyVariant=true 일 때만 의미). */
   weeklyAffixId?: string;
   /**
-   * 영웅 레벨 (챌린지 레벨 - heroStartLevel + 1). 초보자 버프 판정 용.
+   * 영웅 레벨 (Phase 2-A: `heroXp` 풀에서 파생, `resolveHeroLevel`). 초보자 버프 판정 용.
    *   미전달 시 undefined → 레거시 동작 (버프 해제 상태) 유지.
    */
   heroLevel?: number;
@@ -145,7 +258,7 @@ export function createSession(
     log: [
       {
         type: "narrative",
-        text: `${DUNGEONS[dungeonId].name} — Floor ${startFloor} 에 도착했다.`,
+        text: `${DUNGEONS[dungeonId].name}: Floor ${startFloor} 에 도착했다.`,
         narrativeKey: "uphero.combat.narrative.floorArrive",
         narrativeParams: {
           dungeon: DUNGEONS[dungeonId].name,
@@ -212,14 +325,19 @@ export function createSession(
   //   isBossFloor 체크가 (nextFloor=31 % 10 !== 0) 로 false 리턴되어 F30 보스가
   //   스폰되지 않음. 유저는 일반 몬스터만 반복 조우 → 모든 주간 점수 0.
   //
-  //   해결: weekly variant 면 초기 log 에 F30 boss + paused 상태 push.
+  //   해결: 초기 log 에 boss + paused 상태 push.
   //   BossBanner → resumeSession → encounter → 전투 정상 진입.
-  if (options?.isWeeklyVariant && startFloor === 30) {
+  //
+  // Phase 16 (Track C, 피드백 19) — 주간 특례 `isWeeklyVariant && startFloor === 30`
+  //   를 "시작층 자체가 보스층" 으로 일반화. 보스층에서 포기/사망한 뒤 재진입하면
+  //   startFloor 가 10/20/30 이 되는데, tickSession 은 "다음 층" 만 보스 판정하므로
+  //   보스가 영구 스킵됐다 (resolveStartFloor 와 짝).
+  if (isBossFloor(startFloor)) {
     const hasExistingBoss = session.log.some(
-      (e) => e.type === "boss" && e.floor === 30,
+      (e) => e.type === "boss" && e.floor === startFloor,
     );
     if (!hasExistingBoss) {
-      const boss = createMonsterForFloor(dungeonId, 30, true, {
+      const boss = createMonsterForFloor(dungeonId, startFloor, true, {
         ngPlusLevel: session.ngPlusLevel ?? 0,
         hpMult: session.monsterHpMult ?? 1,
         atkMult: session.monsterAtkMult ?? 1,
@@ -227,7 +345,7 @@ export function createSession(
       session.log.push({
         type: "boss",
         monster: boss,
-        floor: 30,
+        floor: startFloor,
         timestamp: Date.now(),
       });
       session.status = "paused";
@@ -241,6 +359,26 @@ export function createSession(
 
 /** Phase 12 — mystery ? 시스템 공용 상수. cycle 당 floor 수. */
 export const CYCLE_SIZE = 30;
+
+/**
+ * Phase 16 (Track C, 피드백 28) — 보스 케이던스: 10층마다 영원히.
+ *
+ * 이전엔 `nextFloor % 10 === 0 && nextFloor <= 30` 상한 때문에 F30 이후로는
+ * 보스가 한 번도 안 나왔다 (100층까지 밋밋). 이제 F40/F50/F60/... 에도 보스가
+ * 나오며, 던전의 3 보스를 사이클마다 순서대로 재사용한다
+ * (`createMonsterForFloor` 의 템플릿 인덱스 `((f/10 - 1) mod 3)`).
+ * F30 (CYCLE_SIZE) 만 "최종 보스" 로 런을 끝내고 NG+ 를 올린다. F40+ 보스는
+ * 드롭 후 계속 진행. DungeonView 마커·revealBoss·skipFloors 클램프가 모두 이
+ * 두 헬퍼를 쓴다. iOS UpHeroCombat.isBossFloor / nextBossFloorAfter 미러.
+ */
+export function isBossFloor(floor: number): boolean {
+  return floor > 0 && floor % 10 === 0;
+}
+
+/** 현재 층 *이후* 첫 보스층. F9 → 10, F10 → 20, F35 → 40. */
+export function nextBossFloorAfter(floor: number): number {
+  return Math.floor(floor / 10) * 10 + 10;
+}
 
 /**
  * Phase 12 — 특정 cycle (0 = F1-F30, 1 = F31-F60, ...) 에 대해 mystery floor 생성.
@@ -277,6 +415,8 @@ export function generateMysteryFloors(cycleIndex: number): number[] {
  *   "high risk, high reward" 감각. skipFloors, fight, flee, startMinigame,
  *   revealBoss, nothing 은 수치 개념 없어 그대로.
  */
+// Phase 4-D — runBuff/runCurse/stealth/guaranteedDrop 는 default 분기로 그대로
+//   통과한다 (mystery 는 amplify 를 안 쓰고, 일반 이벤트의 런 효과는 증폭 대상이 아님).
 export function amplifyChoiceOptions(
   options: import("@/types/uphero").ChoiceOption[],
   factor: number,
@@ -331,19 +471,82 @@ function sessionMods(s: CombatSession): TalismanModifiers {
  * crit / slotBonus 는 곱하지 않는다. crit 은 퍼센트 포인트라 곱하면 의미가
  * 달라지고, slotBonus 는 스탯이 아니라 장비 슬롯 수 카운터다.
  */
-function sessionStats(s: CombatSession): HeroBaseStats {
+export function sessionStats(s: CombatSession): HeroBaseStats {
   const base = computeEffectiveStats(s.hero);
   const buff = s.combatBuff;
-  if (!buff || buff.battlesLeft <= 0 || buff.pct <= 0) return base;
-  const m = 1 + buff.pct / 100;
-  return {
-    ...base,
-    str: Math.round(base.str * m),
-    int: Math.round(base.int * m),
-    vit: Math.round(base.vit * m),
-    dex: Math.round(base.dex * m),
-    agi: Math.round(base.agi * m),
+  let out = base;
+  if (buff && buff.battlesLeft > 0 && buff.pct > 0) {
+    const m = 1 + buff.pct / 100;
+    out = {
+      ...base,
+      str: Math.round(base.str * m),
+      int: Math.round(base.int * m),
+      vit: Math.round(base.vit * m),
+      dex: Math.round(base.dex * m),
+      agi: Math.round(base.agi * m),
+    };
+  }
+  // Phase 4-D (Track D) — 런 한정 보정. combatBuff 단계 **뒤에** 스탯별 합산 pct 를
+  //   한 번 더 곱한다 (2단 반올림: combatBuff 반올림 → 런 보정 반올림. iOS 는
+  //   jsRound 로 같은 순서를 재현해야 1 차이가 안 난다).
+  if (!s.runStatMods || s.runStatMods.length === 0) return out;
+  const applyPct = (v: number, stat: Exclude<RunModStat, "all">) => {
+    const pct = runStatPct(s, stat);
+    return pct === 0 ? v : Math.round(v * (1 + pct / 100));
   };
+  return {
+    ...out,
+    str: applyPct(out.str, "str"),
+    int: applyPct(out.int, "int"),
+    vit: applyPct(out.vit, "vit"),
+    dex: applyPct(out.dex, "dex"),
+    agi: applyPct(out.agi, "agi"),
+  };
+}
+
+/**
+ * Phase 4-D — 한 스탯에 걸린 런 보정 합 (같은 stat + "all"), [-50, +100] clamp.
+ *   iOS UpHeroSession.runStatPct 미러.
+ */
+export function runStatPct(
+  s: CombatSession,
+  stat: Exclude<RunModStat, "all">,
+): number {
+  let sum = 0;
+  for (const m of s.runStatMods ?? []) {
+    if (m.stat === stat || m.stat === "all") sum += m.pct;
+  }
+  return Math.max(RUN_STAT_PCT_MIN, Math.min(RUN_STAT_PCT_MAX, sum));
+}
+
+/**
+ * Phase 4-D — 층을 `floors` 만큼 지났다. floorsLeft 가 있는 보정을 줄이고 0 이하는
+ *   버린다. 비면 필드째 지운다. 층 진입(tickSession) 과 skipFloors 의 실제 이동
+ *   수 (Track C 클램프 뒤) 두 곳에서만 부른다. iOS advanceRunModFloors 미러.
+ */
+export function advanceRunModFloors(s: CombatSession, floors: number): void {
+  if (!s.runStatMods || s.runStatMods.length === 0 || floors <= 0) return;
+  const next = s.runStatMods
+    .map((m) =>
+      m.floorsLeft == null ? m : { ...m, floorsLeft: m.floorsLeft - floors },
+    )
+    .filter((m) => m.floorsLeft == null || m.floorsLeft > 0);
+  if (next.length === 0) delete s.runStatMods;
+  else s.runStatMods = next;
+}
+
+/**
+ * Phase 2-A (Track A) — 세션의 XP 배율 한 곳. 카드 버프 xpBoost × 클래스(mage +20%)
+ * × 주간 affix(`s.xpMult`, 풍요의 수확 -25%). 처치 XP(보스 보너스 포함)와 층 진입
+ * XP 가 **같은** 배율을 탄다 — 한쪽만 곱하면 "XP +20%" 카피가 거짓이 된다.
+ * iOS UpHeroSession.sessionXpMult 미러.
+ */
+export function sessionXpMult(s: CombatSession): number {
+  return (
+    (1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100) *
+    classXpMult(s.hero.classType) *
+    (s.xpMult ?? 1)
+  );
 }
 
 /**
@@ -360,24 +563,26 @@ function consumeCombatBuff(s: CombatSession): void {
 /**
  * 보스 처치 시 소실방지권이 떨어질 확률.
  *
- * 왜 0.35 인가: 소실방지권은 이제 상점에서만 살 수 있는 물건이 아니라 "던전에서
- * 벌어오는" 물건이어야 한다. 한 런에서 만나는 보스는 F10 / F20 / F30 셋이라
- * 풀 클리어 기대 수급은 약 1.05장이다. 시뮬레이션상 legend 를 +10 까지 올리는
- * 동안 평균 1.8장이 소모되니, "풀 클리어 두 번이면 legend 한 자루의 보험료가
- * 대략 채워진다" 는 관계가 성립한다. 상점(150C)을 무의미하게 만들 만큼 후하지
- * 않고, 코인 없이도 보험을 마련할 길은 열어준다.
+ * 왜 0.5 인가: 소실방지권은 이제 상점에서만 살 수 있는 물건이 아니라 "던전에서
+ * 벌어오는" 물건이어야 한다. 한 사이클에서 만나는 보스는 F10 / F20 / F30 셋이라
+ * 풀 클리어 기대 수급은 약 1.5장이다. 강화 상한이 +20 으로 열리면 (Track B)
+ * +15 이후 구간은 시도마다 소실방지권을 태우므로, 이전 0.35 (기대 1.05장) 로는
+ * 수급이 수십 런 단위로 모자랐다 (비평 반영: 0.35 → 0.5). 상점(150C)을
+ * 무의미하게 만들 만큼 후하지 않고, 코인 없이도 보험을 마련할 길은 열어준다.
+ * iOS UpHeroSession.bossDestroyGuardDropChance 와 같은 값.
  */
-const BOSS_DESTROY_GUARD_DROP_CHANCE = 0.35;
+const BOSS_DESTROY_GUARD_DROP_CHANCE = 0.5;
 
 /**
  * 보물상자류 이벤트에서 소실방지권이 섞여 나올 확률.
  *
- * 왜 0.06 인가: treasure 는 tick 당 10% 로 흔한 편이라 보스 드롭보다 두 자릿수
- * 낮게 잡아야 총 수급이 무너지지 않는다. 풀 클리어 한 런의 treasure 조우를
- * 대략 8~12회로 보면 기대 0.5~0.7장 — 보스 드롭(1.05장)의 보조 경로 수준이다.
- * 합쳐 런당 1.5~1.8장이라 "천이 아까워서 강화를 못 누른다" 는 상태가 풀린다.
+ * 왜 0.10 인가: treasure 는 tick 당 10% 로 흔한 편이라 보스 드롭보다 낮게
+ * 잡아야 총 수급이 무너지지 않는다. 풀 클리어 한 런의 treasure 조우를
+ * 대략 8~12회로 보면 기대 0.8~1.2장 — 보스 드롭(1.5장)의 보조 경로 수준이다.
+ * 합쳐 런당 2.3~2.7장이라 "천이 아까워서 강화를 못 누른다" 는 상태가 풀린다
+ * (비평 반영: 0.06 → 0.10, 굴림틀 RTP 는 건드리지 않음). iOS 미러.
  */
-const TREASURE_DESTROY_GUARD_DROP_CHANCE = 0.06;
+const TREASURE_DESTROY_GUARD_DROP_CHANCE = 0.1;
 
 /** 세션 보상에 소실방지권 n 장 적립. 정산 때 UpHeroState.destroyGuards 로 합산된다. */
 function grantDestroyGuards(s: CombatSession, count: number): void {
@@ -739,7 +944,7 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
             classType: "priest",
             skillId: "priest_revive_t4",
             skillName: "부활",
-            narrative: `영웅이 부활한다 — HP +${revivedHp}`,
+            narrative: `영웅이 부활한다, HP +${revivedHp}`,
             narrativeKey: "uphero.combat.narrative.priestRevive",
             narrativeParams: { heal: revivedHp },
             timestamp: Date.now(),
@@ -761,10 +966,8 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
         // Phase 11b: talisman 카리스마 (coinMult) × class × buff 모두 곱.
         const tMods = sessionMods(s);
         // Phase 11c-balance — weekly affix xpMult (풍요의 수확 XP -25%) 반영.
-        const xpMult =
-          (1 + getBuffBoost(s.activeBuffs, "xpBoost") / 100) *
-          classXpMult(s.hero.classType) *
-          (s.xpMult ?? 1);
+        // Phase 2-A — 층 진입 XP 와 같은 배율 (sessionXpMult).
+        const xpMult = sessionXpMult(s);
         let coinMult =
           (1 + getBuffBoost(s.activeBuffs, "coinBoost") / 100) *
           classCoinMult(s.hero.classType) *
@@ -773,7 +976,13 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
           coinMult *= s.nextCoinMult;
           s.nextCoinMult = undefined;
         }
-        const gainedXp = Math.round(monster.xpReward * xpMult);
+        // Phase 2-A (Track A, 피드백 20) — 보스 처치 보너스 `bossClearXp(층, NG+)` 를
+        //   같은 victory 엔트리에 합산한다 (LogEntry 종류 추가 없음, iOS 디코더 불변).
+        //   영웅 XP 풀로 정산되는 값이며 계정 XP 는 건드리지 않는다.
+        const bossBonus = monster.isBoss
+          ? bossClearXp(monster.level, s.ngPlusLevel ?? 0)
+          : 0;
+        const gainedXp = Math.round((monster.xpReward + bossBonus) * xpMult);
         const gainedCoin = Math.round(monster.coinReward * coinMult);
         s.log.push({
           type: "victory",
@@ -827,11 +1036,13 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
           //   탐험이 끝난다" 의 원인.
           //   의도 (윗 주석에서 이미 선언됨): F10/F20 은 중간 보스 — 드롭 받고
           //   그대로 탐험 지속, F30 (CYCLE_SIZE) 만 최종 보스 → endSession.
-          //   `isBossFloor` 생성 상한 `nextFloor <= 30` 때문에 보스는 {10, 20,
-          //   30} 에만 등장하므로 `currentFloor >= CYCLE_SIZE` 로 최종 여부를
-          //   판별. return 만 하면 다음 tick 에서 lastEntry=drop 분기로 들어가
+          //   return 만 하면 다음 tick 에서 lastEntry=drop 분기로 들어가
           //   F11 로 진행된다.
-          const isFinalBoss = s.currentFloor >= CYCLE_SIZE;
+          // Phase 16 (Track C, 피드백 28) — 보스가 10층마다 영원히 나오므로
+          //   `>= CYCLE_SIZE` 는 F40/F50/... 보스도 런을 끝내버린다. 정확히 F30
+          //   에서만 종료 + NG+ (스토어 트리거 `bossesDefeated.includes(30)`),
+          //   F40+ 보스는 드롭 후 계속. Track A 의 bossClearXp 는 위 gainedXp 에.
+          const isFinalBoss = s.currentFloor === CYCLE_SIZE;
           if (isFinalBoss) {
             endSession(s, "bossDefeated", `${monster.name} 을(를) 쓰러뜨렸다`, {
               detailKey: "uphero.session.detail.bossDefeated",
@@ -842,16 +1053,26 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
         }
 
         // 일반 몬스터 drop 확률 — base 30% + dropRate buff %
+        // Phase 4-D (Track D) — guaranteedDrop 이 남아 있으면 드롭을 강제하고 등급은
+        //   floor+5 로 굴린다 (부적 보너스 드롭과 같은 상향). rng() 는 강제 여부와
+        //   무관하게 **항상** 소비해 iOS 와 시드 스트림이 어긋나지 않게 한다.
         const dropChance = 0.3 + getBuffBoost(s.activeBuffs, "dropRate") / 100;
-        if (rng() < dropChance) {
+        const forcedDrop = (s.runGuaranteedDrops ?? 0) > 0;
+        const dropRoll = rng();
+        if (forcedDrop || dropRoll < dropChance) {
           const rarity = rollDropRarity(
-            s.currentFloor,
+            forcedDrop ? s.currentFloor + 5 : s.currentFloor,
             tMods.legendDropBonus + (s.ngPlusLevel ?? 0) * 0.02,
             s.flattenDropRarity ?? false,
           );
           const eq = rollEquipmentDrop(s.dungeonId, s.currentFloor, rarity, dungeon.affinity);
           s.log.push({ type: "drop", equipment: eq, timestamp: Date.now() });
           s.rewards.drops.push(eq);
+          if (forcedDrop) {
+            const left = (s.runGuaranteedDrops ?? 0) - 1;
+            if (left <= 0) delete s.runGuaranteedDrops;
+            else s.runGuaranteedDrops = left;
+          }
         }
         // Phase 11b — "군중의 총애" (soc+10) 보너스 drop: 세션당 1회, 승리 시 25% roll.
         //   초기화는 createSession 의 extraDropAvailable=true. 한 번 발동되면 false.
@@ -916,9 +1137,9 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
   // - 10% treasure
   // - 50% encounter
 
-  // 단, 10F/20F/30F 에 도달 직전이면 boss 로 분기
+  // 단, 보스층 (10의 배수, 상한 없음) 에 도달 직전이면 boss 로 분기
   const nextFloor = s.currentFloor + 1;
-  const isBossFloor = nextFloor % 10 === 0 && nextFloor <= 30;
+  const bossAhead = isBossFloor(nextFloor);
 
   // 층 이동
   if (lastEntry?.type === "victory" || lastEntry?.type === "drop" || lastEntry?.type === "treasure" || lastEntry?.type === "narrative") {
@@ -930,6 +1151,12 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
       timestamp: Date.now(),
     });
     s.currentFloor = nextFloor;
+    // Phase 4-D (Track D) — 런 보정 층 카운트다운 (floorXp 보다 앞, 병합 순서 고정).
+    advanceRunModFloors(s, 1);
+    // Phase 2-A (Track A) — 층 진입 XP. 처치 XP 와 같은 배율(sessionXpMult)을 탄다.
+    //   skipFloors 로 건너뛴 층은 받지 않는다 (applyChoiceEffect 는 이 줄을 지나지 않음).
+    //   로그 엔트리는 추가하지 않는다 — rewards.xp 에만 누적.
+    s.rewards.xp += Math.round(floorXp(nextFloor, s.ngPlusLevel ?? 0) * sessionXpMult(s));
     // Phase 12d — 층 이동 시 자원 (chronomancer 시간 파편, druid 자연력).
     gainClassResource(s, "floor");
     // Phase 4c.1 — 층 이동마다 시간 소모
@@ -941,7 +1168,9 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
     // Phase 11c R4 bugfix — 같은 floor 에 이미 boss 엔트리가 있으면 중복 push 금지.
     //   BossBanner 연출 중 paused→active handoff race 에서 tick 이 한 번 더 실행되면
     //   같은 floor 에 boss 2번 찍혀 "보스 재등장" 현상.
-    if (isBossFloor) {
+    // Track C 블록 — Track A 는 위 currentFloor 갱신 뒤 floorXp 를, Track D 는
+    //   advanceRunModFloors(s, 1) 을 이 앞에 끼운다. 이 블록 자체는 바뀌지 않는다.
+    if (bossAhead) {
       const hasExistingBoss = s.log.some(
         (e) => e.type === "boss" && e.floor === nextFloor,
       );
@@ -1081,7 +1310,7 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
       s.log.push({
         type: "treasure",
         coins: 0,
-        description: `${rest.text} — 시간 +${recoverAmount}`,
+        description: `${rest.text}: 시간 +${recoverAmount}`,
         narrativeKey: "uphero.combat.narrative.restArea",
         narrativeParams: {
           description: rest.text,
@@ -1136,6 +1365,26 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
     hpMult: s.monsterHpMult ?? 1,
     atkMult: s.monsterAtkMult ?? 1,
   });
+  // Phase 4-D (Track D) — 은신. 몬스터 생성 rng 는 그대로 소비한 뒤 (iOS 시드
+  //   정렬) 조우 대신 지나침 서사만 남긴다. 보스 분기는 위에서 먼저 갈라지므로
+  //   보스는 절대 은신되지 않는다. 시간은 encounter(2) 가 아니라 narrative(1).
+  if ((s.runStealthLeft ?? 0) > 0) {
+    const left = (s.runStealthLeft ?? 0) - 1;
+    if (left <= 0) delete s.runStealthLeft;
+    else s.runStealthLeft = left;
+    s.log.push({
+      type: "narrative",
+      text: `${monster.name}의 곁을 소리 없이 지나쳤다.`,
+      narrativeKey: "uphero.combat.narrative.stealthPass",
+      narrativeParams: {
+        monster: monster.name,
+        monsterTemplateId: monster.templateId ?? "",
+      },
+      timestamp: Date.now(),
+    });
+    consumeTime(s, -TIME_COST.narrative);
+    return s;
+  }
   s.log.push({ type: "encounter", monster, timestamp: Date.now() });
   initMonsterTraitState(s, monster);
   consumeTime(s, -TIME_COST.encounter);
@@ -1197,10 +1446,15 @@ export function resolveChoice(
   // outcomes 우선 — weight 기반 분기. 없으면 legacy effect.
   // Phase 11c R1 — narrative prefix 매칭 대신 explicit "choiceResult" variant.
   // Phase 11c R4 — effectSummary 필드로 구체 수치 노출.
+  // Phase 4-D (Track D, 피드백 35) — 효과를 층·영웅 기준으로 스케일한 뒤 요약·적용.
+  //   요약보다 먼저라 칩이 실제 지급 수치를 보여준다.
+  const scaleEffects = (effects: readonly ChoiceEffect[]) =>
+    scaleChoiceEffectsForFloor(effects, s.currentFloor, s.hero.maxHp, s.ngPlusLevel ?? 0);
   if (option.outcomes && option.outcomes.length > 0) {
     const outcome = pickWeighted(option.outcomes);
-    const summary = summarizeEffects(outcome.effects);
-    const summaryData = summarizeEffectsData(outcome.effects);
+    const effects = scaleEffects(outcome.effects);
+    const summary = summarizeEffects(effects);
+    const summaryData = summarizeEffectsData(effects);
     s.log.push({
       type: "choiceResult",
       text: `> ${option.label} → ${outcome.resultText}`,
@@ -1214,14 +1468,14 @@ export function resolveChoice(
       resultTextFallback: outcome.resultText,
       timestamp: Date.now(),
     });
-    for (const effect of outcome.effects) {
+    for (const effect of effects) {
       applyChoiceEffect(s, effect, ctx);
       // 효과 중에 세션이 끝났으면 더 이상 뒤 효과 적용 X
       if (s.status === "completed") break;
     }
   } else {
     // Legacy: 결과 narrative + 단일 effect
-    const legacyEffects = option.effect ? [option.effect] : [];
+    const legacyEffects = scaleEffects(option.effect ? [option.effect] : []);
     const summary = summarizeEffects(legacyEffects);
     const summaryData = summarizeEffectsData(legacyEffects);
     if (option.resultText) {
@@ -1238,7 +1492,7 @@ export function resolveChoice(
         timestamp: Date.now(),
       });
     }
-    if (option.effect) applyChoiceEffect(s, option.effect, ctx);
+    for (const effect of legacyEffects) applyChoiceEffect(s, effect, ctx);
   }
 
   // 세션이 이미 종료됐으면 (damage effect 가 hero HP 0 만들었거나) 그대로 리턴
@@ -1250,8 +1504,45 @@ export function resolveChoice(
   // Phase 12d — choice 해소 시 자원 (chronomancer 시간 파편).
   gainClassResource(s, "choice");
 
-  s.status = "active";
+  // Phase 16 (Track C, 피드백 14) — resolveChoice 가 "소유한" 상태만 되돌린다.
+  //   이전의 무조건 `s.status = "active"` 는 startMinigame 효과가 방금 세운
+  //   awaitingMinigame 을 덮어써 미니게임 모달이 영영 뜨지 않았다 (Phase 12e 부터
+  //   dead code). 효과가 세운 대기 상태 (지금은 awaitingMinigame, 앞으로 Track D
+  //   가 추가할 수 있는 것들) 는 살아남는다. Track D: 여기서 무조건 active 로
+  //   되돌리는 코드를 다시 넣지 말 것.
+  if (s.status === "awaitingChoice") s.status = "active";
   s.pendingChoiceIndex = undefined;
+  return s;
+}
+
+/**
+ * Phase 16 (Track C) — 저장본에서 읽은 세션을 정상 상태로 교정한다. 순수 함수,
+ *   스키마 버전 게이트 없음 (멱등·저렴·데이터 모양 불변).
+ *
+ *   피드백 14 의 버그 (resolveChoice 꼬리가 awaitingMinigame 을 덮어씀) 때문에
+ *   `status: "active"` 인데 `pendingMinigame` 이 남아 있는 저장본이 실존한다.
+ *   그대로 두면 DungeonView 게이트 (`pendingMinigame && awaitingMinigame`) 는
+ *   안 뜨지만 pendingMinigame 이 영원히 남는다. 반대 경우 (awaitingMinigame 인데
+ *   pending 없음) 는 어떤 모달도 안 떠 세션이 영구 정지. awaitingChoice 인데
+ *   pendingChoiceIndex 가 choice 엔트리를 가리키지 않아도 마찬가지.
+ *   iOS 는 currentSession 을 영속화하지 않으므로 미러 불필요.
+ */
+export function normalizeSessionForLoad(session: CombatSession): CombatSession {
+  const s: CombatSession = { ...session };
+  if (s.pendingMinigame && s.status !== "awaitingMinigame") {
+    delete s.pendingMinigame;
+  }
+  if (s.status === "awaitingMinigame" && !s.pendingMinigame) {
+    s.status = "active";
+  }
+  if (s.status === "awaitingChoice") {
+    const idx = s.pendingChoiceIndex;
+    const entry = idx != null ? s.log[idx] : undefined;
+    if (!entry || entry.type !== "choice") {
+      s.status = "active";
+      s.pendingChoiceIndex = undefined;
+    }
+  }
   return s;
 }
 
@@ -1285,27 +1576,45 @@ export function summarizeEffects(effects: readonly ChoiceEffect[]): string {
   if (data.damage) parts.push(`체력 −${data.damage}`);
   if (data.timeDelta && data.timeDelta > 0) parts.push(`시간 +${data.timeDelta}`);
   else if (data.timeDelta && data.timeDelta < 0) parts.push(`시간 ${data.timeDelta}`);
+  // Phase 4-D — 런 한정 효과 (ko legacy 문자열. UI 는 buildSummaryChips 를 쓴다).
+  if (data.skipFloors) parts.push(`${data.skipFloors}층 건너뜀`);
+  for (const m of data.runMods ?? []) {
+    const label = m.stat === "all" ? "전 능력치" : RUN_STAT_KO[m.stat];
+    parts.push(`${label} ${m.pct > 0 ? "+" : "-"}${Math.abs(m.pct)}%`);
+  }
+  if (data.stealth) parts.push(`은신 ${data.stealth}`);
+  if (data.guaranteedDrop) parts.push("장비 확정");
+  if (data.bossDmgPct) parts.push(`보스 피해 +${data.bossDmgPct}%`);
   return parts.join(" · ");
 }
+
+/** 런 보정 스탯의 한국어 이름 (엔진 fallback 문자열 전용, UI 는 affixStatLabel). */
+const RUN_STAT_KO: Record<Exclude<RunModStat, "all">, string> = {
+  str: "힘",
+  int: "지성",
+  vit: "체력",
+  dex: "손재주",
+  agi: "민첩",
+};
 
 /**
  * Phase 13b — structured effect summary. ChoiceResultModal 이 다국어 라벨로
  *   조립할 수 있도록 raw 수치 반환.
  */
 export function summarizeEffectsData(
-  effects: readonly ChoiceEffect[],
-): {
-  xp?: number;
-  coins?: number;
-  heal?: number;
-  damage?: number;
-  timeDelta?: number;
-} {
+  effects: readonly (ChoiceEffect | SimpleChoiceEffect)[],
+): EffectSummaryData {
   let totalCoins = 0;
   let totalXp = 0;
   let totalDamage = 0;
   let totalHeal = 0;
   let totalTimeDelta = 0;
+  // Phase 4-D — 런 한정 효과 누적.
+  let totalSkip = 0;
+  let totalStealth = 0;
+  let totalGuaranteed = 0;
+  let totalBossPct = 0;
+  const runMods: NonNullable<EffectSummaryData["runMods"]> = [];
   for (const e of effects) {
     if (e.kind === "reward") {
       if (e.coins) totalCoins += e.coins;
@@ -1316,14 +1625,39 @@ export function summarizeEffectsData(
       totalHeal += e.amount;
     } else if (e.kind === "time") {
       totalTimeDelta += e.delta;
+    } else if (e.kind === "skipFloors") {
+      totalSkip += e.count;
+    } else if (e.kind === "runBuff") {
+      runMods.push(
+        e.floors == null
+          ? { stat: e.stat, pct: e.pct }
+          : { stat: e.stat, pct: e.pct, floors: e.floors },
+      );
+    } else if (e.kind === "runCurse") {
+      runMods.push(
+        e.floors == null
+          ? { stat: e.stat, pct: -e.pct }
+          : { stat: e.stat, pct: -e.pct, floors: e.floors },
+      );
+    } else if (e.kind === "stealth") {
+      totalStealth += e.encounters;
+    } else if (e.kind === "guaranteedDrop") {
+      totalGuaranteed += e.count ?? 1;
+    } else if (e.kind === "revealBoss") {
+      totalBossPct += RUN_BOSS_DMG_PER_REVEAL;
     }
   }
-  const out: ReturnType<typeof summarizeEffectsData> = {};
+  const out: EffectSummaryData = {};
   if (totalXp > 0) out.xp = totalXp;
   if (totalCoins > 0) out.coins = totalCoins;
   if (totalHeal > 0) out.heal = totalHeal;
   if (totalDamage > 0) out.damage = totalDamage;
   if (totalTimeDelta !== 0) out.timeDelta = totalTimeDelta;
+  if (totalSkip > 0) out.skipFloors = totalSkip;
+  if (runMods.length > 0) out.runMods = runMods;
+  if (totalStealth > 0) out.stealth = totalStealth;
+  if (totalGuaranteed > 0) out.guaranteedDrop = totalGuaranteed;
+  if (totalBossPct > 0) out.bossDmgPct = totalBossPct;
   return out;
 }
 
@@ -1376,22 +1710,128 @@ function applyChoiceEffect(
       gainClassResource(session, "heal");
       break;
     }
-    case "skipFloors":
-      session.currentFloor += effect.count;
+    case "skipFloors": {
+      // Phase 16 (Track C, 피드백 26) — 다음 보스층 직전까지만 건너뛴다. 이전엔
+      //   F19 에서 +3 이 F22 로 가 F20 보스가 통째로 사라졌고 (bossesDefeated 에
+      //   구멍), 사이클 경계도 넘어 lazy mystery 생성이 어긋났다. 움직일 곳이
+      //   없으면 층 엔트리 대신 narrative 로 피드백만 준다.
+      // Track D 블록 — moved > 0 분기 끝에 advanceRunModFloors(s, moved) 가 붙는다.
+      const cur = session.currentFloor;
+      const target = Math.min(cur + effect.count, nextBossFloorAfter(cur) - 1);
+      const moved = target - cur;
+      if (moved <= 0) {
+        session.log.push({
+          type: "narrative",
+          text: "통로가 보스의 문 앞에서 끊겨 있다",
+          narrativeKey: "uphero.combat.narrative.skipBlocked",
+          timestamp: Date.now(),
+        });
+        break;
+      }
+      session.currentFloor = target;
       session.log.push({
         type: "floor",
-        from: session.currentFloor - effect.count,
-        to: session.currentFloor,
+        from: cur,
+        to: target,
+        timestamp: Date.now(),
+      });
+      // Phase 4-D (Track D) — 실제 이동한 층 수만큼 런 보정 만료. 층 XP 는 없다.
+      advanceRunModFloors(session, moved);
+      break;
+    }
+    case "revealBoss": {
+      // Phase 4-D (Track D, 피드백 35) — "보스의 기운" 한 줄이던 효과를 실제
+      //   정보로: 다음 보스층의 보스 이름과 trait 를 서사로 밝히고, 남은 런 동안
+      //   보스 피해 +5% (상한 15) 를 준다. 보스 템플릿은 층으로 결정되고
+      //   createMonsterForFloor 의 보스 분기는 rng 를 소비하지 않으므로 미리보기가
+      //   시드를 어긋나게 하지 않는다. Track C 의 nextBossFloorAfter 를 쓴다
+      //   (보스는 10층마다 영원히) — revealBossNone 은 방어 분기일 뿐이다.
+      const nextBossFloor = nextBossFloorAfter(session.currentFloor);
+      if (!isBossFloor(nextBossFloor)) {
+        session.log.push({
+          type: "narrative",
+          text: "앞길에 더는 보스의 기운이 없다.",
+          narrativeKey: "uphero.combat.narrative.revealBossNone",
+          timestamp: Date.now(),
+        });
+        break;
+      }
+      const boss = createMonsterForFloor(session.dungeonId, nextBossFloor, true, {
+        ngPlusLevel: session.ngPlusLevel ?? 0,
+        hpMult: session.monsterHpMult ?? 1,
+        atkMult: session.monsterAtkMult ?? 1,
+      });
+      const pct = Math.min(
+        RUN_BOSS_DMG_CAP,
+        (session.runBossDmgPct ?? 0) + RUN_BOSS_DMG_PER_REVEAL,
+      );
+      session.runBossDmgPct = pct;
+      const trait = boss.trait ?? "none";
+      session.log.push({
+        type: "narrative",
+        text: `F${nextBossFloor}의 ${boss.name}가 보인다 (보스 피해 +${pct}%)`,
+        narrativeKey: `uphero.combat.narrative.revealBossTrait.${trait}`,
+        narrativeParams: {
+          floor: nextBossFloor,
+          monster: boss.name,
+          monsterTemplateId: boss.templateId ?? "",
+          pct,
+        },
         timestamp: Date.now(),
       });
       break;
-    case "revealBoss":
+    }
+    case "runBuff":
+    case "runCurse": {
+      // Phase 4-D (Track D, 피드백 15) — 런 한정 능력치 보정. 저주는 음수 pct 로
+      //   같은 배열에 쌓인다. 상한 초과면 오래된 것부터 버린다.
+      const signed = effect.kind === "runBuff" ? effect.pct : -effect.pct;
+      const mods = [...(session.runStatMods ?? [])];
+      mods.push(
+        effect.floors == null
+          ? { stat: effect.stat, pct: signed }
+          : { stat: effect.stat, pct: signed, floorsLeft: effect.floors },
+      );
+      while (mods.length > RUN_STAT_MODS_CAP) mods.shift();
+      session.runStatMods = mods;
+      const statKo = effect.stat === "all" ? "전 능력치" : RUN_STAT_KO[effect.stat];
+      const isBuff = effect.kind === "runBuff";
+      // floors 가 없으면 이번 탐험 내내 유지되는 보정 — "(…, 0층)" 으로 찍히지 않게
+      //   전용 서사 키(runBuffRun/runCurseRun)를 쓰고 floors 파라미터를 싣지 않는다.
+      const runScoped = effect.floors == null;
+      const floors = effect.floors ?? 0;
+      const span = runScoped ? "이번 탐험" : `${floors}층`;
       session.log.push({
         type: "narrative",
-        text: "보스의 기운이 느껴진다.",
-        narrativeKey: "uphero.combat.narrative.revealBoss",
+        text: isBuff
+          ? `${statKo}이(가) 오른다 (+${effect.pct}%, ${span})`
+          : `${statKo}이(가) 흔들린다 (-${effect.pct}%, ${span})`,
+        narrativeKey: runScoped
+          ? isBuff
+            ? "uphero.combat.narrative.runBuffRun"
+            : "uphero.combat.narrative.runCurseRun"
+          : isBuff
+            ? "uphero.combat.narrative.runBuff"
+            : "uphero.combat.narrative.runCurse",
+        // stat 은 ko fallback, statId 는 CombatLog 가 현재 언어 라벨로 치환하는 키.
+        narrativeParams: runScoped
+          ? { stat: statKo, statId: effect.stat, pct: effect.pct }
+          : { stat: statKo, statId: effect.stat, pct: effect.pct, floors },
         timestamp: Date.now(),
       });
+      break;
+    }
+    case "stealth":
+      session.runStealthLeft = Math.min(
+        RUN_STEALTH_CAP,
+        (session.runStealthLeft ?? 0) + effect.encounters,
+      );
+      break;
+    case "guaranteedDrop":
+      session.runGuaranteedDrops = Math.min(
+        RUN_GUARANTEED_DROP_CAP,
+        (session.runGuaranteedDrops ?? 0) + (effect.count ?? 1),
+      );
       break;
     case "spinSlot": {
       // 결과를 여기서 확정하고 지급까지 끝낸다. 드럼 애니메이션은 이미 정해진
@@ -1661,19 +2101,28 @@ function executeCombatRound(
 ): void {
   // Phase 14 — monster trait regen: round 시작 시 monster HP 회복 (maxHp cap 은
   //   computeMonsterHp 에서 적용). log 에 monsterEffect/regen push.
+  // Phase 16 (Track C, 피드백 16) — 현재 HP 가 최대치의 30% 미만이면 push 자체를
+  //   건너뛴다 (REGEN_STOP_BELOW_HP_RATIO). log 에 엔트리가 없으면 엔진의
+  //   computeMonsterHp 도 UI HP 바도 자동으로 일치한다. fight 효과 경로도 같은
+  //   monster 객체로 여길 지나므로 별도 분기 불필요.
   if (s.monsterRegenAmount && s.monsterRegenAmount > 0) {
-    s.log.push({
-      type: "monsterEffect",
-      effect: "regen",
-      amount: s.monsterRegenAmount,
-      narrativeKey: "uphero.combat.trait.regen",
-      narrativeParams: {
+    const encIdx = findLastEncounterIndex(s.log);
+    const cap = monster.maxHp ?? monster.hp;
+    const hpNow = encIdx >= 0 ? computeMonsterHp(s.log, encIdx, monster) : cap;
+    if (hpNow >= cap * REGEN_STOP_BELOW_HP_RATIO) {
+      s.log.push({
+        type: "monsterEffect",
+        effect: "regen",
         amount: s.monsterRegenAmount,
-        monster: monster.name,
-        monsterTemplateId: monster.templateId ?? "",
-      },
-      timestamp: Date.now(),
-    });
+        narrativeKey: "uphero.combat.trait.regen",
+        narrativeParams: {
+          amount: s.monsterRegenAmount,
+          monster: monster.name,
+          monsterTemplateId: monster.templateId ?? "",
+        },
+        timestamp: Date.now(),
+      });
+    }
   }
 
   // Phase 14 — hero poison DoT: round 시작 시 s.hero.hp 감소 + log entry.
@@ -1702,6 +2151,9 @@ function executeCombatRound(
   gainClassResource(s, "roundStart");
   // Phase 6b — combat round 시작 전 액티브 스킬 발동 시도
   const skillCdBefore = s.skillCooldown ?? 0;
+  // Phase 6-E (Track E, 피드백 21) — 스킬별 쿨다운 맵 스냅샷. canFireSkill / SkillBar
+  //   는 `skillCooldowns` 맵을 읽으므로 아래 스칼라 차감만으로는 평정이 죽어 있었다.
+  const cdsBefore: Record<string, number> = { ...(s.skillCooldowns ?? {}) };
   maybeFireSkill(s, monster);
   // Phase 11b — "평정" CD reduce: skill 이 이번 round 에 fire 했으면 (cooldown 증가),
   //   classSkillCdReduce 만큼 더 차감해 다음 재발동 가속.
@@ -1714,6 +2166,19 @@ function executeCombatRound(
       0,
       (s.skillCooldown ?? 0) - tModsEarly.classSkillCdReduce,
     );
+  }
+  // 맵 diff — 이번 라운드에 늘어난 키(= 방금 발동한 스킬)만 reduce 만큼 줄인다 (min 0).
+  //   iOS UpHeroSession.executeCombatRound 동일.
+  if (tModsEarly.classSkillCdReduce > 0 && s.skillCooldowns) {
+    const after: Record<string, number> = { ...s.skillCooldowns };
+    let changed = false;
+    for (const key of Object.keys(after)) {
+      if ((after[key] ?? 0) > (cdsBefore[key] ?? 0)) {
+        after[key] = Math.max(0, after[key] - tModsEarly.classSkillCdReduce);
+        changed = true;
+      }
+    }
+    if (changed) s.skillCooldowns = after;
   }
 
   // Phase 11b — talisman modifier 에서 이번 round 에 영향을 주는 값들.
@@ -1755,6 +2220,12 @@ function executeCombatRound(
   //   round 단위 지속 효과. advanceSkillCounters 에서 rounds 감소.
   if (heroDmg > 0 && s.heroAtkBonusRounds && s.heroAtkBonusRounds.rounds > 0) {
     heroDmg = Math.round(heroDmg * s.heroAtkBonusRounds.mult);
+  }
+
+  // Phase 4-D (Track D) — revealBoss 가 쌓은 보스 피해 % (isBoss 몬스터에만).
+  //   heroAtkBonusRounds 바로 뒤, crit 보너스 앞 (병합 순서 고정).
+  if (heroDmg > 0 && monster.isBoss && (s.runBossDmgPct ?? 0) > 0) {
+    heroDmg = Math.round(heroDmg * (1 + (s.runBossDmgPct ?? 0) / 100));
   }
 
   // Phase 11b — "현자" crit damage +N%. hero crit 일 때만 추가 배율.
@@ -1911,7 +2382,7 @@ function executeCombatRound(
       attacker: "hero",
       damage: counterDmg,
       outcome: "hit",
-      narrative: `영웅이 반사적으로 반격한다 — ${counterDmg} 피해`,
+      narrative: `영웅이 반사적으로 반격한다, ${counterDmg} 피해`,
       narrativeKey: "uphero.combat.narrative.heroCounter",
       narrativeParams: { damage: counterDmg },
       timestamp: Date.now(),
@@ -1980,7 +2451,14 @@ export function resolveMinigame(
     hero: { ...session.hero },
     rewards: { ...session.rewards, drops: [...session.rewards.drops] },
   };
-  const effects = success ? pending.successEffects : pending.failEffects;
+  // Phase 4-D (Track D) — startMinigame 안쪽 배열은 resolveChoice 가 스케일하지
+  //   않으므로 여기 적용 시점에 같은 식으로 스케일한다.
+  const effects = scaleChoiceEffectsForFloor(
+    success ? pending.successEffects : pending.failEffects,
+    s.currentFloor,
+    s.hero.maxHp,
+    s.ngPlusLevel ?? 0,
+  );
   // Phase 12 R2 — effectSummary 로 수치 요약 (일반 choice 와 일관된 UX).
   //   이전엔 undefined 로 두어 ChoiceResultModal 의 요약 chip 이 렌더 안 됐음.
   const summary = summarizeEffects(effects as ChoiceEffect[]);
@@ -2084,8 +2562,10 @@ function initMonsterTraitState(s: CombatSession, monster: Monster): void {
   if (!monster.trait) return;
   if (monster.trait === "regen") {
     const cap = monster.maxHp ?? monster.hp;
-    // 매 round monster max HP 의 ~5% 회복 (min 2). cap 은 computeMonsterHp.
-    s.monsterRegenAmount = Math.max(2, Math.round(cap * 0.05));
+    // 매 round monster max HP 의 일정 비율 회복 (min 2). cap 은 computeMonsterHp.
+    // Phase 16 (Track C) — 보스 1% / 일반 5%. 근거는 BOSS_REGEN_PCT 주석.
+    const pct = monster.isBoss ? BOSS_REGEN_PCT : MONSTER_REGEN_PCT;
+    s.monsterRegenAmount = Math.max(2, Math.round(cap * pct));
     return;
   }
   if (monster.trait === "shield") {
@@ -2154,12 +2634,15 @@ export function rollEnemyOutcome(
   heroLevel = 99,
 ): CombatOutcome {
   const newbie = isNewbieBuffActive(heroLevel, monster.level);
-  // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 8%, floor 60 에서 2% 바닥)
+  // 공격자(몬스터) 실수 — 초반 floor 에서 허당치게 (base 10%, floor 100 에서 5% 바닥)
   //   Phase 11b talisman "변덕" → enemyMissBonus 추가.
-  //   newbie: +5% (13%) — 적이 자주 허당쳐서 "쉬운 스타트" 체감.
+  //   newbie: +5% (15%) — 적이 자주 허당쳐서 "쉬운 스타트" 체감.
+  // Phase 16 (Track C, 피드백 33) — 바닥 2% → 5%, 기울기 0.001 → 0.0005. 이전엔
+  //   F60 에서 이미 바닥이라 후반 사이클의 적이 거의 빗나가지 않았다.
+  //   iOS UpHeroCombat.rollEnemyOutcome 미러.
   const newbieMissBonus = newbie ? 0.05 : 0;
   const missChance =
-    Math.max(0.02, 0.08 - monster.level * 0.001) + enemyMissBonus + newbieMissBonus;
+    Math.max(0.05, 0.1 - monster.level * 0.0005) + enemyMissBonus + newbieMissBonus;
   if (rng() < missChance) return "miss";
   // 방어자(영웅) 회피 — agi scaling + class bonus + talisman bonus. cap 0.45 (monk + 변덕 최대).
   //   newbie: +6% flat (agi 부족한 저레벨에서도 한 번씩 회피).

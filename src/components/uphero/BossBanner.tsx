@@ -122,6 +122,7 @@ export default function BossBanner({ monster, floor, onDone }: BossBannerProps) 
         >
           <MonsterSprite
             kind={monster.kind}
+            templateId={monster.templateId}
             size={96}
             color="var(--accent-secondary)"
             glow

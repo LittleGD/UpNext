@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "UpNext — 매일 새로운 챌린지",
+    name: "UpNext: 매일 새로운 챌린지",
     short_name: "UpNext",
     description: "A roguelike challenge for daily achievements",
     start_url: "/",

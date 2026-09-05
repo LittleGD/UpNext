@@ -48,6 +48,7 @@ function makeProgress(partial: Partial<UserProgress>): UserProgress {
     daysTowardNextLevel: 0,
     pendingPacks: 0,
     pendingBonusCards: 0,
+    pendingFullPacks: 0,
     cardCompletions: {},
     extraChallengesCompleted: 0,
     superChallengesCompleted: 0,

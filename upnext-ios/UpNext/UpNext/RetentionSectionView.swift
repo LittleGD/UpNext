@@ -280,7 +280,7 @@ private struct MilestoneTrack: View {
                 }.frame(height: 6)
                 Text("다음 마일스톤까지 \(n - streak)일").typography(.caption).foregroundStyle(Color.textTertiary)
             } else {
-                Text("100일 달성 — 전설의 불꽃").typography(.caption).foregroundStyle(Color.accentPrimary)
+                Text("100일 달성: 전설의 불꽃").typography(.caption).foregroundStyle(Color.accentPrimary)
             }
         }
         .padding(14)
@@ -309,7 +309,7 @@ private struct GuardStatsRow: View {
                                   color: i < savers ? .accentPrimary : Color.textTertiary.opacity(0.3))
                     }
                 }
-                Text(savers > 0 ? "방패 \(savers)개 — 하루 빠져도 이어져요" : "방패가 없어요, 오늘은 꼭 켜요")
+                Text(savers > 0 ? "방패 \(savers)개: 하루 빠져도 이어져요" : "방패가 없어요, 오늘은 꼭 켜요")
                     .typography(.micro).foregroundStyle(Color.textTertiary).lineLimit(2)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -613,7 +613,7 @@ private struct DuoFlameCard: View {
         Button { duo.acknowledgeNudge() } label: {
             HStack(spacing: 8) {
                 PixelIcon(.zap, size: 14, color: Color.accentCyan)
-                Text("친구가 콕 찔렀어요 — 오늘 불꽃을 켜볼까요?")
+                Text("친구가 콕 찔렀어요: 오늘 불꽃을 켜볼까요?")
                     .typography(.caption).foregroundStyle(Color.accentCyan)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -636,9 +636,9 @@ private struct DuoFlameCard: View {
     }
 
     private func statusCopy(mine: Bool, theirs: Bool) -> LocalizedStringKey {
-        if theirs && !mine { return "친구가 먼저 켰어요 — 같이 이어가요" }
+        if theirs && !mine { return "친구가 먼저 켰어요: 같이 이어가요" }
         if mine && !theirs { return "친구의 불꽃을 기다리는 중" }
-        return "오늘은 둘 다 아직이에요 — 천천히 켜요"
+        return "오늘은 둘 다 아직이에요, 천천히 켜요"
     }
 
     private func jointStreak(_ a: DuoSnapshot, uid: String) -> Int {

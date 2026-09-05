@@ -44,7 +44,7 @@ struct BossBanner: View {
                     .tracking(4)
                     .foregroundStyle(Color.accentSecondary)
 
-                MonsterSprite(kind: monster.kind, size: 96,
+                MonsterSprite(kind: monster.kind, templateId: monster.templateId, size: 96,
                               color: Color.accentSecondary, glow: true)
                     .offset(tremor)
 

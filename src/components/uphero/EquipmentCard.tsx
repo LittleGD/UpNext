@@ -6,22 +6,27 @@
  * 단일 장비 카드. rarity 오라 (RarityTexture 재활용) + pixel icon + 이름 + 스탯 + 플레이버.
  *
  * 크기 variant:
- *  - "sm": 그리드용 컴팩트 (80×100)
+ *  - "sm": 그리드용 컴팩트 (열 폭 100%, 최소 116 높이) — Phase 6-E 에서 전체 스탯 2열
  *  - "md": 상세 뷰 (120×160)
  *  - "lg": 드롭 reveal 등 임팩트 (180×240)
+ *
+ * Phase 6-E (Track E, 피드백 11/17): 헤더에 텍스트 슬롯 칩, 스탯은 `orderedStatEntries`
+ * (주스탯 우선) 순서로 전부, slotBonus 가 있으면 "버프 슬롯 +1" 칩.
  *
  * interaction: onClick/onTap 이 있으면 press scale(0.97) 피드백.
  */
 
 import { useEffect, useState, type CSSProperties } from "react";
-import type { Equipment } from "@/types/uphero";
+import { getEnhanceTitle, type Equipment } from "@/types/uphero";
 import RarityTexture from "@/components/cards/RarityTexture";
 import PixelIcon from "@/components/icons/PixelIcon";
-import { GB, EASE_OUT } from "@/lib/upHeroPalette";
+import { GB, EASE_OUT, GB_LEGEND } from "@/lib/upHeroPalette";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
 import { equipmentNameById, skillName } from "@/lib/upHeroI18n";
+import { STAT_LABEL, formatStat, orderedStatEntries } from "@/lib/equipmentStats";
+import { SLOT_LABEL_KEY } from "@/lib/equipmentSlotMeta";
 import type { Language } from "@/types/game";
 
 /** Phase 11b — skill id → 표시 이름 (없으면 id 그대로).
@@ -47,8 +52,10 @@ interface EquipmentCardProps {
 const DIMENSIONS: Record<
   EquipmentCardSize,
   {
-    width: number;
-    height: number;
+    width: number | string;
+    /** md/lg 는 고정 높이, sm 은 minHeight 로 열에 맞춰 늘어난다. */
+    height?: number;
+    minHeight?: number;
     iconSize: number;
     nameClass: string;
     statClass: string;
@@ -56,12 +63,12 @@ const DIMENSIONS: Record<
   }
 > = {
   sm: {
-    width: 80,
-    height: 96,
-    iconSize: 28,
+    width: "100%",
+    minHeight: 116,
+    iconSize: 22,
     nameClass: "typo-micro",
     statClass: "typo-micro",
-    padding: "6px 6px 8px",
+    padding: "6px 6px 6px",
   },
   md: {
     width: 120,
@@ -89,15 +96,29 @@ const RARITY_COLOR: Record<Equipment["rarity"], string> = {
   legend: "#e8b887",
 };
 
-/** 스탯 key 를 한국어로 */
-const STAT_LABEL: Record<string, string> = {
-  str: "STR",
-  int: "INT",
-  vit: "VIT",
-  dex: "DEX",
-  agi: "AGI",
-  crit: "CRIT",
-};
+/**
+ * Phase 5-B — +N 칩 톤. 밴드가 올라갈수록 어둡게 → legend 골드 → 라임 + 글로우.
+ *   1..9   : 어두운 배경, rarity 보더 (기존)
+ *   10..14 : legend 골드 (기존 +10 톤)
+ *   15..19 : 라임 + 글로우, 보더 없음
+ *   20     : 라임 + 더 강한 글로우
+ * Track E 의 종이인형 칩도 이 헬퍼를 가져다 쓴다.
+ */
+export function enhanceChipTone(
+  level: number,
+  rarityColor: string,
+): { bg: string; fg: string; glow?: string; border: string } {
+  if (level >= 20) {
+    return { bg: GB.lightest, fg: GB.darkest, glow: `0 0 10px ${GB.lightest}`, border: "none" };
+  }
+  if (level >= 15) {
+    return { bg: GB.lightest, fg: GB.darkest, glow: `0 0 6px ${GB.lightest}aa`, border: "none" };
+  }
+  if (level >= 10) {
+    return { bg: GB_LEGEND, fg: GB.darkest, border: `1px solid ${GB_LEGEND}` };
+  }
+  return { bg: `${GB.darkest}dd`, fg: GB.lightest, border: `1px solid ${rarityColor}` };
+}
 
 export default function EquipmentCard({
   equipment,
@@ -117,10 +138,13 @@ export default function EquipmentCard({
     language,
   );
 
-  // 스탯 entries — stats 객체에서 값 있는 키만
-  const statEntries = Object.entries(equipment.stats).filter(
-    ([, v]) => v != null && v !== 0,
-  );
+  // 스탯 entries — Phase 6-E: 주스탯(템플릿 statBoost) 우선 고정 순서, 값 있는 키만.
+  const statEntries = orderedStatEntries(equipment);
+  const slotBonus = equipment.stats.slotBonus ?? 0;
+  // Phase 5-B — 칭호는 저장하지 않고 레벨에서 파생. md/lg 에서만 칩으로 그린다.
+  const enhanceLevel = equipment.enhanceLevel ?? 0;
+  const enhanceTitle = getEnhanceTitle(enhanceLevel);
+  const chipTone = enhanceChipTone(enhanceLevel, rarityColor);
 
   const content = (
     <div
@@ -128,6 +152,7 @@ export default function EquipmentCard({
       style={{
         width: dim.width,
         height: dim.height,
+        minHeight: dim.minHeight,
         padding: dim.padding,
         background: `${GB.dark}cc`,
         border: `1px solid ${selected ? GB.lightest : rarityColor}`,
@@ -140,8 +165,8 @@ export default function EquipmentCard({
       {/* rarity 오라 layer — 기존 카드 시스템과 동일 */}
       <RarityTexture rarity={equipment.rarity} borderRadius={8} />
 
-      {/* 상단: 아이콘 (photo 부적이면 썸네일) + rarity accent dot */}
-      <div className="flex items-start justify-between">
+      {/* 상단: 아이콘 (photo 부적이면 썸네일) + 슬롯 칩 + rarity accent dot */}
+      <div className="flex items-start justify-between gap-1">
         {equipment.photoId ? (
           <PhotoThumb photoId={equipment.photoId} size={dim.iconSize + 4} />
         ) : (
@@ -151,6 +176,21 @@ export default function EquipmentCard({
             color={rarityColor}
           />
         )}
+        {/* Phase 6-E — 텍스트 슬롯 칩 (아이콘 박스 없음). */}
+        <span
+          className="typo-micro rounded-sm px-1 shrink-0 self-start"
+          style={{
+            background: GB.dark,
+            color: GB.light,
+            fontSize: 9,
+            lineHeight: 1.5,
+            letterSpacing: "0.02em",
+            marginRight: "auto",
+          }}
+          aria-label={t("uphero.equip.slotChipAria", { slot: t(SLOT_LABEL_KEY[equipment.type]) })}
+        >
+          {t(SLOT_LABEL_KEY[equipment.type])}
+        </span>
         {equipment.rarity !== "normal" && (
           <div
             className="rounded-full shrink-0"
@@ -165,6 +205,25 @@ export default function EquipmentCard({
         )}
       </div>
 
+      {/* Phase 5-B — 칭호 칩 (각성/초월). sm 은 공간이 없어 +N 칩만. */}
+      {size !== "sm" && enhanceTitle && (
+        <span
+          className="typo-micro self-start mt-1 px-1 rounded-sm"
+          style={{
+            background: `${GB.lightest}22`,
+            color: GB.lightest,
+            fontSize: 9,
+            lineHeight: 1.4,
+            letterSpacing: "0.02em",
+          }}
+          aria-label={t("uphero.enhance.title.chipAria", {
+            title: t(`uphero.enhance.title.${enhanceTitle}` as const),
+          })}
+        >
+          {t(`uphero.enhance.title.${enhanceTitle}` as const)}
+        </span>
+      )}
+
       {/* 이름 — Phase 8a: mt-auto → mt-1.5 고정 spacing.
            line-clamp-2 로 3줄 이상 wrap 방지, 카드간 bottom alignment 통일. */}
       <div
@@ -172,27 +231,44 @@ export default function EquipmentCard({
         style={{
           color: selected ? GB.lightest : rarityColor,
           display: "-webkit-box",
-          WebkitLineClamp: 2,
+          WebkitLineClamp: size === "sm" ? 1 : 2,
           WebkitBoxOrient: "vertical",
         }}
       >
         {localizedEqName}
       </div>
 
-      {/* 스탯 (sm 에선 1개만, md/lg 에선 전체) — mt-auto 로 바닥 정렬 */}
+      {/* 스탯 — Phase 6-E: 모든 크기에서 전체. sm 은 2열 micro 그리드. mt-auto 로 바닥 정렬 */}
       {statEntries.length > 0 && (
-        <div className={`${dim.statClass} mt-auto tabular-nums`}>
-          {(size === "sm" ? statEntries.slice(0, 1) : statEntries).map(
-            ([k, v]) => (
-              <div key={k} style={{ color: GB.light }}>
-                <span style={{ color: GB.lightest }}>
-                  {k === "crit" ? `+${v}%` : `+${v}`}
-                </span>{" "}
-                {STAT_LABEL[k] ?? k.toUpperCase()}
-              </div>
-            ),
-          )}
+        <div
+          className={`${dim.statClass} mt-auto tabular-nums ${
+            size === "sm" ? "grid grid-cols-2 gap-x-1 gap-y-0" : ""
+          }`}
+          style={size === "sm" ? { fontSize: 9, lineHeight: 1.4 } : undefined}
+        >
+          {statEntries.map(([k, v]) => (
+            <div key={k} style={{ color: GB.light }} className="whitespace-nowrap">
+              <span style={{ color: GB.lightest }}>{formatStat(k, v)}</span>{" "}
+              {STAT_LABEL[k]}
+            </div>
+          ))}
         </div>
+      )}
+
+      {/* Phase 6-E (피드백 21) — 버프 슬롯 칩. 부적은 항상, 유니크+ 장신구도. */}
+      {slotBonus > 0 && (
+        <span
+          className="typo-micro rounded-sm px-1 self-start mt-0.5"
+          style={{
+            background: `${GB.lightest}22`,
+            color: GB.lightest,
+            fontSize: 9,
+            lineHeight: 1.5,
+            letterSpacing: "0.02em",
+          }}
+        >
+          {t("uphero.equip.slotBonusChip")}
+        </span>
       )}
 
       {/* Phase 11b — talisman skill chip. md/lg 에서만 표기 (sm 은 공간 부족). */}
@@ -218,29 +294,24 @@ export default function EquipmentCard({
           </div>
         )}
 
-      {/* Phase 11a — 좌상단 enhance level chip (+1~+10).
+      {/* Phase 11a — 좌상단 enhance level chip (+1~+20).
            name 에 이미 " +N" 이 붙어있지만 line-clamp 로 가려질 수 있어
-           별도 chip 으로 강조. +10 은 legend 톤. */}
-      {(equipment.enhanceLevel ?? 0) > 0 && !selected && (
+           별도 chip 으로 강조. Phase 5-B — 톤은 enhanceChipTone 밴드 표. */}
+      {enhanceLevel > 0 && !selected && (
         <div
           className="absolute top-1 left-1 typo-micro tabular-nums px-1 rounded-sm pointer-events-none"
           style={{
-            background:
-              (equipment.enhanceLevel ?? 0) >= 10
-                ? "#e8b887" // GB_LEGEND
-                : `${GB.darkest}dd`,
-            color:
-              (equipment.enhanceLevel ?? 0) >= 10 ? GB.darkest : GB.lightest,
-            border: `1px solid ${
-              (equipment.enhanceLevel ?? 0) >= 10 ? "#e8b887" : rarityColor
-            }`,
+            background: chipTone.bg,
+            color: chipTone.fg,
+            border: chipTone.border,
+            boxShadow: chipTone.glow,
             fontSize: 9,
             letterSpacing: "0.03em",
             lineHeight: 1.3,
           }}
-          aria-label={t("uphero.equip.enhanceChipAria", { n: equipment.enhanceLevel ?? 0 })}
+          aria-label={t("uphero.equip.enhanceChipAria", { n: enhanceLevel })}
         >
-          +{equipment.enhanceLevel}
+          +{enhanceLevel}
         </div>
       )}
 
@@ -263,13 +334,11 @@ export default function EquipmentCard({
   if (clickable) {
     // Phase 11c R4 — rarity / enhance level / stats 를 SR 에 전달.
     //   R2 수정: "선택됨" 을 aria-label 에서 제거 (aria-pressed 와 중복 공지 방지).
-    //   stats 는 legend 는 모든 affix 포함 (최대 5개), 그 외 상위 3개.
+    //   Phase 6-E — 표시와 같은 순서로 전부 (주스탯 먼저).
     const rarityLabel = t(`uphero.rarity.${equipment.rarity}` as const);
     const enhance = equipment.enhanceLevel ?? 0;
-    const statLimit = equipment.rarity === "legend" ? 5 : 3;
     const statsBrief = statEntries
-      .slice(0, statLimit)
-      .map(([k, v]) => `${STAT_LABEL[k] ?? k} ${v}`)
+      .map(([k, v]) => `${STAT_LABEL[k]} ${v}`)
       .join(", ");
     const srLabel = [
       rarityLabel,

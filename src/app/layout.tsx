@@ -11,7 +11,9 @@ import ClientEffects from "@/components/effects/ClientEffects";
 import NativeSplashHide from "@/components/native/NativeSplashHide";
 import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
 import WidgetSync from "@/components/providers/WidgetSync";
+import AccountLevelUpOverlay from "@/components/uphero/AccountLevelUpOverlay";
 import { Analytics } from "@vercel/analytics/next";
+import { BOOT_COVER_ID, BOOT_COVER_INIT_SCRIPT, BOOT_COVER_STYLE } from "@/lib/bootCover";
 
 // ── April16Promise 로컬 셀프호스팅 ──
 // display: "optional" → 100ms 내 로딩 못하면 시스템 폰트 유지
@@ -75,6 +77,12 @@ export default function RootLayout({
       className={`${april16.variable} dark h-full`}
     >
       <head>
+        {/* SSR 부트 커버 (src/lib/bootCover.ts): standalone / Capacitor 문맥의 콜드 스타트에서
+            첫 페인트 ~ 모션 스플래시 마운트 사이의 OnboardingFlow 프레임을 다크로 가린다.
+            style → 일반 script 순서로 head 맨 앞에 두어 파싱 중 동기 실행(첫 페인트 전).
+            next/script 가 아닌 이유: afterInteractive 는 하이드레이션 뒤라 이미 늦다. */}
+        <style id="boot-cover-style" dangerouslySetInnerHTML={{ __html: BOOT_COVER_STYLE }} />
+        <script id="boot-cover-init" dangerouslySetInnerHTML={{ __html: BOOT_COVER_INIT_SCRIPT }} />
         {/* Typekit (EN 폰트) 비동기 로딩 */}
         <Script id="typekit-loader" strategy="afterInteractive">{`
           (function(){
@@ -86,6 +94,9 @@ export default function RootLayout({
         `}</Script>
       </head>
       <body className="min-h-full flex flex-col bg-bg-primary font-sans antialiased">
+        {/* 부트 커버 노드. 표시 여부는 html 클래스(boot-cover / boot-cover-done)와 CSS 가 결정하고,
+            NativeSplashHide 가 걷는다. React 소유라 DOM 에서 제거하지 않는다. */}
+        <div id={BOOT_COVER_ID} aria-hidden="true" />
         <ClientEffects />
         <NativeSplashHide />
         <ServiceWorkerRegistrar />
@@ -96,6 +107,8 @@ export default function RootLayout({
             <Header />
             <main className="relative z-[1] flex-1">{children}</main>
             <BottomNav />
+            {/* Phase 2-A — 계정 레벨업 축하 오버레이. 셸에 1회 마운트 (모든 경로 공통). */}
+            <AccountLevelUpOverlay />
           </SyncProvider>
         </MotionProvider>
         <Analytics />

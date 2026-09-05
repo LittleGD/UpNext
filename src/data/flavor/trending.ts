@@ -81,7 +81,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
           outcomes: [
             {
               weight: 50,
-              resultText: "화면이 웃는 듯 흔들린다 — 보상 분출!",
+              resultText: "화면이 웃는 듯 흔들린다, 보상 분출!",
               resultTextKey: "uphero.flavor.trd.1.opt0.out0.result",
               effects: [
                 { kind: "reward", coins: 30, xp: 20 },
@@ -116,7 +116,10 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
               weight: 80,
               resultText: "고요가 돌아왔다.",
               resultTextKey: "uphero.flavor.trd.1.opt1.out0.result",
-              effects: [{ kind: "time", delta: -1 }],
+              effects: [
+                { kind: "time", delta: -1 },
+                { kind: "runCurse", stat: "agi", pct: 5, floors: 3 },
+              ],
             },
             {
               weight: 20,
@@ -178,7 +181,10 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "유행이 지나간다.",
               resultTextKey: "uphero.flavor.trd.2.opt1.out0.result",
-              effects: [{ kind: "time", delta: -2 }],
+              effects: [
+                { kind: "time", delta: -2 },
+                { kind: "runCurse", stat: "dex", pct: 5, floors: 3 },
+              ],
             },
           ],
         },
@@ -229,7 +235,10 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "조심스레 지나쳤다.",
               resultTextKey: "uphero.flavor.trd.3.opt1.out0.result",
-              effects: [{ kind: "time", delta: -2 }],
+              effects: [
+                { kind: "time", delta: -2 },
+                { kind: "runCurse", stat: "agi", pct: 5, floors: 3 },
+              ],
             },
           ],
         },
@@ -266,7 +275,10 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
               weight: 70,
               resultText: "룬이 잠잠해지며 희미한 반향만 남는다.",
               resultTextKey: "uphero.flavor.trd.4.opt1.out0.result",
-              effects: [{ kind: "time", delta: -2 }],
+              effects: [
+                { kind: "time", delta: -2 },
+                { kind: "runCurse", stat: "dex", pct: 5, floors: 3 },
+              ],
             },
             {
               weight: 30,
@@ -312,7 +324,10 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
               weight: 75,
               resultText: "별똥별이 잦아들 때까지 버텨냈다.",
               resultTextKey: "uphero.flavor.trd.5.opt1.out0.result",
-              effects: [{ kind: "time", delta: -3 }],
+              effects: [
+                { kind: "time", delta: -3 },
+                { kind: "runBuff", stat: "agi", pct: 5, floors: 5 },
+              ],
             },
             {
               weight: 25,
@@ -359,7 +374,10 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
               weight: 60,
               resultText: "균열은 사라졌지만 흐릿한 잔상만 남았다.",
               resultTextKey: "uphero.flavor.trd.6.opt1.out0.result",
-              effects: [{ kind: "time", delta: -3 }],
+              effects: [
+                { kind: "time", delta: -3 },
+                { kind: "runBuff", stat: "agi", pct: 5, floors: 5 },
+              ],
             },
             {
               weight: 30,

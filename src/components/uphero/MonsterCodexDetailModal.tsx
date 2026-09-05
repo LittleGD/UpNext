@@ -122,6 +122,7 @@ export default function MonsterCodexDetailModal({
         >
           <MonsterSprite
             kind={template.kind}
+            templateId={template.id}
             size={template.isBoss ? 80 : 72}
             color={accent}
           />

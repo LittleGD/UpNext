@@ -1,11 +1,21 @@
 /**
- * Up Hero — Phase 12d: class 별 스킬트리 (4 tier × 8 class = 32 skill).
+ * Up Hero — Phase 12d: class 별 스킬트리 (4 tier × 8 class).
+ *
+ * Phase 3-F (피드백 34b) — 트리가 선형 4칸에서 6노드 분기 트리로 바뀌었다:
+ *   `[T1, T2a, T2b, T3a, T3b, T4]`.
+ * - 기존 T2/T3 16개는 branch "a" 로 편입 (id·수치·i18n 키 불변 → 레거시 저장본
+ *   마이그레이션 없음). 신규 branch "b" 16개는 기존 CombatSession 프리미티브만 쓴다.
+ * - `requires` (any-of): T2.requires=[T1], T3.requires=[T2a,T2b], T4.requires=[T3a,T3b].
+ * - 같은 class·같은 tier 의 두 스킬은 형제 (getSiblingSkill). 둘 중 하나만 배울 수
+ *   있다 (getSkillLearnStatus → "branch"). 리스펙(useUpHeroStore.respecSkills)이 유일한
+ *   출구.
+ * - 학습 규칙은 getSkillLearnStatus 한 곳 (스토어·SkillTreePanel·동치 검증이 공유).
  *
  * 설계:
  * - T1 (Lv30 전직 시 자동 해금): 기존 Phase 6b 스킬 유지, 비용 낮음.
- * - T2 (Lv35+, 1 포인트): 중간 화력 / 지속 효과.
- * - T3 (Lv40+, 1 포인트): 유틸리티 / 버프 / 고유 변주.
- * - T4 (Lv45+, 2 포인트): capstone, 가장 강력 + 자원 소모 큼.
+ * - T2 (Lv35+, 1 포인트): 중간 화력 / 지속 효과. a/b 택일.
+ * - T3 (Lv40+, 1 포인트): 유틸리티 / 버프 / 고유 변주. a/b 택일.
+ * - T4 (Lv45+, 2 포인트): capstone, 가장 강력 + 자원 소모 큼. T3 하나 배우면 열림.
  *
  * 각 스킬은:
  * - `resourceCost`: 자원 (warrior 분노 / mage 마나 등) 소모량.
@@ -63,6 +73,13 @@ export interface ClassSkill {
   requiredLevel: number;
   /** 해금에 소모되는 스킬 포인트 (T1 = 0, T2/T3 = 1, T4 = 2) */
   pointCost: number;
+  /**
+   * Phase 3-F — 분기. T2/T3 만 "a"|"b" (T1/T4 는 undefined).
+   *   같은 class·tier 의 다른 branch 가 형제이며 둘 중 하나만 배운다.
+   */
+  branch?: "a" | "b";
+  /** Phase 3-F — 선행 스킬 id (any-of: 하나라도 배웠으면 충족). T1 은 undefined. */
+  requires?: string[];
   /** auto 모드 발동 조건. 수동 발동에는 canFireSkill 만 체크. */
   shouldFire(s: CombatSession, monster: Monster | null): boolean;
   /** 발동 효과 적용 + skill 로그 entry push */
@@ -123,7 +140,7 @@ const warriorT1: ClassSkill = {
       s,
       "warrior",
       "강타",
-      "영웅이 강타를 준비한다 — 다음 공격 2배",
+      "영웅이 강타를 준비한다: 다음 공격 2배",
       "warrior_smash_t1",
     );
   },
@@ -139,6 +156,8 @@ const warriorT2: ClassSkill = {
   cooldown: 6,
   requiredLevel: 35,
   pointCost: 1,
+  branch: "a",
+  requires: ["warrior_smash_t1"],
   shouldFire: (s, m) => !!m && m.hp > 0 && !s.heroAtkBonusRounds,
   apply(s) {
     s.heroAtkBonusRounds = { rounds: 3, mult: 1.3 };
@@ -146,8 +165,33 @@ const warriorT2: ClassSkill = {
       s,
       "warrior",
       "광폭화",
-      "영웅이 광폭화 — 3 round 공격 +30%",
+      "영웅이 광폭화: 3 round 공격 +30%",
       "warrior_berserk_t2",
+    );
+  },
+};
+
+const warriorT2b: ClassSkill = {
+  id: "warrior_ironwall_t2",
+  class: "warrior",
+  tier: 2,
+  name: "철벽",
+  description: "3 round 동안 받는 피해 -40%.",
+  resourceCost: 45,
+  cooldown: 6,
+  requiredLevel: 35,
+  pointCost: 1,
+  branch: "b",
+  requires: ["warrior_smash_t1"],
+  shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.6 && !s.heroDmgReductionRounds,
+  apply(s) {
+    s.heroDmgReductionRounds = { rounds: 3, reduction: 0.4 };
+    pushSkillLog(
+      s,
+      "warrior",
+      "철벽",
+      "영웅이 철벽처럼 버틴다. 3 round 피해 -40%",
+      "warrior_ironwall_t2",
     );
   },
 };
@@ -162,6 +206,8 @@ const warriorT3: ClassSkill = {
   cooldown: 8,
   requiredLevel: 40,
   pointCost: 1,
+  branch: "a",
+  requires: ["warrior_berserk_t2", "warrior_ironwall_t2"],
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
@@ -171,7 +217,7 @@ const warriorT3: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `분쇄가 ${m.name} 을 강타한다 — ${dmg} 피해`,
+      narrative: `분쇄가 ${m.name} 을 강타한다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.warrior_crush_t3",
       narrativeParams: {
         monster: m.name,
@@ -191,6 +237,32 @@ const warriorT3: ClassSkill = {
   },
 };
 
+const warriorT3b: ClassSkill = {
+  id: "warrior_warcry_t3",
+  class: "warrior",
+  tier: 3,
+  name: "전쟁의 함성",
+  description: "적 1 round 봉인 + 다음 2 round 공격 +40%.",
+  resourceCost: 60,
+  cooldown: 8,
+  requiredLevel: 40,
+  pointCost: 1,
+  branch: "b",
+  requires: ["warrior_berserk_t2", "warrior_ironwall_t2"],
+  shouldFire: (s, m) => !!m && m.hp > 0 && !s.enemyStunnedRounds,
+  apply(s) {
+    s.enemyStunnedRounds = 1;
+    s.heroAtkBonusRounds = { rounds: 2, mult: 1.4 };
+    pushSkillLog(
+      s,
+      "warrior",
+      "전쟁의 함성",
+      "전쟁의 함성이 울린다. 적 1 round 봉인, 2 round 공격 +40%",
+      "warrior_warcry_t3",
+    );
+  },
+};
+
 const warriorT4: ClassSkill = {
   id: "warrior_rage_burst_t4",
   class: "warrior",
@@ -201,6 +273,7 @@ const warriorT4: ClassSkill = {
   cooldown: 10,
   requiredLevel: 45,
   pointCost: 2,
+  requires: ["warrior_crush_t3", "warrior_warcry_t3"],
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
@@ -210,7 +283,7 @@ const warriorT4: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `영웅이 분노를 폭발시킨다 — ${m.name} 에 ${dmg} 고정 피해`,
+      narrative: `영웅이 분노를 폭발시킨다, ${m.name} 에 ${dmg} 고정 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.warrior_rage_burst_t4",
       narrativeParams: {
         monster: m.name,
@@ -254,7 +327,7 @@ const mageT1: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `영웅의 번개가 ${m.name} 을 꿰뚫는다 — ${dmg} 피해`,
+      narrative: `영웅의 번개가 ${m.name} 을 꿰뚫는다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.mage_lightning_t1",
       narrativeParams: {
         monster: m.name,
@@ -284,6 +357,8 @@ const mageT2: ClassSkill = {
   cooldown: 7,
   requiredLevel: 35,
   pointCost: 1,
+  branch: "a",
+  requires: ["mage_lightning_t1"],
   shouldFire: (s, m) => !!m && m.hp > 0 && !s.enemyStunnedRounds,
   apply(s) {
     s.enemyStunnedRounds = 1;
@@ -291,8 +366,33 @@ const mageT2: ClassSkill = {
       s,
       "mage",
       "빙결",
-      "적이 얼어붙었다 — 1 round 공격 불가",
+      "적이 얼어붙었다: 1 round 공격 불가",
       "mage_freeze_t2",
+    );
+  },
+};
+
+const mageT2b: ClassSkill = {
+  id: "mage_manashield_t2",
+  class: "mage",
+  tier: 2,
+  name: "마나 방패",
+  description: "2 round 동안 받는 피해 -50%.",
+  resourceCost: 40,
+  cooldown: 7,
+  requiredLevel: 35,
+  pointCost: 1,
+  branch: "b",
+  requires: ["mage_lightning_t1"],
+  shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.5 && !s.heroDmgReductionRounds,
+  apply(s) {
+    s.heroDmgReductionRounds = { rounds: 2, reduction: 0.5 };
+    pushSkillLog(
+      s,
+      "mage",
+      "마나 방패",
+      "마나 방패가 펼쳐진다. 2 round 피해 -50%",
+      "mage_manashield_t2",
     );
   },
 };
@@ -307,6 +407,8 @@ const mageT3: ClassSkill = {
   cooldown: 5,
   requiredLevel: 40,
   pointCost: 1,
+  branch: "a",
+  requires: ["mage_freeze_t2", "mage_manashield_t2"],
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
@@ -316,7 +418,7 @@ const mageT3: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `불꽃이 ${m.name} 을 휩싼다 — ${dmg} 피해`,
+      narrative: `불꽃이 ${m.name} 을 휩싼다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.mage_fireball_t3",
       narrativeParams: {
         monster: m.name,
@@ -336,6 +438,48 @@ const mageT3: ClassSkill = {
   },
 };
 
+const mageT3b: ClassSkill = {
+  id: "mage_chain_t3",
+  class: "mage",
+  tier: 3,
+  name: "연쇄 번개",
+  description: "적 현재 HP 30% 피해 + 1 round 봉인.",
+  resourceCost: 60,
+  cooldown: 7,
+  requiredLevel: 40,
+  pointCost: 1,
+  branch: "b",
+  requires: ["mage_freeze_t2", "mage_manashield_t2"],
+  shouldFire: (_s, m) => !!m && m.hp > 0,
+  apply(s, m) {
+    if (!m) return;
+    const dmg = Math.round(m.hp * 0.3 * getIntMult(s));
+    s.log.push({
+      type: "combat",
+      attacker: "hero",
+      damage: dmg,
+      outcome: "crit",
+      narrative: `연쇄 번개가 ${m.name} 을 관통한다. ${dmg} 피해`,
+      narrativeKey: "uphero.combat.narrative.skillHitMonster.mage_chain_t3",
+      narrativeParams: {
+        monster: m.name,
+        monsterTemplateId: m.templateId ?? "",
+        damage: dmg,
+      },
+      timestamp: Date.now(),
+    });
+    if (!s.enemyStunnedRounds) s.enemyStunnedRounds = 1;
+    pushSkillLog(
+      s,
+      "mage",
+      "연쇄 번개",
+      `연쇄 번개가 적을 관통한다 (${dmg}), 1 round 봉인`,
+      "mage_chain_t3",
+      { damage: dmg },
+    );
+  },
+};
+
 const mageT4: ClassSkill = {
   id: "mage_meteor_t4",
   class: "mage",
@@ -346,6 +490,7 @@ const mageT4: ClassSkill = {
   cooldown: 12,
   requiredLevel: 45,
   pointCost: 2,
+  requires: ["mage_fireball_t3", "mage_chain_t3"],
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
@@ -355,7 +500,7 @@ const mageT4: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `메테오가 ${m.name} 을 내리친다 — ${dmg} 피해`,
+      narrative: `메테오가 ${m.name} 을 내리친다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.mage_meteor_t4",
       narrativeParams: {
         monster: m.name,
@@ -396,7 +541,7 @@ const monkT1: ClassSkill = {
       s,
       "monk",
       "선정",
-      "영웅이 선정에 든다 — 2 round 회피 100%",
+      "영웅이 선정에 든다: 2 round 회피 100%",
       "monk_zen_t1",
     );
   },
@@ -412,6 +557,8 @@ const monkT2: ClassSkill = {
   cooldown: 7,
   requiredLevel: 35,
   pointCost: 1,
+  branch: "a",
+  requires: ["monk_zen_t1"],
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
@@ -421,7 +568,7 @@ const monkT2: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `일섬 — ${m.name} 을 베어낸다 — ${dmg} 피해`,
+      narrative: `일섬: ${m.name} 을 베어낸다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.monk_flash_t2",
       narrativeParams: {
         monster: m.name,
@@ -441,6 +588,31 @@ const monkT2: ClassSkill = {
   },
 };
 
+const monkT2b: ClassSkill = {
+  id: "monk_ironbody_t2",
+  class: "monk",
+  tier: 2,
+  name: "철포삼",
+  description: "3 round 동안 받는 피해 -35%.",
+  resourceCost: 50,
+  cooldown: 7,
+  requiredLevel: 35,
+  pointCost: 1,
+  branch: "b",
+  requires: ["monk_zen_t1"],
+  shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.6 && !s.heroDmgReductionRounds,
+  apply(s) {
+    s.heroDmgReductionRounds = { rounds: 3, reduction: 0.35 };
+    pushSkillLog(
+      s,
+      "monk",
+      "철포삼",
+      "영웅의 몸이 강철이 된다. 3 round 피해 -35%",
+      "monk_ironbody_t2",
+    );
+  },
+};
+
 const monkT3: ClassSkill = {
   id: "monk_taiji_t3",
   class: "monk",
@@ -451,6 +623,8 @@ const monkT3: ClassSkill = {
   cooldown: 6,
   requiredLevel: 40,
   pointCost: 1,
+  branch: "a",
+  requires: ["monk_flash_t2", "monk_ironbody_t2"],
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.7,
   apply(s) {
     const heal = Math.round(50 * getIntMult(s));
@@ -467,6 +641,31 @@ const monkT3: ClassSkill = {
   },
 };
 
+const monkT3b: ClassSkill = {
+  id: "monk_chainstrike_t3",
+  class: "monk",
+  tier: 3,
+  name: "연환격",
+  description: "다음 공격 피해 2.5배.",
+  resourceCost: 65,
+  cooldown: 6,
+  requiredLevel: 40,
+  pointCost: 1,
+  branch: "b",
+  requires: ["monk_flash_t2", "monk_ironbody_t2"],
+  shouldFire: (s, m) => !!m && m.hp > 0 && !s.nextHeroDamageMult,
+  apply(s) {
+    s.nextHeroDamageMult = 2.5;
+    pushSkillLog(
+      s,
+      "monk",
+      "연환격",
+      "연환격을 준비한다. 다음 공격 2.5배",
+      "monk_chainstrike_t3",
+    );
+  },
+};
+
 const monkT4: ClassSkill = {
   id: "monk_lotus_t4",
   class: "monk",
@@ -477,6 +676,7 @@ const monkT4: ClassSkill = {
   cooldown: 14,
   requiredLevel: 45,
   pointCost: 2,
+  requires: ["monk_taiji_t3", "monk_chainstrike_t3"],
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.3,
   apply(s) {
     s.heroInvulnerableRounds = 3;
@@ -484,7 +684,7 @@ const monkT4: ClassSkill = {
       s,
       "monk",
       "연화",
-      "연꽃이 영웅을 감싼다 — 3 round 무적",
+      "연꽃이 영웅을 감싼다: 3 round 무적",
       "monk_lotus_t4",
     );
   },
@@ -530,6 +730,8 @@ const druidT2: ClassSkill = {
   cooldown: 7,
   requiredLevel: 35,
   pointCost: 1,
+  branch: "a",
+  requires: ["druid_ward_t1"],
   shouldFire: (s, m) => !!m && m.hp > 0 && !s.enemyStunnedRounds,
   apply(s) {
     s.enemyStunnedRounds = 2;
@@ -537,8 +739,37 @@ const druidT2: ClassSkill = {
       s,
       "druid",
       "뿌리옥죄기",
-      "뿌리가 적을 잡아챈다 — 2 round 봉인",
+      "뿌리가 적을 잡아챈다: 2 round 봉인",
       "druid_root_t2",
+    );
+  },
+};
+
+const druidT2b: ClassSkill = {
+  id: "druid_vigor_t2",
+  class: "druid",
+  tier: 2,
+  name: "자연의 활력",
+  description: "HP +60 회복 + 1 round 회피 100%.",
+  resourceCost: 50,
+  cooldown: 7,
+  requiredLevel: 35,
+  pointCost: 1,
+  branch: "b",
+  requires: ["druid_ward_t1"],
+  shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.5,
+  apply(s) {
+    const heal = Math.round(60 * getIntMult(s));
+    const healed = Math.min(s.hero.maxHp - s.hero.hp, heal);
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
+    s.forcedDodgeRounds = 1;
+    pushSkillLog(
+      s,
+      "druid",
+      "자연의 활력",
+      `자연의 활력이 흐른다. HP +${healed}, 1 round 회피`,
+      "druid_vigor_t2",
+      { heal: healed },
     );
   },
 };
@@ -553,6 +784,8 @@ const druidT3: ClassSkill = {
   cooldown: 8,
   requiredLevel: 40,
   pointCost: 1,
+  branch: "a",
+  requires: ["druid_root_t2", "druid_vigor_t2"],
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.5,
   apply(s) {
     const heal = Math.round(80 * getIntMult(s));
@@ -569,6 +802,31 @@ const druidT3: ClassSkill = {
   },
 };
 
+const druidT3b: ClassSkill = {
+  id: "druid_claw_t3",
+  class: "druid",
+  tier: 3,
+  name: "맹수의 발톱",
+  description: "3 round 동안 공격 +40%.",
+  resourceCost: 60,
+  cooldown: 8,
+  requiredLevel: 40,
+  pointCost: 1,
+  branch: "b",
+  requires: ["druid_root_t2", "druid_vigor_t2"],
+  shouldFire: (s, m) => !!m && m.hp > 0 && !s.heroAtkBonusRounds,
+  apply(s) {
+    s.heroAtkBonusRounds = { rounds: 3, mult: 1.4 };
+    pushSkillLog(
+      s,
+      "druid",
+      "맹수의 발톱",
+      "맹수의 발톱이 돋는다. 3 round 공격 +40%",
+      "druid_claw_t3",
+    );
+  },
+};
+
 const druidT4: ClassSkill = {
   id: "druid_wild_call_t4",
   class: "druid",
@@ -579,6 +837,7 @@ const druidT4: ClassSkill = {
   cooldown: 12,
   requiredLevel: 45,
   pointCost: 2,
+  requires: ["druid_grove_t3", "druid_claw_t3"],
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
@@ -589,7 +848,7 @@ const druidT4: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `야생의 짐승이 ${m.name} 을 공격한다 — ${dmg} 피해`,
+      narrative: `야생의 짐승이 ${m.name} 을 공격한다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.druid_wild_call_t4",
       narrativeParams: {
         monster: m.name,
@@ -632,7 +891,7 @@ const bardT1: ClassSkill = {
       s,
       "bard",
       "노래",
-      "용기의 노래 — 다음 처치 보상 1.5배",
+      "용기의 노래: 다음 처치 보상 1.5배",
       "bard_song_t1",
     );
   },
@@ -648,6 +907,8 @@ const bardT2: ClassSkill = {
   cooldown: 5,
   requiredLevel: 35,
   pointCost: 1,
+  branch: "a",
+  requires: ["bard_song_t1"],
   shouldFire: (s) => !s.heroAtkBonusRounds,
   apply(s) {
     s.heroAtkBonusRounds = { rounds: 3, mult: 1.25 };
@@ -657,6 +918,31 @@ const bardT2: ClassSkill = {
       "협연",
       "3 round 공격 +25%",
       "bard_ensemble_t2",
+    );
+  },
+};
+
+const bardT2b: ClassSkill = {
+  id: "bard_lullaby_t2",
+  class: "bard",
+  tier: 2,
+  name: "자장가",
+  description: "적 1 round 행동 봉인.",
+  resourceCost: 45,
+  cooldown: 6,
+  requiredLevel: 35,
+  pointCost: 1,
+  branch: "b",
+  requires: ["bard_song_t1"],
+  shouldFire: (s, m) => !!m && m.hp > 0 && !s.enemyStunnedRounds,
+  apply(s) {
+    s.enemyStunnedRounds = 1;
+    pushSkillLog(
+      s,
+      "bard",
+      "자장가",
+      "자장가가 적을 재운다. 1 round 봉인",
+      "bard_lullaby_t2",
     );
   },
 };
@@ -671,6 +957,8 @@ const bardT3: ClassSkill = {
   cooldown: 6,
   requiredLevel: 40,
   pointCost: 1,
+  branch: "a",
+  requires: ["bard_ensemble_t2", "bard_lullaby_t2"],
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.7,
   apply(s) {
     const heal = Math.round(30 * getIntMult(s));
@@ -687,6 +975,32 @@ const bardT3: ClassSkill = {
   },
 };
 
+const bardT3b: ClassSkill = {
+  id: "bard_fortune_t3",
+  class: "bard",
+  tier: 3,
+  name: "행운의 노래",
+  description: "다음 처치 코인 2배 + 다음 2 공격 반드시 crit.",
+  resourceCost: 60,
+  cooldown: 8,
+  requiredLevel: 40,
+  pointCost: 1,
+  branch: "b",
+  requires: ["bard_ensemble_t2", "bard_lullaby_t2"],
+  shouldFire: (s, m) => !!m && m.hp > 0 && !s.guaranteedCritAttacks,
+  apply(s) {
+    s.nextCoinMult = 2.0;
+    s.guaranteedCritAttacks = 2;
+    pushSkillLog(
+      s,
+      "bard",
+      "행운의 노래",
+      "행운의 노래. 다음 처치 코인 2배, 다음 2 공격 crit",
+      "bard_fortune_t3",
+    );
+  },
+};
+
 const bardT4: ClassSkill = {
   id: "bard_epic_t4",
   class: "bard",
@@ -697,6 +1011,7 @@ const bardT4: ClassSkill = {
   cooldown: 10,
   requiredLevel: 45,
   pointCost: 2,
+  requires: ["bard_anthem_t3", "bard_fortune_t3"],
   // Phase 13 review Critical #4 — boss 또는 고 HP 적 전용 발동. 이전엔 일반
   //   몬스터 만나면 즉시 발동 → 5 crit 낭비 후 보스전에 자원 부족. 이제 보스
   //   또는 HP 150+ (F8+ 몬스터 수준) 에서만 트리거.
@@ -753,6 +1068,8 @@ const chronoT2: ClassSkill = {
   cooldown: 6,
   requiredLevel: 35,
   pointCost: 1,
+  branch: "a",
+  requires: ["chrono_rewind_t1"],
   shouldFire: (s) => {
     // 어떤 skill 이든 cd 남아있으면 의미 있음
     const cds = s.skillCooldowns ?? {};
@@ -772,6 +1089,31 @@ const chronoT2: ClassSkill = {
   },
 };
 
+const chronoT2b: ClassSkill = {
+  id: "chrono_warp_t2",
+  class: "chronomancer",
+  tier: 2,
+  name: "시간 왜곡",
+  description: "2 round 회피 100%.",
+  resourceCost: 55,
+  cooldown: 7,
+  requiredLevel: 35,
+  pointCost: 1,
+  branch: "b",
+  requires: ["chrono_rewind_t1"],
+  shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.5 && !s.forcedDodgeRounds,
+  apply(s) {
+    s.forcedDodgeRounds = 2;
+    pushSkillLog(
+      s,
+      "chronomancer",
+      "시간 왜곡",
+      "시간이 왜곡된다. 2 round 회피 100%",
+      "chrono_warp_t2",
+    );
+  },
+};
+
 const chronoT3: ClassSkill = {
   id: "chrono_stop_t3",
   class: "chronomancer",
@@ -782,6 +1124,8 @@ const chronoT3: ClassSkill = {
   cooldown: 8,
   requiredLevel: 40,
   pointCost: 1,
+  branch: "a",
+  requires: ["chrono_accel_t2", "chrono_warp_t2"],
   shouldFire: (s, m) => !!m && m.hp > 0 && !s.enemyStunnedRounds,
   apply(s) {
     s.enemyStunnedRounds = 2;
@@ -789,8 +1133,34 @@ const chronoT3: ClassSkill = {
       s,
       "chronomancer",
       "시간 정지",
-      "시간이 멈춘다 — 2 round 봉인",
+      "시간이 멈춘다: 2 round 봉인",
       "chrono_stop_t3",
+    );
+  },
+};
+
+const chronoT3b: ClassSkill = {
+  id: "chrono_foresight_t3",
+  class: "chronomancer",
+  tier: 3,
+  name: "미래 예지",
+  description: "다음 3 공격 반드시 crit.",
+  resourceCost: 65,
+  cooldown: 8,
+  requiredLevel: 40,
+  pointCost: 1,
+  branch: "b",
+  requires: ["chrono_accel_t2", "chrono_warp_t2"],
+  shouldFire: (s, m) =>
+    !!m && m.hp > 0 && !s.guaranteedCritAttacks && (!!m.isBoss || m.hp >= 150),
+  apply(s) {
+    s.guaranteedCritAttacks = 3;
+    pushSkillLog(
+      s,
+      "chronomancer",
+      "미래 예지",
+      "미래를 본다. 다음 3 공격 반드시 crit",
+      "chrono_foresight_t3",
     );
   },
 };
@@ -805,6 +1175,7 @@ const chronoT4: ClassSkill = {
   cooldown: 14,
   requiredLevel: 45,
   pointCost: 2,
+  requires: ["chrono_stop_t3", "chrono_foresight_t3"],
   shouldFire: (s) =>
     s.hero.hp < s.hero.maxHp * 0.4 || s.time < s.maxTime * 0.3,
   apply(s) {
@@ -859,6 +1230,8 @@ const priestT2: ClassSkill = {
   cooldown: 7,
   requiredLevel: 35,
   pointCost: 1,
+  branch: "a",
+  requires: ["priest_light_t1"],
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.6,
   apply(s) {
     const heal = Math.round(40 * getIntMult(s));
@@ -875,6 +1248,31 @@ const priestT2: ClassSkill = {
   },
 };
 
+const priestT2b: ClassSkill = {
+  id: "priest_favor_t2",
+  class: "priest",
+  tier: 2,
+  name: "신의 가호",
+  description: "1 round 무적.",
+  resourceCost: 50,
+  cooldown: 9,
+  requiredLevel: 35,
+  pointCost: 1,
+  branch: "b",
+  requires: ["priest_light_t1"],
+  shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.4 && !s.heroInvulnerableRounds,
+  apply(s) {
+    s.heroInvulnerableRounds = 1;
+    pushSkillLog(
+      s,
+      "priest",
+      "신의 가호",
+      "신의 가호가 내린다. 1 round 무적",
+      "priest_favor_t2",
+    );
+  },
+};
+
 const priestT3: ClassSkill = {
   id: "priest_judgment_t3",
   class: "priest",
@@ -885,6 +1283,8 @@ const priestT3: ClassSkill = {
   cooldown: 6,
   requiredLevel: 40,
   pointCost: 1,
+  branch: "a",
+  requires: ["priest_purge_t2", "priest_favor_t2"],
   shouldFire: (_s, m) => !!m && m.hp > 0,
   apply(s, m) {
     if (!m) return;
@@ -894,7 +1294,7 @@ const priestT3: ClassSkill = {
       attacker: "hero",
       damage: dmg,
       outcome: "crit",
-      narrative: `심판 — ${m.name} 이 빛에 타들어간다 — ${dmg} 피해`,
+      narrative: `심판: ${m.name} 이 빛에 타들어간다, ${dmg} 피해`,
       narrativeKey: "uphero.combat.narrative.skillHitMonster.priest_judgment_t3",
       narrativeParams: {
         monster: m.name,
@@ -914,6 +1314,35 @@ const priestT3: ClassSkill = {
   },
 };
 
+const priestT3b: ClassSkill = {
+  id: "priest_bless_t3",
+  class: "priest",
+  tier: 3,
+  name: "축복",
+  description: "HP +60 회복 + 3 round 공격 +25%.",
+  resourceCost: 60,
+  cooldown: 7,
+  requiredLevel: 40,
+  pointCost: 1,
+  branch: "b",
+  requires: ["priest_purge_t2", "priest_favor_t2"],
+  shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.7 && !s.heroAtkBonusRounds,
+  apply(s) {
+    const heal = Math.round(60 * getIntMult(s));
+    const healed = Math.min(s.hero.maxHp - s.hero.hp, heal);
+    s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + heal);
+    s.heroAtkBonusRounds = { rounds: 3, mult: 1.25 };
+    pushSkillLog(
+      s,
+      "priest",
+      "축복",
+      `축복이 내린다. HP +${healed}, 3 round 공격 +25%`,
+      "priest_bless_t3",
+      { heal: healed },
+    );
+  },
+};
+
 const priestT4: ClassSkill = {
   id: "priest_revive_t4",
   class: "priest",
@@ -924,6 +1353,7 @@ const priestT4: ClassSkill = {
   cooldown: 20,
   requiredLevel: 45,
   pointCost: 2,
+  requires: ["priest_judgment_t3", "priest_bless_t3"],
   // Phase 13 review Critical #3 — 이전 `!s.revivePending` 만 있어 풀 HP 에서도
   //   자원 차자마자 queue → T1 힐이 영원히 skip. 이제 HP 35% 이하 위험 상태에서만
   //   revive 준비 → 비위험 상황엔 T1 `성스러운 빛` (HP 20% 이하 완치) 이 자연
@@ -962,7 +1392,7 @@ const illusT1: ClassSkill = {
       s,
       "illusionist",
       "환영",
-      "환영 — 다음 3 공격 miss",
+      "환영: 다음 3 공격 miss",
       "illus_mirage_t1",
     );
   },
@@ -978,6 +1408,8 @@ const illusT2: ClassSkill = {
   cooldown: 7,
   requiredLevel: 35,
   pointCost: 1,
+  branch: "a",
+  requires: ["illus_mirage_t1"],
   shouldFire: (s) => !s.heroAtkBonusRounds,
   apply(s) {
     s.heroAtkBonusRounds = { rounds: 2, mult: 2.0 };
@@ -987,6 +1419,31 @@ const illusT2: ClassSkill = {
       "분신",
       "2 round 공격 2배",
       "illus_double_t2",
+    );
+  },
+};
+
+const illusT2b: ClassSkill = {
+  id: "illus_shadow_t2",
+  class: "illusionist",
+  tier: 2,
+  name: "그림자 걸음",
+  description: "2 round 회피 100%.",
+  resourceCost: 50,
+  cooldown: 7,
+  requiredLevel: 35,
+  pointCost: 1,
+  branch: "b",
+  requires: ["illus_mirage_t1"],
+  shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.5 && !s.forcedDodgeRounds,
+  apply(s) {
+    s.forcedDodgeRounds = 2;
+    pushSkillLog(
+      s,
+      "illusionist",
+      "그림자 걸음",
+      "그림자 속으로 사라진다. 2 round 회피 100%",
+      "illus_shadow_t2",
     );
   },
 };
@@ -1001,6 +1458,8 @@ const illusT3: ClassSkill = {
   cooldown: 8,
   requiredLevel: 40,
   pointCost: 1,
+  branch: "a",
+  requires: ["illus_double_t2", "illus_shadow_t2"],
   shouldFire: (s, m) => !!m && m.hp > 0 && !s.enemyStunnedRounds,
   apply(s) {
     s.enemyStunnedRounds = 2;
@@ -1008,8 +1467,49 @@ const illusT3: ClassSkill = {
       s,
       "illusionist",
       "환혹",
-      "적이 홀려 움직이지 못한다 — 2 round",
+      "적이 홀려 움직이지 못한다: 2 round",
       "illus_charm_t3",
+    );
+  },
+};
+
+const illusT3b: ClassSkill = {
+  id: "illus_burst_t3",
+  class: "illusionist",
+  tier: 3,
+  name: "환상 폭발",
+  description: "적 현재 HP 30% 피해.",
+  resourceCost: 65,
+  cooldown: 7,
+  requiredLevel: 40,
+  pointCost: 1,
+  branch: "b",
+  requires: ["illus_double_t2", "illus_shadow_t2"],
+  shouldFire: (_s, m) => !!m && m.hp > 0,
+  apply(s, m) {
+    if (!m) return;
+    const dmg = Math.round(m.hp * 0.3 * getIntMult(s));
+    s.log.push({
+      type: "combat",
+      attacker: "hero",
+      damage: dmg,
+      outcome: "crit",
+      narrative: `환상이 ${m.name} 앞에서 폭발한다. ${dmg} 피해`,
+      narrativeKey: "uphero.combat.narrative.skillHitMonster.illus_burst_t3",
+      narrativeParams: {
+        monster: m.name,
+        monsterTemplateId: m.templateId ?? "",
+        damage: dmg,
+      },
+      timestamp: Date.now(),
+    });
+    pushSkillLog(
+      s,
+      "illusionist",
+      "환상 폭발",
+      `환상이 폭발한다 (${dmg})`,
+      "illus_burst_t3",
+      { damage: dmg },
     );
   },
 };
@@ -1024,6 +1524,7 @@ const illusT4: ClassSkill = {
   cooldown: 12,
   requiredLevel: 45,
   pointCost: 2,
+  requires: ["illus_charm_t3", "illus_burst_t3"],
   shouldFire: (s) => s.hero.hp < s.hero.maxHp * 0.3,
   apply(s) {
     s.heroInvulnerableRounds = 3;
@@ -1031,7 +1532,7 @@ const illusT4: ClassSkill = {
       s,
       "illusionist",
       "환몽",
-      "영웅이 꿈 속으로 — 3 round 무적",
+      "영웅이 꿈 속으로: 3 round 무적",
       "illus_dreamscape_t4",
     );
   },
@@ -1099,7 +1600,7 @@ const noviceFocus: ClassSkill = {
       s,
       "novice",
       "집중 일격",
-      "영웅이 깊게 호흡한다 — 다음 공격 +50%.",
+      "영웅이 깊게 호흡한다: 다음 공격 +50%.",
       "novice_focus",
     );
   },
@@ -1127,7 +1628,7 @@ const noviceBrace: ClassSkill = {
       s,
       "novice",
       "방어 자세",
-      "영웅이 자세를 낮춘다 — 다음 피해 -50%.",
+      "영웅이 자세를 낮춘다: 다음 피해 -50%.",
       "novice_brace",
     );
   },
@@ -1141,14 +1642,14 @@ export const NOVICE_SKILLS: ClassSkill[] = [noviceHeal, noviceFocus, noviceBrace
  * ──────────────────────────────────────────── */
 
 export const CLASS_SKILL_TREES: Record<ClassType, ClassSkill[]> = {
-  warrior: [warriorT1, warriorT2, warriorT3, warriorT4],
-  mage: [mageT1, mageT2, mageT3, mageT4],
-  monk: [monkT1, monkT2, monkT3, monkT4],
-  druid: [druidT1, druidT2, druidT3, druidT4],
-  bard: [bardT1, bardT2, bardT3, bardT4],
-  chronomancer: [chronoT1, chronoT2, chronoT3, chronoT4],
-  priest: [priestT1, priestT2, priestT3, priestT4],
-  illusionist: [illusT1, illusT2, illusT3, illusT4],
+  warrior: [warriorT1, warriorT2, warriorT2b, warriorT3, warriorT3b, warriorT4],
+  mage: [mageT1, mageT2, mageT2b, mageT3, mageT3b, mageT4],
+  monk: [monkT1, monkT2, monkT2b, monkT3, monkT3b, monkT4],
+  druid: [druidT1, druidT2, druidT2b, druidT3, druidT3b, druidT4],
+  bard: [bardT1, bardT2, bardT2b, bardT3, bardT3b, bardT4],
+  chronomancer: [chronoT1, chronoT2, chronoT2b, chronoT3, chronoT3b, chronoT4],
+  priest: [priestT1, priestT2, priestT2b, priestT3, priestT3b, priestT4],
+  illusionist: [illusT1, illusT2, illusT2b, illusT3, illusT3b, illusT4],
 };
 
 /**
@@ -1165,6 +1666,67 @@ export const CLASS_SKILLS: Record<ClassType, ClassSkill> = {
   priest: priestT1,
   illusionist: illusT1,
 };
+
+/** 트리 tier 순서 (UI 렌더 순서). tier 2/3 은 2열, 1/4 는 1열. */
+export const SKILL_TREE_TIERS = [1, 2, 3, 4] as const;
+
+/**
+ * Phase 3-F — 학습 판정 결과.
+ *   ok       : 배울 수 있다
+ *   learned  : 이미 배웠다
+ *   class    : classType 이 없거나 다른 class 의 스킬
+ *   level    : 영웅 레벨 부족
+ *   requires : 선행 스킬(any-of) 미충족
+ *   branch   : 같은 tier 의 형제 스킬을 이미 배웠다
+ *   points   : 남은 SP 부족
+ * iOS `ClassSkills.SkillLearnStatus.webName` 과 문자열이 같아야 한다 (동치 검증).
+ */
+export type SkillLearnStatus =
+  | "ok"
+  | "learned"
+  | "class"
+  | "level"
+  | "requires"
+  | "branch"
+  | "points";
+
+/** 같은 class·같은 tier 의 다른 branch 스킬. T1/T4/novice 는 null. */
+export function getSiblingSkill(skill: ClassSkill): ClassSkill | null {
+  if (skill.class === "novice" || !skill.branch) return null;
+  const tree = CLASS_SKILL_TREES[skill.class];
+  return (
+    tree.find(
+      (x) => x.tier === skill.tier && x.id !== skill.id && !!x.branch,
+    ) ?? null
+  );
+}
+
+/**
+ * Phase 3-F — 단일 학습 규칙. 스토어 learnSkill 과 SkillTreePanel 이 같이 쓴다.
+ *   검사 순서 고정: learned → class → level → requires → branch → points → ok.
+ *   (이미 배운 스킬은 다른 이유보다 먼저 "learned", class 불일치는 level 보다 먼저.)
+ */
+export function getSkillLearnStatus(
+  skill: ClassSkill,
+  ctx: {
+    classType: ClassType | null;
+    heroLevel: number;
+    learned: string[];
+    points: number;
+  },
+): SkillLearnStatus {
+  if (ctx.learned.includes(skill.id)) return "learned";
+  if (!ctx.classType || skill.class !== ctx.classType) return "class";
+  if (ctx.heroLevel < skill.requiredLevel) return "level";
+  const req = skill.requires ?? [];
+  if (req.length > 0 && !req.some((id) => ctx.learned.includes(id))) {
+    return "requires";
+  }
+  const sibling = getSiblingSkill(skill);
+  if (sibling && ctx.learned.includes(sibling.id)) return "branch";
+  if (ctx.points < skill.pointCost) return "points";
+  return "ok";
+}
 
 /** skillId → ClassSkill lookup (어느 트리에 속한지와 무관). */
 export function findSkillById(id: string): ClassSkill | null {
@@ -1236,6 +1798,12 @@ export function fireSkill(
  * Phase 12d — auto 모드 스킬 시도. maybeFireSkill 대체.
  *   해금된 스킬 중 자원 충족 + 쿨다운 0 + shouldFire true 인 것들 중 **상위 tier
  *   우선** 발동 (T4 > T3 > T2 > T1). 1 round 당 최대 1 스킬.
+ *
+ * Phase 3-F — 동 tier 타이브레이크 = CLASS_SKILL_TREES 선언 순서 (a 먼저, 그 다음 b).
+ *   정상 저장본은 tier 당 최대 1개만 배우므로 충돌은 레거시/손상 데이터에서만 생긴다.
+ *   Array.prototype.sort 는 안정 정렬(ES2019+)이라 비교자만 tier 로 두면 선언 순서가
+ *   유지된다 — 비교자를 비안정 정렬로 바꾸지 말 것 (classSkills.test.ts 가 고정).
+ *   iOS 는 (tier desc, offset asc) 정렬로 같은 결과를 낸다.
  */
 export function maybeFireSkill(
   s: CombatSession,

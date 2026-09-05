@@ -17,7 +17,7 @@
 
 import AVFoundation
 
-/// 34 사운드 — 웹 SoundName 전체. (이전 10 개 → 17 개 추가, 굴림틀 7 개 추가.)
+/// 38 사운드 — 웹 SoundName 전체. (이전 10 개 → 17 개 추가, 굴림틀 7 개, 강화 상위 밴드 4 개.)
 enum SoundName: String, CaseIterable {
     // UI 클릭·확정·취소
     case select, confirm, cancel
@@ -35,6 +35,24 @@ enum SoundName: String, CaseIterable {
     // 웹 sounds.ts 굴림틀 7종 — 새 에셋 없이 기존 칩튠 프리미티브 재조합.
     case slotLever, slotTick, slotStop, slotThud
     case slotWinSmall, slotWinMid, slotWinBig
+    // Phase 5-B — 강화 상위 밴드 (+11..+20) 연출. 소리는 ritual 끝에만 (스포일 금지).
+    // 웹 sounds.ts enhanceCharge / enhanceSuccessHigh / enhanceSuccessMax / enhanceShatter.
+    case enhanceCharge, enhanceSuccessHigh, enhanceSuccessMax, enhanceShatter
+}
+
+extension SoundName {
+    /// Phase 5-B — 강화 상위 밴드 4종의 햅틱 의도. 웹 sounds.ts HAPTIC_INTENT 의 같은
+    /// 항목 (충전 light / band1 성공 success / band2 성공 celebration / 소실 heavy).
+    /// 그 외 사운드는 호출부가 각자 Haptics 를 고른다 (기존 패턴) — nil.
+    var enhanceHapticIntent: Haptics.Intent? {
+        switch self {
+        case .enhanceCharge:      return .light
+        case .enhanceSuccessHigh: return .success
+        case .enhanceSuccessMax:  return .celebration
+        case .enhanceShatter:     return .heavy
+        default:                  return nil
+        }
+    }
 }
 
 // MARK: - 합성 모델
@@ -663,6 +681,63 @@ final class SoundPlayer {
                 OscillatorRecipe(523, start: 0.36, duration: 0.42, volume: 0.25, waveform: .triangle),
                 OscillatorRecipe(2093, start: 0.62, duration: 0.05, volume: 0.3),
                 OscillatorRecipe(1760, start: 0.74, duration: 0.05, volume: 0.22),
+            ]
+
+        // ───────── 강화 상위 밴드 (웹 sounds.ts Phase 5-B 4종) ─────────
+        case .enhanceCharge:
+            // 충전 — 700ms triangle riser 220→880Hz (8ms 어택 → 0.45 → 0.7s decay)
+            // + 미세한 square 틱 5개 (440 + i×110 Hz, 0.12 + i×0.11 s, 30ms, 0.12).
+            return [
+                OscillatorRecipe(220, 880, duration: 0.7, volume: 0.45, waveform: .triangle,
+                                 customEnvelope: [
+                                     EnvelopePoint(time: 0.08, value: 1.0, kind: .exponential),
+                                     EnvelopePoint(time: 0.7, value: 0.0001, kind: .exponential),
+                                 ]),
+                OscillatorRecipe(440, start: 0.12, duration: 0.03, volume: 0.12),
+                OscillatorRecipe(550, start: 0.23, duration: 0.03, volume: 0.12),
+                OscillatorRecipe(660, start: 0.34, duration: 0.03, volume: 0.12),
+                OscillatorRecipe(770, start: 0.45, duration: 0.03, volume: 0.12),
+                OscillatorRecipe(880, start: 0.56, duration: 0.03, volume: 0.12),
+            ]
+        case .enhanceSuccessHigh:
+            // band 1 성공 — C5 E5 G5 아르페지오 + 높은 triangle 차임 두 겹, 600ms.
+            return [
+                OscillatorRecipe(523, duration: 0.1, volume: 1.0),
+                OscillatorRecipe(659, start: 0.1, duration: 0.1, volume: 1.0),
+                OscillatorRecipe(784, start: 0.2, duration: 0.14, volume: 1.0),
+                OscillatorRecipe(1568, start: 0.34, duration: 0.26, volume: 0.55, waveform: .triangle),
+                OscillatorRecipe(2093, start: 0.4, duration: 0.2, volume: 0.3, waveform: .triangle),
+            ]
+        case .enhanceSuccessMax:
+            // band 2 성공 — 리버스 심벌 대용 sweep 두 겹 + C5 E5 G5 C6 코러스(옥타브 아래
+            // triangle 동반) + 꼭대기 E6 유지 + 반짝임 3개, 1100ms.
+            return [
+                OscillatorRecipe(120, 1200, duration: 0.35, volume: 0.35),
+                OscillatorRecipe(180, 1600, start: 0.05, duration: 0.3, volume: 0.2),
+                OscillatorRecipe(523, start: 0.36, duration: 0.5, volume: 0.45),
+                OscillatorRecipe(261.5, start: 0.36, duration: 0.5, volume: 0.18, waveform: .triangle),
+                OscillatorRecipe(659, start: 0.39, duration: 0.5, volume: 0.45),
+                OscillatorRecipe(329.5, start: 0.39, duration: 0.5, volume: 0.18, waveform: .triangle),
+                OscillatorRecipe(784, start: 0.42, duration: 0.5, volume: 0.45),
+                OscillatorRecipe(392, start: 0.42, duration: 0.5, volume: 0.18, waveform: .triangle),
+                OscillatorRecipe(1047, start: 0.45, duration: 0.5, volume: 0.45),
+                OscillatorRecipe(523.5, start: 0.45, duration: 0.5, volume: 0.18, waveform: .triangle),
+                OscillatorRecipe(1319, start: 0.5, duration: 0.6, volume: 0.8),
+                OscillatorRecipe(2637, start: 0.82, duration: 0.06, volume: 0.3),
+                OscillatorRecipe(2093, start: 0.94, duration: 0.06, volume: 0.22),
+                OscillatorRecipe(3136, start: 1.02, duration: 0.06, volume: 0.18),
+            ]
+        case .enhanceShatter:
+            // band >= 1 소실 — 짧은 square 클러스터(노이즈 근사) + 600→80Hz sweep + 낮은
+            // triangle 타격, 500ms.
+            return [
+                OscillatorRecipe(1873, duration: 0.06, volume: 0.28),
+                OscillatorRecipe(2311, start: 0.012, duration: 0.06, volume: 0.28),
+                OscillatorRecipe(1493, start: 0.024, duration: 0.06, volume: 0.28),
+                OscillatorRecipe(2707, start: 0.036, duration: 0.06, volume: 0.28),
+                OscillatorRecipe(1117, start: 0.048, duration: 0.06, volume: 0.28),
+                OscillatorRecipe(600, 80, start: 0.04, duration: 0.46, volume: 0.7),
+                OscillatorRecipe(70, start: 0.02, duration: 0.3, volume: 0.6, waveform: .triangle),
             ]
         }
     }

@@ -25,7 +25,7 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
             },
             {
               weight: 30,
-              resultText: "쓴맛이 돈다 — 독 열매였다.",
+              resultText: "쓴맛이 돈다. 독 열매였다.",
               resultTextKey: "uphero.flavor.ntr.0.opt0.out1.result",
               effects: [
                 { kind: "damage", amount: 15 },
@@ -52,7 +52,10 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "조심스레 지나친다.",
               resultTextKey: "uphero.flavor.ntr.0.opt1.out0.result",
-              effects: [{ kind: "time", delta: -1 }],
+              effects: [
+                { kind: "time", delta: -1 },
+                { kind: "runCurse", stat: "agi", pct: 5, floors: 3 },
+              ],
             },
           ],
         },
@@ -104,7 +107,10 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "목이 마르지만 참는다.",
               resultTextKey: "uphero.flavor.ntr.1.opt1.out0.result",
-              effects: [{ kind: "time", delta: -1 }],
+              effects: [
+                { kind: "time", delta: -1 },
+                { kind: "runCurse", stat: "dex", pct: 5, floors: 3 },
+              ],
             },
           ],
         },
@@ -158,7 +164,10 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "다음을 기약한다.",
               resultTextKey: "uphero.flavor.ntr.2.opt1.out0.result",
-              effects: [{ kind: "time", delta: -1 }],
+              effects: [
+                { kind: "time", delta: -1 },
+                { kind: "runCurse", stat: "agi", pct: 5, floors: 3 },
+              ],
             },
           ],
         },
@@ -210,7 +219,10 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "다음 길을 간다.",
               resultTextKey: "uphero.flavor.ntr.3.opt1.out0.result",
-              effects: [{ kind: "time", delta: -2 }],
+              effects: [
+                { kind: "time", delta: -2 },
+                { kind: "runCurse", stat: "dex", pct: 5, floors: 3 },
+              ],
             },
           ],
         },
@@ -265,7 +277,10 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "모르는 것은 두고 간다.",
               resultTextKey: "uphero.flavor.ntr.4.opt1.out0.result",
-              effects: [{ kind: "time", delta: -1 }],
+              effects: [
+                { kind: "time", delta: -1 },
+                { kind: "runCurse", stat: "agi", pct: 5, floors: 3 },
+              ],
             },
           ],
         },
@@ -281,7 +296,7 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
           outcomes: [
             {
               weight: 55,
-              resultText: "말린 고기와 곡식 — 오래됐지만 먹을 만하다.",
+              resultText: "말린 고기와 곡식, 오래됐지만 먹을 만하다.",
               resultTextKey: "uphero.flavor.ntr.5.opt0.out0.result",
               effects: [
                 { kind: "heal", amount: 20 },
@@ -317,7 +332,10 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "남의 물건엔 손대지 않는다.",
               resultTextKey: "uphero.flavor.ntr.5.opt1.out0.result",
-              effects: [{ kind: "time", delta: -1 }],
+              effects: [
+                { kind: "time", delta: -1 },
+                { kind: "runCurse", stat: "dex", pct: 5, floors: 3 },
+              ],
             },
           ],
         },
@@ -456,7 +474,10 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
               weight: 100,
               resultText: "농부가 아쉬운 표정으로 돌아선다.",
               resultTextKey: "uphero.flavor.ntr.8.opt1.out0.result",
-              effects: [{ kind: "time", delta: -1 }],
+              effects: [
+                { kind: "time", delta: -1 },
+                { kind: "runCurse", stat: "agi", pct: 5, floors: 3 },
+              ],
             },
           ],
         },

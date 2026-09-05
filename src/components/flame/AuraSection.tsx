@@ -105,32 +105,20 @@ function cautionKey(kind: AuraKind, today: string, salt: string): DictKey {
   return `aura.caution.${kind}.${auraCautionIndex(today, salt, kind)}` as DictKey;
 }
 
-const KIND_ICON: Record<AuraKind, string> = {
-  wealth: "Coins",
-  relationship: "Users",
-  health: "Heart",
-};
-
-/* 인화지 위 잉크 — 폴라로이드(FortuneCard)와 같은 관례 */
+/* 인화지 위 잉크 — 폴라로이드(FortuneCard)·iOS AuraPaper 와 같은 관례 */
 const INK = "#2a2a28";
-const INK_SOFT = "#4a4a46";
+const INK_SOFT = "#6b6b66";
 const INK_FAINT = "#9a9a94";
 
 /**
- * 등급별 강조. 인화지(#f2f1ee) 위에서는 밝은 오늘의 색이 읽히지 않으므로
- * 색 대비는 잉크 농도로 만들고, 오늘의 색은 사진 영역(어두운 바탕)에만 실어
- * 한 벌로 묶는다.
+ * 등급 표시는 잉크 한 단어뿐이다(iOS AuraReadingView 카드와 같은 계약).
+ * 인화지(#f2f1ee) 위에서는 밝은 오늘의 색이 읽히지 않으므로 오늘의 색은
+ * 카드 상단에 스민 결(paperGround)과 칩의 등급 텍스트에만 쓴다.
  *
  * 눈금·막대·점 열은 쓰지 않는다. 네 칸 중 하나만 켜는 다이얼도 결국
- * "4분의 1짜리 게이지"로 읽혀서, 잔잔이 텅 빈 그림이 된다.
- * 등급 차이는 잉크 농도(ink)와 사진 영역 글로우 세기(glow)로만 드러낸다.
+ * "4분의 1짜리 게이지"로 읽혀서, 잔잔이 텅 빈 그림이 된다. 등급 차이는
+ * 공개 이펙트(RevealFx)의 세기로만 드러난다.
  */
-const TIER_STYLE: Record<AuraTier, { ink: string; glow: number }> = {
-  great: { ink: INK, glow: 0.55 },
-  good: { ink: INK, glow: 0.4 },
-  fair: { ink: INK_SOFT, glow: 0.26 },
-  care: { ink: INK_SOFT, glow: 0.16 },
-};
 
 type Phase =
   | { kind: "idle" }
@@ -366,13 +354,17 @@ export default function AuraSection({
 
   return (
     <div className="w-full">
-      <p className="typo-micro text-text-tertiary text-center">
+      <p
+        className={`typo-caption text-center ${
+          allOpened ? "text-text-tertiary" : "text-text-secondary"
+        }`}
+      >
         {allOpened ? t("aura.done") : t("aura.pick.title")}
       </p>
 
       {/* items-stretch + h-full — 세 장의 높이를 가장 큰 것에 맞춘다. 등급 라벨이
           한 줄이든 두 줄이든 카드 높이는 같아야 나란히 놓인 한 벌로 읽힌다. */}
-      <div className="mt-2.5 grid grid-cols-3 items-stretch gap-2">
+      <div className="mt-3 grid grid-cols-3 items-stretch gap-2.5">
         {AURA_KINDS.map((kind) => {
           const isOpened = opened.includes(kind);
           // 등급은 "볼 권리를 얻었다"가 아니라 "실제로 걷어냈다"에서만 드러난다.
@@ -400,33 +392,33 @@ export default function AuraSection({
               onClick={() => void handlePick(kind)}
               disabled={phase.kind === "loading" || !ready}
               aria-label={label}
-              className="press-affordance flex h-full flex-col items-center gap-1.5 rounded-xl bg-bg-elevated px-2 py-3 disabled:opacity-60"
+              className="press-affordance flex h-full min-h-[88px] flex-col items-center gap-1.5 rounded-xl bg-bg-surface/90 px-1.5 py-3 disabled:opacity-60"
             >
+              {/* 열림=체크, 잠김=자물쇠, 지금 열 수 있음=반짝임 — 문구 없이 아이콘 하나로
+                  상태가 갈린다(iOS AuraPickPanel). "이미 봤다"의 흐릿함(0.72)은
+                  아이콘과 이름에만 건다. 칸 전체에 걸면 등급 텍스트까지 흐려져
+                  어두운 오늘의 색에서 본문 대비 4.5:1 아래로 떨어진다. */}
               <motion.span
-                animate={loading ? { opacity: [1, 0.35, 1] } : { opacity: 1 }}
+                animate={loading ? { opacity: [1, 0.35, 1] } : { opacity: isOpened ? 0.72 : 1 }}
                 transition={
                   loading ? { duration: 1.1, repeat: Infinity, ease: "easeInOut" } : undefined
                 }
                 aria-hidden="true"
               >
                 <PixelIcon
-                  name={KIND_ICON[kind]}
-                  size={18}
-                  color={isOpened ? colorHex : "var(--text-tertiary)"}
+                  name={isOpened ? "Check" : locked ? "Lock" : "Sparkle"}
+                  size={16}
+                  color={isOpened || locked ? "var(--text-tertiary)" : "var(--accent-primary)"}
                 />
               </motion.span>
-              {/* 잠금의 흐릿함은 이름 텍스트에만 건다. 버튼 전체에 걸면 자물쇠까지
-                  함께 흐려지는데(2.24:1), 문구를 걷어낸 지금 자물쇠는 잠금을 알리는
-                  유일한 시각 신호라 비-텍스트 대비 3:1 아래로 내려가면 안 된다. */}
               <span
-                className={`typo-micro text-text-primary text-center ${
-                  locked ? "opacity-75" : ""
-                }`}
+                className="typo-caption text-text-primary text-center"
+                style={{ opacity: isOpened ? 0.72 : 1 }}
               >
                 {name}
               </span>
-              {/* 상태 줄 — 늘 같은 자리를 차지한다. 잠금은 문구 없이 자물쇠만 두고,
-                  탭하면 광고가 뜬다는 사실은 눌러 보면 알게 된다.
+              {/* 상태 줄 — 늘 같은 자리를 차지한다. 열린 칸만 등급을 찍고 나머지는
+                  빈 자리로 남긴다(잠금은 위 아이콘이 이미 말한다).
                   내용은 위 aria-label 이 이미 담고 있어 접근성 트리에서 감춘다. */}
               <span
                 className="flex min-h-[18px] items-center justify-center"
@@ -436,8 +428,6 @@ export default function AuraSection({
                   <span className="typo-micro text-center" style={{ color: colorHex }}>
                     {t(TIER_KEY[snapshot[kind].tier])}
                   </span>
-                ) : locked ? (
-                  <PixelIcon name="Lock" size={12} color="var(--text-secondary)" />
                 ) : null}
               </span>
             </button>
@@ -468,6 +458,7 @@ export default function AuraSection({
                 today={today}
                 colorHex={colorHex}
                 ritual={view.ritual}
+                allOpened={allOpened}
                 tarotCardId={tarot[view.kind] ?? null}
                 onPickTarot={(cardId) => handleTarotPick(view.kind, cardId)}
                 onRevealed={() =>
@@ -500,6 +491,7 @@ function AuraOverlay({
   today,
   colorHex,
   ritual,
+  allOpened,
   tarotCardId,
   onPickTarot,
   onRevealed,
@@ -510,6 +502,8 @@ function AuraOverlay({
   today: string;
   colorHex: string;
   ritual: boolean;
+  /** 세 기운을 다 봤는지 — 닫기 슬롯 위에 안내 한 줄을 띄운다(iOS 와 같은 자리) */
+  allOpened: boolean;
   /** 오늘 이 기운에서 이미 뒤집은 카드 id. 미선택이면 null. */
   tarotCardId: number | null;
   /** 카드를 뒤집은 순간 — 선택 즉시 저장한다(하루 고정, 재선택 불가) */
@@ -546,7 +540,7 @@ function AuraOverlay({
     if (fxTimerRef.current) clearTimeout(fxTimerRef.current);
     fxTimerRef.current = setTimeout(() => setFx(false), FX_LIFETIME_MS);
     onRevealed();
-    if (soundEnabled) playSound("confirm");
+    if (soundEnabled) playSound("polaroidSlide");
     // 공개 햅틱은 성공 패턴(success). reduced-motion 의 탭 폴백도 이 함수를
     // 그대로 타므로 그 경로에서도 유지된다. great 만 한 박자 뒤 한 번 더 —
     // "대길"의 무게를 손끝으로 반복해 준다.
@@ -585,7 +579,6 @@ function AuraOverlay({
   }, [reading.kind]);
 
   const name = t(NAME_KEY[reading.kind]);
-  const tone = TIER_STYLE[reading.tier];
 
   // salt 는 기기 고정 — 마운트에 한 번 읽으면 충분하다.
   const [salt] = useState(() => readFortuneState().salt);
@@ -626,7 +619,7 @@ function AuraOverlay({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      className="fixed inset-0 z-[60] overflow-hidden bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] overflow-hidden bg-black/85"
     >
       {/* 오늘의 색 글로우 — 폴라로이드 오버레이와 같은 공기.
           스크롤 레이어 밖에 둔다: 해설을 따라 빛까지 흐르면 공기가 아니라
@@ -648,15 +641,19 @@ function AuraOverlay({
           만들지 않게 막고, overscroll-contain 은 스크롤이 아래 폴라로이드
           오버레이로 새는 것을 막는다. 배경 탭으로 닫는 경로가 없는 오버레이라
           (닫기는 명시 버튼과 Esc 뿐) 스크롤 제스처와 다툴 닫기가 애초에 없다.
-          문지르기(AuraScratch)는 touch-action:none 이라 스크롤을 가져가지 않는다. */}
+          문지르는 동안에는 스크롤을 끈다(iOS scrollDisabled(!revealed)) — 문지르기와
+          스크롤이 터치를 다투면 의식이 뚝뚝 끊긴다. 긴 내용(해설 문단)은 공개 후에만
+          생기므로 그때 열면 충분하다. 카드는 화면 폭에서 양쪽 28px 을 뺀 풀폭이다. */}
       <div
         ref={scrollRef}
-        className="relative z-10 h-full overflow-y-auto overflow-x-hidden overscroll-contain px-8"
+        className={`relative z-10 h-full overflow-x-hidden overscroll-contain px-7 ${
+          revealed ? "overflow-y-auto" : "overflow-y-hidden touch-none"
+        }`}
       >
         {/* min-h-full + justify-center — 짧으면 기존처럼 가운데,
             넘치면 위에서부터 자라며 스크롤이 생긴다. */}
-        <div className="flex min-h-full flex-col items-center justify-center py-8 pb-[calc(env(safe-area-inset-bottom)+24px)]">
-          <div className="w-[264px] max-w-full">
+        <div className="flex min-h-full flex-col items-center justify-center py-6 pb-[calc(env(safe-area-inset-bottom)+24px)]">
+          <div className="w-full">
             <motion.div
               initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 18, rotate: -1.5 }}
               animate={{ opacity: 1, y: 0, rotate: -1 }}
@@ -666,82 +663,67 @@ function AuraOverlay({
                   ? { duration: 0.18 }
                   : { type: "spring", stiffness: 380, damping: 28 }
               }
-              className="relative"
+              className="relative overflow-hidden rounded-[3px] shadow-2xl"
             >
               <div
                 ref={contentRef}
                 tabIndex={-1}
                 aria-hidden={!revealed}
-                className="rounded-sm bg-[#f2f1ee] p-[10px] shadow-2xl outline-none"
+                className="relative bg-[#f2f1ee] p-[22px] outline-none"
               >
-                {/* 사진 영역 — 폴라로이드와 같은 자리에 기운의 상징이 앉는다.
-                    오늘의 색은 여기서만 원색으로 쓴다(인화지 위 텍스트로는 안 읽힌다). */}
-                <div className="relative flex aspect-[154/86] w-full items-center justify-center overflow-hidden bg-bg-primary">
-                  <div
-                    className="pointer-events-none absolute inset-0"
-                    aria-hidden="true"
-                    style={{
-                      background: `radial-gradient(70% 90% at 50% 50%, ${colorHex}, transparent 72%)`,
-                      opacity: tone.glow,
-                    }}
-                  />
-                  <PixelIcon name={KIND_ICON[reading.kind]} size={40} color={colorHex} />
-                  {/* 공개 이펙트 — 사진 영역 안에서만 논다. 카드 밖으로 튀면
-                      인화지의 물성(한 장의 사진)이 깨진다. */}
-                  {fx && (
-                    <RevealFx
-                      tier={reading.tier}
-                      colorHex={colorHex}
-                      reduced={prefersReducedMotion}
-                    />
-                  )}
-                </div>
+                {/* 인화지 위쪽에 스민 오늘의 색(iOS paperGround) — 폴라로이드와 같은
+                    액센트를 옅게 흘려 두 화면이 한 벌로 읽힌다. 채워진 결일 뿐 눈금이
+                    아니다. 오늘의 색을 인화지 위 텍스트로는 쓰지 않는다(안 읽힌다). */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 top-0 h-[110px]"
+                  style={{
+                    background: `linear-gradient(180deg, ${colorHex}38 0%, ${colorHex}00 100%)`,
+                  }}
+                />
 
-                <div className="space-y-3 px-0.5 pt-3 pb-2 text-left">
-                  {/* 기운 이름 + 등급은 가림막 아래에서도 보인다 — 문지르기의 보상은
-                      등급이고, 문장들은 공개 후에 순서대로 온다. */}
-                  <div>
-                    <p className="typo-micro" style={{ color: INK_FAINT }}>
-                      {name}
-                    </p>
-                    {/* 등급 라벨이 주인공이다. 옆에 숫자를 붙이는 순간 라벨은
-                        숫자의 캡션으로 격하되고, 유저는 점수를 올리는 게임을 시작한다. */}
-                    <p
-                      className="typo-title"
-                      style={{ color: tone.ink, letterSpacing: "0.02em" }}
-                    >
-                      {t(TIER_KEY[reading.tier])}
-                    </p>
-                  </div>
+                <div className="relative text-left">
+                  {/* 기운 이름은 머리말, 등급은 그 아래 한 단어. 둘은 가림막 아래에서도
+                      보인다 — 문지르기의 보상은 등급이고, 문장들은 공개 후에 순서대로 온다. */}
+                  <p className="typo-caption" style={{ color: INK_SOFT }}>
+                    {name}
+                  </p>
+                  {/* 등급 라벨이 주인공이다. 옆에 숫자를 붙이는 순간 라벨은
+                      숫자의 캡션으로 격하되고, 유저는 점수를 올리는 게임을 시작한다. */}
+                  <p className="typo-display mt-0.5" style={{ color: INK }}>
+                    {t(TIER_KEY[reading.tier])}
+                  </p>
+                  {/* 인화지에 그은 괘선 한 줄. 테두리가 아니라 종이의 결이다. */}
+                  <div aria-hidden="true" className="my-4 h-px" style={{ backgroundColor: "#9a9a944d" }} />
 
                   {/* 정보 위계: 조짐 > 조언 > 실마리 > 흘려보낼 것.
-                      조짐만 진한 잉크, 나머지는 부드러운 잉크 + 라벨로 급을 낮춘다. */}
+                      조언만 진한 잉크 본문, 나머지는 부드러운 잉크 + 라벨로 급을 낮춘다. */}
                   {/* 조짐 — 실측 신호가 고른 문장 한 줄. 수치는 인용하지 않는다. */}
-                  <motion.p {...block(0)} className="typo-caption" style={{ color: INK }}>
+                  <motion.p {...block(0)} className="typo-caption" style={{ color: INK_SOFT }}>
                     {t(omenKey(reading))}
                   </motion.p>
-                  <motion.p {...block(1)} className="typo-caption" style={{ color: INK_SOFT }}>
+                  <motion.p {...block(1)} className="typo-body mt-2.5" style={{ color: INK }}>
                     {t(adviceKey(reading, today, salt))}
                   </motion.p>
-                  <motion.div {...block(2)}>
+                  <motion.div {...block(2)} className="mt-3.5">
                     <p className="typo-micro" style={{ color: INK_FAINT }}>
                       {t("aura.hint.label" as DictKey)}
                     </p>
-                    <p className="mt-0.5 typo-caption" style={{ color: INK_SOFT }}>
+                    <p className="mt-[3px] typo-caption" style={{ color: INK_SOFT }}>
                       {t(hintKey(reading.kind, today, salt))}
                     </p>
                   </motion.div>
-                  <motion.div {...block(3)}>
+                  <motion.div {...block(3)} className="mt-3">
                     <p className="typo-micro" style={{ color: INK_FAINT }}>
                       {t("aura.caution.label" as DictKey)}
                     </p>
-                    <p className="mt-0.5 typo-caption" style={{ color: INK_SOFT }}>
+                    <p className="mt-[3px] typo-caption" style={{ color: INK_SOFT }}>
                       {t(cautionKey(reading.kind, today, salt))}
                     </p>
                   </motion.div>
                   {/* 타로 — 읽어 내려가는 리듬의 마지막 박자. 제시 3장은 결정론이지만
                       무엇을 뒤집을지는 여기서 유일하게 유저 몫이다(하루 고정). */}
-                  <motion.div {...block(4)}>
+                  <motion.div {...block(4)} className="mt-3.5">
                     <TarotBlock
                       offer={auraTarotOffer(today, salt, reading.kind)}
                       selectedId={tarotCardId}
@@ -755,6 +737,14 @@ function AuraOverlay({
                 </div>
               </div>
 
+              {/* 공개 이펙트 — 카드 전체 위에서 논다(iOS card.overlay). 카드 밖으로
+                  튀면 인화지의 물성(한 장의 종이)이 깨진다. */}
+              {fx && (
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5]">
+                  <RevealFx tier={reading.tier} colorHex={colorHex} reduced={prefersReducedMotion} />
+                </div>
+              )}
+
               <AnimatePresence>
                 {!revealed && <AuraScratch colorHex={colorHex} onReveal={handleReveal} />}
               </AnimatePresence>
@@ -767,20 +757,22 @@ function AuraOverlay({
               가려졌다. 375x667 에서는 눌 수도 볼 수도 없는 버튼이었다.
               높이는 공개 전후로 늘 잡아 둔다: 여기서 자리가 생겼다 없어지면
               가운데 정렬이 흔들려 가림막을 걷는 순간 카드가 위로 튄다.
-              그 자리는 문지르기 안내 문구(AuraScratch 의 top-full)가 앉는
-              자리이기도 하다. */}
-          <div className="flex min-h-[76px] w-full shrink-0 items-center justify-center">
+              iOS 처럼 배경 없는 텍스트 버튼이고, 다 본 날엔 그 위에 안내 한 줄. */}
+          <div className="mt-[18px] flex min-h-[76px] w-full shrink-0 items-center justify-center">
             {revealed && (
-              <motion.button
-                type="button"
-                onClick={onClose}
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.24 }}
-                className="press-affordance rounded-xl bg-bg-elevated px-5 py-2.5"
+                className="flex flex-col items-center gap-2"
               >
-                <span className="typo-caption text-text-primary">{t("aura.back")}</span>
-              </motion.button>
+                {allOpened && (
+                  <p className="typo-micro text-text-tertiary">{t("aura.done")}</p>
+                )}
+                <button type="button" onClick={onClose} className="press-affordance px-[18px] py-2.5">
+                  <span className="typo-caption text-text-secondary">{t("aura.back")}</span>
+                </button>
+              </motion.div>
             )}
           </div>
         </div>

@@ -51,7 +51,7 @@ struct BackupReminderBannerView: View {
                     .padding(.top, 2)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(store.progress?.totalDaysCompleted ?? 0)일째 진행 중 — 백업이 안 되어 있어요")
+                    Text("\(store.progress?.totalDaysCompleted ?? 0)일째 진행 중: 백업이 안 되어 있어요")
                         .typography(.caption)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.textPrimary)

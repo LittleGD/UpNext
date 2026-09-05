@@ -98,6 +98,11 @@ function localUpHeroPayload(): CloudUpHeroState {
  * 영웅 Lv 가 1 이 아니라 41 이 되는 회귀).
  */
 function adoptCloudUpHero(uphero: CloudUpHeroState | null): void {
+  // Phase 2-A — 영웅 XP 풀은 단조 증가 축이라 흔적 게이트와 무관하게 max 병합한다.
+  //   (로컬에 흔적이 있어 아래에서 채택을 건너뛰는 기기도, 다른 기기가 올린 더 큰
+  //   풀을 받아들여야 Lv47 시드값이 클라우드를 되감는 핑퐁이 사라진다.)
+  //   클라우드에 키가 없으면 no-op — 절대 지어내지 않는다.
+  useUpHeroStore.getState().mergeCloudHeroXp(uphero?.heroXp);
   if (!uphero || !hasUpHeroFootprint(uphero)) return;
   if (hasUpHeroFootprint(loadFromStorage<unknown>("uphero"))) return;
   useUpHeroStore.getState()._setFromCloud(uphero);

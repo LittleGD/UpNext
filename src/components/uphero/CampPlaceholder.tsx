@@ -20,8 +20,9 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore, getTodayString } from "@/store/useGameStore";
-import { DAILY_CARDMATCH_TICKET_CAP, getXPProgress } from "@/types/game";
+import { DAILY_CARDMATCH_TICKET_CAP } from "@/types/game";
 import { DUNGEON_LIST } from "@/data/upHeroDungeons";
+import { ALL_CARDS } from "@/data/cards";
 import { pickCampAmbience } from "@/data/upHeroFlavor";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import {
@@ -30,10 +31,11 @@ import {
   PASS_CAP_PER_CATEGORY,
   DAILY_PASS_PURCHASE_CAP,
   CLASS_THEME_COLOR,
-  getEffectiveHeroLevel,
 } from "@/types/uphero";
+import { useHeroLevel, useHeroXpProgress } from "./useHeroLevel";
 import type { DungeonId } from "@/types/uphero";
 import { isAdAvailable, showRewardedAd } from "@/lib/ads";
+import { isBagOverflowVisible } from "@/lib/bagOverflowGate";
 import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
@@ -52,6 +54,8 @@ import NumberRoll from "./NumberRoll";
 //   lazy 로 내려 초기 번들에서 제외. Suspense fallback 으로 skeleton 제공.
 //   EquipmentInventory 는 EquipmentCard + 템플릿 데이터까지 끌고 오므로 특히 무거움.
 const EquipmentInventory = lazy(() => import("./EquipmentInventory"));
+// Phase 6-E — 넘친 전리품 모달. 정산 뒤에만 생기므로 게이트가 열릴 때만 로드.
+const BagOverflowModal = lazy(() => import("./BagOverflowModal"));
 const HeroCodex = lazy(() => import("./HeroCodex"));
 const HeroStatPanel = lazy(() => import("./HeroStatPanel"));
 // 아지트 첫 진입 튜토리얼 — 1회용 리소스라 lazy 로 내려 초기 번들 제외.
@@ -79,16 +83,10 @@ export default function CampPlaceholder() {
   const { t } = useTranslation();
   const heroName = hero.name?.trim() || t("uphero.home.heroDefault");
   const pendingDungeon = useUpHeroStore((s) => s.pendingDungeon);
-  // Phase 12 — XP 진행도 (상단바 표시용). progress.xp 는 챌린지/영웅 공유 pool.
-  const totalXp = useGameStore((s) => s.progress.xp ?? 0);
-  // Phase 9d — 영웅 전용 레벨 사용 (챌린지 Lv 와 분리).
-  //   신규 영웅 유저는 heroStartLevel=gameLevel 로 seed → 영웅 Lv 1.
-  const gameLevel = useGameStore((s) => s.progress.level);
-  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
-  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
-  // Phase 12 — 현재 레벨 내 XP 진행도. gameLevel 의 current-within-level 값이
-  //   heroLv 진행도와 동일 (heroLv 는 gameLv 의 1:1 오프셋이라 레벨 내 %는 같음).
-  const xpInfo = getXPProgress(totalXp, gameLevel);
+  // Phase 2-A (Track A) — 영웅 레벨과 XP 진행도는 영웅 전용 풀(heroXp) 기준.
+  //   계정 XP(progress.xp)와 완전히 분리됐다 — 상단바 수치는 영웅 곡선 안의 진행도.
+  const level = useHeroLevel();
+  const xpInfo = useHeroXpProgress();
   const tickets = useGameStore((s) => s.progress.tickets ?? 0);
   // Phase 12 — header 에 NG+ badge 노출. 홈 view 의 nameplate 를 제거하면서
   //   NG+ 정보를 header 로 승격 (정보가 사라지지 않도록). ngPlusLevel > 0 일
@@ -100,6 +98,8 @@ export default function CampPlaceholder() {
   const [statsOpen, setStatsOpen] = useState(false);
   // 아지트 첫 진입 튜토리얼 — 유저가 완료/Skip 누르면 persist 되어 재등장 안 함.
   const hasSeenCampTutorial = useUpHeroStore((s) => s.hasSeenCampTutorial ?? false);
+  // Phase 6-E — 가방 초과 모달 게이트: 세션 없음 · 레벨업 오버레이 없음 · 전직 제안 없음.
+  const bagOverflowVisible = useUpHeroStore(isBagOverflowVisible);
   const [tutorialOpen, setTutorialOpen] = useState(() => !hasSeenCampTutorial);
 
   const totalPasses = Object.values(passes).reduce(
@@ -157,11 +157,8 @@ export default function CampPlaceholder() {
             {heroName}
           </span>
           <span className={gbClass.textDim}>{t("common.levelShort", { level })}</span>
-          {/* Phase 12 — XP 진행도 수치 표시. 유저 피드백: "레벨 시스템은 따로 가되
-               경험치는 공유, 상단바 레벨 옆에 수치 표시".
-               XP pool 은 챌린지/영웅 세션 공유 (progress.xp), Lv 진행도는
-               영웅 Lv 와 챌린지 Lv 가 같은 진행률 (heroLv = gameLv - heroStartLv + 1).
-               따라서 getXPProgress(progress.xp, gameLevel) 값을 그대로 사용 가능. */}
+          {/* Phase 12 — XP 진행도 수치 표시. Phase 2-A: 영웅 XP 풀(heroXp) 안의
+               현재 레벨 진행도 (getHeroXPProgress). 계정 XP 와는 무관하다. */}
           <span
             className={`tabular-nums ${gbClass.textDim}`}
             style={{ fontSize: 11 }}
@@ -269,6 +266,13 @@ export default function CampPlaceholder() {
       {statsOpen && (
         <Suspense fallback={null}>
           <HeroStatPanel onClose={() => setStatsOpen(false)} />
+        </Suspense>
+      )}
+      {/* Phase 6-E (Track E) — 가방 초과 전리품. 오버레이 순서: HeroLevelUpOverlay →
+          ClassChoiceModal → 이 모달 (isBagOverflowVisible 이 잡는다). 닫기 불가. */}
+      {bagOverflowVisible && (
+        <Suspense fallback={null}>
+          <BagOverflowModal onNotify={notify} />
         </Suspense>
       )}
 
@@ -464,7 +468,7 @@ function HomeView({
               aria-live="off"
             >
               {/* Phase 12 i18n — key → 현재 언어 조회. DictKey 제약상 cast. */}
-              — {t(ambienceKey as import("@/i18n").DictKey)} —
+              · {t(ambienceKey as import("@/i18n").DictKey)} ·
             </div>
           </div>
         </div>
@@ -692,6 +696,10 @@ function ShopView({
   const passes = useUpHeroStore((s) => s.passes);
   // Phase 12a — 카드매치 티켓 하루 구매 현황.
   const cardmatchShopDaily = useGameStore((s) => s.progress.cardmatchShopDaily);
+  // 컬렉션 100% — 카드팩 매진 (purchaseCardPack 도 false 를 돌려준다).
+  const collectionComplete = useGameStore(
+    (s) => s.progress.unlockedCardIds.length >= ALL_CARDS.length,
+  );
   const cardmatchBoughtToday =
     cardmatchShopDaily?.date === getTodayString()
       ? cardmatchShopDaily.bought
@@ -761,7 +769,11 @@ function ShopView({
       play("collect");
       onNotify(t("uphero.shop.packSmall"));
     } else {
-      onNotify(t("uphero.shop.insufficient"));
+      onNotify(
+        coins < SHOP_PRICES.cardPackSmall
+          ? t("uphero.shop.insufficient")
+          : t("uphero.shop.packSoldOut"),
+      );
     }
   };
 
@@ -772,7 +784,11 @@ function ShopView({
       play("collect");
       onNotify(t("uphero.shop.packFull"));
     } else {
-      onNotify(t("uphero.shop.insufficient"));
+      onNotify(
+        coins < SHOP_PRICES.cardPackFull
+          ? t("uphero.shop.insufficient")
+          : t("uphero.shop.packSoldOut"),
+      );
     }
   };
 
@@ -1056,7 +1072,7 @@ function ShopView({
           desc={t("uphero.shop.bonusCard.desc")}
           price={SHOP_PRICES.cardPackSmall}
           onBuy={() => onBuyPack("small")}
-          canAfford={coins >= SHOP_PRICES.cardPackSmall}
+          canAfford={coins >= SHOP_PRICES.cardPackSmall && !collectionComplete}
         />
         <ShopRow
           iconName="Package"
@@ -1064,7 +1080,7 @@ function ShopView({
           desc={t("uphero.shop.fullPack.desc")}
           price={SHOP_PRICES.cardPackFull}
           onBuy={() => onBuyPack("full")}
-          canAfford={coins >= SHOP_PRICES.cardPackFull}
+          canAfford={coins >= SHOP_PRICES.cardPackFull && !collectionComplete}
         />
 
         <div
@@ -1375,6 +1391,14 @@ function PressButton({
  * ══════════════════════════════════════════════════════════════════════ */
 
 import { getWeeklyAffixById } from "@/data/weeklyAffixes";
+import {
+  WEEKLY_ALL_CLEAR_COINS,
+  WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
+  WEEKLY_ALL_CLEAR_DOWN_GUARDS,
+  WEEKLY_DUNGEON_COUNT,
+  WEEKLY_FIRST_CLEAR_COINS,
+  WEEKLY_FIRST_CLEAR_DESTROY_GUARDS,
+} from "@/lib/sessionReward";
 
 /**
  * 홈 CTA 스택 내에서 PrimaryCTA 아래 표시되는 compact ribbon.
@@ -1402,6 +1426,22 @@ function WeeklyNightmareRibbon({
     ? weeklyAffixName(affix.id, affix.name, language)
     : "";
   const SAND = "#e8b887";
+  // Phase 16 (Track C, 피드백 30) — 주간 보상 안내. 0~6 클리어: 던전당 첫 클리어
+  //   보상, 7 클리어: 마지막 한 곳이 올클리어 보너스임을 예고, 8: 완료.
+  //   상수는 sessionReward 의 단일 출처. 카피에 em-dash 없음.
+  const rewardHint =
+    clearedCount >= WEEKLY_DUNGEON_COUNT
+      ? t("uphero.weekly.allClearDone")
+      : clearedCount === WEEKLY_DUNGEON_COUNT - 1
+        ? t("uphero.weekly.allClearHint", {
+            coins: WEEKLY_ALL_CLEAR_COINS,
+            wards: WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
+            downs: WEEKLY_ALL_CLEAR_DOWN_GUARDS,
+          })
+        : t("uphero.weekly.rewardHint", {
+            coins: WEEKLY_FIRST_CLEAR_COINS,
+            wards: WEEKLY_FIRST_CLEAR_DESTROY_GUARDS,
+          });
   // Phase 11c R4 — SR 전용 label. 기존 innerText 는 맥락 없이 조각으로 읽힘.
   const srLabel = [
     t("uphero.ribbon.weeklyTitle"),
@@ -1413,6 +1453,7 @@ function WeeklyNightmareRibbon({
     bestScore > 0
       ? t("uphero.weekly.bestScore", { score: bestScore.toLocaleString() })
       : null,
+    rewardHint,
   ]
     .filter(Boolean)
     .join(", ");
@@ -1436,7 +1477,7 @@ function WeeklyNightmareRibbon({
             className="typo-caption truncate"
             style={{ color: GB.lightest }}
           >
-            {t("uphero.ribbon.weeklyTitle")} · {affixDisplayName || "—"}
+            {t("uphero.ribbon.weeklyTitle")} · {affixDisplayName || "-"}
           </div>
           <div
             className="typo-micro truncate tabular-nums"
@@ -1446,6 +1487,12 @@ function WeeklyNightmareRibbon({
             {clearedCount > 0 && ` · ${t("uphero.ribbon.weeklyProgress", { cleared: clearedCount, total: 8 })}`}
             {bestScore > 0 &&
               ` · ${t("uphero.weekly.bestScore", { score: bestScore.toLocaleString() })}`}
+          </div>
+          <div
+            className="typo-micro truncate"
+            style={{ color: SAND, opacity: 0.85 }}
+          >
+            {rewardHint}
           </div>
         </div>
         <PixelIcon name="ChevronRight" size={12} color={GB.light} />

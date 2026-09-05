@@ -33,6 +33,11 @@ interface GbConfirmProps {
   title: string;
   /** 추가 설명 — 경고 / 비용 / 결과 예측 등 */
   body?: ReactNode;
+  /**
+   * Phase 5-B — body 아래에 붙는 섹션 슬롯. 방지권 패널처럼 "본문과 구분되는 선택
+   * 영역" 을 GbConfirmPanel 로 쌓는다. body 와 달리 세로 gap 을 갖는 컨테이너다.
+   */
+  sections?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   /** 위험 액션 — 판매/버리기/포기 같은 복구 불가 동작. 붉은 톤. */
@@ -41,10 +46,51 @@ interface GbConfirmProps {
   onCancel: () => void;
 }
 
+/**
+ * Phase 5-B — 확인 다이얼로그 안의 섹션 패널. 배경 단계(어두운 dark → active 면
+ * dark 원색)와 라임 글로우로 "걸림" 을 말한다. 보더는 쓰지 않는다 — 카드/버튼
+ * 보더 금지 규칙. `trailing` 은 헤더 오른쪽 칩(보유 개수 등) 자리다.
+ */
+export function GbConfirmPanel({
+  active,
+  title,
+  trailing,
+  children,
+}: {
+  active: boolean;
+  title: string;
+  trailing?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <section
+      style={{
+        background: active ? GB.dark : `${GB.dark}88`,
+        borderRadius: 6,
+        padding: "8px 10px",
+        boxShadow: active ? `0 0 10px ${GB.lightest}44` : "none",
+        transition: `box-shadow 160ms ${EASE_OUT}, background 160ms ${EASE_OUT}`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="typo-caption"
+          style={{ color: active ? GB.lightest : GB.light, fontWeight: 600 }}
+        >
+          {title}
+        </span>
+        {trailing}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default function GbConfirm({
   open,
   title,
   body,
+  sections,
   confirmLabel,
   cancelLabel,
   danger = false,
@@ -127,6 +173,10 @@ export default function GbConfirm({
           >
             {body}
           </div>
+        )}
+        {/* Phase 5-B — 섹션 슬롯 (방지권 패널 등). */}
+        {sections && (
+          <div className="px-3 pb-3 flex flex-col gap-2">{sections}</div>
         )}
         {/* Footer — 확인 primary, 취소 secondary */}
         <div

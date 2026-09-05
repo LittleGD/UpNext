@@ -14,22 +14,21 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { useGameStore } from "@/store/useGameStore";
+import { useHeroLevel } from "./useHeroLevel";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import KeyboardAccessoryBar from "@/components/common/KeyboardAccessoryBar";
 import {
   computeEffectiveStats,
   computeHeroForLevel,
   getHeroAppearanceVariant,
-  getEffectiveHeroLevel,
   CLASS_META,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
-import type { EquipSlot } from "@/types/uphero";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
+import { SLOT_GLYPH, SLOT_LABEL_KEY, SLOT_ORDER } from "@/lib/equipmentSlotMeta";
+import { STAT_LABEL, formatStat, orderedStatEntries } from "@/lib/equipmentStats";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
-import type { DictKey } from "@/i18n";
 import { skillName, skillDesc, className as classNameI18n, classPassive, equipmentNameById } from "@/lib/upHeroI18n";
 import HeroSprite from "./HeroSprite";
 import HexStatChart from "./HexStatChart";
@@ -43,22 +42,11 @@ interface HeroStatPanelProps {
 // Phase 12b — STAT_ROWS 는 HexStatChart 로 대체 (선형 bar 제거).
 //   HeroBaseStats 타입은 아래 effective 객체에서 그대로 사용.
 
-// Phase 12 R-i18n — 슬롯 라벨 키. `t()` 를 여기서 호출하려면 함수 컨텍스트
-//   안이어야 하므로 key 만 저장하고 렌더에서 변환.
-const SLOT_LABEL_KEY: Record<EquipSlot, DictKey> = {
-  weapon: "uphero.slot.weapon",
-  armor: "uphero.slot.armor",
-  accessory: "uphero.slot.accessory",
-  talisman: "uphero.slot.talisman",
-};
-
 export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
-  // Phase 9d — 영웅 전용 레벨.
-  const gameLevel = useGameStore((s) => s.progress.level);
-  const heroStartLevel = useUpHeroStore((s) => s.heroStartLevel);
-  const level = getEffectiveHeroLevel(gameLevel, heroStartLevel);
+  // Phase 2-A — 영웅 레벨은 heroXp 풀 기준.
+  const level = useHeroLevel();
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
 
   // Phase 5a.1 — level 기반 base stat 자동 성장을 display 에 반영.
@@ -204,8 +192,10 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
             {t("uphero.stat.equipmentLabel")}
           </div>
           <div className="flex flex-col gap-2">
-            {(Object.keys(SLOT_LABEL_KEY) as EquipSlot[]).map((slot) => {
+            {SLOT_ORDER.map((slot) => {
               const eq = hero.equipped[slot];
+              // Phase 6-E (피드백 17) — 주스탯 한 줄 (템플릿 statBoost 우선).
+              const primary = eq ? orderedStatEntries(eq)[0] : undefined;
               return (
                 <div
                   key={slot}
@@ -216,9 +206,11 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                   }}
                 >
                   <div
-                    className="typo-caption"
+                    className="typo-caption inline-flex items-center gap-1"
                     style={{ color: GB.light, minWidth: 60 }}
                   >
+                    {/* Phase 6-E (피드백 11) — 맨 슬롯 글리프 (박스 없음). */}
+                    <PixelIcon name={SLOT_GLYPH[slot]} size={12} color={GB.light} />
                     {t(SLOT_LABEL_KEY[slot])}
                   </div>
                   {eq ? (
@@ -239,6 +231,17 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
                         >
                           {equipmentNameById(eq.baseId ?? "", eq.name, language)}
                         </div>
+                        {primary && (
+                          <div
+                            className="typo-micro tabular-nums"
+                            style={{ color: GB.light }}
+                          >
+                            <span style={{ color: GB.lightest }}>
+                              {formatStat(primary[0], primary[1])}
+                            </span>{" "}
+                            {STAT_LABEL[primary[0]]}
+                          </div>
+                        )}
                         {/* Phase 11b — talisman skill chips. 부적 슬롯 외에도
                              미래 확장 시 accessory 등에 skills 가 생기면 자동 표기. */}
                         {eq.talismanSkills && eq.talismanSkills.length > 0 && (
@@ -400,10 +403,17 @@ function HeroNameEditor({ name }: { name: string }) {
  * Phase 6b — ClassSection (분화된 영웅의 class 정보 + 스킬 + 자동 토글)
  * ──────────────────────────────────────────── */
 
-import { CLASS_SKILLS, NOVICE_SKILLS } from "@/lib/classSkills";
+import { CLASS_SKILL_TREES, NOVICE_SKILLS } from "@/lib/classSkills";
+import { CLASS_RESOURCE } from "@/types/uphero";
 import type { Hero } from "@/types/uphero";
 import { getThumbnailBlob, blobToUrl } from "@/lib/photoStorage";
 
+/**
+ * Phase 3-F — deprecated `CLASS_SKILLS` 단일 카드 대신 **배운 스킬 목록**.
+ *   행마다 이름 / T{tier} 배지 / 자원 비용 / 세션 중이면 skillCooldowns[id] 기반
+ *   READY·cd n + 2px 쿨다운 바. 레거시 스칼라 `session.skillCooldown` 은 더 읽지
+ *   않는다 (fireSkill 이 여전히 쓰지만 UI 소비자는 없음).
+ */
 function ClassSection({ hero }: { hero: Hero }) {
   const { t, language } = useTranslation();
   const toggleAutoSkill = useUpHeroStore((s) => s.toggleAutoSkill);
@@ -411,21 +421,18 @@ function ClassSection({ hero }: { hero: Hero }) {
   const currentSession = useUpHeroStore((s) => s.currentSession);
   if (!hero.classType) return null;
   const meta = CLASS_META[hero.classType];
-  const skill = CLASS_SKILLS[hero.classType];
+  const resourceSpec = CLASS_RESOURCE[hero.classType];
   const autoEnabled = hero.autoSkillEnabled ?? true;
+  const learnedIds = hero.learnedSkills ?? [];
+  const learnedSkills = CLASS_SKILL_TREES[hero.classType].filter((s) =>
+    learnedIds.includes(s.id),
+  );
 
-  // 활성 세션이 있으면 skillCooldown 참조. 없으면 "준비됨" 정적 표시.
+  // 활성 세션이 있으면 skillCooldowns 맵 참조. 없으면 "준비됨" 정적 표시.
   const sessionActive =
     currentSession != null &&
     currentSession.status !== "completed" &&
     currentSession.hero.classType === hero.classType;
-  const currentCooldown = sessionActive
-    ? (currentSession.skillCooldown ?? 0)
-    : 0;
-  const ready = currentCooldown === 0;
-  const cooldownPct = sessionActive
-    ? ((skill.cooldown - currentCooldown) / skill.cooldown) * 100
-    : 100;
 
   return (
     <section
@@ -436,13 +443,10 @@ function ClassSection({ hero }: { hero: Hero }) {
         {t("uphero.stat.classLabel")}
       </div>
 
-      {/* Class meta 카드 (name + passive) */}
+      {/* Class meta 카드 (name + passive) — 보더 없이 배경 단계로 위계 */}
       <div
         className="flex items-center gap-3 rounded px-3 py-2.5"
-        style={{
-          background: `${GB.dark}80`,
-          border: `1px solid ${GB.light}`,
-        }}
+        style={{ background: `${GB.dark}80` }}
       >
         <PixelIcon name={meta.icon} size={20} color={GB.lightest} />
         <div className="flex flex-col gap-0.5 flex-1 min-w-0">
@@ -455,58 +459,15 @@ function ClassSection({ hero }: { hero: Hero }) {
         </div>
       </div>
 
-      {/* Phase 6b → polish — 액티브 스킬 카드 + 자동 토글 + 실시간 cooldown */}
-      <div
-        className="mt-2.5 flex items-center gap-3 rounded px-3 py-2.5"
-        style={{
-          background: `${GB.dark}60`,
-          border: `1px dashed ${GB.light}80`,
-        }}
-      >
-        <PixelIcon name="Zap" size={18} color={GB.lightest} />
-        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-          <div className="flex items-center gap-2 typo-caption">
-            <span style={{ color: GB.lightest }}>
-              {t("uphero.skill.activeLabel", {
-                name: skillName(skill.id, skill.name, language),
-              })}
-            </span>
-            {sessionActive && (
-              <span
-                className={`typo-micro tabular-nums ${
-                  ready ? "" : gbClass.textDim
-                }`}
-                style={{
-                  color: ready ? GB.lightest : undefined,
-                  letterSpacing: "0.05em",
-                }}
-              >
-                {ready ? t("uphero.stat.skillReady") : t("uphero.stat.skillCooldown", { n: currentCooldown })}
-              </span>
-            )}
+      {/* Phase 3-F — 보유 스킬 헤더 + 자동 토글 */}
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className={`typo-caption ${gbClass.textDim}`}>
+            {t("uphero.stat.learnedSkillsLabel")}
           </div>
-          <div className={`typo-caption ${gbClass.textDim} leading-tight`}>
-            {sessionActive
-              ? t("uphero.stat.autoFireHint")
-              : `${t("uphero.stat.cdPrefix", { cd: skill.cooldown })} · ${t("uphero.stat.autoFireHint")}`}
+          <div className={`typo-micro ${gbClass.textDim} leading-tight`}>
+            {t("uphero.stat.autoFireHint")}
           </div>
-          {/* 실시간 cooldown bar — 세션 active 일 때만 */}
-          {sessionActive && (
-            <div
-              className="mt-1.5 h-[2px] rounded-full w-full overflow-hidden"
-              style={{ background: GB.dark }}
-              aria-hidden="true"
-            >
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${cooldownPct}%`,
-                  background: ready ? GB.lightest : GB.light,
-                  transition: `width 280ms ${EASE_OUT}, background 200ms ${EASE_OUT}`,
-                }}
-              />
-            </div>
-          )}
         </div>
         {/* Phase 9a — tap target 28 → 44 (Apple HIG). 상태 전환 액션이라
              실수 탭 방지가 특히 중요. 시각적 size 는 그대로 유지되도록
@@ -514,12 +475,11 @@ function ClassSection({ hero }: { hero: Hero }) {
         <button
           type="button"
           onClick={toggleAutoSkill}
-          className="uphero-auto-toggle typo-micro tabular-nums rounded px-3 py-2"
+          className="uphero-auto-toggle typo-micro tabular-nums rounded px-3 py-2 shrink-0"
           style={{
             minHeight: 44,
             background: autoEnabled ? GB.lightest : `${GB.dark}cc`,
             color: autoEnabled ? GB.darkest : GB.light,
-            border: `1px solid ${autoEnabled ? GB.lightest : GB.light}`,
             letterSpacing: "0.05em",
           }}
           aria-label={t("uphero.stat.autoToggleAria", {
@@ -542,6 +502,95 @@ function ClassSection({ hero }: { hero: Hero }) {
             }
           `}</style>
         </button>
+      </div>
+
+      {/* 보유 스킬 목록 — 행마다 실시간 cooldown */}
+      <div className="mt-2 flex flex-col gap-1.5">
+        {learnedSkills.length === 0 && (
+          <div
+            className={`typo-micro rounded px-3 py-2.5 ${gbClass.textDim}`}
+            style={{ background: `${GB.dark}60` }}
+          >
+            {t("uphero.stat.noLearnedSkills")}
+          </div>
+        )}
+        {learnedSkills.map((skill) => {
+          const cd = sessionActive
+            ? (currentSession.skillCooldowns?.[skill.id] ?? 0)
+            : 0;
+          const ready = cd === 0;
+          const cooldownPct = sessionActive
+            ? ((skill.cooldown - cd) / skill.cooldown) * 100
+            : 100;
+          return (
+            <div
+              key={skill.id}
+              className="flex items-center gap-3 rounded px-3 py-2.5"
+              style={{ background: `${GB.dark}60` }}
+            >
+              <PixelIcon name="Zap" size={18} color={GB.lightest} />
+              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                <div className="flex items-center gap-2 typo-caption">
+                  <span className="truncate" style={{ color: GB.lightest }}>
+                    {skillName(skill.id, skill.name, language)}
+                  </span>
+                  <span
+                    className="typo-micro tabular-nums px-1.5 rounded-sm shrink-0"
+                    style={{
+                      background: `${GB.dark}aa`,
+                      color: GB.light,
+                      fontSize: 9,
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    T{skill.tier}
+                  </span>
+                  {sessionActive && (
+                    <span
+                      className={`typo-micro tabular-nums ml-auto shrink-0 ${
+                        ready ? "" : gbClass.textDim
+                      }`}
+                      style={{
+                        color: ready ? GB.lightest : undefined,
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      {ready
+                        ? t("uphero.stat.skillReady")
+                        : t("uphero.stat.skillCooldown", { n: cd })}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 typo-micro tabular-nums">
+                  <span style={{ color: resourceSpec.color }}>
+                    {skill.resourceCost} {resourceSpec.short}
+                  </span>
+                  <span className={gbClass.textDim}>·</span>
+                  <span className={gbClass.textDim}>
+                    {t("uphero.stat.cdPrefix", { cd: skill.cooldown })}
+                  </span>
+                </div>
+                {/* 실시간 cooldown bar — 세션 active 일 때만 */}
+                {sessionActive && (
+                  <div
+                    className="mt-1 h-[2px] rounded-full w-full overflow-hidden"
+                    style={{ background: GB.dark }}
+                    aria-hidden="true"
+                  >
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${cooldownPct}%`,
+                        background: ready ? GB.lightest : GB.light,
+                        transition: `width 280ms ${EASE_OUT}, background 200ms ${EASE_OUT}`,
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

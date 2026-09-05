@@ -3,6 +3,13 @@
 /**
  * Up Hero — Phase 11a: 장비 강화 연출 (2초).
  *
+ * Phase 5-B — `band` 로 연출이 단계별로 커진다 (목표 레벨 기준, enhanceRitualBand):
+ *   band 0 (+1..+10): 2000ms / 6 spark (아래 기존 설명 그대로)
+ *   band 1 (+11..+15): 2600ms / 10 spark / 성공 시 마지막 20% 루트 shake 260ms
+ *   band 2 (+16..+20): 3400ms / 14 spark / shake 420ms (enhance-shake-strong, 6px)
+ *                      / 소실 시 spark 분산 ×4 + 두 번째 링
+ *   reduced-motion: 60ms 후 onDone, shake·spark 없음 (기존 패턴).
+ *
  * 흐름:
  *   0–600ms   : 아이템 scale(1→1.1) + glow pulse. 6 spark 외곽 → 중심 수렴.
  *   600–1600ms: spark 회전 가속, rarity color 톤 intensify.
@@ -31,22 +38,36 @@ import type { Equipment } from "@/types/uphero";
 
 export type EnhanceRitualOutcome = "success" | "keep" | "destroyed";
 
+/** Phase 5-B — 밴드별 연출 길이 / spark 수 / shake 길이. iOS 와 같은 값. */
+const RITUAL_DURATION_MS: readonly [number, number, number] = [2000, 2600, 3400];
+const RITUAL_SPARKS: readonly [number, number, number] = [6, 10, 14];
+const RITUAL_SHAKE_MS: readonly [number, number, number] = [0, 260, 420];
+
 interface EnhanceRitualOverlayProps {
   /** 애니메이션 대상 아이템 (결과 전 상태). */
   item: Equipment;
   /** 결과 outcome — 연출의 마지막 flash color 결정. */
   outcome: EnhanceRitualOutcome;
-  /** 2000ms 후 (또는 reduced-motion 이면 즉시) 호출. */
+  /**
+   * Phase 5-B — 연출 밴드 (enhanceRitualBand(targetLevel)). 필수 prop 이라 호출부가
+   * 밴드를 빠뜨리면 TS 가 잡는다.
+   */
+  band: 0 | 1 | 2;
+  /** duration 후 (또는 reduced-motion 이면 60ms) 호출. */
   onDone: () => void;
 }
 
 export default function EnhanceRitualOverlay({
   item,
   outcome,
+  band,
   onDone,
 }: EnhanceRitualOverlayProps) {
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
+  const durationMs = RITUAL_DURATION_MS[band];
+  const sparkCount = RITUAL_SPARKS[band];
+  const shakeMs = RITUAL_SHAKE_MS[band];
 
   useEffect(() => {
     if (reducedMotion) {
@@ -54,9 +75,9 @@ export default function EnhanceRitualOverlay({
       const id = window.setTimeout(onDone, 60);
       return () => window.clearTimeout(id);
     }
-    const id = window.setTimeout(onDone, 2000);
+    const id = window.setTimeout(onDone, durationMs);
     return () => window.clearTimeout(id);
-  }, [onDone, reducedMotion]);
+  }, [onDone, reducedMotion, durationMs]);
 
   if (typeof window === "undefined") return null;
 
@@ -67,20 +88,37 @@ export default function EnhanceRitualOverlay({
         ? GB_WARN
         : GB_ENEMY;
 
-  // 6개 spark — 0°, 60°, 120°, 180°, 240°, 300°.
+  // spark — 밴드별 6/10/14 개를 원주에 균등 배치.
   // 각 spark 는 60px 거리에서 시작해 중앙으로 수렴 (inner) 후 outcome 에 따라 분기.
-  const sparks = Array.from({ length: 6 }, (_, i) => {
-    const angle = (i / 6) * Math.PI * 2;
+  const sparks = Array.from({ length: sparkCount }, (_, i) => {
+    const angle = (i / sparkCount) * Math.PI * 2;
     const x = Math.round(Math.cos(angle) * 60);
     const y = Math.round(Math.sin(angle) * 60);
     return { id: i, x, y, angle };
   });
+  // Phase 5-B — band 2 소실은 두 번째 spark 링 (120ms 지연, 반대 위상) 을 더 뿌린다.
+  const secondRing =
+    band >= 1 && outcome === "destroyed"
+      ? sparks.map((s) => ({ ...s, id: s.id + sparkCount, x: -s.x, y: -s.y }))
+      : [];
+  // 성공 시 마지막 20% 에 루트가 흔들린다. animation-delay 로 시점을 맞춘다.
+  const shakeClass =
+    !reducedMotion && outcome === "success" && band >= 1 ? `shake-${band}` : "";
+  const shakeDelayMs = Math.max(0, durationMs - shakeMs);
 
   return createPortal(
     <div
       aria-hidden="true"
-      className="fixed inset-0 z-[65] flex items-center justify-center"
-      style={{ background: `${GB.darkest}e6` }}
+      className={`enhance-overlay-root fixed inset-0 z-[65] flex items-center justify-center ${shakeClass}`}
+      style={
+        {
+          background: `${GB.darkest}e6`,
+          "--enh-ms": `${durationMs}ms`,
+          "--enh-shake-ms": `${shakeMs}ms`,
+          "--enh-shake-delay": `${shakeDelayMs}ms`,
+          "--enh-scatter": band >= 1 ? 4 : 3,
+        } as React.CSSProperties
+      }
     >
       {/* Ambient glow — outcome 색 기반 라디얼 */}
       <div
@@ -116,9 +154,9 @@ export default function EnhanceRitualOverlay({
         </div>
       </div>
 
-      {/* 6개 spark — 중앙 기준 absolute */}
+      {/* spark — 중앙 기준 absolute */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        {sparks.map((s) => (
+        {[...sparks, ...secondRing].map((s) => (
           <span
             key={s.id}
             className={`enhance-overlay-spark outcome-${outcome}`}
@@ -131,7 +169,7 @@ export default function EnhanceRitualOverlay({
                 background: flashColor,
                 borderRadius: "50%",
                 boxShadow: `0 0 6px ${flashColor}`,
-                animationDelay: `${s.id * 80}ms`,
+                animationDelay: `${(s.id % sparkCount) * 80 + (s.id >= sparkCount ? 120 : 0)}ms`,
                 "--sx": `${s.x}px`,
                 "--sy": `${s.y}px`,
               } as React.CSSProperties
@@ -142,19 +180,29 @@ export default function EnhanceRitualOverlay({
 
       <style jsx>{`
         .enhance-overlay-glow {
-          animation: enhance-glow 2000ms ${EASE_OUT} both;
+          animation: enhance-glow var(--enh-ms) ${EASE_OUT} both;
         }
         .enhance-overlay-item {
-          animation: enhance-item 2000ms ${EASE_OUT} both;
+          animation: enhance-item var(--enh-ms) ${EASE_OUT} both;
         }
         .enhance-overlay-item.outcome-destroyed {
-          animation: enhance-item-destroyed 2000ms ${EASE_OUT} both;
+          animation: enhance-item-destroyed var(--enh-ms) ${EASE_OUT} both;
         }
         .enhance-overlay-spark {
-          animation: enhance-spark 2000ms ${EASE_OUT} both;
+          animation: enhance-spark var(--enh-ms) ${EASE_OUT} both;
         }
         .enhance-overlay-spark.outcome-destroyed {
-          animation: enhance-spark-destroyed 2000ms ${EASE_OUT} both;
+          animation: enhance-spark-destroyed var(--enh-ms) ${EASE_OUT} both;
+        }
+        /* Phase 5-B — 성공 시 마지막 구간 루트 shake. band 1 은 치명타 shake 재사용,
+           band 2 는 globals.css 의 enhance-shake-strong (6px). */
+        .enhance-overlay-root.shake-1 {
+          animation: uphero-crit-shake var(--enh-shake-ms) steps(5, end)
+            var(--enh-shake-delay) both;
+        }
+        .enhance-overlay-root.shake-2 {
+          animation: enhance-shake-strong var(--enh-shake-ms) steps(7, end)
+            var(--enh-shake-delay) both;
         }
 
         @keyframes enhance-glow {
@@ -224,7 +272,10 @@ export default function EnhanceRitualOverlay({
             opacity: 0.6;
           }
           100% {
-            transform: translate(calc(var(--sx) * 3), calc(var(--sy) * 3))
+            transform: translate(
+                calc(var(--sx) * var(--enh-scatter)),
+                calc(var(--sy) * var(--enh-scatter))
+              )
               scale(0) rotate(720deg);
             opacity: 0;
           }
@@ -232,7 +283,9 @@ export default function EnhanceRitualOverlay({
         @media (prefers-reduced-motion: reduce) {
           .enhance-overlay-glow,
           .enhance-overlay-item,
-          .enhance-overlay-spark {
+          .enhance-overlay-spark,
+          .enhance-overlay-root.shake-1,
+          .enhance-overlay-root.shake-2 {
             animation: none !important;
           }
         }

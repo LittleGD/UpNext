@@ -24,6 +24,7 @@ import type {
   CardBuff,
   ClassType,
   DungeonId,
+  EffectSummaryData,
   Monster,
   SpecialEffect,
 } from "@/types/uphero";
@@ -338,18 +339,21 @@ export function resolveDungeonInParams(
  *   store 가 `effectSummaryData` 로 구조체를 저장해 두면 render 직전에 현재 언어
  *   라벨로 빌드. ChoiceResultModal / CombatLog 공통.
  */
-export interface EffectSummaryData {
-  xp?: number;
-  coins?: number;
-  heal?: number;
-  damage?: number;
-  timeDelta?: number;
-}
+export type { EffectSummaryData } from "@/types/uphero";
 
-export function buildSummaryFromData(
+type SummaryT = (key: DictKey, params?: Record<string, string | number>) => string;
+
+/**
+ * Phase 4-D (Track D) — 효과 요약을 칩 문자열 배열로. ChoiceResultModal 은 칩 하나에
+ *   span 하나, CombatLog 는 " · " 로 잇는다. `statLabel` 은 런 보정 스탯의 현재
+ *   언어 라벨 (컴포넌트는 `(s) => affixStatLabel(s, language)` 를 넘긴다); "all"
+ *   은 여기서 `uphero.choice.effectSummary.stat.all` 로 푼다.
+ */
+export function buildSummaryChips(
   data: EffectSummaryData,
-  t: (key: DictKey, params?: Record<string, string | number>) => string,
-): string {
+  t: SummaryT,
+  statLabel: (stat: string) => string,
+): string[] {
   const parts: string[] = [];
   if (data.xp) {
     parts.push(t("uphero.choice.effectSummary.xp", { sign: "+", value: data.xp }));
@@ -375,7 +379,76 @@ export function buildSummaryFromData(
       t("uphero.choice.effectSummary.time", { sign, value: data.timeDelta }),
     );
   }
-  return parts.join(" · ");
+  if (data.skipFloors) {
+    parts.push(t("uphero.choice.effectSummary.skipFloors", { n: data.skipFloors }));
+  }
+  for (const m of data.runMods ?? []) {
+    const stat =
+      m.stat === "all"
+        ? t("uphero.choice.effectSummary.stat.all")
+        : statLabel(m.stat);
+    const pct = Math.abs(m.pct);
+    const isBuff = m.pct > 0;
+    if (m.floors != null) {
+      parts.push(
+        t(
+          isBuff
+            ? "uphero.choice.effectSummary.runBuff"
+            : "uphero.choice.effectSummary.runCurse",
+          { stat, pct, floors: m.floors },
+        ),
+      );
+    } else {
+      parts.push(
+        t(
+          isBuff
+            ? "uphero.choice.effectSummary.runBuffRun"
+            : "uphero.choice.effectSummary.runCurseRun",
+          { stat, pct },
+        ),
+      );
+    }
+  }
+  if (data.stealth) {
+    parts.push(t("uphero.choice.effectSummary.stealth", { n: data.stealth }));
+  }
+  if (data.guaranteedDrop) {
+    parts.push(
+      t("uphero.choice.effectSummary.guaranteedDrop", { n: data.guaranteedDrop }),
+    );
+  }
+  if (data.bossDmgPct) {
+    parts.push(t("uphero.choice.effectSummary.bossReveal", { pct: data.bossDmgPct }));
+  }
+  return parts;
+}
+
+export function buildSummaryFromData(
+  data: EffectSummaryData,
+  t: SummaryT,
+  statLabel: (stat: string) => string = (s) => affixStatLabel(s, "ko"),
+): string {
+  return buildSummaryChips(data, t, statLabel).join(" · ");
+}
+
+/**
+ * Phase 4-D — narrativeParams.statId (RunModStat 키) 가 있으면 현재 언어 스탯
+ *   라벨을 params.stat 에 주입. 엔진은 언어를 모르므로 ko fallback 만 적어 두고
+ *   CombatLog 가 render 직전에 이 헬퍼로 치환한다 (monsterTemplateId 와 같은 패턴).
+ *   입력 객체 불변.
+ */
+export function resolveStatInParams(
+  params: Record<string, string | number> | undefined,
+  language: Language,
+): Record<string, string | number> | undefined {
+  if (!params) return params;
+  const statId = params.statId;
+  if (typeof statId !== "string" || statId.length === 0) return params;
+  const label =
+    statId === "all"
+      ? dictT("uphero.choice.effectSummary.stat.all" as DictKey, language)
+      : affixStatLabel(statId, language);
+  return { ...params, stat: label };
 }
 
 /** Phase 13b — 주간 affix 이름 + 설명 다국어 */

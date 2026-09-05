@@ -9,8 +9,16 @@
 //  lightest)로 통일한다. iOS 도 GBPalette 로 배경·텍스트·구분선을 통일해
 //  "레트로 게임보이 오버레이" 정체성을 되살린다 (앱 공통 accentPrimary 치환 복원).
 //
-//  복원 항목: 전직 전 NoviceSkillSection(로드맵), 클래스 액티브 스킬 실시간 cooldown
+//  복원 항목: 전직 전 NoviceSkillSection(로드맵), 보유 스킬 행별 실시간 cooldown
 //  bar, 장비 행 talisman skill 칩(✦) + 사진 부적 썸네일.
+//
+//  Phase 3-F (피드백 34b) — 웹 HeroStatPanel.ClassSection / SkillTreePanel 미러:
+//   - 클래스 섹션: deprecated classSkills 단일 카드 → 배운 스킬 목록(T{tier} 배지, 자원
+//     비용, session.skillCooldowns[id] 기반 준비됨/쿨다운 n + 2pt 바). 레거시 스칼라
+//     session.skillCooldown 은 더 읽지 않는다.
+//   - 스킬트리: tier 2/3 은 a/b 두 카드를 HStack 2열로. 형제를 배우면 dim(배경 단계 +
+//     opacity .45, "선택 완료"), 배운 카드는 자원색 글로우(선택 상태 예외). 판정은
+//     ClassSkills.learnStatus 한 곳. 리스펙 버튼 + GbConfirm, 코인 부족은 인라인 문구.
 //
 
 import SwiftUI
@@ -23,6 +31,9 @@ struct HeroStatPanel: View {
     /// 영웅 이름 inline 편집 버퍼 (웹 HeroNameEditor).
     @State private var editingName: String = ""
     @FocusState private var nameFocused: Bool
+    /// Phase 3-F — 리스펙 확인 다이얼로그 / 코인 부족 인라인 문구.
+    @State private var respecOpen = false
+    @State private var respecNoCoins = false
 
     // ── GB 팔레트 별칭 (웹 GB.* / gbClass.textDim 대응) ──────────────
     private let gbBg = GBPalette.darkest
@@ -35,9 +46,7 @@ struct HeroStatPanel: View {
     var body: some View {
         // 영웅 전용 레벨 → 레벨 스케일 적용된 영웅 → effective 스탯.
         let hero = upHero.state.hero
-        let level = UpHeroRules.getEffectiveHeroLevel(
-            gameLevel: store.progress?.level ?? 1,
-            heroStartLevel: upHero.state.heroStartLevel)
+        let level = upHero.heroLevel   // Phase 2-A — heroXp 풀 기준 (웹 useHeroLevel)
         let leveled = UpHeroRules.computeHeroForLevel(hero, level: level)
         let effective = UpHeroRules.computeEffectiveStats(leveled)
 
@@ -63,6 +72,33 @@ struct HeroStatPanel: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(gbBg)                       // 웹 background: GB.darkest
         .onAppear { editingName = upHero.state.hero.name }
+        .overlay {
+            // Phase 3-F — 리스펙 확인 (웹 SkillTreePanel GbConfirm respecConfirm).
+            if respecOpen, let cls = hero.classType {
+                let spent = spentSkillPoints(cls, hero: hero)
+                GbConfirm(
+                    title: "스킬 초기화",
+                    message: "배운 스킬을 모두 잊고 SP \(spent)을 돌려받아요. \(ShopPrices.skillRespec) 코인을 쓸까요?",
+                    confirmLabel: "스킬 초기화",
+                    onConfirm: { confirmRespec() },
+                    onCancel: { respecOpen = false })
+            }
+        }
+    }
+
+    /// 리스펙으로 되돌려받을 SP = 이 class 의 T2+ 학습 스킬 pointCost 합 (웹 spentSp).
+    private func spentSkillPoints(_ cls: ClassType, hero: Hero) -> Int {
+        let learned = hero.learnedSkills ?? []
+        return (ClassSkills.classSkillTrees[cls] ?? [])
+            .filter { $0.tier >= 2 && learned.contains($0.id) }
+            .reduce(0) { $0 + $1.pointCost }
+    }
+
+    private func confirmRespec() {
+        respecOpen = false
+        let result = upHero.respecSkills()
+        respecNoCoins = result == .noCoins
+        if result != .ok { SoundPlayer.shared.play(.cancel) }
     }
 
     // MARK: - 헤더 (웹 header: 제목 GB.lightest + ghost 닫기 ✕)
@@ -130,19 +166,18 @@ struct HeroStatPanel: View {
         editingName = upHero.state.hero.name
     }
 
-    // MARK: - 클래스 섹션 (웹 ClassSection — 메타 + 액티브 스킬 카드 + 실시간 cooldown)
+    // MARK: - 클래스 섹션 (웹 ClassSection — 메타 + 보유 스킬 목록 + 행별 실시간 cooldown)
 
     private func classSection(_ cls: ClassType, hero: Hero) -> some View {
         let meta = UpHeroRules.classMeta[cls]
-        let skill = ClassSkills.classSkills[cls]
-        // 전투 중이면 실시간 skillCooldown 참조 (웹 currentSession.skillCooldown).
+        let resourceSpec = UpHeroRules.classResource[cls]
+        let resColor = resourceSpec.map { Color(hexString: $0.color) } ?? gbText
+        let learnedIds = hero.learnedSkills ?? []
+        let learnedSkills = (ClassSkills.classSkillTrees[cls] ?? []).filter { learnedIds.contains($0.id) }
+        // 전투 중이면 skillCooldowns 맵 참조 (웹 currentSession.skillCooldowns[id]).
         let session = upHero.state.currentSession
         let sessionActive = session != nil && session?.status != .completed
             && session?.hero.classType == cls
-        let cd = sessionActive ? (session?.skillCooldown ?? 0) : 0
-        let ready = cd == 0
-        let maxCd = max(1, skill?.cooldown ?? 1)
-        let cooldownPct = sessionActive ? Double(maxCd - cd) / Double(maxCd) : 1.0
 
         return VStack(alignment: .leading, spacing: 10) {
             sectionTitle(AppConfig.loc("클래스"))
@@ -162,53 +197,88 @@ struct HeroStatPanel: View {
             .padding(14)
             .background(gbCard, in: RoundedRectangle(cornerRadius: 12))
 
-            // 액티브 스킬 카드 (dashed border) + 실시간 cooldown bar + skillReady/Cooldown.
-            if let skill {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 10) {
-                        PixelIcon(.zap, size: 18, color: gbText).frame(width: 24)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 8) {
-                                Text(AppConfig.loc("액티브: ") + skillDisplayName(skill))
-                                    .typography(.caption).foregroundStyle(gbText)
-                                if sessionActive {
-                                    Text(ready ? AppConfig.loc("준비됨")
-                                               : AppConfig.loc("쿨다운 \(cd)"))
-                                        .typography(.micro).monospacedDigit()
-                                        .foregroundStyle(ready ? gbText : gbDim)
-                                }
-                            }
-                            Text(sessionActive
-                                 ? AppConfig.loc("조건 충족 시 자동 발동")
-                                 : AppConfig.loc("쿨다운 \(skill.cooldown) · 조건 충족 시 자동 발동"))
-                                .typography(.micro).foregroundStyle(gbDim)
-                        }
-                        Spacer(minLength: 0)
-                        // 자동 스킬 토글 (보더 금지 — 채움 pill)
-                        autoSkillToggle(hero: hero)
-                    }
-                    // 실시간 cooldown bar — 세션 active 일 때만 (웹 :485-500, transition 280ms).
-                    if sessionActive {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(gbDivider)
-                                Capsule().fill(ready ? gbText : gbDim)
-                                    .frame(width: geo.size.width * cooldownPct)
-                                    .animation(.easeOut(duration: 0.28), value: cooldownPct)
-                            }
-                        }
-                        .frame(height: 2)
-                    }
+            // Phase 3-F — 보유 스킬 헤더 + 자동 토글 (웹 learnedSkillsLabel + autoFireHint)
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(AppConfig.loc("보유 스킬"))
+                        .typography(.caption).foregroundStyle(gbDim)
+                    Text(AppConfig.loc("조건 충족 시 자동 발동"))
+                        .typography(.micro).foregroundStyle(gbDim)
                 }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(gbCardDim, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(   // 웹 dashed border — 액티브 스킬 구분 아트.
-                    RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(gbDim.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                )
+                Spacer(minLength: 0)
+                autoSkillToggle(hero: hero)
+            }
+
+            // 보유 스킬 목록 — 행마다 실시간 cooldown (보더 없음, 배경 단계)
+            VStack(spacing: 6) {
+                if learnedSkills.isEmpty {
+                    Text(AppConfig.loc("아직 배운 스킬이 없어요"))
+                        .typography(.micro).foregroundStyle(gbDim)
+                        .padding(.horizontal, 12).padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(gbCardDim, in: RoundedRectangle(cornerRadius: 10))
+                }
+                ForEach(learnedSkills, id: \.id) { skill in
+                    learnedSkillRow(skill, sessionActive: sessionActive, session: session,
+                                    resColor: resColor, resShort: resourceSpec?.short ?? "")
+                }
             }
         }
+    }
+
+    private func learnedSkillRow(_ skill: ClassSkill, sessionActive: Bool,
+                                 session: CombatSession?, resColor: Color,
+                                 resShort: String) -> some View {
+        let cd = sessionActive ? ((session?.skillCooldowns ?? [:])[skill.id] ?? 0) : 0
+        let ready = cd == 0
+        let maxCd = max(1, skill.cooldown)
+        let cooldownPct = sessionActive ? Double(maxCd - cd) / Double(maxCd) : 1.0
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                PixelIcon(.zap, size: 18, color: gbText).frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Text(LocalizedStringKey(skill.name))
+                            .typography(.caption).foregroundStyle(gbText).lineLimit(1)
+                        Text("T\(skill.tier)")
+                            .font(.system(size: 9, weight: .semibold))
+                            .tracking(0.5)
+                            .foregroundStyle(gbDim)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(GBPalette.dark.opacity(0.67), in: RoundedRectangle(cornerRadius: 3))
+                        if sessionActive {
+                            Spacer(minLength: 0)
+                            Text(ready ? AppConfig.loc("준비됨") : AppConfig.loc("쿨다운 \(cd)"))
+                                .typography(.micro).monospacedDigit()
+                                .foregroundStyle(ready ? gbText : gbDim)
+                        }
+                    }
+                    HStack(spacing: 6) {
+                        Text("\(skill.resourceCost) \(resShort)")
+                            .typography(.micro).monospacedDigit().foregroundStyle(resColor)
+                        Text("·").typography(.micro).foregroundStyle(gbDim)
+                        Text(AppConfig.loc("쿨다운 \(skill.cooldown)"))
+                            .typography(.micro).monospacedDigit().foregroundStyle(gbDim)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            // 실시간 cooldown bar — 세션 active 일 때만 (2pt, transition 280ms).
+            if sessionActive {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(gbDivider)
+                        Capsule().fill(ready ? gbText : gbDim)
+                            .frame(width: geo.size.width * cooldownPct)
+                            .animation(.easeOut(duration: 0.28), value: cooldownPct)
+                    }
+                }
+                .frame(height: 2)
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(gbCardDim, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func autoSkillToggle(hero: Hero) -> some View {
@@ -225,10 +295,6 @@ struct HeroStatPanel: View {
                 .background(on ? gbText : gbCard, in: Capsule())
         }
         .buttonStyle(.plain)
-    }
-
-    private func skillDisplayName(_ skill: ClassSkill) -> String {
-        AppConfig.locRuntime(skill.name)   // 런타임 문자열 — 인앱 언어 카탈로그 경유.
     }
 
     // MARK: - 전직 전 노비스 스킬 섹션 (웹 NoviceSkillSection — 로드맵)
@@ -292,17 +358,7 @@ struct HeroStatPanel: View {
         .opacity(learned ? 1 : 0.75)
     }
 
-    // MARK: - 스킬트리 섹션 (웹 SkillTreePanel — GB 팔레트)
-
-    private enum LearnStatus { case ok, learned, needLevel, needPoints }
-
-    private func learnStatus(_ skill: ClassSkill, learned: [String],
-                             points: Int, level: Int) -> LearnStatus {
-        if learned.contains(skill.id) { return .learned }
-        if level < skill.requiredLevel { return .needLevel }
-        if points < skill.pointCost { return .needPoints }
-        return .ok
-    }
+    // MARK: - 스킬트리 섹션 (웹 SkillTreePanel — GB 팔레트, Phase 3-F 분기 트리)
 
     @ViewBuilder
     private func skillTreeSection(_ cls: ClassType, hero: Hero, level: Int) -> some View {
@@ -312,15 +368,24 @@ struct HeroStatPanel: View {
             let points = hero.skillPoints ?? 0
             let resourceSpec = UpHeroRules.classResource[cls]
             let resColor = resourceSpec.map { Color(hexString: $0.color) } ?? gbText
+            let canRespec = tree.contains { $0.tier >= 2 && learned.contains($0.id) }
+            let anyT3Learned = tree.contains { $0.tier == 3 && learned.contains($0.id) }
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
+                HStack(spacing: 8) {
                     sectionTitle(AppConfig.loc("스킬트리"))
                     Spacer(minLength: 0)
+                    if canRespec {
+                        respecButton
+                    }
                     HStack(spacing: 4) {
                         PixelIcon(.star, size: 12, color: gbText)
                         Text("\(points)").typography(.caption).monospacedDigit().foregroundStyle(gbText)
                         Text("SP").typography(.micro).foregroundStyle(gbDim)
                     }
+                }
+                if respecNoCoins {
+                    Text(AppConfig.loc("코인이 부족해요"))
+                        .typography(.micro).foregroundStyle(GBPalette.enemy)
                 }
                 if let resourceSpec {
                     // 자원명(분노/마나…)은 콘텐츠 문자열 — 보간 인자로 넣으면 %@ 가 원문(한국어)
@@ -328,16 +393,40 @@ struct HeroStatPanel: View {
                     Text(AppConfig.loc("자원 \(AppConfig.locRuntime(resourceSpec.name)) · 레벨업마다 SP 획득"))
                         .typography(.micro).foregroundStyle(gbDim)
                 }
-                ForEach(1...4, id: \.self) { tier in
+                ForEach(ClassSkills.skillTreeTiers, id: \.self) { tier in
                     let skills = tree.filter { $0.tier == tier }
                     if !skills.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(tierLabel(tier, skills: skills))
                                 .typography(.micro).tracking(1).foregroundStyle(gbDim)
-                            ForEach(skills, id: \.id) { skill in
-                                skillTreeRow(skill, learned: learned, points: points,
-                                             level: level, resColor: resColor,
-                                             resShort: resourceSpec?.short ?? "")
+                            if tier == 2 {
+                                Text(AppConfig.loc("2단계와 3단계는 둘 중 하나만 고를 수 있어요"))
+                                    .typography(.micro).foregroundStyle(gbDim)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            if tier == 4, !anyT3Learned {
+                                Text(AppConfig.loc("3단계 스킬 하나를 배우면 열려요"))
+                                    .typography(.micro).foregroundStyle(gbDim)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            if tier == 2 || tier == 3 {
+                                // a/b 두 카드 2열 (웹 grid-cols-2)
+                                HStack(alignment: .top, spacing: 6) {
+                                    ForEach(skills, id: \.id) { skill in
+                                        skillTreeRow(skill, cls: cls, learned: learned, points: points,
+                                                     level: level, resColor: resColor,
+                                                     resShort: resourceSpec?.short ?? "",
+                                                     branched: true)
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                }
+                            } else {
+                                ForEach(skills, id: \.id) { skill in
+                                    skillTreeRow(skill, cls: cls, learned: learned, points: points,
+                                                 level: level, resColor: resColor,
+                                                 resShort: resourceSpec?.short ?? "",
+                                                 branched: false)
+                                }
                             }
                         }
                     }
@@ -346,65 +435,108 @@ struct HeroStatPanel: View {
         }
     }
 
+    /// 리스펙 버튼 — T2+ 를 하나라도 배웠을 때만 (보더 없음, 배경 단계).
+    private var respecButton: some View {
+        Button {
+            Haptics.play(.selection)
+            respecOpen = true
+        } label: {
+            Text(AppConfig.loc("스킬 초기화 · \(ShopPrices.skillRespec) 코인"))
+                .typography(.micro).monospacedDigit()
+                .foregroundStyle(gbDim)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 32)
+                .background(GBPalette.dark.opacity(0.67), in: RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+
     private func tierLabel(_ tier: Int, skills: [ClassSkill]) -> String {
         guard tier > 1, let first = skills.first else { return AppConfig.loc("\(tier)단계") }
         return AppConfig.loc("\(tier)단계 · Lv.\(first.requiredLevel) · SP \(first.pointCost)")
     }
 
-    private func skillTreeRow(_ skill: ClassSkill, learned: [String], points: Int,
-                              level: Int, resColor: Color, resShort: String) -> some View {
-        let status = learnStatus(skill, learned: learned, points: points, level: level)
+    private func skillTreeRow(_ skill: ClassSkill, cls: ClassType, learned: [String], points: Int,
+                              level: Int, resColor: Color, resShort: String,
+                              branched: Bool) -> some View {
+        let status = ClassSkills.learnStatus(
+            skill, classType: cls, heroLevel: level, learned: learned, points: points)
         let isLearned = status == .learned
-        let dimmed = !(status == .ok || isLearned)
-        return HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(LocalizedStringKey(skill.name))
-                        .typography(.caption).foregroundStyle(gbText)
-                    if isLearned {
-                        Text("✓").typography(.micro).foregroundStyle(gbBg)
-                            .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(gbText, in: Capsule())
-                    }
-                }
-                Text(LocalizedStringKey(skill.description))
-                    .typography(.caption).foregroundStyle(gbDim)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 6) {
-                    Text("\(skill.resourceCost) \(resShort)")
-                        .typography(.micro).monospacedDigit().foregroundStyle(resColor)
-                    Text("·").typography(.micro).foregroundStyle(gbDim)
-                    Text(AppConfig.loc("쿨다운 \(skill.cooldown)"))
-                        .typography(.micro).monospacedDigit().foregroundStyle(gbDim)
+        let isDimmed = status == .branchTaken   // 형제를 이미 배움 — 배경 단계 + opacity .45
+        let opacity: Double = isDimmed ? 0.45 : ((status == .ok || isLearned) ? 1 : 0.7)
+        let info = VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(LocalizedStringKey(skill.name))
+                    .typography(.caption).foregroundStyle(gbText)
+                if isLearned {
+                    Text("✓").typography(.micro).foregroundStyle(gbBg)
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .background(gbText, in: Capsule())
                 }
             }
-            Spacer(minLength: 0)
+            Text(LocalizedStringKey(skill.description))
+                .typography(.caption).foregroundStyle(gbDim)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 6) {
+                Text("\(skill.resourceCost) \(resShort)")
+                    .typography(.micro).monospacedDigit().foregroundStyle(resColor)
+                Text("·").typography(.micro).foregroundStyle(gbDim)
+                Text(AppConfig.loc("쿨다운 \(skill.cooldown)"))
+                    .typography(.micro).monospacedDigit().foregroundStyle(gbDim)
+            }
+        }
+        let button = Group {
             if !isLearned {
                 Button {
-                    upHero.learnSkill(skill.id, gameLevel: store.progress?.level ?? 1)
+                    let result = upHero.learnSkill(skill.id)
+                    if result != .ok { SoundPlayer.shared.play(.cancel) }
                 } label: {
                     Text(learnButtonLabel(status, skill: skill))
                         .typography(.micro)
+                        .fontWeight(.semibold)
                         .foregroundStyle(status == .ok ? gbBg : gbDim)
                         .padding(.horizontal, 10)
+                        .frame(maxWidth: branched ? .infinity : nil)
                         .frame(minHeight: 32)
-                        .background(status == .ok ? gbText : gbCard, in: RoundedRectangle(cornerRadius: 8))
+                        .background(status == .ok ? gbText : GBPalette.dark.opacity(0.67),
+                                    in: RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
                 .disabled(status != .ok)
             }
         }
+        return Group {
+            if branched {
+                // 2열 카드: 정보 위, 버튼 아래 전폭 (웹 flex-col + w-full)
+                VStack(alignment: .leading, spacing: 8) {
+                    info
+                    button
+                }
+            } else {
+                HStack(alignment: .top, spacing: 10) {
+                    info
+                    Spacer(minLength: 0)
+                    button
+                }
+            }
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(gbCard, in: RoundedRectangle(cornerRadius: 10))
-        .opacity(dimmed ? 0.55 : 1)
+        .padding(10)
+        .background(isDimmed ? GBPalette.dark.opacity(0.15) : gbCard,
+                    in: RoundedRectangle(cornerRadius: 10))
+        // 배운 카드 = 자원색 글로우 (선택 상태 예외 — 보더 없이 위계)
+        .shadow(color: isLearned ? resColor.opacity(0.35) : .clear, radius: isLearned ? 6 : 0)
+        .opacity(opacity)
+        .animation(.easeOut(duration: 0.18), value: isLearned)
     }
 
-    private func learnButtonLabel(_ status: LearnStatus, skill: ClassSkill) -> String {
+    private func learnButtonLabel(_ status: SkillLearnStatus, skill: ClassSkill) -> String {
         switch status {
-        case .needLevel:  return "Lv.\(skill.requiredLevel)"
-        case .needPoints: return "SP \(skill.pointCost)"
-        default:          return AppConfig.loc("해금")
+        case .needLevel:   return "Lv.\(skill.requiredLevel)"
+        case .needPoints:  return "SP \(skill.pointCost)"
+        case .needPrereq:  return AppConfig.loc("이전 단계 필요")
+        case .branchTaken: return AppConfig.loc("선택 완료")
+        default:           return AppConfig.loc("해금")
         }
     }
 
@@ -423,9 +555,13 @@ struct HeroStatPanel: View {
 
     private func equipRow(slot: EquipSlot, item: Equipment?) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(slotLabel(slot))
-                .typography(.caption).foregroundStyle(gbDim)
-                .frame(width: 56, alignment: .leading)
+            // Phase 6-E — 슬롯 글리프(박스 없이 맨 아이콘) + 라벨. EquipSlot.glyphName 단일 출처.
+            HStack(spacing: 4) {
+                PixelIcon(PixelIconName.resolve(slot.glyphName), size: 12, color: gbDim)
+                Text(slotLabel(slot))
+                    .typography(.caption).foregroundStyle(gbDim)
+            }
+            .frame(width: 68, alignment: .leading)
             if let item {
                 // 사진 부적이면 썸네일, 아니면 픽셀 아이콘.
                 if let photoId = item.photoId {
@@ -441,6 +577,12 @@ struct HeroStatPanel: View {
                         if let lv = item.enhanceLevel, lv > 0 {
                             Text("+\(lv)").typography(.micro).foregroundStyle(gbText)
                         }
+                    }
+                    // Phase 6-E — 주스탯 한 줄 (EquipmentStats 순서의 첫 항목).
+                    if let first = EquipmentStats.orderedEntries(item).first {
+                        Text("\(first.key.label) \(EquipmentStats.format(first.key, first.value))")
+                            .typography(.micro).monospacedDigit()
+                            .foregroundStyle(gbDim)
                     }
                     // talisman skill 칩 (✦ 이름) — 웹 :244-276.
                     if let ids = item.talismanSkills, !ids.isEmpty {

@@ -77,5 +77,37 @@ let abOK = abandoned.status == .completed
 print("abandon = \(abOK ? "✅" : "❌") status:\(abandoned.status.rawValue) log\(abandoned.log.count)")
 if !abOK { allOK = false }
 
+// Phase 16 (Track C) — 시작층이 보스층 (startFloor 20) 이면 createSession 이 보스를
+// 바로 스폰하고 paused 로 둔다 (주간 특례의 일반화).
+var rngS = Mulberry32(seed: 11)
+let s20 = UpHeroSession.createSession(
+    dungeonId: .fitness, hero: smokeHero(), startFloor: 20, activeBuffs: nil,
+    options: CreateSessionOptions(ngPlusLevel: 0, isWeeklyVariant: false,
+                                  weeklyAffixId: nil, heroLevel: 25), rng: &rngS)
+// 웹 upHeroSessionLoop.test.ts 와 같이 마지막 엔트리가 boss(floor 20) 이고 paused 여야 한다
+// (시작 narrative 뒤에 붙는다). 보스 템플릿은 던전 bossIds[1] (F20 = 두 번째 보스).
+var bossAt20 = false
+if let e = s20.log.last, case let .boss(monster, floor, _) = e {
+    bossAt20 = floor == 20 && monster.isBoss == true && monster.level == 20
+        && monster.templateId == Dungeons.all[.fitness]!.bossIds[1]
+}
+let bossEntries20 = s20.log.filter { if case .boss = $0 { return true }; return false }.count
+let start20OK = bossAt20 && bossEntries20 == 1 && s20.status == .paused
+print("startFloor20 = \(start20OK ? "✅" : "❌") status:\(s20.status.rawValue) log\(s20.log.count) bossEntries\(bossEntries20)")
+if !start20OK { allOK = false }
+
+// Phase 16 (Track C) — 보스층에서 포기하면 floorReached 는 보스층 - 1 로 롤백된다.
+let abandoned20 = UpHeroSession.abandonSession(s20)
+let bosses20 = SessionReward.calculateBossesDefeated(log: abandoned20.log, existing: [10])
+let progress20 = SessionReward.calculateDungeonProgress(
+    session: abandoned20,
+    existing: DungeonProgress(dungeonId: .fitness, floorReached: 15, bestFloorReached: 15, bossesDefeated: [10]),
+    newBossesDefeated: bosses20)
+let rollbackOK = progress20.floorReached == 19 && progress20.bestFloorReached == 20
+    && progress20.bossesDefeated == [10]
+    && SessionReward.resolveStartFloor(progress20) == 20
+print("abandonAtBoss = \(rollbackOK ? "✅" : "❌") floorReached\(progress20.floorReached) best\(progress20.bestFloorReached) next\(SessionReward.resolveStartFloor(progress20))")
+if !rollbackOK { allOK = false }
+
 print(allOK ? "✅ 오케스트레이션 스모크 전체 통과" : "❌ 스모크 실패")
 exit(allOK ? 0 : 1)

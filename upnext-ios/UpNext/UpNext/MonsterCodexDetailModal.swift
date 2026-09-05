@@ -45,7 +45,7 @@ struct MonsterCodexDetailModal: View {
                 }
 
                 // 스프라이트 — 던전 테마색으로 은은히 물든 배경 위.
-                MonsterSprite(kind: template.kind,
+                MonsterSprite(kind: template.kind, templateId: template.id,
                               size: template.isBoss ? 80 : 72,
                               color: spriteColor, glow: template.isBoss)
                     .frame(maxWidth: .infinity)

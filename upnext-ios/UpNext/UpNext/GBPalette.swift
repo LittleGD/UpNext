@@ -20,4 +20,6 @@ enum GBPalette {
     static let lightest = Color(red: 0.804, green: 0.961, blue: 0.392)
     /// #e88b7a — GB_ENEMY, 위험/비가역 액션 톤 (GbConfirm danger·사진 삭제). 웹 upHeroPalette.ts:18.
     static let enemy = Color(hexString: "#e88b7a")
+    /// #e8b887 — GB_LEGEND, legend 등급·주간 보상 강조 톤. 웹 upHeroPalette.ts:43.
+    static let legend = Color(hexString: "#e8b887")
 }

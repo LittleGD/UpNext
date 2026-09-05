@@ -44,8 +44,8 @@ struct DungeonView: View {
     @State private var helpOpen: Bool = false
     /// 선택지 결과 모달 (웹 ChoiceResultModal) — 표시 중 tick pause. 로그 한 줄로
     /// 흘러가던 이벤트 결과를 모달로 보여줘 읽을 시간 보장(rpg 리뷰 P0).
-    @State private var choiceResultText: String?
-    @State private var choiceResultSummary: String?
+    /// Phase 4-D — 텍스트 + 구조화 요약(칩·톤·모티프 추론 원천) + legacy 문자열 요약.
+    @State private var choiceResult: ChoiceResultState?
     /// 굴림틀 결과 (웹 SlotMachineModal) — 있으면 일반 결과 모달 대신 드럼 연출을
     /// 띄우고 tick 을 멈춘다. 결과·지급은 이미 세션에서 끝났고 여기선 표시만 한다.
     @State private var slotResult: SlotResultPayload?
@@ -66,7 +66,8 @@ struct DungeonView: View {
                 DungeonAtmosphere(
                     dungeon: dungeon,
                     floor: session.currentFloor,
-                    isBoss: [10, 20, 30].contains(session.currentFloor)
+                    // Phase 16 (Track C, 피드백 28) — 보스는 10층마다 영원히.
+                    isBoss: UpHeroCombat.isBossFloor(session.currentFloor)
                 )
             }
             if let session = upHero.state.currentSession {
@@ -95,8 +96,19 @@ struct DungeonView: View {
                 }
 
                 // 선택지 결과 모달 — 결과 텍스트 + 효과 요약 + 계속(2.6s 자동 닫힘).
-                if let text = choiceResultText {
-                    choiceResultModal(text: text, summary: choiceResultSummary)
+                // Phase 16 (Track C, 피드백 14) — awaitingMinigame 동안은 결과 모달을
+                //   그리지 않는다 (그 층의 "> 도전 → ..." 결과와 미니게임 오버레이가
+                //   겹쳐 쌓이던 문제). resolveMinigame 이 "> 도전 성공/실패" 를 push 하면
+                //   그게 최신 결과로 이 모달에 다시 실린다. 웹 DungeonView 와 같은 게이트.
+                if session.status != .awaitingMinigame, let result = choiceResult {
+                    ChoiceResultModal(
+                        text: result.text,
+                        chips: result.data.map(ChoiceResultTypes.chips)
+                            ?? (result.legacySummary.map { [$0] } ?? []),
+                        tone: ChoiceResultTypes.deriveTone(result.data),
+                        motif: ChoiceResultTypes.deriveMotif(result.data),
+                        autoSeconds: Self.choiceResultAutoSeconds,
+                        onDismiss: { dismissChoiceResult() })
                         .transition(.opacity)
                         .zIndex(58)
                 }
@@ -105,7 +117,7 @@ struct DungeonView: View {
                 // blankStreak 는 이 굴림 **뒤**의 상태 스트릭(스토어가 갱신) — 4 면 "다음은
                 // 반드시" 힌트 = 5번째 보장. "한 번 더" 는 오늘 남은 스핀(shopDaily.slotSpins,
                 // 하루 상한)·런 수입이 있을 때만 — 세션이 아니라 스토어의 일일 카운터를 읽는다.
-                if let slotResult {
+                if session.status != .awaitingMinigame, let slotResult {
                     SlotMachineModal(
                         result: slotResult,
                         blankStreak: upHero.state.slotBlankStreak ?? 0,
@@ -150,7 +162,7 @@ struct DungeonView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: helpOpen)
         .animation(.easeInOut(duration: 0.2), value: bossBannerData != nil)
-        .animation(.easeInOut(duration: 0.2), value: choiceResultText != nil)
+        .animation(.easeInOut(duration: 0.2), value: choiceResult != nil)
         .animation(.easeInOut(duration: 0.2), value: slotResult != nil)
         .onReceive(tick) { _ in
             #if DEBUG
@@ -162,42 +174,24 @@ struct DungeonView: View {
             }
             #endif
             // 보스 배너·선택지 결과·굴림틀 모달 표시 중엔 tick 정지 (읽을 시간 보장).
-            guard !pausedForBoss, choiceResultText == nil, slotResult == nil else { return }
+            guard !pausedForBoss, choiceResult == nil, slotResult == nil else { return }
             upHero.advanceCombat()
         }
     }
 
-    /// 선택지 결과 모달 (웹 ChoiceResultModal) — 백드롭 + 결과 텍스트 + 효과 요약 + 계속.
-    private func choiceResultModal(text: String, summary: String?) -> some View {
-        ZStack {
-            Color.black.opacity(0.55).ignoresSafeArea()
-                .onTapGesture { dismissChoiceResult() }
-            VStack(spacing: 14) {
-                PixelIcon(.zap, size: 28, color: Color.accentPrimary)
-                Text(text)
-                    .typography(.body)
-                    .foregroundStyle(Color.textPrimary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let summary, !summary.isEmpty {
-                    Text(summary)
-                        .typography(.caption)
-                        .foregroundStyle(Color.accentPrimary)
-                        .multilineTextAlignment(.center)
-                }
-                Button("계속") { dismissChoiceResult() }
-                    .buttonStyle(.un(.primary))
-            }
-            .padding(22)
-            .frame(maxWidth: 320)
-            .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 18))
-            .padding(.horizontal, 32)
-        }
+    /// 선택지 결과 모달 상태 (웹 ChoiceResultModal props). `data` 가 있으면 칩·톤·모티프를
+    /// 거기서 추론하고, 없으면 legacy 문자열 요약을 칩 하나로 그대로 보여준다.
+    struct ChoiceResultState: Equatable {
+        var text: String
+        var data: EffectSummaryData?
+        var legacySummary: String?
     }
 
+    /// 결과 모달 자동 닫힘 (웹 autoMs 3000). Phase 4-D 에서 2.6s → 3.0s (칩이 늘어 읽을 시간).
+    static let choiceResultAutoSeconds = 3.0
+
     private func dismissChoiceResult() {
-        choiceResultText = nil
-        choiceResultSummary = nil
+        choiceResult = nil
     }
 
     /// 전투 반응 — 공격자는 중앙 쪽으로 lunge(영웅 +, 적 −), 명중 시 피격자는 바깥으로
@@ -321,6 +315,7 @@ struct DungeonView: View {
                 if let enemy {
                     MonsterSprite(
                         kind: enemy.kind,
+                        templateId: enemy.templateId,
                         size: 56,
                         color: enemy.isBoss == true ? Color.accentSecondary : Color.textPrimary,
                         glow: enemy.isBoss == true
@@ -427,6 +422,9 @@ struct DungeonView: View {
                 : hpPct > 0.2 ? Color(hexString: "#e8c76b") : Color.accentSecondary
             statBar("HP", session.hero.hp, session.hero.maxHp, hpColor)
             statBar(AppConfig.loc("탐험 시간"), session.time, session.maxTime, Color.accentCyan)
+            // Phase 4-D (Track D, 피드백 15) — 런 보정 스트립. TIME 바 아래에 이번 탐험의
+            //   버프/저주/보스 피해/은신/장비 확정을 칩으로. 넷 다 비면 아무것도 안 그린다.
+            runModsStrip(session)
             // 클래스 자원 게이지(분노/마나/기 등) — 전직 영웅만. 웹 ClassResourceBar.
             // 스킬 발동에 쓰이는 자원이 보이지 않던 갭(rpg 리뷰) 해소. 표시 전용.
             if let cls = session.hero.classType,
@@ -457,6 +455,32 @@ struct DungeonView: View {
                 }
             }
             .frame(height: 6)
+        }
+    }
+
+    /// 런 보정 스트립 (웹 RunModsStrip). 세션의 런 한정 상태 4종을 EffectSummaryData 로
+    /// 합성해 결과 모달과 같은 칩 빌더(ChoiceResultTypes.chips)로 그린다 (라벨 정본 하나).
+    /// 배경 단계만, 보더/아이콘 없음. 저주 칩(음수 보정)만 위험 신호색.
+    @ViewBuilder
+    private func runModsStrip(_ session: CombatSession) -> some View {
+        if let data = ChoiceResultTypes.runStateSummary(session) {
+            let chips = ChoiceResultTypes.chips(data)
+            let mods = session.runStatMods ?? []
+            // buildSummaryChips 가 runMods 를 먼저 내므로 앞 mods.count 개가 runMods 에 대응.
+            let curseIdx = Set(mods.enumerated().filter { $0.element.pct < 0 }.map { $0.offset })
+            ChoiceResultFlowLayout(spacing: 4) {
+                ForEach(Array(chips.enumerated()), id: \.offset) { i, chip in
+                    Text(chip)
+                        .typography(.micro)
+                        .foregroundStyle(curseIdx.contains(i) ? Color.accentSecondary : Color.textPrimary)
+                        .monospacedDigit()
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.bgElevated.opacity(0.5), in: RoundedRectangle(cornerRadius: 4))
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(AppConfig.loc("uphero.choice.runMods.aria"))
         }
     }
 
@@ -599,13 +623,13 @@ struct DungeonView: View {
             if let key { return R(key, params, "\(monster.name) 처치") }
             return R("ios.log.victory",
                      ["monster": .text(monster.name), "xp": .number(Double(xp)), "coins": .number(Double(coins))],
-                     "\(monster.name) 처치 — XP +\(xp), 코인 +\(coins)")
+                     "\(monster.name) 처치: XP +\(xp), 코인 +\(coins)")
         case let .drop(equipment, _):
             return R("ios.log.drop", ["equipment": .text(EquipmentPool.equipmentBaseName(equipment))], "\(equipment.name) 획득!")
         case let .treasure(coins, description, key, params, _):
             if let key { return R(key, params, description) }
             return description.isEmpty
-                ? R("ios.log.treasureFallback", ["coins": .number(Double(coins))], "보물 발견 — 코인 +\(coins)")
+                ? R("ios.log.treasureFallback", ["coins": .number(Double(coins))], "보물 발견: 코인 +\(coins)")
                 : AppConfig.locRuntime(description)
         case let .floor(_, to, _):
             return R("ios.log.floorEnter", ["floor": .number(Double(to))], "\(to)층 진입")
@@ -656,29 +680,14 @@ struct DungeonView: View {
 
     private func sessionEndText(_ reason: SessionEndReason) -> String {
         switch reason {
-        case .bossDefeated:  return AppConfig.loc("보스 격파 — 탐험 성공")
-        case .heroDied:      return AppConfig.loc("영웅이 쓰러졌다 — 탐험 실패")
+        case .bossDefeated:  return AppConfig.loc("보스 격파: 탐험 성공")
+        case .heroDied:      return AppConfig.loc("영웅이 쓰러졌다: 탐험 실패")
         case .timeExpired:   return AppConfig.loc("탐험 시간 소진")
         case .heroAbandoned: return AppConfig.loc("캠프로 복귀")
         case .victory:       return AppConfig.loc("탐험 성공")
         case .defeat:        return AppConfig.loc("탐험 실패")
         case .abandoned:     return AppConfig.loc("캠프로 복귀")
         }
-    }
-
-    /// 선택지 효과 요약을 구조화 데이터에서 인앱 언어로 재구성. UpHeroCombat.summarizeEffects
-    /// 는 한국어 문자열이라 모달에 그대로 쓰면 샌다 — 카탈로그 보간 키로 현지화.
-    private static func localizedEffectSummary(_ sd: EffectSummaryData) -> String {
-        var parts: [String] = []
-        if let xp = sd.xp { parts.append(AppConfig.loc("경험치 +\(xp)")) }
-        if let coins = sd.coins { parts.append(AppConfig.loc("코인 +\(coins)")) }
-        if let heal = sd.heal { parts.append(AppConfig.loc("체력 +\(heal)")) }
-        if let damage = sd.damage { parts.append(AppConfig.loc("체력 −\(damage)")) }
-        if let td = sd.timeDelta {
-            if td > 0 { parts.append(AppConfig.loc("시간 +\(td)")) }
-            else if td < 0 { parts.append(AppConfig.loc("시간 \(td)")) }
-        }
-        return parts.joined(separator: " · ")
     }
 
     // MARK: - 새 로그 처리 (효과 트리거)
@@ -788,13 +797,16 @@ struct DungeonView: View {
             } else {
                 resolved = text
             }
-            choiceResultText = resolved
-            choiceResultSummary = summaryData.map(Self.localizedEffectSummary) ?? effectSummary
+            // Phase 4-D — 구조화 요약이 있으면 칩·톤·모티프를 거기서 추론 (ChoiceResultTypes).
+            //   legacy 엔트리(effectSummary 한국어 문자열)는 칩 하나로 그대로.
+            let state = ChoiceResultState(text: resolved, data: summaryData,
+                                          legacySummary: summaryData == nil ? effectSummary : nil)
+            choiceResult = state
             SoundPlayer.shared.play(.select)
             Haptics.play(.selection)
-            // 자동 닫힘 가드는 해석된 문자열 기준(같은 모달이 아직 떠 있는지 확인).
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
-                if choiceResultText == resolved { dismissChoiceResult() }
+            // 자동 닫힘 가드는 같은 모달이 아직 떠 있는지 확인 (웹 autoMs 3000).
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.choiceResultAutoSeconds) {
+                if choiceResult == state { dismissChoiceResult() }
             }
         default:
             break
