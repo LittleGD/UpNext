@@ -66,7 +66,8 @@ struct DungeonView: View {
                 DungeonAtmosphere(
                     dungeon: dungeon,
                     floor: session.currentFloor,
-                    isBoss: [10, 20, 30].contains(session.currentFloor)
+                    // Phase 16 (Track C, 피드백 28) — 보스는 10층마다 영원히.
+                    isBoss: UpHeroCombat.isBossFloor(session.currentFloor)
                 )
             }
             if let session = upHero.state.currentSession {
@@ -95,7 +96,11 @@ struct DungeonView: View {
                 }
 
                 // 선택지 결과 모달 — 결과 텍스트 + 효과 요약 + 계속(2.6s 자동 닫힘).
-                if let text = choiceResultText {
+                // Phase 16 (Track C, 피드백 14) — awaitingMinigame 동안은 결과 모달을
+                //   그리지 않는다 (그 층의 "> 도전 → ..." 결과와 미니게임 오버레이가
+                //   겹쳐 쌓이던 문제). resolveMinigame 이 "> 도전 성공/실패" 를 push 하면
+                //   그게 최신 결과로 이 모달에 다시 실린다. 웹 DungeonView 와 같은 게이트.
+                if session.status != .awaitingMinigame, let text = choiceResultText {
                     choiceResultModal(text: text, summary: choiceResultSummary)
                         .transition(.opacity)
                         .zIndex(58)
@@ -105,7 +110,7 @@ struct DungeonView: View {
                 // blankStreak 는 이 굴림 **뒤**의 상태 스트릭(스토어가 갱신) — 4 면 "다음은
                 // 반드시" 힌트 = 5번째 보장. "한 번 더" 는 오늘 남은 스핀(shopDaily.slotSpins,
                 // 하루 상한)·런 수입이 있을 때만 — 세션이 아니라 스토어의 일일 카운터를 읽는다.
-                if let slotResult {
+                if session.status != .awaitingMinigame, let slotResult {
                     SlotMachineModal(
                         result: slotResult,
                         blankStreak: upHero.state.slotBlankStreak ?? 0,

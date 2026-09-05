@@ -48,6 +48,26 @@ enum UpHeroCombat {
     /// mystery "?" 시스템 cycle 당 floor 수. 웹 `CYCLE_SIZE`.
     static let cycleSize = 30
 
+    /// Phase 16 (Track C, 피드백 28) — 보스 케이던스: 10층마다 영원히. 웹 `isBossFloor`.
+    /// F30 (cycleSize) 만 "최종 보스" 로 런을 끝내고, F40+ 보스는 드롭 후 계속.
+    static func isBossFloor(_ floor: Int) -> Bool {
+        floor > 0 && floor % 10 == 0
+    }
+
+    /// 현재 층 *이후* 첫 보스층. F9 → 10, F10 → 20, F35 → 40. 웹 `nextBossFloorAfter`.
+    static func nextBossFloorAfter(_ floor: Int) -> Int {
+        (floor / 10) * 10 + 10
+    }
+
+    /// Phase 16 (Track C) — 몬스터 regen trait 상수. 웹 upHeroCombat.ts 동명 const.
+    /// 보스만 1% 인 이유: 보스 HP 는 일반몹보다 훨씬 커서 같은 5% 면 절대량이
+    /// 영웅 DPS 를 넘어 수학적으로 무적이었다 (F20 보스 1440 HP × 5% = 72/라운드).
+    static let monsterRegenPct = 0.05
+    static let bossRegenPct = 0.01
+    /// 현재 HP 가 최대치의 30% 미만이면 어떤 regen 몬스터도 회복하지 않는다.
+    /// executeCombatRound 가 push 자체를 게이트한다 (log 에 없으면 HP 계산·UI 모두 일치).
+    static let regenStopBelowHpRatio = 0.3
+
     /// in-memory log trim 상한. 웹 `SESSION_LOG_RUNTIME_CAP`.
     static let sessionLogRuntimeCap = 600
 
@@ -220,9 +240,11 @@ enum UpHeroCombat {
     ) -> CombatOutcome {
         let hl = heroLevel ?? 99
         let newbie = isNewbieBuffActive(heroLevel: hl, floorLevel: monster.level)
-        // 몬스터 실수 — 초반 floor 에서 허당.
+        // 몬스터 실수 — 초반 floor 에서 허당 (base 10%, floor 100 에서 5% 바닥).
+        // Phase 16 (Track C, 피드백 33) — 바닥 2% → 5%, 기울기 0.001 → 0.0005.
+        //   이전엔 F60 에서 이미 바닥이라 후반 사이클의 적이 거의 빗나가지 않았다.
         let newbieMissBonus = newbie ? 0.05 : 0.0
-        let missChance = max(0.02, 0.08 - Double(monster.level) * 0.001)
+        let missChance = max(0.05, 0.1 - Double(monster.level) * 0.0005)
             + enemyMissBonus + newbieMissBonus
         if rng.chance(missChance) { return .miss }
         // 영웅 회피 — agi scaling + class/talisman bonus.

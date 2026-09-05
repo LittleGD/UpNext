@@ -18,6 +18,8 @@ set -u
 cd "$(dirname "$0")/.."
 
 MODELS="upnext-ios/UpNext/UpNext/Models"
+# Game.swift / IdleAccrual.swift 가 AppConfig(App+Widget 공유, Foundation 전용)를 참조하므로 함께 컴파일한다.
+SHARED="upnext-ios/UpNext/Shared"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -29,7 +31,19 @@ run_suite() {
   local name="$1"; shift
   local args=()
   local f
-  for f in "$@"; do args+=("$MODELS/$f"); done
+  local shared=0
+  local files=("$@")
+  # UpHero.swift 의 LogEntry 가 SlotResultPayload(UpHeroSlot.swift, RandomSource 의존)를
+  # 참조하므로 UpHero.swift 가 있는 suite 는 UpHeroSlot.swift + UpHeroRNG.swift 를 함께 컴파일한다.
+  if [[ " ${files[*]} " == *" UpHero.swift "* ]]; then
+    [[ " ${files[*]} " == *" UpHeroRNG.swift "* ]] || files+=("UpHeroRNG.swift")
+    [[ " ${files[*]} " == *" UpHeroSlot.swift "* ]] || files+=("UpHeroSlot.swift")
+  fi
+  for f in "${files[@]}"; do
+    args+=("$MODELS/$f")
+    if [ "$f" = "Game.swift" ] || [ "$f" = "IdleAccrual.swift" ]; then shared=1; fi
+  done
+  if [ "$shared" = 1 ]; then args+=("$SHARED/AppConfig.swift"); fi
   # 검증기 swift 파일은 top-level 코드 → swiftc 다중 파일 컴파일 시 main.swift 여야 함.
   cp "scripts/equiv/$name.swift" "$TMP/main.swift"
   if ! swiftc "${args[@]}" "$TMP/main.swift" -o "$TMP/bin-$name" 2>"$TMP/err-$name"; then
@@ -60,7 +74,19 @@ run_smoke() {
   local name="$1"; shift
   local args=()
   local f
-  for f in "$@"; do args+=("$MODELS/$f"); done
+  local shared=0
+  local files=("$@")
+  # UpHero.swift 의 LogEntry 가 SlotResultPayload(UpHeroSlot.swift, RandomSource 의존)를
+  # 참조하므로 UpHero.swift 가 있는 suite 는 UpHeroSlot.swift + UpHeroRNG.swift 를 함께 컴파일한다.
+  if [[ " ${files[*]} " == *" UpHero.swift "* ]]; then
+    [[ " ${files[*]} " == *" UpHeroRNG.swift "* ]] || files+=("UpHeroRNG.swift")
+    [[ " ${files[*]} " == *" UpHeroSlot.swift "* ]] || files+=("UpHeroSlot.swift")
+  fi
+  for f in "${files[@]}"; do
+    args+=("$MODELS/$f")
+    if [ "$f" = "Game.swift" ] || [ "$f" = "IdleAccrual.swift" ]; then shared=1; fi
+  done
+  if [ "$shared" = 1 ]; then args+=("$SHARED/AppConfig.swift"); fi
   cp "scripts/equiv/$name.swift" "$TMP/main.swift"
   if ! swiftc "${args[@]}" "$TMP/main.swift" -o "$TMP/bin-$name" 2>"$TMP/err-$name"; then
     echo "❌ $name — Swift 컴파일 실패"
@@ -90,7 +116,7 @@ run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroRNG.swift Up
 run_suite affix-narrative  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift
 run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift FlavorPool.swift
 run_suite sync             Card.swift Game.swift FirestoreModels.swift
-run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift
+run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift SessionReward.swift
 echo "──────────────────────────────────────────"
 echo "결과: $PASS/$((PASS + FAIL)) suite 통과 · 총 $TOTAL 라인 동치"
 if [ "$FAIL" -eq 0 ]; then

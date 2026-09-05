@@ -6,8 +6,9 @@
 //  Phase 2.4 (RPG 엔진) 오케스트레이션 데이터 레이어 산출물.
 //
 //  결정론: scaleMonster 의 stat 계산은 (template, floor, opts) 만으로 결정 → 검증 가능.
-//   createMonsterForFloor 의 템플릿 선택은 웹이 Math.random (시드 불가) 사용 →
-//   Swift 는 RandomSource 를 명시 주입 (구조 동일, 출력은 비결정론). id 는 timestamp.
+//   createMonsterForFloor 의 템플릿 선택은 Phase 16 (Track C) 부터 웹도 rng() (시드
+//   가능) 라 호출 순서가 맞는다: [newbie 풀 roll] → [power 티어 roll] → [티어 내 인덱스 roll].
+//   datalayer 동치 suite 섹션 6 이 시드별 템플릿 선택을 대조한다. id 는 UUID.
 //
 
 import Foundation
@@ -192,16 +193,62 @@ enum MonsterPool {
         return out
     }()
 
+    /// Phase 16 (Track C, 피드백 33) — 층 구간별 power 티어 가중치 (p1/p2/p3).
+    /// 웹 `POWER_WEIGHTS_BY_FLOOR` 와 같은 값. 이전엔 풀에서 균등 추첨이라 F5 에서도
+    /// power 3 (ATK ×3) 이 1/7 로 나왔다. 풀에 없는 티어는 버리고 남은 가중치를 재정규화.
+    static let powerWeightsByFloor: [[Int: Double]] = [
+        [1: 70, 2: 30, 3: 0],    // F1-10
+        [1: 50, 2: 40, 3: 10],   // F11-20
+        [1: 35, 2: 45, 3: 20],   // F21-30
+        [1: 25, 2: 45, 3: 30],   // F31+
+    ]
+
+    /// 웹 `powerWeightBand`.
+    static func powerWeightBand(_ floor: Int) -> Int {
+        floor <= 10 ? 0 : floor <= 20 ? 1 : floor <= 30 ? 2 : 3
+    }
+
+    /// rng 두 번 소비: 티어 → 티어 내 균등. 웹 `pickTemplateByFloorWeight` 와 같은 호출 순서.
+    private static func pickTemplateByFloorWeight<R: RandomSource>(
+        _ pool: [MonsterTemplate], floor: Int, rng: inout R
+    ) -> MonsterTemplate {
+        let weights = powerWeightsByFloor[powerWeightBand(floor)]
+        var tiers: [(items: [MonsterTemplate], w: Double)] = []
+        for power in [1, 2, 3] {
+            let items = pool.filter { $0.power == power }
+            if items.isEmpty { continue }
+            tiers.append((items, weights[power] ?? 0))
+        }
+        let total = tiers.reduce(0.0) { $0 + $1.w }
+        var chosen = tiers[tiers.count - 1]
+        if total > 0 {
+            var roll = rng.unit() * total
+            for tier in tiers {
+                roll -= tier.w
+                if roll < 0 {
+                    chosen = tier
+                    break
+                }
+            }
+        } else {
+            // 모든 가중치 0 — 풀 균등 폴백 (웹과 같이 rng 를 두 번 소비).
+            _ = rng.unit()
+            return pool[rng.int(below: pool.count)]
+        }
+        return chosen.items[rng.int(below: chosen.items.count)]
+    }
+
     /// 던전/floor 에 맞는 몬스터 랜덤 선택 후 스케일링. 웹 `createMonsterForFloor`.
-    /// 템플릿 선택은 비결정론 (웹 Math.random) — Swift 는 RandomSource 명시 주입.
+    /// 호출 순서: newbie roll → power 티어 roll → 티어 내 인덱스 roll (웹과 동일).
     static func createMonsterForFloor<R: RandomSource>(
         dungeonId: DungeonId, floor: Int, isBoss: Bool = false,
         opts: ScaleOptions = ScaleOptions(), rng: inout R
     ) -> Monster {
         let pool = templates[dungeonId]!
         if isBoss {
-            // 10F/20F/30F 에 각각 다른 보스.
-            let bossIdx = min((floor - 1) / 10, 2)
+            // Phase 16 (Track C, 피드백 28) — 던전의 3 보스를 사이클마다 순서대로 재사용.
+            //   F10:0 F20:1 F30:2 F40:0 ... (rng 소비 없음 — revealBoss 미리보기 안전).
+            let bossIdx = floor < 10 ? 0 : (((floor / 10) - 1) % 3 + 3) % 3
             return scaleMonster(pool.bosses[bossIdx], dungeonId: dungeonId, floor: floor, opts: opts)
         }
         let newbies = pool.normal.filter { $0.isNewbie }
@@ -214,18 +261,46 @@ enum MonsterPool {
         } else {
             chosenPool = !normals.isEmpty ? normals : pool.normal
         }
-        let template = chosenPool[rng.int(below: chosenPool.count)]
+        let template = pickTemplateByFloorWeight(chosenPool, floor: floor, rng: &rng)
         return scaleMonster(template, dungeonId: dungeonId, floor: floor, opts: opts)
     }
 
+    /// Phase 16 (Track C, 피드백 16/33) — 보스 배율을 사이클 (0 = F1-30, 1 = F31-60, ...)
+    /// 별로 테이퍼. 웹 `BOSS_HP_MULT_BY_CYCLE` / `BOSS_ATK_MULT_BY_CYCLE` 와 같은 값.
+    /// 마지막 원소가 그 이후 모든 사이클에 적용되고, ngMult (NG+) 는 별도로 곱한다.
+    /// 확정값 (2026-09-04, 시작 상수 그대로 목표 충족, 튜닝 없음):
+    ///   HP [1.2, 1.0, 0.9, 0.85] / ATK [0.9, 0.8, 0.75, 0.7] / bossRegenPct 0.01
+    ///   측정 승률 (웹, 8 던전 × 시드 1..25): F10 100% · F20 100% · F30 70% ·
+    ///   F40 93% · F50 100% · F60 64%. iOS 측정치는 UpHeroSessionLoopTests 참고.
+    static let bossHpMultByCycle: [Double] = [1.2, 1.0, 0.9, 0.85]
+    static let bossAtkMultByCycle: [Double] = [0.9, 0.8, 0.75, 0.7]
+    /// 보스 XP 배율 — 스탯이 아니라 xpReward 에만. 웹 `BOSS_XP_MULT`.
+    static let bossXpMult: Double = 4
+
+    /// 웹 `bossCycleIndex`.
+    static func bossCycleIndex(_ floor: Int) -> Int {
+        max(0, (floor - 1) / 30)
+    }
+
+    private static func cycleMult(_ table: [Double], floor: Int) -> Double {
+        table[min(table.count - 1, bossCycleIndex(floor))]
+    }
+
+    /// Phase 16 (Track C, 피드백 33) — power 가 ATK/DEF 에 곱하는 배율. HP 는 여전히
+    /// ×power (1/2/3). 웹 `POWER_ATK_DEF_MULT` 와 같은 값.
+    static let powerAtkDefMult: [Int: Double] = [1: 1, 2: 1.6, 3: 2.2]
+
     /// floor + power 기반 stat 스케일링 (+ NG+ / affix / trait 보정). 웹 `scaleMonster`.
-    /// stat 계산은 결정론 — id 만 timestamp 기반 (비결정론).
+    /// stat 계산은 결정론 — id 만 UUID 기반 (비결정론).
     static func scaleMonster(
         _ t: MonsterTemplate, dungeonId: DungeonId, floor: Int,
         opts: ScaleOptions = ScaleOptions()
     ) -> Monster {
-        let bossHpMult: Double = t.isBoss ? 4 : 1
-        let bossAtkMult: Double = t.isBoss ? 1.7 : 1
+        // Phase 16 (Track C) — 보스 배율은 사이클 테이퍼 표에서.
+        let bossHpMult: Double = t.isBoss ? cycleMult(bossHpMultByCycle, floor: floor) : 1
+        let bossAtkMult: Double = t.isBoss ? cycleMult(bossAtkMultByCycle, floor: floor) : 1
+        let bossXp: Double = t.isBoss ? bossXpMult : 1
+        let powerAtkDef = powerAtkDefMult[t.power] ?? Double(t.power)
         let ngMult = UpHeroRules.ngPlusScaleMult(opts.ngPlusLevel)
         let base = 20 + floor * 5
         let earlyCoinBoost: Double = (!t.isBoss && floor <= 10) ? 1.3 : 1
@@ -245,11 +320,12 @@ enum MonsterPool {
 
         let finalHp = UpHeroCombat.jsRound(
             Double(base * t.power) * bossHpMult * ngMult * opts.hpMult * traitHpMult * earlyNerf)
+        // Phase 16 (Track C) — ×power → ×powerAtkDefMult[power] (1 / 1.6 / 2.2).
         let finalAtk = UpHeroCombat.jsRound(
-            (5 + Double(floor) * 1.3) * Double(t.power) * bossAtkMult * ngMult
+            (5 + Double(floor) * 1.3) * powerAtkDef * bossAtkMult * ngMult
                 * opts.atkMult * traitAtkMult * earlyNerf)
         let finalDef = UpHeroCombat.jsRound(
-            (2 + Double(floor) * 0.5) * Double(t.power) * ngMult * earlyNerf)
+            (2 + Double(floor) * 0.5) * powerAtkDef * ngMult * earlyNerf)
 
         return Monster(
             // UUID — ms%1e4 충돌(같은 tick 다중 spawn) 회피, 로그 트래킹·디버깅 안정.
@@ -263,7 +339,7 @@ enum MonsterPool {
             atk: finalAtk,
             def: finalDef,
             xpReward: UpHeroCombat.jsRound(
-                (10 + Double(floor) * 3) * Double(t.power) * bossHpMult * ngMult),
+                (10 + Double(floor) * 3) * Double(t.power) * bossXp * ngMult),
             coinReward: UpHeroCombat.jsRound(
                 (3 + Double(floor) * 2) * Double(t.power) * (t.isBoss ? 10 : 1)
                     * ngMult * earlyCoinBoost),

@@ -119,7 +119,9 @@ enum UpHeroSession {
         guard let trait = monster.trait else { return }
         if trait == .regen {
             let cap = monster.maxHp ?? monster.hp
-            s.monsterRegenAmount = max(2, UpHeroCombat.jsRound(Double(cap) * 0.05))
+            // Phase 16 (Track C) — 보스 1% / 일반 5%. 근거는 UpHeroCombat.bossRegenPct 주석.
+            let pct = monster.isBoss == true ? UpHeroCombat.bossRegenPct : UpHeroCombat.monsterRegenPct
+            s.monsterRegenAmount = max(2, UpHeroCombat.jsRound(Double(cap) * pct))
         } else if trait == .shield {
             s.monsterShieldHits = 2
         }
@@ -192,20 +194,24 @@ enum UpHeroSession {
         session.mysteryFloors = UpHeroCombat.generateMysteryFloors(cycleIndex: initialCycle, rng: &rng)
             .filter { $0 > startFloor }
 
-        // 주간 악몽 (startFloor=30) — F30 보스 + paused 선삽입.
-        if options?.isWeeklyVariant == true, startFloor == 30 {
+        // 시작층 자체가 보스층이면 보스 + paused 선삽입.
+        // Phase 16 (Track C, 피드백 19) — 주간 특례 `isWeeklyVariant && startFloor == 30`
+        //   를 "시작층이 보스층" 으로 일반화. 보스층에서 포기/사망 뒤 재진입하면
+        //   startFloor 가 10/20/30 이 되는데, tickSession 은 "다음 층" 만 보스 판정하므로
+        //   보스가 영구 스킵됐다 (SessionReward.resolveStartFloor 와 짝).
+        if UpHeroCombat.isBossFloor(startFloor) {
             let hasBoss = session.log.contains {
-                if case let .boss(_, floor, _) = $0 { return floor == 30 }
+                if case let .boss(_, floor, _) = $0 { return floor == startFloor }
                 return false
             }
             if !hasBoss {
                 let boss = MonsterPool.createMonsterForFloor(
-                    dungeonId: dungeonId, floor: 30, isBoss: true,
+                    dungeonId: dungeonId, floor: startFloor, isBoss: true,
                     opts: ScaleOptions(ngPlusLevel: session.ngPlusLevel ?? 0,
                                        hpMult: session.monsterHpMult ?? 1,
                                        atkMult: session.monsterAtkMult ?? 1),
                     rng: &rng)
-                session.log.append(.boss(monster: boss, floor: 30, timestamp: now()))
+                session.log.append(.boss(monster: boss, floor: startFloor, timestamp: now()))
                 session.status = .paused
                 initMonsterTraitState(&session, monster: boss)
             }
@@ -324,7 +330,11 @@ enum UpHeroSession {
                         if tMods.bossTimeRecover > 0 {
                             _ = consumeTime(&s, delta: tMods.bossTimeRecover)
                         }
-                        if s.currentFloor >= UpHeroCombat.cycleSize {
+                        // Phase 16 (Track C, 피드백 28) — 보스가 10층마다 영원히 나오므로
+                        //   `>=` 는 F40/F50/... 보스도 런을 끝내버린다. 정확히 F30 에서만
+                        //   종료 + NG+, F40+ 보스는 드롭 후 계속. Track A 의 bossClearXp 는
+                        //   위 gainedXp 에 붙는다.
+                        if s.currentFloor == UpHeroCombat.cycleSize {
                             endSession(&s, reason: .bossDefeated,
                                        detail: "\(monster.name) 을(를) 쓰러뜨렸다",
                                        detailKey: "uphero.session.detail.bossDefeated",
@@ -384,7 +394,8 @@ enum UpHeroSession {
         }
 
         let nextFloor = s.currentFloor + 1
-        let isBossFloor = nextFloor % 10 == 0 && nextFloor <= 30
+        // 보스층 (10의 배수, 상한 없음) 에 도달 직전이면 boss 로 분기.
+        let bossAhead = UpHeroCombat.isBossFloor(nextFloor)
 
         // 층 이동 (victory/drop/treasure/narrative 뒤)
         var advanceFloor = false
@@ -400,7 +411,9 @@ enum UpHeroSession {
             gainClassResource(&s, event: .floor)
             if consumeTime(&s, delta: -UpHeroCombat.TimeCost.floor) { return s }
 
-            if isBossFloor {
+            // Track C 블록 — Track A 는 위 currentFloor 갱신 뒤 floorXp 를, Track D 는
+            //   advanceRunModFloors(&s, 1) 을 이 앞에 끼운다. 이 블록 자체는 바뀌지 않는다.
+            if bossAhead {
                 let hasBoss = s.log.contains {
                     if case let .boss(_, floor, _) = $0 { return floor == nextFloor }
                     return false
@@ -570,15 +583,25 @@ enum UpHeroSession {
         _ s: inout CombatSession, monster: Monster, stats: HeroBaseStats, rng: inout R
     ) {
         // monster trait regen — round 시작 시 회복 로그.
+        // Phase 16 (Track C, 피드백 16) — 현재 HP 가 최대치의 30% 미만이면 push 자체를
+        //   건너뛴다 (regenStopBelowHpRatio). log 에 엔트리가 없으면 computeMonsterHp 도
+        //   UI HP 바도 자동으로 일치한다. 비교는 웹과 같은 Double (`hpNow >= cap * 0.3`).
         if let regenAmt = s.monsterRegenAmount, regenAmt > 0 {
-            s.log.append(.monsterEffect(
-                effect: .regen, amount: regenAmt, narrative: nil,
-                narrativeKey: "uphero.combat.trait.regen",
-                narrativeParams: [
-                    "amount": .number(Double(regenAmt)),
-                    "monster": .text(monster.name),
-                    "monsterTemplateId": .text(monster.templateId ?? ""),
-                ], timestamp: now()))
+            let encIdx = UpHeroCombat.findLastEncounterIndex(s.log)
+            let cap = monster.maxHp ?? monster.hp
+            let hpNow = encIdx >= 0
+                ? UpHeroCombat.computeMonsterHp(log: s.log, encounterIdx: encIdx, monster: monster)
+                : cap
+            if Double(hpNow) >= Double(cap) * UpHeroCombat.regenStopBelowHpRatio {
+                s.log.append(.monsterEffect(
+                    effect: .regen, amount: regenAmt, narrative: nil,
+                    narrativeKey: "uphero.combat.trait.regen",
+                    narrativeParams: [
+                        "amount": .number(Double(regenAmt)),
+                        "monster": .text(monster.name),
+                        "monsterTemplateId": .text(monster.templateId ?? ""),
+                    ], timestamp: now()))
+            }
         }
         // hero poison DoT
         if let poison = s.heroPoisonRounds, poison.rounds > 0 {
@@ -807,7 +830,11 @@ enum UpHeroSession {
         if s.status == .completed { return s }
         if consumeTime(&s, delta: -UpHeroCombat.TimeCost.choice) { return s }
         gainClassResource(&s, event: .choice)
-        s.status = .active
+        // Phase 16 (Track C, 피드백 14) — resolveChoice 가 "소유한" 상태만 되돌린다.
+        //   이전의 무조건 `.active` 는 startMinigame 효과가 방금 세운 awaitingMinigame 을
+        //   덮어써 미니게임 오버레이가 영영 뜨지 않았다. Track D: 여기서 무조건 active 로
+        //   되돌리는 코드를 다시 넣지 말 것.
+        if s.status == .awaitingChoice { s.status = .active }
         s.pendingChoiceIndex = nil
         return s
     }
@@ -840,20 +867,22 @@ enum UpHeroSession {
 
     // MARK: - 굴림틀 (웹 applyChoiceEffect 의 spinSlot 분기)
 
-    /// 보스 처치 시 소실방지권이 떨어질 확률.
+    /// 보스 처치 시 소실방지권이 떨어질 확률. 웹 BOSS_DESTROY_GUARD_DROP_CHANCE 와 같은 값.
     ///
-    /// 왜 0.35 인가: 소실방지권은 상점에서 팔지 않는 물건이라 "던전에서 벌어오는"
-    /// 경로가 유일하다. 한 런에서 만나는 보스는 F10 / F20 / F30 셋이라 풀 클리어
-    /// 기대 수급은 약 1.05장. legend 를 +10 까지 올리는 동안 평균 1.8장이 소모되니
-    /// "풀 클리어 두 번이면 legend 한 자루의 보험료" 라는 관계가 선다.
-    static let bossDestroyGuardDropChance = 0.35
+    /// 왜 0.5 인가: 소실방지권은 상점에서 팔지 않는 물건이라 "던전에서 벌어오는"
+    /// 경로가 유일하다. 한 사이클에서 만나는 보스는 F10 / F20 / F30 셋이라 풀 클리어
+    /// 기대 수급은 약 1.5장. 강화 상한이 +20 으로 열리면 (Track B) +15 이후 구간은
+    /// 시도마다 소실방지권을 태우므로, 이전 0.35 (기대 1.05장) 로는 수급이 수십 런
+    /// 단위로 모자랐다 (비평 반영: 0.35 → 0.5).
+    static let bossDestroyGuardDropChance = 0.5
 
-    /// 보물상자류 이벤트에서 소실방지권이 섞여 나올 확률.
+    /// 보물상자류 이벤트에서 소실방지권이 섞여 나올 확률. 웹 TREASURE_DESTROY_GUARD_DROP_CHANCE 와 같은 값.
     ///
-    /// 왜 0.06 인가: treasure 는 tick 당 10% 로 흔한 편이라 보스 드롭보다 두 자릿수
-    /// 낮게 잡아야 총 수급이 무너지지 않는다. 풀 클리어 한 런의 treasure 조우를
-    /// 대략 8~12회로 보면 기대 0.5~0.7장 — 보스 드롭의 보조 경로 수준이다.
-    static let treasureDestroyGuardDropChance = 0.06
+    /// 왜 0.10 인가: treasure 는 tick 당 10% 로 흔한 편이라 보스 드롭보다 낮게
+    /// 잡아야 총 수급이 무너지지 않는다. 풀 클리어 한 런의 treasure 조우를
+    /// 대략 8~12회로 보면 기대 0.8~1.2장 — 보스 드롭 (1.5장) 의 보조 경로 수준이다
+    /// (비평 반영: 0.06 → 0.10, 굴림틀 RTP 는 건드리지 않음).
+    static let treasureDestroyGuardDropChance = 0.1
 
     /// 세션 보상에 소실방지권 n 장 적립. 정산 때 `UpHeroState.destroyGuards` 로 합산.
     static func grantDestroyGuards(_ s: inout CombatSession, _ count: Int) {
@@ -1007,8 +1036,22 @@ enum UpHeroSession {
             s.hero.hp = min(s.hero.maxHp, s.hero.hp + healed)
             gainClassResource(&s, event: .heal)
         case let .skipFloors(count):
-            s.currentFloor += count
-            s.log.append(.floor(from: s.currentFloor - count, to: s.currentFloor, timestamp: now()))
+            // Phase 16 (Track C, 피드백 26) — 다음 보스층 직전까지만 건너뛴다. 이전엔
+            //   F19 에서 +3 이 F22 로 가 F20 보스가 통째로 사라졌다. 움직일 곳이 없으면
+            //   층 엔트리 대신 narrative 로 피드백만 준다.
+            // Track D 블록 — moved > 0 분기 끝에 advanceRunModFloors(&s, moved) 가 붙는다.
+            let cur = s.currentFloor
+            let target = min(cur + count, UpHeroCombat.nextBossFloorAfter(cur) - 1)
+            let moved = target - cur
+            if moved <= 0 {
+                s.log.append(.narrative(
+                    text: "통로가 보스의 문 앞에서 끊겨 있다",
+                    narrativeKey: "uphero.combat.narrative.skipBlocked",
+                    narrativeParams: nil, timestamp: now()))
+                return
+            }
+            s.currentFloor = target
+            s.log.append(.floor(from: cur, to: target, timestamp: now()))
         case .revealBoss:
             s.log.append(.narrative(
                 text: "보스의 기운이 느껴진다.",

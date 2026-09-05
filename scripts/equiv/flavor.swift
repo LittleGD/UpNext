@@ -36,6 +36,7 @@ func effectKind(_ e: ChoiceEffect) -> String {
     case .fight: return "fight"
     case .flee: return "flee"
     case .startMinigame: return "startMinigame"
+    case .spinSlot: return "spinSlot"
     }
 }
 func countEffect(_ e: ChoiceEffect) {
@@ -72,6 +73,7 @@ func fmtFx(_ e: ChoiceEffect) -> String {
     case .revealBoss: return "revealBoss"
     case .nothing: return "nothing"
     case .fight: return "fight"
+    case .spinSlot: return "spinSlot"
     }
 }
 
