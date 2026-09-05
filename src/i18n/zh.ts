@@ -815,8 +815,8 @@ const zh: Record<DictKey, string> = {
   "uphero.weekly.f30Badge": "F30 变异",
   "uphero.weekly.f30Locked": "F30 未通关",
   "uphero.weekly.defaultName": "本周噩梦",
-  "uphero.weekly.rewardHint": "每个地下城首次通关：金币 +{coins} · 防消失券 1 张",
-  "uphero.weekly.allClearHint": "8 处全部通关：金币 +{coins} · 防消失券 {wards} 张 · 防降级券 {downs} 张",
+  "uphero.weekly.rewardHint": "每个地下城首次通关：金币 +{coins} · 防消失符 {wards} 张",
+  "uphero.weekly.allClearHint": "8 处全部通关：金币 +{coins} · 防消失符 {wards} 张 · 防降级符 {downs} 张",
   "uphero.weekly.allClearDone": "本周噩梦已全部征服",
 
   // === Camp ambience (15) ===
@@ -1411,9 +1411,9 @@ const zh: Record<DictKey, string> = {
   "uphero.session.ngPlusUnlocked": "NG+ · 周噩梦解锁",
   "uphero.session.ngPlusUnlockedAnnounce": "NG+ 和周噩梦已解锁。",
   "uphero.session.weeklyFirstClear": "周噩梦首次通关",
-  "uphero.session.weeklyFirstClearReward": "金币 +{coins} · 防消失券 +{wards}",
+  "uphero.session.weeklyFirstClearReward": "金币 +{coins} · 防消失符 +{wards}",
   "uphero.session.weeklyAllClear": "本周 8 处噩梦全部征服",
-  "uphero.session.weeklyAllClearReward": "金币 +{coins} · 防消失券 +{wards} · 防降级券 +{downs}",
+  "uphero.session.weeklyAllClearReward": "金币 +{coins} · 防消失符 +{wards} · 防降级符 +{downs}",
   "uphero.session.weeklyRewardAnnounce": "已获得周噩梦奖励。{detail}",
   "uphero.session.tapCardHint": "点击卡片查看",
 

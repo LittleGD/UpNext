@@ -1381,6 +1381,7 @@ import {
   WEEKLY_ALL_CLEAR_DOWN_GUARDS,
   WEEKLY_DUNGEON_COUNT,
   WEEKLY_FIRST_CLEAR_COINS,
+  WEEKLY_FIRST_CLEAR_DESTROY_GUARDS,
 } from "@/lib/sessionReward";
 
 /**
@@ -1421,7 +1422,10 @@ function WeeklyNightmareRibbon({
             wards: WEEKLY_ALL_CLEAR_DESTROY_GUARDS,
             downs: WEEKLY_ALL_CLEAR_DOWN_GUARDS,
           })
-        : t("uphero.weekly.rewardHint", { coins: WEEKLY_FIRST_CLEAR_COINS });
+        : t("uphero.weekly.rewardHint", {
+            coins: WEEKLY_FIRST_CLEAR_COINS,
+            wards: WEEKLY_FIRST_CLEAR_DESTROY_GUARDS,
+          });
   // Phase 11c R4 — SR 전용 label. 기존 innerText 는 맥락 없이 조각으로 읽힘.
   const srLabel = [
     t("uphero.ribbon.weeklyTitle"),

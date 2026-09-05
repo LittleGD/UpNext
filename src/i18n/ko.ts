@@ -815,7 +815,7 @@ const ko = {
   "uphero.weekly.f30Badge": "F30 변이",
   "uphero.weekly.f30Locked": "F30 미도달",
   "uphero.weekly.defaultName": "이번 주 악몽",
-  "uphero.weekly.rewardHint": "던전마다 첫 클리어 시 코인 +{coins} · 소실방지권 1장",
+  "uphero.weekly.rewardHint": "던전마다 첫 클리어 시 코인 +{coins} · 소실방지권 {wards}장",
   "uphero.weekly.allClearHint": "8곳 모두 클리어 시 코인 +{coins} · 소실방지권 {wards}장 · 하락방지권 {downs}장",
   "uphero.weekly.allClearDone": "이번 주 악몽을 모두 정복했다",
 

@@ -815,8 +815,8 @@ const en: Record<DictKey, string> = {
   "uphero.weekly.f30Badge": "F30 variant",
   "uphero.weekly.f30Locked": "F30 not cleared",
   "uphero.weekly.defaultName": "Weekly nightmare",
-  "uphero.weekly.rewardHint": "First clear of each dungeon: Coins +{coins} · 1 Loss Ward",
-  "uphero.weekly.allClearHint": "Clear all 8: Coins +{coins} · {wards} Loss Wards · {downs} Drop Wards",
+  "uphero.weekly.rewardHint": "First clear of each dungeon: Coins +{coins} · Loss Ward +{wards}",
+  "uphero.weekly.allClearHint": "Clear all 8: Coins +{coins} · {wards} Loss Wards · {downs} Downgrade Wards",
   "uphero.weekly.allClearDone": "Every nightmare conquered this week",
 
   // === Camp ambience (15 rotating lines) ===
@@ -1413,7 +1413,7 @@ const en: Record<DictKey, string> = {
   "uphero.session.weeklyFirstClear": "Weekly Nightmare First Clear",
   "uphero.session.weeklyFirstClearReward": "Coins +{coins} · Loss Ward +{wards}",
   "uphero.session.weeklyAllClear": "All 8 Nightmares Conquered This Week",
-  "uphero.session.weeklyAllClearReward": "Coins +{coins} · Loss Ward +{wards} · Drop Ward +{downs}",
+  "uphero.session.weeklyAllClearReward": "Coins +{coins} · Loss Ward +{wards} · Downgrade Ward +{downs}",
   "uphero.session.weeklyRewardAnnounce": "Weekly nightmare reward received. {detail}",
   "uphero.session.tapCardHint": "Tap a card to inspect.",
 

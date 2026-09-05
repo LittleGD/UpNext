@@ -815,8 +815,8 @@ const ja: Record<DictKey, string> = {
   "uphero.weekly.f30Badge": "F30 変異",
   "uphero.weekly.f30Locked": "F30 未到達",
   "uphero.weekly.defaultName": "今週の悪夢",
-  "uphero.weekly.rewardHint": "各ダンジョン初クリアでコイン +{coins} · 消失防止券 1枚",
-  "uphero.weekly.allClearHint": "8か所すべてクリアでコイン +{coins} · 消失防止券 {wards}枚 · 下落防止券 {downs}枚",
+  "uphero.weekly.rewardHint": "各ダンジョン初クリアでコイン +{coins} · 消失防止札 {wards}枚",
+  "uphero.weekly.allClearHint": "8か所すべてクリアでコイン +{coins} · 消失防止札 {wards}枚 · 降格防止札 {downs}枚",
   "uphero.weekly.allClearDone": "今週の悪夢をすべて制覇した",
 
   // === Camp ambience (15) ===
@@ -1411,9 +1411,9 @@ const ja: Record<DictKey, string> = {
   "uphero.session.ngPlusUnlocked": "NG+ · 週間悪夢 解放",
   "uphero.session.ngPlusUnlockedAnnounce": "NG+ と週間悪夢が解放されました。",
   "uphero.session.weeklyFirstClear": "週間悪夢 初クリア",
-  "uphero.session.weeklyFirstClearReward": "コイン +{coins} · 消失防止券 +{wards}",
+  "uphero.session.weeklyFirstClearReward": "コイン +{coins} · 消失防止札 +{wards}",
   "uphero.session.weeklyAllClear": "今週の悪夢 8か所を制覇",
-  "uphero.session.weeklyAllClearReward": "コイン +{coins} · 消失防止券 +{wards} · 下落防止券 +{downs}",
+  "uphero.session.weeklyAllClearReward": "コイン +{coins} · 消失防止札 +{wards} · 降格防止札 +{downs}",
   "uphero.session.weeklyRewardAnnounce": "週間悪夢の報酬を受け取りました。{detail}",
   "uphero.session.tapCardHint": "カードをタップして確認",
 
