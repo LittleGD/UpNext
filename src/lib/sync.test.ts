@@ -394,6 +394,16 @@ describe("normalizeUpHeroState — overflowDrops / dropFloor (Track E)", () => {
     expect(state.overflowDrops?.length).toBe(1);
   });
 
+  it("dropFloor / enhanceLevel 이 숫자가 아니면 버린다 (iOS lenientInt 와 같은 계약, sellPrice NaN 방지)", () => {
+    const state = normalizeUpHeroState({
+      inventory: [{ ...item, dropFloor: "abc", enhanceLevel: null }],
+    });
+    const decoded = state.inventory?.[0];
+    expect(decoded).toBeDefined();
+    expect("dropFloor" in (decoded ?? {})).toBe(false);
+    expect("enhanceLevel" in (decoded ?? {})).toBe(false);
+  });
+
   it("overflowDrops 만 있어도 플레이 흔적", () => {
     expect(hasUpHeroFootprint({ overflowDrops: [item] })).toBe(true);
     expect(hasUpHeroFootprint({ overflowDrops: [] })).toBe(false);

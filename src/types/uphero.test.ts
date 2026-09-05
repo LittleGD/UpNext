@@ -559,6 +559,11 @@ describe("sellPrice (Track E)", () => {
     expect(sellPrice(rarity, floor, level)).toBe(expected);
   });
 
+  it("비유한 입력은 0 으로 본다 (NaN 코인 방지)", () => {
+    expect(sellPrice("rare", Number.NaN, Number.POSITIVE_INFINITY)).toBe(15);
+    expect(sellPrice("normal", undefined, undefined)).toBe(5);
+  });
+
   it("undefined / 음수 / 소수는 0 층·+0 으로 접는다", () => {
     expect(sellPrice("rare", undefined, undefined)).toBe(15);
     expect(sellPrice("rare", -5, -1)).toBe(15);

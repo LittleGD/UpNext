@@ -762,15 +762,18 @@ export default function EquipmentInventory({
               ),
             })}
           </ActionButton>
-          {/* Phase 6-E — 버리기 대신 합성. 선택한 아이템이 첫 재료. */}
-          <ActionButton
-            onClick={() => {
-              setTab("bag");
-              enterSynthMode(selectedItem);
-            }}
-          >
-            {t("uphero.equip.action.synth")}
-          </ActionButton>
+          {/* Phase 6-E — 버리기 대신 합성. 선택한 아이템이 첫 재료.
+              legend(다음 등급 없음)와 사진 부적은 iOS 와 같이 버튼 자체를 숨긴다. */}
+          {!selectedItem.photoId && NEXT_RARITY[selectedItem.rarity] !== null && (
+            <ActionButton
+              onClick={() => {
+                setTab("bag");
+                enterSynthMode(selectedItem);
+              }}
+            >
+              {t("uphero.equip.action.synth")}
+            </ActionButton>
+          )}
         </section>
       )}
 

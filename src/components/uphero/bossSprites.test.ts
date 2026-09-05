@@ -55,6 +55,21 @@ describe("BOSS_FRAMES", () => {
   });
 });
 
+describe("FRAMES (kind 폴백)", () => {
+  it("모든 kind 는 2 프레임 × 12 행 × 12 열이다 (large frame2 row8 11자 오타 회귀 방지)", () => {
+    for (const [kind, frames] of Object.entries(FRAMES)) {
+      expect(frames.length, kind).toBe(2);
+      for (const frame of frames) {
+        expect(frame.length, kind).toBe(12);
+        for (const row of frame) {
+          expect(row.length, `${kind}: "${row}"`).toBe(12);
+          expect(/^[#.]+$/.test(row), `${kind}: "${row}"`).toBe(true);
+        }
+      }
+    }
+  });
+});
+
 describe("getMonsterFrames", () => {
   it("templateId 가 없거나 카탈로그에 없으면 kind 프레임", () => {
     expect(getMonsterFrames("large", undefined)).toBe(FRAMES.large);

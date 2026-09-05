@@ -1911,15 +1911,17 @@ export const SELL_PRICE_FLOOR_CAP = 99;
  *                     + ENHANCE_MULT[r] × clamp(enhanceLevel ?? 0, 0, 20).
  * 전부 정수 산술 — iOS `UpHeroRules.sellPrice` 와 동일 픽스처
  *   (normal,0,0)=5 · (normal,30,0)=35 · (rare,12,3)=57 · (unique,20,10)=280 ·
- *   (legend,30,10)=840 · (legend,120,25)=1992.
+ *   (legend,30,10)=840 · (legend,120,25)=1792 (강화는 +20 에서 clamp).
  */
 export function sellPrice(
   rarity: Rarity,
   dropFloor: number | undefined,
   enhanceLevel: number | undefined,
 ): number {
-  const f = Math.min(SELL_PRICE_FLOOR_CAP, Math.max(0, Math.floor(dropFloor ?? 0)));
-  const l = Math.min(MAX_ENHANCE_LEVEL, Math.max(0, Math.floor(enhanceLevel ?? 0)));
+  const fRaw = Number.isFinite(dropFloor) ? (dropFloor as number) : 0;
+  const lRaw = Number.isFinite(enhanceLevel) ? (enhanceLevel as number) : 0;
+  const f = Math.min(SELL_PRICE_FLOOR_CAP, Math.max(0, Math.floor(fRaw)));
+  const l = Math.min(MAX_ENHANCE_LEVEL, Math.max(0, Math.floor(lRaw)));
   return (
     SELL_PRICE_BASE[rarity] +
     SELL_PRICE_FLOOR_MULT[rarity] * f +

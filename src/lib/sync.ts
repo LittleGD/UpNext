@@ -210,6 +210,14 @@ function normalizeEquipment(raw: unknown): Equipment | null {
   const item = { ...r } as unknown as Equipment;
   item.name = asText(r.name) ?? id;
   item.stats = normalizeStats(r.stats);
+  // 숫자로 신뢰하는 필드는 iOS CloudEquipment(lenientInt)와 같이 강제한다.
+  // 깨진 값(예: "abc")을 그대로 두면 sellPrice 가 NaN 을 내고 coins 에 NaN 이 저장된다.
+  const enhanceLevel = asFinite(r.enhanceLevel);
+  if (enhanceLevel === undefined) delete item.enhanceLevel;
+  else item.enhanceLevel = enhanceLevel;
+  const dropFloor = asFinite(r.dropFloor);
+  if (dropFloor === undefined) delete item.dropFloor;
+  else item.dropFloor = dropFloor;
   return item;
 }
 
