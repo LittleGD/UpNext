@@ -70,14 +70,15 @@ struct BagActionBar: View {
                     action(AppConfig.loc("장착")) { onAction(.equip) }
                     action(AppConfig.loc("강화")) { onAction(.enhance) }
                     // 판매가 = 등급 + 드롭 층 + 강화 단계 (Track E, UpHeroStore.sellPrice 단일 출처).
-                    action(AppConfig.loc("판매 (+\(UpHeroStore.sellPrice(item)) 코인)")) {
+                    // 웹 "판매 +N" 과 같은 짧은 라벨 (액션바 일곱 버튼이 393pt 에 들어가야 한다).
+                    action(AppConfig.loc("판매 +\(UpHeroStore.sellPrice(item))")) {
                         onAction(.sell)
                     }
                     // Track E 합성 — 선택한 아이템이 첫 재료. legend·사진 부적은 버튼을 숨긴다.
                     if item.photoId == nil, UpHeroRules.nextRarity[item.rarity] != nil {
                         action(AppConfig.loc("합성")) { onAction(.synth) }
                     }
-                    action(AppConfig.loc("버리기"), danger: true) { onAction(.discard) }
+                    // 버리기는 액션바에서 뺀다 (Track E: 판매·합성으로 정리). 웹 동일.
                     action(AppConfig.loc("취소"), onTap: onCancel)
                 } else {
                     Text(hint)

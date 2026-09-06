@@ -81,7 +81,6 @@ export default function BagActionBar({
   onUnequip,
   onEnhance,
   onSell,
-  onDiscard,
   onCancel,
   onSynth,
   onSynthConfirm,
@@ -180,9 +179,8 @@ export default function BagActionBar({
               {t("uphero.equip.action.synth")}
             </BagAction>
           )}
-          <BagAction onClick={onDiscard} danger>
-            {t("uphero.equip.action.discard")}
-          </BagAction>
+          {/* 버리기는 액션바에서 뺀다 (Track E: 판매·합성으로 정리, discardItem 은 오버플로
+              배수 전용). 375px 에서 여덟 버튼이 넘쳐 취소가 잘리던 문제도 함께 해소. */}
           <BagAction onClick={onCancel}>
             {t("uphero.bag.action.cancel")}
           </BagAction>
