@@ -437,3 +437,300 @@ describe("normalizeUpHeroState — overflowDrops / dropFloor (Track E)", () => {
     console.info("[WEB_FIXTURE #2]", JSON.stringify(fixture));
   });
 });
+
+/**
+ * 격자 가방 좌표의 와이어 계약. iOS `CloudEquipment` 가 같은 규칙을 쓰므로
+ * 한쪽만 고치면 왕복에서 배치가 조용히 어긋난다.
+ *
+ * 계약: `n = 유한수 ? floor(n) : 삭제`, bagX 0..4 / bagY 0..7 / bagRot 0..3,
+ * bagX 나 bagY 가 무효면 **세 키를 모두** 삭제. 무효 rot 만 0 으로 접는다.
+ * 여기서 팩(백필)은 하지 않는다 — 디코드가 좌표를 지어내면 iOS 와 바이트가 갈린다.
+ */
+describe("normalizeUpHeroState — 장비 좌표·null 키", () => {
+  const base = {
+    id: "eq-1",
+    type: "weapon",
+    name: "쇠검",
+    category: "fitness",
+    rarity: "rare",
+    iconName: "Sword",
+    stats: { str: 3 },
+  };
+  const decode = (
+    extra: Record<string, unknown>,
+  ): Record<string, unknown> | undefined => {
+    const decoded = normalizeUpHeroState({ inventory: [{ ...base, ...extra }] });
+    const item: unknown = decoded.inventory?.[0];
+    return item as Record<string, unknown> | undefined;
+  };
+  const hasCoords = (item: Record<string, unknown> | undefined) =>
+    item !== undefined &&
+    ("bagX" in item || "bagY" in item || "bagRot" in item);
+
+  it("null 값 키는 삭제된다 (undefined 대입은 업로드에서 throw 한다)", () => {
+    const item = decode({ photoId: null, bagX: null, bagY: null, bagRot: null });
+    expect(item).toBeDefined();
+    expect("photoId" in (item as object)).toBe(false);
+    expect(hasCoords(item)).toBe(false);
+  });
+
+  it("소수 좌표는 floor 된다", () => {
+    expect(decode({ bagX: 2.7, bagY: 1, bagRot: 0 })).toMatchObject({
+      bagX: 2,
+      bagY: 1,
+      bagRot: 0,
+    });
+  });
+
+  it("음수·범위 밖·타입 불일치는 세 키를 모두 지운다", () => {
+    expect(hasCoords(decode({ bagX: -1, bagY: 1, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: 99, bagY: 1, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: 1, bagY: 99, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: "2", bagY: 1, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: 1, bagY: NaN, bagRot: 0 }))).toBe(false);
+    expect(hasCoords(decode({ bagX: 1e300, bagY: 1, bagRot: 0 }))).toBe(false);
+  });
+
+  it("좌표가 유효하면 무효 rot 만 0 으로 접는다", () => {
+    expect(decode({ bagX: 1, bagY: 2, bagRot: 7 })).toMatchObject({
+      bagX: 1,
+      bagY: 2,
+      bagRot: 0,
+    });
+    expect(decode({ bagX: 1, bagY: 2, bagRot: "가로" })).toMatchObject({
+      bagRot: 0,
+    });
+  });
+
+  it("정상 좌표는 그대로 왕복하고, 좌표가 없으면 지어내지 않는다", () => {
+    expect(decode({ bagX: 4, bagY: 7, bagRot: 1 })).toMatchObject({
+      bagX: 4,
+      bagY: 7,
+      bagRot: 1,
+    });
+    expect(hasCoords(decode({}))).toBe(false);
+  });
+});
+
+/**
+ * 가방 확장 (`bagRowsBought`) — 상점에서만 오르는 영구 자산이라 기기를 옮겨도
+ * 그대로 따라와야 한다. 와이어 키는 iOS `UpHeroCloudSchema.CodingKeys` 와 같은
+ * 철자여야 하고 (화이트리스트 디코드라 어긋나면 조용히 사라진다), 0 에서도
+ * 키를 남겨야 한다 — merge 가 클라우드의 옛 행 수를 되살리면 안 되기 때문이다.
+ */
+describe("normalizeUpHeroState — 가방 확장", () => {
+  it("정상 값은 그대로 왕복한다", () => {
+    expect(normalizeUpHeroState({ bagRowsBought: 2 }).bagRowsBought).toBe(2);
+  });
+
+  it("범위 밖·타입 불일치·부재를 관용적으로 접는다", () => {
+    expect(normalizeUpHeroState({ bagRowsBought: 7 }).bagRowsBought).toBe(4);
+    expect(normalizeUpHeroState({ bagRowsBought: -1 }).bagRowsBought).toBe(0);
+    expect(normalizeUpHeroState({ bagRowsBought: "2" }).bagRowsBought).toBe(0);
+    expect(normalizeUpHeroState({ bagRowsBought: 2.9 }).bagRowsBought).toBe(2);
+    expect(normalizeUpHeroState({}).bagRowsBought).toBe(0);
+  });
+
+  it("0 이어도 페이로드에 실린다 (merge 로 옛 행 수가 부활하면 안 된다)", () => {
+    const payload = encodeUpHeroForCloud(normalizeUpHeroState({}));
+    expect(Object.keys(payload)).toContain("bagRowsBought");
+    expect(payload.bagRowsBought).toBe(0);
+  });
+
+  it("행을 한 번이라도 샀으면 그 자체가 플레이 흔적이다", () => {
+    // 코인을 써야만 오르는 값이라 갓 설치한 기기에서는 0 일 수밖에 없다.
+    expect(hasUpHeroFootprint({ bagRowsBought: 1 })).toBe(true);
+    expect(hasUpHeroFootprint({ bagRowsBought: 0 })).toBe(false);
+  });
+});
+
+/**
+ * 격자 가방 병합 — iOS UpHeroCloudSchemaTests.WEB_FIXTURE 재생성 #3 (#2 의 상위집합):
+ *   inventory 두 원소에 bagX/bagY/bagRot, `bagRowsBought: 2`, `schemaVersion: 8`.
+ *   아래 console.info 출력을 Swift 픽스처에 그대로 붙인다.
+ */
+describe("픽스처 #3 — 격자 가방 좌표 + bagRowsBought (overflowDrops/dropFloor 상위집합)", () => {
+  it("normalize → encode → normalize 를 지나도 같다", () => {
+    const fixture = {
+      "hero": {
+        "name": "테오",
+        "hp": 84,
+        "maxHp": 120,
+        "baseStats": {
+          "str": 12,
+          "int": 7,
+          "vit": 9,
+          "dex": 5,
+          "agi": 6,
+          "crit": 2,
+          "slotBonus": 1
+        },
+        "equipped": {
+          "weapon": {
+            "id": "sword_f10_1700000000000",
+            "name": "eq_iron_sword",
+            "baseId": "iron_sword",
+            "type": "weapon",
+            "rarity": "rare",
+            "category": "fitness",
+            "iconName": "sword",
+            "stats": {
+              "str": 4,
+              "crit": 1
+            },
+            "enhanceLevel": 3,
+            "affix": "agi",
+            "dropFloor": 10
+          },
+          "armor": null,
+          "accessory": null,
+          "talisman": {
+            "id": "talisman_photo_1700000000001",
+            "name": "약속의 부적",
+            "type": "talisman",
+            "rarity": "unique",
+            "category": "mindfulness",
+            "iconName": "talisman",
+            "stats": {
+              "vit": 3
+            },
+            "photoId": "photo_abc",
+            "talismanSkills": [
+              "ts_guard"
+            ],
+            "effects": [
+              "eff_1"
+            ],
+            "flavor": "flavor text"
+          }
+        },
+        "classType": null,
+        "appearanceVariant": 1,
+        "autoSkillEnabled": false,
+        "learnedSkills": [
+          "warrior_smash_t1"
+        ],
+        "skillPoints": 2
+      },
+      "inventory": [
+        {
+          "id": "armor_f3_1700000000002",
+          "name": "eq_cloth_armor",
+          "baseId": "cloth_armor",
+          "type": "armor",
+          "rarity": "normal",
+          "category": "wellness",
+          "iconName": "armor",
+          "stats": {
+            "vit": 2
+          },
+          "dropFloor": 3,
+          "bagX": 0,
+          "bagY": 3,
+          "bagRot": 0
+        },
+        {
+          "id": "sword_f5_1700000000003",
+          "name": "eq_wood_sword",
+          "baseId": "wood_sword",
+          "type": "weapon",
+          "rarity": "normal",
+          "category": "fitness",
+          "iconName": "sword",
+          "stats": {
+            "str": 1
+          },
+          "dropFloor": 5,
+          "bagX": 3,
+          "bagY": 3,
+          "bagRot": 1
+        }
+      ],
+      "overflowDrops": [
+        {
+          "id": "sword_f31_1700000000003",
+          "name": "빛나는 자기절제의 검 of 힘",
+          "baseId": "self_control_sword",
+          "type": "weapon",
+          "rarity": "rare",
+          "category": "fitness",
+          "iconName": "Sword",
+          "stats": {
+            "str": 32,
+            "int": 2
+          },
+          "affix": "int",
+          "dropFloor": 31
+        }
+      ],
+      "coins": 264,
+      "passes": {
+        "fitness": 2,
+        "learning": 0
+      },
+      "dungeons": {
+        "fitness": {
+          "dungeonId": "fitness",
+          "floorReached": 12,
+          "bestFloorReached": 14,
+          "bossesDefeated": [
+            10
+          ]
+        }
+      },
+      "codex": {
+        "monsters": [
+          "슬라임"
+        ],
+        "equipment": [
+          "iron_sword"
+        ],
+        "bosses": []
+      },
+      "cosmetics": {
+        "tentColor": "#CDF564"
+      },
+      "lastIdleAccrualAt": 1756400000000,
+      "ngPlusLevel": 1,
+      "destroyGuards": 2,
+      "downGuards": 1,
+      "combatBuff": {
+        "pct": 10,
+        "battlesLeft": 3
+      },
+      "slotBlankStreak": 2,
+      "hasSeenCampTutorial": true,
+      "welcomeGrantClaimed": true,
+      "lastSeenAt": 1756400001000,
+      "schemaVersion": 8,
+      "shopDaily": {
+        "coinPouchClaimed": false,
+        "slotSpins": 2,
+        "date": "2026-08-28",
+        "passesBought": 1
+      },
+      "weeklyVariant": {
+        "week": "2026-W35",
+        "affixId": "frenzy",
+        "clearedDungeons": [
+          "fitness"
+        ],
+        "bestScore": 3140,
+        "lastUploadedAt": 1756400002000
+      },
+      "heroStartLevel": 3,
+      "heroXp": 39031,
+      "bagRowsBought": 2
+    };
+    const once = encodeUpHeroForCloud(normalizeUpHeroState(fixture));
+    const inv = once.inventory as Array<Record<string, unknown>>;
+    expect(inv[0]).toMatchObject({ bagX: 0, bagY: 3, bagRot: 0, dropFloor: 3 });
+    expect(inv[1]).toMatchObject({ bagX: 3, bagY: 3, bagRot: 1, dropFloor: 5 });
+    expect(once.bagRowsBought).toBe(2);
+    expect((once.overflowDrops as Array<{ dropFloor?: number }>)[0].dropFloor).toBe(31);
+    const twice = encodeUpHeroForCloud(normalizeUpHeroState(JSON.parse(JSON.stringify(once))));
+    expect(twice).toEqual(once);
+    // iOS 픽스처 재생성용 — 인코드 결과(웹 정본 출력)를 남긴다.
+    console.info("[WEB_FIXTURE #3]", JSON.stringify(once, null, 2));
+  });
+});

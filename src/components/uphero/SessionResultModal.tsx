@@ -9,7 +9,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useUpHeroStore } from "@/store/useUpHeroStore";
+import { useUpHeroStore, currentBagRows } from "@/store/useUpHeroStore";
+import { settleBagAfterSession } from "@/lib/sessionReward";
 import { DUNGEONS } from "@/data/upHeroDungeons";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_LEGEND } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
@@ -36,6 +37,9 @@ import DropRevealCard from "./DropRevealCard";
 export default function SessionResultModal() {
   const session = useUpHeroStore((s) => s.currentSession);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeSessionEnd);
+  // 정산 미리보기용 인벤토리. 실제 정산은 acknowledge 가 같은 순수 함수로 한다 —
+  //   여기서 다시 계산해도 값이 어긋나지 않는다.
+  const inventory = useUpHeroStore((s) => s.inventory);
   const { t, language } = useTranslation();
   // Phase 11c R2 — F30 첫 클리어 감지: 현재 session 에 F30 보스 victory 가 있고,
   //   store dungeons 의 해당 dungeon 이 아직 F30 미기록이면 "최초 돌파" 로 간주.
@@ -186,6 +190,8 @@ export default function SessionResultModal() {
   const lostCount = allDrops.length - keptCount;
   const keptDrops = allDrops.slice(0, keptCount);
   const lostDrops = allDrops.slice(keptCount);
+  // 트레이 초과 자동 판매 미리보기 (store 의 acknowledge 와 같은 순수 함수).
+  const autoSold = settleBagAfterSession(inventory, keptDrops, currentBagRows());
 
   return createPortal(
     <div
@@ -392,6 +398,16 @@ export default function SessionResultModal() {
                 className={`typo-caption ${gbClass.textDim} text-center mt-1`}
               >
                 {t("uphero.session.tapCardHint")}
+              </div>
+            )}
+            {/* 정리 대기(트레이) 초과분 자동 판매 — 아이템이 조용히 사라지지
+                않았음을 한 줄로 알린다. 없을 땐 줄 자체를 그리지 않는다. */}
+            {autoSold.sold.length > 0 && (
+              <div className="typo-caption mt-2" style={{ color: GB.light }}>
+                {t("uphero.session.result.autoSold", {
+                  n: autoSold.sold.length,
+                  coins: autoSold.coins,
+                })}
               </div>
             )}
           </div>

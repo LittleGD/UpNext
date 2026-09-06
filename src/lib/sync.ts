@@ -5,6 +5,10 @@ import { ALL_CARDS } from "@/data/cards";
 import { normalizeRetentionState, stripUndefined } from "@/lib/retention";
 import { normalizeSlotBlankStreak, normalizeSlotSpins } from "@/lib/upHeroSlot";
 import {
+  normalizeBagRowsBought,
+  normalizeEquipmentPlacement,
+} from "@/lib/upHeroBag";
+import {
   createDefaultHero,
   DUNGEON_BY_CLASS,
   ENHANCE_GUARD_MAX,
@@ -141,6 +145,9 @@ export type CloudUpHeroState = Partial<
     | "combatBuff"
     // 굴림틀 pity 스트릭. 와이어 키 = "slotBlankStreak" (정수 0..1000).
     | "slotBlankStreak"
+    // 격자 가방 확장 — 와이어 키 = "bagRowsBought" (정수 0..4), 0 이어도 항상 인코드.
+    //   상점에서만 오르는 영구 자산이라 기기를 옮겨도 그대로 따라와야 한다.
+    | "bagRowsBought"
     | "weeklyVariant"
     | "schemaVersion"
     | "hasSeenCampTutorial"
@@ -208,6 +215,13 @@ function normalizeEquipment(raw: unknown): Equipment | null {
   if (id === undefined || type === undefined) return null;
   if (!EQUIP_SLOTS.includes(type as EquipSlot)) return null;
   const item = { ...r } as unknown as Equipment;
+  // Firestore 는 값이 지워진 옵셔널 필드를 명시적 null 로 실어 보낸다. null 을 그대로
+  // 두면 `photoId: null` 같은 값이 "있다" 로 읽혀 게임 로직이 밟는다. 키를 **삭제**해야
+  // 한다 — undefined 를 대입하면 다음 업로드 페이로드에서 Firestore 가 throw 한다.
+  const rec = item as unknown as Record<string, unknown>;
+  for (const key of Object.keys(rec)) {
+    if (rec[key] === null) delete rec[key];
+  }
   item.name = asText(r.name) ?? id;
   item.stats = normalizeStats(r.stats);
   // 숫자로 신뢰하는 필드는 iOS CloudEquipment(lenientInt)와 같이 강제한다.
@@ -218,7 +232,10 @@ function normalizeEquipment(raw: unknown): Equipment | null {
   const dropFloor = asFinite(r.dropFloor);
   if (dropFloor === undefined) delete item.dropFloor;
   else item.dropFloor = dropFloor;
-  return item;
+  // 격자 가방 좌표 계약 (upHeroBag 단일 출처, iOS CloudEquipment 와 같은 규칙).
+  // 여기서 팩(백필)은 하지 않는다 — 클라우드 디코드는 iOS 와 바이트 동일해야 하고,
+  // 좌표가 없는 저장본의 복구는 스토어 로드 경로(initialize / _setFromCloud)가 맡는다.
+  return normalizeEquipmentPlacement(item);
 }
 
 /** Equipment 배열 디코드 — 배열이 아니면 [], 깨진 원소만 버린다. */
@@ -410,6 +427,8 @@ export function hasUpHeroFootprint(raw: unknown): boolean {
   // 방지권은 드롭이나 코인으로만 생긴다 — 보유 자체가 플레이 흔적이다.
   if ((asFinite(r.destroyGuards) ?? 0) > 0) return true;
   if ((asFinite(r.downGuards) ?? 0) > 0) return true;
+  // 가방 확장은 코인을 써야만 는다 — 갓 설치한 기기에서는 절대 0 이 아닐 수 없다.
+  if (normalizeBagRowsBought(r.bagRowsBought) > 0) return true;
   const cosmetics = asRecord(r.cosmetics);
   if (cosmetics && Object.keys(cosmetics).length > 0) return true;
   return false;
@@ -454,6 +473,10 @@ export function normalizeUpHeroState(raw: unknown): CloudUpHeroState {
     //   클라우드의 옛 스트릭이 되살아나 받을 자격이 없는 pity 가 발동한다.
     //   레거시(키 없음)·손상 값은 0, 정수 [0, SLOT_BLANK_STREAK_MAX] 로 접는다.
     slotBlankStreak: normalizeSlotBlankStreak(r.slotBlankStreak),
+    // 가방 확장 — slotBlankStreak 와 같은 이유로 0 에서도 키를 남긴다. 로그아웃/초기화로
+    //   0 이 된 상태에서 키가 빠지면 merge 가 클라우드의 옛 행 수를 되살린다.
+    //   레거시(키 없음)·손상 값은 0, 정수 [0, BAG_ROWS_BUYABLE] 로 접는다.
+    bagRowsBought: normalizeBagRowsBought(r.bagRowsBought),
     hasSeenCampTutorial: asBool(r.hasSeenCampTutorial) ?? false,
     welcomeGrantClaimed: asBool(r.welcomeGrantClaimed) ?? false,
   };

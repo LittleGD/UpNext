@@ -16,6 +16,9 @@
 //   - 인코드는 setDoc(merge) 중첩 맵 병합 누수를 막는다: hero.equipped 의 빈 슬롯은
 //     명시적 null, shopDaily.coinPouchClaimed 는 기본 false, classType 해제는 명시적
 //     null (키를 빼면 클라우드에 남은 예전 값이 되살아난다 — 웹 encodeUpHeroForCloud).
+//   - 격자 가방 좌표(bagX/bagY/bagRot)는 디코드 시점에 정규화 계약을 적용한다
+//     (웹 upHeroBag.normalizeEquipmentPlacement 와 같은 규칙). 무효 좌표를 도메인으로
+//     흘리면 보드가 겹쳐 그려지고, 키를 통째로 빼먹으면 왕복마다 배치가 지워진다.
 //   - 흔적(footprint) 판정: 업로드/복원 게이트 둘 다 "키 존재" 가 아니라 흔적으로.
 //     initialize 가 새 기기에서 즉시 persist 하는 빈 저장본 때문에 키 존재 판정이면
 //     클라우드 영웅이 빈 값으로 덮인다 (웹 커밋 9c2bf93 에서 실측된 회귀).
@@ -47,10 +50,13 @@ private func lossyStrings<K: CodingKey>(
 }
 
 /// 관용 숫자 디코드 — 정수/실수 모두 허용 (웹 asFinite). 도메인이 Int 라 내림.
+/// 크기 가드가 필요한 이유: `Int(1e300)` 은 Swift 에서 트랩(크래시)이라, 손상된 클라우드
+/// 문서 하나가 앱을 죽인다. 웹은 같은 값을 그대로 두지만 iOS 는 Int 도메인이라 버린다.
 private func lenientInt<K: CodingKey>(
     _ c: KeyedDecodingContainer<K>, _ key: K
 ) -> Int? {
     guard let d = try? c.decode(Double.self, forKey: key), d.isFinite else { return nil }
+    guard abs(d) < 9.0e15 else { return nil }
     return Int(d.rounded(.down))
 }
 
@@ -82,7 +88,8 @@ private func upHeroFootprint(
     coins: Int,
     cosmetics: Cosmetics,
     destroyGuards: Int,
-    downGuards: Int
+    downGuards: Int,
+    bagRowsBought: Int
 ) -> Bool {
     if !inventory.isEmpty { return true }
     // 넘친 전리품도 플레이 흔적이다 — 정산을 거쳐야만 생긴다 (웹 hasUpHeroFootprint).
@@ -97,6 +104,8 @@ private func upHeroFootprint(
     // (웹 hasUpHeroFootprint 의 같은 두 축).
     if destroyGuards > 0 { return true }
     if downGuards > 0 { return true }
+    // 가방 행은 코인 200 부터 시작하는 상점 구매로만 는다 — 한 행이라도 샀으면 플레이 흔적.
+    if bagRowsBought > 0 { return true }
     return false
 }
 
@@ -107,7 +116,8 @@ extension UpHeroState {
             inventory: inventory, overflowDrops: overflowDrops, codex: codex,
             hasSession: currentSession != nil,
             dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics,
-            destroyGuards: destroyGuards ?? 0, downGuards: downGuards ?? 0)
+            destroyGuards: destroyGuards ?? 0, downGuards: downGuards ?? 0,
+            bagRowsBought: UpHeroBag.normalizeBagRowsBought(bagRowsBought))
     }
 }
 
@@ -137,6 +147,10 @@ struct CloudUpHeroState: Equatable {
     /// 웹 `normalizeSlotBlankStreak` — 부재·손상은 0. 빠뜨리면 화이트리스트 디코드에서
     /// 조용히 탈락해 웹에서 쌓은 스트릭이 iOS 왕복 뒤 0 으로 덮인다.
     var slotBlankStreak: Int
+    /// 상점에서 산 가방 행 수. 와이어 키 "bagRowsBought" (정수 0..4, 0 도 항상 싣는다).
+    /// 웹 `normalizeBagRowsBought` — 부재·손상은 0. 빠뜨리면 화이트리스트 디코드에서
+    /// 조용히 탈락해 코인으로 산 행이 iOS 왕복 뒤 사라진다.
+    var bagRowsBought: Int
     var lastIdleAccrualAt: Int
     var ngPlusLevel: Int
     var hasSeenCampTutorial: Bool
@@ -158,7 +172,8 @@ struct CloudUpHeroState: Equatable {
         upHeroFootprint(
             inventory: inventory, overflowDrops: overflowDrops, codex: codex, hasSession: false,
             dungeons: dungeons, passes: passes, coins: coins, cosmetics: cosmetics,
-            destroyGuards: destroyGuards, downGuards: downGuards)
+            destroyGuards: destroyGuards, downGuards: downGuards,
+            bagRowsBought: bagRowsBought)
     }
 
     /// 살아있는 로컬 상태 → 클라우드 페이로드 (웹 normalizeUpHeroState 의 클램프 재현).
@@ -176,6 +191,7 @@ struct CloudUpHeroState: Equatable {
         downGuards = min(UpHeroRules.enhanceGuardMax, max(0, s.downGuards ?? 0))
         combatBuff = CloudCombatBuff(s.combatBuff)
         slotBlankStreak = UpHeroSlot.normalizeBlankStreak(s.slotBlankStreak)
+        bagRowsBought = UpHeroBag.normalizeBagRowsBought(s.bagRowsBought)
         lastIdleAccrualAt = s.lastIdleAccrualAt
         ngPlusLevel = max(0, s.ngPlusLevel ?? 0)
         hasSeenCampTutorial = s.hasSeenCampTutorial ?? false
@@ -208,6 +224,7 @@ struct CloudUpHeroState: Equatable {
             downGuards: downGuards,
             combatBuff: combatBuff.buff,
             slotBlankStreak: slotBlankStreak,
+            bagRowsBought: bagRowsBought,
             lastIdleAccrualAt: lastIdleAccrualAt,
             lastSeenAt: lastSeenAt,
             heroStartLevel: heroStartLevel,
@@ -236,6 +253,8 @@ extension CloudUpHeroState: Codable {
         case combatBuff
         // 굴림틀 pity 스트릭 — 정수. 웹과 철자가 같아야 왕복에서 탈락하지 않는다.
         case slotBlankStreak
+        // 상점으로 산 가방 행 — 철자가 웹과 같아야 왕복에서 탈락하지 않는다.
+        case bagRowsBought
         case lastIdleAccrualAt, ngPlusLevel, hasSeenCampTutorial
         case welcomeGiftClaimed = "welcomeGrantClaimed"
         case lastSeenAt, schemaVersion, shopDaily, weeklyVariant, heroStartLevel
@@ -304,6 +323,10 @@ extension CloudUpHeroState: Codable {
         // (웹 normalizeSlotBlankStreak 와 동일).
         slotBlankStreak = UpHeroSlot.normalizeBlankStreak(lenientInt(c, .slotBlankStreak))
 
+        // 산 가방 행 — 부재·비숫자·NaN 은 0, 소수는 내림, 정수 [0, 4] 클램프
+        // (웹 normalizeBagRowsBought 와 동일).
+        bagRowsBought = UpHeroBag.normalizeBagRowsBought(lenientInt(c, .bagRowsBought))
+
         // 값이 깨졌으면 now — 과거 timestamp 를 지어내 거대한 idle reward 를 만들지 않는다.
         lastIdleAccrualAt = lenientInt(c, .lastIdleAccrualAt)
             ?? Int(Date().timeIntervalSince1970 * 1000)
@@ -362,6 +385,9 @@ extension CloudUpHeroState: Codable {
         // 0 도 항상 싣는다 — 보상 뒤 0 리셋이 merge 에서 빠지면 클라우드의 옛 스트릭이
         // 되살아나 받을 자격이 없는 pity 가 발동한다.
         try c.encode(slotBlankStreak, forKey: .slotBlankStreak)
+        // 0 도 항상 싣는다 — 키를 빼면 merge 가 클라우드에 남은 옛 값을 되살려,
+        // 코인으로 산 행이 기기를 옮길 때마다 흔들린다 (passes 와 같은 이유).
+        try c.encode(bagRowsBought, forKey: .bagRowsBought)
         try c.encode(lastIdleAccrualAt, forKey: .lastIdleAccrualAt)
         try c.encode(ngPlusLevel, forKey: .ngPlusLevel)
         try c.encode(hasSeenCampTutorial, forKey: .hasSeenCampTutorial)
@@ -485,6 +511,8 @@ private struct CloudEquipment: Codable {
         // Phase 6-E (Track E) — 드롭 층. 웹 normalizeEquipment 는 알 수 없는 키를 보존하므로
         // 웹 쪽 변경 없이 iOS CodingKeys 만 추가하면 왕복한다.
         case dropFloor
+        // 격자 가방 좌표 — 웹 정본과 같은 철자. 여기 빠지면 왕복마다 배치가 지워진다.
+        case bagX, bagY, bagRot
     }
 
     init(equipment: Equipment) { self.equipment = equipment }
@@ -497,6 +525,20 @@ private struct CloudEquipment: Codable {
             throw DecodingError.dataCorrupted(DecodingError.Context(
                 codingPath: decoder.codingPath,
                 debugDescription: "equipment 필수 필드(id/type) 손상"))
+        }
+        // 격자 가방 좌표 — 웹 `normalizeEquipmentPlacement` 와 같은 정규화 계약을 와이어에서
+        // 바로 적용한다. 여기서 걸러야 도메인·UI 가 좌표를 무조건 신뢰할 수 있다.
+        //   유한수면 내림 → bagX 는 0..<cols, bagY 는 0..<rowsMax 여야 유효,
+        //   bagRot 은 0...3 이 아니면 0, bagX·bagY 중 하나라도 무효면 셋 다 버린다.
+        var bagX = lenientInt(c, .bagX)
+        var bagY = lenientInt(c, .bagY)
+        var bagRot: Int?
+        if let x = bagX, let y = bagY,
+           x >= 0, x < UpHeroBag.cols, y >= 0, y < UpHeroBag.rowsMax {
+            bagRot = UpHeroBag.normalizeRot(lenientInt(c, .bagRot))
+        } else {
+            bagX = nil
+            bagY = nil
         }
         var affixes: [StatKey]? = nil
         if c.contains(.affixes) {
@@ -521,7 +563,10 @@ private struct CloudEquipment: Codable {
             affixes: affixes,
             talismanSkills: c.contains(.talismanSkills)
                 ? (lossyStrings(c, .talismanSkills) ?? []) : nil,
-            dropFloor: lenientInt(c, .dropFloor)
+            dropFloor: lenientInt(c, .dropFloor),
+            bagX: bagX,
+            bagY: bagY,
+            bagRot: bagRot
         )
     }
 
@@ -547,6 +592,10 @@ private struct CloudEquipment: Codable {
         try c.encodeIfPresent(e.affixes, forKey: .affixes)
         try c.encodeIfPresent(e.talismanSkills, forKey: .talismanSkills)
         try c.encodeIfPresent(e.dropFloor, forKey: .dropFloor)
+        // 미배치는 세 키를 함께 생략한다 — 웹의 "키 삭제" 와 바이트 동일한 와이어.
+        try c.encodeIfPresent(e.bagX, forKey: .bagX)
+        try c.encodeIfPresent(e.bagY, forKey: .bagY)
+        try c.encodeIfPresent(e.bagRot, forKey: .bagRot)
     }
 }
 

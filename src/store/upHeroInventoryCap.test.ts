@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 /**
- * Phase 6-E (Track E, 피드백 22) — 가방 상한 / 넘친 전리품 / 합성 / 모달 게이트.
+ * Phase 6-E (Track E, 피드백 22) — 정산 가방 반영 / 넘친 전리품(레거시) / 합성 / 모달 게이트.
  *
- * 상한은 정산(`acknowledgeSessionEnd`) 에서만 강제된다. 넘친 만큼은 `overflowDrops`
- * 로 가고 캠프의 BagOverflowModal 이 처리한다 (레벨업/전직 모달 뒤에만). 합성은
- * 가방의 같은 등급 3개를 다음 등급 1개로 바꾸고 도감에 즉시 적는다.
+ * 격자 가방 도입 뒤 정산은 `settleBagAfterSession` 이 맡는다: 드롭은 first-fit 으로
+ * 보드에 들어가고, 정리 대기 트레이가 10 을 넘기면 **이번 드롭만** 자동 판매된다.
+ * `overflowDrops` 는 더 이상 생산되지 않고 (프로덕션 저장본에 남은 것만) 캠프의
+ * BagOverflowModal 이 비운다. 합성은 같은 등급 3개를 다음 등급 1개로 바꾸고 도감에 즉시 적는다.
  */
 vi.mock("@/lib/storage", () => ({
   saveToStorage: vi.fn(),
@@ -22,7 +23,6 @@ import { getEquipmentBaseName } from "@/data/upHeroEquipment";
 import { useGrowthStore } from "./useGrowthStore";
 import type { PhotoMeta } from "@/types/growth";
 import {
-  INVENTORY_CAP,
   createDefaultHero,
   sellPrice,
   type CombatSession,
@@ -59,35 +59,61 @@ beforeEach(() => {
 });
 afterEach(() => resetRng());
 
-describe("정산 시 가방 상한", () => {
-  it("28 + 5 드롭 → inventory 30, overflowDrops 3 (순서 보존)", () => {
-    const inventory = Array.from({ length: 28 }, (_, i) => item(i));
-    const drops = Array.from({ length: 5 }, (_, i) => item(100 + i, { dropFloor: 7 }));
-    useUpHeroStore.setState({ inventory, currentSession: completedSession(drops), coins: 0 });
-    useUpHeroStore.getState().acknowledgeSessionEnd();
-    const st = useUpHeroStore.getState();
-    expect(st.inventory.length).toBe(INVENTORY_CAP);
-    expect(st.inventory.slice(-2).map((i) => i.id)).toEqual(["inv-100", "inv-101"]);
-    expect(st.overflowDrops.map((i) => i.id)).toEqual(["inv-102", "inv-103", "inv-104"]);
-    expect(st.currentSession).toBeNull();
-  });
+describe("정산 — 격자 가방 반영 (settleBagAfterSession)", () => {
+  /** 4행 보드(확장 0)의 십자를 뺀 빈 칸 15개 — 1x1 장신구로 전부 채운다. */
+  const FREE_CELLS: Array<[number, number]> = [
+    [0, 0], [1, 0], [3, 0], [4, 0],
+    [0, 1], [4, 1],
+    [0, 2], [1, 2], [3, 2], [4, 2],
+    [0, 3], [1, 3], [2, 3], [3, 3], [4, 3],
+  ];
+  const filledBoard = () =>
+    FREE_CELLS.map(([x, y], i) =>
+      item(i, { type: "accessory", bagX: x, bagY: y, bagRot: 0 }),
+    );
 
-  it("여유가 있으면 overflow 없음, 기존 overflow 뒤에 누적된다", () => {
+  it("빈 칸이 있으면 드롭은 first-fit 으로 보드에 들어간다 (overflowDrops 불변)", () => {
+    const drops = Array.from({ length: 3 }, (_, i) => item(100 + i, { dropFloor: 7 }));
     useUpHeroStore.setState({
       inventory: [item(1)],
       overflowDrops: [item(50)],
-      currentSession: completedSession([item(2)]),
+      currentSession: completedSession(drops),
+      coins: 0,
     });
     useUpHeroStore.getState().acknowledgeSessionEnd();
-    expect(useUpHeroStore.getState().inventory.length).toBe(2);
-    expect(useUpHeroStore.getState().overflowDrops.map((i) => i.id)).toEqual(["inv-50"]);
+    const st = useUpHeroStore.getState();
+    expect(st.inventory.map((i) => i.id)).toEqual(["inv-1", "inv-100", "inv-101", "inv-102"]);
+    expect(st.inventory.slice(1).every((i) => i.bagX != null && i.bagY != null)).toBe(true);
+    // 레거시 필드는 정산이 더 이상 늘리지 않는다 — 남아 있던 것만 그대로.
+    expect(st.overflowDrops.map((i) => i.id)).toEqual(["inv-50"]);
+    expect(st.coins).toBe(0);
+    expect(st.currentSession).toBeNull();
+  });
 
+  it("보드가 가득 차고 트레이 10 을 넘기면 이번 드롭만 sellPrice 로 자동 판매된다", () => {
+    // 기존 트레이 10개는 캡을 넘어도 절대 팔리지 않는다 (격자 도입 전 저장본 보호).
+    const tray = Array.from({ length: 10 }, (_, i) => item(200 + i, { rarity: "rare" }));
+    const drops = [
+      item(300, { rarity: "rare", dropFloor: 12, enhanceLevel: 3 }),
+      item(301, { rarity: "normal", dropFloor: 30 }),
+      item(302, { rarity: "unique", dropFloor: 20 }),
+    ];
     useUpHeroStore.setState({
-      inventory: Array.from({ length: 30 }, (_, i) => item(i)),
-      currentSession: completedSession([item(60)]),
+      inventory: [...filledBoard(), ...tray],
+      overflowDrops: [],
+      currentSession: completedSession(drops),
+      coins: 0,
     });
     useUpHeroStore.getState().acknowledgeSessionEnd();
-    expect(useUpHeroStore.getState().overflowDrops.map((i) => i.id)).toEqual(["inv-50", "inv-60"]);
+    const st = useUpHeroStore.getState();
+    const ids = new Set(st.inventory.map((i) => i.id));
+    for (const t of tray) expect(ids.has(t.id)).toBe(true);
+    for (const d of drops) expect(ids.has(d.id)).toBe(false);
+    expect(st.inventory.length).toBe(25);
+    expect(st.overflowDrops).toEqual([]);
+    expect(st.coins).toBe(
+      sellPrice("rare", 12, 3) + sellPrice("normal", 30, undefined) + sellPrice("unique", 20, undefined),
+    );
   });
 
   it("정산은 도감에 rewards.drops 도 합친다", () => {
@@ -242,12 +268,12 @@ describe("BagOverflowModal 게이트", () => {
 });
 
 describe("사진 부적 의식 — 가방 가득", () => {
-  it("inventory.length >= cap 이면 bagFull 로 거절한다", () => {
+  it("보드가 가득 차도 거절하지 않는다 — 새 부적은 트레이로 들어간다 (격자 계약)", () => {
     useUpHeroStore.setState({
-      inventory: Array.from({ length: INVENTORY_CAP }, (_, i) => item(i)),
+      inventory: Array.from({ length: 30 }, (_, i) => item(i)),
       coins: 9999,
     });
-    // photoMetas 가 비어 있으면 photoNotFound 가 먼저 — 가방 검사까지 가려면 사진을 시드한다.
+    // photoMetas 가 비어 있으면 photoNotFound 가 먼저 — 사진을 시드한다.
     useGrowthStore.setState({
       photoMetas: [
         {
@@ -259,8 +285,7 @@ describe("사진 부적 의식 — 가방 가득", () => {
       ],
     });
     const r = useUpHeroStore.getState().bindPhotoAsTalisman("ph-1");
-    expect(r.ok).toBe(false);
-    expect(r.errorKey).toBe("uphero.equip.toast.bagFull");
-    expect(r.errorParams).toEqual({ cap: INVENTORY_CAP });
+    expect(r.ok).toBe(true);
+    expect(useUpHeroStore.getState().inventory.length).toBe(31);
   });
 });

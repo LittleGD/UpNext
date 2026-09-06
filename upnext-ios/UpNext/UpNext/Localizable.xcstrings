@@ -70,6 +70,29 @@
         }
       }
     },
+    "%@ %@, 착용 중": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %@, equipped"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %@、装備中"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %@，佩戴中"
+          }
+        }
+      }
+    },
     "%@ - %@": {
       "localizations": {
         "ko": {
@@ -321,6 +344,29 @@
         }
       }
     },
+    "%@ 배치. %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ placed. %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を配置。%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 已放置。%@"
+          }
+        }
+      }
+    },
     "%@ 불꽃 켜짐": {
       "extractionState": "manual",
       "localizations": {
@@ -340,6 +386,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ 火焰已点燃"
+          }
+        }
+      }
+    },
+    "%@ 비어 있음": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ empty"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 空き"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 空"
           }
         }
       }
@@ -786,6 +855,29 @@
         }
       }
     },
+    "%lld C · 랜덤": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld C · Random"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld C · ランダム"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld C · 随机"
+          }
+        }
+      }
+    },
     "%lld 코인 / 장 · 하루 %lld장 한정": {
       "extractionState": "manual",
       "localizations": {
@@ -1159,6 +1251,29 @@
         }
       }
     },
+    "%lld열 %lld행, 비어 있음": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Column %lld, row %lld, empty"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld列 %lld行、空き"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第%lld列 第%lld行，空"
+          }
+        }
+      }
+    },
     "%lld일": {
       "extractionState": "manual",
       "localizations": {
@@ -1491,6 +1606,29 @@
         }
       }
     },
+    "%lld행 → %lld행 · 가방칸 +%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld rows → %lld rows · +%lld slots"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld行 → %lld行 · かばんマス +%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld行 → %lld行 · 背包格 +%lld"
+          }
+        }
+      }
+    },
     "'%@' 을(를) 완료로 표시할까요?": {
       "localizations": {
         "en": {
@@ -1741,6 +1879,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "用 1× / 2× / 4× 调整推进速度。点中间的按钮可以暂停一会儿。"
+          }
+        }
+      }
+    },
+    "1칸": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 cell"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1マス"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1格"
           }
         }
       }
@@ -2080,6 +2241,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "4. 第三方共享"
+          }
+        }
+      }
+    },
+    "4칸": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 cells"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4マス"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4格"
           }
         }
       }
@@ -27624,6 +27808,52 @@
         }
       }
     },
+    "가로 2칸": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 cells wide"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "横2マス"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "横2格"
+          }
+        }
+      }
+    },
+    "가방": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bag"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばん"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包"
+          }
+        }
+      }
+    },
     "가방 속 영수증을 정리하다 잊고 있던 몫을 발견할 수 있어요": {
       "localizations": {
         "en": {
@@ -27642,6 +27872,167 @@
           "stringUnit": {
             "state": "translated",
             "value": "整理包里的票据时，也许会翻出忘掉的那一份"
+          }
+        }
+      }
+    },
+    "가방 시너지 %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bag synergy %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばんシナジー %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包协同 %@"
+          }
+        }
+      }
+    },
+    "가방 액션": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bag actions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばん操作"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包操作"
+          }
+        }
+      }
+    },
+    "가방 확장": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bag expansion"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばん拡張"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包扩容"
+          }
+        }
+      }
+    },
+    "가방이 %lld행으로 커졌어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bag grew to %lld rows"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばんが%lld行に広がりました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包扩大到%lld行了"
+          }
+        }
+      }
+    },
+    "가방이 꽉 찼어요. 판매하거나 상점에서 가방을 늘리세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bag is full. Sell items or expand it in the shop"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばんがいっぱいです。売るかショップで拡張してください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包满了。请出售或在商店扩容"
+          }
+        }
+      }
+    },
+    "가방이 꽉 찼어요. 판매하거나 정리하세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bag is full. Sell or tidy up"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばんがいっぱいです。売るか整理してください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包满了。请出售或整理"
+          }
+        }
+      }
+    },
+    "가방이 이미 최대 크기예요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bag is already the largest size."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "かばんはすでに最大サイズです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背包已经是最大尺寸了"
           }
         }
       }
@@ -27865,6 +28256,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "鉴定"
+          }
+        }
+      }
+    },
+    "갑옷 옆 부적 체력 +%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talisman by the armor, vitality +%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鎧の隣にお守り、体力 +%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "护甲旁的护符，体力 +%lld"
           }
         }
       }
@@ -28144,6 +28558,29 @@
         }
       }
     },
+    "강화 목록": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enhance list"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "強化リスト"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强化列表"
+          }
+        }
+      }
+    },
     "강화 성공": {
       "extractionState": "manual",
       "localizations": {
@@ -28163,6 +28600,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "强化成功"
+          }
+        }
+      }
+    },
+    "강화": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enhance"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "強化"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强化"
           }
         }
       }
@@ -28278,6 +28738,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "强化中..."
+          }
+        }
+      }
+    },
+    "강화할 수 있는 장비가 없어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No gear to enhance"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "強化できる装備がありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无可强化的装备"
           }
         }
       }
@@ -29795,6 +30278,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "平衡护腕"
+          }
+        }
+      }
+    },
+    "그 자리에는 놓을 수 없어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It does not fit there"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そこには置けません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "那里放不下"
           }
         }
       }
@@ -33261,6 +33767,29 @@
         }
       }
     },
+    "동류 %@ +%@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same kind %@ +%@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同系 %@ +%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同类 %@ +%@"
+          }
+        }
+      }
+    },
     "두 배 전리품": {
       "localizations": {
         "en": {
@@ -33279,6 +33808,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "双倍战利品"
+          }
+        }
+      }
+    },
+    "뒤로": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戻る"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回"
           }
         }
       }
@@ -36108,6 +36660,29 @@
         }
       }
     },
+    "무기 옆 장신구 치명 +%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessory by the weapon, crit +%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "武器の隣に装飾品、会心 +%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "武器旁的饰品，暴击 +%lld"
+          }
+        }
+      }
+    },
     "무기력의 안개": {
       "extractionState": "manual",
       "localizations": {
@@ -36813,6 +37388,29 @@
         }
       }
     },
+    "바인딩할 수 있는 사진 없음": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No photos available to bind"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バインド可能な写真がありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可绑定的照片"
+          }
+        }
+      }
+    },
     "반복해온 습관이 몸 안에서 당신 편을 들고 있어요": {
       "localizations": {
         "en": {
@@ -37128,6 +37726,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "背景"
+          }
+        }
+      }
+    },
+    "배치": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Place"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放置"
+          }
+        }
+      }
+    },
+    "배치했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Placed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置しました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已放置"
           }
         }
       }
@@ -37472,6 +38116,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "发送中..."
+          }
+        }
+      }
+    },
+    "보류": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Held"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂存"
           }
         }
       }
@@ -38476,6 +39143,29 @@
         }
       }
     },
+    "빈 칸을 탭해서 놓으세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap an empty cell to place it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空きマスをタップして置いてください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击空格放置"
+          }
+        }
+      }
+    },
     "빙결": {
       "extractionState": "manual",
       "localizations": {
@@ -38940,6 +39630,29 @@
         }
       }
     },
+    "사진 부적 %@ +%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo talisman %@ +%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真のお守り %@ +%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片护符 %@ +%lld"
+          }
+        }
+      }
+    },
     "사진 부적 만들기": {
       "extractionState": "manual",
       "localizations": {
@@ -38959,6 +39672,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "制作照片护符"
+          }
+        }
+      }
+    },
+    "사진 부적을 앵커 옆에 두면 스탯 보너스, 스킬은 착용한 부적만": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A photo talisman next to an anchor gives stat bonuses, skills come only from a worn talisman"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真のお守りをアンカーの隣に置くとステータス上昇、スキルは装備中のお守りのみ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把照片护符放在锚位旁可获得属性加成，技能只来自佩戴中的护符"
           }
         }
       }
@@ -39985,6 +40721,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "于世界之缝中闪烁的错误。触之,记忆亦随之明灭。"
+          }
+        }
+      }
+    },
+    "세로 2칸": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 cells tall"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縦2マス"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "竖2格"
           }
         }
       }
@@ -41676,6 +42435,29 @@
         }
       }
     },
+    "시너지 없음": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No synergy"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シナジーなし"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无协同"
+          }
+        }
+      }
+    },
     "시작": {
       "extractionState": "manual",
       "localizations": {
@@ -42387,6 +43169,29 @@
         }
       }
     },
+    "아이템을 탭해서 선택하세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap an item to select it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイテムをタップして選んでください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击道具进行选择"
+          }
+        }
+      }
+    },
     "아지트": {
       "localizations": {
         "en": {
@@ -42629,6 +43434,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "安息"
+          }
+        }
+      }
+    },
+    "안전": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全"
           }
         }
       }
@@ -49409,6 +50237,75 @@
         }
       }
     },
+    "정리 대기 %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsorted %lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "整理待ち %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待整理 %lld"
+          }
+        }
+      }
+    },
+    "정리 대기 없음": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing unsorted"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "整理待ちなし"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有待整理物品"
+          }
+        }
+      }
+    },
+    "정리 대기 초과 %lld개 자동 판매, +%lld 코인": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld over the unsorted limit sold automatically, +%lld coins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "整理待ち超過 %lld個を自動売却、+%lld コイン"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超出待整理上限的 %lld 件已自动出售，+%lld 金币"
+          }
+        }
+      }
+    },
     "정리 레전드": {
       "extractionState": "manual",
       "localizations": {
@@ -51424,6 +52321,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "最高配对"
+          }
+        }
+      }
+    },
+    "최대 크기 (8행)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Largest size (8 rows)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大サイズ (8行)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已是最大尺寸 (8行)"
           }
         }
       }
@@ -55314,6 +56234,29 @@
         }
       }
     },
+    "합성 가능한 짝": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fusable pair"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合成できる組"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可合成的一对"
+          }
+        }
+      }
+    },
     "해 지기 전, 가장 오래 미룬 연락 하나가 길을 엽니다": {
       "localizations": {
         "en": {
@@ -56263,6 +57206,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "追忆的 "
+          }
+        }
+      }
+    },
+    "회전": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rotate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回転"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旋转"
           }
         }
       }
@@ -59810,6 +60776,94 @@
           "stringUnit": {
             "state": "translated",
             "value": "{stat}动摇了 (-{pct}%，本次探索)"
+          }
+        }
+      }
+    },
+    "강화 (+%lld 까지)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enhance (up to +%lld)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "強化（+%lld まで）"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强化（最多 +%lld）"
+          }
+        }
+      }
+    },
+    "보존 %lld%%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preserve %lld%%"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存 %lld%%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留 %lld%%"
+          }
+        }
+      }
+    },
+    "사진 부적은 재의식으로만 강화할 수 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo talismans can only be enhanced through a re-ritual"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真のお守りは再儀式でのみ強化できます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片护符只能通过再仪式强化"
+          }
+        }
+      }
+    },
+    "장착 중으로": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To equipped"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "装備中へ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跳到已装备"
           }
         }
       }

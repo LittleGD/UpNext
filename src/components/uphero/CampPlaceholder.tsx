@@ -26,6 +26,12 @@ import { ALL_CARDS } from "@/data/cards";
 import { pickCampAmbience } from "@/data/upHeroFlavor";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import {
+  BAG_COLS,
+  bagRowPrice,
+  bagRows,
+  normalizeBagRowsBought,
+} from "@/lib/upHeroBag";
+import {
   SHOP_PRICES,
   ENHANCE_GUARD_MAX,
   PASS_CAP_PER_CATEGORY,
@@ -94,6 +100,10 @@ export default function CampPlaceholder() {
   const ngPlusLevel = useUpHeroStore((s) => s.ngPlusLevel ?? 0);
 
   const [view, setView] = useState<View>("home");
+  // 가방 화면 열림 신호 — playground 의 immersive 와 BottomNav 숨김이 이걸 본다.
+  //   비영속 플래그라 persist·클라우드에는 나가지 않는다 (pendingDungeon 과 같은 성격).
+  const setBagOpen = useUpHeroStore((s) => s.setBagOpen);
+  const uiBagOpen = useUpHeroStore((s) => s.uiBagOpen);
   const [toast, setToast] = useState<string | null>(null);
   const [statsOpen, setStatsOpen] = useState(false);
   // 아지트 첫 진입 튜토리얼 — 유저가 완료/Skip 누르면 persist 되어 재등장 안 함.
@@ -111,6 +121,14 @@ export default function CampPlaceholder() {
   //   이전엔 `setTimeout(() => setToast(null), 2000)` 가 unmount 이후에도 fire →
   //   dev console 의 "state update on unmounted component" warning. 이제 ref 로
   //   timer id 추적 + unmount cleanup + 중복 호출 시 이전 timer clear.
+  // 장비 view 진입/이탈에 신호를 켜고 끈다. cleanup 이 이탈·언마운트 양쪽을 덮으므로
+  //   뒤로 가기든 탭 전환이든 플래그가 남지 않는다.
+  useEffect(() => {
+    if (view !== "equipment") return;
+    setBagOpen(true);
+    return () => setBagOpen(false);
+  }, [view, setBagOpen]);
+
   const toastTimerRef = useRef<number | null>(null);
   useEffect(() => {
     return () => {
@@ -136,9 +154,11 @@ export default function CampPlaceholder() {
       style={{
         background: GB.darkest,
         color: GB.light,
-        // 캠프 = tab + bottomnav 위쪽 공간 전체 점유 (대략 100dvh - 앱 chrome)
-        height: "calc(100dvh - 208px)",
-        minHeight: 480,
+        // 캠프 = tab + bottomnav 위쪽 공간 전체 점유 (대략 100dvh - 앱 chrome).
+        //   가방이 열려 있으면 탭바·네비가 숨으므로 창이 화면 전체를 가져간다 —
+        //   minHeight 를 함께 지우지 않으면 짧은 뷰포트에서 보드가 잘린다.
+        height: uiBagOpen ? "100dvh" : "calc(100dvh - 208px)",
+        minHeight: uiBagOpen ? undefined : 480,
       }}
     >
       {/* === Header (글로벌) ===
@@ -692,6 +712,9 @@ function ShopView({
   // Phase 15 — 하락방지권. 소실방지권은 상점 품목이 아니다 (드롭 전용).
   const purchaseDownGuard = useUpHeroStore((s) => s.purchaseDownGuard);
   const downGuards = useUpHeroStore((s) => s.downGuards ?? 0);
+  // 가방 확장 — 산 행 수를 구독해야 구매 직후 가격/설명이 다음 행으로 넘어간다.
+  const purchaseBagRow = useUpHeroStore((s) => s.purchaseBagRow);
+  const bagRowsBought = useUpHeroStore((s) => normalizeBagRowsBought(s.bagRowsBought));
   const shopDaily = useUpHeroStore((s) => s.shopDaily);
   const passes = useUpHeroStore((s) => s.passes);
   // Phase 12a — 카드매치 티켓 하루 구매 현황.
@@ -732,6 +755,18 @@ function ShopView({
       );
     } else if (downGuards >= ENHANCE_GUARD_MAX) {
       onNotify(t("uphero.shop.guard.full", { max: ENHANCE_GUARD_MAX }));
+    } else {
+      onNotify(t("uphero.shop.insufficient"));
+    }
+  };
+
+  const onBuyBagRow = () => {
+    const r = purchaseBagRow();
+    if (r === "ok") {
+      play("collect");
+      onNotify(t("uphero.shop.bagRowBought", { rows: bagRows(bagRowsBought + 1) }));
+    } else if (r === "maxed") {
+      onNotify(t("uphero.shop.bagRowMaxed"));
     } else {
       onNotify(t("uphero.shop.insufficient"));
     }
@@ -1049,6 +1084,27 @@ function ShopView({
             coins >= SHOP_PRICES.downGuard && downGuards < ENHANCE_GUARD_MAX
           }
         />
+        {/* 가방 확장 — 가방이 커지는 유일한 경로다 (레벨로는 늘지 않는다).
+            강화·방지권과 함께 아지트의 주요 코인 소비처라 방지권 바로 아래. */}
+        <ShopRow
+          iconName="Package"
+          name={t("uphero.shop.bagRow.name")}
+          desc={
+            bagRowPrice(bagRowsBought) === null
+              ? t("uphero.shop.bagRow.maxed")
+              : t("uphero.shop.bagRow.desc", {
+                  rows: bagRows(bagRowsBought),
+                  next: bagRows(bagRowsBought + 1),
+                  cells: BAG_COLS,
+                })
+          }
+          price={bagRowPrice(bagRowsBought)}
+          onBuy={onBuyBagRow}
+          canAfford={
+            bagRowPrice(bagRowsBought) !== null &&
+            coins >= (bagRowPrice(bagRowsBought) ?? 0)
+          }
+        />
         <ShopRow
           iconName="Card"
           name={t("uphero.shop.cardmatchTicket.name")}
@@ -1285,7 +1341,8 @@ function ShopRow({
   iconName: string;
   name: string;
   desc: string;
-  price: number;
+  /** null = 살 수 없는 상태(최대치). 가격 배지를 아예 그리지 않는다. */
+  price: number | null;
   onBuy: () => void;
   canAfford: boolean;
 }) {
@@ -1312,13 +1369,15 @@ function ShopRow({
           </div>
         </div>
         {/* typo-micro 예외: 작은 가격 배지 */}
-        <div
-          className="typo-micro px-2 py-0.5 rounded tabular-nums inline-flex items-center gap-1"
-          style={{ border: `1px solid ${GB.light}`, color: GB.lightest }}
-        >
-          <PixelIcon name="Coins" size={12} color={GB.lightest} />
-          {price}
-        </div>
+        {price !== null && (
+          <div
+            className="typo-micro px-2 py-0.5 rounded tabular-nums inline-flex items-center gap-1"
+            style={{ border: `1px solid ${GB.light}`, color: GB.lightest }}
+          >
+            <PixelIcon name="Coins" size={12} color={GB.lightest} />
+            {price}
+          </div>
+        )}
       </div>
     </PressButton>
   );

@@ -230,9 +230,22 @@ struct Equipment: Equatable, Identifiable {
     /// 와 합성(재료의 max) 이 기록한다. 판매가(`UpHeroRules.sellPrice`) 와 합성 층 규칙이 읽는다.
     /// 레거시 저장본은 `EquipmentRepair` 가 주스탯에서 역추정해 채운다 (없으면 nil).
     /// 사진 부적은 층이 없다 (판매가는 0 층). 와이어 키 `dropFloor` (int optional).
-    /// ⚠️ 반드시 **마지막** 저장 프로퍼티로 둔다 — 기본값 nil 이라 기존 memberwise init
-    /// 호출부(talismanSkills 가 마지막 인자)가 그대로 컴파일된다.
+    /// 기본값 nil 이라 기존 memberwise init 호출부(talismanSkills 가 마지막 인자)가 그대로
+    /// 컴파일된다. 격자 좌표(bagX/bagY/bagRot) 앞, 그 외 모든 필드 뒤에 둔다.
     var dropFloor: Int? = nil
+    /// 격자 가방 좌표 (Backpack Hero 스타일). 순수 로직은 `Models/UpHeroBag.swift`, 웹 정본은
+    /// `src/lib/upHeroBag.ts` / `src/types/uphero.ts`.
+    ///   bagX 0..4, bagY 0..7 (row 0 = 십자, 아래로 자람), bagRot 0..3 (v1 은 weapon 만 0/1 이 다름).
+    ///   세 값이 모두 nil 이면 미배치(정리 대기 트레이). 착용 아이템(`hero.equipped`)은 좌표를 갖지
+    ///   않는다 — equipItem 이 지운다. 미배치 전환은 세 값을 **함께** nil 로 만든다(합성 Codable 이
+    ///   nil 을 키 생략으로 인코딩하므로 웹의 "키 삭제" 와 같은 와이어가 된다).
+    ///   클라우드 와이어 키도 같은 철자다 (`UpHeroCloudSchema.CloudEquipment.K`). 화이트리스트라
+    ///   한쪽만 빠지면 왕복에서 좌표가 통째로 지워지므로 웹과 함께 배포해야 한다.
+    ///   구조체 **맨 끝**에 두는 이유: `scripts/equiv/*.swift` 의 위치 기반 이니셜라이저가
+    ///   기본값 있는 후행 인자를 그대로 생략할 수 있어 동치성 검증기가 무변경으로 컴파일된다.
+    var bagX: Int?
+    var bagY: Int?
+    var bagRot: Int?
 }
 
 // MARK: - 몬스터 / 던전
@@ -715,6 +728,14 @@ struct UpHeroState: Equatable {
     /// 키를 항상 싣는다: 보상 뒤 0 리셋이 merge 에서 빠지면 옛 스트릭이 되살아나
     /// 받을 자격이 없는 pity 가 발동한다. 웹 `UpHeroState.slotBlankStreak`.
     var slotBlankStreak: Int? = nil
+    /// 격자 가방에서 **상점으로 산 행 수** (0..`UpHeroBag.rowsBuyable`). 보드 행 수는
+    /// `UpHeroBag.bagRows(rowsBought:)` = 4 + 이 값이다 — 레벨과 무관하고 상점
+    /// `purchaseBagRow` 만 올린다. nil = 0 (행을 사기 전 저장본·구 저장본).
+    /// 판독은 언제나 `UpHeroBag.normalizeBagRowsBought` 를 거친다 — 손상된 값이 그대로
+    /// 보드 크기가 되면 배치가 통째로 suspended 된다. 와이어 키도 같은 `bagRowsBought`,
+    /// 0 이어도 항상 싣는다: merge 에서 키가 빠지면 클라우드의 옛 값이 되살아나
+    /// 코인으로 산 행이 기기를 옮길 때마다 흔들린다. 웹 `UpHeroState.bagRowsBought`.
+    var bagRowsBought: Int? = nil
     var lastIdleAccrualAt: Int
     var lastSeenAt: Int?              // Phase 14 — 시계 되감기 탐지용
     var heroStartLevel: Int?          // Phase 9d — 영웅 시작 시점 챌린지 레벨
