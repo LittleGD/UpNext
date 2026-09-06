@@ -90,8 +90,36 @@ describe("정산 — 격자 가방 반영 (settleBagAfterSession)", () => {
     expect(st.currentSession).toBeNull();
   });
 
-  it("보드가 가득 차고 트레이 10 을 넘기면 이번 드롭만 sellPrice 로 자동 판매된다", () => {
-    // 기존 트레이 10개는 캡을 넘어도 절대 팔리지 않는다 (격자 도입 전 저장본 보호).
+  it("보드가 가득 차고 트레이가 10 을 넘기면 초과분만큼 이번 드롭이 sellPrice 로 팔린다", () => {
+    // 기존 트레이 8개는 캡을 넘겨도 절대 팔리지 않는다 (격자 도입 전 저장본 보호).
+    //   트레이 8 + 드롭 3 = 11 → 초과 1개. 후보(드롭) 중 최저 등급 normal 이 나간다.
+    const tray = Array.from({ length: 8 }, (_, i) => item(200 + i, { rarity: "rare" }));
+    const drops = [
+      item(300, { rarity: "rare", dropFloor: 12, enhanceLevel: 3 }),
+      item(301, { rarity: "normal", dropFloor: 30 }),
+      item(302, { rarity: "unique", dropFloor: 20 }),
+    ];
+    useUpHeroStore.setState({
+      inventory: [...filledBoard(), ...tray],
+      overflowDrops: [],
+      currentSession: completedSession(drops),
+      coins: 0,
+    });
+    useUpHeroStore.getState().acknowledgeSessionEnd();
+    const st = useUpHeroStore.getState();
+    const ids = new Set(st.inventory.map((i) => i.id));
+    for (const t of tray) expect(ids.has(t.id)).toBe(true);
+    expect(ids.has("inv-301")).toBe(false);
+    expect(ids.has("inv-300")).toBe(true);
+    expect(ids.has("inv-302")).toBe(true);
+    expect(st.inventory.length).toBe(25);
+    expect(st.overflowDrops).toEqual([]);
+    expect(st.coins).toBe(sellPrice("normal", 30, undefined));
+  });
+
+  // F1 — 격자 도입 전 저장본은 트레이가 이미 캡을 넘긴 채로 마이그레이션된다. 그때
+  //   초과분만큼 팔면 후보(이번 드롭)가 늘 초과분 이하라 새 전리품이 영원히 전부 증발한다.
+  it("기존 트레이만으로 이미 캡이면 이번 드롭은 한 개도 팔리지 않는다", () => {
     const tray = Array.from({ length: 10 }, (_, i) => item(200 + i, { rarity: "rare" }));
     const drops = [
       item(300, { rarity: "rare", dropFloor: 12, enhanceLevel: 3 }),
@@ -108,12 +136,10 @@ describe("정산 — 격자 가방 반영 (settleBagAfterSession)", () => {
     const st = useUpHeroStore.getState();
     const ids = new Set(st.inventory.map((i) => i.id));
     for (const t of tray) expect(ids.has(t.id)).toBe(true);
-    for (const d of drops) expect(ids.has(d.id)).toBe(false);
-    expect(st.inventory.length).toBe(25);
+    for (const d of drops) expect(ids.has(d.id)).toBe(true);
+    expect(st.inventory.length).toBe(28);
     expect(st.overflowDrops).toEqual([]);
-    expect(st.coins).toBe(
-      sellPrice("rare", 12, 3) + sellPrice("normal", 30, undefined) + sellPrice("unique", 20, undefined),
-    );
+    expect(st.coins).toBe(0);
   });
 
   it("정산은 도감에 rewards.drops 도 합친다", () => {

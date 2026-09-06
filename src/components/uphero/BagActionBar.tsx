@@ -9,9 +9,14 @@
  *
  * 계층: 라임(GB.lightest)은 화면에서 **하나**뿐인 활성 요소다. 여기서는 지금
  * 해야 할 행동(배치 또는 장착) 하나만 라임이고 나머지는 배경 단계로만 구분한다.
+ *
+ * 취소는 **가로 스크롤 밖**에 오른쪽으로 고정한다. 액션은 언어마다 폭이 달라
+ * (en 기준 497px > 375px) 스크롤 안에 두면 화면 밖으로 밀리는데, 취소는 선택
+ * 상태를 터치로 빠져나가는 유일한 길이라 항상 보여야 한다.
  */
 
 import { BAG_ACTION_H } from "@/lib/upHeroBag";
+import { PHOTO_TALISMAN_MAX_ENHANCE_LEVEL } from "@/lib/photoTalisman";
 import {
   NEXT_RARITY,
   SYNTHESIS_INPUT_COUNT,
@@ -56,7 +61,6 @@ interface BagActionBarProps {
   onUnequip: () => void;
   onEnhance: () => void;
   onSell: () => void;
-  onDiscard: () => void;
   onCancel: () => void;
   /** 합성 모드 진입 — 선택 아이템이 있으면 첫 재료가 된다. */
   onSynth: () => void;
@@ -94,9 +98,23 @@ export default function BagActionBar({
       ? t("uphero.bag.hint.full")
       : t("uphero.bag.hint.idle");
 
+  // 사진 부적은 +10 이 상한이다. 이미 상한이면 강화 버튼 자체를 내린다 (강화 목록
+  //   시트도 사진 부적을 빼고 있다) — 눌러 봐야 "이미 최대" 토스트만 돌아온다.
+  const enhanceable =
+    !item ||
+    !item.photoId ||
+    (item.enhanceLevel ?? 0) < PHOTO_TALISMAN_MAX_ENHANCE_LEVEL;
+
+  // 취소는 스크롤 밖 고정. 유휴 상태에는 벗어날 선택 자체가 없어 띄우지 않는다.
+  const cancel = synthMode
+    ? onSynthCancel
+    : wornSlot || item
+      ? onCancel
+      : null;
+
   return (
     <section
-      className="shrink-0 flex items-center gap-1.5 px-2 overflow-x-auto"
+      className="shrink-0 flex items-center gap-1.5 px-2"
       style={{
         height: BAG_ACTION_H,
         borderTop: `1px solid ${GB.dark}`,
@@ -104,98 +122,91 @@ export default function BagActionBar({
       }}
       aria-label={t("uphero.bag.actionBarAria")}
     >
-      {synthMode ? (
-        <>
-          {/* 합성 모드: 재료 수가 주인공. 3개가 모이면 확인이 라임으로 켜진다. */}
-          <span className="typo-caption flex-1 truncate" style={{ color: GB.lightest }}>
-            {t("uphero.equip.synth.mode")}
-          </span>
-          <BagAction
-            onClick={onSynthConfirm}
-            primary
-            disabled={synthCount !== SYNTHESIS_INPUT_COUNT}
-          >
-            {t("uphero.equip.synth.button", { n: synthCount })}
-          </BagAction>
-          <BagAction onClick={onSynthCancel}>
-            {t("uphero.bag.action.cancel")}
-          </BagAction>
-        </>
-      ) : wornSlot ? (
-        <>
-          <span
-            className="typo-micro shrink-0 truncate"
-            style={{ color: GB.light, maxWidth: 84 }}
-          >
-            {t(SLOT_LABEL_KEY[wornSlot])}
-          </span>
-          <BagAction onClick={onUnequip} primary>
-            {t("common.unequip")}
-          </BagAction>
-          <BagAction onClick={onEnhance}>
-            {t("uphero.equip.tabEnhance")}
-          </BagAction>
-          <BagAction onClick={onCancel}>
-            {t("uphero.bag.action.cancel")}
-          </BagAction>
-        </>
-      ) : item && placing ? (
-        <>
-          {/* 배치 모드: 힌트가 주인공. 회전·취소만 남겨 빈 칸 탭에 집중시킨다. */}
-          <span className="typo-caption flex-1 truncate" style={{ color: GB.lightest }}>
-            {hint}
-          </span>
-          <BagAction onClick={onRotate} disabled={!rotatable} shortcut="r">
-            {t("uphero.bag.action.rotate")}
-          </BagAction>
-          <BagAction onClick={onCancel}>
-            {t("uphero.bag.action.cancel")}
-          </BagAction>
-        </>
-      ) : item ? (
-        <>
-          <BagAction onClick={onPlace} primary>
-            {t("uphero.bag.action.place")}
-          </BagAction>
-          <BagAction onClick={onRotate} disabled={!rotatable} shortcut="r">
-            {t("uphero.bag.action.rotate")}
-          </BagAction>
-          <BagAction onClick={onEquip}>
-            {t("uphero.equip.action.equip")}
-          </BagAction>
-          {/* 좁은 폭에서 일곱 버튼이 들어가야 하므로 "강화 시도" 대신 탭 라벨과 같은 "강화". */}
-          <BagAction onClick={onEnhance}>
-            {t("uphero.equip.tabEnhance")}
-          </BagAction>
-          <BagAction onClick={onSell}>
-            {t("uphero.equip.action.sellPreview", {
-              price: sellPrice(item.rarity, item.dropFloor, item.enhanceLevel),
-            })}
-          </BagAction>
-          {/* Track E 합성 — 선택한 아이템이 첫 재료. legend(다음 등급 없음)·사진 부적은
-              iOS 와 같이 버튼 자체를 숨긴다. */}
-          {!item.photoId && NEXT_RARITY[item.rarity] !== null && (
-            <BagAction onClick={onSynth}>
-              {t("uphero.equip.action.synth")}
+      <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto">
+        {synthMode ? (
+          <>
+            {/* 합성 모드: 재료 수가 주인공. 3개가 모이면 확인이 라임으로 켜진다. */}
+            <span className="typo-caption flex-1 truncate" style={{ color: GB.lightest }}>
+              {t("uphero.equip.synth.mode")}
+            </span>
+            <BagAction
+              onClick={onSynthConfirm}
+              primary
+              disabled={synthCount !== SYNTHESIS_INPUT_COUNT}
+            >
+              {t("uphero.equip.synth.button", { n: synthCount })}
             </BagAction>
-          )}
-          {/* 버리기는 액션바에서 뺀다 (Track E: 판매·합성으로 정리, discardItem 은 오버플로
-              배수 전용). 375px 에서 여덟 버튼이 넘쳐 취소가 잘리던 문제도 함께 해소. */}
-          <BagAction onClick={onCancel}>
-            {t("uphero.bag.action.cancel")}
-          </BagAction>
-        </>
-      ) : (
-        <>
-          <span className={`typo-caption ${gbClass.textDim} flex-1 truncate`}>
-            {hint}
-          </span>
-          {canStartSynth && (
-            <BagAction onClick={onSynth}>
-              {t("uphero.equip.action.synth")}
+          </>
+        ) : wornSlot ? (
+          <>
+            <span
+              className="typo-micro shrink-0 truncate"
+              style={{ color: GB.light, maxWidth: 84 }}
+            >
+              {t(SLOT_LABEL_KEY[wornSlot])}
+            </span>
+            <BagAction onClick={onUnequip} primary>
+              {t("common.unequip")}
             </BagAction>
-          )}
-        </>
+            <BagAction onClick={onEnhance}>
+              {t("uphero.equip.tabEnhance")}
+            </BagAction>
+          </>
+        ) : item && placing ? (
+          <>
+            {/* 배치 모드: 힌트가 주인공. 회전·취소만 남겨 빈 칸 탭에 집중시킨다. */}
+            <span className="typo-caption flex-1 truncate" style={{ color: GB.lightest }}>
+              {hint}
+            </span>
+            <BagAction onClick={onRotate} disabled={!rotatable} shortcut="r">
+              {t("uphero.bag.action.rotate")}
+            </BagAction>
+          </>
+        ) : item ? (
+          <>
+            <BagAction onClick={onPlace} primary>
+              {t("uphero.bag.action.place")}
+            </BagAction>
+            <BagAction onClick={onRotate} disabled={!rotatable} shortcut="r">
+              {t("uphero.bag.action.rotate")}
+            </BagAction>
+            <BagAction onClick={onEquip}>
+              {t("uphero.equip.action.equip")}
+            </BagAction>
+            {/* 좁은 폭에서 여러 버튼이 들어가야 하므로 "강화 시도" 대신 탭 라벨과 같은 "강화". */}
+            {enhanceable && (
+              <BagAction onClick={onEnhance}>
+                {t("uphero.equip.tabEnhance")}
+              </BagAction>
+            )}
+            <BagAction onClick={onSell}>
+              {t("uphero.equip.action.sellPreview", {
+                price: sellPrice(item.rarity, item.dropFloor, item.enhanceLevel),
+              })}
+            </BagAction>
+            {/* Track E 합성 — 선택한 아이템이 첫 재료. legend(다음 등급 없음)·사진 부적은
+                iOS 와 같이 버튼 자체를 숨긴다. */}
+            {!item.photoId && NEXT_RARITY[item.rarity] !== null && (
+              <BagAction onClick={onSynth}>
+                {t("uphero.equip.action.synth")}
+              </BagAction>
+            )}
+          </>
+        ) : (
+          <>
+            <span className={`typo-caption ${gbClass.textDim} flex-1 truncate`}>
+              {hint}
+            </span>
+            {canStartSynth && (
+              <BagAction onClick={onSynth}>
+                {t("uphero.equip.action.synth")}
+              </BagAction>
+            )}
+          </>
+        )}
+      </div>
+      {cancel && (
+        <BagAction onClick={cancel}>{t("uphero.bag.action.cancel")}</BagAction>
       )}
     </section>
   );

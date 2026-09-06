@@ -511,8 +511,12 @@ export function packAllIfNonePlaced(inventory: Equipment[], rows: number = BAG_R
  *
  * `candidateIds` 가 있으면 **그 아이템만** 판매 후보다. 탐험 정산은 이번 드롭 id 를 넘겨
  * 이미 갖고 있던 아이템은 절대 자동 판매되지 않게 한다 — 격자 도입 전 저장본의 넘침(수십 개)이
- * 첫 탐험 한 번에 5~200 코인으로 증발하면 안 된다. 후보가 초과분보다 적으면 후보만 팔고
- * 트레이는 cap 을 넘긴 채 남는다(유저가 직접 정리). null 이면 트레이 전체가 후보.
+ * 첫 탐험 한 번에 5~200 코인으로 증발하면 안 된다. null 이면 트레이 전체가 후보.
+ *
+ * 그리고 **후보가 아닌(기존) 트레이 아이템만으로 이미 cap 이 찼다면 한 개도 팔지 않는다.**
+ * 격자 도입 전 저장본은 트레이가 cap 을 넘긴 채로 마이그레이션되는데, 그러면 초과분이 늘
+ * 이번 드롭 수보다 많아 새 전리품이 **매번 전부** 자동 판매된다(8행 35칸을 다 사도 마찬가지).
+ * 기존 트레이는 유저가 직접 정리할 때까지 그대로 두고, 새 드롭은 트레이에 쌓이게 둔다.
  */
 export function trayOverflow(
   inventory: Equipment[],
@@ -523,6 +527,11 @@ export function trayOverflow(
   const { inventory: normalized, layout } = normalizeBagLayout(inventory, rows);
   const tray = layout.unplaced;
   if (tray.length <= cap) return { keep: normalized, sell: [] };
+  if (candidateIds !== null) {
+    // 후보가 아닌(= 이번 정산 전부터 트레이에 있던) 아이템 수. 이것만으로 cap 이면 정지.
+    const preTray = tray.filter((it) => !candidateIds.includes(it.id)).length;
+    if (preTray >= cap) return { keep: normalized, sell: [] };
+  }
   const excess = tray.length - cap;
   const indexed = tray
     .map((item, i) => ({ item, i }))

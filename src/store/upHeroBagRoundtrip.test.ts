@@ -367,14 +367,17 @@ describe("탐험 정산 — 트레이 초과 자동 판매", () => {
       makeItem("d1", "accessory", { rarity: "normal" }),
     ];
     const out = settleBagAfterSession([...board, ...legacyTray], drops, BAG_ROWS_MIN);
-    // 초과분은 4 지만 후보(드롭)가 2 개뿐이라 둘만 팔린다. 등급이 낮은 d1 이 먼저, 그다음 d0.
-    expect(out.sold.map((s) => s.id)).toEqual(["d1", "d0"]);
-    expect(out.coins).toBe(
-      sellPrice("normal", undefined, undefined) + sellPrice("legend", undefined, undefined),
-    );
-    // 기존 12 개는 전부 그대로 남는다.
+    // 기존 트레이(12)만으로 이미 캡(10)이라 이번 드롭은 한 개도 팔지 않는다. 여기서
+    //   초과분(4)만큼 팔면 후보가 늘 초과분보다 적어 새 전리품이 매 정산마다 전부 증발한다.
+    expect(out.sold).toEqual([]);
+    expect(out.coins).toBe(0);
+    // 기존 12 개 + 새 드롭 2 개가 전부 트레이에 남는다.
     const stillTray = out.inventory.filter((it) => isInTray(it));
-    expect(stillTray.map((it) => it.id)).toEqual(legacyTray.map((it) => it.id));
+    expect(stillTray.map((it) => it.id)).toEqual([
+      ...legacyTray.map((it) => it.id),
+      "d0",
+      "d1",
+    ]);
   });
 
   it("자리가 남으면 드롭이 보드에 들어가고 아무것도 팔리지 않는다", () => {

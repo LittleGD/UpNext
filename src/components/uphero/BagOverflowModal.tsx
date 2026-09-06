@@ -3,7 +3,8 @@
 /**
  * Phase 6-E (Track E, 피드백 22) — 가방 초과 전리품 처리 모달.
  *
- * 정산 때 `INVENTORY_CAP` 을 넘긴 드롭은 `overflowDrops` 에 남는다. 이 모달은 캠프에서
+ * 격자 가방 이전의 개수 상한을 넘겨 `overflowDrops` 에 남은 드롭을 비우는 배수로다.
+ * (지금은 새로 쌓이지 않는다. 정산은 트레이 소프트캡으로 처리한다.) 이 모달은 캠프에서
  * 목록이 빌 때까지 닫히지 않는다 (배경 탭·Escape 무시). 한 개씩 판매/버리기, 또는 모두
  * 판매. 마운트 게이트(세션 없음 · 레벨업 오버레이 없음 · 전직 제안 없음) 는 호출측
  * (CampPlaceholder) 이 잡는다 — 오버레이 순서: HeroLevelUpOverlay → ClassChoiceModal →
@@ -15,7 +16,7 @@
 import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
-import { INVENTORY_CAP, sellPrice } from "@/types/uphero";
+import { sellPrice } from "@/types/uphero";
 import { GB, EASE_OUT } from "@/lib/upHeroPalette";
 import { useModalA11y } from "@/hooks/useModalA11y";
 import { useSound } from "@/hooks/useSound";
@@ -96,7 +97,7 @@ export default function BagOverflowModal({ onNotify }: BagOverflowModalProps) {
               {t("uphero.equip.overflow.title")}
             </div>
             <div className="typo-caption mt-1" style={{ color: GB.light }}>
-              {t("uphero.equip.overflow.body", { n: overflowDrops.length, cap: INVENTORY_CAP })}
+              {t("uphero.equip.overflow.body", { n: overflowDrops.length })}
             </div>
           </div>
         </div>

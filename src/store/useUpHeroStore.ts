@@ -100,7 +100,6 @@ import {
   normalizeBagLayout,
   normalizeBagRowsBought,
   packAllIfNonePlaced,
-  packInventory,
   placeIntoBag,
   withPlacement,
   withoutPlacement,
@@ -165,11 +164,12 @@ import type { CloudUpHeroState } from "@/lib/sync";
  *     baseId 시드, dropFloor 역추정, 부적 slotBonus ≥ 1, codex.equipment 키 정규화,
  *     overflowDrops 시드 []. 모두 멱등 (`upHeroMigrations.ts`) 이라 `_setFromCloud`
  *     에서도 게이트 없이 다시 돈다.
- * v8: 격자 가방 좌표 first-fit 팩 — 좌표 개념이 없던 저장본의 인벤토리를 배열 순서로
- *     한 번 배치한다. 이후의 복구는 버전과 무관한 packAllIfNonePlaced 가 맡는다
- *     (iOS 에는 버전 게이트가 없어서, 규칙을 버전에만 의존시키면 안 된다).
+ * v8: 격자 가방 좌표 — 배치는 버전 게이트 없이 packAllIfNonePlaced 가 맡는다.
+ *     좌표 개념이 없던 저장본도 "배치 0개" 라 같은 규칙으로 한 번 팩된다.
+ *     (iOS 에는 버전 게이트가 없고, schemaVersion 이 뒤로 흐를 수 있어서
+ *      규칙을 버전에 의존시키면 손으로 만든 배치를 잃는다.)
  *
- * 마이그레이션 순서(공통 규칙): v1/v2 코덱스 → [E, <7] 장비 수리 → [격자, <8] 팩 +
+ * 마이그레이션 순서(공통 규칙): v1/v2 코덱스 → [E, <7] 장비 수리 →
  *   packAllIfNonePlaced(항상) → [C] normalizeSessionForLoad → heroStartLevel seed →
  *   [A] heroXp seed → shopDaily/weeklyVariant/dungeons 백필 → set → [A] reconcile →
  *   안전망 → persist.
@@ -177,8 +177,6 @@ import type { CloudUpHeroState } from "@/lib/sync";
 const CURRENT_SCHEMA_VERSION = 8;
 /** Track E 수리 단계 게이트 (v7). */
 const SCHEMA_V7_EQUIPMENT_REPAIR = 7;
-/** 격자 가방 first-fit 팩 게이트 (v8). */
-const SCHEMA_V8_BAG_PACK = 8;
 
 /**
  * Phase 4c-fix: Codex legacy ID → name migration.
@@ -1153,20 +1151,22 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
             bestScore: 0,
           };
 
-    // 격자 가방 — 저장본 인벤토리를 보드 계약대로 정리한다. 세 단계 모두 멱등.
+    // 격자 가방 — 저장본 인벤토리를 보드 계약대로 정리한다. 두 단계 모두 멱등.
     //   1) normalizeBagLayout: 좌표 정규화(무효 삭제) + 겹침/보드 밖 판정
-    //   2) v8 승격: 좌표 개념이 없던 저장본만 배열 순서 first-fit 로 한 번 팩 (Track E 수리 뒤)
-    //   3) packAllIfNonePlaced: 버전과 무관한 복구 — 구버전 iOS 가 좌표를 벗겨
-    //      올린 문서도 여기서 되살아난다 (유저는 아이템을 트레이로 옮길 수 없으므로
-    //      "배치 0개" 는 정당한 상태가 아니다).
+    //   2) packAllIfNonePlaced: 버전과 무관한 복구 — 좌표 개념이 없던 저장본도, 구버전
+    //      iOS 가 좌표를 벗겨 올린 문서도 같은 규칙(8행 first-fit)으로 여기서 되살아난다
+    //      (유저는 아이템을 트레이로 옮길 수 없으므로 "배치 0개" 는 정당한 상태가 아니다).
+    //      schemaVersion 게이트를 두면 안 된다 — iOS 는 schemaVersion 을 쓰지 않아서
+    //      클라우드 문서가 7 이나 없음으로 내려올 수 있고, 그때마다 유저가 손으로 만든
+    //      배치가 통째로 재배치된다.
     //   행 수는 로드 시점엔 항상 BAG_ROWS_MAX 다. 실제 행 수(bagRowsBought)는 클라우드
     //   병합으로 나중에 내려올 수도 있어, 지금 보드보다 아래 행의 좌표를 여기서 지우면
     //   레이아웃을 영구히 잃는다. 마이그레이션 팩도 8행 기준 — 아직 안 산 행에 놓인
     //   아이템은 suspended(보류)로 트레이에 보이다가 그 행을 사면 제자리에 나타난다.
     //   미배치로 보내 자동 판매 후보가 되게 하지 않는다 (iOS loadPersisted 와 같은 규칙).
-    let inventory = normalizeBagLayout(repairedInventory, BAG_ROWS_MAX).inventory;
-    if (savedVersion < SCHEMA_V8_BAG_PACK) inventory = packInventory(inventory, BAG_ROWS_MAX);
-    inventory = packAllIfNonePlaced(inventory);
+    const inventory = packAllIfNonePlaced(
+      normalizeBagLayout(repairedInventory, BAG_ROWS_MAX).inventory,
+    );
 
     // Backfill: 기존 데이터에 bestFloorReached 가 없으면 floorReached 로 초기화.
     const dungeonsBackfilled: Partial<Record<DungeonId, DungeonProgress>> = {};
@@ -2847,6 +2847,10 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
       slotBlankStreak: normalizeSlotBlankStreak(state.slotBlankStreak),
       // 가방 확장도 같은 계약 — 키가 없는 옛 문서는 0(4행)으로 읽는다.
       bagRowsBought: normalizeBagRowsBought(state.bagRowsBought),
+      // 스키마 버전은 클라우드 값을 채택하지 않는다. iOS 는 schemaVersion 을 쓰지 않아
+      //   문서가 옛 값이나 없음으로 내려오는데, 그걸 로컬에 받아 쓰면 버전이 뒤로 흘러
+      //   다음 실행의 마이그레이션이 다시 돈다.
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       // 시작 선물은 계정 단위 1회 — 클라우드가 "이미 받음" 이면 로컬 예약을 거둔다.
       // (그대로 두면 오버레이가 떴다가 claimWelcomeGrant 가 0 을 반환해 빈손으로 닫힌다.)
       ...(state.welcomeGrantClaimed ? { pendingWelcomeGrant: null } : {}),
