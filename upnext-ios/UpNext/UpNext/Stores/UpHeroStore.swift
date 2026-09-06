@@ -1569,8 +1569,6 @@ final class UpHeroStore: ObservableObject {
         //      좌표를 **쓴 적이 없어** 구 저장본은 반드시 "배치 0개" 다 — 즉 이 규칙
         //      하나가 웹의 버전 게이트와 같은 일을 한다. 게다가 버전과 무관하므로
         //      구버전 iOS 가 좌표를 벗겨 올린 문서도 여기서 되살아난다.
-        //      레벨을 모르는 시점이라 최소 보드로 팩한다 — 작은 보드에 맞춘 배치는
-        //      어떤 큰 보드에서도 유효하다.
         restored.inventory = UpHeroBag.packAllIfNonePlaced(
             UpHeroBag.normalizeBagLayout(restored.inventory, rows: UpHeroBag.rowsMax).inventory,
             rows: UpHeroBag.rowsMax)

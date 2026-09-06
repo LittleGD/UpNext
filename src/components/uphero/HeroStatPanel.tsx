@@ -63,9 +63,11 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   //   행 수는 레벨이 아니라 상점 구매분에서 온다 (숫자를 구독해 구매 즉시 반영).
   const bagRowCount = useUpHeroStore((s) => bagRows(s.bagRowsBought));
   const bagSynergy = computeBagSynergy(hero.equipped, inventory, bagRowCount);
-  const bagSynergyText = (
-    Object.keys(bagSynergy.bonuses) as Array<keyof HeroBaseStats>
-  )
+  //   표기 순서는 iOS HeroStatPanel.bagSynergyText(StatKey.allCases)와 같은 고정 순서.
+  const SYNERGY_STAT_ORDER: Array<keyof HeroBaseStats> = [
+    "str", "int", "vit", "dex", "agi", "crit", "slotBonus",
+  ];
+  const bagSynergyText = SYNERGY_STAT_ORDER.filter((k) => k in bagSynergy.bonuses)
     .map((k) => `+${bagSynergy.bonuses[k] ?? 0} ${affixStatLabel(k, language)}`)
     .join("  ");
 
