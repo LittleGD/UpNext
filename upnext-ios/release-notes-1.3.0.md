@@ -7,7 +7,7 @@ App Store Connect 1.3.0 의 "새로운 기능" 원문. 빌드 26 문안에 격�
 던전과 가방, 영웅 성장을 크게 손봤어요.
 
 • 가방이 격자로 바뀌었어요. 칸에 직접 놓고, 무기는 돌려서 넣고, 같은 계열을 붙여 두면 시너지가 붙습니다.
-• 가방은 4줄로 시작해 상점에서 8줄까지 넓힐 수 있어요. 정리 대기 칸이 넘치면 이번에 주운 전리품부터 자동으로 팔립니다.
+• 가방은 4줄로 시작해 상점에서 8줄까지 넓힐 수 있어요. 정리 대기 칸이 넘치면 이번에 주운 전리품만 자동으로 팔리고, 원래 갖고 있던 장비는 그대로 남습니다.
 • 영웅 레벨이 계정 레벨과 완전히 분리됐어요. 던전과 방치 보상은 영웅에게만, 챌린지 경험치는 계정에만 쌓입니다.
 • 보스가 10층마다 나오고 30층을 넘어도 이어져요. 회복형 보스가 무적이던 문제를 고쳤고, 보스층에서 물러나면 다시 들어갈 때 보스가 그대로 기다립니다.
 • 미니게임 이벤트가 실제로 열려요. 선택지 결과가 버프, 저주, 은신, 확정 드롭으로 이번 탐험에 남습니다.
@@ -22,7 +22,7 @@ App Store Connect 1.3.0 의 "새로운 기능" 원문. 빌드 26 문안에 격�
 Dungeons, the bag, and hero growth got a big rework.
 
 • The bag is now a grid. Place items cell by cell, rotate weapons to fit, and line up related gear for synergy bonuses.
-• The bag starts at 4 rows and expands to 8 in the shop. When the holding tray overflows, the loot you just picked up is sold automatically.
+• The bag starts at 4 rows and expands to 8 in the shop. When the holding tray overflows, only the loot from that run is sold automatically; gear you already owned is never touched.
 • Hero level is now fully separate from account level. Dungeon and idle rewards go to the hero only; challenge XP goes to the account only.
 • Bosses appear every 10 floors and keep coming past floor 30. Regenerating bosses are no longer unbeatable, and if you retreat on a boss floor the boss is still waiting when you return.
 • Minigame events actually open now. Choice outcomes stay with you for the run as buffs, curses, stealth, or a guaranteed drop.
@@ -37,7 +37,7 @@ Dungeons, the bag, and hero growth got a big rework.
 ダンジョンとかばん、英雄の成長を大きく見直しました。
 
 • かばんがグリッドになりました。マスに直接置き、武器は回転させて収め、同じ系統を隣り合わせると相乗効果が付きます。
-• かばんは4行から始まり、商店で8行まで広げられます。整理待ちの枠があふれると、今回拾った戦利品から自動で売却されます。
+• かばんは4行から始まり、商店で8行まで広げられます。整理待ちの枠があふれると、今回拾った戦利品だけが自動で売却され、元から持っている装備は売られません。
 • 英雄レベルがアカウントレベルから完全に分かれました。ダンジョンと放置の報酬は英雄だけに、チャレンジ経験値はアカウントだけに入ります。
 • ボスが10階ごとに現れ、30階を越えても続きます。回復型ボスが倒せなかった問題を直し、ボス階で退却しても戻ればボスがそのまま待っています。
 • ミニゲームイベントが実際に開くようになりました。選択の結果はバフ、呪い、隠密、確定ドロップとして今回の探索に残ります。
@@ -52,7 +52,7 @@ Dungeons, the bag, and hero growth got a big rework.
 地牢、背包与英雄成长迎来大幅调整。
 
 • 背包改成了格子。可以逐格摆放，武器能旋转塞进去，把同类装备排在一起还会触发协同加成。
-• 背包从4行开始，可在商店扩展到8行。待整理格放不下时，会优先自动卖出本次拾取的战利品。
+• 背包从4行开始，可在商店扩展到8行。待整理格放不下时，只会自动卖出本次拾取的战利品，原有装备不会被卖掉。
 • 英雄等级与账号等级完全分开。地牢与挂机奖励只给英雄，挑战经验只给账号。
 • 首领每10层出现一次，超过30层也会继续。修复了回复型首领打不死的问题；在首领层撤退后再进入，首领仍在原地等你。
 • 小游戏事件真正会打开了。选择结果会以增益、诅咒、潜行或保底掉落的形式留存到本次探索结束。
