@@ -62,6 +62,9 @@ struct EquipmentInventoryView: View {
 
     @State private var statsOpen = false
     @State private var enhanceListOpen = false
+    /// F10 — 강화 목록에서 들어온 강화인가. 확인/의식이 끝나면 시트를 되돌린다
+    /// (웹은 목록이 그대로 열려 있어서 여러 개를 연달아 강화할 수 있다).
+    @State private var enhanceListReopen = false
     @State private var showTalismanPicker = false
     /// Phase 6-E — 강화 개요 시트의 슬롯 필터 (nil = 전체). 웹 slotFilter.
     @State private var slotFilter: EquipSlot?
@@ -183,7 +186,10 @@ struct EquipmentInventoryView: View {
                     item: selectedItem,
                     wornSlot: selectedWorn != nil ? selectedSlot : nil,
                     placing: placing,
-                    trayCount: lay.unplaced.count,
+                    // 트레이가 실제로 그리는 개수(미배치 + 보류)를 준다. 격자 도입 전
+                    //   저장본은 미배치 0 · 보류 15 라, unplaced 만 세면 "가방이 꽉 찼어요"
+                    //   힌트가 정작 그 저장본에서만 안 뜬다 (웹 trayItems.length 와 동일).
+                    trayCount: trayItems(lay).count,
                     rotatable: selectedItem.map { UpHeroBag.canRotate(type: $0.type) } ?? false,
                     synthMode: synthMode,
                     synthCount: synthPickItems.count,
@@ -233,6 +239,7 @@ struct EquipmentInventoryView: View {
                     }
                     if let msg = enhanceMessage { showToast(msg) }
                     enhanceMessage = nil
+                    reopenEnhanceListIfNeeded()
                 }
                 .transition(.opacity)
                 .zIndex(50)
@@ -249,10 +256,14 @@ struct EquipmentInventoryView: View {
                         ? "+\(UpHeroStore.sellPrice(pending.item)) 코인"
                         : "환급 없음 · 복구 불가",
                     confirmLabel: pending.kind == .sell ? "판매" : "버리기",
-                    danger: true,
+                    // 웹 danger={kind === "discard" || kind === "enhance"} — 환급이 남는
+                    //   판매는 붉은 경고가 아니다. 되돌릴 수 없는 버리기만 danger.
+                    danger: pending.kind == .discard,
                     onConfirm: {
-                        if pending.kind == .sell { upHero.sellItem(pending.item.id) }
-                        else { upHero.discardItem(pending.item.id) }
+                        if pending.kind == .sell {
+                            let refund = upHero.sellItem(pending.item.id)
+                            showToast(AppConfig.loc("판매 +\(refund) C"))
+                        } else { upHero.discardItem(pending.item.id) }
                         clearSelection()
                         pendingAction = nil
                     },
@@ -438,9 +449,11 @@ struct EquipmentInventoryView: View {
         case .equip:
             upHero.equipItem(item.id)
             clearSelection()
+            showToast(AppConfig.loc("\(item.localizedDisplayName) 장착"))
         case .unequip:
             upHero.unequipItem(item.type)
             clearSelection()
+            showToast(AppConfig.loc("\(item.localizedDisplayName) 해제"))
         case .enhance:
             beginEnhance(item)
         case .sell:
@@ -797,6 +810,8 @@ struct EquipmentInventoryView: View {
             Button {
                 enhanceListOpen = false
                 beginEnhance(item)
+                // 확인이 실제로 떴을 때만 복귀 표시를 남긴다 (가드에 걸리면 그냥 닫힌다).
+                enhanceListReopen = pendingAction?.kind == .enhance
             } label: {
                 Text(AppConfig.loc("강화 (−\(p.cost) 코인)"))
                     .typography(.caption)
@@ -864,8 +879,8 @@ struct EquipmentInventoryView: View {
             failToast(AppConfig.loc("사진 부적은 재의식으로만 강화할 수 있어요"))
             return
         }
-        guard (item.enhanceLevel ?? 0) < UpHeroRules.maxEnhanceLevel else {
-            failToast(AppConfig.loc("이미 최대 강화(+\(UpHeroRules.maxEnhanceLevel))예요"))
+        guard (item.enhanceLevel ?? 0) < maxEnhanceLevel(item) else {
+            failToast(AppConfig.loc("이미 최대 강화(+\(maxEnhanceLevel(item)))예요"))
             return
         }
         useDestroyGuard = false
@@ -910,8 +925,14 @@ struct EquipmentInventoryView: View {
         let downHeld = upHero.state.downGuards ?? 0
         GbConfirm(
             title: "\(item.localizedDisplayName) 강화 (+\(p.level) → +\(p.level + 1))?",
-            message: "\(enhanceBody(item, p))",
-            onBackdropTap: { pendingAction = nil }
+            messageText: enhanceBodyText(item, p),
+            // 웹 danger={kind === "discard" || kind === "enhance"} — 강화는 아이템을
+            //   없앨 수 있다. 붉은 경고 색이 붙는 쪽은 판매가 아니라 여기다.
+            danger: true,
+            onBackdropTap: {
+                pendingAction = nil
+                reopenEnhanceListIfNeeded()
+            }
         ) { tint in
             VStack(alignment: .leading, spacing: 8) {
                 // Phase 5-B — 방지권 패널 2종 (웹 sections 슬롯). 안전 구간(소실·하락 0)
@@ -931,7 +952,10 @@ struct EquipmentInventoryView: View {
                     cancelLabel: "취소",
                     tint: tint,
                     onConfirm: { runEnhance(item) },
-                    onCancel: { pendingAction = nil })
+                    onCancel: {
+                        pendingAction = nil
+                        reopenEnhanceListIfNeeded()
+                    })
                 .padding(.top, 4)
             }
         }
@@ -941,40 +965,48 @@ struct EquipmentInventoryView: View {
     /// 소실·하락을 **각각** 숫자로 준다 (그 결과가 가능한 줄만). 하락을 유지와 같은 칸에
     /// 묶으면 기만이 된다. 방지권을 건 줄에는 "막힘" 태그를 붙인다 (웹 blockedTag).
     /// Phase 5-B — 밴드 힌트(10..14 / 15..19), 방지권이 걸리면 "이번 시도: 코인 + 방지권" 요약.
-    private func enhanceBody(_ item: Equipment, _ p: EnhancePreview) -> String {
+    /// 소실·하락 줄은 **경고색**으로 칠한다 (웹 `<span style={{ color: GB_WARN }}>`).
+    /// 방지권을 걸어 막힌 줄만 다시 중립색으로 내린다 — 색이 곧 "이번 시도의 위험" 이다.
+    private func enhanceBodyText(_ item: Equipment, _ p: EnhancePreview) -> Text {
         let armed = armedGuards(item)
         let blocked = AppConfig.loc("· 막힘")
-        var lines: [String] = [AppConfig.loc("성공률 \(p.successPct)%")]
+        var out = Text(AppConfig.loc("성공률 \(p.successPct)%"))
+        func line(_ s: String, _ color: Color? = nil) {
+            let t = Text("\n") + (color.map { Text(s).foregroundColor($0) } ?? Text(s))
+            out = out + t
+        }
         if p.safe {
-            lines.append(AppConfig.loc("이 단계는 실패해도 그대로예요"))
+            line(AppConfig.loc("이 단계는 실패해도 그대로예요"))
         } else {
             if p.canDestroy {
-                lines.append(AppConfig.loc("실패 시 \(p.destroyPct)% 확률로 아이템 소실")
-                    + (armed.destroy ? " \(blocked)" : ""))
+                line(AppConfig.loc("실패 시 \(p.destroyPct)% 확률로 아이템 소실")
+                    + (armed.destroy ? " \(blocked)" : ""),
+                     armed.destroy ? GBPalette.light : bagWarnColor)
             }
             if p.canDown {
-                lines.append(AppConfig.loc("실패 시 \(p.downPct)% 확률로 한 단계 하락")
-                    + (armed.down ? " \(blocked)" : ""))
+                line(AppConfig.loc("실패 시 \(p.downPct)% 확률로 한 단계 하락")
+                    + (armed.down ? " \(blocked)" : ""),
+                     armed.down ? GBPalette.light : bagWarnColor)
             }
             if p.level >= UpHeroRules.enhanceTitleAwakenedLevel {
-                lines.append(AppConfig.loc(
+                line(AppConfig.loc(
                     "+15 이후 실패는 주로 소실이고, 아니면 +14로 내려가요. 두 방지권을 모두 걸어야 제자리에서 버텨요"))
             } else if p.level >= UpHeroRules.enhanceHighBandStart {
-                lines.append(AppConfig.loc(
+                line(AppConfig.loc(
                     "+10 이후 실패는 한 단계 내려가요. +9로 내려가면 소실 위험이 다시 생겨요"))
             }
         }
-        lines.append(AppConfig.loc("비용 \(p.cost) 코인 (보유 \(upHero.state.coins))"))
+        line(AppConfig.loc("비용 \(p.cost) 코인 (보유 \(upHero.state.coins))"))
         var wards: [String] = []
         if armed.destroy { wards.append(AppConfig.loc("소실방지권")) }
         if armed.down { wards.append(AppConfig.loc("하락방지권")) }
         if !wards.isEmpty {
-            lines.append(AppConfig.loc("이번 시도: \(p.cost) 코인 + \(wards.joined(separator: " + "))"))
+            line(AppConfig.loc("이번 시도: \(p.cost) 코인 + \(wards.joined(separator: " + "))"))
         }
         if p.equipped {
-            lines.append(AppConfig.loc("장착 중: 소실 시 스탯이 즉시 하락합니다"))
+            line(AppConfig.loc("장착 중: 소실 시 스탯이 즉시 하락합니다"))
         }
-        return lines.joined(separator: "\n")
+        return out
     }
 
     /// Phase 5-B — 방지권 패널 (웹 GuardPanel). GbConfirmPanel 위에 올라가며, 걸리면
@@ -1076,10 +1108,25 @@ struct EquipmentInventoryView: View {
         case .coinShort(let need):
             failToast(AppConfig.loc("코인 부족 (\(need) 필요)"))
         case .maxed:
-            failToast(AppConfig.loc("이미 최대 강화(+\(UpHeroRules.maxEnhanceLevel))예요"))
+            // 사진 부적은 +10 이 상한이다. 20 을 그대로 찍으면 "왜 막혔는지" 가 어긋난다.
+            failToast(AppConfig.loc("이미 최대 강화(+\(maxEnhanceLevel(item)))예요"))
         case .notFound:
             failToast(AppConfig.loc("아이템을 찾을 수 없음"))
         }
+        // F10 — 의식이 시작되지 않은(즉시 실패) 경로도 목록으로 되돌린다.
+        if enhancingItem == nil { reopenEnhanceListIfNeeded() }
+    }
+
+    /// 이 아이템의 강화 상한 — 사진 부적은 +10(재의식 경로), 나머지는 +20. 웹 동일.
+    private func maxEnhanceLevel(_ item: Equipment) -> Int {
+        item.photoId != nil ? PhotoTalisman.maxEnhanceLevel : UpHeroRules.maxEnhanceLevel
+    }
+
+    /// F10 — 강화 목록에서 들어왔다면 흐름이 끝난 뒤 시트를 다시 연다.
+    private func reopenEnhanceListIfNeeded() {
+        guard enhanceListReopen else { return }
+        enhanceListReopen = false
+        enhanceListOpen = true
     }
 
     /// Phase 5-B — 소모된 방지권을 한 줄씩 덧붙인다 (웹 EnhanceResultModal spent.line).

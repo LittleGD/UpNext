@@ -405,7 +405,9 @@ final class UpHeroStore: ObservableObject {
             s.coins += refund
         }
         Haptics.play(.light)
-        SoundPlayer.shared.play(.cancel)
+        // 판매는 코인이 들어오는 긍정 결과다 — 웹 play("collect") · 오버플로 시트와 같은 큐.
+        //   부정 큐(.cancel)는 환급 없는 discardItem 쪽에만 남긴다.
+        SoundPlayer.shared.play(.collect)
         return refund
     }
 

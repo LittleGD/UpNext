@@ -1494,16 +1494,53 @@ describe("trayOverflow — candidateIds (판매 후보 제한)", () => {
     expect(keep).toHaveLength(inv.length - 3);
   });
 
-  it("후보가 초과분보다 적으면 후보만 팔고 트레이는 캡을 넘긴 채 남는다", () => {
+  it("후보가 초과분 이하면(= 기존 트레이만으로 캡) 한 개도 팔지 않는다", () => {
     const { sell, keep } = trayOverflow(inv, ROWS, BAG_TRAY_CAP, ["t3"]);
-    expect(sell.map((s) => s.id)).toEqual(["t3"]);
-    expect(keep).toHaveLength(inv.length - 1);
+    expect(sell).toEqual([]);
+    expect(keep).toHaveLength(inv.length);
   });
 
   it("후보가 비어 있으면 아무것도 팔지 않는다", () => {
     const { sell, keep } = trayOverflow(inv, ROWS, BAG_TRAY_CAP, []);
     expect(sell).toEqual([]);
     expect(keep).toHaveLength(inv.length);
+  });
+
+  // 격자 도입 전 저장본은 트레이가 이미 cap 을 넘긴 채로 마이그레이션된다. 그 상태에서
+  //   초과분이 이번 드롭 수보다 크면 새 전리품이 매 정산마다 전부 증발한다.
+  it("후보가 아닌 트레이 아이템만으로 이미 캡이면 한 개도 팔지 않는다", () => {
+    const legacyTray = Array.from({ length: 12 }, (_, i) => mk(`L${i}`));
+    const drops = [mk("d0"), mk("d1", "rare")];
+    const legacyInv = [...board, ...legacyTray, ...drops];
+    const { sell, keep } = trayOverflow(
+      legacyInv,
+      ROWS,
+      BAG_TRAY_CAP,
+      drops.map((d) => d.id),
+    );
+    expect(sell).toEqual([]);
+    expect(keep).toHaveLength(legacyInv.length);
+  });
+
+  it("기존 트레이 8 + 신규 5, 캡 10 이면 신규 중 3개만 판다", () => {
+    const preTray = Array.from({ length: 8 }, (_, i) => mk(`P${i}`, "unique"));
+    const drops = [
+      mk("n0"),
+      mk("n1", "rare"),
+      mk("n2"),
+      mk("n3", "legend"),
+      mk("n4"),
+    ];
+    const mixedInv = [...board, ...preTray, ...drops];
+    const { sell, keep } = trayOverflow(
+      mixedInv,
+      ROWS,
+      BAG_TRAY_CAP,
+      drops.map((d) => d.id),
+    );
+    // 트레이 13 - 캡 10 = 3. 최저 등급(normal) 먼저, 같은 등급이면 오래된 index 먼저.
+    expect(sell.map((s) => s.id)).toEqual(["n0", "n2", "n4"]);
+    expect(keep).toHaveLength(mixedInv.length - 3);
   });
 });
 

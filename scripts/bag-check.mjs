@@ -215,7 +215,7 @@ const TRAY13 = [
   say(`sell = ${sell.map((s) => s.id).join(" ")}`);
   say(`keep = ${keep.length}`);
   say(`keepIds = ${keep.map((s) => s.id).join(" ")}`);
-  // 후보 제한: 이번 드롭만 판매 후보 (기존 아이템 보호). 후보가 초과분보다 적으면 후보만 판다.
+  // 후보 제한: 이번 드롭만 판매 후보 (기존 아이템 보호). 후보가 초과분 이하면 한 개도 안 판다.
   const c1 = trayOverflow(TRAY13, 5, BAG_TRAY_CAP, ["t11", "t12", "t13", "t01"]);
   say(`cand sell = ${c1.sell.map((s) => s.id).join(" ")}`);
   say(`cand keep = ${c1.keep.length}`);
@@ -224,6 +224,47 @@ const TRAY13 = [
   say(`cand1 keep = ${c2.keep.length}`);
   const c3 = trayOverflow(TRAY13, 5, BAG_TRAY_CAP, []);
   say(`cand0 sell = ${c3.sell.length} keep = ${c3.keep.length}`);
+}
+
+// ── 6b. 기존(후보 아님) 트레이가 이미 캡을 넘긴 경우 ──────────────────────
+// 격자 도입 전 저장본은 트레이가 cap 을 넘긴 채로 마이그레이션된다. 이때 초과분이
+// 이번 드롭 수보다 크면 새 전리품이 매 정산마다 전부 자동 판매된다 — 그래서 후보가
+// 아닌 트레이 아이템만으로 cap 이 차 있으면 한 개도 팔지 않는다.
+say("== 6b trayOverflow preTray ==");
+{
+  const legacy = Array.from({ length: 12 }, (_, i) =>
+    mk(`L${String(i).padStart(2, "0")}`, "accessory", "fitness", "normal"),
+  );
+  const drops = [
+    mk("d0", "accessory", "fitness", "normal"),
+    mk("d1", "talisman", "learning", "rare"),
+  ];
+  const over = trayOverflow(
+    [...legacy, ...drops],
+    5,
+    BAG_TRAY_CAP,
+    drops.map((d) => d.id),
+  );
+  say(`legacy sell = ${over.sell.length} keep = ${over.keep.length}`);
+
+  const pre = Array.from({ length: 8 }, (_, i) =>
+    mk(`P${i}`, "accessory", "fitness", "unique"),
+  );
+  const fresh = [
+    mk("n0", "accessory", "fitness", "normal"),
+    mk("n1", "accessory", "fitness", "rare"),
+    mk("n2", "talisman", "learning", "normal"),
+    mk("n3", "accessory", "social", "legend"),
+    mk("n4", "talisman", "fitness", "normal"),
+  ];
+  const mixed = trayOverflow(
+    [...pre, ...fresh],
+    5,
+    BAG_TRAY_CAP,
+    fresh.map((d) => d.id),
+  );
+  say(`mixed sell = ${mixed.sell.map((s) => s.id).join(" ")}`);
+  say(`mixed keep = ${mixed.keep.length}`);
 }
 
 // ── 7. 시너지 ────────────────────────────────────────────────────────────

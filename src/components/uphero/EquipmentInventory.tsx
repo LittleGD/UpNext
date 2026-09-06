@@ -35,7 +35,7 @@ import {
 import { createPortal } from "react-dom";
 import { useUpHeroStore, type EnhanceResult } from "@/store/useUpHeroStore";
 import { useGrowthStore } from "@/store/useGrowthStore";
-import { isPhotoBound } from "@/lib/photoTalisman";
+import { isPhotoBound, PHOTO_TALISMAN_MAX_ENHANCE_LEVEL } from "@/lib/photoTalisman";
 import {
   getHeroAppearanceVariant,
   enhanceSuccessRate,
@@ -705,7 +705,14 @@ export default function EquipmentInventory({
         }
         if (result.reason === "maxed") {
           play("cancel");
-          onNotify(t("uphero.equip.toast.maxEnhance", { max: MAX_ENHANCE_LEVEL }));
+          // 사진 부적은 +10 이 상한이다. 20 을 그대로 찍으면 "왜 막혔는지" 가 어긋난다.
+          onNotify(
+            t("uphero.equip.toast.maxEnhance", {
+              max: pending.item.photoId
+                ? PHOTO_TALISMAN_MAX_ENHANCE_LEVEL
+                : MAX_ENHANCE_LEVEL,
+            }),
+          );
           setPending(null);
           return;
         }
@@ -1125,7 +1132,7 @@ export default function EquipmentInventory({
         item={selectedItem}
         wornSlot={selectedWorn ? selectedSlot : null}
         placing={placing}
-        trayCount={layout.unplaced.length}
+        trayCount={trayItems.length}
         rotatable={selectedItem ? canRotate(selectedItem.type) : false}
         synthMode={synthMode}
         synthCount={synthPickItems.length}
@@ -1140,9 +1147,6 @@ export default function EquipmentInventory({
         }}
         onSell={() =>
           selectedItem && setPending({ kind: "sell", item: selectedItem })
-        }
-        onDiscard={() =>
-          selectedItem && setPending({ kind: "discard", item: selectedItem })
         }
         onCancel={clearSelection}
         onSynth={() => enterSynthMode(selectedItem)}

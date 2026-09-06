@@ -17,6 +17,166 @@ export interface PatchNote {
 // 최신 순으로 맨 앞에 쌓기 — LATEST_PATCH는 항상 PATCH_NOTES[0]
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "2026.09.05",
+    date: "2026-09-05",
+    headline: {
+      ko: "업 히어로 대개편: 격자 가방, 영웅 레벨 분리, 강화 +20",
+      en: "Up Hero overhaul: grid bag, separate hero level, enhance to +20",
+      ja: "アップヒーロー大改編: 格子バッグ、ヒーローレベル分離、強化+20",
+      zh: "Up Hero 大改版：格子背包、英雄等级独立、强化 +20",
+    },
+    entries: {
+      ko: [
+        {
+          icon: "Backpack",
+          title: "격자 가방: 어디에 두느냐가 힘이 됩니다",
+          description: "목록이던 가방이 격자판이 됐어요. 아이템을 칸에 직접 놓고, 무기는 회전해 자리를 맞춥니다. 십자 가운데의 착용 칸 옆에 같은 계열을 붙이면 인접 시너지가 붙어 스탯이 올라가요.",
+        },
+        {
+          icon: "Archive",
+          title: "상점에서 가방을 넓히세요",
+          description: "가방은 4행으로 시작해 상점에서 한 행씩 8행까지 늘릴 수 있어요. 늘린 행은 계정에 영구히 남습니다.",
+        },
+        {
+          icon: "Chart",
+          title: "영웅 레벨과 계정 레벨이 분리됐어요",
+          description: "영웅은 이제 자기 경험치로 자랍니다. 챌린지로 쌓는 계정 레벨과 따로 움직여서, 탐험을 많이 할수록 영웅이 강해져요.",
+        },
+        {
+          icon: "Skull",
+          title: "보스는 10층마다, 30층 이후에도 계속",
+          description: "던전 보스가 10층마다 기다립니다. 30층에서 끝나지 않고 그 위로도 계속 이어져요.",
+        },
+        {
+          icon: "Repeat",
+          title: "직업 스킬 두 갈래 분기와 리스펙",
+          description: "직업마다 스킬이 두 갈래로 갈라져 취향대로 키울 수 있어요. 마음이 바뀌면 리스펙으로 포인트를 되돌립니다.",
+        },
+        {
+          icon: "Zap",
+          title: "강화 +20, 시도마다 쓰는 방지권",
+          description: "강화 상한이 +20 으로 올랐어요. 소실방지권과 하락방지권은 걸어 둔 시도에서 한 장씩 나가고, 그 시도의 나쁜 결과만 막아줍니다.",
+        },
+        {
+          icon: "Sword",
+          title: "장비 아이콘, 합성, 도감 복구",
+          description: "비어 보이던 장비 아이콘이 제자리를 찾았어요. 같은 등급 셋을 모아 윗 등급으로 합성할 수 있고, 도감도 다시 채워집니다.",
+        },
+      ],
+      en: [
+        {
+          icon: "Backpack",
+          title: "Grid bag: where you put it is what you get",
+          description: "The bag is a board now, not a list. Drop items into cells and rotate weapons to make them fit. Place gear next to the worn slots in the middle cross and adjacency synergies add to your stats.",
+        },
+        {
+          icon: "Archive",
+          title: "Buy more bag rows in the shop",
+          description: "The bag starts at 4 rows and the shop sells one row at a time, up to 8. Rows you buy stay on your account for good.",
+        },
+        {
+          icon: "Chart",
+          title: "Hero level split from account level",
+          description: "Your hero now grows on its own XP pool, separate from the account level you build with challenges. The more you explore, the stronger the hero gets.",
+        },
+        {
+          icon: "Skull",
+          title: "A boss every 10 floors, past floor 30 too",
+          description: "Dungeon bosses wait on every tenth floor, and the run no longer stops at floor 30.",
+        },
+        {
+          icon: "Repeat",
+          title: "Two skill branches per class, plus respec",
+          description: "Each class skill tree splits into two branches, so you can build the way you like. Changed your mind? Respec refunds the points.",
+        },
+        {
+          icon: "Zap",
+          title: "Enhance to +20, wards spent per attempt",
+          description: "The enhance cap is now +20. A destroy ward or a downgrade ward is spent on the attempt you armed it for, and it only blocks that attempt's bad outcome.",
+        },
+        {
+          icon: "Sword",
+          title: "Equipment icons, synthesis and codex fixed",
+          description: "Missing equipment icons are back. Combine three items of the same rarity into the next rarity up, and the codex fills in again.",
+        },
+      ],
+      ja: [
+        {
+          icon: "Backpack",
+          title: "格子バッグ: どこに置くかが強さになります",
+          description: "リストだったバッグが格子盤になりました。アイテムをマスに直接置き、武器は回転させて収めます。中央の十字にある装備マスの隣に同系統を並べると隣接シナジーがついてステータスが上がります。",
+        },
+        {
+          icon: "Archive",
+          title: "ショップでバッグを広げましょう",
+          description: "バッグは4行から始まり、ショップで1行ずつ8行まで拡張できます。買った行はアカウントに永久に残ります。",
+        },
+        {
+          icon: "Chart",
+          title: "ヒーローレベルとアカウントレベルを分離",
+          description: "ヒーローは自分の経験値で成長するようになりました。チャレンジで積むアカウントレベルとは別に動くので、探検するほどヒーローが強くなります。",
+        },
+        {
+          icon: "Skull",
+          title: "ボスは10階ごと、30階の先も続きます",
+          description: "ダンジョンのボスが10階ごとに待ち構えます。30階で終わらず、その先もずっと続きます。",
+        },
+        {
+          icon: "Repeat",
+          title: "職業スキルの二分岐とリスペック",
+          description: "職業ごとにスキルが二つの枝に分かれ、好みに合わせて伸ばせます。気が変わったらリスペックでポイントを戻せます。",
+        },
+        {
+          icon: "Zap",
+          title: "強化+20、試行ごとに使う防止券",
+          description: "強化の上限が+20になりました。消失防止券と下落防止券はセットした試行で1枚ずつ消費され、その試行の悪い結果だけを防ぎます。",
+        },
+        {
+          icon: "Sword",
+          title: "装備アイコン・合成・図鑑を修復",
+          description: "空白だった装備アイコンが元に戻りました。同じ等級を3つ集めて上の等級に合成でき、図鑑もまた埋まります。",
+        },
+      ],
+      zh: [
+        {
+          icon: "Backpack",
+          title: "格子背包：放在哪里就有多强",
+          description: "背包从列表变成了格子板。把道具直接放进格子，武器可以旋转来适配空间。把同系装备放在中央十字的装备格旁边，就会触发相邻协同并提升属性。",
+        },
+        {
+          icon: "Archive",
+          title: "在商店扩展背包",
+          description: "背包从4行开始，可以在商店逐行购买，最多8行。买下的行会永久保留在账号上。",
+        },
+        {
+          icon: "Chart",
+          title: "英雄等级与账号等级分离",
+          description: "英雄现在用自己的经验值成长，与挑战积累的账号等级分开。探索越多，英雄越强。",
+        },
+        {
+          icon: "Skull",
+          title: "每10层一个首领，30层之后继续",
+          description: "地下城首领每10层出现一次，探索也不再止步于30层。",
+        },
+        {
+          icon: "Repeat",
+          title: "职业技能双分支与重置",
+          description: "每个职业的技能分成两条分支，可以按喜好培养。改变主意时用重置取回点数。",
+        },
+        {
+          icon: "Zap",
+          title: "强化 +20，每次尝试消耗防护券",
+          description: "强化上限提升到 +20。消失防护券与降级防护券会在你启用的那次尝试中各消耗一张，只挡住该次尝试的坏结果。",
+        },
+        {
+          icon: "Sword",
+          title: "修复装备图标、合成与图鉴",
+          description: "缺失的装备图标回来了。集齐三件同等级道具可以合成为更高等级，图鉴也会重新填满。",
+        },
+      ],
+    },
+  },
+  {
     version: "2026.08.24",
     date: "2026-08-24",
     headline: {

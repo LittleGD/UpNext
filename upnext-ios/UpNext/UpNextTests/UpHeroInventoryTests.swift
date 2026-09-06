@@ -195,7 +195,38 @@ final class UpHeroInventoryTests: XCTestCase {
     }
 
     func testSettlementAutoSellsOnlyThisDropWhenTrayOverflows() {
-        // 기존 트레이 10개는 캡을 넘어도 절대 팔리지 않는다 (격자 도입 전 저장본 보호).
+        // 기존 트레이 8개는 캡을 넘겨도 절대 팔리지 않는다 (격자 도입 전 저장본 보호).
+        //   트레이 8 + 드롭 3 = 11 → 초과 1개. 후보(드롭) 중 최저 등급 normal 이 나간다.
+        let tray = (0..<8).map { item(200 + $0, rarity: .rare) }
+        let drops = [
+            item(300, rarity: .rare, dropFloor: 12, enhanceLevel: 3),
+            item(301, rarity: .normal, dropFloor: 30),
+            item(302, rarity: .unique, dropFloor: 20),
+        ]
+        let store = freshStore()
+        store.debugSetState { s in
+            s.inventory = self.filledBoard() + tray
+            s.overflowDrops = []
+            s.coins = 0
+        }
+        store.debugSetCurrentSession(completedSession(drops: drops))
+        store.acknowledgeSessionEnd()
+        let ids = Set(store.state.inventory.map(\.id))
+        for t in tray { XCTAssertTrue(ids.contains(t.id)) }
+        XCTAssertFalse(ids.contains("inv-301"))
+        XCTAssertTrue(ids.contains("inv-300"))
+        XCTAssertTrue(ids.contains("inv-302"))
+        XCTAssertEqual(store.state.inventory.count, 25)
+        XCTAssertEqual(store.state.overflowDrops, [])
+        XCTAssertEqual(
+            store.state.coins,
+            UpHeroRules.sellPrice(rarity: .normal, dropFloor: 30, enhanceLevel: nil))
+    }
+
+    /// F1 — 격자 도입 전 저장본은 트레이가 이미 캡을 넘긴 채로 마이그레이션된다. 그때
+    /// 초과분만큼 팔면 후보(이번 드롭)가 늘 초과분 이하라 새 전리품이 영원히 전부 증발한다.
+    /// 웹 upHeroInventoryCap.test.ts "기존 트레이만으로 이미 캡이면 이번 드롭은 한 개도 팔리지 않는다".
+    func testSettlementSellsNothingWhenPreTrayAlreadyFillsCap() {
         let tray = (0..<UpHeroBag.trayCap).map { item(200 + $0, rarity: .rare) }
         let drops = [
             item(300, rarity: .rare, dropFloor: 12, enhanceLevel: 3),
@@ -212,14 +243,10 @@ final class UpHeroInventoryTests: XCTestCase {
         store.acknowledgeSessionEnd()
         let ids = Set(store.state.inventory.map(\.id))
         for t in tray { XCTAssertTrue(ids.contains(t.id)) }
-        for d in drops { XCTAssertFalse(ids.contains(d.id)) }
-        XCTAssertEqual(store.state.inventory.count, 25)
+        for d in drops { XCTAssertTrue(ids.contains(d.id)) }
+        XCTAssertEqual(store.state.inventory.count, 28)
         XCTAssertEqual(store.state.overflowDrops, [])
-        XCTAssertEqual(
-            store.state.coins,
-            UpHeroRules.sellPrice(rarity: .rare, dropFloor: 12, enhanceLevel: 3)
-                + UpHeroRules.sellPrice(rarity: .normal, dropFloor: 30, enhanceLevel: nil)
-                + UpHeroRules.sellPrice(rarity: .unique, dropFloor: 20, enhanceLevel: nil))
+        XCTAssertEqual(store.state.coins, 0)
     }
 
     func testSettlementUnionsRewardDropsIntoCodex() {

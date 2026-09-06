@@ -195,6 +195,48 @@ describe("격자 가방 좌표가 없는 저장본", () => {
     vi.mocked(loadFromStorage).mockImplementation(() => null as never);
   });
 
+  // F2 — schemaVersion 은 뒤로 흐를 수 있다 (iOS 는 이 키를 쓰지 않아 클라우드 문서가
+  //   7 이나 없음으로 내려온다). 버전 게이트로 재배치하면 손으로 만든 배치를 잃는다.
+  it("좌표가 있는 저장본은 schemaVersion 이 뒤로 흘러도 배치를 그대로 지킨다", () => {
+    useGameStore.setState({
+      progress: { ...useGameStore.getState().progress, level: 1 },
+    });
+    const handMade: Equipment[] = [
+      { ...legacyItem("c1", "accessory"), bagX: 4, bagY: 4, bagRot: 0 },
+      { ...legacyItem("c2", "accessory"), bagX: 2, bagY: 3, bagRot: 0 },
+      { ...legacyItem("w1", "weapon"), bagX: 3, bagY: 5, bagRot: 1 },
+    ];
+    vi.mocked(loadFromStorage).mockImplementation((key: string) =>
+      key === "uphero"
+        ? ({ schemaVersion: 7, heroStartLevel: 1, inventory: handMade } as never)
+        : (null as never),
+    );
+    useUpHeroStore.setState({ isLoaded: false });
+    useUpHeroStore.getState().initialize();
+
+    const inv = useUpHeroStore.getState().inventory;
+    expect(inv.map((i) => [i.id, i.bagX, i.bagY, i.bagRot])).toEqual([
+      ["c1", 4, 4, 0],
+      ["c2", 2, 3, 0],
+      ["w1", 3, 5, 1],
+    ]);
+    vi.mocked(loadFromStorage).mockImplementation(() => null as never);
+  });
+
+  it("_setFromCloud 는 옛 문서의 schemaVersion 을 채택하지 않는다", () => {
+    useUpHeroStore.setState({ schemaVersion: 8 });
+    useUpHeroStore.getState()._setFromCloud({
+      ...useUpHeroStore.getState(),
+      schemaVersion: 7,
+    });
+    expect(useUpHeroStore.getState().schemaVersion).toBe(8);
+    useUpHeroStore.getState()._setFromCloud({
+      ...useUpHeroStore.getState(),
+      schemaVersion: undefined as unknown as number,
+    });
+    expect(useUpHeroStore.getState().schemaVersion).toBe(8);
+  });
+
   it("좌표가 하나도 없는 클라우드 문서는 _setFromCloud 가 되살린다", () => {
     useUpHeroStore.setState({ heroStartLevel: 1 });
     useUpHeroStore.getState()._setFromCloud({

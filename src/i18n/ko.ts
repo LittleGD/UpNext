@@ -1226,7 +1226,7 @@ const ko = {
   "uphero.equip.synth.resultTitle": "합성 완료",
   "uphero.equip.toast.synthesized": "{name} 획득",
   "uphero.equip.overflow.title": "가방이 가득 찼어요",
-  "uphero.equip.overflow.body": "가방 {cap}칸을 넘긴 전리품 {n}개. 팔거나 버려야 해요",
+  "uphero.equip.overflow.body": "예전 가방 한도를 넘겨 남은 전리품 {n}개. 팔거나 버려야 해요",
   "uphero.equip.overflow.sellOne": "판매 +{price}",
   "uphero.equip.overflow.discardOne": "버리기",
   "uphero.equip.overflow.sellAll": "모두 판매 (+{coins})",

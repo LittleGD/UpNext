@@ -674,6 +674,8 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
             onSelect(null);
           }
           return;
+        // 버리기는 이제 여기 하나뿐이다 — 액션바에서 뺐고(판매·합성으로 정리),
+        //   오버플로 시트만 별도 배수 경로다. 데스크톱 탈출구로 남긴다.
         case "Delete":
         case "Backspace": {
           const owner = ownerKeys[cellIndex(focusCell.x, focusCell.y)];
