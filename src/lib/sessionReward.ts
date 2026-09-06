@@ -16,8 +16,10 @@ import type {
   LogEntry,
   SessionEndReason,
 } from "@/types/uphero";
+import { sellPrice } from "@/types/uphero";
 import { getEquipmentBaseName } from "@/data/upHeroEquipment";
 import { isBossFloor } from "@/lib/upHeroCombat";
+import { placeAllIntoBag, trayOverflow } from "@/lib/upHeroBag";
 
 /**
  * 사망 시 drops 유실 계산.
@@ -39,6 +41,38 @@ export function calculateKeptDrops(session: CombatSession): Equipment[] {
     return Math.random() < 0.5 ? drops : [];
   }
   return drops.slice(0, Math.floor(drops.length / 2));
+}
+
+/**
+ * 탐험 정산의 가방 반영 — 드롭을 격자 가방에 넣고, 정리 대기(트레이)가 넘치면
+ * 초과분을 자동 판매한다. 순수 함수라 결과 모달의 미리보기도 같은 값을 쓴다.
+ *
+ * 넣는 순서는 `placeAllIntoBag` 의 배열 순서 first-fit, 넘침 선별은
+ * `trayOverflow` 의 "최저 등급 먼저, 같은 등급이면 오래된 것 먼저" 다.
+ * 판매가는 Track E 의 `sellPrice(rarity, dropFloor, enhanceLevel)` 한 곳에서만 온다.
+ *
+ * @param rows 현재 보드 행 수 (`currentBagRows`, 상점에서 산 행 수로 정해진다)
+ * @returns inventory = 정산 후 인벤토리, sold = 자동 판매된 아이템, coins = 환급 코인
+ */
+export function settleBagAfterSession(
+  inventory: Equipment[],
+  keptDrops: Equipment[],
+  rows: number,
+): { inventory: Equipment[]; sold: Equipment[]; coins: number } {
+  const withDrops = placeAllIntoBag(inventory, keptDrops, rows);
+  // 판매 후보는 **이번 드롭만**. 이미 갖고 있던 아이템은 트레이가 넘쳐도 팔지 않는다
+  //   (격자 도입 전 저장본의 넘침을 첫 탐험이 청산해 버리면 안 된다).
+  const { keep, sell } = trayOverflow(
+    withDrops,
+    rows,
+    undefined,
+    keptDrops.map((d) => d.id),
+  );
+  const coins = sell.reduce(
+    (sum, item) => sum + sellPrice(item.rarity, item.dropFloor, item.enhanceLevel),
+    0,
+  );
+  return { inventory: keep, sold: sell, coins };
 }
 
 /**
@@ -109,10 +143,10 @@ export function calculateCodexDelta(
 }
 
 /**
- * Phase 6-E (Track E, 피드백 22) — 가방 상한 분배.
- * room = max(0, cap - inventoryCount); 앞에서부터 room 개는 가방으로, 나머지는
- * overflowDrops 로. 순서를 바꾸지 않는다 (드롭 순 = 로그 순).
- * iOS SessionReward.splitDropsByCap 미러.
+ * @deprecated 레거시 — Phase 6-E (Track E, 피드백 22) 의 가방 상한 분배. 격자 가방의
+ * `settleBagAfterSession` 이 정산을 대신하므로 더 이상 호출되지 않는다 (동치성 테스트
+ * 픽스처용으로만 남긴다). room = max(0, cap - inventoryCount); 앞에서부터 room 개는
+ * 가방으로, 나머지는 overflowDrops 로. iOS SessionReward.splitDropsByCap 미러.
  */
 export function splitDropsByCap(
   inventoryCount: number,

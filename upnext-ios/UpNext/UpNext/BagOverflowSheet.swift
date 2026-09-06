@@ -2,8 +2,9 @@
 //  BagOverflowSheet.swift
 //  UpNext — 가방 초과 전리품 처리 시트 (Phase 6-E, Track E, 피드백 22).
 //
-//  웹 components/uphero/BagOverflowModal.tsx 1:1. 정산 때 `UpHeroRules.inventoryCap` 을 넘긴
-//  드롭은 `state.overflowDrops` 에 남는다. 이 시트는 캠프에서 목록이 빌 때까지 닫히지 않는다
+//  웹 components/uphero/BagOverflowModal.tsx 1:1. 격자 가방 이전의 개수 상한을 넘겨
+//  `state.overflowDrops` 에 남은 드롭을 비우는 배수로다 (지금은 새로 쌓이지 않는다 — 정산은
+//  트레이 소프트캡으로 처리한다). 이 시트는 캠프에서 목록이 빌 때까지 닫히지 않는다
 //  (백드롭 탭 무시). 한 개씩 판매/버리기, 또는 모두 판매. 마운트 게이트(세션 없음 · 레벨업
 //  오버레이 없음 · 전직 제안 없음)는 `isVisible` — UpHeroGameView 가 읽는다.
 //
@@ -36,7 +37,7 @@ struct BagOverflowSheet: View {
                     Text(AppConfig.loc("가방이 가득 찼어요"))
                         .typography(.heading).foregroundStyle(GBPalette.lightest)
                     Text(AppConfig.loc(
-                        "가방 \(UpHeroRules.inventoryCap)칸을 넘긴 전리품 \(upHero.state.overflowDrops.count)개. 팔거나 버려야 해요"))
+                        "예전 가방 한도를 넘겨 남은 전리품 \(upHero.state.overflowDrops.count)개. 팔거나 버려야 해요"))
                         .typography(.caption).foregroundStyle(GBPalette.light)
                         .fixedSize(horizontal: false, vertical: true)
                 }

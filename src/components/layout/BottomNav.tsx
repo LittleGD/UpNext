@@ -90,9 +90,13 @@ export default function BottomNav() {
   //   tick 마다 session.log 가 바뀌면 BottomNav 도 리렌더되던 문제 해결.
   //   status 변화는 세션 시작/awaitingChoice/종료 시 드물게 발생.
   const upHeroStatus = useUpHeroStore((s) => s.currentSession?.status);
+  // 격자 가방 화면도 같은 취급 — 보드/트레이/액션바가 화면 전체를 쓰고, 하단
+  //   탭이 액션바와 겹치면 판매·버리기 오탭이 난다. boolean 하나만 구독한다.
+  const upHeroBagOpen = useUpHeroStore((s) => s.uiBagOpen);
   const hideForUpHero =
     pathname === "/playground" &&
-    (upHeroStatus === "active" ||
+    (upHeroBagOpen ||
+      upHeroStatus === "active" ||
       upHeroStatus === "paused" ||
       upHeroStatus === "awaitingChoice" ||
       upHeroStatus === "awaitingMinigame");

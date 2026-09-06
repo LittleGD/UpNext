@@ -208,6 +208,19 @@ export interface Equipment {
    * 일반 드롭 장비에는 없음 (사진 부적 전용).
    */
   talismanSkills?: string[];
+  /**
+   * 격자 가방 좌표 (Backpack Hero 스타일, `src/lib/upHeroBag.ts`).
+   *   bagX 0..4, bagY 0..7 (row 0 = 십자, 아래로 자람), bagRot 0..3 (v1 은 weapon 만 0/1 이 다름).
+   *   세 키가 모두 없으면 미배치(정리 대기 트레이). 착용 아이템(`hero.equipped`)은 좌표를 갖지 않는다
+   *   (equipItem 이 지운다). 레거시 저장본은 undefined → 로드 시 `packAllIfNonePlaced` 가 first-fit.
+   *   미배치 전환은 키 **삭제**로만 한다 (undefined 대입은 Firestore 페이로드에서 throw).
+   *   정규화 계약(무효 → 삭제, floor 정수)은 `normalizeEquipmentPlacement` 하나만 쓴다.
+   *   클라우드 와이어 키도 그대로 `bagX/bagY/bagRot`. iOS `UpHeroCloudSchema.CloudEquipment.K` 화이트리스트에
+   *   같은 철자로 있어야 왕복에서 탈락하지 않는다 — 웹·iOS 를 **함께** 배포할 것.
+   */
+  bagX?: number;
+  bagY?: number;
+  bagRot?: number;
 }
 
 /** 탐험권 보유량 — 카테고리별 */
@@ -1085,6 +1098,14 @@ export interface UpHeroState {
    */
   slotBlankStreak?: number;
   /**
+   * 격자 가방 — 상점에서 산 행 수 (0..4). 보드 행 = 4 + bagRowsBought (`bagRows`).
+   *   레벨과 무관하며 상점 `purchaseBagRow` 만 올린다. 필드가 없는 저장본은 0.
+   *   판독은 `normalizeBagRowsBought` 하나만 쓴다 (floor, 0..4 로 접음).
+   *   와이어 키도 그대로 `bagRowsBought`, 0 이어도 항상 싣는다 (merge 에서 빠지면 옛 값이
+   *   되살아나도 무해하지만 규칙을 하나로). iOS `UpHeroCloudSchema` CodingKeys 동시 갱신.
+   */
+  bagRowsBought?: number;
+  /**
    * Phase 11c — 주간 악몽 던전 진행 상태.
    * week: ISO week id (예: "2026-W16"). 바뀌면 자동 리셋.
    * affixId: 이번 주 랜덤 pick 된 affix. 모든 유저 동일 (seed = week).
@@ -1930,9 +1951,9 @@ export function sellPrice(
 }
 
 /**
- * 가방 상한. 정산(`acknowledgeSessionEnd` → `splitDropsByCap`) 과 사진 부적 생성에서만
- * 강제한다 — 장착 해제/합성은 막지 않는다 (가득 찬 가방에서 장비 교체가 죽는 것을 방지).
- * 후속 격자 인벤토리의 칸 수와 같은 값이다.
+ * @deprecated 레거시 가방 상한. 격자 가방(`upHeroBag.ts`, 보드 빈 칸 + 트레이 10) 이
+ * 정산·사진 부적 생성의 상한을 대신한다. 프로덕션 저장본의 `overflowDrops` 를 비우는
+ * BagOverflowModal 문구만 아직 이 값을 읽는다.
  */
 export const INVENTORY_CAP = 30;
 /** 합성 재료 개수 — 같은 등급 3개 → 다음 등급 1개. */

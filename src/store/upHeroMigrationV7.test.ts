@@ -99,7 +99,7 @@ describe("v7 — 장비/도감 수리", () => {
     expect(st.codex.equipment).toEqual(["자기절제의 검", "곡물의 갑옷", "지혜의 안경"]);
     expect(st.overflowDrops).toEqual([]);
     const saved = stored.uphero as { schemaVersion?: number; overflowDrops?: unknown[] };
-    expect(saved.schemaVersion).toBe(7);
+    expect(saved.schemaVersion).toBe(8);
     expect(saved.overflowDrops).toEqual([]);
   });
 
@@ -136,7 +136,7 @@ describe("v7 — 장비/도감 수리", () => {
     const st = reinit();
     expect(st.heroXp).toBeDefined();
     expect(st.inventory[0].iconName).toBe("Shirt");
-    expect((stored.uphero as { schemaVersion?: number }).schemaVersion).toBe(7);
+    expect((stored.uphero as { schemaVersion?: number }).schemaVersion).toBe(8);
   });
 });
 

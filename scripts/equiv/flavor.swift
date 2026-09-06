@@ -44,6 +44,7 @@ func effectKind(_ e: ChoiceEffect) -> String {
     case .fight: return "fight"
     case .flee: return "flee"
     case .startMinigame: return "startMinigame"
+    // 웹 flavor-check 는 e.kind 를 그대로 찍는다 (fmtFx 도 default: e.kind).
     case .spinSlot: return "spinSlot"
     }
 }

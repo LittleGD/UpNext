@@ -37,9 +37,91 @@ final class UpHeroStore: ObservableObject {
     /// 타지 않아 echo 업로드가 없다.
     var onPersist: ((UpHeroState) -> Void)?
 
+    /// 지금 살아 있는 스토어 — `GrowthStore.deletePhoto` 의 Up Hero 캐스케이드가 잡는
+    /// 참조다. 웹은 `import("./useUpHeroStore")` 로 모듈 싱글턴을 런타임에 잡아 순환
+    /// 참조를 피하는데, iOS 에는 그 모듈 싱글턴이 없어 같은 역할을 여기 둔다.
+    /// 앱 전체에 인스턴스는 하나(GameStore 소유)뿐이고, weak 라서 테스트가 만든
+    /// 스토어가 사라지면 자동으로 비워진다 — 죽은 스토어에 쓰는 사고가 없다.
+    private(set) static weak var current: UpHeroStore?
+
+    /// 가방 화면이 열려 있는가 — 풀스크린(하단 탭 숨김) 신호.
+    /// **비영속**이라 저장 파일에도 클라우드에도 나가지 않는다 (pendingDungeon 과 같은 성격).
+    @Published var isBagOpen = false
+
     init() {
         // 디스크에 저장된 상태가 있으면 복원, 없으면(최초 실행) 기본 상태.
         state = Self.loadPersisted() ?? Self.makeDefaultState()
+        Self.current = self
+    }
+
+    // MARK: - 격자 가방 (웹 upHeroBag / placeItem / uiBagOpen)
+
+    /// 지금 보드의 행 수 = 4 + 상점에서 산 행 수. 웹 `currentBagRows`.
+    ///
+    /// 레벨은 더 이상 근거가 아니다 — 가방은 상점 구매로만 커진다(사용자 결정 2026-09-05).
+    /// 그래서 레벨을 모르는 호출부(가방 화면·해제·부적 생성)도 같은 값을 얻는다.
+    func currentBagRows() -> Int {
+        UpHeroBag.bagRows(rowsBought: state.bagRowsBought)
+    }
+
+    /// 가방 화면 열림/닫힘 신호. 값이 같으면 no-op — 매 프레임 set 이 들어와도
+    /// 불필요한 objectWillChange 를 내지 않는다.
+    func setBagOpen(_ open: Bool) {
+        guard isBagOpen != open else { return }
+        isBagOpen = open
+    }
+
+    /// 격자 배치 결과. 실패 이유가 UI 문구·햅틱 분기에 그대로 쓰인다.
+    /// 웹 `PlaceResult` (`{ok:true} | {ok:false, reason}`) 의 Swift 판.
+    enum PlaceResult: String, Equatable {
+        case placed
+        case notFound
+        case outOfBounds
+        case overlap
+    }
+
+    /// 격자 가방에 아이템을 놓는다 (원점 x,y + 회전 rot).
+    /// 실패하면 상태를 전혀 건드리지 않는다 — UI 는 스냅백만 하면 된다.
+    /// 판정은 `UpHeroBag.checkPlacement` 하나만 쓴다 (드래그 고스트 미리보기도 같은 함수).
+    @discardableResult
+    func placeItem(itemId: String, x: Int, y: Int, rot: Int) -> PlaceResult {
+        let rows = currentBagRows()
+        // 판정 기준은 정규화된 레이아웃이다 — 손상 좌표가 남아 있으면 "빈 칸인데 겹침"
+        // 같은 거짓 거절이 난다. 자기 자신의 현재 칸은 무시한다(제자리 회전).
+        let normalized = UpHeroBag.normalizeBagLayout(state.inventory, rows: rows)
+        guard let item = normalized.inventory.first(where: { $0.id == itemId }) else {
+            return .notFound
+        }
+        let check = UpHeroBag.checkPlacement(
+            occ: normalized.layout.occupancy, rows: rows, type: item.type,
+            x: x, y: y, rot: rot, ignoreId: itemId)
+        switch check {
+        case .outOfBounds: return .outOfBounds
+        case .overlap: return .overlap
+        case .ok: break
+        }
+        let placed = UpHeroBag.withPlacement(item, BagPlacement(x: x, y: y, rot: rot))
+        mutate { s in
+            s.inventory = normalized.inventory.map { $0.id == itemId ? placed : $0 }
+        }
+        return .placed
+    }
+
+    /// 사진 삭제 캐스케이드 — 그 사진을 참조하는 부적을 인벤토리에서 빼고 착용 슬롯도
+    /// 해제한다. GrowthStore.deletePhoto 가 호출한다 (웹 useGrowthStore.deletePhoto 안의
+    /// dynamic import 캐스케이드와 같은 계약). 지우지 않으면 삭제된 이미지를 참조하는
+    /// 부적이 썸네일 없이 남고 스킬만 계속 발동한다.
+    /// 바뀐 게 없으면 저장하지 않는다 — 앨범 정리 한 번에 불필요한 업로드를 만들지 않는다.
+    func removePhotoBindings(photoId: String) {
+        let invHits = state.inventory.contains { $0.photoId == photoId }
+        let equipHits = state.hero.equipped.contains { $0.value.photoId == photoId }
+        guard invHits || equipHits else { return }
+        mutate { s in
+            s.inventory.removeAll { $0.photoId == photoId }
+            for (slot, item) in s.hero.equipped where item.photoId == photoId {
+                s.hero.equipped[slot] = nil
+            }
+        }
     }
 
     // MARK: - 수명주기
@@ -255,6 +337,14 @@ final class UpHeroStore: ObservableObject {
         // Phase 6-E (Track E) — 장비/도감 수리를 게이트 없이 다시 돈다 (멱등). 구 클라이언트가
         //   옛 iconName/도감 키를 올릴 수 있다 (웹 _setFromCloud 동일).
         EquipmentRepair.repairState(&s)
+        // 격자 가방 — 들어온 인벤토리도 로컬 로드와 같은 계약으로 접는다 (수리 뒤). 백필(팩)은
+        //   스토어 로드 경로에서만 한다 (CloudUpHeroState 디코드는 웹과 바이트 동일해야
+        //   해서 손대지 않는다). 정규화·팩 모두 rowsMax 기준: 지금 보드보다 아래 행에
+        //   있는 아이템을 "겹침" 으로 오판해 좌표를 벗기지 않고, 팩도 8행에 놓아 보드 밖
+        //   아이템은 suspended(보류)로 남긴다 — 미배치(자동 판매 후보)로 보내지 않는다 (웹 동일).
+        s.inventory = UpHeroBag.packAllIfNonePlaced(
+            UpHeroBag.normalizeBagLayout(s.inventory, rows: UpHeroBag.rowsMax).inventory,
+            rows: UpHeroBag.rowsMax)
         s.currentSession = state.currentSession
         s.pendingDungeon = state.pendingDungeon
         // 시작 선물은 계정 단위 1회 — 클라우드가 "이미 받음" 이면 로컬 예약을 거둔다.
@@ -271,12 +361,21 @@ final class UpHeroStore: ObservableObject {
     /// 슬롯은 item.type 으로 결정 (웹 equipItem 의 slot 인자는 item.type 과 동일).
     func equipItem(_ itemId: String) {
         mutate { s in
-            guard let item = s.inventory.first(where: { $0.id == itemId }) else { return }
-            s.inventory.removeAll { $0.id == itemId }
+            guard let index = s.inventory.firstIndex(where: { $0.id == itemId }) else { return }
+            let item = s.inventory[index]
+            // 착용 아이템은 앵커 칸에 1칸으로 그려진다 — 좌표를 들고 가면 가방 점유가
+            //   유령처럼 남고 클라우드로도 새어 나간다. 그래서 착용 시 좌표를 벗긴다.
+            let worn = UpHeroBag.withoutPlacement(item)
             if let existing = s.hero.equipped[item.type] {
-                s.inventory.append(existing)
+                // 교체면 벗겨지는 아이템이 방금 비운 footprint 를 그대로 물려받는다
+                //   (같은 슬롯 = 같은 모양이라 항상 성립). 배열 자리도 같은 index 를 쓴다 —
+                //   append 하면 시너지 순회와 first-fit 순서가 장착할 때마다 달라져
+                //   결정성이 깨진다.
+                s.inventory[index] = UpHeroBag.inheritPlacement(from: item, to: existing)
+            } else {
+                s.inventory.remove(at: index)
             }
-            s.hero.equipped[item.type] = item
+            s.hero.equipped[item.type] = worn
         }
         Haptics.play(.selection)
         SoundPlayer.shared.play(.cardSelect)
@@ -284,10 +383,12 @@ final class UpHeroStore: ObservableObject {
 
     /// 슬롯의 장비를 해제해 인벤토리로 되돌린다. 웹 unequipItem.
     func unequipItem(_ slot: EquipSlot) {
+        let rows = currentBagRows()
         mutate { s in
             guard let item = s.hero.equipped[slot] else { return }
             s.hero.equipped[slot] = nil
-            s.inventory.append(item)
+            // 첫 빈 자리에 놓고, 자리가 없으면 정리 대기 트레이로. 실패하지 않는다.
+            s.inventory = UpHeroBag.placeIntoBag(s.inventory, item, rows: rows)
         }
         Haptics.play(.selection)
         SoundPlayer.shared.play(.cardSelect)
@@ -304,7 +405,9 @@ final class UpHeroStore: ObservableObject {
             s.coins += refund
         }
         Haptics.play(.light)
-        SoundPlayer.shared.play(.cancel)
+        // 판매는 코인이 들어오는 긍정 결과다 — 웹 play("collect") · 오버플로 시트와 같은 큐.
+        //   부정 큐(.cancel)는 환급 없는 discardItem 쪽에만 남긴다.
+        SoundPlayer.shared.play(.collect)
         return refund
     }
 
@@ -333,8 +436,8 @@ final class UpHeroStore: ObservableObject {
         case fail(SynthesisFailure)
     }
 
-    /// 가방의 같은 등급 3개(legend·사진 부적 제외)를 다음 등급 1개로. 결과는 인벤토리 끝에
-    /// 붙고 도감에 즉시 기록된다. 장착 중 아이템은 재료가 될 수 없다 (`notFound`).
+    /// 가방의 같은 등급 3개(legend·사진 부적 제외)를 다음 등급 1개로. 결과는 격자의 첫 빈 자리
+    /// (없으면 트레이)에 들어가고 도감에 즉시 기록된다. 장착 중 아이템은 재료가 될 수 없다 (`notFound`).
     @discardableResult
     func synthesizeItems(_ ids: [String]) -> SynthesisResult {
         var rng = SystemRandom()
@@ -361,9 +464,12 @@ final class UpHeroStore: ObservableObject {
         }
         let idSet = Set(ids)
         let baseName = EquipmentPool.equipmentBaseName(item)
+        let rows = currentBagRows()
         mutate { s in
+            // 재료는 배열에서 빠져 칸이 비고, 결과물은 다른 삽입 지점과 같은 헬퍼로 들어간다
+            //   (빈 자리 first-fit, 없으면 정리 대기 트레이). 웹 synthesizeItems 동일.
             s.inventory.removeAll { idSet.contains($0.id) }
-            s.inventory.append(item)
+            s.inventory = UpHeroBag.placeIntoBag(s.inventory, item, rows: rows)
             // 도감 즉시 기록 — 정산을 거치지 않는 유일한 장비 획득 경로.
             if !s.codex.equipment.contains(baseName) { s.codex.equipment.append(baseName) }
         }
@@ -446,7 +552,11 @@ final class UpHeroStore: ObservableObject {
         // Phase 16 (Track C, 피드백 19/26) — 미처치 보스층이 floorReached 이하에 있으면
         //   거기서 시작 (createSession 이 보스를 바로 스폰). 웹 confirmDungeon 과 동일.
         let heroLevel = self.heroLevel
-        let leveledHero = UpHeroRules.computeHeroForLevel(state.hero, level: heroLevel)
+        // 가방 시너지는 세션 스냅샷에 1회 접힌다 (전투 중 재배치 무효).
+        let leveledHero = UpHeroBag.applyBagSynergy(
+            UpHeroRules.computeHeroForLevel(state.hero, level: heroLevel),
+            inventory: state.inventory,
+            rows: currentBagRows())
         let startFloor = SessionReward.resolveStartFloor(state.dungeons[dungeonId])
 
         var rng = SystemRandom()
@@ -531,17 +641,21 @@ final class UpHeroStore: ObservableObject {
             }
         }
 
+        // 드롭을 격자 가방에 넣고, 정리 대기 트레이가 넘치면 초과분을 자동 판매한다.
+        //   결과 모달의 미리보기도 같은 순수 함수를 써야 화면과 실제가 어긋나지 않는다.
+        let bagRowsForSettle = currentBagRows()
+
         mutate { s in
-            // Track C: 주간 보상 (weeklyReward) 합산. Track A 의 settleHeroXp 는 위에서,
-            //   Track E 는 splitDropsByCap 을 끼운다 (공통 규칙 병합 순서).
+            // 병합 순서(공통 규칙): Track A 의 settleHeroXp 는 위에서, Track C 주간 보상
+            //   (weeklyReward) 합산, 격자 가방은 settleBagAfterSession 으로 드롭을 넣는다
+            //   (Track E 의 splitDropsByCap 상한 분배는 격자 도입으로 사라졌다 — overflowDrops
+            //   는 더 이상 생산되지 않고, 남은 것만 BagOverflowSheet 가 비운다). 웹 동일.
             if let settled { s.heroXp = settled.heroXp }
             s.coins += session.rewards.coins + (weeklyReward?.coins ?? 0)
-            // Phase 6-E (Track E, 피드백 22) — 가방 상한. 넘친 만큼은 overflowDrops 로 가고
-            //   캠프의 BagOverflowSheet 가 (레벨업/전직 뒤에) 처리한다.
-            let split = SessionReward.splitDropsByCap(
-                inventoryCount: s.inventory.count, drops: keptDrops, cap: UpHeroRules.inventoryCap)
-            s.inventory.append(contentsOf: split.fits)
-            s.overflowDrops.append(contentsOf: split.overflow)
+            let settledBag = SessionReward.settleBagAfterSession(
+                inventory: s.inventory, keptDrops: keptDrops, rows: bagRowsForSettle)
+            s.inventory = settledBag.inventory
+            s.coins += settledBag.coins
             // Phase 15 — 이번 탐험에서 번 방지권을 지갑으로 합산 (상한 99).
             // 보스 드롭·보물상자·굴림틀이 전부 session.rewards 에 쌓아둔 것이고,
             // Phase 16 (Track C) 주간 첫 클리어/올클리어 방지권도 여기서 같이 더한다.
@@ -796,6 +910,9 @@ final class UpHeroStore: ObservableObject {
         let spent = EnhanceGuardSpend(destroy: armDestroy ? 1 : 0, down: armDown ? 1 : 0)
 
         // 원래 자리에 새 아이템을 되꽂는/빼는 헬퍼 (웹 replaceItem / removeItem).
+        //   호출부의 newItem 은 전부 `var newItem = item` 사본이라 가방 좌표
+        //   (bagX/bagY/bagRot)가 그대로 따라온다 — 강화는 자리 이동이 아니다.
+        //   소실(remove)은 배열에서 빠지므로 칸도 자동으로 비워진다.
         let slot = equippedSlot
         func replace(_ s: inout UpHeroState, _ newItem: Equipment) {
             if let slot {
@@ -1011,6 +1128,25 @@ final class UpHeroStore: ObservableObject {
         mutate { s in
             s.coins -= price
             s.downGuards = owned + 1
+        }
+        return .ok
+    }
+
+    /// 가방 행 1줄 구매 — 보드가 5칸 넓어진다. 가격은 산 행 수에 따라 오른다
+    /// (`UpHeroBag.rowPrices` = 200 / 400 / 800 / 1500). 4행 시작, 최대 8행.
+    ///
+    /// 레벨로는 절대 늘지 않는다 — 가방 크기는 오직 이 함수만 올린다(사용자 결정
+    /// 2026-09-05). 그래서 "레벨업했더니 보드가 커져 배치가 흔들린다" 가 구조적으로 없다.
+    /// 상한이면 `.atCap` 이라 UI 가 "코인 부족" 과 다른 문구를 낼 수 있다.
+    /// 웹 `purchaseBagRow` 1:1.
+    @discardableResult
+    func purchaseBagRow() -> PurchaseGuardResult {
+        let bought = UpHeroBag.normalizeBagRowsBought(state.bagRowsBought)
+        guard let price = UpHeroBag.bagRowPrice(rowsBought: bought) else { return .atCap }
+        guard state.coins >= price else { return .noCoin }
+        mutate { s in
+            s.coins -= price
+            s.bagRowsBought = bought + 1
         }
         return .ok
     }
@@ -1297,18 +1433,16 @@ final class UpHeroStore: ObservableObject {
                                      equipped: state.hero.equipped) else {
             return talismanFail(AppConfig.loc("이미 부적으로 만든 사진이에요"))
         }
-        // Phase 6-E — 가방이 가득 차면 의식을 거절한다 (정산 외 유일한 신규 획득 경로).
-        guard state.inventory.count < UpHeroRules.inventoryCap else {
-            return talismanFail(AppConfig.loc("가방이 가득 찼어요 (\(UpHeroRules.inventoryCap)칸)"))
-        }
         guard state.coins >= PhotoTalisman.ritualCost else {
             return talismanFail(AppConfig.loc("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)"))
         }
         var rng = SystemRandom()
         let rarity = PhotoTalisman.rollRarity(&rng)
         let item = PhotoTalisman.build(photo: photo, rarity: rarity)
+        // 새 부적도 다른 삽입 지점과 같은 헬퍼로 들어간다 (자리 없으면 트레이).
+        let rows = currentBagRows()
         mutate {
-            $0.inventory.append(item)
+            $0.inventory = UpHeroBag.placeIntoBag($0.inventory, item, rows: rows)
             $0.coins -= PhotoTalisman.ritualCost
         }
         Haptics.play(.success)
@@ -1338,7 +1472,10 @@ final class UpHeroStore: ObservableObject {
             switch found.location {
             case .inventory:
                 if let idx = s.inventory.firstIndex(where: { $0.id == found.item.id }) {
-                    s.inventory[idx] = newItem
+                    // 재의식은 자리 이동이 아니다 — 새 객체가 원래 칸을 그대로 물려받아야
+                    //   유저가 정리해 둔 배치가 유지된다.
+                    s.inventory[idx] = UpHeroBag.inheritPlacement(
+                        from: s.inventory[idx], to: newItem)
                 }
             case .equipped:
                 for (slot, eq) in s.hero.equipped where eq.id == found.item.id {
@@ -1366,9 +1503,6 @@ final class UpHeroStore: ObservableObject {
         }
         if PhotoTalisman.isBound(photo.id, inventory: state.inventory, equipped: state.hero.equipped) {
             return talismanFail(AppConfig.loc("이미 부적으로 만든 사진이에요"))
-        }
-        if state.inventory.count >= UpHeroRules.inventoryCap {
-            return talismanFail(AppConfig.loc("가방이 가득 찼어요 (\(UpHeroRules.inventoryCap)칸)"))
         }
         if state.coins < PhotoTalisman.ritualCost {
             return talismanFail(AppConfig.loc("코인이 부족해요 (\(PhotoTalisman.ritualCost) 필요)"))
@@ -1426,6 +1560,20 @@ final class UpHeroStore: ObservableObject {
             fixed.slotSpins = UpHeroSlot.normalizeSpins(daily.slotSpins)
             restored.shopDaily = fixed
         }
+        // 격자 가방 — 저장본 인벤토리를 보드 계약대로 정리한다. 두 단계 모두 멱등.
+        //   1) normalizeBagLayout(rowsMax): 좌표 정규화(무효 삭제) + 겹침 판정.
+        //      지금 레벨을 여기서는 알 수 없으므로(gameLevel 은 initialize 가 받는다)
+        //      최대 보드로 판정한다 — 작은 보드로 보면 아래 행 아이템이 서로를 밀어내
+        //      멀쩡한 좌표가 벗겨진다.
+        //   2) packAllIfNonePlaced(rowsMax): 배치가 0개면 배열 순서 first-fit. 8행 기준으로 팩해
+        //      지금 보드 밖 아이템은 suspended(보류)로 남긴다 — 미배치(자동 판매 후보)로 보내지 않는다 (웹 동일).
+        //      웹은 여기에 `savedVersion < 8` 게이트가 하나 더 있지만, iOS 는 격자 도입 이전에
+        //      좌표를 **쓴 적이 없어** 구 저장본은 반드시 "배치 0개" 다 — 즉 이 규칙
+        //      하나가 웹의 버전 게이트와 같은 일을 한다. 게다가 버전과 무관하므로
+        //      구버전 iOS 가 좌표를 벗겨 올린 문서도 여기서 되살아난다.
+        restored.inventory = UpHeroBag.packAllIfNonePlaced(
+            UpHeroBag.normalizeBagLayout(restored.inventory, rows: UpHeroBag.rowsMax).inventory,
+            rows: UpHeroBag.rowsMax)
         return restored
     }
 
@@ -1478,6 +1626,7 @@ final class UpHeroStore: ObservableObject {
             cosmetics: Cosmetics(tentColor: nil, campfire: nil),
             destroyGuards: 0,
             downGuards: 0,
+            bagRowsBought: 0,
             lastIdleAccrualAt: now,
             lastSeenAt: now,
             heroStartLevel: nil,        // initialize 에서 seed (슬라이스 16~)

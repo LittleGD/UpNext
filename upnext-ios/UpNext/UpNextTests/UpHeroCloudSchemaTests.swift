@@ -13,6 +13,13 @@
 //  normalizeUpHeroState → encodeUpHeroForCloud 실측 출력 (2026-09-05, 웹 커밋 23140c1) —
 //  src/lib/sync.test.ts "normalizeUpHeroState — overflowDrops / dropFloor (Track E)" 계약.
 //
+//  재생성 #3 (격자 가방 병합, 2026-09-05): #2 의 상위집합 — 인벤 두 원소에 격자 좌표
+//  (bagX/bagY/bagRot), 두 번째 원소 `dropFloor: 5`, `bagRowsBought: 2`, `schemaVersion: 8`.
+//  src/lib/sync.test.ts "픽스처 #3" 이 console.info("[WEB_FIXTURE #3]") 로 남기는
+//  encodeUpHeroForCloud 실측 출력을 그대로 붙였다 (`npx vitest run src/lib/sync.test.ts
+//  --disableConsoleIntercept`). 좌표 키들은 화이트리스트라, iOS 가 하나라도 빠뜨리면 웹이
+//  저장한 가방 배치가 왕복 한 번에 통째로 지워진다.
+//
 
 import XCTest
 @testable import UpNext
@@ -96,7 +103,26 @@ final class UpHeroCloudSchemaTests: XCTestCase {
           "stats": {
             "vit": 2
           },
-          "dropFloor": 3
+          "dropFloor": 3,
+          "bagX": 0,
+          "bagY": 3,
+          "bagRot": 0
+        },
+        {
+          "id": "sword_f5_1700000000003",
+          "name": "eq_wood_sword",
+          "baseId": "wood_sword",
+          "type": "weapon",
+          "rarity": "normal",
+          "category": "fitness",
+          "iconName": "sword",
+          "stats": {
+            "str": 1
+          },
+          "dropFloor": 5,
+          "bagX": 3,
+          "bagY": 3,
+          "bagRot": 1
         }
       ],
       "overflowDrops": [
@@ -152,10 +178,11 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         "battlesLeft": 3
       },
       "slotBlankStreak": 2,
+      "bagRowsBought": 2,
       "hasSeenCampTutorial": true,
       "welcomeGrantClaimed": true,
       "lastSeenAt": 1756400001000,
-      "schemaVersion": 7,
+      "schemaVersion": 8,
       "shopDaily": {
         "coinPouchClaimed": false,
         "slotSpins": 2,
@@ -245,7 +272,15 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         XCTAssertEqual(decoded.hero.equipped[.talisman]?.photoId, "photo_abc")
         XCTAssertNil(decoded.hero.classType)
         XCTAssertEqual(decoded.hero.autoSkillEnabled, false)
-        XCTAssertEqual(decoded.inventory.map(\.id), ["armor_f3_1700000000002"])
+        XCTAssertEqual(
+            decoded.inventory.map(\.id),
+            ["armor_f3_1700000000002", "sword_f5_1700000000003"])
+        // 격자 가방 좌표 — 0 도 유효한 값이라 "없음" 과 구분해서 실려야 한다.
+        XCTAssertEqual(decoded.inventory[0].bagX, 0)
+        XCTAssertEqual(decoded.inventory[0].bagY, 3)
+        XCTAssertEqual(decoded.inventory[0].bagRot, 0)
+        XCTAssertEqual(decoded.inventory[1].bagRot, 1, "weapon 가로 배치(rot 1)")
+        XCTAssertNil(decoded.hero.equipped[.weapon]?.bagX, "착용 아이템은 좌표를 갖지 않는다")
         XCTAssertEqual(decoded.coins, 264)
         XCTAssertEqual(decoded.passes, [.fitness: 2, .learning: 0])  // 0 도 키 유지
         XCTAssertEqual(decoded.dungeons[.fitness]?.bestFloorReached, 14)
@@ -261,13 +296,15 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         XCTAssertEqual(decoded.overflowDrops.map(\.id), ["sword_f31_1700000000003"])
         XCTAssertEqual(decoded.overflowDrops.first?.dropFloor, 31)
         XCTAssertEqual(decoded.inventory.first?.dropFloor, 3)
+        XCTAssertEqual(decoded.inventory[1].dropFloor, 5)
         XCTAssertEqual(decoded.hero.equipped[.weapon]?.dropFloor, 10)
         XCTAssertNil(decoded.hero.equipped[.talisman]?.dropFloor)  // 사진 부적은 층이 없다
-        XCTAssertEqual(decoded.schemaVersion, 7)
+        XCTAssertEqual(decoded.schemaVersion, 8)
         XCTAssertEqual(decoded.destroyGuards, 2)
         XCTAssertEqual(decoded.downGuards, 1)
         XCTAssertEqual(decoded.combatBuff.buff, CombatBuff(pct: 10, battlesLeft: 3))
         XCTAssertEqual(decoded.slotBlankStreak, 2)
+        XCTAssertEqual(decoded.bagRowsBought, 2, "상점에서 산 가방 행")
         XCTAssertTrue(decoded.hasFootprint)
     }
 
@@ -315,6 +352,49 @@ final class UpHeroCloudSchemaTests: XCTestCase {
         let onlyStreak = try JSONDecoder().decode(
             CloudUpHeroState.self, from: Data(#"{"slotBlankStreak":4}"#.utf8))
         XCTAssertFalse(onlyStreak.hasFootprint, "스트릭만으로는 플레이 흔적이 아니다")
+    }
+
+    // MARK: - 상점 가방 행 (와이어 키 "bagRowsBought")
+    //
+    // 웹 `normalizeBagRowsBought`: 부재·비숫자 → 0, 소수 내림, 정수 [0, 4].
+    // 0 이어도 키를 항상 싣는다 — 키가 빠지면 merge 가 클라우드의 옛 값을 되살려
+    // 코인으로 산 행이 기기를 옮길 때마다 흔들린다.
+
+    private func decodeBagRows(_ json: String) throws -> Int {
+        try JSONDecoder()
+            .decode(CloudUpHeroState.self, from: Data(json.utf8))
+            .bagRowsBought
+    }
+
+    func testBagRowsBoughtLenientDecodeMatchesWeb() throws {
+        XCTAssertEqual(try decodeBagRows("{}"), 0)                              // 레거시(키 없음)
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":3}"#), 3)
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":2.9}"#), 2)         // 내림
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":7}"#), 4)           // 상한
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":-1}"#), 0)          // 음수 → 0
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":"2"}"#), 0)         // 문자열은 값이 아니다
+        XCTAssertEqual(try decodeBagRows(#"{"bagRowsBought":null}"#), 0)
+    }
+
+    func testBagRowsBoughtAlwaysEncodedEvenWhenZero() throws {
+        let empty = try JSONDecoder().decode(CloudUpHeroState.self, from: Data("{}".utf8))
+        let payload = try XCTUnwrap(empty.firestoreValue())
+        XCTAssertEqual(payload["bagRowsBought"] as? Int, 0, "0 이어도 키를 실어야 한다")
+    }
+
+    /// 상태 → 클라우드 → 상태 왕복에서 값이 살아남고, 산 행 자체가 플레이 흔적이다
+    /// (코인 200 을 써야 생기는 값이라 "빈 계정" 으로 덮이면 안 된다).
+    func testBagRowsBoughtRoundTripsThroughCloudWire() throws {
+        var state = UpHeroStore.makeDefaultState()
+        state.bagRowsBought = 3
+        let payload = try XCTUnwrap(CloudUpHeroState(state).firestoreValue())
+        XCTAssertEqual(payload["bagRowsBought"] as? Int, 3, "와이어 키가 빠졌다")
+
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let back = try JSONDecoder().decode(CloudUpHeroState.self, from: data)
+        XCTAssertEqual(back.bagRowsBought, 3)
+        XCTAssertEqual(back.toState().bagRowsBought, 3)
+        XCTAssertTrue(back.hasFootprint, "코인으로 산 행은 플레이 흔적이다")
     }
 
     // MARK: - 굴림틀 전투 버프 (와이어 키 "combatBuff")
@@ -376,6 +456,67 @@ final class UpHeroCloudSchemaTests: XCTestCase {
             from: Data(#"{"combatBuff":{"pct":0.5,"battlesLeft":9}}"#.utf8))
         XCTAssertEqual(decoded.combatBuff.buff, CombatBuff(pct: 0.5, battlesLeft: 9))
         XCTAssertFalse(decoded.hasFootprint)
+    }
+
+    // MARK: - 격자 가방 좌표 (와이어 키 "bagX"/"bagY"/"bagRot")
+    //
+    // 정규화 계약은 웹 `upHeroBag.normalizeEquipmentPlacement` 와 같다:
+    //   유한수면 내림 → bagX 0..4 / bagY 0..7 이어야 유효, bagRot 은 0..3 아니면 0,
+    //   x·y 중 하나라도 무효면 셋 다 버린다. 무효 좌표를 도메인으로 흘리면 보드가
+    //   겹쳐 그려지고, 1e300 같은 값은 Int 변환에서 앱을 죽인다(lenientInt 크기 가드).
+
+    private func decodeBagItem(_ bagFields: String) throws -> Equipment {
+        let json = #"{"inventory":[{"id":"i1","name":"i1","type":"weapon","rarity":"normal","#
+            + #""category":"fitness","iconName":"sword","stats":{},"#
+            + bagFields + "}]}"
+        let decoded = try JSONDecoder().decode(CloudUpHeroState.self, from: Data(json.utf8))
+        return try XCTUnwrap(decoded.inventory.first)
+    }
+
+    private func assertNoPlacement(
+        _ item: Equipment, _ message: String, line: UInt = #line
+    ) {
+        XCTAssertNil(item.bagX, message, line: line)
+        XCTAssertNil(item.bagY, message, line: line)
+        XCTAssertNil(item.bagRot, message, line: line)
+    }
+
+    func testBagCoordinateLenientDecodeMatchesWeb() throws {
+        // 소수는 내림 (웹 Math.floor).
+        let floored = try decodeBagItem(#""bagX":2.7,"bagY":3,"bagRot":0"#)
+        XCTAssertEqual(floored.bagX, 2)
+        XCTAssertEqual(floored.bagY, 3)
+        XCTAssertEqual(floored.bagRot, 0)
+
+        // 범위 밖 rot 은 0 으로 접는다 (좌표는 살린다).
+        let rotFolded = try decodeBagItem(#""bagX":1,"bagY":2,"bagRot":7"#)
+        XCTAssertEqual(rotFolded.bagX, 1)
+        XCTAssertEqual(rotFolded.bagRot, 0)
+
+        // x 나 y 가 무효면 셋 다 버린다 — rot 만 남기면 다음 저장에서 웹과 어긋난다.
+        assertNoPlacement(try decodeBagItem(#""bagX":-1,"bagY":3,"bagRot":1"#), "음수 좌표")
+        assertNoPlacement(try decodeBagItem(#""bagX":99,"bagY":3"#), "열 상한(5) 밖")
+        assertNoPlacement(try decodeBagItem(#""bagX":1,"bagY":8"#), "행 상한(8) 밖")
+        assertNoPlacement(try decodeBagItem(#""bagX":"2","bagY":3"#), "문자열은 숫자가 아니다")
+        assertNoPlacement(try decodeBagItem(#""bagX":null,"bagY":3"#), "null")
+        assertNoPlacement(try decodeBagItem(#""bagY":3"#), "키 자체가 없음")
+        // 1e300 은 Int 변환이 트랩이라 lenientInt 의 크기 가드가 잡아야 한다.
+        assertNoPlacement(try decodeBagItem(#""bagX":1e300,"bagY":3"#), "Double 상한 밖")
+    }
+
+    /// 미배치 아이템은 세 키를 함께 생략한다 — 웹의 "키 삭제" 와 같은 와이어.
+    func testUnplacedItemOmitsBagKeys() throws {
+        var state = UpHeroStore.makeDefaultState()
+        state.inventory = [
+            Equipment(
+                id: "i1", name: "i1", type: .weapon, rarity: .normal,
+                category: .fitness, iconName: "sword", stats: [:])
+        ]
+        let payload = try XCTUnwrap(CloudUpHeroState(state).firestoreValue())
+        let inventory = try XCTUnwrap(payload["inventory"] as? [[String: Any]])
+        XCTAssertNil(inventory[0]["bagX"])
+        XCTAssertNil(inventory[0]["bagY"])
+        XCTAssertNil(inventory[0]["bagRot"])
     }
 
     // MARK: - 관용 디코드 (웹 normalizeUpHeroState)

@@ -148,13 +148,25 @@ final class GrowthStore: ObservableObject {
         Self.saveMetas(photoMetas)
     }
 
-    /// 사진 삭제 — 메타·캐시·파일 모두 제거. 웹 deletePhoto.
+    /// 사진 삭제 — 메타·캐시·파일 모두 제거 + Up Hero 부적 캐스케이드. 웹 deletePhoto.
+    ///
+    /// 캐스케이드가 필요한 이유: 이 사진을 photoId 로 바인딩한 사진 부적은 삭제된
+    /// 이미지를 참조해 썸네일이 뜨지 않는데 스킬은 계속 발동한다. 그래서 인벤토리에서
+    /// 빼고 착용 슬롯도 해제한다 (웹은 useGrowthStore 안에서 dynamic import 로
+    /// useUpHeroStore 를 잡아 같은 일을 한다 — 순환 참조 회피).
+    ///
+    /// iOS 에는 그 모듈 싱글턴이 없어 `UpHeroStore.current`(살아 있는 인스턴스의 weak
+    /// 참조)를 대신 쓴다. GrowthStore 와 UpHeroStore 는 둘 다 GameStore 가 소유하지만
+    /// 서로를 모르며, 여기서 GameStore 를 참조하면 뷰 계층까지 끌려온다.
+    /// 저장은 UpHeroStore 의 평소 경로(mutate → persist → 클라우드 업로드)를 그대로 탄다 —
+    /// 삭제 직후 앱을 닫아도 인벤토리 변경이 날아가지 않는다.
     func deletePhoto(_ id: String) {
         photoMetas.removeAll { $0.id == id }
         imageCache.removeObject(forKey: id as NSString)
         imageCache.removeObject(forKey: Self.thumbKey(id))
         Self.deleteImage(id: id)
         Self.saveMetas(photoMetas)
+        UpHeroStore.current?.removePhotoBindings(photoId: id)
     }
 
     /// 메모만 갱신 — PhotoDetailModal 뒷면에서 자동 저장(debounce). 웹 updatePhotoMemo.

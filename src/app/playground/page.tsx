@@ -46,7 +46,11 @@ export default function PlaygroundPage() {
   // MinigameHome (phase=idle) 만 padding 안쪽에서 렌더, 런 시작하면 몰입 모드.
   const minigamePhase = useMinigameStore((s) => s.phase);
   const inMinigameRun = tab === "game" && minigamePhase !== "idle";
-  const immersive = inUpHeroDungeon || inMinigameRun;
+  // 격자 가방도 풀스크린이다 — 5×8 보드가 44px 셀을 지키려면 탭바/패딩까지 내줘야
+  //   한다. 비영속 boolean 하나만 구독해 인벤토리 변경으로는 리렌더되지 않게 한다.
+  const bagOpen = useUpHeroStore((s) => s.uiBagOpen);
+  const inUpHeroBag = tab === "uphero" && bagOpen;
+  const immersive = inUpHeroDungeon || inMinigameRun || inUpHeroBag;
 
   useEffect(() => {
     if (!isGameLoaded) initGame();

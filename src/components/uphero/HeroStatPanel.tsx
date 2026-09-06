@@ -24,12 +24,14 @@ import {
   CLASS_META,
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
+import type { HeroBaseStats } from "@/types/uphero";
+import { bagRows, computeBagSynergy } from "@/lib/upHeroBag";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { SLOT_GLYPH, SLOT_LABEL_KEY, SLOT_ORDER } from "@/lib/equipmentSlotMeta";
 import { STAT_LABEL, formatStat, orderedStatEntries } from "@/lib/equipmentStats";
 import { TALISMAN_SKILLS } from "@/lib/talismanSkills";
 import { useTranslation } from "@/hooks/useTranslation";
-import { skillName, skillDesc, className as classNameI18n, classPassive, equipmentNameById } from "@/lib/upHeroI18n";
+import { skillName, skillDesc, className as classNameI18n, classPassive, equipmentNameById, affixStatLabel } from "@/lib/upHeroI18n";
 import HeroSprite from "./HeroSprite";
 import HexStatChart from "./HexStatChart";
 import SkillTreePanel from "./SkillTreePanel";
@@ -45,6 +47,7 @@ interface HeroStatPanelProps {
 export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
+  const inventory = useUpHeroStore((s) => s.inventory);
   // Phase 2-A — 영웅 레벨은 heroXp 풀 기준.
   const level = useHeroLevel();
   const variant = getHeroAppearanceVariant(level) as 0 | 1 | 2;
@@ -54,6 +57,19 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   const leveledHero = computeHeroForLevel(hero, level);
   const effective = computeEffectiveStats(leveledHero);
   const base = leveledHero.baseStats;
+
+  // 격자 가방 시너지 — 세션 시작 때 baseStats 에 가산되는 값과 **같은 순수 함수**로
+  //   라이브 계산한다. 여기서 따로 더하면 화면과 전투가 갈린다.
+  //   행 수는 레벨이 아니라 상점 구매분에서 온다 (숫자를 구독해 구매 즉시 반영).
+  const bagRowCount = useUpHeroStore((s) => bagRows(s.bagRowsBought));
+  const bagSynergy = computeBagSynergy(hero.equipped, inventory, bagRowCount);
+  //   표기 순서는 iOS HeroStatPanel.bagSynergyText(StatKey.allCases)와 같은 고정 순서.
+  const SYNERGY_STAT_ORDER: Array<keyof HeroBaseStats> = [
+    "str", "int", "vit", "dex", "agi", "crit", "slotBonus",
+  ];
+  const bagSynergyText = SYNERGY_STAT_ORDER.filter((k) => k in bagSynergy.bonuses)
+    .map((k) => `+${bagSynergy.bonuses[k] ?? 0} ${affixStatLabel(k, language)}`)
+    .join("  ");
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -181,6 +197,20 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
             classType={hero.classType}
             size={240}
           />
+          {/* 가방 시너지 합 — 앵커 옆에 무엇을 뒀는지가 만든 값. 0 이면 줄을 그리지 않는다. */}
+          {bagSynergyText && (
+            <div className="mt-3">
+              <div
+                className="typo-caption tabular-nums"
+                style={{ color: GB.lightest }}
+              >
+                {t("uphero.bag.synergy.total")} {bagSynergyText}
+              </div>
+              <div className={`typo-micro mt-1 ${gbClass.textDim} leading-relaxed`}>
+                {t("uphero.bag.photoHint")}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* 장착 장비 4개 */}

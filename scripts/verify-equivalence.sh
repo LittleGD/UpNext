@@ -19,6 +19,7 @@ cd "$(dirname "$0")/.."
 
 MODELS="upnext-ios/UpNext/UpNext/Models"
 # Game.swift / IdleAccrual.swift 가 AppConfig(App+Widget 공유, Foundation 전용)를 참조하므로 함께 컴파일한다.
+# (2026-09-04: 1.3.0 머지 뒤 11/12 suite 가 이 한 줄 때문에 컴파일 실패했다.)
 SHARED="upnext-ios/UpNext/Shared"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -111,14 +112,16 @@ run_suite gamerules        Card.swift Game.swift GameRules.swift
 run_suite uphero           Card.swift Game.swift UpHero.swift
 run_suite uphero-combat    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift
 run_suite classskills      Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift
-run_suite talisman-reward  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift TalismanSkills.swift SessionReward.swift EquipmentPool.swift
+run_suite talisman-reward  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift TalismanSkills.swift SessionReward.swift EquipmentPool.swift UpHeroBag.swift
 run_suite datalayer        Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift BossSprites.swift
 run_suite affix-narrative  Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift
 run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift FlavorPool.swift
 # sync: UserDoc.retention(RetentionState) → Retention.swift → PhotoMeta(GrowthModels.swift) +
 #       CardCatalog(Bundle 로드지만 Foundation 전용). 전부 실제 Models 파일 — 셰임 금지.
 run_suite sync             Card.swift Game.swift FirestoreModels.swift Retention.swift GrowthModels.swift CardCatalog.swift
-run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift SessionReward.swift
+# bag: 격자 가방 (UpHeroBag.swift ↔ src/lib/upHeroBag.ts) — 배치·정규화·시너지·트레이 넘침·판매가.
+run_suite bag              Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroBag.swift
+run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift SessionReward.swift UpHeroBag.swift
 echo "──────────────────────────────────────────"
 echo "결과: $PASS/$((PASS + FAIL)) suite 통과 · 총 $TOTAL 라인 동치"
 if [ "$FAIL" -eq 0 ]; then

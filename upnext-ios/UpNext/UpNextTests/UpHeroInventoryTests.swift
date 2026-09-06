@@ -1,9 +1,11 @@
 //
 //  UpHeroInventoryTests.swift
-//  UpNextTests — Phase 6-E (Track E, 피드백 22/24) 인벤토리 경제: 판매가 · 가방 상한 · 합성.
+//  UpNextTests — Phase 6-E (Track E, 피드백 22/24) 인벤토리 경제: 판매가 · 합성 · 정산.
+//  격자 가방 병합 뒤 정산은 settleBagAfterSession (first-fit + 트레이 캡 10 초과분 자동 판매,
+//  이번 드롭만) 이 맡고, 30칸 상한(INVENTORY_CAP)·splitDropsByCap 은 레거시다.
 //
-//  웹 src/types/uphero.test.ts (sellPrice/NEXT_RARITY/INVENTORY_CAP) ·
-//  src/lib/sessionReward.test.ts (splitDropsByCap) · src/data/upHeroEquipment.test.ts
+//  웹 src/types/uphero.test.ts (sellPrice/NEXT_RARITY) ·
+//  src/lib/sessionReward.test.ts (splitDropsByCap, 레거시) · src/data/upHeroEquipment.test.ts
 //  (synthesizeEquipment) · src/store/upHeroInventoryCap.test.ts 의 iOS 미러.
 //  합성 시드 픽스처는 scripts/datalayer-check.mjs 섹션 8 의 웹 출력에서 가져왔다.
 //
@@ -30,11 +32,26 @@ final class UpHeroInventoryTests: XCTestCase {
 
     private func item(_ n: Int, rarity: Rarity = .normal, category: DungeonId = .fitness,
                       dropFloor: Int? = 3, enhanceLevel: Int? = nil, photoId: String? = nil,
-                      type: EquipSlot = .weapon, baseId: String? = "self_control_sword") -> Equipment {
+                      type: EquipSlot = .weapon, baseId: String? = "self_control_sword",
+                      bagX: Int? = nil, bagY: Int? = nil, bagRot: Int? = nil) -> Equipment {
         Equipment(id: "inv-\(n)", name: "자기절제의 검", baseId: baseId, type: type, rarity: rarity,
                   category: category, iconName: "Sword", stats: [.str: 5], effects: nil, flavor: nil,
                   photoId: photoId, enhanceLevel: enhanceLevel, enhanceFailStreak: nil, affix: nil,
-                  affixes: nil, talismanSkills: nil, dropFloor: dropFloor)
+                  affixes: nil, talismanSkills: nil, dropFloor: dropFloor,
+                  bagX: bagX, bagY: bagY, bagRot: bagRot)
+    }
+
+    /// 4행 보드(확장 0)의 십자를 뺀 빈 칸 15개 — 1x1 장신구로 전부 채운다 (웹 FREE_CELLS).
+    private static let freeCells: [(Int, Int)] = [
+        (0, 0), (1, 0), (3, 0), (4, 0),
+        (0, 1), (4, 1),
+        (0, 2), (1, 2), (3, 2), (4, 2),
+        (0, 3), (1, 3), (2, 3), (3, 3), (4, 3),
+    ]
+    private func filledBoard() -> [Equipment] {
+        Self.freeCells.enumerated().map { i, c in
+            item(i, type: .accessory, bagX: c.0, bagY: c.1, bagRot: 0)
+        }
     }
 
     /// 완료된 세션 (시간 만료) — 드롭 N개. 웹 completedSession(drops).
@@ -157,37 +174,79 @@ final class UpHeroInventoryTests: XCTestCase {
         XCTAssertNil(EquipmentPool.synthesizeEquipment(synthSources(.rare) + [item(4, rarity: .rare)], rng: &rng))
     }
 
-    // MARK: - 정산 시 가방 상한 (웹 upHeroInventoryCap.test.ts)
+    // MARK: - 정산 — 격자 가방 반영 (웹 upHeroInventoryCap.test.ts settleBagAfterSession)
 
-    func testSettlementSplitsDropsAtCapPreservingOrder() {
-        let store = freshStore()
-        store.debugSetState { s in
-            s.inventory = (0..<28).map { self.item($0) }
-            s.coins = 0
-        }
-        store.debugSetCurrentSession(completedSession(drops: (0..<5).map { item(100 + $0, dropFloor: 7) }))
-        store.acknowledgeSessionEnd()
-        XCTAssertEqual(store.state.inventory.count, UpHeroRules.inventoryCap)
-        XCTAssertEqual(store.state.inventory.suffix(2).map(\.id), ["inv-100", "inv-101"])
-        XCTAssertEqual(store.state.overflowDrops.map(\.id), ["inv-102", "inv-103", "inv-104"])
-        XCTAssertNil(store.state.currentSession)
-    }
-
-    func testSettlementAccumulatesOverflowAfterExisting() {
+    func testSettlementPlacesDropsFirstFitAndKeepsLegacyOverflow() {
         let store = freshStore()
         store.debugSetState { s in
             s.inventory = [self.item(1)]
             s.overflowDrops = [self.item(50)]
+            s.coins = 0
         }
-        store.debugSetCurrentSession(completedSession(drops: [item(2)]))
+        store.debugSetCurrentSession(completedSession(drops: (0..<3).map { item(100 + $0, dropFloor: 7) }))
         store.acknowledgeSessionEnd()
-        XCTAssertEqual(store.state.inventory.count, 2)
+        XCTAssertEqual(store.state.inventory.map(\.id), ["inv-1", "inv-100", "inv-101", "inv-102"])
+        XCTAssertTrue(store.state.inventory.dropFirst().allSatisfy { $0.bagX != nil && $0.bagY != nil },
+                      "드롭은 first-fit 으로 보드에 들어간다")
+        // 레거시 필드는 정산이 더 이상 늘리지 않는다 — 남아 있던 것만 그대로.
         XCTAssertEqual(store.state.overflowDrops.map(\.id), ["inv-50"])
+        XCTAssertEqual(store.state.coins, 0)
+        XCTAssertNil(store.state.currentSession)
+    }
 
-        store.debugSetState { s in s.inventory = (0..<30).map { self.item($0) } }
-        store.debugSetCurrentSession(completedSession(drops: [item(60)]))
+    func testSettlementAutoSellsOnlyThisDropWhenTrayOverflows() {
+        // 기존 트레이 8개는 캡을 넘겨도 절대 팔리지 않는다 (격자 도입 전 저장본 보호).
+        //   트레이 8 + 드롭 3 = 11 → 초과 1개. 후보(드롭) 중 최저 등급 normal 이 나간다.
+        let tray = (0..<8).map { item(200 + $0, rarity: .rare) }
+        let drops = [
+            item(300, rarity: .rare, dropFloor: 12, enhanceLevel: 3),
+            item(301, rarity: .normal, dropFloor: 30),
+            item(302, rarity: .unique, dropFloor: 20),
+        ]
+        let store = freshStore()
+        store.debugSetState { s in
+            s.inventory = self.filledBoard() + tray
+            s.overflowDrops = []
+            s.coins = 0
+        }
+        store.debugSetCurrentSession(completedSession(drops: drops))
         store.acknowledgeSessionEnd()
-        XCTAssertEqual(store.state.overflowDrops.map(\.id), ["inv-50", "inv-60"])
+        let ids = Set(store.state.inventory.map(\.id))
+        for t in tray { XCTAssertTrue(ids.contains(t.id)) }
+        XCTAssertFalse(ids.contains("inv-301"))
+        XCTAssertTrue(ids.contains("inv-300"))
+        XCTAssertTrue(ids.contains("inv-302"))
+        XCTAssertEqual(store.state.inventory.count, 25)
+        XCTAssertEqual(store.state.overflowDrops, [])
+        XCTAssertEqual(
+            store.state.coins,
+            UpHeroRules.sellPrice(rarity: .normal, dropFloor: 30, enhanceLevel: nil))
+    }
+
+    /// F1 — 격자 도입 전 저장본은 트레이가 이미 캡을 넘긴 채로 마이그레이션된다. 그때
+    /// 초과분만큼 팔면 후보(이번 드롭)가 늘 초과분 이하라 새 전리품이 영원히 전부 증발한다.
+    /// 웹 upHeroInventoryCap.test.ts "기존 트레이만으로 이미 캡이면 이번 드롭은 한 개도 팔리지 않는다".
+    func testSettlementSellsNothingWhenPreTrayAlreadyFillsCap() {
+        let tray = (0..<UpHeroBag.trayCap).map { item(200 + $0, rarity: .rare) }
+        let drops = [
+            item(300, rarity: .rare, dropFloor: 12, enhanceLevel: 3),
+            item(301, rarity: .normal, dropFloor: 30),
+            item(302, rarity: .unique, dropFloor: 20),
+        ]
+        let store = freshStore()
+        store.debugSetState { s in
+            s.inventory = self.filledBoard() + tray
+            s.overflowDrops = []
+            s.coins = 0
+        }
+        store.debugSetCurrentSession(completedSession(drops: drops))
+        store.acknowledgeSessionEnd()
+        let ids = Set(store.state.inventory.map(\.id))
+        for t in tray { XCTAssertTrue(ids.contains(t.id)) }
+        for d in drops { XCTAssertTrue(ids.contains(d.id)) }
+        XCTAssertEqual(store.state.inventory.count, 28)
+        XCTAssertEqual(store.state.overflowDrops, [])
+        XCTAssertEqual(store.state.coins, 0)
     }
 
     func testSettlementUnionsRewardDropsIntoCodex() {
@@ -296,22 +355,20 @@ final class UpHeroInventoryTests: XCTestCase {
         XCTAssertFalse(BagOverflowSheet.isVisible(s), "캠프에서만")
     }
 
-    // MARK: - 사진 부적 의식 — 가방 가득
+    // MARK: - 사진 부적 의식 — 보드 가득 (격자 계약: 거절하지 않고 트레이로)
 
-    func testPhotoTalismanRefusesWhenBagFull() {
+    func testPhotoTalismanInsertsIntoTrayWhenBoardFull() {
         let store = freshStore()
         store.debugSetState { s in
-            s.inventory = (0..<UpHeroRules.inventoryCap).map { self.item($0) }
+            s.inventory = (0..<30).map { self.item($0) }
             s.coins = 9999
         }
         let photo = PhotoMeta(id: "ph-1", kind: .challengeLog, challengeTitle: "달리기",
                               category: .fitness, date: "2026-09-05", timestamp: 1, memo: "")
         let r = store.bindPhotoAsTalisman(photo: photo)
-        XCTAssertFalse(r.ok)
-        XCTAssertEqual(r.error, AppConfig.loc("가방이 가득 찼어요 (\(UpHeroRules.inventoryCap)칸)"))
-        XCTAssertEqual(store.state.inventory.count, UpHeroRules.inventoryCap)
-        XCTAssertEqual(store.state.coins, 9999)
-        XCTAssertFalse(store.beginPhotoTalismanRitual(photo: photo).ok)
+        XCTAssertTrue(r.ok, r.error ?? "")
+        XCTAssertEqual(store.state.inventory.count, 31)
+        XCTAssertEqual(store.state.coins, 9999 - PhotoTalisman.ritualCost)
     }
 
     // MARK: - 영속 스냅샷
