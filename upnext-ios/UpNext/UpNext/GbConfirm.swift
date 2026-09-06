@@ -126,6 +126,9 @@ struct GbConfirmPanel<Trailing: View, Content: View>: View {
 struct GbConfirm<Footer: View>: View {
     let title: LocalizedStringKey
     var message: LocalizedStringKey? = nil
+    /// 줄마다 색이 다른 바디(강화 확인의 소실/하락 경고 등). 주면 `message` 대신 이걸 그린다.
+    /// 웹은 같은 자리를 `<span style={{ color }}>` 로 칠한다 — LocalizedStringKey 로는 못 하는 표현.
+    var messageText: Text? = nil
     var danger: Bool = false
     /// 백드롭 탭 시 호출(웹: backdrop self-click = onCancel). nil 이면 탭 무시.
     var onBackdropTap: (() -> Void)? = nil
@@ -139,12 +142,14 @@ struct GbConfirm<Footer: View>: View {
     init(
         title: LocalizedStringKey,
         message: LocalizedStringKey? = nil,
+        messageText: Text? = nil,
         danger: Bool = false,
         onBackdropTap: (() -> Void)? = nil,
         @ViewBuilder footer: @escaping (Color) -> Footer
     ) {
         self.title = title
         self.message = message
+        self.messageText = messageText
         self.danger = danger
         self.onBackdropTap = onBackdropTap
         self.footer = footer
@@ -188,9 +193,9 @@ struct GbConfirm<Footer: View>: View {
                 Rectangle().fill(GBPalette.dark).frame(height: 1)
             }
 
-            // Body (옵션) — 경고/비용/결과 예측.
-            if let message {
-                Text(message)
+            // Body (옵션) — 경고/비용/결과 예측. messageText 가 있으면 그쪽이 우선이다.
+            if let body = messageText ?? message.map({ Text($0) }) {
+                body
                     .typography(.caption)
                     .foregroundStyle(GBPalette.light)
                     .frame(maxWidth: .infinity, alignment: .leading)

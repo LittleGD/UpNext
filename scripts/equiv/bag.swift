@@ -212,7 +212,7 @@ do {
     say("sell = \(r.sell.map(\.id).joined(separator: " "))")
     say("keep = \(r.keep.count)")
     say("keepIds = \(r.keep.map(\.id).joined(separator: " "))")
-    // 후보 제한: 이번 드롭만 판매 후보 (기존 아이템 보호). 후보가 초과분보다 적으면 후보만 판다.
+    // 후보 제한: 이번 드롭만 판매 후보 (기존 아이템 보호). 후보가 초과분 이하면 한 개도 안 판다.
     let c1 = UpHeroBag.trayOverflow(TRAY13, rows: 5, cap: UpHeroBag.trayCap, candidateIds: ["t11", "t12", "t13", "t01"])
     say("cand sell = \(c1.sell.map(\.id).joined(separator: " "))")
     say("cand keep = \(c1.keep.count)")
@@ -221,6 +221,37 @@ do {
     say("cand1 keep = \(c2.keep.count)")
     let c3 = UpHeroBag.trayOverflow(TRAY13, rows: 5, cap: UpHeroBag.trayCap, candidateIds: [])
     say("cand0 sell = \(c3.sell.count) keep = \(c3.keep.count)")
+}
+
+// ── 6b. 기존(후보 아님) 트레이가 이미 캡을 넘긴 경우 ──────────────────────
+// 격자 도입 전 저장본은 트레이가 cap 을 넘긴 채로 마이그레이션된다. 이때 초과분이
+// 이번 드롭 수보다 크면 새 전리품이 매 정산마다 전부 자동 판매된다 — 그래서 후보가
+// 아닌 트레이 아이템만으로 cap 이 차 있으면 한 개도 팔지 않는다.
+say("== 6b trayOverflow preTray ==")
+do {
+    let legacy: [Equipment] = (0..<12).map {
+        mk("L\(String(format: "%02d", $0))", .accessory, .fitness, .normal)
+    }
+    let drops: [Equipment] = [
+        mk("d0", .accessory, .fitness, .normal),
+        mk("d1", .talisman, .learning, .rare),
+    ]
+    let over = UpHeroBag.trayOverflow(
+        legacy + drops, rows: 5, cap: UpHeroBag.trayCap, candidateIds: drops.map(\.id))
+    say("legacy sell = \(over.sell.count) keep = \(over.keep.count)")
+
+    let pre: [Equipment] = (0..<8).map { mk("P\($0)", .accessory, .fitness, .unique) }
+    let fresh: [Equipment] = [
+        mk("n0", .accessory, .fitness, .normal),
+        mk("n1", .accessory, .fitness, .rare),
+        mk("n2", .talisman, .learning, .normal),
+        mk("n3", .accessory, .social, .legend),
+        mk("n4", .talisman, .fitness, .normal),
+    ]
+    let mixed = UpHeroBag.trayOverflow(
+        pre + fresh, rows: 5, cap: UpHeroBag.trayCap, candidateIds: fresh.map(\.id))
+    say("mixed sell = \(mixed.sell.map(\.id).joined(separator: " "))")
+    say("mixed keep = \(mixed.keep.count)")
 }
 
 // ── 7. 시너지 ────────────────────────────────────────────────────────────

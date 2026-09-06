@@ -355,6 +355,40 @@ final class UpHeroBagTests: XCTestCase {
         XCTAssertEqual(result.keep.count, 3)
     }
 
+    /// F1 — 격자 도입 전 저장본은 트레이가 이미 cap 을 넘긴 채로 마이그레이션된다. 그 상태에서
+    /// 초과분만큼 팔면 후보(이번 드롭)가 늘 초과분 이하라 새 전리품이 매 정산마다 전부 증발한다.
+    /// 웹 upHeroBag.test.ts "후보가 아닌 트레이 아이템만으로 이미 캡이면 한 개도 팔지 않는다".
+    func testTrayOverflowSellsNothingWhenPreTrayAlreadyFillsCap() {
+        let legacyTray = (0..<12).map { eq("L\($0)") }
+        let drops = [eq("d0"), eq("d1", rarity: .rare)]
+        let inv = legacyTray + drops
+        let result = UpHeroBag.trayOverflow(
+            inv, rows: 5, cap: UpHeroBag.trayCap, candidateIds: drops.map(\.id))
+
+        XCTAssertTrue(result.sell.isEmpty, "기존 트레이만으로 캡이면 한 개도 팔지 않는다")
+        XCTAssertEqual(result.keep.count, inv.count)
+    }
+
+    /// F1 — 기존 트레이 8 + 신규 5, 캡 10 이면 초과 3개를 신규 중에서만 판다.
+    /// 웹 upHeroBag.test.ts "기존 트레이 8 + 신규 5, 캡 10 이면 신규 중 3개만 판다".
+    func testTrayOverflowSellsOnlyExcessFromCandidatesWhenPreTrayUnderCap() {
+        let preTray = (0..<8).map { eq("P\($0)", rarity: .unique) }
+        let drops = [
+            eq("n0"),
+            eq("n1", rarity: .rare),
+            eq("n2"),
+            eq("n3", rarity: .legend),
+            eq("n4"),
+        ]
+        let inv = preTray + drops
+        let result = UpHeroBag.trayOverflow(
+            inv, rows: 5, cap: UpHeroBag.trayCap, candidateIds: drops.map(\.id))
+
+        // 트레이 13 - 캡 10 = 3. 최저 등급(normal) 먼저, 같은 등급이면 오래된 index 먼저.
+        XCTAssertEqual(result.sell.map(\.id), ["n0", "n2", "n4"])
+        XCTAssertEqual(result.keep.count, inv.count - 3)
+    }
+
     // MARK: - 시너지 S1 (동류 인접)
 
     /// 1x1 = 5%, 최소 1. round 는 양수 도메인이라 웹 Math.round 와 같다.

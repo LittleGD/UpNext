@@ -166,7 +166,31 @@ struct PatchNotesModal: View {
     // MARK: - Mock notes (실제로는 patchNotes.json bundle 로드)
 
     // computed — static let 은 첫 접근 시점 언어로 AppConfig.loc 결과가 동결된다(금지 패턴).
+    // 웹 src/data/patchNotes.ts PATCH_NOTES[0] 과 같은 내용 (아이콘은 iOS PixelIconName
+    //   중 가장 가까운 것 — Backpack→shoppingBag, Skull→warningDiamond, Repeat→reload).
     static var notes: [PatchNoteVersion] { [
+        PatchNoteVersion(
+            version: "2026.09.05",
+            date: "2026-09-05",
+            headline: AppConfig.loc("업 히어로 대개편: 격자 가방, 영웅 레벨 분리, 강화 +20"),
+            entries: [
+                PatchNoteEntry(icon: .shoppingBag, title: AppConfig.loc("격자 가방: 어디에 두느냐가 힘이 됩니다"),
+                               description: AppConfig.loc("목록이던 가방이 격자판이 됐어요. 아이템을 칸에 직접 놓고, 무기는 회전해 자리를 맞춥니다. 십자 가운데의 착용 칸 옆에 같은 계열을 붙이면 인접 시너지가 붙어 스탯이 올라가요.")),
+                PatchNoteEntry(icon: .archive, title: AppConfig.loc("상점에서 가방을 넓히세요"),
+                               description: AppConfig.loc("가방은 4행으로 시작해 상점에서 한 행씩 8행까지 늘릴 수 있어요. 늘린 행은 계정에 영구히 남습니다.")),
+                PatchNoteEntry(icon: .chart, title: AppConfig.loc("영웅 레벨과 계정 레벨이 분리됐어요"),
+                               description: AppConfig.loc("영웅은 이제 자기 경험치로 자랍니다. 챌린지로 쌓는 계정 레벨과 따로 움직여서, 탐험을 많이 할수록 영웅이 강해져요.")),
+                PatchNoteEntry(icon: .warningDiamond, title: AppConfig.loc("보스는 10층마다, 30층 이후에도 계속"),
+                               description: AppConfig.loc("던전 보스가 10층마다 기다립니다. 30층에서 끝나지 않고 그 위로도 계속 이어져요.")),
+                PatchNoteEntry(icon: .reload, title: AppConfig.loc("직업 스킬 두 갈래 분기와 리스펙"),
+                               description: AppConfig.loc("직업마다 스킬이 두 갈래로 갈라져 취향대로 키울 수 있어요. 마음이 바뀌면 리스펙으로 포인트를 되돌립니다.")),
+                PatchNoteEntry(icon: .zap, title: AppConfig.loc("강화 +20, 시도마다 쓰는 방지권"),
+                               description: AppConfig.loc("강화 상한이 +20 으로 올랐어요. 소실방지권과 하락방지권은 걸어 둔 시도에서 한 장씩 나가고, 그 시도의 나쁜 결과만 막아줍니다.")),
+                PatchNoteEntry(icon: .sword, title: AppConfig.loc("장비 아이콘, 합성, 도감 복구"),
+                               description: AppConfig.loc("비어 보이던 장비 아이콘이 제자리를 찾았어요. 같은 등급 셋을 모아 윗 등급으로 합성할 수 있고, 도감도 다시 채워집니다.")),
+            ],
+            isNew: true
+        ),
         PatchNoteVersion(
             version: "2026.05.22",
             date: "2026-05-22",
@@ -183,7 +207,7 @@ struct PatchNotesModal: View {
                 PatchNoteEntry(icon: .gift, title: AppConfig.loc("카드팩 시네마틱"),
                                description: AppConfig.loc("shake → flash → 3-halo expand → reveal 스태거, 등급별 강도 차등.")),
             ],
-            isNew: true
+            isNew: false
         ),
         PatchNoteVersion(
             version: "2026.05.21",
