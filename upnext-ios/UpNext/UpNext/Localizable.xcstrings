@@ -62044,6 +62044,52 @@
           }
         }
       }
+    },
+    "시계탑의 신호등이 깜빡인다. 녹색이 켜지는 순간 차단기를 내려야 한다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The clocktower signal blinks. Throw the breaker the instant green appears."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時計塔の信号が点滅している。緑が灯った瞬間に遮断機を下ろせ。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "钟楼信号灯正在闪烁,绿灯亮起的瞬间必须推下断路器。"
+          }
+        }
+      }
+    },
+    "신호 맞춰 차단기 내리기": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Throw it on the signal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合図に合わせて遮断機を下ろす"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看准信号推下断路器"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
