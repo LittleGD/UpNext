@@ -193,7 +193,7 @@ export const PRODUCTIVITY_EVENTS: DungeonEvent[] = [
             minigame: "pipe_connect",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 70, coins: 30 },
+              { kind: "reward", xp: 28, coins: 30 },
               { kind: "time", delta: 5 },
             ],
             failEffects: [
@@ -287,7 +287,7 @@ export const PRODUCTIVITY_EVENTS: DungeonEvent[] = [
             minigame: "sort_items",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 60, coins: 30 },
+              { kind: "reward", xp: 24, coins: 30 },
               { kind: "time", delta: 4 },
             ],
             failEffects: [
@@ -336,7 +336,7 @@ export const PRODUCTIVITY_EVENTS: DungeonEvent[] = [
             minigame: "reaction_tap",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 50, coins: 25 },
+              { kind: "reward", xp: 20, coins: 25 },
               { kind: "time", delta: 5 },
             ],
             failEffects: [
@@ -376,7 +376,7 @@ export const PRODUCTIVITY_EVENTS: DungeonEvent[] = [
             minigame: "quick_sum",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 70, coins: 35 },
+              { kind: "reward", xp: 28, coins: 35 },
               { kind: "time", delta: 4 },
             ],
             failEffects: [

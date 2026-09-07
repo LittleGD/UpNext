@@ -134,7 +134,7 @@ export const MINIGAME_TICKET_CAP = 10;
 export const DAILY_CARDMATCH_TICKET_CAP = 2;
 
 // === XP 보상 (등급별) ===
-// 카드에 명시된 XP — 모든 지급이 이 값 그대로 (배율/풀클리어 보너스 없음)
+// 챌린지 완료 XP. 카드 매치 중복 보상은 별도 표를 사용한다.
 export const XP_PER_RARITY: Record<string, number> = {
   normal: 10,
   rare: 25,
@@ -156,6 +156,15 @@ export interface ChallengeCompletionResult {
   totalXp: number;
   levelsGained: number;
 }
+
+// 카드 매치는 수집을 보조한다. 챌린지 완료 XP의 약 30%, 버프 포함 런당 100 XP.
+export const MINIGAME_XP_PER_RARITY: Record<string, number> = {
+  normal: 3,
+  rare: 8,
+  unique: 15,
+  legend: 30,
+};
+export const MINIGAME_RUN_XP_CAP = 100;
 
 // === 특정 레벨까지 필요한 총 누적 XP ===
 export function totalXPForLevel(level: number): number {

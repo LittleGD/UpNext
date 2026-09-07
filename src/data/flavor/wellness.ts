@@ -364,7 +364,7 @@ export const WELLNESS_EVENTS: DungeonEvent[] = [
             difficulty: 1,
             successEffects: [
               { kind: "heal", amount: 70 },
-              { kind: "reward", xp: 50, coins: 25 },
+              { kind: "reward", xp: 20, coins: 25 },
               { kind: "time", delta: -6 },
             ],
             failEffects: [
@@ -405,7 +405,7 @@ export const WELLNESS_EVENTS: DungeonEvent[] = [
             difficulty: 1,
             successEffects: [
               { kind: "heal", amount: 40 },
-              { kind: "reward", xp: 45, coins: 30 },
+              { kind: "reward", xp: 18, coins: 30 },
               { kind: "time", delta: -4 },
             ],
             failEffects: [
@@ -446,7 +446,7 @@ export const WELLNESS_EVENTS: DungeonEvent[] = [
             difficulty: 2,
             successEffects: [
               { kind: "heal", amount: 55 },
-              { kind: "reward", xp: 70, coins: 40 },
+              { kind: "reward", xp: 28, coins: 40 },
               { kind: "time", delta: -5 },
             ],
             failEffects: [

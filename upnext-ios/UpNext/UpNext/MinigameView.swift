@@ -32,8 +32,6 @@ struct MinigameView: View {
     @State private var roundIdx: Int = 0
     /// 남은 기회(하트). 웹 chancesLeft. 전 라운드 4 시작 (ROUND_CONFIGS.chances).
     @State private var hearts: Int = 4
-    @State private var totalXp: Int = 0
-    @State private var roundXp: Int = 0
     @State private var board: [MGTile] = []
     @State private var flipped: [Int] = []
     @State private var matched: Set<Int> = []
@@ -43,6 +41,8 @@ struct MinigameView: View {
     /// 이번 미니게임 런에서 매치된 카드 ID. 결과 수령 시 GameStore 로 전달해 웹
     /// grantMinigameRewards 처럼 카드 언락/중복 XP 를 반영한다.
     @State private var matchedCardIds: Set<String> = []
+    @State private var xpBoostedCardIds: Set<String> = []
+    @State private var rewardsClaimed = false
 
     // ── 메타 (rewardDraft / 버프 / 스킬) — 웹 useMinigameStore 상태 ─────────
     /// 수집한 보상 버프. run 스코프는 전 라운드 지속, round 스코프는 픽한 다음 라운드만.
@@ -123,7 +123,24 @@ struct MinigameView: View {
                 .transition(.opacity)
             }
         }
-        .onAppear { if board.isEmpty { startRound() } }
+        .onAppear {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("UITestSeedMinigameResult") {
+                let cards = Rarity.allCases.compactMap { rarity in
+                    CardCatalog.allCards.first { $0.rarity == rarity }
+                }
+                matchedCardIds = Set(cards.map(\.id))
+                xpBoostedCardIds = matchedCardIds
+                buffs = MGReward.pool.filter { $0.id == .doubleLoot || $0.id == .duplicateStash }
+                    .map { MGBuff(reward: $0, appliesToRound: 1) }
+                roundIdx = 2
+                lastResult = .success
+                phase = .runResult
+                return
+            }
+            #endif
+            if board.isEmpty { startRound() }
+        }
     }
 
     // MARK: - HUD
@@ -429,11 +446,13 @@ struct MinigameView: View {
         switch tile.kind {
         case .challenge:
             comboStreak += 1
-            let base = 30
-            let bonus = roundActive(.xpBloom) ? Int(Double(base) * 0.5) : 0   // xpBloom +50%
-            roundXp += base + bonus
-            if let cardId = tile.cardId { matchedCardIds.insert(cardId) }
-            showToast("+\(base + bonus) XP")
+            let previousXp = finalXp
+            if let cardId = tile.cardId {
+                matchedCardIds.insert(cardId)
+                if roundActive(.xpBloom) { xpBoostedCardIds.insert(cardId) }
+            }
+            let gainedXp = finalXp - previousXp
+            if gainedXp > 0 { showToast("+\(gainedXp) XP") }
             SoundPlayer.shared.play(.matchPair)
             Haptics.play(.medium)   // 웹 matchPair intent = medium.
             triggerFirstHarvest()
@@ -534,8 +553,6 @@ struct MinigameView: View {
             .padding(.horizontal, 40)
             Spacer()
             Button {
-                totalXp += roundXp
-                roundXp = 0
                 if hasNextRound {
                     prepareRewardDraft()
                 } else {
@@ -656,10 +673,7 @@ struct MinigameView: View {
             matchedCardsSection
             Spacer()
             Button {
-                if finalXp > 0 || !matchedCardIds.isEmpty {
-                    store.awardMinigameWin(matchedCardIds: matchedCardIds, totalXp: finalXp)
-                }
-                dismiss()
+                finishRun()
             } label: {
                 Text(AppConfig.loc("받기"))
                     .typography(.body).foregroundStyle(Color.bgPrimary)
@@ -675,12 +689,14 @@ struct MinigameView: View {
         }
     }
 
-    /// 런 종료 XP — doubleLoot(×2)/duplicateStash(+25%) 보상 반영 (웹 pickRunReward).
+    /// 매치 토스트, 결과 화면, 실제 수령이 같은 보상 규칙을 사용한다.
     private var finalXp: Int {
-        var xp = Double(totalXp)
-        if buffs.contains(where: { $0.reward.id == .doubleLoot }) { xp *= 2 }
-        if buffs.contains(where: { $0.reward.id == .duplicateStash }) { xp *= 1.25 }
-        return Int(xp)
+        GameRules.minigameRewardXP(
+            matchedCards: CardCatalog.allCards.filter { matchedCardIds.contains($0.id) },
+            unlockedCardIds: store.progress?.unlockedCardIds ?? [],
+            xpBoostedCardIds: xpBoostedCardIds,
+            duplicateStash: buffs.contains { $0.reward.id == .duplicateStash },
+            doubleLoot: buffs.contains { $0.reward.id == .doubleLoot })
     }
 
     @ViewBuilder
@@ -765,9 +781,13 @@ struct MinigameView: View {
     }
 
     private func finishRun() {
-        // 나가기 — 지금까지 얻은 보상은 지급 후 종료 (웹 requestExit → 부분 정산).
-        if totalXp > 0 || !matchedCardIds.isEmpty {
-            store.awardMinigameWin(matchedCardIds: matchedCardIds, totalXp: finalXp)
+        guard !rewardsClaimed else { return }
+        rewardsClaimed = true
+        if !matchedCardIds.isEmpty {
+            store.awardMinigameWin(
+                matchedCardIds: matchedCardIds, xpBoostedCardIds: xpBoostedCardIds,
+                duplicateStash: buffs.contains { $0.reward.id == .duplicateStash },
+                doubleLoot: buffs.contains { $0.reward.id == .doubleLoot })
         }
         dismiss()
     }

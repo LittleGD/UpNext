@@ -73,7 +73,7 @@ export const MINDFULNESS_EVENTS: DungeonEvent[] = [
             minigame: "pair_match",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 65 },
+              { kind: "reward", xp: 26 },
               { kind: "heal", amount: 25 },
               { kind: "time", delta: -2 },
             ],
@@ -268,7 +268,7 @@ export const MINDFULNESS_EVENTS: DungeonEvent[] = [
             minigame: "breath_hold",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 70 },
+              { kind: "reward", xp: 28 },
               { kind: "heal", amount: 30 },
               { kind: "reward", coins: 25 },
               { kind: "time", delta: -2 },
@@ -310,7 +310,7 @@ export const MINDFULNESS_EVENTS: DungeonEvent[] = [
             minigame: "trace_path",
             difficulty: 1,
             successEffects: [
-              { kind: "reward", xp: 50 },
+              { kind: "reward", xp: 20 },
               { kind: "heal", amount: 20 },
               { kind: "reward", coins: 20 },
               { kind: "time", delta: -2 },
@@ -352,7 +352,7 @@ export const MINDFULNESS_EVENTS: DungeonEvent[] = [
             minigame: "pair_match",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 75 },
+              { kind: "reward", xp: 30 },
               { kind: "heal", amount: 25 },
               { kind: "reward", coins: 30 },
               { kind: "time", delta: -2 },
