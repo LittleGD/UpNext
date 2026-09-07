@@ -763,7 +763,7 @@ final class UpHeroStore: ObservableObject {
 
     /// 이벤트 선택지 해결 — 사용자가 고른 옵션으로 전투를 재개시킨다. 웹 resolveChoice.
     ///
-    /// 굴림틀 pity — 상태 스트릭(`UpHeroState.slotBlankStreak`)이 진실이다. 세션의
+    /// 룬 상자 pity — 상태 스트릭(`UpHeroState.slotBlankStreak`)이 진실이다. 세션의
     /// `slotBlankStreak` 는 운반용 사본: 해소 직전에 상태 값을 적어 넘기고(세션 배선
     /// `applySpinSlot` 이 롤 입력으로 읽는다), 굴림이 실제로 일어났으면 결과로 상태를
     /// 갱신한다 (보상 0 / 꽝 +1, `UpHeroSlot.nextBlankStreak`). 이 경우엔 persist 해서
@@ -795,7 +795,7 @@ final class UpHeroStore: ObservableObject {
         }
     }
 
-    /// 굴림틀 1회 굴림이 이번 선택 해소로 일어났는지 — 새로 붙은 로그 엔트리 중
+    /// 룬 상자 1회가 이번 선택 해소로 열렸는지 — 새로 붙은 로그 엔트리 중
     /// `slot` 페이로드를 가진 choiceResult 를 찾는다. 잔액/상한 게이트에 막힌 선택은
     /// slot 페이로드가 없어 nil 이고, 그 경우 스트릭은 건드리지 않는다. 웹 `findNewSlotSpin`.
     static func findNewSlotSpin(prev: CombatSession, next: CombatSession) -> SlotResultPayload? {
@@ -806,11 +806,30 @@ final class UpHeroStore: ObservableObject {
         return nil
     }
 
-    /// "한 번 더" — 결과 모달에서 선택지 패널을 거치지 않고 굴림틀을 다시 돌린다.
+    /// 룬 자물쇠 조작 해소 — 걸쇠 등급을 결과 엔트리에 적고 코인 보너스 차액을 런
+    /// 수입에 얹는다. 기본 보상은 `resolveChoice` 시점에 이미 지급됐다.
+    /// 웹 `useUpHeroStore.resolveRuneLock` 1:1.
     ///
-    /// 굴림틀 이벤트를 다시 세팅하고(`.choice` 엔트리 + awaitingChoice) 첫 선택지를
-    /// 곧바로 해소한다 — 스핀 로직·비용·상한·pity 가 전부 `resolveChoice` 한 경로를
-    /// 타므로 두 번째 구현이 생기지 않는다. 게이트는 모달(남은 스핀·지갑)과 여기
+    /// 멱등하다: 같은 엔트리를 두 번 해소하지 않는다 (`UpHeroCombat.resolveRuneLock` 이
+    /// 등급이 적힌 엔트리를 무시한다). 조작 없이 모달이 닫히면 호출자(DungeonView)가
+    /// `.plain` 으로 부르므로 세션에 미해소 상자가 남지 않는다.
+    ///
+    /// 하루 카운터(`shopDaily.slotSpins`)와 pity 스트릭은 **건드리지 않는다** — 상자를
+    /// 연 시점(`resolveChoice`)에 이미 갱신됐다. 진행 중 세션은 디스크에도 클라우드에도
+    /// 실리지 않으므로(UpHeroPersistence 헤더) 여기서 persist 할 것도 없다.
+    func resolveRuneLock(logIndex: Int, tier: RuneLockTier) {
+        guard let session = state.currentSession else { return }
+        let next = UpHeroCombat.resolveRuneLock(session, logIndex: logIndex, tier: tier)
+        // 이미 해소됐거나 대상이 아니면 전투 레이어가 같은 값을 돌려준다 — 쓰지 않는다.
+        guard next != session else { return }
+        state.currentSession = next
+    }
+
+    /// "한 번 더" — 결과 모달에서 선택지 패널을 거치지 않고 상자를 하나 더 연다.
+    ///
+    /// 룬 상자 이벤트를 다시 세팅하고(`.choice` 엔트리 + awaitingChoice) 첫 선택지를
+    /// 곧바로 해소한다 — 지급 로직·비용·상한·pity 가 전부 `resolveChoice` 한 경로를
+    /// 타므로 두 번째 구현이 생기지 않는다. 게이트는 모달(남은 횟수·지갑)과 여기
     /// (`canSpinSlot`) 양쪽에 건다: 모달이 뜬 사이 상태가 바뀌어도 코인이 새지 않는다.
     func spinSlotAgain() {
         guard var session = state.currentSession,
@@ -1396,6 +1415,22 @@ final class UpHeroStore: ObservableObject {
         ]
         let newCodex = SessionReward.calculateCodexDelta(log: log, current: state.codex)
         mutate { $0.codex = newCodex }
+    }
+
+    /// 룬 상자 이벤트를 진행 중 세션에 바로 물린다 — 상자·자물쇠 UI 검증용.
+    /// 이벤트 등장 확률(tick 당 약 3%)에 기대면 스크린샷을 찍을 수 없다. 런 수입도
+    /// 비용 이상으로 채운다 (상자는 지갑이 아니라 이번 탐험 수입에서 걷는다).
+    func seedRuneChestForUITests() {
+        guard var session = state.currentSession else { return }
+        session.rewards.coins = max(session.rewards.coins, UpHeroSlot.spinCost * 4)
+        let ev = UpHeroSlotEvent.event
+        session.log.append(.choice(
+            prompt: ev.prompt, promptKey: ev.promptKey, promptParams: nil,
+            options: ev.options, resolvedIndex: nil, variant: nil, timeoutMs: nil,
+            defaultOptionIndex: nil, isMystery: nil, timestamp: Self.nowMillis()))
+        session.pendingChoiceIndex = session.log.count - 1
+        session.status = .awaitingChoice
+        state.currentSession = session
     }
     #endif
 

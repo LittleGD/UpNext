@@ -12,12 +12,12 @@ import type { Language } from "./game";
 
 import type { Category, Rarity } from "./card";
 /**
- * 굴림틀(rune drum) 결과 타입. 확률 테이블의 단일 출처는 `@/lib/upHeroSlot` 이라
+ * 룬 상자(rune chest) 결과 타입. 확률 테이블의 단일 출처는 `@/lib/upHeroSlot` 이라
  * 여기서는 **타입만** 빌려온다. `import type` 은 컴파일에서 완전히 지워지므로
  * upHeroSlot ↔ types/uphero 사이에 런타임 순환 import 는 생기지 않는다
  * (upHeroSlot 도 `Rarity` 를 type-only 로만 가져간다).
  */
-import type { SlotOutcomeId, SlotSymbol } from "@/lib/upHeroSlot";
+import type { RuneLockTier, SlotOutcomeId, SlotSymbol } from "@/lib/upHeroSlot";
 
 /** 던전 ID = 챌린지 카테고리 (8개 1:1 매핑) */
 export type DungeonId = Category;
@@ -357,11 +357,14 @@ export type ChoiceEffect =
   /** 일반 몬스터 encounter 에서 "싸운다" — 즉시 전투 round 시작 */
   | { kind: "fight" }
   /**
-   * 굴림틀 이벤트에서 "코인을 넣고 돌린다".
+   * 룬 상자 이벤트에서 "코인을 자물쇠에 물린다".
    *
-   * 결과는 이 효과를 적용하는 **순간 서버(전투 로직) 에서 확정** 되고 지급까지
-   * 끝난다. 드럼 애니메이션은 이미 확정된 결과를 재생할 뿐이라 연출을 건너뛰거나
-   * 앱이 죽어도 보상이 어긋나지 않는다. 확률 테이블은 `@/lib/upHeroSlot`.
+   * kind 이름은 옛 와이어 값 그대로다 — 진행 중인 세션과 클라우드 문서가 이
+   * 문자열을 담고 있어 바꾸면 옛 저장본이 깨진다 (`upHeroSlot` 상단 주석).
+   *
+   * 기본 보상은 이 효과를 적용하는 **순간 확정** 되고 지급까지 끝난다. 자물쇠
+   * 조작은 그 위에 등급 보너스(`applyRuneLockBonus`)만 얹으므로, 연출을 건너뛰거나
+   * 앱이 죽어도 기본 보상은 어긋나지 않는다. 확률 테이블은 `@/lib/upHeroSlot`.
    *
    * `cost` 코인이 이번 탐험에서 번 코인(`rewards.coins`)에서 빠진다. 지갑이
    * 아니라 런 수입에서 걷는 이유는 upHeroSlot 상단 주석 참조.
@@ -682,21 +685,31 @@ export type LogEntry =
       resultTextKey?: string;
       resultTextFallback?: string;
       /**
-       * 굴림틀 결과. 있으면 DungeonView 가 일반 결과 모달 대신 드럼 연출
-       * (`SlotMachineModal`) 을 띄운다. `symbols` 는 이미 확정된 결과를 그대로
-       * 옮긴 세 룬이라 컴포넌트는 다시 굴리지 않는다 — 표시 전용.
+       * 룬 상자 결과. 있으면 DungeonView 가 일반 결과 모달 대신 상자 연출
+       * (`RuneChestModal`) 을 띄운다. 보상은 이미 확정·지급된 상태로 실려 온다.
        */
       slot?: {
         outcome: SlotOutcomeId;
+        /**
+         * 예전 드럼 표시의 잔재. 화면에 그려지지 않지만 옛 세이브/클라우드 문서가
+         * 그대로 디코드되도록 필드를 남긴다 (`upHeroSlot.renderSymbols` 주석 참조).
+         */
         symbols: [SlotSymbol, SlotSymbol, SlotSymbol];
-        /** 굴림에 들어간 코인. 결과 화면이 순손익을 정직하게 보여주기 위해 남긴다. */
+        /** 상자에 넣은 코인. 결과 화면이 순손익을 정직하게 보여주기 위해 남긴다. */
         cost: number;
-        /** 이 굴림으로 받은 소실방지권 장수 (0 이면 없음). */
+        /** 이 상자에서 받은 소실방지권 장수 (0 이면 없음). */
         destroyGuards?: number;
-        /** 이 굴림으로 받은 하락방지권 장수 (0 이면 없음). */
+        /** 이 상자에서 받은 하락방지권 장수 (0 이면 없음). */
         downGuards?: number;
-        /** 이 굴림으로 붙은 전투 버프 (없으면 undefined). */
+        /** 이 상자에서 붙은 전투 버프 (없으면 undefined). */
         buff?: { pct: number; battles: number };
+        /**
+         * 룬 자물쇠 걸쇠 등급. 조작이 끝나면 `resolveRuneLock` 이 여기에 적고,
+         * 그때 코인 보너스 차액이 세션 수입에 더해진다. 값이 있으면 이미 해소된
+         * 상자라 다시 보너스를 주지 않는다 (멱등). 모달을 닫거나 앱이 백그라운드로
+         * 가서 조작이 끝나지 않으면 `"plain"` (보너스 0) 으로 마감한다.
+         */
+        lockTier?: RuneLockTier;
       };
       timestamp: number;
     };
@@ -1030,7 +1043,7 @@ export interface UpHeroState {
    * date 는 getTodayString() (새벽 1시 기준) 포맷.
    * passesBought: 오늘 산 탐험권 개수 (DAILY_PASS_PURCHASE_CAP=2 까지).
    * coinPouchClaimed: 오늘 데일리 코인 주머니 수령 여부 (기본 false).
-   * slotSpins: 오늘 굴림틀을 돌린 횟수 (`SLOT_DAILY_SPIN_CAP` 상한). 세션이 아니라
+   * slotSpins: 오늘 룬 상자를 연 횟수 (`SLOT_DAILY_SPIN_CAP` 상한). 세션이 아니라
    *   여기 두어 하루에 탐험을 몇 번 하든 합산된다. 필드가 없는 레거시 저장본은 0.
    *   굴림 상한·pity 스트릭(`slotBlankStreak`) 둘 다 세션(`CombatSession`) 밖에 산다 —
    *   스토어가 스냅샷을 전투 레이어에 넘기고 결과 엔트리를 보고 갱신한다.

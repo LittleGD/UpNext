@@ -977,9 +977,9 @@ enum UpHeroSession {
         s.rewards.downGuards += count
     }
 
-    /// 굴림틀을 지금 돌릴 수 있는가 — 이벤트 등장 게이트이자 효과 적용 게이트.
+    /// 룬 상자를 지금 열 수 있는가 — 이벤트 등장 게이트이자 효과 적용 게이트.
     ///
-    /// 두 조건을 본다: (1) 오늘 굴림 횟수(`slotSpinsToday`, `shopDaily.slotSpins` 스냅샷)가
+    /// 두 조건을 본다: (1) 오늘 연 횟수(`slotSpinsToday`, `shopDaily.slotSpins` 스냅샷)가
     /// 하루 상한 미만, (2) 이번 탐험에서 번 코인이 비용 이상. 상한은 세션이 아니라
     /// 날짜 단위다 — 하루에 탐험을 몇 번 하든 합산 3회. 지갑(`UpHeroState.coins`)이
     /// 아니라 런 수입(`rewards.coins`)에서 걷는다 — 던전에서 주운 것만 걸 수 있는 닫힌
@@ -991,24 +991,24 @@ enum UpHeroSession {
         return s.rewards.coins >= cost
     }
 
-    /// 굴림 결과별 한국어 fallback. i18n key 는 `uphero.slot.result.*`.
+    /// 상자 결과별 한국어 fallback. i18n key 는 `uphero.slot.result.*`.
     private static func slotResultFallback(_ id: SlotOutcomeId) -> String {
         switch id {
-        case .blank:          return "드럼이 제각각 멈췄다. 장치가 조용해진다."
-        case .coinSmall:      return "룬 셋이 맞물리며 동전이 쏟아졌다."
-        case .coinMid:        return "드럼이 깊게 울리더니 동전 무더기가 굴러 나왔다."
-        case .coinJackpot:    return "사당 전체가 울렸다. 동전이 발밑까지 밀려온다."
-        case .rankProtect:    return "드럼 틈에서 낡은 봉인 조각이 떨어졌다."
-        case .destroyProtect: return "재가 엉겨 잿빛 천 한 자락이 되어 흘러나왔다."
-        case .itemBox:        return "바닥 판이 열리며 낡은 상자가 밀려 올라왔다."
-        case .battleBuff:     return "룬빛이 몸에 스며든다. 한동안 힘이 오른다."
+        case .blank:          return "뚜껑을 젖혔지만 안은 텅 비어 있었다."
+        case .coinSmall:      return "뚜껑이 열리자 동전이 우수수 쏟아졌다."
+        case .coinMid:        return "상자 바닥까지 동전이 가득 차 있었다."
+        case .coinJackpot:    return "뚜껑이 젖혀지고 동전이 발밑까지 밀려 나왔다."
+        case .rankProtect:    return "상자 안쪽에 낡은 봉인 조각이 끼어 있었다."
+        case .destroyProtect: return "잿빛 천 한 자락이 곱게 접힌 채 놓여 있었다."
+        case .itemBox:        return "천에 싸인 낡은 장비 하나가 들어 있었다."
+        case .battleBuff:     return "룬빛이 새어 나와 몸에 스며든다. 한동안 힘이 오른다."
         }
     }
 
-    /// 굴림 1회 — **결과 확정과 지급을 여기서 끝낸다.**
+    /// 상자 1회 — **기본 보상 확정과 지급을 여기서 끝낸다.**
     ///
-    /// 드럼 애니메이션은 이미 정해진 결과를 재생하는 표시 계층이라, 연출을
-    /// 건너뛰거나 앱이 죽어도 보상이 어긋나지 않는다. 웹 `spinSlot` 분기와 1:1.
+    /// 자물쇠 조작은 그 위에 등급 보너스만 얹으므로(`UpHeroCombat.resolveRuneLock`),
+    /// 조작을 건너뛰거나 앱이 죽어도 기본 보상은 어긋나지 않는다. 웹 `spinSlot` 분기와 1:1.
     private static func applySpinSlot<R: RandomSource>(
         _ s: inout CombatSession, cost: Int, slotSpinsToday: Int, rng: inout R
     ) {
@@ -1016,22 +1016,24 @@ enum UpHeroSession {
         // 시간·코인 상태가 바뀔 수 있어 적용 시점에도 한 번 더 본다.
         guard canSpinSlot(s, slotSpinsToday: slotSpinsToday, cost: cost) else {
             s.log.append(.choiceResult(
-                text: "> 손잡이를 당긴다 → 드럼은 꿈쩍도 하지 않았다.",
+                text: "> 자물쇠를 맞춘다 → 자물쇠는 꿈쩍도 하지 않았다.",
                 effectSummary: nil, effectSummaryData: nil,
                 actionLabelKey: nil, actionLabelFallback: nil,
                 resultTextKey: "uphero.slot.result.unavailable",
-                resultTextFallback: "드럼은 꿈쩍도 하지 않았다.",
+                resultTextFallback: "자물쇠는 꿈쩍도 하지 않았다.",
                 slot: nil, timestamp: now()))
             return
         }
 
-        // 오늘 굴림 횟수는 여기서 올리지 않는다 — 세션은 카운터를 갖지 않고, 스토어가
-        // 이 굴림의 `slot` 페이로드를 보고 `shopDaily.slotSpins` 를 +1 한다.
+        // 오늘 연 횟수는 여기서 올리지 않는다 — 세션은 카운터를 갖지 않고, 스토어가
+        // 이 상자의 `slot` 페이로드를 보고 `shopDaily.slotSpins` 를 +1 한다.
         s.rewards.coins -= cost
 
         let streak = s.slotBlankStreak ?? 0
         let outcome = UpHeroSlot.rollOutcome(blankStreak: streak, rng: &rng)
         s.slotBlankStreak = UpHeroSlot.nextBlankStreak(prev: streak, outcome: outcome)
+        // 룬 배열은 더 이상 그려지지 않는다. 호출을 남기는 이유는 RNG 호출 순서 보존
+        // (`UpHeroSlot.render` 주석). 페이로드에는 옛 세이브 호환으로만 실린다.
         let (a, b, c) = UpHeroSlot.renderSymbols(outcome, rng: &rng)
 
         var coinsWon = 0
@@ -1072,11 +1074,14 @@ enum UpHeroSession {
 
         let fallback = slotResultFallback(outcome)
         s.log.append(.choiceResult(
-            text: "> 손잡이를 당긴다 → \(fallback)",
+            text: "> 자물쇠를 맞춘다 → \(fallback)",
             effectSummary: nil,
             effectSummaryData: coinsWon > 0 ? EffectSummaryData(coins: coinsWon) : nil,
-            actionLabelKey: "uphero.slot.option.spin",
-            actionLabelFallback: "손잡이를 당긴다",
+            // 로그용 라벨은 비용 자리표시자가 없는 별도 키다. 선택지 버튼의
+            //   `uphero.slot.option.spin` 은 {cost} 를 담고 있는데, 전투 로그는
+            //   인자 없이 키만 풀어서 "{cost}" 가 그대로 찍혔다.
+            actionLabelKey: "uphero.slot.log.action",
+            actionLabelFallback: "자물쇠를 맞춘다",
             resultTextKey: "uphero.slot.result.\(outcome.rawValue)",
             resultTextFallback: fallback,
             slot: SlotResultPayload(

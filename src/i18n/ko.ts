@@ -1590,30 +1590,28 @@ const ko = {
 
   // === Choice / event UI ===
   "uphero.choice.continue": "계속",
-  /* ── 굴림틀 (rune drum) ─────────────────────────────────────────────
-     던전 분기 이벤트. 등급은 13+ (Simulated Gambling: Infrequent) 를 감수하기로
-     했으므로 "대박"·"아깝다" 류는 허용한다. 다만 도박을 권유하는 톤("한 번 더
-     하면 나온다" 식의 단정)은 피한다. 선택은 유저 몫이다. 근거는
-     src/lib/upHeroSlot.ts 상단 주석. */
-  "uphero.slot.title": "굴림틀",
+  /* ── 룬 상자 (rune chest) ───────────────────────────────────────────
+     던전 분기 이벤트. 2026-09 애플 2.3.6(개인 계정 simulated gambling 금지)
+     대응으로 도박 어휘를 전부 걷어냈다. 드럼·레버·스핀·"대박"·"아깝다"·확률표는
+     쓰지 않는다. 상자와 자물쇠, 걸쇠를 맞추는 손의 어휘만 쓴다.
+     키 이름의 slot 은 와이어 호환 잔재다. 근거는 src/lib/upHeroSlot.ts 상단 주석. */
+  "uphero.slot.title": "룬 상자",
   "uphero.slot.stake": "코인 {cost} 소모",
-  "uphero.slot.skip": "건너뛰기",
-  "uphero.slot.aria.skip": "회전 건너뛰기",
   "uphero.slot.aria.dismiss": "결과 닫기",
   "uphero.slot.event.prompt":
-    "무너진 사당 안쪽, 룬이 새겨진 드럼 세 개짜리 낡은 굴림틀이 아직 돌아간다.",
-  "uphero.slot.option.spin": "코인 {cost} 을 넣고 손잡이를 당긴다",
+    "무너진 사당 안쪽, 룬이 새겨진 낡은 상자 하나가 자물쇠를 문 채 놓여 있다.",
+  "uphero.slot.option.spin": "코인 {cost} 을 물리고 자물쇠를 맞춘다",
   "uphero.slot.option.skip": "손대지 않고 지나간다",
-  "uphero.slot.result.skip": "먼지 앉은 손잡이를 뒤로 하고 걸음을 옮겼다.",
-  "uphero.slot.result.unavailable": "드럼은 꿈쩍도 하지 않았다.",
-  "uphero.slot.result.blank": "드럼이 제각각 멈췄다. 장치가 조용해진다.",
-  "uphero.slot.result.coinSmall": "룬 셋이 맞물리며 동전이 쏟아졌다.",
-  "uphero.slot.result.coinMid": "드럼이 깊게 울리더니 동전 무더기가 굴러 나왔다.",
-  "uphero.slot.result.coinJackpot": "사당 전체가 울렸다. 동전이 발밑까지 밀려온다.",
-  "uphero.slot.result.rankProtect": "드럼 틈에서 낡은 봉인 조각이 떨어졌다.",
-  "uphero.slot.result.destroyProtect": "재가 엉겨 잿빛 천 한 자락이 되어 흘러나왔다.",
-  "uphero.slot.result.itemBox": "바닥 판이 열리며 낡은 상자가 밀려 올라왔다.",
-  "uphero.slot.result.battleBuff": "룬빛이 몸에 스며든다. 한동안 힘이 오른다.",
+  "uphero.slot.result.skip": "먼지 앉은 자물쇠를 뒤로 하고 걸음을 옮겼다.",
+  "uphero.slot.result.unavailable": "자물쇠는 꿈쩍도 하지 않았다.",
+  "uphero.slot.result.blank": "뚜껑을 젖혔지만 안은 텅 비어 있었다.",
+  "uphero.slot.result.coinSmall": "뚜껑이 열리자 동전이 우수수 쏟아졌다.",
+  "uphero.slot.result.coinMid": "상자 바닥까지 동전이 가득 차 있었다.",
+  "uphero.slot.result.coinJackpot": "뚜껑이 젖혀지고 동전이 발밑까지 밀려 나왔다.",
+  "uphero.slot.result.rankProtect": "상자 안쪽에 낡은 봉인 조각이 끼어 있었다.",
+  "uphero.slot.result.destroyProtect": "잿빛 천 한 자락이 곱게 접힌 채 놓여 있었다.",
+  "uphero.slot.result.itemBox": "천에 싸인 낡은 장비 하나가 들어 있었다.",
+  "uphero.slot.result.battleBuff": "룬빛이 새어 나와 몸에 스며든다. 한동안 힘이 오른다.",
   "uphero.slot.reward.coins": "코인 +{n}",
   "uphero.slot.reward.destroyGuard": "소실방지권 +{n}",
   "uphero.slot.reward.downGuard": "하락방지권 +{n}",
@@ -1624,17 +1622,18 @@ const ko = {
   // 연출 카피. pityHint 는 실제 보장(4연속 꽝 뒤 5번째는 반드시 보상)을 그대로 말한다.
   "uphero.slot.again": "한 번 더",
   "uphero.slot.spinsLeft": "남은 {n}회",
-  "uphero.slot.nearMiss": "아깝다!",
-  "uphero.slot.big": "대박!",
   "uphero.slot.pityHint": "다음은 반드시 나와요",
-  "uphero.slot.odds.open": "확률 보기",
-  "uphero.slot.odds.close": "확률 닫기",
-  "uphero.slot.odds.title": "굴림틀 확률",
-  "uphero.slot.odds.blank": "꽝",
-  "uphero.slot.odds.rtp": "환수율 {pct}",
-  "uphero.slot.odds.pityNote": "꽝이 {n}번 이어지면 다음 굴림은 반드시 나와요. 위 표와는 별개로 적용되는 규칙이에요.",
-  "uphero.slot.odds.dailyCap": "하루 {n}회까지",
-  "uphero.slot.lever.aria": "레버 당기기",
+  /* 룬 자물쇠 — 상자를 여는 짧은 조작. 실패 등급은 없다: 빗나가도 상자는 열리고
+     기본 보상은 그대로 나온다. 그래서 문구도 실패를 나무라지 않는다. */
+  "uphero.slot.log.action": "자물쇠를 맞춘다",
+  "uphero.slot.lock.title": "룬 자물쇠",
+  "uphero.slot.lock.instruction": "걸쇠가 표시에 겹칠 때 눌러요",
+  "uphero.slot.lock.aria": "룬 자물쇠. 눌러서 걸쇠를 멈춰요",
+  "uphero.slot.lock.stop": "멈추기",
+  "uphero.slot.lock.perfect": "걸쇠가 딱 맞물렸다.",
+  "uphero.slot.lock.good": "걸쇠가 걸렸다.",
+  "uphero.slot.lock.plain": "걸쇠는 빗나갔지만 상자는 열렸다.",
+  "uphero.slot.lock.bonus": "보상 +{pct}%",
   "uphero.choice.effectSummary.xp": "경험치 {sign}{value}",
   "uphero.choice.effectSummary.coins": "코인 {sign}{value}",
   "uphero.choice.effectSummary.hp": "HP {sign}{value}",
@@ -2159,8 +2158,8 @@ const ko = {
   "uphero.flavor.prd.5.opt1.label": "전부 자루에 담기",
   "uphero.flavor.prd.5.opt1.out0.result": "무거워서 걸음이 느려졌다.",
   "uphero.flavor.prd.5.opt1.out1.result": "자루 속에서 은화가 쏟아졌다.",
-  "uphero.flavor.prd.6.prompt": "시계탑의 신호등이 깜빡인다. 녹색이 켜지는 순간 레버를 당겨야 한다.",
-  "uphero.flavor.prd.6.opt0.label": "신호 맞춰 레버 당기기",
+  "uphero.flavor.prd.6.prompt": "시계탑의 신호등이 깜빡인다. 녹색이 켜지는 순간 차단기를 내려야 한다.",
+  "uphero.flavor.prd.6.opt0.label": "신호 맞춰 차단기 내리기",
   "uphero.flavor.prd.6.opt0.out0.result": "빛을 응시한다...",
   "uphero.flavor.prd.6.opt1.label": "신호를 무시하고 우회",
   "uphero.flavor.prd.6.opt1.out0.result": "오래된 계단을 돌아 내려간다.",

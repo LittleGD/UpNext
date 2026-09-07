@@ -325,11 +325,11 @@ export const PRODUCTIVITY_EVENTS: DungeonEvent[] = [
       ],
     },
     {
-      prompt: "시계탑의 신호등이 깜빡인다. 녹색이 켜지는 순간 레버를 당겨야 한다.",
+      prompt: "시계탑의 신호등이 깜빡인다. 녹색이 켜지는 순간 차단기를 내려야 한다.",
       promptKey: "uphero.flavor.prd.6.prompt",
       options: [
         {
-          label: "신호 맞춰 레버 당기기",
+          label: "신호 맞춰 차단기 내리기",
           labelKey: "uphero.flavor.prd.6.opt0.label",
           effect: {
             kind: "startMinigame",

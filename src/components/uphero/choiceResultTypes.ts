@@ -6,7 +6,7 @@
  *   공유해야 하는데, 서로 import 하면 순환이 된다. 타입 + 순수 파생 함수만
  *   여기에 모아 양쪽이 단방향으로 참조한다.
  *
- * 슬롯머신 등 새 이벤트가 결과를 이 모달에 태울 때 맞춰야 하는 계약도 이 파일이다.
+ * 룬 상자 등 새 이벤트가 결과를 이 모달에 태울 때 맞춰야 하는 계약도 이 파일이다.
  *   호출자는 `tone` / `motif` 만 넘기면 색·아이콘·입자·진입 모션이 전부 갈린다.
  *   아무것도 안 넘기면 summaryData 수치에서 자동 추론 (기존 던전 이벤트 경로).
  */
@@ -17,7 +17,7 @@ import type { EffectSummaryData } from "@/types/uphero";
 
 /**
  * 결과의 정서적 톤. 색·입자 방향·진입 모션·글로우 속도를 전부 이 값이 결정한다.
- *   - jackpot : 대박 (황금 스파크, 링 펄스, 팝 진입)
+ *   - jackpot : 최상급 (황금 스파크, 링 펄스, 팝 진입)
  *   - boon    : 이득 (라임 모트가 위로, 부드러운 상승 진입)
  *   - neutral : 무해 (희미한 먼지, 정적 글로우)
  *   - bane    : 손해 (붉은 재가 아래로, 위에서 떨어지는 진입 + 비네트)
@@ -26,15 +26,15 @@ export type ChoiceResultTone = "jackpot" | "boon" | "neutral" | "bane";
 
 /**
  * 결과가 "무엇" 이었는지를 가리키는 아이콘 모티프.
- *   슬롯머신 보상 5종 + 꽝 = coin / protect / preserve / box / buff / blank.
+ *   룬 상자 보상 5종 + 꽝 = coin / protect / preserve / box / buff / blank.
  *   던전 이벤트는 gear / heal / damage / time / generic 로 자동 추론된다.
  */
 export type ChoiceResultMotif =
   /** 코인 획득 */
   | "coin"
-  /** 하락방지권 — 방패. 드럼 룬 `shield` 와 같은 아이콘. */
+  /** 하락방지권 — 방패. */
   | "protect"
-  /** 소실방지권 — 자물쇠. 드럼 룬 `cloth` 와 같은 아이콘. */
+  /** 소실방지권 — 자물쇠. */
   | "preserve"
   /** 아이템 랜덤 상자 */
   | "box"
@@ -130,7 +130,7 @@ function runModCounts(d: ChoiceResultSummaryData): { pos: number; neg: number } 
 
 /**
  * 아이콘 이름 확정. generic + jackpot 은 트로피로 승격 —
- * "분류는 없지만 대박" 인 결과(예: 슬롯 최상단 잭팟)를 밋밋한 번개로 두지 않는다.
+ * "분류는 없지만 최상급" 인 결과를 밋밋한 번개로 두지 않는다.
  */
 export function choiceResultIcon(
   motif: ChoiceResultMotif,
@@ -146,7 +146,8 @@ export function choiceResultIcon(
  * 가중치 근거:
  *   - HP 손실은 같은 크기의 XP 획득보다 훨씬 아프게 읽힌다 → damage ×3.
  *   - timeDelta 는 음수가 소모(손해), 양수가 회복(이득).
- *   - jackpot 은 "손해 0 + 이득이 평범한 이벤트 보상(≈50)의 두 배 이상" 일 때만.
+ *   - jackpot 은 "손해 0 + 이득이 평범한 이벤트 보상(≈50)의 두 배 이상" 일 때만
+ *     (톤 이름일 뿐, 유저에게 보이는 문구가 아니다).
  */
 export function deriveChoiceResultTone(
   d?: ChoiceResultSummaryData | null,
@@ -173,8 +174,8 @@ export function deriveChoiceResultTone(
 }
 
 /**
- * 굴림틀 축하 티어 → 팝업 톤. 티어의 단일 출처는 `upHeroSlot.SLOT_CELEBRATION_TIER`
- * 라 여기서는 옮기기만 한다. big 만 jackpot (황금 스파크·링·셰이크·스파크 낙하).
+ * 룬 상자 축하 티어 → 팝업 톤. 티어의 단일 출처는 `upHeroSlot.SLOT_CELEBRATION_TIER`
+ * 라 여기서는 옮기기만 한다. big 만 jackpot 톤 (황금 스파크·링).
  * blank 는 bane 이 아니라 neutral: 붉은 재와 비네트는 실제 피해(HP 손실·함정)에만
  * 쓴다. 꽝은 "아무 일도 없었다" 지 피해가 아니다.
  */
@@ -185,7 +186,7 @@ export const SLOT_TIER_TONE: Record<SlotTier, ChoiceResultTone> = {
   big: "jackpot",
 };
 
-/** 굴림틀 결과 → 아이콘 모티프. 드럼 룬(`SYMBOL_ICON`)과 같은 그림이어야 한다. */
+/** 룬 상자 결과 → 아이콘 모티프. */
 const SLOT_OUTCOME_MOTIF: Record<SlotOutcomeId, ChoiceResultMotif> = {
   blank: "blank",
   coinSmall: "coin",
@@ -198,7 +199,7 @@ const SLOT_OUTCOME_MOTIF: Record<SlotOutcomeId, ChoiceResultMotif> = {
 };
 
 /**
- * 굴림틀 결과 → 팝업 연출. 호출자는 이 표를 그대로 펴서
+ * 룬 상자 결과 → 팝업 연출. 호출자는 이 표를 그대로 펴서
  * `<ChoiceResultModal {...SLOT_OUTCOME_PRESENTATION[id]} rewardLabel={...} />`
  * 로 넘기면 된다. 아이콘/색/입자/진입 모션이 전부 갈린다. `big` 이 true 면
  * 결과 모달이 셰이크·스파크 낙하까지 얹는다.

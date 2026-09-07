@@ -63,6 +63,7 @@ import {
   createSession as buildSession,
   tickSession as stepSession,
   resolveChoice as applyChoice,
+  resolveRuneLock as applyRuneLock,
   abandonSession as abandon,
   canSpinSlot,
 } from "@/lib/upHeroCombat";
@@ -73,6 +74,7 @@ import {
   normalizeSlotBlankStreak,
   nextSlotBlankStreak,
   normalizeSlotSpins,
+  type RuneLockTier,
   type SlotOutcomeId,
 } from "@/lib/upHeroSlot";
 import {
@@ -322,6 +324,15 @@ interface UpHeroActions {
    * 아무 일도 하지 않는다. iOS `UpHeroStore.spinSlotAgain` 1:1.
    */
   spinSlotAgain(): void;
+  /**
+   * 룬 자물쇠 조작 해소 — 걸쇠 등급을 결과 엔트리에 적고 코인 보너스 차액을
+   * 런 수입에 얹는다. 기본 보상은 `resolveChoice` 시점에 이미 지급됐다.
+   *
+   * 멱등하다: 같은 엔트리를 두 번 해소하지 않는다 (`resolveRuneLock` 이 등급이
+   * 적힌 엔트리를 무시한다). 조작 없이 모달이 닫히면 모달이 `"plain"` 으로
+   * 부르므로 세션에 미해소 상자가 남지 않는다. iOS `UpHeroStore.resolveRuneLock` 1:1.
+   */
+  resolveRuneLock(logIndex: number, tier: RuneLockTier): void;
   resumeSession(): void; // 보스 연출 종료 후 호출 — status "paused" → "active"
   abandonSession(): void;
   acknowledgeSessionEnd(): void; // 결산 modal 닫은 후 currentSession = null 로
@@ -2003,6 +2014,17 @@ export const useUpHeroStore = create<UpHeroStore>((set, get) => {
     set({ currentSession: armed });
     // 스트릭 입력·갱신·persist 는 전부 resolveChoice 가 맡는다 — 규칙을 두 곳에 두지 않는다.
     get().resolveChoice(0);
+  },
+
+  resolveRuneLock(logIndex, tier) {
+    const state = get();
+    if (!state.currentSession) return;
+    const next = applyRuneLock(state.currentSession, logIndex, tier);
+    // 이미 해소됐거나 대상이 아니면 전투 레이어가 같은 객체를 돌려준다 — 쓰지 않는다.
+    if (next === state.currentSession) return;
+    set({ currentSession: next });
+    // 보너스 차액이 붙은 직후 저장한다. 새로고침으로 사라지면 조작이 헛수고가 된다.
+    saveToStorage(STORAGE_KEY, pickPersisted({ ...state, currentSession: next }));
   },
 
   resumeSession() {

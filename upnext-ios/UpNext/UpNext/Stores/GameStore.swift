@@ -1597,6 +1597,10 @@ final class GameStore: ObservableObject {
         }
         // 캠프(아지트) IA + 스킬트리 검증용 — 전직(T1 자동 해금)·SP·코인은 있으되
         // 진행 중 세션은 없음. Lv35 → T2 해금 가능, T3/T4 는 레벨 잠금 상태 노출.
+        // 룬 상자(자물쇠 조작) 검증 — UITestSeedDungeon 뒤에 붙여 상자 선택지를 바로 띄운다.
+        if args.contains("UITestSeedRuneChest") {
+            store.upHero.seedRuneChestForUITests()
+        }
         if args.contains("UITestSeedCamp") {
             p.level = 35
             p.xp = GameRules.totalXPForLevel(35)

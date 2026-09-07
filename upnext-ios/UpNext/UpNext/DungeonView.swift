@@ -46,11 +46,15 @@ struct DungeonView: View {
     /// 흘러가던 이벤트 결과를 모달로 보여줘 읽을 시간 보장(rpg 리뷰 P0).
     /// Phase 4-D — 텍스트 + 구조화 요약(칩·톤·모티프 추론 원천) + legacy 문자열 요약.
     @State private var choiceResult: ChoiceResultState?
-    /// 굴림틀 결과 (웹 SlotMachineModal) — 있으면 일반 결과 모달 대신 드럼 연출을
-    /// 띄우고 tick 을 멈춘다. 결과·지급은 이미 세션에서 끝났고 여기선 표시만 한다.
+    /// 룬 상자 결과 (웹 RuneChestModal) — 있으면 일반 결과 모달 대신 상자 연출을
+    /// 띄우고 tick 을 멈춘다. 기본 보상은 이미 세션에서 끝났고, 여기선 자물쇠 조작만
+    /// 받아 등급을 스토어로 돌려준다.
     @State private var slotResult: SlotResultPayload?
-    /// 굴림틀 모달 identity — "한 번 더" 로 결과가 연달아 오면 뷰를 새로 만들어
-    /// 드럼이 다시 돌게 한다 (같은 자리의 `if let` 은 @State 를 이어받아 착지 상태로 뜬다).
+    /// 상자 결과 엔트리의 로그 인덱스 — 자물쇠 등급을 이 자리에 적는다
+    /// (`UpHeroStore.resolveRuneLock`). 페이로드만 들고 있으면 어느 상자인지 잃는다.
+    @State private var slotResultIndex: Int?
+    /// 상자 모달 identity — "한 번 더" 로 결과가 연달아 오면 뷰를 새로 만들어 자물쇠가
+    /// 다시 걸리게 한다 (같은 자리의 `if let` 은 @State 를 이어받아 열린 상태로 뜬다).
     @State private var slotResultSeq = 0
     /// 스프라이트 전투 반응 — 공격 시 lunge(중앙 쪽), 피격 시 recoil(바깥쪽). x offset.
     /// 웹은 attack/hurt 포즈 프레임이 있으나 iOS 는 신규 프레임 없이 transform 으로 반응 재현.
@@ -113,22 +117,32 @@ struct DungeonView: View {
                         .zIndex(58)
                 }
 
-                // 굴림틀 결과 — 드럼 연출 모달. 일반 결과 모달과 같은 층위(배타적).
-                // blankStreak 는 이 굴림 **뒤**의 상태 스트릭(스토어가 갱신) — 4 면 "다음은
-                // 반드시" 힌트 = 5번째 보장. "한 번 더" 는 오늘 남은 스핀(shopDaily.slotSpins,
+                // 룬 상자 결과 — 상자 연출 모달. 일반 결과 모달과 같은 층위(배타적).
+                // blankStreak 는 이 상자 **뒤**의 상태 스트릭(스토어가 갱신) — 4 면 "다음은
+                // 반드시" 힌트 = 5번째 보장. "한 번 더" 는 오늘 남은 횟수(shopDaily.slotSpins,
                 // 하루 상한)·런 수입이 있을 때만 — 세션이 아니라 스토어의 일일 카운터를 읽는다.
                 if session.status != .awaitingMinigame, let slotResult {
-                    SlotMachineModal(
+                    RuneChestModal(
                         result: slotResult,
                         blankStreak: upHero.state.slotBlankStreak ?? 0,
-                        spinAgain: SlotSpinAgain(
-                            spinsLeft: upHero.slotSpinsLeft,
+                        openAgain: RuneChestOpenAgain(
+                            chestsLeft: upHero.slotSpinsLeft,
                             wallet: session.rewards.coins,
-                            onSpin: {
-                                self.slotResult = nil
+                            onOpen: {
+                                dismissChestResult()
                                 upHero.spinSlotAgain()
-                            })
-                    ) { self.slotResult = nil }
+                            }),
+                        // 걸쇠 등급 — 스토어가 코인 보너스 차액만 얹는다 (멱등).
+                        onResolveLock: { tier in
+                            if let idx = slotResultIndex {
+                                upHero.resolveRuneLock(logIndex: idx, tier: tier)
+                            }
+                        },
+                        // 조작을 안 끝내고 닫으면 plain 으로 마감한다 — 세션에 미해소
+                        //   상자를 남기지 않는다. 이미 등급이 적힌 상자면 스토어가
+                        //   무시한다 (멱등). 모달의 onDisappear 에 두면 화면 전환에서
+                        //   오발되므로 **닫기 액션이 부르는** 구조를 지킨다.
+                        onDismiss: { dismissChestResult() })
                         .id(slotResultSeq)
                         .transition(.opacity)
                         .zIndex(59)
@@ -173,7 +187,7 @@ struct DungeonView: View {
                 return
             }
             #endif
-            // 보스 배너·선택지 결과·굴림틀 모달 표시 중엔 tick 정지 (읽을 시간 보장).
+            // 보스 배너·선택지 결과·룬 상자 모달 표시 중엔 tick 정지 (읽을 시간 보장).
             guard !pausedForBoss, choiceResult == nil, slotResult == nil else { return }
             upHero.advanceCombat()
         }
@@ -540,7 +554,7 @@ struct DungeonView: View {
         if let idx = session.pendingChoiceIndex, session.log.indices.contains(idx),
            case let .choice(prompt, _, _, options, _, _, _, _, _, _) = session.log[idx] {
             VStack(spacing: 8) {
-                // 투명 pity — 굴림틀 선택지 위에 "다음은 반드시 나와요". 롤과 같은 판정
+                // 투명 pity — 룬 상자 선택지 위에 "다음은 반드시 나와요". 롤과 같은 판정
                 // (UpHeroSlot.isPityArmed) 을 읽어 "힌트 떴는데 꽝" 이 구조적으로 불가능하다.
                 if UpHeroSlotEvent.isSlotEvent(prompt),
                    UpHeroSlot.isPityArmed(blankStreak: upHero.state.slotBlankStreak ?? 0) {
@@ -552,12 +566,6 @@ struct DungeonView: View {
                     }
                     .padding(.bottom, 2)
                     .accessibilityElement(children: .combine)
-                }
-                // 굴림틀 확률 공개 — 스핀 전에 볼 수 있는 작은 토글 (웹 SlotOddsPanel).
-                // 선택지 위에 앉아 펼쳐도 버튼 위치가 아래로만 밀리고 결과 모달·릴 연출과는
-                // 분리돼 있다. 숫자는 전부 UpHeroSlot 계산값.
-                if UpHeroSlotEvent.isSlotEvent(prompt) {
-                    SlotOddsPanel(spinsLeft: upHero.slotSpinsLeft)
                 }
                 ForEach(Array(options.enumerated()), id: \.offset) { i, option in
                     Button {
@@ -714,11 +722,21 @@ struct DungeonView: View {
         // 미처리 index(=신규 entry)만 정확히 1회 handleLogEntry. off-by-one/커서 무관.
         for i in 0..<session.log.count where !seenEffectIdx.contains(i) {
             seenEffectIdx.insert(i)
-            handleLogEntry(session.log[i])
+            handleLogEntry(session.log[i], index: i)
         }
     }
 
-    private func handleLogEntry(_ entry: LogEntry) {
+    /// 룬 상자 모달 닫기 — 조작이 끝나지 않았으면 `.plain` 으로 마감하고 상태를 비운다.
+    /// 스토어가 멱등하므로 이미 해소된 상자에는 아무 일도 일어나지 않는다.
+    private func dismissChestResult() {
+        if let idx = slotResultIndex {
+            upHero.resolveRuneLock(logIndex: idx, tier: .plain)
+        }
+        slotResult = nil
+        slotResultIndex = nil
+    }
+
+    private func handleLogEntry(_ entry: LogEntry, index: Int) {
         switch entry {
         case let .boss(monster, floor, _):
             bossBannerData = (monster: monster, floor: floor)
@@ -777,12 +795,12 @@ struct DungeonView: View {
                 emitFloat(text: "+\(coins)", variant: .coin, position: heroAnchor())
             }
         case let .choiceResult(text, effectSummary, summaryData, actionLabelKey, actionLabelFallback, resultTextKey, resultTextFallback, slot, _):
-            // 굴림틀 결과는 드럼 연출 모달이 받는다 — 일반 결과 모달과 갈린다.
-            // 소리·햅틱·자동 닫힘은 그쪽이 착지 시점에 직접 건다 (회전 중에 울리면
-            // 결과를 미리 알려주는 셈이라 연출이 죽는다).
+            // 룬 상자 결과는 상자 연출 모달이 받는다 — 일반 결과 모달과 갈린다.
+            // 소리·햅틱·자동 닫힘은 그쪽이 뚜껑이 열린 시점에 직접 건다.
             if let slot {
                 slotResultSeq &+= 1
                 slotResult = slot
+                slotResultIndex = index
                 return
             }
             // 선택지 결과 — 모달로 표시(tick pause). 2.6s 후 자동 닫힘(웹 autoMs).

@@ -26422,64 +26422,6 @@
         }
       }
     },
-    "uphero.slot.aria.skip": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "회전 건너뛰기"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Skip the spin"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "回転をスキップ"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "跳过转动"
-          }
-        }
-      }
-    },
-    "uphero.slot.big": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "대박!"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jackpot!"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "大当たり!"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "大奖!"
-          }
-        }
-      }
-    },
     "uphero.slot.drop.destroyGuard": {
       "extractionState": "manual",
       "localizations": {
@@ -26544,286 +26486,286 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "무너진 사당 안쪽, 룬이 새겨진 드럼 세 개짜리 낡은 굴림틀이 아직 돌아간다."
+            "value": "무너진 사당 안쪽, 룬이 새겨진 낡은 상자 하나가 자물쇠를 문 채 놓여 있다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deep in the ruined shrine, an old three-drum contraption is still turning."
+            "value": "Deep in the ruined shrine, an old rune-carved chest sits with its lock still shut."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "崩れた祠の奥で、ルーンを刻んだ三連ドラムの古い装置がまだ回っている。"
+            "value": "崩れた祠の奥に、ルーンを刻んだ古い箱が錠を掛けたまま置かれている。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "残破神龛深处，一台刻着符文的三轮旧装置仍在转动。"
+            "value": "残破神龛深处，一只刻着符文的旧箱子还上着锁。"
           }
         }
       }
     },
-    "uphero.slot.lever.aria": {
+    "uphero.slot.lock.aria": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "레버 당기기"
+            "value": "룬 자물쇠. 눌러서 걸쇠를 멈춰요"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pull the lever"
+            "value": "Rune lock. Press to stop the catch"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "レバーを引く"
+            "value": "ルーンの錠。押して掛け金を止めます"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "拉下把手"
+            "value": "符文锁。按下停住锁扣"
           }
         }
       }
     },
-    "uphero.slot.nearMiss": {
+    "uphero.slot.lock.bonus": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "아깝다!"
+            "value": "보상 +{pct}%"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "So close!"
+            "value": "Reward +{pct}%"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "惜しい!"
+            "value": "報酬 +{pct}%"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "差一点!"
+            "value": "奖励 +{pct}%"
           }
         }
       }
     },
-    "uphero.slot.odds.blank": {
+    "uphero.slot.lock.good": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "꽝"
+            "value": "걸쇠가 걸렸다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nothing"
+            "value": "The catch takes hold."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ハズレ"
+            "value": "掛け金が掛かった。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "未中"
+            "value": "锁扣扣上了。"
           }
         }
       }
     },
-    "uphero.slot.odds.close": {
+    "uphero.slot.lock.instruction": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "확률 닫기"
+            "value": "걸쇠가 표시에 겹칠 때 눌러요"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hide the odds"
+            "value": "Press when the catch lines up with the mark"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "確率を閉じる"
+            "value": "掛け金が印に重なったら押します"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "收起概率"
+            "value": "锁扣对准标记时按下"
           }
         }
       }
     },
-    "uphero.slot.odds.dailyCap": {
+    "uphero.slot.lock.perfect": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "하루 {n}회까지"
+            "value": "걸쇠가 딱 맞물렸다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Up to {n} pulls a day"
+            "value": "The catch seats perfectly."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "1日{n}回まで"
+            "value": "掛け金がぴたりと噛み合った。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "每日最多{n}次"
+            "value": "锁扣严丝合缝地咬住了。"
           }
         }
       }
     },
-    "uphero.slot.odds.open": {
+    "uphero.slot.lock.plain": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "확률 보기"
+            "value": "걸쇠는 빗나갔지만 상자는 열렸다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "See the odds"
+            "value": "The catch slips, but the chest opens anyway."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "確率を見る"
+            "value": "掛け金は外れたが、箱は開いた。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "查看概率"
+            "value": "锁扣滑开了，箱子还是打开了。"
           }
         }
       }
     },
-    "uphero.slot.odds.pityNote": {
+    "uphero.slot.lock.stop": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "꽝이 {n}번 이어지면 다음 굴림은 반드시 나와요. 위 표와는 별개로 적용되는 규칙이에요."
+            "value": "멈추기"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "After {n} blanks in a row, the next pull always wins. This rule applies on top of the table above."
+            "value": "Stop"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ハズレが{n}回続くと、次は必ず当たります。上の表とは別に適用されるルールです。"
+            "value": "止める"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "连续{n}次未中后，下一次必定中奖。此规则独立于上表。"
+            "value": "停住"
           }
         }
       }
     },
-    "uphero.slot.odds.rtp": {
+    "uphero.slot.lock.title": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "환수율 {pct}"
+            "value": "룬 자물쇠"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Return rate {pct}"
+            "value": "Rune Lock"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "還元率 {pct}"
+            "value": "ルーンの錠"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "返还率 {pct}"
+            "value": "符文锁"
           }
         }
       }
     },
-    "uphero.slot.odds.title": {
+    "uphero.slot.log.action": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "굴림틀 확률"
+            "value": "자물쇠를 맞춘다"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rune Drum odds"
+            "value": "Work the lock open"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ルーンドラムの確率"
+            "value": "掛け金を合わせる"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "符文转盘概率"
+            "value": "拨动锁扣"
           }
         }
       }
@@ -26863,25 +26805,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "코인 {cost} 을 넣고 손잡이를 당긴다"
+            "value": "코인 {cost} 을 물리고 자물쇠를 맞춘다"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Feed it {cost} coins and pull the lever"
+            "value": "Feed the lock {cost} coins and work it open"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "コイン {cost} を入れてレバーを引く"
+            "value": "コイン {cost} を錠に噛ませて掛け金を合わせる"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "投入 {cost} 金币，拉下把手"
+            "value": "投入 {cost} 金币，拨动锁扣"
           }
         }
       }
@@ -26898,7 +26840,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The next pull is a sure win"
+            "value": "The next chest is a sure thing"
           }
         },
         "ja": {
@@ -26910,7 +26852,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "下一次必定中"
+            "value": "下一次必定有收获"
           }
         }
       }
@@ -26921,25 +26863,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "룬빛이 몸에 스며든다. 한동안 힘이 오른다."
+            "value": "룬빛이 새어 나와 몸에 스며든다. 한동안 힘이 오른다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rune light soaks in. Your strength holds for a while."
+            "value": "Rune light seeps out and soaks in. Your strength holds for a while."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ルーンの光が染み込む。しばらく力が上がる。"
+            "value": "ルーンの光が漏れて染み込む。しばらく力が上がる。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "符文的光渗进身体。力量会维持一阵子。"
+            "value": "符文的光渗出来，钻进身体。力量会维持一阵子。"
           }
         }
       }
@@ -26950,25 +26892,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "드럼이 제각각 멈췄다. 장치가 조용해진다."
+            "value": "뚜껑을 젖혔지만 안은 텅 비어 있었다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The drums settle out of step. The device goes quiet."
+            "value": "You lift the lid. The chest is empty."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ドラムがばらばらに止まる。装置が静まった。"
+            "value": "蓋を開けたが、中は空だった。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "三轮各停一处。装置安静下来。"
+            "value": "掀开箱盖，里面空空如也。"
           }
         }
       }
@@ -26979,25 +26921,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "사당 전체가 울렸다. 동전이 발밑까지 밀려온다."
+            "value": "뚜껑이 젖혀지고 동전이 발밑까지 밀려 나왔다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The whole shrine rings. Coins pile up around your feet."
+            "value": "The lid falls back and coins spill out to your feet."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "祠全体が鳴り響く。コインが足元まで押し寄せる。"
+            "value": "蓋が跳ね上がり、コインが足元まで流れ出た。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "整座神龛都在震。金币一直涌到脚边。"
+            "value": "箱盖翻开，金币一直涌到脚边。"
           }
         }
       }
@@ -27008,25 +26950,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "드럼이 깊게 울리더니 동전 무더기가 굴러 나왔다."
+            "value": "상자 바닥까지 동전이 가득 차 있었다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The drums toll deep, and a heap of coins rolls free."
+            "value": "Coins fill the chest all the way to the bottom."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ドラムが深く鳴り、コインの山が転がり出た。"
+            "value": "箱の底までコインで埋まっていた。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "转轮沉沉一响，一堆金币滚落出来。"
+            "value": "金币一直堆到箱底。"
           }
         }
       }
@@ -27037,25 +26979,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "룬 셋이 맞물리며 동전이 쏟아졌다."
+            "value": "뚜껑이 열리자 동전이 우수수 쏟아졌다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Three runes lock together and coins spill out."
+            "value": "The lid swings open and coins pour out."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "三つのルーンが噛み合い、コインがこぼれ落ちた。"
+            "value": "蓋が開き、コインがこぼれ落ちた。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "三枚符文咬合，金币洒了出来。"
+            "value": "箱盖弹开，金币洒了出来。"
           }
         }
       }
@@ -27066,25 +27008,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "재가 엉겨 잿빛 천 한 자락이 되어 흘러나왔다."
+            "value": "잿빛 천 한 자락이 곱게 접힌 채 놓여 있었다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ash knits itself into a length of grey cloth."
+            "value": "A length of grey cloth lies neatly folded inside."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "灰が絡まり、灰色の布が一枚ほどけ出た。"
+            "value": "灰色の布が一枚、きれいに畳まれて入っていた。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "灰烬缠结，化作一幅灰布滑落出来。"
+            "value": "一幅灰布叠得整整齐齐，放在里面。"
           }
         }
       }
@@ -27095,25 +27037,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "바닥 판이 열리며 낡은 상자가 밀려 올라왔다."
+            "value": "천에 싸인 낡은 장비 하나가 들어 있었다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The floor panel opens and an old chest rises up."
+            "value": "An old piece of gear rests inside, wrapped in cloth."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "床板が開き、古びた箱がせり上がってきた。"
+            "value": "布に包まれた古びた装備がひとつ入っていた。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "地板翻开，一只旧箱子被顶了上来。"
+            "value": "里面躺着一件用布裹住的旧装备。"
           }
         }
       }
@@ -27124,25 +27066,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "드럼 틈에서 낡은 봉인 조각이 떨어졌다."
+            "value": "상자 안쪽에 낡은 봉인 조각이 끼어 있었다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A worn sigil fragment drops from between the drums."
+            "value": "A worn sigil fragment is wedged inside the lid."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ドラムの隙間から古い封印の欠片が落ちた。"
+            "value": "蓋の内側に古い封印の欠片が挟まっていた。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "转轮缝隙里掉出一块残旧的封印。"
+            "value": "箱盖内侧卡着一块残旧的封印。"
           }
         }
       }
@@ -27153,25 +27095,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "먼지 앉은 손잡이를 뒤로 하고 걸음을 옮겼다."
+            "value": "먼지 앉은 자물쇠를 뒤로 하고 걸음을 옮겼다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You leave the dusty lever behind and move on."
+            "value": "You leave the dust-caked lock behind and move on."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "埃をかぶったレバーを背に、歩き出した。"
+            "value": "埃をかぶった錠を背に、歩き出した。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "把落满灰的把手抛在身后，继续前行。"
+            "value": "把落满灰的锁抛在身后，继续前行。"
           }
         }
       }
@@ -27182,25 +27124,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "드럼은 꿈쩍도 하지 않았다."
+            "value": "자물쇠는 꿈쩍도 하지 않았다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The drums do not budge."
+            "value": "The lock does not budge."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ドラムはびくともしなかった。"
+            "value": "錠はびくともしなかった。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "转轮纹丝不动。"
+            "value": "锁纹丝不动。"
           }
         }
       }
@@ -27350,35 +27292,6 @@
         }
       }
     },
-    "uphero.slot.skip": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "건너뛰기"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Skip"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "スキップ"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "跳过"
-          }
-        }
-      }
-    },
     "uphero.slot.spinsLeft": {
       "extractionState": "manual",
       "localizations": {
@@ -27443,25 +27356,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "굴림틀"
+            "value": "룬 상자"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rune Drums"
+            "value": "Rune Chest"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ルーンドラム"
+            "value": "ルーンの箱"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "符文转盘"
+            "value": "符文宝箱"
           }
         }
       }
@@ -62128,6 +62041,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "游玩结束重复卡经验+50%"
+          }
+        }
+      }
+    },
+    "시계탑의 신호등이 깜빡인다. 녹색이 켜지는 순간 차단기를 내려야 한다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The clocktower signal blinks. Throw the breaker the instant green appears."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時計塔の信号が点滅している。緑が灯った瞬間に遮断機を下ろせ。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "钟楼信号灯正在闪烁,绿灯亮起的瞬间必须推下断路器。"
+          }
+        }
+      }
+    },
+    "신호 맞춰 차단기 내리기": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Throw it on the signal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合図に合わせて遮断機を下ろす"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "看准信号推下断路器"
           }
         }
       }

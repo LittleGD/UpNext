@@ -1,34 +1,45 @@
 /**
- * Up Hero — 굴림틀 (rune drum) 확률 테이블 + 표시 규약.
+ * Up Hero — 룬 상자 (rune chest) 확률 테이블 + 지급 규약.
  *
- * 던전 분기 이벤트의 한 종류로 등장하는 "코인을 넣고 레버를 당기는 장치" 다.
- * 세 개의 룬 드럼이 돌아가 같은 룬이 맞으면 보상이 나온다.
+ * 던전 분기 이벤트의 한 종류로 등장하는 "코인을 물려 자물쇠를 여는 낡은 상자" 다.
+ * 자물쇠를 맞추면 상자가 열리고 안에 든 것이 나온다.
  *
- * ── 등급 결정 (C안) ─────────────────────────────────────────────────────
+ * ── 왜 이 모양인가 (2026-09, 애플 2.3.6) ───────────────────────────────
  *
- * 애플 등급 문항에서 Simulated Gambling: Infrequent (13+) 를 감수한다. 그 대신
- * 9+ 방어용으로 걸어뒀던 연출 제약(near-miss 원천 배제·릴 타이밍 고정·꽝 무연출·
- * 카지노 어휘 금지)을 풀고 재미와 감촉을 우선한다.
+ * 1.3.0 이 App Store 심사에서 가이드라인 2.3.6 으로 거절됐다. 개인 개발자 계정은
+ * simulated gambling 을 담은 앱을 낼 수 없다는 통보다. 이전 판의 이 이벤트는
+ * 룬 드럼 세 개가 돌아가는 장치였고, 그것이 정확히 그 판정의 근거였다.
  *
- * 유지하는 것 (18+ 판정과 한국 RCN 방어, 그리고 앱의 정직성):
- *  - `SLOT_DAILY_SPIN_CAP` 상한. "Infrequent" 판정의 근거다.
- *  - 확률 테이블 불변 + 확률 공개 UI. near-miss 는 **결과가 이미 꽝으로 확정된
- *    뒤의 표시**일 뿐 당첨 확률을 1‰ 도 바꾸지 않는다 (아래 `renderSymbols`).
- *  - 코인 IAP 없음. 스테이크는 던전에서 주운 코인만이다.
+ * 그래서 **유저에게 보이는 모든 도박 신호를 걷어냈다**:
+ *  - 돌아가는 드럼도, 레버도, 릴 정지 순서도 없다.
+ *  - "아깝다" (near-miss) 표시도, "대박" 도 없다.
+ *  - 확률·환수율 공개 표(SlotOddsPanel)도 화면에서 사라졌다.
+ *  - 대신 짧은 기술형 조작(룬 자물쇠 걸쇠 맞추기)이 상자를 연다.
  *
- * ── 아키텍처: 결과 우선, 드럼은 표시 전용 ───────────────────────────────
+ * **엔진은 한 줄도 바뀌지 않았다.** 아래 가중치·pity·하루 상한·비용·와이어 키는
+ * 예전 값 그대로다. 옛 저장본과 클라우드 문서가 그대로 동작해야 하기 때문이다
+ * (와이어 키 `slotBlankStreak`, `shopDaily.slotSpins`, 선택 효과 kind `spinSlot`).
+ * 모듈·심볼 이름에 남은 slot/drum 어휘도 그 호환성의 흔적이다. 유저에게 보이는
+ * 문구는 전부 `uphero.slot.*` i18n 키가 낸다.
+ *
+ * 유지하는 것:
+ *  - `SLOT_DAILY_SPIN_CAP` 상한. 습관이 되지 않게 하는 장치다.
+ *  - 확률 테이블 불변. 코인 IAP 없음 — 스테이크는 던전에서 주운 코인만이다.
+ *
+ * ── 아키텍처: 결과 우선, 표시는 나중 ───────────────────────────────────
  *
  *   rollSlotOutcome(blankStreak) -> SlotOutcomeId          // 가중 테이블 1회 롤
- *   renderSymbols(outcome, rand) -> { symbols, nearMiss }  // 확정 결과를 드럼 3칸으로
- *   reelTimings(symbols)         -> [t1, t2, t3]           // 릴 정지 시각 (웹·iOS 공용)
+ *   renderSymbols(outcome, rand) -> { symbols, nearMiss }  // 표시 전용 (아래 참조)
+ *   runeLockTier(marker, center) -> RuneLockTier           // 걸쇠 판정
+ *   applyRuneLockBonus(reward, tier)                       // 티어 보너스 (유일한 수치 변경)
  *
- * 릴 스트립도, 가상 릴 매핑도, 심볼별 확률도 없다. 확률의 단일 출처는 아래
- * `SLOT_OUTCOMES` 가중치 하나뿐이다. 실제 슬롯머신이 릴 매핑으로 near-miss 를
- * "제조" 하는 것과 달리, 여기서는 롤이 끝나고 꽝이 확정된 뒤에 그 꽝을 어떤
- * 그림으로 보여줄지만 고른다. 그래서 near-miss 비율(`SLOT_NEAR_MISS_RATE`)을
- * 아무렇게나 바꿔도 RTP·당첨률은 그대로다. 테스트가 이 성질을 고정한다.
+ * `renderSymbols` 는 이제 **아무것도 그리지 않는다**. 그래도 호출은 남긴다 —
+ * 롤 뒤에 소비하는 난수 개수가 곧 세션 RNG 의 호출 순서라, 지우면 같은 시드에서
+ * 이후 전투 결과가 통째로 달라지고 웹 ↔ iOS 동치성이 깨진다. 심볼 배열은 로그
+ * 엔트리(`choiceResult.slot.symbols`)의 필드로도 남아 있어 옛 세이브가 디코드된다.
+ * `nearMiss` 는 어디에도 표시되지 않는다.
  *
- * 웹과 iOS 는 이 파일의 상수 배열·비율·타이밍 표만 맞추면 같은 감각을 낸다.
+ * 웹과 iOS 는 이 파일의 상수 배열·비율·판정표만 맞추면 같은 결과를 낸다.
  */
 
 import { rng } from "./upHeroRng";
@@ -61,9 +72,8 @@ export const SLOT_SPIN_COST = 100;
  * 스토어가 `slotSpinsToday` 스냅샷을 전투 레이어에 넘긴다 (pity 스트릭과 같은 seam).
  *
  * 한때 세션에 카운터를 두어 사실상 "탐험 1회당 3회" 였는데, 그러면 하루에
- * 여러 번 탐험할 때 3 을 넘는다. 등급 문항의 "Infrequent" 방어 근거와 패치노트
- * 문구("하루 세 번까지")가 거짓이 되지 않도록 일일 상한으로 복원했다.
- * 확률 공개 UI(`SlotOddsPanel`)가 이 값을 그대로 노출한다.
+ * 여러 번 탐험할 때 3 을 넘는다. 패치노트 문구("하루 세 번까지")가 거짓이
+ * 되지 않도록 일일 상한으로 복원했다.
  */
 export const SLOT_DAILY_SPIN_CAP = 3;
 
@@ -95,11 +105,11 @@ export function normalizeSlotSpins(raw: unknown): number {
  * 결과를 `nextSlotBlankStreak` 로 되받아 적는다.
  *
  * 투명 pity: 스트릭이 `SLOT_PITY_THRESHOLD - 1` 에 닿으면 (`isSlotPityArmed`)
- * UI 가 스핀 전에 "다음은 반드시 나와요" 힌트를 띄운다. 숨기지 않는다.
+ * UI 가 상자를 열기 전에 "다음은 반드시 나와요" 힌트를 띄운다. 숨기지 않는다.
  *
  * 실효 RTP: 원시 92.75% → pity 포함 약 95.4% (정상 상태 마르코프 체인, 스트릭
- * 4 에 머무는 비율 ≈ 3.0%). 확률 공개 UI 의 표(`slotOdds`)는 원시 표 그대로다 —
- * pity 는 표를 바꾸는 게 아니라 "5번째는 꽝을 뺀 표로 굴린다" 는 별도 규칙이다.
+ * 4 에 머무는 비율 ≈ 3.0%). `slotOdds()` 는 원시 표 그대로다 — pity 는 표를
+ * 바꾸는 게 아니라 "5번째는 꽝을 뺀 표로 굴린다" 는 별도 규칙이다.
  */
 export const SLOT_PITY_THRESHOLD = 5;
 
@@ -135,7 +145,10 @@ export type SlotOutcomeId =
   | "itemBox"
   | "battleBuff";
 
-/** 드럼에 그려지는 룬. 픽셀아트 결을 지키는 던전 도상 (7·체리·BAR 는 쓰지 않는다). */
+/**
+ * 로그 페이로드에만 남는 룬 식별자. 예전 드럼 표시의 잔재이고 지금은 어디에도
+ * 그려지지 않는다 — 옛 세이브/클라우드 문서가 디코드되도록 타입을 남긴다.
+ */
 export type SlotSymbol =
   | "blank"
   | "coin"
@@ -190,7 +203,7 @@ export const SLOT_GRANTS: Record<
   SlotOutcomeId,
   | { kind: "none" }
   | { kind: "coins"; amount: number }
-  /** 소실방지권 n 장. 상점에서 살 수 없는 물건이라 굴림틀이 주요 공급원 중 하나. */
+  /** 소실방지권 n 장. 상점에서 살 수 없는 물건이라 룬 상자가 주요 공급원 중 하나. */
   | { kind: "destroyGuards"; count: number }
   /** 하락방지권 n 장. */
   | { kind: "downGuards"; count: number }
@@ -205,7 +218,7 @@ export const SLOT_GRANTS: Record<
   coinJackpot: { kind: "coins", amount: 700 },
   rankProtect: { kind: "downGuards", count: 1 },
   destroyProtect: { kind: "destroyGuards", count: 1 },
-  // 보스 드롭과 같은 +10 층 보정. "굴림틀에서 나온 상자" 가 잡몹 드롭보다는 좋다.
+  // 보스 드롭과 같은 +10 층 보정. "룬 상자에서 나온 장비" 가 잡몹 드롭보다는 좋다.
   itemBox: { kind: "itemBox", floorBonus: 10 },
   battleBuff: { kind: "combatBuff", pct: 10, battles: 3 },
 };
@@ -309,7 +322,7 @@ export function nextSlotBlankStreak(prev: number, outcome: SlotOutcomeId): numbe
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- * 드럼 표시 (near-miss 는 표시 전용)
+ * 표시 잔재 (RNG 호출 순서 보존용 — 화면에는 나오지 않는다)
  * ══════════════════════════════════════════════════════════════════════ */
 
 export type SlotSymbols = [SlotSymbol, SlotSymbol, SlotSymbol];
@@ -324,8 +337,9 @@ export interface SlotRender {
 }
 
 /**
- * 꽝 중 near-miss 로 그릴 비율. 이 값은 **표시 비율**이다. 아무 값으로 바꿔도
- * `rollSlotOutcome` 의 분포·RTP·당첨률은 변하지 않는다 (테스트가 고정).
+ * 꽝 중 near-miss 로 표시하던 비율. 지금은 **어디에도 그려지지 않는다** — 아래
+ * `renderSymbols` 가 소비하는 난수 개수를 예전과 똑같이 유지하기 위한 값이다.
+ * 아무 값으로 바꿔도 `rollSlotOutcome` 의 분포·RTP·당첨률은 변하지 않는다.
  */
 export const SLOT_NEAR_MISS_RATE = 0.3;
 
@@ -375,13 +389,13 @@ function pickWeightedSymbol(rand: () => number): SlotSymbol {
 }
 
 /**
- * 이미 결정된 결과를 드럼 세 칸으로 옮긴다. **순수 함수** — `outcome` 을 읽기만
- * 하고, 같은 난수열이면 같은 그림을 낸다. 결과를 바꾸는 코드는 한 줄도 없다.
+ * 이미 결정된 결과를 룬 세 개로 옮긴다. **순수 함수** — `outcome` 을 읽기만 하고,
+ * 같은 난수열이면 같은 배열을 낸다. 결과를 바꾸는 코드는 한 줄도 없다.
  *
- *  - 보상: 같은 룬 3개. 언제나. near-miss = false.
- *  - 꽝  : `SLOT_NEAR_MISS_RATE` 비율로 near-miss (두 개 동일 + 하나 다름),
- *          나머지는 서로 다른 룬 3개. 어느 쪽이든 3개가 모두 같아지는 일은 없어
- *          화면이 결과와 모순될 수 없다.
+ * 2.3.6 대응 뒤로 이 배열은 **화면에 그려지지 않는다.** 그래도 호출은 남긴다:
+ * 여기서 소비하는 난수 개수가 곧 세션 RNG 의 호출 순서라, 지우면 같은 시드에서
+ * 이후 전투가 통째로 달라지고 웹 ↔ iOS 동치성이 깨진다. 배열은 로그 페이로드
+ * (`choiceResult.slot.symbols`)의 필드로도 남아 옛 세이브가 그대로 디코드된다.
  */
 export function renderSymbols(
   outcome: SlotOutcomeId,
@@ -413,8 +427,9 @@ export function renderSymbols(
 }
 
 /**
- * 그려진 세 룬이 near-miss 그림인가. 페이로드에는 `symbols` 만 실리므로 UI 는
- * 이 함수로 되짚는다 (`renderSymbols` 의 `nearMiss` 와 항상 일치).
+ * 세 룬이 near-miss 배치인가. **UI 는 이 함수를 부르지 않는다** — near-miss 는
+ * 화면에서 완전히 사라졌다. `renderSymbols` 의 `nearMiss` 필드와의 일치를
+ * 테스트가 고정하는 용도로만 남는다.
  */
 export function isNearMiss(symbols: SlotSymbols): boolean {
   const [a, b, c] = symbols;
@@ -423,7 +438,7 @@ export function isNearMiss(symbols: SlotSymbols): boolean {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- * 릴 타이밍 (웹·iOS 공용 숫자)
+ * 표시 타이밍 잔재 (웹·iOS 공용 숫자, 현재 UI 는 쓰지 않는다)
  * ══════════════════════════════════════════════════════════════════════ */
 
 /**
@@ -477,7 +492,7 @@ export function suspenseTickTimes(symbols: SlotSymbols): number[] {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- * 회계 (확률 공개용)
+ * 회계 (밸런싱·테스트용)
  * ══════════════════════════════════════════════════════════════════════ */
 
 /** 1회 굴림의 기대 회수액 (코인 환산). */
@@ -500,9 +515,8 @@ export function slotWinRate(): number {
 }
 
 /**
- * 결과별 확률 (0-1). 유저에게 확률을 공개하는 화면이 이 함수를 읽는다.
- * 한국 확률형아이템 공개 의무는 코인 IAP 가 없어 대상 외지만, 공개하지 않을
- * 이유도 없다 — 등급 소명 근거이기도 하다.
+ * 결과별 확률 (0-1). 화면에는 더 이상 나오지 않는다 (2.3.6 대응으로 확률 공개
+ * 패널을 걷어냈다). 밸런싱과 테스트가 표와 지급의 일치를 검사하는 데 쓴다.
  */
 export function slotOdds(): Record<SlotOutcomeId, number> {
   const total = SLOT_OUTCOMES.reduce((sum, o) => sum + o.weight, 0);
@@ -512,9 +526,8 @@ export function slotOdds(): Record<SlotOutcomeId, number> {
 }
 
 /**
- * 확률 공개 UI 한 줄. `SLOT_OUTCOMES` 순서 그대로 (꽝이 맨 위 — 가장 큰 칸을
- * 숨기지 않는다). `grant` 를 같이 실어 UI 가 라벨을 지급 내용에서 유도하게
- * 한다 — "코인 +100" 같은 문구를 UI 가 따로 하드코딩하면 표와 지급이 어긋난다.
+ * 표 한 줄 (확률 + 지급). `SLOT_OUTCOMES` 순서 그대로. 화면에 그리지 않고
+ * 테스트·밸런싱이 표와 지급의 일치를 검사하는 데 쓴다.
  */
 export interface SlotOddsRow {
   id: SlotOutcomeId;
@@ -553,3 +566,100 @@ export function slotItemBoxFloor(currentFloor: number): number {
   return currentFloor + bonus;
 }
 
+
+/* ══════════════════════════════════════════════════════════════════════
+ * 룬 자물쇠 (rune lock) — 상자를 여는 짧은 조작
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 걸쇠를 맞춘 정확도. 세 등급뿐이고 **실패 등급은 없다** — 빗나가도 상자는
+ * 열리고 기본 보상은 그대로 나온다. 코인을 내고 아무것도 못 받는 경우를
+ * 만들지 않는다.
+ */
+export type RuneLockTier = "plain" | "good" | "perfect";
+
+/**
+ * 등급별 보상 배율. **이 파일에서 수치를 바꾸는 유일한 규칙이다.**
+ * 확률 테이블(`SLOT_OUTCOMES`)은 손대지 않는다 — 결과는 예전 그대로 나오고,
+ * 그 위에 조작 정확도가 최대 +30% 를 얹는다.
+ *
+ * 상한을 1.3 으로 둔 근거: 최고가 결과(coinJackpot 700)에서도 +210C 라 하루
+ * 상한 3회의 총액을 흔들지 않는다. 방지권·장비는 배율 대상이 아니라 실효
+ * 상승폭은 코인 결과에만 붙는다.
+ *
+ * **다음 밸런스 패스가 우연히 다시 발견하지 않도록 적어둔다 — 등급 보너스는
+ * 기댓값을 비용 위로 올린다.** 표(`SLOT_OUTCOMES`)를 그대로 두고 코인 결과에만
+ * 배율을 얹었을 때의 실측 환수율:
+ *
+ *   plain(x1)     92.75%   (= `slotRtp()`, 상자 비용 100C 기준)
+ *   good(x1.15)  101.70%
+ *   perfect(x1.3) 110.54%
+ *
+ * 즉 목표대를 맞출 수 있는 플레이어에게 상자는 이득이다. 이걸 감수하는 이유는
+ * 두 가지다: (1) 상한을 하루 3회(`SLOT_DAILY_SPIN_CAP`)로 묶어 총 유입이
+ * +31.6C/일(perfect 전탄 기준)을 넘지 못한다. (2) 확률이 아니라 조작 실력에
+ * 보상하는 것이 이 이벤트의 존재 이유다 (2.3.6 대응). 수치를 손보려면 배율이
+ * 아니라 하루 상한이나 표를 먼저 본다.
+ */
+export const RUNE_LOCK_BONUS: Record<RuneLockTier, number> = {
+  plain: 1,
+  good: 1.15,
+  perfect: 1.3,
+};
+
+/**
+ * 걸쇠 트랙(0~1)에서 목표대의 반폭. 안쪽(perfect)은 트랙 전체의 10%, 바깥쪽
+ * (good)은 26% 다. 표식 왕복 주기가 1.2초 안팎이라 안쪽은 "노려야 맞는" 폭이고
+ * 바깥쪽은 "대충 눌러도 절반쯤" 맞는 폭이다.
+ *
+ * 목표 위치와 표식 속도는 **표시 전용 난수**로 정한다 (세션 RNG 를 쓰지 않고
+ * 저장하지도 않는다). 그래야 엔진 결정론과 동치성 검증이 조작에 영향받지 않는다.
+ */
+export const RUNE_LOCK_INNER_HALF = 0.05;
+export const RUNE_LOCK_OUTER_HALF = 0.13;
+
+/**
+ * 표식 위치(0~1)와 목표 중심(0~1)으로 등급을 가른다. 순수 함수 — 웹과 iOS 가
+ * 같은 판정을 낸다.
+ */
+export function runeLockTier(marker: number, center: number): RuneLockTier {
+  const d = Math.abs(marker - center);
+  if (d <= RUNE_LOCK_INNER_HALF) return "perfect";
+  if (d <= RUNE_LOCK_OUTER_HALF) return "good";
+  return "plain";
+}
+
+/** `SLOT_GRANTS` 한 칸의 타입. 보너스 함수의 입력이자 출력. */
+export type SlotGrant = (typeof SLOT_GRANTS)[SlotOutcomeId];
+
+/**
+ * 뽑힌 보상에 걸쇠 등급 보너스를 얹는다. **코인과 XP 액수만** 곱하고 반올림한다
+ * (웹 `Math.round`, iOS `jsRound` — 같은 규칙). 장비·방지권·상자·버프는 개수까지
+ * 그대로 돌려준다: 방지권 1장을 1.3장으로 만들 수 없고, 버프 퍼센트를 흔들면
+ * 전투 밸런스가 조작 정확도에 묶여버린다.
+ *
+ * 현재 표에는 XP 를 주는 결과가 없다. 나중에 `{ kind: "xp"; amount }` 같은 지급이
+ * 추가되면 코인과 같은 자리에서 곱해야 한다 (그렇지 않으면 XP 만 보너스를 못 받는
+ * 비일관이 생긴다).
+ *
+ * 순수 함수다 — 입력을 변형하지 않고 새 객체를 낸다.
+ */
+export function applyRuneLockBonus(
+  reward: SlotGrant,
+  tier: RuneLockTier,
+): SlotGrant {
+  const mult = RUNE_LOCK_BONUS[tier];
+  if (mult === 1) return reward;
+  if (reward.kind === "coins") {
+    return { kind: "coins", amount: Math.round(reward.amount * mult) };
+  }
+  return reward;
+}
+
+/**
+ * 등급 보너스를 "+15%" 처럼 보여주기 위한 정수 퍼센트. plain 은 0 이라 UI 가
+ * 칩 자체를 그리지 않는다.
+ */
+export function runeLockBonusPercent(tier: RuneLockTier): number {
+  return Math.round((RUNE_LOCK_BONUS[tier] - 1) * 100);
+}

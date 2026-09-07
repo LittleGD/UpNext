@@ -74,18 +74,30 @@ final class UpHeroLocFormatTests: XCTestCase {
         XCTAssertTrue(loc("성공률 \(70)%").contains("70%"))
     }
 
-    /// 굴림틀 확률 패널의 새 키 7종 — en 값이 있고 자리표시자가 웹과 같다.
-    func testSlotOddsKeysExistInEnglish() {
-        let keys = ["uphero.slot.odds.open", "uphero.slot.odds.close", "uphero.slot.odds.title",
-                    "uphero.slot.odds.blank", "uphero.slot.odds.rtp", "uphero.slot.odds.pityNote",
-                    "uphero.slot.odds.dailyCap"]
-        for k in keys {
+    /// 은퇴한 굴림틀(슬롯머신) 문구 12개가 **카탈로그에서 사라졌는지** 확인한다.
+    ///
+    /// 2026-09, 애플 가이드라인 2.3.6 — 개인 개발자 계정은 simulated gambling 을 담은
+    /// 앱을 낼 수 없다. 1.3.0 은 이 문구들("Rune Drum odds", "Return rate {pct}",
+    /// "After {n} blanks in a row, the next pull always wins", "Jackpot!", "So close!",
+    /// "Pull the lever", "Skip the spin") 때문에 거절됐다. 룬 상자 + 자물쇠로 화면은
+    /// 바뀌었지만 **키를 카탈로그에 남겨두면 값이 그대로 .app 안에 네 언어로 실려
+    /// 나간다** — 심사자가 보는 것은 소스가 아니라 빌드된 문자열 테이블이다.
+    ///
+    /// 그래서 이 키들은 다시 들어오면 안 된다. 되살아나면 이 테스트가 깨진다.
+    /// 웹 계약(`src/lib/upHeroSlotOdds.test.ts`, `upHeroRuneChestCopy.test.ts`)의 거울이다.
+    func testRetiredGamblingKeysAreAbsentFromCatalog() {
+        let retired = [
+            "uphero.slot.odds.title", "uphero.slot.odds.rtp", "uphero.slot.odds.pityNote",
+            "uphero.slot.odds.open", "uphero.slot.odds.close", "uphero.slot.odds.blank",
+            "uphero.slot.odds.dailyCap", "uphero.slot.big", "uphero.slot.nearMiss",
+            "uphero.slot.lever.aria", "uphero.slot.aria.skip", "uphero.slot.skip",
+        ]
+        XCTAssertEqual(retired.count, 12)
+        for k in retired {
+            // 키가 없으면 NSBundle 은 value 를 그대로 돌려준다 — 여기서는 키 자신.
+            // 값이 하나라도 돌아오면 문구가 되살아난 것이다.
             let v = en.localizedString(forKey: k, value: k, table: nil)
-            XCTAssertNotEqual(v, k, "en 카탈로그에 \(k) 가 없다")
-            XCTAssertFalse(hasHangul(v), "\(k) en 값에 한글: \(v)")
+            XCTAssertEqual(v, k, "은퇴한 굴림틀 문구가 카탈로그에 되살아났다 (애플 2.3.6): \(k) = \(v)")
         }
-        XCTAssertTrue(en.localizedString(forKey: "uphero.slot.odds.rtp", value: "", table: nil).contains("{pct}"))
-        XCTAssertTrue(en.localizedString(forKey: "uphero.slot.odds.pityNote", value: "", table: nil).contains("{n}"))
-        XCTAssertTrue(en.localizedString(forKey: "uphero.slot.odds.dailyCap", value: "", table: nil).contains("{n}"))
     }
 }

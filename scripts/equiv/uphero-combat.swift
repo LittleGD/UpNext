@@ -293,3 +293,33 @@ do {
     print("sessionStats(noBuff) = \(fmtStats(UpHeroCombat.sessionStats(hero: statHero, combatBuff: nil, runStatMods: mods)))")
     print("sessionStats(noMods) = \(fmtStats(UpHeroCombat.sessionStats(hero: statHero, combatBuff: buff, runStatMods: nil)))")
 }
+
+// ── 21. 룬 자물쇠 — 걸쇠 판정 + 등급 보너스 (2026-09, 애플 2.3.6 대응) ──
+//   웹 src/lib/upHeroSlot.ts 의 applyRuneLockBonus / runeLockTier 1:1 미러.
+do {
+    func fmtGrant(_ g: SlotGrant) -> String {
+        switch g {
+        case .none: return "none"
+        case .coins(let amount): return "coins(\(amount))"
+        case .destroyGuards(let count): return "destroyGuards(\(count))"
+        case .downGuards(let count): return "downGuards(\(count))"
+        case .itemBox(let floorBonus): return "itemBox(\(floorBonus))"
+        case .combatBuff(let pct, let battles): return "combatBuff(\(pct),\(battles))"
+        }
+    }
+    for tier in [RuneLockTier.plain, .good, .perfect] {
+        let mult = UpHeroSlot.runeLockBonus[tier] ?? 1
+        print("runeLockBonus(\(tier.rawValue)) = \(f(mult)) pct\(UpHeroSlot.runeLockBonusPercent(tier))")
+        for o in UpHeroSlot.outcomes {
+            let out = UpHeroSlot.applyRuneLockBonus(UpHeroSlot.grant(o.id), tier: tier)
+            print("applyRuneLockBonus(\(o.id.rawValue),\(tier.rawValue)) = \(fmtGrant(out))")
+        }
+    }
+    let lockOffsets: [Double] = [-0.3, -0.131, -0.129, -0.051, -0.049, 0, 0.049, 0.051, 0.129, 0.131, 0.3]
+    for c in [0.19, 0.5, 0.81] {
+        let row = lockOffsets
+            .map { UpHeroSlot.runeLockTier(marker: c + $0, center: c).rawValue }
+            .joined(separator: ",")
+        print("runeLockTier(center=\(f(c))) = \(row)")
+    }
+}

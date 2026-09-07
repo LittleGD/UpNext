@@ -46,10 +46,12 @@ import {
   SLOT_DAILY_SPIN_CAP,
   SLOT_GRANTS,
   SLOT_SPIN_COST,
+  applyRuneLockBonus,
   normalizeSlotBlankStreak,
   renderSymbols,
   rollSlotOutcome,
   slotItemBoxFloor,
+  type RuneLockTier,
   type SlotOutcomeId,
 } from "@/lib/upHeroSlot";
 import { rollEquipmentDrop, rollDropRarity } from "@/data/upHeroEquipment";
@@ -597,7 +599,7 @@ function grantDownGuards(s: CombatSession, count: number): void {
 }
 
 /**
- * 굴림틀을 지금 돌릴 수 있는가 — 이벤트 등장 게이트이자 효과 적용 게이트.
+ * 룬 상자를 지금 열 수 있는가 — 이벤트 등장 게이트이자 효과 적용 게이트.
  *
  * 두 조건을 본다: (1) 이번 탐험에서 번 코인이 비용 이상, (2) **오늘** 굴림 횟수가
  * 상한(`SLOT_DAILY_SPIN_CAP`) 미만. 오늘 횟수는 세션이 아니라
@@ -629,16 +631,16 @@ export interface TickContext {
   slotSpinsToday?: number;
 }
 
-/** 굴림 결과별 로그/모달 한국어 fallback. i18n key 는 `uphero.slot.result.*`. */
+/** 상자 결과별 로그/모달 한국어 fallback. i18n key 는 `uphero.slot.result.*`. */
 const SLOT_RESULT_FALLBACK: Record<SlotOutcomeId, string> = {
-  blank: "드럼이 제각각 멈췄다. 장치가 조용해진다.",
-  coinSmall: "룬 셋이 맞물리며 동전이 쏟아졌다.",
-  coinMid: "드럼이 깊게 울리더니 동전 무더기가 굴러 나왔다.",
-  coinJackpot: "사당 전체가 울렸다. 동전이 발밑까지 밀려온다.",
-  rankProtect: "드럼 틈에서 낡은 봉인 조각이 떨어졌다.",
-  destroyProtect: "재가 엉겨 잿빛 천 한 자락이 되어 흘러나왔다.",
-  itemBox: "바닥 판이 열리며 낡은 상자가 밀려 올라왔다.",
-  battleBuff: "룬빛이 몸에 스며든다. 한동안 힘이 오른다.",
+  blank: "뚜껑을 젖혔지만 안은 텅 비어 있었다.",
+  coinSmall: "뚜껑이 열리자 동전이 우수수 쏟아졌다.",
+  coinMid: "상자 바닥까지 동전이 가득 차 있었다.",
+  coinJackpot: "뚜껑이 젖혀지고 동전이 발밑까지 밀려 나왔다.",
+  rankProtect: "상자 안쪽에 낡은 봉인 조각이 끼어 있었다.",
+  destroyProtect: "잿빛 천 한 자락이 곱게 접힌 채 놓여 있었다.",
+  itemBox: "천에 싸인 낡은 장비 하나가 들어 있었다.",
+  battleBuff: "룬빛이 새어 나와 몸에 스며든다. 한동안 힘이 오른다.",
 };
 
 /**
@@ -1404,11 +1406,64 @@ export function tickSession(session: CombatSession, ctx?: TickContext): CombatSe
  */
 export interface ResolveChoiceContext extends TickContext {
   /**
-   * `UpHeroState.slotBlankStreak` 스냅샷 — 굴림틀 pity 판정의 입력. 세션은 이
+   * `UpHeroState.slotBlankStreak` 스냅샷 — 룬 상자 pity 판정의 입력. 세션은 이
    * 값을 갱신하지 않는다: 스토어가 결과 엔트리의 `slot.outcome` 을 읽어
    * `nextSlotBlankStreak` 로 상태를 적는다. 미전달은 0 (pity 없음).
    */
   slotBlankStreak?: number;
+}
+
+/**
+ * 룬 자물쇠 조작 해소 — 걸쇠 등급 보너스를 뒤늦게 얹는다.
+ *
+ * 기본 보상은 `spinSlot` 효과가 이미 확정·지급했다. 이 함수는 그 결과 엔트리에
+ * 등급을 적고, 코인 보상이었다면 배율 차액만 세션 수입에 더한다. 세션 상태 머신은
+ * 건드리지 않는다 — 새 대기 상태를 만들지 않아야 다른 기기에서 동기화된 세션도
+ * 그대로 이어진다.
+ *
+ * 규칙:
+ *  - `logIndex` 가 상자 결과 엔트리가 아니거나 이미 등급이 적혀 있으면 **무시**한다
+ *    (멱등). 모달 재마운트·중복 탭·다른 기기 동기화가 보너스를 두 번 주지 못한다.
+ *  - 조작을 끝내지 않고 모달을 닫거나 앱이 백그라운드로 가면 호출자가 `"plain"`
+ *    으로 마감한다. 배율 1 이라 차액은 0 이고, 세션이 어중간하게 남지 않는다.
+ *  - 이미 정산된(completed) 세션에는 붙이지 않는다. 수입이 이미 지갑으로 넘어갔다.
+ *  - 코인이 아닌 보상(방지권·장비·버프)은 개수가 그대로다 — 등급만 적힌다.
+ */
+export function resolveRuneLock(
+  session: CombatSession,
+  logIndex: number,
+  tier: RuneLockTier,
+): CombatSession {
+  if (session.status === "completed") return session;
+  const entry = session.log[logIndex];
+  if (!entry || entry.type !== "choiceResult" || !entry.slot) return session;
+  if (entry.slot.lockTier) return session;
+
+  const base = SLOT_GRANTS[entry.slot.outcome];
+  const bonused = applyRuneLockBonus(base, tier);
+  const delta =
+    base.kind === "coins" && bonused.kind === "coins"
+      ? bonused.amount - base.amount
+      : 0;
+
+  const log = [...session.log];
+  log[logIndex] = {
+    ...entry,
+    slot: { ...entry.slot, lockTier: tier },
+    effectSummaryData:
+      bonused.kind === "coins"
+        ? { ...entry.effectSummaryData, coins: bonused.amount }
+        : entry.effectSummaryData,
+  };
+  return {
+    ...session,
+    log,
+    rewards: {
+      ...session.rewards,
+      coins: session.rewards.coins + delta,
+      drops: [...session.rewards.drops],
+    },
+  };
 }
 
 export function resolveChoice(
@@ -1834,17 +1889,17 @@ function applyChoiceEffect(
       );
       break;
     case "spinSlot": {
-      // 결과를 여기서 확정하고 지급까지 끝낸다. 드럼 애니메이션은 이미 정해진
-      //   결과를 재생하는 표시 계층이라, 연출을 건너뛰거나 앱이 죽어도 보상이
-      //   어긋나지 않는다.
+      // 기본 보상을 여기서 확정하고 지급까지 끝낸다. 자물쇠 조작은 그 위에
+      //   등급 보너스만 얹으므로(`resolveRuneLock`), 조작을 건너뛰거나 앱이
+      //   죽어도 기본 보상은 어긋나지 않는다.
       if (!canSpinSlot(session, ctx?.slotSpinsToday ?? 0, effect.cost)) {
         // 잔액/상한 게이트는 이벤트 등장 단계에서도 걸리지만, 선택 대기 중에
         //   시간·코인 상태가 바뀔 수 있어 적용 시점에도 한 번 더 본다.
         session.log.push({
           type: "choiceResult",
-          text: "> 손잡이를 당긴다 → 드럼은 꿈쩍도 하지 않았다.",
+          text: "> 자물쇠를 맞춘다 → 자물쇠는 꿈쩍도 하지 않았다.",
           resultTextKey: "uphero.slot.result.unavailable",
-          resultTextFallback: "드럼은 꿈쩍도 하지 않았다.",
+          resultTextFallback: "자물쇠는 꿈쩍도 하지 않았다.",
           timestamp: Date.now(),
         });
         break;
@@ -1859,7 +1914,8 @@ function applyChoiceEffect(
       //   여기서는 입력으로만 받고, 갱신은 스토어가 결과 엔트리를 보고 한다.
       const streak = normalizeSlotBlankStreak(ctx?.slotBlankStreak);
       const outcome = rollSlotOutcome(streak);
-      // near-miss 여부는 페이로드에 싣지 않는다 — UI 가 symbols 에서 되짚는다 (isNearMiss).
+      // 심볼은 더 이상 그려지지 않는다. 호출을 남기는 이유는 RNG 호출 순서 보존
+      //   (`upHeroSlot.renderSymbols` 주석). 페이로드에는 옛 세이브 호환으로만 실린다.
       const { symbols } = renderSymbols(outcome);
 
       const grant = SLOT_GRANTS[outcome];
@@ -1911,9 +1967,12 @@ function applyChoiceEffect(
 
       session.log.push({
         type: "choiceResult",
-        text: `> 손잡이를 당긴다 → ${SLOT_RESULT_FALLBACK[outcome]}`,
-        actionLabelKey: "uphero.slot.option.spin",
-        actionLabelFallback: "손잡이를 당긴다",
+        text: `> 자물쇠를 맞춘다 → ${SLOT_RESULT_FALLBACK[outcome]}`,
+        // 로그용 라벨은 비용 자리표시자가 없는 별도 키다. 선택지 버튼의
+        //   `uphero.slot.option.spin` 은 {cost} 를 담고 있는데, 전투 로그는
+        //   인자 없이 키만 풀어서 "{cost}" 가 그대로 찍혔다.
+        actionLabelKey: "uphero.slot.log.action",
+        actionLabelFallback: "자물쇠를 맞춘다",
         resultTextKey: `uphero.slot.result.${outcome}`,
         resultTextFallback: SLOT_RESULT_FALLBACK[outcome],
         effectSummaryData: coinsWon > 0 ? { coins: coinsWon } : undefined,

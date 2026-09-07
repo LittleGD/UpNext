@@ -623,4 +623,58 @@ enum UpHeroCombat {
         }
         return out
     }
+
+    // MARK: - 룬 자물쇠 해소
+
+    /// 룬 자물쇠 조작 해소 — 걸쇠 등급 보너스를 뒤늦게 얹는다. 웹 `resolveRuneLock`.
+    ///
+    /// 기본 보상은 `spinSlot` 효과(`UpHeroSession.applySpinSlot`)가 이미 확정·지급했다.
+    /// 이 함수는 그 결과 엔트리에 등급을 적고, 코인 보상이었다면 배율 차액만 세션
+    /// 수입에 더한다. 세션 상태 머신은 건드리지 않는다 — 새 대기 상태를 만들지 않아야
+    /// 다른 기기에서 동기화된 세션도 그대로 이어진다.
+    ///
+    /// 규칙:
+    ///  - `logIndex` 가 상자 결과 엔트리가 아니거나 이미 등급이 적혀 있으면 **무시**한다
+    ///    (멱등). 모달 재등장·중복 탭이 보너스를 두 번 주지 못한다.
+    ///  - 조작을 끝내지 않고 모달을 닫으면 호출자가 `.plain` 으로 마감한다. 배율 1 이라
+    ///    차액은 0 이고, 세션에 미해소 상자가 남지 않는다.
+    ///  - 이미 정산된(completed) 세션에는 붙이지 않는다. 수입이 이미 지갑으로 넘어갔다.
+    ///  - 코인이 아닌 보상(방지권·장비·버프)은 개수가 그대로다 — 등급만 적힌다.
+    ///  - status / pendingChoiceIndex / 로그 길이는 손대지 않는다.
+    static func resolveRuneLock(
+        _ session: CombatSession, logIndex: Int, tier: RuneLockTier
+    ) -> CombatSession {
+        if session.status == .completed { return session }
+        guard session.log.indices.contains(logIndex),
+              case let .choiceResult(text, effectSummary, summaryData, actionLabelKey,
+                                     actionLabelFallback, resultTextKey, resultTextFallback,
+                                     slot?, timestamp) = session.log[logIndex],
+              slot.lockTier == nil
+        else { return session }
+
+        let base = UpHeroSlot.grant(slot.outcome)
+        let bonused = UpHeroSlot.applyRuneLockBonus(base, tier: tier)
+        var delta = 0
+        var nextSummary = summaryData
+        if case let .coins(baseAmount) = base, case let .coins(newAmount) = bonused {
+            delta = newAmount - baseAmount
+            nextSummary = EffectSummaryData(coins: newAmount)
+        }
+
+        var next = session
+        var nextSlot = slot
+        nextSlot.lockTier = tier
+        // 코인 결과면 페이로드의 표시 금액도 보너스 반영값으로 갱신한다 — 모달과
+        // 로그가 서로 다른 숫자를 말하지 않게.
+        if case let .coins(newAmount) = bonused, slot.coins != nil {
+            nextSlot.coins = newAmount
+        }
+        next.log[logIndex] = .choiceResult(
+            text: text, effectSummary: effectSummary, effectSummaryData: nextSummary,
+            actionLabelKey: actionLabelKey, actionLabelFallback: actionLabelFallback,
+            resultTextKey: resultTextKey, resultTextFallback: resultTextFallback,
+            slot: nextSlot, timestamp: timestamp)
+        next.rewards.coins += delta
+        return next
+    }
 }

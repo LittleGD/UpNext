@@ -1,6 +1,7 @@
 //
 //  UpHeroSlotTests.swift
-//  UpNextTests — 굴림틀(rune drum) 확률 테이블 동치성 (UpHeroSlot.swift).
+//  UpNextTests — 룬 상자(rune chest) 확률 테이블 동치성 (UpHeroSlot.swift).
+//  (파일·심볼 이름의 slot 어휘는 와이어 호환 잔재다 — UpHeroSlot.swift 헤더 참조.)
 //
 //  아래 픽스처는 **웹 정본에서 실측 생성**했다: `src/lib/upHeroSlot.ts` 의
 //  rollSlotOutcome / renderSymbols / 회계 함수를 웹 mulberry32 (`createRng`) 로
@@ -463,7 +464,7 @@ final class UpHeroSlotTests: XCTestCase {
     func testEventPromptMatchesWebLiteral() {
         XCTAssertEqual(
             UpHeroSlotEvent.prompt,
-            "무너진 사당 안쪽, 룬이 새겨진 드럼 세 개짜리 낡은 굴림틀이 아직 돌아간다.")
+            "무너진 사당 안쪽, 룬이 새겨진 낡은 상자 하나가 자물쇠를 문 채 놓여 있다.")
         XCTAssertTrue(UpHeroSlotEvent.isSlotEvent(UpHeroSlotEvent.prompt))
         XCTAssertFalse(UpHeroSlotEvent.isSlotEvent("수상한 상인이 길을 막는다."))
         XCTAssertEqual(UpHeroSlotEvent.chance, 0.12, accuracy: 1e-12)

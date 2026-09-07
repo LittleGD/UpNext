@@ -31,10 +31,9 @@ enum SoundName: String, CaseIterable {
     case fireIgnite, impactShake, superIgnite
     case meteorWhoosh, matchPair, curseTrigger, rewardChoose
     case cameraShutter, polaroidSlide, treeGrow
-    // 굴림틀 (Up Hero slot). 결과는 롤 시점에 확정돼 있고 아래 소리는 표시 계층이다.
-    // 웹 sounds.ts 굴림틀 7종 — 새 에셋 없이 기존 칩튠 프리미티브 재조합.
-    case slotLever, slotTick, slotStop, slotThud
-    case slotWinSmall, slotWinMid, slotWinBig
+    // 2026-09 (애플 2.3.6) — 룬 상자로 바뀌면서 카지노 큐 7종(slotLever/slotTick/
+    // slotStop/slotThud/slotWin*)을 웹과 함께 걷어냈다. 상자 연출은 기존
+    // collect / rewardChoose / packOpen / levelUp / confirm 을 재사용한다.
     // Phase 5-B — 강화 상위 밴드 (+11..+20) 연출. 소리는 ritual 끝에만 (스포일 금지).
     // 웹 sounds.ts enhanceCharge / enhanceSuccessHigh / enhanceSuccessMax / enhanceShatter.
     case enhanceCharge, enhanceSuccessHigh, enhanceSuccessMax, enhanceShatter
@@ -621,66 +620,6 @@ final class SoundPlayer {
                 OscillatorRecipe(659, start: 0.2, duration: 0.18, volume: 1.0),
                 OscillatorRecipe(330, start: 0.2, duration: 0.18,
                                  volume: 0.3, waveform: .triangle),
-            ]
-
-        // ───────── 굴림틀 (웹 sounds.ts slot* 7종) ─────────
-        case .slotLever:
-            // Lever pull — 70ms, mechanical clack: metal tick + low body.
-            return [
-                OscillatorRecipe(1800, duration: 0.015, volume: 0.5),
-                OscillatorRecipe(220, start: 0.005, duration: 0.05, volume: 0.7, waveform: .triangle),
-                OscillatorRecipe(90, start: 0.01, duration: 0.06, volume: 0.5, waveform: .triangle),
-            ]
-        case .slotTick:
-            // Suspense tick — 18ms, quiet high click. 릴3 감속 동안 반복.
-            return [OscillatorRecipe(1100, duration: 0.018, volume: 0.3)]
-        case .slotStop:
-            // Reel landing — 50ms, wooden stop.
-            return [
-                OscillatorRecipe(420, duration: 0.035, volume: 0.45),
-                OscillatorRecipe(160, duration: 0.05, volume: 0.5, waveform: .triangle),
-            ]
-        case .slotThud:
-            // Blank — 180ms, low dull thud. 음정 하강 없음 (그건 "에러" 로 읽힌다).
-            // 웹: triangle 110→70 (0.16s) + 6ms 어택 → 0.8 → 0.18s decay, 55Hz sub.
-            return [
-                OscillatorRecipe(110, 70, duration: 0.18, volume: 0.8, waveform: .triangle,
-                                 customEnvelope: [
-                                     EnvelopePoint(time: 0.006, value: 1.0, kind: .exponential),
-                                     EnvelopePoint(time: 0.18, value: 0.0001, kind: .exponential),
-                                 ]),
-                OscillatorRecipe(55, duration: 0.12, volume: 0.45, waveform: .triangle),
-            ]
-        case .slotWinSmall:
-            // Small win — 160ms, two bright notes G5 C6 + triangle body.
-            return [
-                OscillatorRecipe(784, duration: 0.07, volume: 1.0),
-                OscillatorRecipe(1047, start: 0.07, duration: 0.09, volume: 1.0),
-                OscillatorRecipe(523, duration: 0.16, volume: 0.3, waveform: .triangle),
-            ]
-        case .slotWinMid:
-            // Mid win — 380ms, four-note jingle E5 G5 C6 E6 + shimmer.
-            return [
-                OscillatorRecipe(659, duration: 0.09, volume: 1.0),
-                OscillatorRecipe(784, start: 0.08, duration: 0.09, volume: 1.0),
-                OscillatorRecipe(1047, start: 0.16, duration: 0.09, volume: 1.0),
-                OscillatorRecipe(1319, start: 0.24, duration: 0.09, volume: 1.0),
-                OscillatorRecipe(1568, start: 0.3, duration: 0.1, volume: 0.45, waveform: .triangle),
-                OscillatorRecipe(392, duration: 0.36, volume: 0.25, waveform: .triangle),
-            ]
-        case .slotWinBig:
-            // Big win — 900ms, boom + rising fanfare C5 E5 G5 C6 + held top + sparkle.
-            return [
-                OscillatorRecipe(60, duration: 0.2, volume: 0.7, waveform: .triangle),
-                OscillatorRecipe(523, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(659, start: 0.09, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(784, start: 0.18, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(1047, start: 0.27, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(1319, start: 0.36, duration: 0.42, volume: 0.85),
-                OscillatorRecipe(784, start: 0.36, duration: 0.42, volume: 0.35, waveform: .triangle),
-                OscillatorRecipe(523, start: 0.36, duration: 0.42, volume: 0.25, waveform: .triangle),
-                OscillatorRecipe(2093, start: 0.62, duration: 0.05, volume: 0.3),
-                OscillatorRecipe(1760, start: 0.74, duration: 0.05, volume: 0.22),
             ]
 
         // ───────── 강화 상위 밴드 (웹 sounds.ts Phase 5-B 4종) ─────────

@@ -1,6 +1,6 @@
 //
 //  UpHeroSlotSessionTests.swift
-//  UpNextTests — 굴림틀이 세션에 붙은 뒤의 계약 (UpHeroSession.swift 배선).
+//  UpNextTests — 룬 상자가 세션에 붙은 뒤의 계약 (UpHeroSession.swift 배선).
 //
 //  UpHeroSlotTests 가 확률 테이블의 웹 동치성을 잡는다면, 여기는 그 결과가
 //  세션에 **어떻게 반영되는지** 를 잡는다: 비용 차감, 상한, 지급 경로, pity

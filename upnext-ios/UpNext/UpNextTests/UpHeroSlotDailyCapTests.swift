@@ -213,7 +213,11 @@ final class UpHeroSlotDailyCapTests: XCTestCase {
         XCTAssertEqual(UpHeroStore.slotSpinsLeft(legacy.shopDaily, today: today), UpHeroSlot.dailySpinCap)
     }
 
-    // MARK: - 확률 공개 UI (숫자는 계산값, 웹과 글자 단위로 같다)
+    // MARK: - 확률 회계 (밸런싱·테스트용, 화면에는 나오지 않는다)
+    //
+    // 2026-09 애플 2.3.6 대응으로 확률 공개 패널(SlotOddsPanel)을 걷어냈다. 표·환수율
+    // 계산은 엔진에 그대로 남아 표와 지급의 일치를 잡지만 유저에게는 보이지 않는다.
+    // 화면 문구 쪽 계약은 UpHeroRuneChestCopyTests 가 잡는다.
 
     func testFormatPercentMatchesWeb() {
         XCTAssertEqual(UpHeroSlot.formatPercent(0.49), "49%")
@@ -243,15 +247,17 @@ final class UpHeroSlotDailyCapTests: XCTestCase {
         }
     }
 
-    /// 표의 모든 줄이 라벨을 갖고, 라벨은 결과 모달과 같은 보상 키에서 나온다 (빈 줄 없음).
-    func testEveryOddsRowHasALabel() {
+    /// 표의 모든 줄이 지급 표와 같은 값을 들고 있다. 예전엔 이 자리에서 확률 패널의
+    /// 라벨(`slotOddsLabel`)까지 검사했는데, 패널이 사라지면서 라벨 함수도 함께 없어졌다.
+    /// 남은 계약은 "표의 지급 = SLOT_GRANTS" 하나뿐이다.
+    func testEveryOddsRowCarriesItsGrant() {
         for row in UpHeroSlot.oddsRows() {
-            let label = slotOddsLabel(row)
-            XCTAssertFalse(label.isEmpty, "\(row.id.rawValue) 라벨이 비었다")
+            XCTAssertEqual(row.grant, UpHeroSlot.grant(row.id), row.id.rawValue)
         }
-        // 꽝은 전용 키, 코인은 액면가가 라벨에 들어간다.
-        XCTAssertFalse(slotOddsLabel(UpHeroSlot.oddsRows()[0]).contains("%"))
-        XCTAssertTrue(slotOddsLabel(UpHeroSlot.OddsRow(id: .coinMid, probability: 0, grant: .coins(amount: 250)))
-                        .contains("250"))
+        if case let .coins(amount) = UpHeroSlot.grant(.coinMid) {
+            XCTAssertEqual(amount, 250)
+        } else {
+            XCTFail("coinMid 가 코인 지급이 아니다")
+        }
     }
 }
