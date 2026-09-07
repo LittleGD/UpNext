@@ -200,6 +200,7 @@ struct EquipmentInventoryView: View {
                     placing: placing,
                     // 미배치와 보류 아이템 모두 정리 대기 안내에 포함한다.
                     trayCount: trayItems(lay).count,
+                    bagFull: isBagFull(lay),
                     rotatable: selectedItem.map { UpHeroBag.canRotate(type: $0.type) } ?? false,
                     synthMode: synthMode,
                     synthCount: synthPickItems.count,
@@ -340,6 +341,16 @@ struct EquipmentInventoryView: View {
         inventory.filter { lay.statusById[$0.id] != .placed }.reversed()
     }
 
+    /// 가방이 꽉 찼는가 — 트레이가 소프트캡 이상이거나 보드에 **가장 작은 모양(1x1)**
+    /// 조차 놓을 자리가 없을 때. 액션바가 "골라서 배치하세요" 대신 "꽉 찼어요" 를
+    /// 띄우는 조건이다 (웹 EquipmentInventory `bagFull` 과 같은 두 갈래).
+    /// `.talisman` 이 1x1 이고 `firstFit` 이 모든 원점을 훑으므로 별도 헬퍼가 필요 없다.
+    /// 초과 세이브는 F1 가드 이후 자동 판매되지 않고 그대로 남는다.
+    private func isBagFull(_ lay: BagLayout) -> Bool {
+        trayItems(lay).count >= UpHeroBag.trayCap
+            || UpHeroBag.firstFit(occ: lay.occupancy, rows: rows, type: .talisman) == nil
+    }
+
     // MARK: - 선택 / 배치
 
     private func clearSelection() {
@@ -367,10 +378,29 @@ struct EquipmentInventoryView: View {
         return true
     }
 
-    /// 회전은 배치 초안에만 적용한다. 목적지를 확정해야 저장된다.
+    /// 보드에 놓인 아이템을 그냥 고른 상태에서 돌리면 **제자리에서 바로 커밋**한다 —
+    /// 탭 경로가 항상 보장된 폴백인데 회전을 배치 초안으로만 두면, 가방이 빽빽해 놓을
+    /// 빈 칸이 없을 때 드래그 말고는 돌릴 길이 사라진다. 돌린 footprint 가 지금 원점에
+    /// 안 들어가면 그때만 배치 모드로 넘긴다 (웹 `rotateSelected` 1:1).
+    ///
+    /// 이미 배치 모드(사용자가 "배치" 를 눌러 옮기려는 중)면 초안 그대로 둔다 —
+    /// "돌려서 다른 칸에 놓기" 흐름을 뺏으면 안 된다. `!placing` 조건이 그 역할이다.
     private func rotateSelected() {
         guard let item = selectedItem, UpHeroBag.canRotate(type: item.type) else { return }
         let next = (placingRot + 1) % 2
+        let lay = layout
+        let here = !placing && lay.statusById[item.id] == .placed
+            ? UpHeroBag.readPlacement(item) : nil
+        if let here,
+           UpHeroBag.checkPlacement(
+               occ: lay.occupancy, rows: rows, type: item.type,
+               x: here.x, y: here.y, rot: next, ignoreId: item.id) == .ok,
+           upHero.placeItem(itemId: item.id, x: here.x, y: here.y, rot: next) == .placed {
+            placingRot = next
+            placing = false
+            SoundPlayer.shared.play(.select)
+            return
+        }
         placing = true
         placingRot = next
         SoundPlayer.shared.play(.select)

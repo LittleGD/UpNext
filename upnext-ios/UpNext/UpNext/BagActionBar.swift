@@ -25,6 +25,11 @@ struct BagActionBar: View {
     let placing: Bool
     /// 정리 대기 개수. 선택 후 장착이나 배치를 안내한다.
     let trayCount: Int
+    /// 가방이 꽉 찼는가 — 트레이가 소프트캡(UpHeroBag.trayCap) 이상이거나 보드에 1x1
+    /// 조차 놓을 자리가 없을 때. 이때 "정리 대기 아이템을 골라 배치하세요" 는 할 수
+    /// 없는 일을 시키는 문장이라 "가방이 꽉 찼어요" 안내로 바꾼다.
+    /// (F1 가드 이후 초과 세이브는 자동 판매되지 않고 그대로 남는다.) 웹 BagActionBar 동일.
+    var bagFull: Bool = false
     /// 회전이 의미 있는 타입인가 (v1: 무기만).
     let rotatable: Bool
     /// Track E 합성 모드 — 같은 등급 3개를 보드·트레이에서 고르는 중. 이때 바는
@@ -141,9 +146,18 @@ struct BagActionBar: View {
         .accessibilityLabel(AppConfig.loc("가방 액션"))
     }
 
+    /// 힌트 우선순위 (웹 BagActionBar 와 같은 순서):
+    ///   배치 중 → 트레이 있음 + 가방 꽉 참 → 트레이 있음 → 유휴.
+    /// `trayCount > 0` 게이트는 의도적이다. 트레이가 비어 있으면 보드가 빽빽해도
+    /// 유휴 안내를 그대로 둔다 — "꽉 찼어요" 는 트레이 안내가 시키는 일(정리 대기
+    /// 아이템을 골라 배치)이 불가능해지는 바로 그 자리를 대신할 뿐이다.
     private var hint: String {
         if placing { return AppConfig.loc("빈 칸을 탭해서 놓으세요") }
-        if trayCount > 0 { return AppConfig.loc("정리 대기 아이템을 골라 장착하거나 배치하세요") }
+        if trayCount > 0 {
+            return bagFull
+                ? AppConfig.loc("가방이 꽉 찼어요. 판매하거나 상점에서 가방을 늘리세요")
+                : AppConfig.loc("정리 대기 아이템을 골라 장착하거나 배치하세요")
+        }
         return AppConfig.loc("아이템을 탭해서 선택하세요")
     }
 

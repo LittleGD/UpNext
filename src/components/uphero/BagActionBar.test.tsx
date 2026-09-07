@@ -149,3 +149,44 @@ describe("BagActionBar enhancement cap", () => {
     });
   }
 });
+
+
+/**
+ * 가방이 꽉 찼을 때의 안내.
+ *
+ * "정리 대기 아이템을 골라 배치하세요" 는 놓을 칸이 있을 때만 맞는 말이다.
+ * 트레이가 소프트캡을 넘었거나 보드에 1x1 조차 못 들어가면 할 수 없는 일을
+ * 시키는 문장이 되므로 "가방이 꽉 찼어요" 로 바꾼다.
+ */
+describe("BagActionBar — 가방 가득 힌트", () => {
+  const hintOf = (root: HTMLElement) =>
+    root.querySelector(".typo-caption")?.textContent?.trim() ?? "";
+
+  it("정리 대기가 있고 자리가 남으면 트레이 힌트", () => {
+    const { container } = render(
+      <BagActionBar {...base} item={null} trayCount={3} />,
+    );
+    expect(hintOf(container)).toBe("uphero.bag.inspect.trayHint");
+  });
+
+  it("정리 대기가 있는데 가방이 꽉 찼으면 가득 힌트", () => {
+    const { container } = render(
+      <BagActionBar {...base} item={null} trayCount={3} bagFull />,
+    );
+    expect(hintOf(container)).toBe("uphero.bag.hint.full");
+  });
+
+  it("정리 대기가 없으면 가방이 꽉 차도 유휴 힌트", () => {
+    const { container } = render(
+      <BagActionBar {...base} item={null} trayCount={0} bagFull />,
+    );
+    expect(hintOf(container)).toBe("uphero.bag.hint.idle");
+  });
+
+  it("배치 모드는 언제나 배치 힌트가 이긴다", () => {
+    const { container } = render(
+      <BagActionBar {...base} item={mkItem()} placing trayCount={3} bagFull />,
+    );
+    expect(hintOf(container)).toBe("uphero.bag.hint.placing");
+  });
+});

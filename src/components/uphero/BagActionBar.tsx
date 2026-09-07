@@ -45,6 +45,13 @@ interface BagActionBarProps {
   placing: boolean;
   /** 정리 대기 개수. 빈 공간이 있어도 수동 배치를 기다리는 아이템이 있을 수 있다 */
   trayCount: number;
+  /**
+   * 가방이 꽉 찼는가 — 트레이가 소프트캡(BAG_TRAY_CAP) 이상이거나 보드에 1x1
+   * 조차 놓을 자리가 없을 때. 이때 "정리 대기 아이템을 골라 배치하세요" 는 할 수
+   * 없는 일을 시키는 문장이라 "가방이 꽉 찼어요" 안내로 바꾼다.
+   * (F1 가드 이후 초과 세이브는 자동 판매되지 않고 그대로 남는다.)
+   */
+  bagFull?: boolean;
   /** 회전이 의미 있는 타입인가 (v1: 무기만) */
   rotatable: boolean;
   /**
@@ -76,6 +83,7 @@ export default function BagActionBar({
   wornSlot,
   placing,
   trayCount,
+  bagFull = false,
   rotatable,
   synthMode,
   synthCount,
@@ -96,7 +104,9 @@ export default function BagActionBar({
   const hint = placing
     ? t("uphero.bag.hint.placing")
     : trayCount > 0
-      ? t("uphero.bag.inspect.trayHint")
+      ? bagFull
+        ? t("uphero.bag.hint.full")
+        : t("uphero.bag.inspect.trayHint")
       : t("uphero.bag.hint.idle");
 
   const enhanceable = !!item && (item.enhanceLevel ?? 0) <

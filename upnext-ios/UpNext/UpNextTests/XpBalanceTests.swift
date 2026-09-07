@@ -18,16 +18,28 @@ final class XpBalanceTests: XCTestCase {
                       rarity: rarity, icon: "", verifyType: .self)
     }
 
+    /// 웹 `useMinigameStore.pickRunReward` 와 같은 숫자여야 한다 — XP 는 클라우드로
+    /// 동기화되는 계정 값이라 플랫폼마다 다르면 같은 런이 다른 결과를 남긴다.
+    /// 배율은 카드별 반올림 **안에서** 곱하고, 더블 루트는 XP 에 영향이 없다.
     func testCardMatchUsesReducedRewardsAndCapsBuffs() {
         let cards = [card("n", .normal), card("r", .rare), card("u", .unique), card("l", .legend)]
         let ids = cards.map(\.id)
+        // 3 + 8 + 15 + 30
         XCTAssertEqual(GameRules.minigameRewardXP(matchedCards: cards, unlockedCardIds: ids), 56)
+        // round(base × 1.5 × 1.5) = 7 + 18 + 34 + 68 = 127 → 런 상한 100.
         XCTAssertEqual(GameRules.minigameRewardXP(
             matchedCards: cards, unlockedCardIds: ids, xpBoostedCardIds: Set(ids),
-            duplicateStash: true, doubleLoot: true), 100)
+            duplicateStash: true), 100)
+        // 전설 1장 + 경험 개화 + 중복 보관함: round(30 × 1.5 × 1.5) = 68 (웹과 동일).
         XCTAssertEqual(GameRules.minigameRewardXP(
             matchedCards: [cards[3]], unlockedCardIds: ids,
-            xpBoostedCardIds: ["l"], duplicateStash: true), 56)
+            xpBoostedCardIds: ["l"], duplicateStash: true), 68)
+        // 중복 보관함만: round(30 × 1.5) = 45.
+        XCTAssertEqual(GameRules.minigameRewardXP(
+            matchedCards: [cards[3]], unlockedCardIds: ids, duplicateStash: true), 45)
+        // 경험 개화만: round(30 × 1.5) = 45.
+        XCTAssertEqual(GameRules.minigameRewardXP(
+            matchedCards: [cards[3]], unlockedCardIds: ids, xpBoostedCardIds: ["l"]), 45)
         XCTAssertEqual(GameConstants.xpPerRarity[.legend], 100)
     }
 
@@ -108,9 +120,9 @@ final class XpBalanceTests: XCTestCase {
         let store = makeStore(p)
         let preview = GameRules.minigameRewardXP(
             matchedCards: cards, unlockedCardIds: p.unlockedCardIds,
-            xpBoostedCardIds: ids, duplicateStash: true, doubleLoot: true)
+            xpBoostedCardIds: ids, duplicateStash: true)
         store.awardMinigameWin(
-            matchedCardIds: ids, xpBoostedCardIds: ids, duplicateStash: true, doubleLoot: true)
+            matchedCardIds: ids, xpBoostedCardIds: ids, duplicateStash: true)
         XCTAssertEqual(store.progress?.xp, p.xp + preview)
         XCTAssertEqual(store.progress?.level, 1)
         XCTAssertEqual(store.progress?.minigameRunsPlayed, 1)
@@ -123,7 +135,7 @@ final class XpBalanceTests: XCTestCase {
         p.xp = 100
         let store = makeStore(p)
         let id = CardCatalog.allCards[0].id
-        store.awardMinigameWin(matchedCardIds: [id], doubleLoot: true)
+        store.awardMinigameWin(matchedCardIds: [id])
         XCTAssertEqual(store.progress?.xp, 100)
         XCTAssertEqual(store.progress?.unlockedCardIds, [id])
     }

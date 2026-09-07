@@ -1422,16 +1422,18 @@ final class GameStore: ObservableObject {
 
     /// 미니게임 성공 보상 — 매치한 챌린지 카드별 XP/언락을 반영한다. 웹
     /// `grantMinigameRewards` 의 condensed native path.
+    /// 더블 루트는 인자로 받지 않는다 — 웹에서 XP 배율이 아니라 보상 픽 +1 이라,
+    /// 여기서 받으면 XP 에 영향을 준다고 읽힌다 (GameRules.minigameRewardXP 주석 참고).
     func awardMinigameWin(
         matchedCardIds: Set<String>, xpBoostedCardIds: Set<String> = [],
-        duplicateStash: Bool = false, doubleLoot: Bool = false
+        duplicateStash: Bool = false
     ) {
         guard var p = progress else { return }
         let cards = CardCatalog.allCards.filter { matchedCardIds.contains($0.id) }
         let xpGain = GameRules.minigameRewardXP(
             matchedCards: cards, unlockedCardIds: p.unlockedCardIds,
             xpBoostedCardIds: xpBoostedCardIds,
-            duplicateStash: duplicateStash, doubleLoot: doubleLoot)
+            duplicateStash: duplicateStash)
         for card in cards where !p.unlockedCardIds.contains(card.id) {
             p.unlockedCardIds.append(card.id)
         }

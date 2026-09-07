@@ -55,12 +55,16 @@ import {
 import type { Equipment, EquipSlot } from "@/types/uphero";
 import type { Rarity } from "@/types/card";
 import {
+  BAG_TRAY_CAP,
   bagRows,
   canRotate,
+  checkPlacement,
   computeBagSynergy,
+  firstFit,
   firstValidOriginCovering,
   normalizeBagLayout,
   normalizeRot,
+  readPlacement,
 } from "@/lib/upHeroBag";
 import { GB, EASE_OUT, gbClass, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { SLOT_ORDER } from "@/lib/equipmentSlotMeta";
@@ -309,6 +313,17 @@ export default function EquipmentInventory({
     () => new Set(layout.suspended.map((i) => i.id)),
     [layout],
   );
+  /**
+   * 가방이 꽉 찼는가 — 트레이가 소프트캡 이상이거나 보드에 **가장 작은 모양(1x1)**
+   * 조차 놓을 자리가 없을 때. 액션바가 "골라서 배치하세요" 대신 "꽉 찼어요" 를
+   * 띄우는 조건이다. 초과 세이브는 F1 가드 이후 자동 판매되지 않고 그대로 남는다.
+   */
+  const bagFull = useMemo(
+    () =>
+      trayItems.length >= BAG_TRAY_CAP ||
+      firstFit(layout.occupancy, rows, "talisman") === null,
+    [trayItems.length, layout.occupancy, rows],
+  );
 
   /**
    * 처음 마운트 때 있던 것은 "새것" 이 아니다 — 전부 점을 찍으면 신호가 죽는다.
@@ -379,15 +394,46 @@ export default function EquipmentInventory({
     [placeItem, play, onNotify, t, markSeen],
   );
 
-  /** 회전은 배치 초안에만 적용한다. 목적지를 확정해야 저장된다. */
+  /**
+   * 회전.
+   *
+   * 보드에 놓인 아이템을 그냥 고른 상태에서 돌리면 **제자리에서 바로 커밋**한다 —
+   * 탭 경로가 항상 보장된 폴백(파일 머리 §상태 기계)인데, 회전을 배치 초안으로만
+   * 두면 가방이 빽빽해 놓을 빈 칸이 없을 때 드래그 말고는 돌릴 길이 사라진다.
+   * 돌린 footprint 가 지금 원점에 안 들어가면 그때만 배치 모드로 넘긴다.
+   *
+   * 이미 배치 모드(사용자가 "배치" 를 눌러 옮기려는 중)면 초안 그대로 둔다 —
+   * "돌려서 다른 칸에 놓기" 흐름을 뺏으면 안 된다.
+   */
   const rotateSelected = useCallback(() => {
     if (!selectedItem) return;
     if (!canRotate(selectedItem.type)) return;
     const nextRot = (placingRot + 1) % 2;
+    const here =
+      !placing && layout.statusById[selectedItem.id] === "placed"
+        ? readPlacement(selectedItem)
+        : null;
+    const fitsHere =
+      here != null &&
+      checkPlacement(
+        layout.occupancy,
+        rows,
+        selectedItem.type,
+        here.x,
+        here.y,
+        nextRot,
+        selectedItem.id,
+      ) === "ok";
+    if (here && fitsHere && placeItem(selectedItem.id, here.x, here.y, nextRot).ok) {
+      setPlacingRot(nextRot);
+      setPlacing(false);
+      play("select");
+      return;
+    }
     setPlacing(true);
     setPlacingRot(nextRot);
     play("select");
-  }, [selectedItem, placingRot, play]);
+  }, [selectedItem, placing, placingRot, layout, rows, placeItem, play]);
 
   // ─── 합성 모드 (Track E) ─────────────────────────────────────────────
 
@@ -1143,6 +1189,7 @@ export default function EquipmentInventory({
         wornSlot={selectedWorn ? selectedSlot : null}
         placing={placing}
         trayCount={trayItems.length}
+        bagFull={bagFull}
         rotatable={selectedItem ? canRotate(selectedItem.type) : false}
         synthMode={synthMode}
         synthCount={synthPickItems.length}
