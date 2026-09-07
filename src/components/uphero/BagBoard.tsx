@@ -477,7 +477,10 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!e.isPrimary || interactionLocked) return;
+      // 잠금(합성 모드)은 **드래그 승격만** 막는다. 여기서 되돌아가면 타일에 onClick 이
+      // 없어 탭 경로(onSelect)까지 죽는다 — 합성 재료를 터치로 고를 수 없게 된다.
+      // iOS BagBoardView 도 가드를 DragGesture.onChanged 에만 둔다.
+      if (!e.isPrimary) return;
       const el = (e.target as HTMLElement).closest<HTMLElement>("[data-bag-item]");
       const id = el?.dataset.bagItem;
       if (!id) return; // 십자·빈 칸은 각자의 onClick 이 처리한다.
@@ -500,7 +503,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
         /* noop */
       }
     },
-    [tiles, selectedId, placingRot, interactionLocked],
+    [tiles, selectedId, placingRot],
   );
 
   const onPointerMove = useCallback(
@@ -510,6 +513,8 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
       const dx = e.clientX - press.startX;
       const dy = e.clientY - press.startY;
       if (!press.dragging) {
+        // 잠금 중에는 승격하지 않는다 — 손가락이 얼마를 움직여도 탭으로 끝난다.
+        if (interactionLocked) return;
         if (Math.hypot(dx, dy) < BAG_DRAG_THRESHOLD) return;
         press.dragging = true;
         feedback(null, HAPTIC_LIFT);
@@ -550,7 +555,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
         valid,
       });
     },
-    [feedback, originFromPoint, layout.occupancy, rows, setDragState],
+    [feedback, originFromPoint, interactionLocked, layout.occupancy, rows, setDragState],
   );
 
   const finishPointer = useCallback(
@@ -572,6 +577,8 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
         onSelect(press.item.id);
         return;
       }
+      // 승격이 막혀 여기까지 오지 않지만, 드롭 경로는 잠금 중 절대 열리지 않는다.
+      if (interactionLocked) return;
 
       const rejected = () => {
         feedback("cancel", HAPTIC_REJECT);
@@ -607,6 +614,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
       beginSnapBack,
       cell,
       feedback,
+      interactionLocked,
       language,
       onDropAt,
       onSelect,
@@ -865,7 +873,14 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
                       color={`${GB.light}66`}
                     />
                   )}
-                  <span className="absolute bottom-0 typo-micro" style={{ fontSize: 9, color: GB.lightest }}>{t(SLOT_LABEL_KEY[slot])}</span>
+                  {/* 슬롯 이름은 언어마다 길다. 칸 폭에 가두고 넘치면 말줄임 —
+                      iOS 는 .lineLimit(1).minimumScaleFactor(0.6).frame(width: cell - 4). */}
+                  <span
+                    className="absolute bottom-0 typo-micro text-center truncate"
+                    style={{ left: 2, right: 2, fontSize: 9, color: GB.lightest }}
+                  >
+                    {t(SLOT_LABEL_KEY[slot])}
+                  </span>
                   {worn && wornLevel > 0 && wornChip && (
                     <span
                       aria-hidden="true"
