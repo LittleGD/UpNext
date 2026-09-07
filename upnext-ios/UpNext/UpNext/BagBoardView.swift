@@ -129,6 +129,8 @@ struct BagBoardView: View {
     let selectedId: String?
     let selectedSlot: EquipSlot?
     let placingRot: Int
+    var placing: Bool = false
+    var interactionLocked: Bool = false
     let synergy: BagSynergy
     let newIds: Set<String>
     /// Track E 합성 모드 — 재료로 고른 타일(선택과 같은 라임 보더) / 재료가 될 수 없는 타일(흐리게).
@@ -230,7 +232,7 @@ struct BagBoardView: View {
             heroCell(cell: cell, step: step)
 
             // 빈 칸 — 아이템을 고른 동안에만 노출(탭 타깃·SR 노출 모두).
-            if selectedId != nil {
+            if placing, selectedId != nil {
                 ForEach(emptyCells(layout: layout), id: \.self) { c in
                     emptyCell(c, cell: cell, step: step)
                 }
@@ -260,11 +262,11 @@ struct BagBoardView: View {
 
             // 시너지 커넥터 — 오버레이 1장, 이벤트 없음.
             Canvas { ctx, _ in
-                for link in synergy.links {
+                for link in synergy.links where link.rule != .s6 {
                     guard link.cells.count == 2 else { continue }
                     let a = center(link.cells[0], cell: cell, step: step)
                     let b = center(link.cells[1], cell: cell, step: step)
-                    let hot = link.sourceId == selectedId
+                    let hot = link.sourceId == selectedId || (selectedSlot != nil && link.anchor == selectedSlot)
                     let color = hot ? GBPalette.lightest : GBPalette.light
                     let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
                     if a.x != b.x && a.y != b.y {
@@ -343,9 +345,10 @@ struct BagBoardView: View {
         slot: EquipSlot, at a: BagCell, cell: CGFloat, step: CGFloat
     ) -> some View {
         let worn = equipped[slot]
+        let target = inventory.first { $0.id == selectedId }?.type == slot
         let iconSize = cell < 52 ? CGFloat(22) : CGFloat(26)
         return Button {
-            if worn != nil { onTapWorn(slot) }
+            onTapWorn(slot)
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 3).fill(GBPalette.dark)
@@ -359,6 +362,11 @@ struct BagBoardView: View {
                 } else {
                     PixelIcon(slotIcon(slot), size: iconSize, color: GBPalette.light.opacity(0.4))
                 }
+                Text(slotName(slot)).typography(.micro)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                    .foregroundStyle(GBPalette.lightest)
+                    .frame(width: cell - 4, height: 14)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 // Track E — 착용 앵커의 +N 칩 (Track B 톤 표). 웹 BagBoard 앵커 동일.
                 if let worn, let lvl = worn.enhanceLevel, lvl > 0 {
                     let tone = EnhanceChipTone.forLevel(lvl)
@@ -374,6 +382,7 @@ struct BagBoardView: View {
                 }
             }
             .frame(width: cell, height: cell)
+            .shadow(color: target ? GBPalette.lightest.opacity(0.5) : .clear, radius: 8)
             .overlay {
                 // 보더는 의미가 있을 때만: 착용 = 등급색, 지금 고른 앵커 = 라임(화면에 하나).
                 if let worn {
@@ -427,9 +436,11 @@ struct BagBoardView: View {
 
     private func emptyCell(_ c: BagCell, cell: CGFloat, step: CGFloat) -> some View {
         let vr = UpHeroBag.visualRow(bagY: c.y, rows: rows)
+        let moving = inventory.first { $0.id == selectedId }
+        let valid = moving.flatMap { UpHeroBag.firstValidOriginCovering(occ: UpHeroBag.normalizeBagLayout(inventory, rows: rows).layout.occupancy, rows: rows, type: $0.type, rot: placingRot, x: c.x, y: c.y, ignoreId: $0.id) } != nil
         return Button { onTapEmptyCell(c.x, c.y) } label: {
             RoundedRectangle(cornerRadius: 3)
-                .fill(GBPalette.dark.opacity(0.33))
+                .fill(valid ? GBPalette.lightest.opacity(0.18) : GBPalette.dark.opacity(0.33))
                 .frame(width: cell, height: cell)
         }
         .buttonStyle(.unPress)
@@ -527,6 +538,7 @@ struct BagBoardView: View {
     ) -> some Gesture {
         DragGesture(minimumDistance: Self.dragThreshold, coordinateSpace: .named(Self.space))
             .onChanged { g in
+                guard !interactionLocked else { return }
                 guard let entry = hitTile(g.startLocation, step: step, tiles: tiles) else { return }
                 let rot = entry.item.id == selectedId ? placingRot : entry.p.rot
                 if drag == nil {
@@ -650,7 +662,7 @@ struct BagBoardView: View {
     /// 아이템별 시너지 요약 문장 (SR 라벨·배치 announce 용).
     private func synergyText(_ item: Equipment) -> String {
         var parts: [String] = []
-        for link in synergy.links where link.sourceId == item.id || link.partnerId == item.id {
+        for link in synergy.links where link.rule != .s6 && (link.sourceId == item.id || link.partnerId == item.id) {
             let stat = link.stat?.label ?? ""
             let n = link.amount ?? 0
             // S1 은 퍼센트라 값 쪽에서 기호까지 만든다 — 리터럴 "%" 를 카탈로그 키에 두면
@@ -675,7 +687,7 @@ struct BagBoardView: View {
             guard let per = synergy.perAnchor[slot], !per.isEmpty else { continue }
             let deltas = StatKey.allCases.compactMap { key -> String? in
                 guard let v = per[key], v != 0 else { return nil }
-                return "+\(v) \(key.label)"
+                return "+\(v)\(key == .crit ? "%p" : "") \(key.label)"
             }.joined(separator: " ")
             if deltas.isEmpty { continue }
             chunks.append("\(slotName(slot)) \(deltas)")

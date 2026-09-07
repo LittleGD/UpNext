@@ -421,8 +421,11 @@ final class UpHeroBagTests: XCTestCase {
         ]
         let syn = UpHeroBag.computeBagSynergy(equipped: [.armor: worn], inventory: bag, rows: 5)
 
-        XCTAssertEqual(syn.links.filter { $0.rule == .s1 }.count, 3, "링크는 3개 다 남는다")
+        XCTAssertEqual(syn.links.filter { $0.rule == .s1 }.map(\.amount), [20, 10], "연결 표시도 실제 상한을 따른다")
         XCTAssertEqual(syn.bonuses[.vit], 30, "35% 가 아니라 상한 30%")
+        let partial = UpHeroBag.computeBagSynergy(equipped: [.armor: worn], inventory: Array(bag.reversed()), rows: 5)
+        XCTAssertEqual(partial.links.map(\.amount), [5, 10, 15])
+        XCTAssertEqual(partial.bonuses, syn.bonuses)
     }
 
     /// 반올림이 0 이 되어도 최소 1 은 준다.
@@ -516,14 +519,40 @@ final class UpHeroBagTests: XCTestCase {
         let syn = UpHeroBag.computeBagSynergy(equipped: [.armor: worn], inventory: bag, rows: 5)
 
         let s4 = syn.links.filter { $0.rule == .s4 }
-        XCTAssertEqual(s4.map(\.sourceId), ["diagNear", "diagFar"], "bagY → bagX 순, 상한 2")
+        XCTAssertEqual(s4.map(\.sourceId), ["diagFar", "diagNear"], "효과 내림차순, 상한 2")
         XCTAssertEqual(syn.bonuses[.vit], 5, "+2 (강화 5) 와 +3 (강화 20 → 10 클램프)")
     }
 
-    // MARK: - 시너지 S6 (합성 작업대)
+    func testWeakerPhotoCannotDisplaceAnUpgradedPhoto() {
+        let worn = eq("armor", type: .armor, stats: [.vit: 50])
+        let strong = eq("strong", type: .talisman, photoId: "p1", enhanceLevel: 10, x: 0, y: 2)
+        let medium = eq("medium", type: .talisman, photoId: "p2", enhanceLevel: 5, x: 0, y: 1)
+        let weak = eq("weak", type: .talisman, photoId: "p3", enhanceLevel: 0, x: 0, y: 0)
+        let before = UpHeroBag.computeBagSynergy(equipped: [.armor: worn], inventory: [strong, medium], rows: 4)
+        let after = UpHeroBag.computeBagSynergy(equipped: [.armor: worn], inventory: [weak, strong, medium], rows: 4)
+        XCTAssertEqual(after.bonuses, before.bonuses)
+        XCTAssertEqual(after.bonuses[.vit], 5)
+        XCTAssertEqual(after.links.map(\.sourceId), ["strong", "medium"])
+    }
 
-    /// 같은 baseId·같은 등급이 직교 인접하면 링크 1개. 스탯 효과는 없다.
-    func testSynergyS6LinksMatchingPairOnce() {
+    func testSuggestionKeepsTheStrongerPositionWithoutSacrificingOtherStats() {
+        let photo = eq("photo", type: .talisman, category: .learning, photoId: "p")
+        let worn: [EquipSlot: Equipment] = [
+            .weapon: eq("weapon", type: .weapon, stats: [.str: 100]),
+            .armor: eq("armor", type: .armor, stats: [.vit: 50]),
+        ]
+        let suggestion = BagInsights.suggest(photo, equipped: worn, inventory: [photo], rows: 4)
+        XCTAssertEqual(suggestion?.delta, [.str: 1, .vit: 1])
+        let moved = UpHeroBag.withPlacement(photo, suggestion!.placement)
+        XCTAssertEqual(UpHeroBag.normalizeBagLayout([moved], rows: 4).layout.placed.count, 1)
+        XCTAssertEqual(UpHeroBag.computeBagSynergy(equipped: worn, inventory: [moved], rows: 4).bonuses, suggestion?.delta)
+    }
+
+    // MARK: - 합성
+
+
+    /// 합성 재료의 인접은 전투 효과나 연결을 만들지 않는다.
+    func testSynthesisDoesNotCreateCombatConnections() {
         let bag = [
             eq("a1", rarity: .rare, baseId: "ring", x: 0, y: 0),
             eq("a2", rarity: .rare, baseId: "ring", x: 1, y: 0),
@@ -532,12 +561,8 @@ final class UpHeroBagTests: XCTestCase {
         let syn = UpHeroBag.computeBagSynergy(equipped: [:], inventory: bag, rows: 5)
 
         let s6 = syn.links.filter { $0.rule == .s6 }
-        XCTAssertEqual(s6.count, 1)
-        XCTAssertEqual(s6.first?.sourceId, "a1")
-        XCTAssertEqual(s6.first?.partnerId, "a2")
-        XCTAssertNil(s6.first?.anchor)
-        XCTAssertNil(s6.first?.stat)
-        XCTAssertTrue(syn.bonuses.isEmpty, "S6 은 스탯을 주지 않는다")
+        XCTAssertTrue(s6.isEmpty)
+        XCTAssertTrue(syn.bonuses.isEmpty)
     }
 
     // MARK: - 적용

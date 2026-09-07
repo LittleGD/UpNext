@@ -1,3 +1,4 @@
+import { equipmentChange } from "@/lib/bagInsights";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 
 /**
@@ -431,5 +432,25 @@ describe("가방 시너지 폴드", () => {
       makeItem("acc", "accessory", { category: "fitness", bagX: 0, bagY: 4 }),
     ];
     expect(applyBagSynergy(hero, far, BAG_ROWS_MIN).baseStats).toEqual(hero.baseStats);
+  });
+});
+
+
+describe("equipment comparison follows real store mutations", () => {
+  it("predicts swap and unequip with occupied support positions", () => {
+    const old = makeItem("old", "accessory", { stats: { str: 10 }, category: "learning" });
+    const weapon = makeItem("w", "weapon", { stats: { str: 100 } });
+    const item = makeItem("new", "accessory", { stats: { str: 12 }, bagX: 1, bagY: 0, bagRot: 0 });
+    seed([item], { weapon, accessory: old });
+    const before = useUpHeroStore.getState();
+    const predicted = equipmentChange(item, false, before.hero.equipped, before.inventory, 4);
+    before.equipItem(item.id, "accessory");
+    const after = useUpHeroStore.getState();
+    expect(after.hero.equipped).toEqual(predicted.equipped);
+    expect(after.inventory).toEqual(predicted.inventory);
+    const removal = equipmentChange(after.hero.equipped.accessory!, true, after.hero.equipped, after.inventory, 4);
+    after.unequipItem("accessory");
+    expect(useUpHeroStore.getState().hero.equipped).toEqual(removal.equipped);
+    expect(useUpHeroStore.getState().inventory).toEqual(removal.inventory);
   });
 });

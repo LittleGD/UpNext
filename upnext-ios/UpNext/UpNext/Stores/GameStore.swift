@@ -250,6 +250,13 @@ final class GameStore: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var bootstrappedUid: String?
 
+    #if DEBUG
+    /// 지급 경로 테스트용. 인증 구독과 클라우드 부트스트랩 없이 진행도를 주입한다.
+    init(testProgress: UserProgress) {
+        progress = testProgress
+    }
+    #endif
+
     init() {
         #if DEBUG
         if Self.applyUITestSeedIfNeeded(to: self) {
@@ -1415,20 +1422,22 @@ final class GameStore: ObservableObject {
 
     /// 미니게임 성공 보상 — 매치한 챌린지 카드별 XP/언락을 반영한다. 웹
     /// `grantMinigameRewards` 의 condensed native path.
-    func awardMinigameWin(matchedCardIds: Set<String>, totalXp fallbackXp: Int) {
+    func awardMinigameWin(
+        matchedCardIds: Set<String>, xpBoostedCardIds: Set<String> = [],
+        duplicateStash: Bool = false, doubleLoot: Bool = false
+    ) {
         guard var p = progress else { return }
-        var xpGain = 0
-        for id in matchedCardIds {
-            guard let card = CardCatalog.allCards.first(where: { $0.id == id }) else { continue }
-            if p.unlockedCardIds.contains(id) {
-                xpGain += GameConstants.xpPerRarity[card.rarity] ?? 10
-            } else {
-                p.unlockedCardIds.append(id)
-            }
+        let cards = CardCatalog.allCards.filter { matchedCardIds.contains($0.id) }
+        let xpGain = GameRules.minigameRewardXP(
+            matchedCards: cards, unlockedCardIds: p.unlockedCardIds,
+            xpBoostedCardIds: xpBoostedCardIds,
+            duplicateStash: duplicateStash, doubleLoot: doubleLoot)
+        for card in cards where !p.unlockedCardIds.contains(card.id) {
+            p.unlockedCardIds.append(card.id)
         }
         p.minigameRunsPlayed += 1
         p.minigameBestMatches = max(p.minigameBestMatches, matchedCardIds.count)
-        p.xp += xpGain > 0 ? xpGain : fallbackXp
+        p.xp += xpGain
         let normalized = normalizeAfterChallengeXP(p)
         p = normalized.progress
 

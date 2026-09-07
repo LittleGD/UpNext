@@ -48,7 +48,7 @@ struct HeroStatPanel: View {
         let hero = upHero.state.hero
         let level = upHero.heroLevel   // Phase 2-A — heroXp 풀 기준 (웹 useHeroLevel)
         let leveled = UpHeroRules.computeHeroForLevel(hero, level: level)
-        let effective = UpHeroRules.computeEffectiveStats(leveled)
+        let effective = UpHeroRules.computeEffectiveStats(UpHeroBag.applyBagSynergy(leveled, inventory: upHero.state.inventory, rows: UpHeroBag.bagRows(rowsBought: upHero.state.bagRowsBought)))
 
         VStack(spacing: 0) {
             header

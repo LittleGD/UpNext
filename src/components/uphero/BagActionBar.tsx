@@ -18,6 +18,7 @@
 import { BAG_ACTION_H } from "@/lib/upHeroBag";
 import { PHOTO_TALISMAN_MAX_ENHANCE_LEVEL } from "@/lib/photoTalisman";
 import {
+  MAX_ENHANCE_LEVEL,
   NEXT_RARITY,
   SYNTHESIS_INPUT_COUNT,
   sellPrice,
@@ -42,7 +43,7 @@ interface BagActionBarProps {
   wornSlot: EquipSlot | null;
   /** 빈 칸 탭을 기다리는 중인가 */
   placing: boolean;
-  /** 정리 대기 개수 — 0 보다 크면 유휴 힌트가 "가방이 꽉 찼어요" 로 바뀐다 */
+  /** 정리 대기 개수. 빈 공간이 있어도 수동 배치를 기다리는 아이템이 있을 수 있다 */
   trayCount: number;
   /** 회전이 의미 있는 타입인가 (v1: 무기만) */
   rotatable: boolean;
@@ -95,15 +96,11 @@ export default function BagActionBar({
   const hint = placing
     ? t("uphero.bag.hint.placing")
     : trayCount > 0
-      ? t("uphero.bag.hint.full")
+      ? t("uphero.bag.inspect.trayHint")
       : t("uphero.bag.hint.idle");
 
-  // 사진 부적은 +10 이 상한이다. 이미 상한이면 강화 버튼 자체를 내린다 (강화 목록
-  //   시트도 사진 부적을 빼고 있다) — 눌러 봐야 "이미 최대" 토스트만 돌아온다.
-  const enhanceable =
-    !item ||
-    !item.photoId ||
-    (item.enhanceLevel ?? 0) < PHOTO_TALISMAN_MAX_ENHANCE_LEVEL;
+  const enhanceable = !!item && (item.enhanceLevel ?? 0) <
+    (item.photoId ? PHOTO_TALISMAN_MAX_ENHANCE_LEVEL : MAX_ENHANCE_LEVEL);
 
   // 취소는 스크롤 밖 고정. 유휴 상태에는 벗어날 선택 자체가 없어 띄우지 않는다.
   const cancel = synthMode
@@ -122,6 +119,11 @@ export default function BagActionBar({
       }}
       aria-label={t("uphero.bag.actionBarAria")}
     >
+      {!synthMode && !placing && (wornSlot || item) && (
+        <BagAction onClick={wornSlot ? onUnequip : onEquip} primary>
+          {t(wornSlot ? "common.unequip" : "uphero.equip.action.equip")}
+        </BagAction>
+      )}
       <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto">
         {synthMode ? (
           <>
@@ -145,12 +147,9 @@ export default function BagActionBar({
             >
               {t(SLOT_LABEL_KEY[wornSlot])}
             </span>
-            <BagAction onClick={onUnequip} primary>
-              {t("common.unequip")}
-            </BagAction>
-            <BagAction onClick={onEnhance}>
+            {enhanceable && <BagAction onClick={onEnhance}>
               {t("uphero.equip.tabEnhance")}
-            </BagAction>
+            </BagAction>}
           </>
         ) : item && placing ? (
           <>
@@ -158,21 +157,18 @@ export default function BagActionBar({
             <span className="typo-caption flex-1 truncate" style={{ color: GB.lightest }}>
               {hint}
             </span>
-            <BagAction onClick={onRotate} disabled={!rotatable} shortcut="r">
+            {rotatable && <BagAction onClick={onRotate} shortcut="r">
               {t("uphero.bag.action.rotate")}
-            </BagAction>
+            </BagAction>}
           </>
         ) : item ? (
           <>
-            <BagAction onClick={onPlace} primary>
+            <BagAction onClick={onPlace}>
               {t("uphero.bag.action.place")}
             </BagAction>
-            <BagAction onClick={onRotate} disabled={!rotatable} shortcut="r">
+            {rotatable && <BagAction onClick={onRotate} shortcut="r">
               {t("uphero.bag.action.rotate")}
-            </BagAction>
-            <BagAction onClick={onEquip}>
-              {t("uphero.equip.action.equip")}
-            </BagAction>
+            </BagAction>}
             {/* 좁은 폭에서 여러 버튼이 들어가야 하므로 "강화 시도" 대신 탭 라벨과 같은 "강화". */}
             {enhanceable && (
               <BagAction onClick={onEnhance}>
@@ -244,7 +240,8 @@ function BagAction({
         background: primary ? GB.lightest : `${GB.dark}88`,
         color: primary ? GB.darkest : danger ? GB_ENEMY : GB.light,
         border: "none",
-        opacity: disabled ? 0.45 : 1,
+        opacity: disabled ? 0.5 : 1,
+        borderRadius: 12,
       }}
     >
       {children}

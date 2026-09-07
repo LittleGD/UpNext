@@ -5,9 +5,9 @@
  * 했다고 간주해 XP 와 코인을 일부 지급. 방치형 RPG 의 promise 이행.
  *
  * 설계:
- * - 기본 XP 0.5/분, 코인 0.3/분
+ * - 기본 XP 0.25/분, 코인 0.3/분
  * - Lv 에 따라 완만히 scale (Lv 10 은 Lv1 의 1.5 배)
- * - Cap 8시간 (480분 = 기본 240 XP + 144 coin) — 하루 종일 비워두면 상한.
+ * - Cap 8시간 (480분 = 기본 120 XP + 144 coin).
  * - Minimum 5분 — 앱 잠깐 포그라운드 벗어남 / 새로고침 방지.
  */
 
@@ -22,7 +22,7 @@ export interface IdleReward {
   rawElapsedMin: number;
 }
 
-const XP_PER_MIN = 0.5;
+const XP_PER_MIN = 0.25;
 const COINS_PER_MIN = 0.3;
 const MIN_ELAPSED_MIN = 5;
 const MAX_ELAPSED_MIN = 8 * 60; // 8시간

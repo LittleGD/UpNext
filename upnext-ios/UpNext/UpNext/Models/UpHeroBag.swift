@@ -598,7 +598,7 @@ enum UpHeroBag {
     }
 
     /// 시너지 계산. 결정적: 앵커는 `anchorOrder`, 가방 아이템은 배열 index 순.
-    /// S4 의 tie-break 는 bagY 오름차순 → bagX 오름차순.
+    /// S4 는 효과 내림차순, tie-break 는 bagY 오름차순 → bagX 오름차순.
     /// 입력 inventory 는 여기서 다시 `normalizeBagLayout` 을 타므로 placed 만 계산에 참여한다.
     static func computeBagSynergy(
         equipped: [EquipSlot: Equipment],
@@ -633,7 +633,8 @@ enum UpHeroBag {
                     if isPhotoTalisman(entry.item) { continue }
                     if entry.item.category != worn.category { continue }
                     guard let touch = orthoTouchCell(entry.cells, anchor) else { continue }
-                    let pct = synergyS1PctPerCell * entry.cells.count
+                    let pct = min(synergyS1PctPerCell * entry.cells.count, synergyS1CapPct - s1Pct)
+                    if pct == 0 { break }
                     s1Pct += pct
                     links.append(SynergyLink(
                         rule: .s1, sourceId: entry.item.id, anchor: slot, partnerId: nil,
@@ -680,11 +681,16 @@ enum UpHeroBag {
                 }
             }
 
-            // S4 — 사진 부적 8방 인접: 착용 주 스탯 +1/+2/+3, 앵커당 2장 (bagY → bagX 순)
+            // S4 — 사진 부적 8방 인접: 착용 주 스탯 +1/+2/+3, 앵커당 효과가 높은 2장 (동률이면 bagY → bagX 순)
             if let primary {
                 let photos = placed
                     .filter { isPhotoTalisman($0.item) && eightTouchCell($0.cells, anchor) != nil }
-                    .sorted { a, b in a.p.y != b.p.y ? a.p.y < b.p.y : a.p.x < b.p.x }
+                    .sorted { a, b in
+                        let aPower = photoSynergyAmount(a.item.enhanceLevel)
+                        let bPower = photoSynergyAmount(b.item.enhanceLevel)
+                        if aPower != bPower { return aPower > bPower }
+                        return a.p.y != b.p.y ? a.p.y < b.p.y : a.p.x < b.p.x
+                    }
                     .prefix(synergyS4CapPerAnchor)
                 for entry in photos {
                     let amount = photoSynergyAmount(entry.item.enhanceLevel)
@@ -698,29 +704,7 @@ enum UpHeroBag {
             }
         }
 
-        // S6 — 같은 baseId·등급 가방 아이템 직교 인접: 합성 작업대 링크(스탯 없음). 각 쌍 1회 (i<j).
-        for i in placed.indices {
-            let a = placed[i]
-            if isPhotoTalisman(a.item) { continue }
-            guard let baseId = a.item.baseId, !baseId.isEmpty else { continue }
-            for j in placed.index(after: i)..<placed.endIndex {
-                let b = placed[j]
-                if isPhotoTalisman(b.item) { continue }
-                if b.item.baseId != baseId || a.item.rarity != b.item.rarity { continue }
-                var pair: [BagCell]?
-                outer: for ca in a.cells {
-                    for cb in b.cells where isOrthoAdjacent(ca, cb) {
-                        pair = [ca, cb]
-                        break outer
-                    }
-                }
-                guard let pair else { continue }
-                links.append(SynergyLink(
-                    rule: .s6, sourceId: a.item.id, anchor: nil, partnerId: b.item.id,
-                    stat: nil, amount: nil, cells: pair))
-            }
-        }
-
+        // Synthesis is independent of placement and grants no combat connection.
         return BagSynergy(bonuses: bonuses, perAnchor: perAnchor, links: links)
     }
 

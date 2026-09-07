@@ -23,7 +23,7 @@ struct BagActionBar: View {
     let wornSlot: EquipSlot?
     /// 빈 칸 탭을 기다리는 중인가.
     let placing: Bool
-    /// 정리 대기 개수 — 0 보다 크면 유휴 힌트가 "가방이 꽉 찼어요" 로 바뀐다.
+    /// 정리 대기 개수. 선택 후 장착이나 배치를 안내한다.
     let trayCount: Int
     /// 회전이 의미 있는 타입인가 (v1: 무기만).
     let rotatable: Bool
@@ -38,11 +38,10 @@ struct BagActionBar: View {
     var onSynthConfirm: () -> Void = {}
     var onSynthCancel: () -> Void = {}
 
-    /// 사진 부적은 +10 이 상한이다. 이미 상한이면 강화 버튼 자체를 내린다 (강화 목록
-    /// 시트도 사진 부적을 빼고 있다) — 눌러 봐야 "이미 최대" 토스트만 돌아온다.
     private var enhanceable: Bool {
-        guard let item, item.photoId != nil else { return true }
-        return (item.enhanceLevel ?? 0) < PhotoTalisman.maxEnhanceLevel
+        guard let item else { return false }
+        let cap = item.photoId != nil ? PhotoTalisman.maxEnhanceLevel : UpHeroRules.maxEnhanceLevel
+        return (item.enhanceLevel ?? 0) < cap
     }
 
     /// 취소는 스크롤 밖 고정. 유휴 상태에는 벗어날 선택 자체가 없어 띄우지 않는다.
@@ -54,6 +53,13 @@ struct BagActionBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            if !synthMode, !placing, wornSlot != nil || item != nil {
+                action(AppConfig.loc(wornSlot != nil ? "해제" : "장착"), primary: true) {
+                    onAction(wornSlot != nil ? .unequip : .equip)
+                }
+                .accessibilityIdentifier(wornSlot != nil ? "bagUnequip" : "bagEquip")
+                .padding(.leading, 8)
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     if synthMode {
@@ -71,19 +77,24 @@ struct BagActionBar: View {
                             .foregroundStyle(GBPalette.light)
                             .lineLimit(1)
                             .frame(maxWidth: 84)
-                        action(AppConfig.loc("해제"), primary: true) { onAction(.unequip) }
-                        action(AppConfig.loc("강화")) { onAction(.enhance) }
+                        if enhanceable { action(AppConfig.loc("강화")) { onAction(.enhance) } }
                     } else if item != nil, placing {
                         // 배치 모드: 힌트가 주인공. 회전·취소만 남겨 빈 칸 탭에 집중시킨다 (웹 동일).
                         Text(hint)
                             .typography(.caption)
                             .foregroundStyle(GBPalette.lightest)
                             .lineLimit(1)
-                        action(AppConfig.loc("회전"), disabled: !rotatable) { onAction(.rotate) }
+                        if rotatable {
+                            action(AppConfig.loc("회전")) { onAction(.rotate) }
+                                .accessibilityIdentifier("bagRotate")
+                        }
                     } else if let item {
-                        action(AppConfig.loc("배치"), primary: true) { onAction(.place) }
-                        action(AppConfig.loc("회전"), disabled: !rotatable) { onAction(.rotate) }
-                        action(AppConfig.loc("장착")) { onAction(.equip) }
+                        action(AppConfig.loc("배치")) { onAction(.place) }
+                            .accessibilityIdentifier("bagMove")
+                        if rotatable {
+                            action(AppConfig.loc("회전")) { onAction(.rotate) }
+                                .accessibilityIdentifier("bagRotate")
+                        }
                         if enhanceable {
                             action(AppConfig.loc("강화")) { onAction(.enhance) }
                         }
@@ -132,7 +143,7 @@ struct BagActionBar: View {
 
     private var hint: String {
         if placing { return AppConfig.loc("빈 칸을 탭해서 놓으세요") }
-        if trayCount > 0 { return AppConfig.loc("가방이 꽉 찼어요. 판매하거나 상점에서 가방을 늘리세요") }
+        if trayCount > 0 { return AppConfig.loc("정리 대기 아이템을 골라 장착하거나 배치하세요") }
         return AppConfig.loc("아이템을 탭해서 선택하세요")
     }
 
@@ -150,8 +161,8 @@ struct BagActionBar: View {
                 .padding(.horizontal, 12)
                 .frame(minHeight: 44)
                 .background(primary ? GBPalette.lightest : GBPalette.dark.opacity(0.53),
-                            in: RoundedRectangle(cornerRadius: 4))
-                .opacity(disabled ? 0.45 : 1)
+                            in: RoundedRectangle(cornerRadius: 12))
+                .opacity(disabled ? 0.5 : 1)
         }
         .buttonStyle(.unPress)
         .disabled(disabled)

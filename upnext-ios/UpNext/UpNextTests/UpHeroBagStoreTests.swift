@@ -23,6 +23,15 @@ private let testRows = UpHeroBag.bagRows(rowsBought: testRowsBought)
 @MainActor
 final class UpHeroBagStoreTests: XCTestCase {
 
+    // Match UpHeroInventoryTests: retain the fixture across tests to avoid the
+    // simulator's MainActor deinit back-deploy crash. Every test resets its state.
+    private static var sharedStore: UpHeroStore?
+
+    override func tearDown() {
+        Self.sharedStore?.resetAllData()
+        super.tearDown()
+    }
+
     // MARK: - 픽스처 헬퍼
 
     private func eq(
@@ -61,7 +70,9 @@ final class UpHeroBagStoreTests: XCTestCase {
         coins: Int = 0,
         rowsBought: Int = testRowsBought
     ) -> UpHeroStore {
-        let store = UpHeroStore()
+        let store = Self.sharedStore ?? UpHeroStore()
+        Self.sharedStore = store
+        store.resetAllData()
         var seed = UpHeroStore.makeDefaultState()
         seed.heroStartLevel = 1
         seed.hero.equipped = equipped
@@ -105,6 +116,24 @@ final class UpHeroBagStoreTests: XCTestCase {
     }
 
     // MARK: - equipItem / unequipItem
+
+    func testEquipmentPreviewMatchesStoreSwapAndUnequip() {
+        let store = makeStore(inventory: [
+            eq("next", type: .weapon, stats: [.str: 14], x: 3, y: 0, rot: 1),
+            eq("support", stats: [.crit: 2], x: 1, y: 0, rot: 0),
+        ], equipped: [.weapon: eq("old", type: .weapon, stats: [.str: 50])])
+        let next = store.state.inventory.first { $0.id == "next" }!
+        let before = BagInsights.loadoutStats(store.state.hero.equipped, store.state.inventory, testRows)
+        let equip = BagInsights.equipmentChange(next, worn: false, equipped: store.state.hero.equipped, inventory: store.state.inventory, rows: testRows)
+        store.equipItem(next.id)
+        let after = BagInsights.loadoutStats(store.state.hero.equipped, store.state.inventory, testRows)
+        XCTAssertEqual(equip.delta, BagInsights.difference(after, before))
+        XCTAssertEqual(equip.inventory, store.state.inventory)
+        let unequip = BagInsights.equipmentChange(store.state.hero.equipped[.weapon]!, worn: true, equipped: store.state.hero.equipped, inventory: store.state.inventory, rows: testRows)
+        store.unequipItem(.weapon)
+        XCTAssertEqual(unequip.delta, BagInsights.difference(BagInsights.loadoutStats(store.state.hero.equipped, store.state.inventory, testRows), after))
+        XCTAssertEqual(unequip.inventory, store.state.inventory)
+    }
 
     func testEquipStripsPlacementAndSwapInheritsAtSameIndex() {
         // 착용 중인 w1(좌표 없음)과 가방의 w2(0,2). 배열 index 1 이 유지돼야 한다.

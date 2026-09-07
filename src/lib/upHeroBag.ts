@@ -645,7 +645,7 @@ function addStat(target: Partial<HeroBaseStats>, key: keyof HeroBaseStats, amoun
 
 /**
  * 시너지 계산. 결정적: 앵커는 BAG_ANCHOR_ORDER, 가방 아이템은 배열 index 순.
- * S4 의 tie-break 는 bagY 오름차순 → bagX 오름차순.
+ * S4 는 효과 내림차순, tie-break 는 bagY 오름차순 → bagX 오름차순.
  * 입력 inventory 는 이미 normalizeBagLayout 을 거친 것이어야 한다(placed 만 계산에 참여).
  */
 export function computeBagSynergy(
@@ -683,7 +683,8 @@ export function computeBagSynergy(
         if (item.category !== worn.category) continue;
         const touch = orthoTouchCell(cells, anchor);
         if (!touch) continue;
-        const pct = SYNERGY_S1_PCT_PER_CELL * cells.length;
+        const pct = Math.min(SYNERGY_S1_PCT_PER_CELL * cells.length, SYNERGY_S1_CAP_PCT - s1Pct);
+        if (pct === 0) break;
         s1Pct += pct;
         links.push({
           rule: "S1",
@@ -746,11 +747,12 @@ export function computeBagSynergy(
       }
     }
 
-    // S4 — 사진 부적 8방 인접: 착용 주 스탯 +1/+2/+3, 앵커당 2장 (bagY → bagX 순)
+    // S4 — 사진 부적 8방 인접: 착용 주 스탯 +1/+2/+3, 앵커당 효과가 높은 2장 (동률이면 bagY → bagX 순)
     if (primary) {
       const photos = placed
         .filter(({ item, cells }) => isPhotoTalisman(item) && eightTouchCell(cells, anchor) !== null)
-        .sort((a, b) => (a.p.y !== b.p.y ? a.p.y - b.p.y : a.p.x - b.p.x))
+        .sort((a, b) => photoSynergyAmount(b.item.enhanceLevel) - photoSynergyAmount(a.item.enhanceLevel)
+          || a.p.y - b.p.y || a.p.x - b.p.x)
         .slice(0, SYNERGY_S4_CAP_PER_ANCHOR);
       for (const { item, cells } of photos) {
         const amount = photoSynergyAmount(item.enhanceLevel);
@@ -768,28 +770,7 @@ export function computeBagSynergy(
     }
   }
 
-  // S6 — 같은 baseId·등급 가방 아이템 직교 인접: 합성 작업대 링크(스탯 없음). 각 쌍 1회 (i<j).
-  for (let i = 0; i < placed.length; i += 1) {
-    const a = placed[i];
-    if (isPhotoTalisman(a.item) || !a.item.baseId) continue;
-    for (let j = i + 1; j < placed.length; j += 1) {
-      const b = placed[j];
-      if (isPhotoTalisman(b.item)) continue;
-      if (a.item.baseId !== b.item.baseId || a.item.rarity !== b.item.rarity) continue;
-      let pair: [BagCell, BagCell] | null = null;
-      outer: for (const ca of a.cells) {
-        for (const cb of b.cells) {
-          if (isOrthoAdjacent(ca, cb)) {
-            pair = [ca, cb];
-            break outer;
-          }
-        }
-      }
-      if (!pair) continue;
-      links.push({ rule: "S6", sourceId: a.item.id, anchor: null, partnerId: b.item.id, cells: pair });
-    }
-  }
-
+  // Synthesis consumes any three eligible same-rarity items, independent of position.
   return { bonuses, perAnchor, links };
 }
 

@@ -125,3 +125,27 @@ describe("BagActionBar — 사진 부적 강화 상한", () => {
     expect(enhanceBtn(b)).toBeTruthy();
   });
 });
+
+
+it("equip and unequip remain outside the horizontal scroller", () => {
+  const a = render(<BagActionBar {...base} item={mkItem()} />);
+  const equip = findBtn(a.container, "uphero.equip.action.equip");
+  expect(equip).toBeTruthy();
+  expect(scroller(a.container)?.contains(equip!)).toBe(false);
+  const b = render(<BagActionBar {...base} item={mkItem()} wornSlot="weapon" />);
+  const unequip = findBtn(b.container, "common.unequip");
+  expect(unequip).toBeTruthy();
+  expect(scroller(b.container)?.contains(unequip!)).toBe(false);
+});
+
+
+describe("BagActionBar enhancement cap", () => {
+  for (const worn of [false, true]) for (const photo of [false, true]) {
+    it(`hides enhancement at the cap: worn=${worn}, photo=${photo}`, () => {
+      const item = mkItem({ type: photo ? "talisman" : "weapon", photoId: photo ? "p" : undefined, enhanceLevel: photo ? 10 : 20 });
+      const { container } = render(<BagActionBar {...base} item={item} wornSlot={worn ? item.type : null} />);
+      expect(findBtn(container, "uphero.equip.tabEnhance")).toBeUndefined();
+      expect(findBtn(container, worn ? "common.unequip" : "uphero.equip.action.equip")).toBeTruthy();
+    });
+  }
+});

@@ -1013,9 +1013,12 @@ describe("computeBagSynergy — S1 동류", () => {
     const r = computeBagSynergy(equipped, inv, 5);
     expect(r.bonuses).toEqual({ str: SYNERGY_S1_CAP_PCT });
     expect(r.perAnchor.talisman).toEqual({ str: 30 });
-    // 링크는 상한 전 개별 기여를 그대로 들고 있다 (하이라이트 용도)
-    expect(r.links.map((l) => l.amount)).toEqual([20, 10, 5]);
-    expect(r.links.map((l) => l.sourceId)).toEqual(["a1", "w1", "c1"]);
+    // 연결 표시도 실제 적용되는 30%까지만 표시한다.
+    expect(r.links.map((l) => l.amount)).toEqual([20, 10]);
+    expect(r.links.map((l) => l.sourceId)).toEqual(["a1", "w1"]);
+    const partial = computeBagSynergy(equipped, [...inv].reverse(), 5);
+    expect(partial.links.map(l => l.amount)).toEqual([5, 10, 15]);
+    expect(partial.bonuses).toEqual(r.bonuses);
   });
 
   it("반올림 후 최소 1", () => {
@@ -1219,7 +1222,7 @@ describe("computeBagSynergy — S4 사진 부적 오라", () => {
     expect(at(20)).toBe(3);
   });
 
-  it("앵커당 2장 — bagY → bagX 순으로 고른다 (배열 순서 아님)", () => {
+  it("앵커당 효과가 높은 2장, 동률이면 bagY → bagX 순으로 고른다", () => {
     const photo = (id: string, x: number, y: number, enhanceLevel: number) =>
       placedEq(
         { id, type: "talisman", category: "fitness", photoId: "p", enhanceLevel },
@@ -1234,9 +1237,11 @@ describe("computeBagSynergy — S4 사진 부적 오라", () => {
       photo("pD", 1, 2, 10), // y2 x1 ← 최우선
     ];
     const r = computeBagSynergy({ talisman: wornTalisman }, inv, 5);
-    expect(r.links.map((l) => l.sourceId)).toEqual(["pD", "pC"]);
-    expect(r.links.map((l) => l.amount)).toEqual([3, 2]);
-    expect(r.bonuses).toEqual({ int: 5 });
+    expect(r.links.map((l) => l.sourceId)).toEqual(["pD", "pA"]);
+    expect(r.links.map((l) => l.amount)).toEqual([3, 3]);
+    expect(r.bonuses).toEqual({ int: 6 });
+    const withoutWeak = computeBagSynergy({ talisman: wornTalisman }, inv.filter(i => i.id !== "pB"), 5);
+    expect(r.bonuses).toEqual(withoutWeak.bonuses);
   });
 
   it("사진 한 장이 두 앵커에 동시에 센다", () => {
@@ -1265,7 +1270,7 @@ describe("computeBagSynergy — S4 사진 부적 오라", () => {
   });
 });
 
-describe("computeBagSynergy — S6 합성 작업대", () => {
+describe("computeBagSynergy — 합성은 연결 효과가 아님", () => {
   const pair = (over: Partial<Equipment>) => ({
     baseId: "ring_of_iron",
     rarity: "rare" as const,
@@ -1273,24 +1278,13 @@ describe("computeBagSynergy — S6 합성 작업대", () => {
     ...over,
   });
 
-  it("같은 baseId·등급이 직교 인접하면 링크 1개 (anchor null)", () => {
+  it("같은 baseId·등급이 인접해도 전투 연결을 만들지 않는다", () => {
     const inv = [
       placedEq({ id: "m1", type: "accessory", ...pair({}) }, 0, 0, 0),
       placedEq({ id: "m2", type: "accessory", ...pair({}) }, 1, 0, 0),
     ];
     const r = computeBagSynergy({}, inv, 5);
-    expect(r.links).toHaveLength(1);
-    expect(r.links[0]).toMatchObject({
-      rule: "S6",
-      sourceId: "m1",
-      partnerId: "m2",
-      anchor: null,
-      cells: [
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-      ],
-    });
-    expect(r.links[0].stat).toBeUndefined();
+    expect(r.links).toEqual([]);
     expect(r.bonuses).toEqual({});
   });
 
@@ -1331,17 +1325,13 @@ describe("computeBagSynergy — S6 합성 작업대", () => {
     expect(computeBagSynergy({}, inv, 5).links).toEqual([]);
   });
 
-  it("모양이 큰 아이템도 맞닿은 칸으로 판정한다", () => {
+  it("큰 아이템끼리 붙여도 합성 연결을 만들지 않는다", () => {
     const inv = [
       placedEq({ id: "a1", type: "armor", ...pair({}) }, 0, 2, 0), // (0,2)(1,2)(0,3)(1,3)
       placedEq({ id: "a2", type: "armor", ...pair({}) }, 2, 3, 0), // (2,3)(3,3)(2,4)(3,4)
     ];
     const r = computeBagSynergy({}, inv, 5);
-    expect(r.links).toHaveLength(1);
-    expect(r.links[0].cells).toEqual([
-      { x: 1, y: 3 },
-      { x: 2, y: 3 },
-    ]);
+    expect(r.links).toEqual([]);
   });
 });
 

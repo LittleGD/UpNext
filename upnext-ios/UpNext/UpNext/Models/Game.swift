@@ -78,6 +78,11 @@ enum GameConstants {
     static let xpPerRarity: [Rarity: Int] = [
         .normal: 10, .rare: 25, .unique: 50, .legend: 100,
     ]
+    /// 카드 매치 전용 XP. 챌린지 완료 XP의 약 30%.
+    static let minigameXpPerRarity: [Rarity: Int] = [
+        .normal: 3, .rare: 8, .unique: 15, .legend: 30,
+    ]
+    static let minigameRunXpCap = 100
 }
 
 // MARK: - 하루 기록
