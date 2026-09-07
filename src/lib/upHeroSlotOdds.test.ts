@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   SLOT_OUTCOMES,
   SLOT_GRANTS,
@@ -8,16 +10,15 @@ import {
   slotOddsRows,
   slotOdds,
   slotRtp,
-  type SlotOutcomeId,
 } from "./upHeroSlot";
-import { slotOddsLabel, type SlotOddsT } from "@/components/uphero/SlotOddsPanel";
+import ko from "@/i18n/ko";
 
 /**
- * 확률 공개 UI 의 표시 숫자는 `slotOdds()` / `slotRtp()` 와 일치해야 한다 —
- * 문자열 하드코딩이 아니라 런타임 계산값을 포맷한 것이어야 "공개된 확률이
- * 거짓이 되지 않는다" 가 구조적으로 보장된다.
+ * 확률·환수율 회계는 엔진에 그대로 남아 있다 (밸런싱과 테스트가 표와 지급의
+ * 일치를 검사한다). 다만 **화면에는 더 이상 나오지 않는다** — 2026-09 애플
+ * 2.3.6 대응으로 확률 공개 패널을 걷어냈다. 이 파일이 두 사실을 함께 고정한다.
  */
-describe("확률 공개 — 표시값과 계산값의 일치", () => {
+describe("확률 회계 — 표와 지급의 일치", () => {
   it("표의 각 줄은 slotOdds() 와 같은 확률을 갖고 SLOT_OUTCOMES 순서를 따른다", () => {
     const rows = slotOddsRows();
     const odds = slotOdds();
@@ -49,37 +50,18 @@ describe("확률 공개 — 표시값과 계산값의 일치", () => {
     expect(formatSlotPercent(0)).toBe("0%");
   });
 
-  it("라벨은 지급 표(SLOT_GRANTS)에서 유도된다 — 결과 모달과 같은 i18n 키·인자", () => {
-    const calls: Array<[string, Record<string, string | number> | undefined]> = [];
-    const t: SlotOddsT = (key, params) => {
-      calls.push([key, params]);
-      return key;
-    };
-    const byId = Object.fromEntries(slotOddsRows().map((r) => [r.id, r])) as Record<
-      SlotOutcomeId,
-      ReturnType<typeof slotOddsRows>[number]
-    >;
-    expect(slotOddsLabel(byId.blank, t)).toBe("uphero.slot.odds.blank");
-    expect(slotOddsLabel(byId.coinSmall, t)).toBe("uphero.slot.reward.coins");
-    expect(slotOddsLabel(byId.destroyProtect, t)).toBe("uphero.slot.reward.destroyGuard");
-    expect(slotOddsLabel(byId.rankProtect, t)).toBe("uphero.slot.reward.downGuard");
-    expect(slotOddsLabel(byId.itemBox, t)).toBe("uphero.slot.reward.itemBox");
-    expect(slotOddsLabel(byId.battleBuff, t)).toBe("uphero.slot.reward.buff");
-    // 코인 액면은 표의 지급액 그대로 — 100/250/700 을 문자열로 박지 않는다.
-    const coinCalls = calls.filter(([k]) => k === "uphero.slot.reward.coins");
-    expect(coinCalls[0][1]).toEqual({
-      n: (SLOT_GRANTS.coinSmall as { amount: number }).amount,
-    });
-    slotOddsLabel(byId.coinJackpot, t);
-    expect(calls[calls.length - 1][1]).toEqual({
-      n: (SLOT_GRANTS.coinJackpot as { amount: number }).amount,
-    });
-    slotOddsLabel(byId.battleBuff, t);
-    expect(calls[calls.length - 1][1]).toEqual({ pct: 10, battles: 3 });
+  it("확률 공개 UI 는 앱에서 사라졌다 — 컴포넌트도 문구 키도 없다", () => {
+    // 2.3.6: 지급표·환수율·"확률 보기" 는 도박 신호의 핵심이라 화면에서 제거했다.
+    expect(existsSync(resolve(__dirname, "../components/uphero/SlotOddsPanel.tsx"))).toBe(
+      false,
+    );
+    const dict = ko as Record<string, string>;
+    for (const key of Object.keys(dict)) {
+      expect(key.startsWith("uphero.slot.odds.")).toBe(false);
+    }
   });
 
-  it("pity 와 하루 상한 숫자도 상수에서 온다", () => {
-    // UI 는 `SLOT_PITY_THRESHOLD - 1` (연속 꽝 횟수) 과 `SLOT_DAILY_SPIN_CAP` 을 넣는다.
+  it("pity 와 하루 상한 숫자는 상수에서 온다", () => {
     expect(SLOT_PITY_THRESHOLD - 1).toBe(4);
     expect(SLOT_DAILY_SPIN_CAP).toBe(3);
   });

@@ -40,7 +40,7 @@ import GbConfirm from "./GbConfirm";
 import NumberRoll from "./NumberRoll";
 import DungeonAtmosphere from "./DungeonAtmosphere";
 import ChoiceResultModal from "./ChoiceResultModal";
-import SlotMachineModal from "./SlotMachineModal";
+import RuneChestModal from "./RuneChestModal";
 import ClassResourceBar from "./ClassResourceBar";
 import SkillBar from "./SkillBar";
 import MinigameModal from "./MinigameModal";
@@ -76,7 +76,7 @@ function findActiveChoiceResult(session: CombatSession | null, seenUpTo: number)
       actionLabelFallback: entry.actionLabelFallback,
       resultTextKey: entry.resultTextKey,
       resultTextFallback: entry.resultTextFallback,
-      // 굴림틀 결과면 일반 결과 모달 대신 드럼 연출이 받는다.
+      // 룬 상자 결과면 일반 결과 모달 대신 상자 연출이 받는다.
       slot: entry.slot ?? null,
     };
   }
@@ -90,11 +90,13 @@ export default function DungeonView() {
   // Phase 12e — 미니게임 결과 해소 action.
   const resolveMinigame = useUpHeroStore((s) => s.resolveMinigame);
   const abandonSession = useUpHeroStore((s) => s.abandonSession);
-  // 굴림틀 — 이 굴림 **뒤**의 영속 스트릭(스토어가 갱신)과 "한 번 더" 액션.
+  // 룬 상자 — 이 상자 **뒤**의 영속 스트릭(스토어가 갱신)과 "한 번 더" 액션.
   const slotBlankStreak = useUpHeroStore((s) => s.slotBlankStreak);
-  // 오늘 굴림 횟수는 세션이 아니라 shopDaily 에 산다 (하루 상한, 탐험을 넘어 합산).
+  // 오늘 연 횟수는 세션이 아니라 shopDaily 에 산다 (하루 상한, 탐험을 넘어 합산).
   const shopDaily = useUpHeroStore((s) => s.shopDaily);
   const spinSlotAgain = useUpHeroStore((s) => s.spinSlotAgain);
+  // 룬 자물쇠 등급 해소 — 코인 보너스 차액만 얹는다 (기본 보상은 이미 지급됨).
+  const resolveRuneLock = useUpHeroStore((s) => s.resolveRuneLock);
   // Phase 2-A — 영웅 레벨은 heroXp 풀 기준 (useHeroLevel). variant 결정 등.
   const heroLevel = useHeroLevel();
 
@@ -916,30 +918,37 @@ export default function DungeonView() {
             "> {label} → {result}" narrative 가 새로 push 되는 순간 감지돼 2.6s 표시.
             열려있는 동안 tick 은 pause (useEffect dep). 유저는 "계속" 로 즉시 진행 가능.
             Phase 11c R4 — effectSummary 로 구체 수치 노출 (XP/코인/시간/HP 변화). */}
-      {/* 굴림틀 결과 — 드럼 연출 모달이 일반 결과 모달을 대신한다.
-             결과는 이미 확정·지급된 상태로 로그에 실려 오고, 모달은 그리기만 한다. */}
+      {/* 룬 상자 결과 — 상자 연출 모달이 일반 결과 모달을 대신한다.
+             기본 보상은 이미 확정·지급된 상태로 로그에 실려 오고, 모달은 자물쇠
+             조작만 받아 등급을 돌려준다 (`resolveRuneLock` 이 보너스를 얹는다). */}
       {/* Phase 16 (Track C, 피드백 14) — awaitingMinigame 동안은 결과 모달을 그리지
              않는다. 그 층의 "> 도전 → ..." 결과와 미니게임 모달이 겹쳐 쌓이던 문제.
              resolveMinigame 이 "> 도전 성공/실패" 를 push 하면 그게 최신 결과가 되고,
              닫으면 이전 것도 함께 seen 처리된다. */}
       {session.status !== "awaitingMinigame" && activeChoiceResult?.slot && (
-        <SlotMachineModal
-          // 로그 idx 를 key 로 — "한 번 더" 로 새 결과가 오면 새 인스턴스(레버·드럼 초기화).
+        <RuneChestModal
+          // 로그 idx 를 key 로 — "한 번 더" 로 새 결과가 오면 새 인스턴스(자물쇠 초기화).
           key={activeChoiceResult.idx}
           result={activeChoiceResult.slot}
           coins={activeChoiceResult.summaryData?.coins}
           // 스트릭 4 면 "다음은 반드시 나와요" = 5번째 보장. 롤과 같은 판정(isSlotPityArmed).
           blankStreak={slotBlankStreak}
-          // "한 번 더" 는 오늘 남은 스핀·런 수입이 있을 때만 모달이 CTA 를 그린다.
-          spinAgain={{
-            spinsLeft: slotSpinsLeft(shopDaily),
+          // "한 번 더" 는 오늘 남은 횟수·런 수입이 있을 때만 모달이 CTA 를 그린다.
+          openAgain={{
+            chestsLeft: slotSpinsLeft(shopDaily),
             wallet: session.rewards.coins,
-            onSpin: () => {
+            onOpen: () => {
               setChoiceSeenUpTo(activeChoiceResult.idx);
               spinSlotAgain();
             },
           }}
-          onDismiss={() => setChoiceSeenUpTo(activeChoiceResult.idx)}
+          onResolveLock={(tier) => resolveRuneLock(activeChoiceResult.idx, tier)}
+          // 조작을 안 끝내고 닫으면 plain 으로 마감한다 — 세션에 미해소 상자를
+          //   남기지 않는다. 이미 등급이 적힌 상자면 스토어가 무시한다 (멱등).
+          onDismiss={() => {
+            resolveRuneLock(activeChoiceResult.idx, "plain");
+            setChoiceSeenUpTo(activeChoiceResult.idx);
+          }}
         />
       )}
 

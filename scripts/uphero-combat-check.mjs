@@ -35,6 +35,14 @@ import {
   sessionStats,
 } from "../src/lib/upHeroCombat.ts";
 import { setRngSeed } from "../src/lib/upHeroRng.ts";
+import {
+  RUNE_LOCK_BONUS,
+  SLOT_GRANTS,
+  SLOT_OUTCOMES,
+  applyRuneLockBonus,
+  runeLockBonusPercent,
+  runeLockTier,
+} from "../src/lib/upHeroSlot.ts";
 
 const lines = [];
 const f = (x) => Number(x).toFixed(10);
@@ -279,6 +287,36 @@ const statSession = {
   lines.push(`sessionStats(noBuff) = ${st2.str},${st2.int},${st2.vit},${st2.dex},${st2.agi},${st2.crit},${st2.slotBonus}`);
   const st3 = sessionStats({ ...statSession, runStatMods: undefined });
   lines.push(`sessionStats(noMods) = ${st3.str},${st3.int},${st3.vit},${st3.dex},${st3.agi},${st3.crit},${st3.slotBonus}`);
+}
+
+// ── 21. 룬 자물쇠 — 걸쇠 판정 + 등급 보너스 (2026-09, 애플 2.3.6 대응) ──
+//   보상 롤은 그대로 두고 걸쇠 등급이 코인·XP 액수에만 배율을 얹는다.
+//   반올림은 웹 Math.round ≡ Swift jsRound. 코인이 아닌 지급은 개수까지 불변.
+const fmtGrant = (g) => {
+  switch (g.kind) {
+    case "none": return "none";
+    case "coins": return `coins(${g.amount})`;
+    case "destroyGuards": return `destroyGuards(${g.count})`;
+    case "downGuards": return `downGuards(${g.count})`;
+    case "itemBox": return `itemBox(${g.floorBonus})`;
+    case "combatBuff": return `combatBuff(${g.pct},${g.battles})`;
+    default: return g.kind;
+  }
+};
+for (const tier of ["plain", "good", "perfect"]) {
+  lines.push(`runeLockBonus(${tier}) = ${f(RUNE_LOCK_BONUS[tier])} pct${runeLockBonusPercent(tier)}`);
+  for (const o of SLOT_OUTCOMES) {
+    lines.push(
+      `applyRuneLockBonus(${o.id},${tier}) = ${fmtGrant(applyRuneLockBonus(SLOT_GRANTS[o.id], tier))}`,
+    );
+  }
+}
+// 목표 중심에서의 상대 거리로 훑는다 — 경계값(±0.05 / ±0.13) 자체는 부동소수
+//   오차가 붙는 자리라 안팎으로 1‰ 씩 비켜 찍는다.
+const LOCK_OFFSETS = [-0.3, -0.131, -0.129, -0.051, -0.049, 0, 0.049, 0.051, 0.129, 0.131, 0.3];
+for (const c of [0.19, 0.5, 0.81]) {
+  const row = LOCK_OFFSETS.map((d) => runeLockTier(c + d, c));
+  lines.push(`runeLockTier(center=${f(c)}) = ${row.join(",")}`);
 }
 
 console.log(lines.join("\n"));

@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useUpHeroStore, slotSpinsLeft } from "@/store/useUpHeroStore";
+import { useUpHeroStore } from "@/store/useUpHeroStore";
 import {
   GB,
   EASE_OUT,
@@ -22,7 +22,6 @@ import { flavorText, resolveMonsterInParams } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 import { isSlotEvent } from "@/data/flavor/slot";
 import { isSlotPityArmed } from "@/lib/upHeroSlot";
-import SlotOddsPanel from "./SlotOddsPanel";
 
 /**
  * Phase 8b — ChoicePanel prompt 용 typewriter.
@@ -67,11 +66,9 @@ function useChoiceTypewriter(text: string, promptKey: string): {
 export default function ChoicePanel() {
   const session = useUpHeroStore((s) => s.currentSession);
   const resolveChoice = useUpHeroStore((s) => s.resolveChoice);
-  // 굴림틀 투명 pity — 스트릭이 임계에 닿았으면 선택지 위에 "다음은 반드시 나와요".
+  // 룬 상자 투명 pity — 스트릭이 임계에 닿았으면 선택지 위에 "다음은 반드시 나와요".
   //   롤(rollSlotOutcome)과 같은 판정(isSlotPityArmed)을 읽어 "힌트 떴는데 꽝" 이 불가능하다.
   const slotBlankStreak = useUpHeroStore((s) => s.slotBlankStreak);
-  // 굴림틀 하루 상한 — 오늘 남은 횟수는 세션이 아니라 shopDaily 에서 셈한다.
-  const shopDaily = useUpHeroStore((s) => s.shopDaily);
   const { t, language } = useTranslation();
   // Phase 9a — onAbandon 은 DungeonView footer 로 단일화. 여기 중복 정의는 제거.
   //   이전엔 ChoicePanel 에도 붙어있었으나 실제 어떤 JSX 에도 wire 되지 않은 dead code.
@@ -230,9 +227,6 @@ export default function ChoicePanel() {
             <span>{t("uphero.slot.pityHint")}</span>
           </div>
         )}
-        {/* 굴림틀 확률 공개 — 스핀 전에 볼 수 있는 작은 토글. 시트는 아래(선택지)가
-             아니라 위로 자라므로 펼쳐도 버튼 위치가 흔들리지 않는다. */}
-        {isSlotEvent(entry) && <SlotOddsPanel spinsLeft={slotSpinsLeft(shopDaily)} />}
         <div
           className="flex flex-col gap-1.5"
           role="radiogroup"
