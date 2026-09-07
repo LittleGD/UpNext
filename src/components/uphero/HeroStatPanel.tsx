@@ -25,7 +25,7 @@ import {
   CLASS_THEME_COLOR,
 } from "@/types/uphero";
 import type { HeroBaseStats } from "@/types/uphero";
-import { bagRows, computeBagSynergy } from "@/lib/upHeroBag";
+import { applyBagSynergy, bagRows, computeBagSynergy } from "@/lib/upHeroBag";
 import { GB, EASE_OUT, gbClass } from "@/lib/upHeroPalette";
 import { SLOT_GLYPH, SLOT_LABEL_KEY, SLOT_ORDER } from "@/lib/equipmentSlotMeta";
 import { STAT_LABEL, formatStat, orderedStatEntries } from "@/lib/equipmentStats";
@@ -55,13 +55,13 @@ export default function HeroStatPanel({ onClose }: HeroStatPanelProps) {
   // Phase 5a.1 — level 기반 base stat 자동 성장을 display 에 반영.
   // hero 를 그대로 쓰면 Lv1 기본 (str=10 등) 만 보이고 성장 감각이 없다.
   const leveledHero = computeHeroForLevel(hero, level);
-  const effective = computeEffectiveStats(leveledHero);
+  const bagRowCount = useUpHeroStore((s) => bagRows(s.bagRowsBought));
+  const effective = computeEffectiveStats(applyBagSynergy(leveledHero, inventory, bagRowCount));
   const base = leveledHero.baseStats;
 
   // 격자 가방 시너지 — 세션 시작 때 baseStats 에 가산되는 값과 **같은 순수 함수**로
   //   라이브 계산한다. 여기서 따로 더하면 화면과 전투가 갈린다.
   //   행 수는 레벨이 아니라 상점 구매분에서 온다 (숫자를 구독해 구매 즉시 반영).
-  const bagRowCount = useUpHeroStore((s) => bagRows(s.bagRowsBought));
   const bagSynergy = computeBagSynergy(hero.equipped, inventory, bagRowCount);
   //   표기 순서는 iOS HeroStatPanel.bagSynergyText(StatKey.allCases)와 같은 고정 순서.
   const SYNERGY_STAT_ORDER: Array<keyof HeroBaseStats> = [

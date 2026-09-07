@@ -201,7 +201,7 @@ export default function BagTray({
           const enhance = item.enhanceLevel ?? 0;
           const chip = enhanceChipTone(enhance, rarity);
           const pairing = synergy.links.some(
-            (l) => l.sourceId === item.id || l.partnerId === item.id,
+            (l) => l.rule !== "S6" && (l.sourceId === item.id || l.partnerId === item.id),
           );
           return (
             <button

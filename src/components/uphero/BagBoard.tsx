@@ -40,6 +40,7 @@ import {
   cellIndex,
   checkPlacement,
   footprint,
+  firstValidOriginCovering,
   isCrossCell,
   isPhotoTalisman,
   normalizeBagLayout,
@@ -136,6 +137,8 @@ interface BagBoardProps {
   /** 앵커를 눌러 고른 착용 슬롯. 그 앵커만 라임 보더, 나머지 착용 앵커는 등급색. */
   selectedSlot: EquipSlot | null;
   placingRot: number;
+  placing?: boolean;
+  interactionLocked?: boolean;
   synergy: BagSynergy;
   newIds: ReadonlySet<string>;
   /** 합성 재료로 고른 타일 — 선택과 같은 라임 보더 (Track E 합성 모드). */
@@ -143,6 +146,7 @@ interface BagBoardProps {
   /** 합성 모드에서 재료가 될 수 없는 타일 — 흐리게 (탭하면 부모가 토스트). */
   dimmedIds?: ReadonlySet<string>;
   onSelect: (id: string | null) => void;
+  onRotate?: () => void;
   onTapEmptyCell: (x: number, y: number) => void;
   onTapWorn: (slot: EquipSlot) => void;
   onTapHero: () => void;
@@ -199,11 +203,14 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
     selectedId,
     selectedSlot,
     placingRot,
+    placing = false,
+    interactionLocked = false,
     synergy,
     newIds,
     pickedIds,
     dimmedIds,
     onSelect,
+    onRotate,
     onTapEmptyCell,
     onTapWorn,
     onTapHero,
@@ -222,7 +229,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
   const gridRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
 
-  // 보드는 스크롤 컨테이너 안에 두지 않는다 — 남는 만큼만 쓰고 셀 크기를 줄인다.
+  // 남는 영역을 재서 칸 크기를 정한다. 최소 터치 크기보다 작아지면 보드를 스크롤한다.
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
@@ -377,7 +384,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
   const synergyTextFor = useCallback(
     (item: Equipment): string => {
       const parts: string[] = [];
-      for (const link of synergy.links) {
+      for (const link of synergy.links.filter(l => l.rule !== "S6")) {
         if (link.sourceId !== item.id && link.partnerId !== item.id) continue;
         const stat = link.stat ? affixStatLabel(link.stat, language) : "";
         if (link.rule === "S1") {
@@ -410,7 +417,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
       const keys = Object.keys(per) as Array<keyof HeroBaseStats>;
       if (keys.length === 0) continue;
       const deltas = keys
-        .map((k) => `+${per[k] ?? 0} ${affixStatLabel(k, language)}`)
+        .map((k) => `+${per[k] ?? 0}${k === "crit" ? "%p" : ""} ${affixStatLabel(k, language)}`)
         .join(" ");
       chunks.push(`${t(SLOT_LABEL_KEY[slot])} ${deltas}`);
     }
@@ -470,7 +477,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!e.isPrimary) return;
+      if (!e.isPrimary || interactionLocked) return;
       const el = (e.target as HTMLElement).closest<HTMLElement>("[data-bag-item]");
       const id = el?.dataset.bagItem;
       if (!id) return; // 십자·빈 칸은 각자의 onClick 이 처리한다.
@@ -493,7 +500,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
         /* noop */
       }
     },
-    [tiles, selectedId, placingRot],
+    [tiles, selectedId, placingRot, interactionLocked],
   );
 
   const onPointerMove = useCallback(
@@ -559,8 +566,9 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
       const d = dragRef.current;
       setDragState(null);
 
+      if (cancelled && !press.dragging) return;
       if (!press.dragging) {
-        // 탭 — 선택/회전은 부모가 판정한다.
+        // 탭 선택은 부모가 판정한다. 회전은 별도 버튼에서 시작한다.
         onSelect(press.item.id);
         return;
       }
@@ -665,7 +673,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
         case "R":
           if (selectedId) {
             e.preventDefault();
-            onSelect(selectedId);
+            onRotate?.();
           }
           return;
         case "Escape":
@@ -696,6 +704,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
       focusCell,
       moveFocus,
       onRequestDiscard,
+      onRotate,
       onSelect,
       ownerKeys,
       selectedId,
@@ -725,8 +734,8 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
   return (
     <div
       ref={rootRef}
-      className="flex-1 min-h-0 flex flex-col items-center justify-center relative"
-      style={{ touchAction: "none" }}
+      className="flex-1 min-h-0 flex flex-col items-center relative overflow-y-auto"
+      style={{ touchAction: "pan-y" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => finishPointer(e, false)}
@@ -741,7 +750,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
         aria-rowcount={rows}
         aria-colcount={BAG_COLS}
         onKeyDown={onKeyDown}
-        className="relative"
+        className="relative shrink-0 my-auto"
         style={{ width: gridW, height: gridH }}
       >
         {/* 가방 실루엣 — 빈 칸을 항상 옅게 깔아 "가방이 몇 칸인지"가 보이게 한다.
@@ -784,6 +793,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
             ).map((slot) => {
               const a = BAG_ANCHORS[slot];
               const worn = equipped[slot];
+              const target = inventory.find(i => i.id === selectedId)?.type === slot;
               const key = `anchor:${slot}`;
               // Track E — 착용 앵커의 +N 칩 (Track B 톤 표).
               const wornLevel = worn?.enhanceLevel ?? 0;
@@ -800,7 +810,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
                   aria-selected={worn != null && selectedSlot === slot}
                   tabIndex={activeKey === key ? 0 : -1}
                   onFocus={() => setFocusCell({ x: a.x, y: a.y })}
-                  onClick={() => worn && onTapWorn(slot)}
+                  onClick={() => onTapWorn(slot)}
                   aria-label={
                     worn
                       ? t("uphero.bag.anchor.worn", {
@@ -821,7 +831,8 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
                     top: 0,
                     width: cell,
                     height: cell,
-                    background: GB.dark,
+                    background: target ? `${GB.lightest}44` : GB.dark,
+                    boxShadow: target ? `0 0 10px ${GB.lightest}55` : undefined,
                     // 보더는 의미가 있을 때만: 착용 = 등급색, 지금 고른 앵커 = 라임(화면에 하나).
                     border: worn
                       ? `1px solid ${
@@ -854,6 +865,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
                       color={`${GB.light}66`}
                     />
                   )}
+                  <span className="absolute bottom-0 typo-micro" style={{ fontSize: 9, color: GB.lightest }}>{t(SLOT_LABEL_KEY[slot])}</span>
                   {worn && wornLevel > 0 && wornChip && (
                     <span
                       aria-hidden="true"
@@ -910,12 +922,14 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
             )}
 
             {/* 빈 칸 — 아이템을 고른 동안에만 노출 */}
-            {selectedId &&
+            {selectedId && placing &&
               Array.from({ length: BAG_COLS }, (_, x) => x)
                 .filter((x) => !ownerKeys[cellIndex(x, rows - 1 - vr)])
                 .map((x) => {
                   const y = rows - 1 - vr;
                   const key = `empty:${x},${y}`;
+                  const moving = inventory.find(i => i.id === selectedId);
+                  const valid = moving && firstValidOriginCovering(layout.occupancy, rows, moving.type, placingRot, x, y, moving.id);
                   return (
                     <button
                       key={key}
@@ -936,7 +950,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
                         top: 0,
                         width: cell,
                         height: cell,
-                        background: `${GB.dark}55`,
+                        background: valid ? `${GB.lightest}30` : `${GB.dark}55`,
                         border: "none",
                         pointerEvents: "auto",
                       }}
@@ -990,6 +1004,7 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
                       boxShadow: `0 0 6px ${rarity}44`,
                       opacity: dragging ? 0.35 : dimmed ? 0.4 : 1,
                       pointerEvents: "auto",
+                      touchAction: interactionLocked ? "pan-y" : "none",
                     }}
                   >
                     {item.photoId ? (
@@ -1066,12 +1081,12 @@ const BagBoard = forwardRef<BagBoardHandle, BagBoardProps>(function BagBoard(
           width={gridW}
           height={gridH}
         >
-          {synergy.links.map((link, i) => {
+          {synergy.links.filter(l => l.rule !== "S6").map((link, i) => {
             const a = cellCenter(link.cells[0]);
             const b = cellCenter(link.cells[1]);
             const mx = (a.cx + b.cx) / 2;
             const my = (a.cy + b.cy) / 2;
-            const hot = link.sourceId === selectedId;
+            const hot = link.sourceId === selectedId || (selectedSlot != null && link.anchor === selectedSlot);
             const color = hot ? GB.lightest : GB.light;
             const diagonal = a.cx !== b.cx && a.cy !== b.cy;
             if (diagonal) {

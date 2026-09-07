@@ -13,7 +13,7 @@
 //  비가역 동작은 그대로 GbConfirm 을 거친다.
 //
 //  상태 기계(플랜 §7): idle → selected(item) → placing(item, rot).
-//   - 아이템 탭 = 선택 / 같은 아이템 재탭 = 회전(무기만)
+//   - 아이템 탭 = 선택 / 회전 버튼 = 배치할 방향 변경
 //   - 빈 칸 탭 = 그 칸을 원점으로 배치
 //   - 앵커 탭 = 착용 아이템 선택 (해제·강화)
 //  드래그는 이 경로 위에 얹힌 것이고, 탭 경로가 항상 보장된 폴백이다.
@@ -150,6 +150,14 @@ struct EquipmentInventoryView: View {
         ZStack {
             VStack(spacing: 0) {
                 header
+                BagInspectorView(item: selectedItem ?? selectedWorn, worn: selectedWorn != nil,
+                    equipped: equipped, inventory: inventory, rows: rows, onAction: handleItemAction,
+                    onPlace: { item, p in
+                        commitPlace(item.id, p.x, p.y, p.rot, withSound: true)
+                        placingRot = p.rot
+                    })
+                GeometryReader { available in
+                ScrollView(.vertical) {
                 BagBoardView(
                     rows: rows,
                     inventory: inventory,
@@ -159,6 +167,8 @@ struct EquipmentInventoryView: View {
                     selectedId: selectedId,
                     selectedSlot: selectedSlot,
                     placingRot: placingRot,
+                    placing: placing,
+                    interactionLocked: synthMode,
                     synergy: syn,
                     newIds: newIds,
                     pickedIds: picked,
@@ -170,7 +180,9 @@ struct EquipmentInventoryView: View {
                     onTapHero: { statsOpen = true },
                     onDropAt: { id, x, y, rot in commitPlace(id, x, y, rot, withSound: false) },
                     onItemAction: handleItemAction)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(height: max(available.size.height, CGFloat(rows * 48 + 18)))
+                }
+                }
                 photoTalismanCTA
                 BagTrayView(
                     items: trayItems(lay),
@@ -183,12 +195,10 @@ struct EquipmentInventoryView: View {
                     onSelect: { handleSelect($0) },
                     onDragToBoard: handleDragToBoard)
                 BagActionBar(
-                    item: selectedItem,
+                    item: selectedItem ?? selectedWorn,
                     wornSlot: selectedWorn != nil ? selectedSlot : nil,
                     placing: placing,
-                    // 트레이가 실제로 그리는 개수(미배치 + 보류)를 준다. 격자 도입 전
-                    //   저장본은 미배치 0 · 보류 15 라, unplaced 만 세면 "가방이 꽉 찼어요"
-                    //   힌트가 정작 그 저장본에서만 안 뜬다 (웹 trayItems.length 와 동일).
+                    // 미배치와 보류 아이템 모두 정리 대기 안내에 포함한다.
                     trayCount: trayItems(lay).count,
                     rotatable: selectedItem.map { UpHeroBag.canRotate(type: $0.type) } ?? false,
                     synthMode: synthMode,
@@ -357,18 +367,11 @@ struct EquipmentInventoryView: View {
         return true
     }
 
-    /// 같은 아이템 재탭 = 회전. 이미 놓여 있으면 제자리 회전까지 시도한다.
+    /// 회전은 배치 초안에만 적용한다. 목적지를 확정해야 저장된다.
     private func rotateSelected() {
         guard let item = selectedItem, UpHeroBag.canRotate(type: item.type) else { return }
         let next = (placingRot + 1) % 2
-        if let p = UpHeroBag.readPlacement(item) {
-            let res = upHero.placeItem(itemId: item.id, x: p.x, y: p.y, rot: next)
-            guard res == .placed else {
-                SoundPlayer.shared.play(.cancel)
-                showToast(AppConfig.loc("그 자리에는 놓을 수 없어요"))
-                return
-            }
-        }
+        placing = true
         placingRot = next
         SoundPlayer.shared.play(.select)
     }
@@ -384,10 +387,7 @@ struct EquipmentInventoryView: View {
             clearSelection()
             return
         }
-        if id == selectedId {
-            rotateSelected()
-            return
-        }
+        if id == selectedId { return }
         guard let item = inventory.first(where: { $0.id == id }) else { return }
         markSeen(id)
         selectedSlot = nil
@@ -401,7 +401,7 @@ struct EquipmentInventoryView: View {
     /// 무기를 맨 윗줄에 탭했을 때 footprint 가 보드 밖으로 나가 거절된다.
     private func handleTapEmptyCell(_ x: Int, _ y: Int) {
         if synthMode { return }
-        guard let id = selectedId else {
+        guard placing, let id = selectedId else {
             clearSelection()
             return
         }
@@ -419,6 +419,7 @@ struct EquipmentInventoryView: View {
 
     /// 트레이 롱프레스 드래그 — 보드 기하로 화면 좌표를 원점 칸으로 바꾼다.
     private func handleDragToBoard(_ itemId: String, _ point: CGPoint, _ rot: Int) {
+        if synthMode { return }
         guard let item = inventory.first(where: { $0.id == itemId }),
               let origin = boardMetrics?.originFromPoint(point, type: item.type, rot: rot) else {
             SoundPlayer.shared.play(.cancel)
@@ -430,6 +431,10 @@ struct EquipmentInventoryView: View {
 
     private func handleTapWorn(_ slot: EquipSlot) {
         if synthMode { return }
+        if let item = selectedItem, item.type == slot {
+            handleItemAction(.equip, item)
+            return
+        }
         guard equipped[slot] != nil else { return }
         selectedId = nil
         placing = false
@@ -448,11 +453,17 @@ struct EquipmentInventoryView: View {
             rotateSelected()
         case .equip:
             upHero.equipItem(item.id)
-            clearSelection()
+            selectedId = nil
+            selectedSlot = item.type
+            placing = false
             showToast(AppConfig.loc("\(item.localizedDisplayName) 장착"))
         case .unequip:
             upHero.unequipItem(item.type)
-            clearSelection()
+            let returned = upHero.state.inventory.first { $0.id == item.id }
+            placingRot = UpHeroBag.normalizeRot(returned?.bagRot)
+            selectedSlot = nil
+            selectedId = item.id
+            placing = false
             showToast(AppConfig.loc("\(item.localizedDisplayName) 해제"))
         case .enhance:
             beginEnhance(item)

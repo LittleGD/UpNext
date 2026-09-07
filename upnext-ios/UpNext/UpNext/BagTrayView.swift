@@ -105,7 +105,7 @@ struct BagTrayView: View {
         let enhance = item.enhanceLevel ?? 0
         // 시너지 짝(S6 등)에 걸린 아이템은 글로우로만 구분 — 보더는 등급·선택 전용이다.
         let pairing = synergy.links.contains {
-            $0.sourceId == item.id || $0.partnerId == item.id
+            $0.rule != .s6 && ($0.sourceId == item.id || $0.partnerId == item.id)
         }
         return ZStack {
             RoundedRectangle(cornerRadius: 3).fill(GBPalette.dark.opacity(0.87))

@@ -311,4 +311,34 @@ for (name, inv) in BOARDS {
     say("\(name) baseStats = \(baseStatsStr(hero.baseStats))")
 }
 
+say("[build previews]")
+for rows in [4, 5, 8] {
+    for type in [EquipSlot.weapon, .armor, .accessory, .talisman] {
+        let item = mk("candidate", type, .fitness, .rare, stats: [.str: 7])
+        let equipped: [EquipSlot: Equipment] = [.weapon: mk("worn", .weapon, .fitness, .legend, stats: [.str: 100])]
+        let inv = [item]
+        let suggestion = BagInsights.suggest(item, equipped: equipped, inventory: inv, rows: rows)
+        let pos = suggestion.map { "\($0.placement.x),\($0.placement.y),\($0.placement.rot)" } ?? "-"
+        say("\(rows)/\(type.rawValue) spot=\(pos) delta=\(statsStr(suggestion?.delta ?? [:]))")
+        let change = BagInsights.equipmentChange(item, worn: false, equipped: equipped, inventory: inv, rows: rows)
+        say("\(rows)/\(type.rawValue) equip=\(statsStr(change.delta)) inv=\(invStr(change.inventory, rows))")
+        let removal = BagInsights.equipmentChange(change.equipped[type]!, worn: true, equipped: change.equipped, inventory: change.inventory, rows: rows)
+        say("\(rows)/\(type.rawValue) remove=\(statsStr(removal.delta)) inv=\(invStr(removal.inventory, rows))")
+    }
+}
+
+let photoBuild: [EquipSlot: Equipment] = [
+    .weapon: mk("weapon", .weapon, .fitness, .rare, stats: [.str: 100]),
+    .armor: mk("armor", .armor, .fitness, .rare, stats: [.vit: 50]),
+]
+let photo = mk("photo", .talisman, .learning, .rare, photoId: "p")
+let photoSpot = BagInsights.suggest(photo, equipped: photoBuild, inventory: [photo], rows: 4)!
+say("photo spot=\(photoSpot.placement.x),\(photoSpot.placement.y),\(photoSpot.placement.rot) delta=\(statsStr(photoSpot.delta))")
+let cappedPhotos = [
+    at(mk("weak", .talisman, .learning, .rare, photoId: "p0", enh: 0), 0, 0, 0),
+    at(mk("strong", .talisman, .learning, .rare, photoId: "p1", enh: 10), 0, 2, 0),
+    at(mk("medium", .talisman, .learning, .rare, photoId: "p2", enh: 5), 0, 1, 0),
+]
+let capped = UpHeroBag.computeBagSynergy(equipped: photoBuild, inventory: cappedPhotos, rows: 4)
+say("photo cap=\(statsStr(capped.bonuses)) sources=\(capped.links.map(\.sourceId).joined(separator: ","))")
 print(lines.joined(separator: "\n"))

@@ -1,3 +1,4 @@
+import { equipmentChange, suggestBagPlacement } from "../src/lib/bagInsights.ts";
 // bag-check.mjs — 격자 가방(upHeroBag) 동치성 검증 (웹 측)
 //
 // src/lib/upHeroBag.ts 의 순수 함수를 고정 입력으로 실행해 출력 라인을 찍는다.
@@ -332,4 +333,32 @@ for (const [name, inv] of BOARDS) {
   say(`${name} baseStats = ${baseStatsStr(hero.baseStats)}`);
 }
 
+say("[build previews]");
+for (const rows of [4, 5, 8]) for (const type of ["weapon", "armor", "accessory", "talisman"]) {
+  const item = mk("candidate", type, "fitness", "rare", { stats: { str: 7 } });
+  const equipped = { weapon: mk("worn", "weapon", "fitness", "legend", { stats: { str: 100 } }) };
+  const inv = [item];
+  const suggestion = suggestBagPlacement(item, equipped, inv, rows);
+  const pos = suggestion ? `${suggestion.placement.x},${suggestion.placement.y},${suggestion.placement.rot}` : "-";
+  say(`${rows}/${type} spot=${pos} delta=${statsStr(suggestion?.delta ?? {})}`);
+  const change = equipmentChange(item, false, equipped, inv, rows);
+  say(`${rows}/${type} equip=${statsStr(change.delta)} inv=${invStr(change.inventory, rows)}`);
+  const removal = equipmentChange(change.equipped[type], true, change.equipped, change.inventory, rows);
+  say(`${rows}/${type} remove=${statsStr(removal.delta)} inv=${invStr(removal.inventory, rows)}`);
+}
+
+const photoBuild = {
+  weapon: mk("weapon", "weapon", "fitness", "rare", { stats: { str: 100 } }),
+  armor: mk("armor", "armor", "fitness", "rare", { stats: { vit: 50 } }),
+};
+const photo = mk("photo", "talisman", "learning", "rare", { photoId: "p" });
+const photoSpot = suggestBagPlacement(photo, photoBuild, [photo], 4);
+say(`photo spot=${photoSpot.placement.x},${photoSpot.placement.y},${photoSpot.placement.rot} delta=${statsStr(photoSpot.delta)}`);
+const cappedPhotos = [
+  at(mk("weak", "talisman", "learning", "rare", { photoId: "p0", enh: 0 }), 0, 0, 0),
+  at(mk("strong", "talisman", "learning", "rare", { photoId: "p1", enh: 10 }), 0, 2, 0),
+  at(mk("medium", "talisman", "learning", "rare", { photoId: "p2", enh: 5 }), 0, 1, 0),
+];
+const capped = computeBagSynergy(photoBuild, cappedPhotos, 4);
+say(`photo cap=${statsStr(capped.bonuses)} sources=${capped.links.map(l => l.sourceId).join(",")}`);
 console.log(lines.join("\n"));

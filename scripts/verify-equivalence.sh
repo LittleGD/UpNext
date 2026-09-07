@@ -120,7 +120,7 @@ run_suite flavor           Card.swift Game.swift UpHero.swift UpHeroRNG.swift Fl
 #       CardCatalog(Bundle 로드지만 Foundation 전용). 전부 실제 Models 파일 — 셰임 금지.
 run_suite sync             Card.swift Game.swift FirestoreModels.swift Retention.swift GrowthModels.swift CardCatalog.swift
 # bag: 격자 가방 (UpHeroBag.swift ↔ src/lib/upHeroBag.ts) — 배치·정규화·시너지·트레이 넘침·판매가.
-run_suite bag              Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroBag.swift
+run_suite bag              Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroBag.swift BagInsights.swift
 run_smoke session-smoke    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift TalismanSkills.swift Dungeons.swift MonsterPool.swift EquipmentPool.swift WeeklyAffixes.swift CombatFlavor.swift UpHeroNarrative.swift FlavorPool.swift UpHeroSession.swift SessionReward.swift UpHeroBag.swift
 echo "──────────────────────────────────────────"
 echo "결과: $PASS/$((PASS + FAIL)) suite 통과 · 총 $TOTAL 라인 동치"

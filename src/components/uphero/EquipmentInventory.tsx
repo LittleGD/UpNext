@@ -3,16 +3,15 @@
 /**
  * Up Hero — 가방 (격자 인벤토리).
  *
- * 화면은 위에서 아래로 고정 높이 4단이다:
- *   서브헤더 48 / BagBoard(남는 만큼) / 사진 부적 CTA 44 / BagTray 64 / BagActionBar 56.
- * 보드는 **절대 스크롤 컨테이너 안에 두지 않는다** — 격자는 한 화면에 다 보여야
- * "무엇이 어디 있는지"가 공간 기억으로 남는다. 대신 셀 크기가 44~56 사이에서 줄어든다.
+ * 서브헤더와 아이템 설명 아래에 보드를 배치한다.
+ * 최대 확장에서도 터치 영역을 유지하고, 보드만 세로로 스크롤한다.
+ * 사진 부적 CTA, 정리 대기, 액션바는 화면 아래에 고정한다.
  *
  * 탭(가방/사진/강화)은 제거했다. 강화는 선택 아이템의 액션바 버튼이고, 정렬된
  * 강화 개요는 서브헤더 오른쪽 아이콘이 여는 보조 시트다(같은 JSX 재사용).
  *
  * 상태 기계(플랜 §7): idle → selected(item) → placing(item, rot).
- *   - 아이템 탭 = 선택 / 같은 아이템 재탭 = 회전(무기만)
+ *   - 아이템 탭 = 선택 / 회전 버튼 = 배치할 방향 변경
  *   - 빈 칸 탭 = 그 칸을 원점으로 배치
  *   - 앵커 탭 = 착용 아이템 선택 (해제·강화)
  * 드래그는 이 경로 위에 얹힌 것이고, 탭 경로가 항상 보장된 폴백이다.
@@ -62,7 +61,6 @@ import {
   firstValidOriginCovering,
   normalizeBagLayout,
   normalizeRot,
-  readPlacement,
 } from "@/lib/upHeroBag";
 import { GB, EASE_OUT, gbClass, GB_LEGEND, GB_UNIQUE, GB_RARE, GB_WARN } from "@/lib/upHeroPalette";
 import { SLOT_ORDER } from "@/lib/equipmentSlotMeta";
@@ -84,6 +82,7 @@ import PixelIcon from "@/components/icons/PixelIcon";
 import BagBoard, { type BagBoardHandle } from "./BagBoard";
 import BagTray from "./BagTray";
 import BagActionBar from "./BagActionBar";
+import BagInspector from "./BagInspector";
 
 // Phase 9b — PhotoTalismanPicker 는 picker 버튼 탭 시에만 필요.
 const PhotoTalismanPicker = lazy(() => import("./PhotoTalismanPicker"));
@@ -380,23 +379,15 @@ export default function EquipmentInventory({
     [placeItem, play, onNotify, t, markSeen],
   );
 
-  /** 같은 아이템 재탭 = 회전. 이미 놓여 있으면 제자리 회전까지 시도한다. */
+  /** 회전은 배치 초안에만 적용한다. 목적지를 확정해야 저장된다. */
   const rotateSelected = useCallback(() => {
     if (!selectedItem) return;
     if (!canRotate(selectedItem.type)) return;
     const nextRot = (placingRot + 1) % 2;
-    const p = readPlacement(selectedItem);
-    if (p) {
-      const res = placeItem(selectedItem.id, p.x, p.y, nextRot);
-      if (!res.ok) {
-        play("cancel");
-        onNotify(t("uphero.bag.toast.noSpace"));
-        return;
-      }
-    }
+    setPlacing(true);
     setPlacingRot(nextRot);
     play("select");
-  }, [selectedItem, placingRot, placeItem, play, onNotify, t]);
+  }, [selectedItem, placingRot, play]);
 
   // ─── 합성 모드 (Track E) ─────────────────────────────────────────────
 
@@ -500,10 +491,7 @@ export default function EquipmentInventory({
         clearSelection();
         return;
       }
-      if (id === selectedId) {
-        rotateSelected();
-        return;
-      }
+      if (id === selectedId) return;
       const item = inventory.find((i) => i.id === id);
       if (!item) return;
       markSeen(id);
@@ -513,7 +501,7 @@ export default function EquipmentInventory({
       setPlacing(false);
       play("select");
     },
-    [synthMode, selectedId, inventory, rotateSelected, clearSelection, play, markSeen, onSynthPick],
+    [synthMode, selectedId, inventory, clearSelection, play, markSeen, onSynthPick],
   );
 
   /**
@@ -523,7 +511,7 @@ export default function EquipmentInventory({
   const handleTapEmptyCell = useCallback(
     (x: number, y: number) => {
       if (synthMode) return;
-      if (!selectedId) {
+      if (!selectedId || !placing) {
         clearSelection();
         return;
       }
@@ -545,7 +533,7 @@ export default function EquipmentInventory({
       }
       commitPlace(selectedId, origin.x, origin.y, placingRot, true);
     },
-    [synthMode, selectedId, inventory, layout.occupancy, rows, placingRot, commitPlace, clearSelection, play, onNotify, t],
+    [synthMode, selectedId, placing, inventory, layout.occupancy, rows, placingRot, commitPlace, clearSelection, play, onNotify, t],
   );
 
   /** 보드 드래그 커밋 — 소리·햅틱은 보드가 결과를 보고 직접 낸다. */
@@ -558,6 +546,7 @@ export default function EquipmentInventory({
   /** 트레이 롱프레스 드래그 — 보드 ref 로 화면 좌표를 원점 칸으로 바꾼다. */
   const handleDragToBoard = useCallback(
     (itemId: string, clientX: number, clientY: number, rot: number) => {
+      if (synthMode) return;
       const item = inventory.find((i) => i.id === itemId);
       if (!item) return;
       const origin = boardRef.current?.originFromPoint(
@@ -573,19 +562,7 @@ export default function EquipmentInventory({
       }
       commitPlace(itemId, origin.x, origin.y, rot, true);
     },
-    [inventory, commitPlace, play, onNotify, t],
-  );
-
-  const handleTapWorn = useCallback(
-    (slot: EquipSlot) => {
-      if (synthMode) return;
-      if (!hero.equipped[slot]) return;
-      setSelectedId(null);
-      setPlacing(false);
-      setSelectedSlot(slot);
-      play("select");
-    },
-    [synthMode, hero.equipped, play],
+    [synthMode, inventory, commitPlace, play, onNotify, t],
   );
 
   // ─── 장착 / 해제 / 판매 / 버리기 / 강화 ────────────────────────────────
@@ -599,9 +576,11 @@ export default function EquipmentInventory({
           name: equipmentNameById(item.baseId ?? "", item.name, language),
         }),
       );
-      clearSelection();
+      setSelectedId(null);
+      setSelectedSlot(item.type);
+      setPlacing(false);
     },
-    [equipItem, play, onNotify, t, language, clearSelection],
+    [equipItem, play, onNotify, t, language],
   );
 
   const onUnequipSlot = useCallback(
@@ -609,15 +588,35 @@ export default function EquipmentInventory({
       const item = hero.equipped[slot];
       if (!item) return;
       unequipItem(slot);
+      const returned = useUpHeroStore.getState().inventory.find(i => i.id === item.id);
+      setPlacingRot(normalizeRot(returned?.bagRot));
       play("equip");
       onNotify(
         t("uphero.equip.toast.unequipped", {
           name: equipmentNameById(item.baseId ?? "", item.name, language),
         }),
       );
-      clearSelection();
+      setSelectedSlot(null);
+      setSelectedId(item.id);
+      setPlacing(false);
     },
-    [hero.equipped, unequipItem, play, onNotify, t, language, clearSelection],
+    [hero.equipped, unequipItem, play, onNotify, t, language],
+  );
+
+  const handleTapWorn = useCallback(
+    (slot: EquipSlot) => {
+      if (synthMode) return;
+      if (selectedItem && selectedItem.type === slot) {
+        onEquip(selectedItem);
+        return;
+      }
+      if (!hero.equipped[slot]) return;
+      setSelectedId(null);
+      setPlacing(false);
+      setSelectedSlot(slot);
+      play("select");
+    },
+    [synthMode, hero.equipped, selectedItem, onEquip, play],
   );
 
   /** 강화 시도 — 확인 다이얼로그 표시. Phase 5-B — 방지권 토글은 열 때마다 OFF (시도당 소모). */
@@ -1043,6 +1042,14 @@ export default function EquipmentInventory({
         `}</style>
       </header>
 
+      <BagInspector
+        item={selectedItem ?? selectedWorn} worn={!!selectedWorn}
+        equipped={hero.equipped} inventory={inventory} rows={rows}
+        onEquip={() => selectedItem && onEquip(selectedItem)}
+        onUnequip={() => selectedSlot && onUnequipSlot(selectedSlot)}
+        onMove={() => setPlacing(true)}
+        onPlace={(p) => { if (selectedItem) { commitPlace(selectedItem.id, p.x, p.y, p.rot, true); setPlacingRot(p.rot); } }}
+      />
       {/* === 격자 보드 === */}
       <BagBoard
         ref={boardRef}
@@ -1054,11 +1061,14 @@ export default function EquipmentInventory({
         selectedId={selectedId}
         selectedSlot={selectedSlot}
         placingRot={placingRot}
+        placing={placing}
+        interactionLocked={synthMode}
         synergy={synergy}
         newIds={newIds}
         pickedIds={synthPickSet}
         dimmedIds={synthDimmed}
         onSelect={handleSelect}
+        onRotate={rotateSelected}
         onTapEmptyCell={handleTapEmptyCell}
         onTapWorn={handleTapWorn}
         onTapHero={() => setStatsOpen(true)}
@@ -1129,7 +1139,7 @@ export default function EquipmentInventory({
 
       {/* === 액션바 (항상 마운트) === */}
       <BagActionBar
-        item={selectedItem}
+        item={selectedItem ?? selectedWorn}
         wornSlot={selectedWorn ? selectedSlot : null}
         placing={placing}
         trayCount={trayItems.length}
