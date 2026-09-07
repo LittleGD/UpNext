@@ -22,7 +22,9 @@
 //   - 트랙 자체가 버튼이다. 탭이 곧 "멈춤" 이고, 배경 탭도 같은 동작이다.
 //   - reduce-motion: 왕복 주기를 2배로 늘리고(= 절반 속도) 셰이크·플래시를 뺀다.
 //     **자동 해소하지 않는다** — 조작은 그대로 살아 있어야 공정하다.
-//   - 앱이 백그라운드로 가면 여기서 `.plain`(보너스 0)으로 마감한다. 조작 없이 닫히는
+//   - 앱이 **백그라운드로 내려가면**(scenePhase `.background`) 여기서 `.plain`(보너스 0)
+//     으로 마감한다. 제어센터·알림센터·전화 배너 같은 일시적 inactive 는 몰수하지
+//     않는다 — 웹의 `visibilitychange → hidden` 과 같은 신호만 본다. 조작 없이 닫히는
 //     경로는 **호출자**(DungeonView)가 닫기 액션에서 `.plain` 을 부른다 — `onDisappear`
 //     에 두면 화면 전환에서 오발된다. 두 경로 모두 스토어 쪽이 멱등해 중복되지 않는다.
 //   - pity: 스트릭이 임계에 닿았으면 "다음은 반드시 나와요". 값은 스토어가 만든다.
@@ -113,6 +115,7 @@ struct RuneChestModal: View {
     let onDismiss: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     /// 뚜껑이 열리는 데 걸리는 시간(초). 결과가 붙기 전의 짧은 숨.
     private static let openSeconds: TimeInterval = 0.42
@@ -284,9 +287,13 @@ struct RuneChestModal: View {
         .onDisappear { countdown?.invalidate() }
         // 백그라운드 진입 — 조작이 끝나지 않았으면 plain 으로 마감한다. (돌아왔을 때
         //   표식만 계속 돌고 보상은 안 나오는 상태를 만들지 않는다.)
-        .onReceive(NotificationCenter.default.publisher(
-            for: UIApplication.willResignActiveNotification)) { _ in
-            if !resolved { finish(.plain) }
+        //
+        //   `.background` 만 본다. willResignActive 는 제어센터·알림센터·전화 배너·앱
+        //   전환기에서도 오는데, 그건 유저가 고른 중단이 아니라 스쳐 지나가는 방해라
+        //   조준을 몰수할 근거가 못 된다. 웹은 `visibilitychange → hidden` 하나만 보고,
+        //   그 iOS 대응이 scenePhase `.background` 다 (`.inactive` 는 hidden 이 아니다).
+        .onChange(of: scenePhase) { phase in
+            if phase == .background, !resolved { finish(.plain) }
         }
     }
 
