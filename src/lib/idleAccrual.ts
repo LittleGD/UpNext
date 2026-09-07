@@ -22,7 +22,8 @@ export interface IdleReward {
   rawElapsedMin: number;
 }
 
-const XP_PER_MIN = 0.25;
+/** 분당 XP. 동치성 검증(scripts/gamerules-check.mjs)이 Swift `IdleAccrual.xpPerMin` 과 대조한다. */
+export const XP_PER_MIN = 0.25;
 const COINS_PER_MIN = 0.3;
 const MIN_ELAPSED_MIN = 5;
 const MAX_ELAPSED_MIN = 8 * 60; // 8시간

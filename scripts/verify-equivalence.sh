@@ -108,7 +108,8 @@ run_smoke() {
 echo "═══ UpNext 동치성 검증 (Phase 2.3~3.1) ═══"
 run_suite rng              UpHeroRNG.swift
 run_suite idle             IdleAccrual.swift
-run_suite gamerules        Card.swift Game.swift GameRules.swift
+# gamerules: XP 커브·칭호 + 카드매치 XP 상수. IdleAccrual.swift 는 분당 XP 상수 하나 때문에 붙는다.
+run_suite gamerules        Card.swift Game.swift GameRules.swift IdleAccrual.swift
 run_suite uphero           Card.swift Game.swift UpHero.swift
 run_suite uphero-combat    Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift
 run_suite classskills      Card.swift Game.swift UpHero.swift UpHeroRNG.swift UpHeroCombat.swift ClassSkills.swift

@@ -86,7 +86,7 @@ struct BagInspectorView: View {
     private func itemSection(_ item: Equipment) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(item.localizedDisplayName + ((item.enhanceLevel ?? 0) > 0 ? " +\(item.enhanceLevel!)" : "")).typography(.title).foregroundStyle(GBPalette.lightest)
-            Text(item.rarity.displayName + " · " + slotName(item.type) + " · " + item.category.label)
+            Text(item.category.label + " · " + slotName(item.type) + " · " + item.rarity.displayName)
                 .typography(.caption)
             Text(BagCopy.text(worn ? "worn" : UpHeroBag.normalizeBagLayout(inventory, rows: rows).layout.statusById[item.id] == .placed ? "carried" : "waiting")).typography(.caption)
             Text(BagCopy.text("stats")).typography(.heading)

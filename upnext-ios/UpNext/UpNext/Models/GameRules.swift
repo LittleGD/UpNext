@@ -13,22 +13,30 @@ import Foundation
 enum GameRules {
 
     /// 결과 미리보기와 지급이 같은 계산을 사용한다. 새 카드는 언락만 지급한다.
+    ///
+    /// 웹 `useMinigameStore.pickRunReward` + `useGameStore.grantMinigameRewards` 와 **같은 규칙**:
+    ///  - 카드 한 장마다 `round(base × 중복보관함 × 경험개화)` — 배율을 카드별 반올림 **안에서**
+    ///    곱한다. 합계에 배율을 곱하면 반올림 지점이 달라져 같은 런이 플랫폼마다 다른 XP 를 준다.
+    ///  - 합계에는 런 상한(`minigameRunXpCap`)만 씌운다.
+    ///  - 더블 루트는 XP 배율이 **아니다**. 웹에서는 보상 픽이 한 장 늘 뿐이라
+    ///    여기에 배율로 넣으면 같은 런이 iOS 에서만 두 배가 된다.
+    ///
+    /// XP 는 클라우드로 동기화되는 계정 값이라 두 플랫폼이 어긋나면 안 된다.
     static func minigameRewardXP(
         matchedCards: [ChallengeCard], unlockedCardIds: [String],
         xpBoostedCardIds: Set<String> = [],
-        duplicateStash: Bool = false, doubleLoot: Bool = false
+        duplicateStash: Bool = false
     ) -> Int {
         let unlocked = Set(unlockedCardIds)
+        let dupMult = duplicateStash ? 1.5 : 1.0
         var seen = Set<String>()
         var xp = 0
         for card in matchedCards where unlocked.contains(card.id) && seen.insert(card.id).inserted {
             let base = GameConstants.minigameXpPerRarity[card.rarity] ?? 3
             let bloom = xpBoostedCardIds.contains(card.id) ? 1.5 : 1.0
-            xp += Int((Double(base) * bloom).rounded())
+            xp += Int((Double(base) * dupMult * bloom).rounded())
         }
-        // iOS에 표시하는 기존 버프 배율을 실제 지급에도 반영한다.
-        let multiplier = (duplicateStash ? 1.25 : 1.0) * (doubleLoot ? 2.0 : 1.0)
-        return min(GameConstants.minigameRunXpCap, Int(Double(xp) * multiplier))
+        return min(GameConstants.minigameRunXpCap, xp)
     }
 
     // MARK: - XP 커브

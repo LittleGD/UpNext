@@ -695,8 +695,7 @@ struct MinigameView: View {
             matchedCards: CardCatalog.allCards.filter { matchedCardIds.contains($0.id) },
             unlockedCardIds: store.progress?.unlockedCardIds ?? [],
             xpBoostedCardIds: xpBoostedCardIds,
-            duplicateStash: buffs.contains { $0.reward.id == .duplicateStash },
-            doubleLoot: buffs.contains { $0.reward.id == .doubleLoot })
+            duplicateStash: buffs.contains { $0.reward.id == .duplicateStash })
     }
 
     @ViewBuilder
@@ -786,8 +785,7 @@ struct MinigameView: View {
         if !matchedCardIds.isEmpty {
             store.awardMinigameWin(
                 matchedCardIds: matchedCardIds, xpBoostedCardIds: xpBoostedCardIds,
-                duplicateStash: buffs.contains { $0.reward.id == .duplicateStash },
-                doubleLoot: buffs.contains { $0.reward.id == .doubleLoot })
+                duplicateStash: buffs.contains { $0.reward.id == .duplicateStash })
         }
         dismiss()
     }
@@ -951,7 +949,8 @@ struct MGReward: Identifiable {
         MGReward(id: .firstHarvest, tier: .rare, scope: .round,
                  name: AppConfig.loc("첫 수확"), desc: AppConfig.loc("라운드 첫 매치 시 투시 자동 발동")),
         MGReward(id: .duplicateStash, tier: .unique, scope: .run,
-                 name: AppConfig.loc("복제 창고"), desc: AppConfig.loc("런 종료 보상 +25%")),
+                 name: AppConfig.loc("복제 창고"),
+                 desc: AppConfig.loc("런 종료 시 중복 카드 경험치 +50%")),
         MGReward(id: .warded, tier: .unique, scope: .round,
                  name: AppConfig.loc("가호"), desc: AppConfig.loc("다음 라운드 저주 1회 무효")),
         MGReward(id: .appraisal, tier: .unique, scope: .run,

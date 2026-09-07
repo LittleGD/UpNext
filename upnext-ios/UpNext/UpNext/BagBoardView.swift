@@ -234,7 +234,7 @@ struct BagBoardView: View {
             // 빈 칸 — 아이템을 고른 동안에만 노출(탭 타깃·SR 노출 모두).
             if placing, selectedId != nil {
                 ForEach(emptyCells(layout: layout), id: \.self) { c in
-                    emptyCell(c, cell: cell, step: step)
+                    emptyCell(c, cell: cell, step: step, occ: layout.occupancy)
                 }
             }
 
@@ -434,10 +434,15 @@ struct BagBoardView: View {
         .accessibilityIdentifier("bagHero")
     }
 
-    private func emptyCell(_ c: BagCell, cell: CGFloat, step: CGFloat) -> some View {
+    /// `occ` 는 호출부(grid)가 이미 계산해 둔 레이아웃의 점유 배열이다 — 여기서 다시
+    /// `normalizeBagLayout` 을 부르면 8행 보드에서 빈 칸 수(최대 ~30)만큼 전체 레이아웃을
+    /// 재정규화하게 된다. 결과는 같고 비용만 늘어난다.
+    private func emptyCell(
+        _ c: BagCell, cell: CGFloat, step: CGFloat, occ: [String?]
+    ) -> some View {
         let vr = UpHeroBag.visualRow(bagY: c.y, rows: rows)
         let moving = inventory.first { $0.id == selectedId }
-        let valid = moving.flatMap { UpHeroBag.firstValidOriginCovering(occ: UpHeroBag.normalizeBagLayout(inventory, rows: rows).layout.occupancy, rows: rows, type: $0.type, rot: placingRot, x: c.x, y: c.y, ignoreId: $0.id) } != nil
+        let valid = moving.flatMap { UpHeroBag.firstValidOriginCovering(occ: occ, rows: rows, type: $0.type, rot: placingRot, x: c.x, y: c.y, ignoreId: $0.id) } != nil
         return Button { onTapEmptyCell(c.x, c.y) } label: {
             RoundedRectangle(cornerRadius: 3)
                 .fill(valid ? GBPalette.lightest.opacity(0.18) : GBPalette.dark.opacity(0.33))

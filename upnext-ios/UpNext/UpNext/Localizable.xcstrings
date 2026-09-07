@@ -62108,6 +62108,29 @@
           }
         }
       }
+    },
+    "런 종료 시 중복 카드 경험치 +50%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+50% XP from duplicate cards at run end"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ラン終了時 重複カードのXP+50%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "游玩结束重复卡经验+50%"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
