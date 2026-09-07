@@ -1,4 +1,4 @@
-# 1.3.0 (빌드 28) 릴리스 노트
+# 1.3.0 (빌드 29) 릴리스 노트
 
 App Store Connect 1.3.0 의 "새로운 기능" 원문. 빌드 26 문안에 격자 가방(피드백 23번)과 가방 확장 상점을 더해 다시 썼다. 방지권은 켜고 시도할 때마다 소모되는 계약이므로 빌드 25 의 옛 문안("막는 순간에만 쓰입니다")은 쓰지 않는다.
 
@@ -16,6 +16,7 @@ App Store Connect 1.3.0 의 "새로운 기능" 원문. 빌드 26 문안에 격�
 • 장비 아이콘이 모두 보이고, 같은 등급 3개를 합성하면 한 등급 위로 올라가요.
 • 보스 24종이 전부 다른 모습이 됐고, 도감이 다시 채워집니다.
 • 가방에서 아이템을 탭하면 능력치, 장착 시 변화, 연결 조건과 추천 자리를 볼 수 있어요.
+• 던전의 룬 상자는 걸쇠 맞추기로 엽니다. 표식을 정확히 멈출수록 보상이 조금 더 커져요.
 • 카드 매치의 중복 카드 보상과 방치 보상을 조정했어요. 챌린지 완료 경험치는 그대로입니다.
 • 주간 악몽 던전 첫 클리어 보상을 추가했어요. 풀 카드팩은 5장을 보장합니다.
 
@@ -33,6 +34,7 @@ Dungeons, the bag, and hero growth got a big rework.
 • Every gear icon renders now, and three items of the same rarity synthesize into one of the next rarity.
 • All 24 bosses have their own look, and the codex fills in again.
 • Tap an item in the bag to see its stats, what changes if you equip it, which connections it forms, and where it fits best.
+• The dungeon rune chest now opens with a lock you time yourself. Stop the marker closer to the target and the reward grows a little.
 • Rebalanced duplicate-card rewards in Card Match and idle rewards. Challenge completion XP is unchanged.
 • Added a first-clear reward for the weekly nightmare dungeon. Full card packs guarantee 5 cards.
 
@@ -50,6 +52,7 @@ Dungeons, the bag, and hero growth got a big rework.
 • 装備アイコンがすべて表示され、同じ等級3つを合成すると一段上の等級になります。
 • ボス24種がそれぞれ違う姿になり、図鑑がまた埋まります。
 • かばんのアイテムをタップすると、ステータス、装備時の変化、連結条件、おすすめの置き場所が見られます。
+• ダンジョンのルーン箱は掛け金を自分で合わせて開けます。目印に近いほど報酬が少し増えます。
 • カードマッチの重複カード報酬と放置報酬を調整しました。チャレンジ完了の経験値はそのままです。
 • 週間ナイトメアダンジョンの初回クリア報酬を追加しました。フルカードパックは5枚保証です。
 
@@ -67,5 +70,6 @@ Dungeons, the bag, and hero growth got a big rework.
 • 所有装备图标都能正常显示，三件同稀有度装备可以合成为高一级稀有度。
 • 24位首领各有不同外形，图鉴重新可以收集。
 • 点击背包里的装备，可以查看属性、装备后的变化、连结条件和推荐位置。
+• 地牢的符文箱需要自己卡准时机打开锁扣。停得越准，奖励就稍微多一些。
 • 调整了卡牌配对的重复卡牌奖励与挂机奖励。挑战完成经验保持不变。
 • 新增每周噩梦地牢首次通关奖励。完整卡包保证5张。
