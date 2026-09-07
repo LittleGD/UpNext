@@ -7,7 +7,7 @@
 //  (DungeonView.runModsStrip)이 같은 칩 빌더를 쓴다 (라벨 정본 하나).
 //
 //  톤: 색·아이콘 색을 결정한다. 모티프: 아이콘. 호출자는 summaryData 만 넘기면
-//  둘 다 여기서 추론된다. 굴림틀은 자기 모달(SlotMachineModal)이 따로 있어 이
+//  둘 다 여기서 추론된다. 룬 상자는 자기 모달(RuneChestModal)이 따로 있어 이
 //  추론 경로를 타지 않는다.
 //
 
