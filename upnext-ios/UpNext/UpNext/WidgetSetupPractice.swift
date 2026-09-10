@@ -20,7 +20,7 @@ struct WidgetSetupPractice: View {
                 Text(copy("여기서 연습해보세요"))
                     .font(.caption.weight(.medium)).foregroundStyle(Color.textSecondary)
                 Spacer()
-                Image(systemName: "hand.draw").foregroundStyle(Color.accentPrimary)
+                PixelIcon(.hand, size: 20, color: .accentPrimary)
             }
             if step == 2 { gallery } else { home }
         }
@@ -53,7 +53,10 @@ struct WidgetSetupPractice: View {
             .overlay(alignment: .topLeading) {
                 if menuOpen {
                     Button(action: onAdvance) {
-                        Label(copy("위젯 추가"), systemImage: "plus")
+                        HStack(spacing: 8) {
+                            PixelIcon(.plus, size: 18)
+                            Text(copy("위젯 추가"))
+                        }
                             .font(.subheadline.weight(.semibold))
                             .padding(.horizontal, 18).frame(minHeight: 52)
                             .background(Color.bgHover, in: RoundedRectangle(cornerRadius: 12))
@@ -86,8 +89,7 @@ struct WidgetSetupPractice: View {
                             .stroke(Color.accentPrimary, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                             .frame(width: 68, height: 68).rotationEffect(.degrees(-90))
                             .animation(holding ? .linear(duration: 0.65) : Anim.easeOut(0.15), value: holding)
-                        Image(systemName: "hand.point.up.left")
-                            .font(.title).foregroundStyle(Color.accentPrimary)
+                        PixelIcon(.hand, size: 30, color: .accentPrimary)
                             .scaleEffect(reduceMotion || !holding ? 1 : 0.94)
                     }
                     Text(copy("빈 곳을 길게 눌러보세요"))
@@ -104,8 +106,8 @@ struct WidgetSetupPractice: View {
                 .accessibilityIdentifier("widgetPracticeHold")
             } else {
                 VStack(spacing: 10) {
-                    Image(systemName: "arrow.up.left").font(.largeTitle)
-                        .foregroundStyle(Color.accentPrimary)
+                    PixelIcon(.arrowUp, size: 34, color: .accentPrimary)
+                        .rotationEffect(.degrees(-45))
                     Text(copy("편집 → 위젯 추가"))
                         .font(.subheadline).foregroundStyle(Color.textSecondary)
                 }
@@ -118,7 +120,7 @@ struct WidgetSetupPractice: View {
     private var gallery: some View {
         VStack(spacing: 18) {
             HStack {
-                Image(systemName: added ? "checkmark" : "magnifyingglass")
+                PixelIcon(added ? .check : .search, size: 18, color: added ? .accentPrimary : .textPrimary)
                 Text(added ? copy("연습 완료") : "UpNext")
                 Spacer()
             }
@@ -146,7 +148,10 @@ struct WidgetSetupPractice: View {
                     Haptics.play(.success)
                     withAnimation(motion) { added = true }
                 } label: {
-                    Label(copy("위젯 추가 연습"), systemImage: "plus")
+                    HStack(spacing: 8) {
+                        PixelIcon(.plus, size: 20, color: .bgPrimary)
+                        Text(copy("위젯 추가 연습"))
+                    }
                 }
                 .buttonStyle(.un(.primary))
                 .accessibilityIdentifier("widgetPracticePlace")
@@ -192,7 +197,7 @@ struct RetentionWidgetPreview: View {
             HStack {
                 Text("UpNext").font(.caption.weight(.bold))
                 Spacer(minLength: 8)
-                Image(systemName: "flame.fill").foregroundStyle(Color.accentPrimary)
+                PixelIcon(.flame, size: 18, color: .accentPrimary)
             }
             Text(taskTitle)
                 .font(.headline).fixedSize(horizontal: false, vertical: true)
@@ -203,7 +208,7 @@ struct RetentionWidgetPreview: View {
                 }
                 Text("\(completion.done)/\(completion.total)").font(.caption).monospacedDigit()
                 Spacer()
-                Image(systemName: "arrow.up.right").foregroundStyle(Color.accentPrimary)
+                PixelIcon(.arrowUp, size: 18, color: .accentPrimary).rotationEffect(.degrees(45))
             }
             .accessibilityHidden(true)
         }

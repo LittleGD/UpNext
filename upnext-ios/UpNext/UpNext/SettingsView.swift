@@ -173,7 +173,7 @@ struct SettingsView: View {
                     HStack {
                         Text(RetentionSetupCopy.text("알림 설정 가이드"))
                         Spacer()
-                        Image(systemName: "chevron.right")
+                        PixelIcon(.chevronRight, size: 20, color: .textSecondary)
                     }.padding(16).frame(minHeight: 48)
                 }
                 .foregroundStyle(Color.textPrimary)
@@ -186,7 +186,7 @@ struct SettingsView: View {
                         HStack {
                             Text(RetentionSetupCopy.text("홈 화면 위젯 가이드"))
                             Spacer()
-                            Image(systemName: "chevron.right")
+                            PixelIcon(.chevronRight, size: 20, color: .textSecondary)
                         }.padding(16).frame(minHeight: 48)
                     }
                     .foregroundStyle(Color.textPrimary)

@@ -12,7 +12,7 @@
 #   1. icon-audit (SF Symbol 화이트리스트) 위임
 #   2. R1–R6 회복 산출물 파일 존재
 #   3. 핵심 식별 심볼 존재 (부채꼴 핸드·덱 홀드·모션 프리셋·HeroSprite 등)
-#   4. 27 사운드 정체성 (신규 이식 사운드 토큰 + 다파형)
+#   4. 사운드 카탈로그, WAV 무결성 및 웹/iOS 음원 일치
 #   5. PixelIcon enum 케이스 floor
 #
 # bash 3.2 (macOS 기본) 호환 — 연관배열 미사용.
@@ -78,19 +78,14 @@ else
     fail "GameStore.swift → 'isAnonymous' 누락 (강제 로그인 회귀)"
 fi
 
-# ── 4. 27 사운드 정체성 ──
-echo "[4] 27 사운드 정체성 (R2 신규 이식음 + 다파형)"
-SND="${IOS}/SoundPlayer.swift"
-MISSING_SND=0
-for s in chargeUp ambientFloat pulseWave collect fireIgnite impactShake superIgnite meteorWhoosh matchPair curseTrigger rewardChoose cameraShutter polaroidSlide treeGrow; do
-    grep -q "${s}" "${SND}" 2>/dev/null || { MISSING_SND=$((MISSING_SND+1)); fail "사운드 '${s}' 누락 (사운드 축소 회귀)"; }
-done
-[ "${MISSING_SND}" -eq 0 ] && ok "신규 14음 모두 존재 (총 27음 정체성 유지)"
-# 다파형 합성 (square 단독 회귀 차단) — WaveformType enum 의 triangle/sine 토큰
-if grep -qw "triangle" "${SND}" 2>/dev/null && grep -qw "sine" "${SND}" 2>/dev/null; then
-    ok "다파형 합성 (square+triangle+sine)"
+# ── 4. 사운드 카탈로그와 실제 음원 ──
+# 합성 파형은 녹음된 WAV로 교체되었다. 예전 WaveformType 토큰 대신
+# 전체 카탈로그, 디코딩 가능한 PCM, 웹/iOS 번들 일치를 검사한다.
+echo "[4] 사운드 카탈로그와 음원 무결성"
+if python3 "${REPO_ROOT}/scripts/fidelity/audio-audit.py"; then
+    ok "사운드 카탈로그, WAV, 웹/iOS 음원 일치"
 else
-    fail "triangle/sine 파형 누락 — '거슬리는 사각파 단독' 회귀"
+    fail "사운드 누락 또는 손상"
 fi
 
 # ── 5. PixelIcon enum 케이스 floor ──

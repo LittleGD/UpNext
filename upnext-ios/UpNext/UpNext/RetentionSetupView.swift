@@ -24,13 +24,15 @@ struct RetentionSetupView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 HStack {
-                    Label(copy(kind == .notifications ? "내일도 이어가요" : "눈에 보이면 더 쉬워요"),
-                          systemImage: kind == .notifications ? "bell" : "rectangle.grid.2x2")
+                    HStack(spacing: 8) {
+                        PixelIcon(kind == .notifications ? .clock : .grid3x3, size: 18, color: .accentPrimary)
+                        Text(copy(kind == .notifications ? "내일도 이어가요" : "눈에 보이면 더 쉬워요"))
+                    }
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Color.accentPrimary)
                     Spacer()
                     Button { setup.dismiss() } label: {
-                        Image(systemName: "xmark").font(.body.weight(.medium))
+                        PixelIcon(.cancel, size: 20, color: .textSecondary)
                             .frame(width: 44, height: 44)
                     }
                     .foregroundStyle(Color.textSecondary)
@@ -146,8 +148,7 @@ struct RetentionSetupView: View {
                 Text(copy(succeeded ? "알림 설정 완료" : "알림 미리보기"))
                     .font(.caption.weight(.medium))
                 Spacer()
-                Image(systemName: succeeded ? "checkmark" : "bell.badge")
-                    .foregroundStyle(Color.accentPrimary)
+                PixelIcon(succeeded ? .check : .clock, size: 20, color: .accentPrimary)
             }
             Text(time, style: .time)
                 .font(.system(size: 48, weight: .light, design: .rounded))
@@ -155,8 +156,7 @@ struct RetentionSetupView: View {
                 .contentTransition(reduceMotion ? .opacity : .numericText())
                 .accessibilityIdentifier("reminderPreviewTime")
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "flame.fill")
-                    .font(.title2).foregroundStyle(Color.accentPrimary)
+                PixelIcon(.flame, size: 24, color: .accentPrimary)
                 VStack(alignment: .leading, spacing: 5) {
                     Text("UpNext").font(.caption.weight(.semibold))
                     Text(AppConfig.loc("오늘의 챌린지")).font(.subheadline.weight(.semibold))
@@ -213,8 +213,12 @@ struct RetentionSetupView: View {
             RetentionWidgetPreview()
                 .padding(24)
                 .background(Color.accentPrimary.opacity(0.08), in: RoundedRectangle(cornerRadius: 24))
-            Label(copy("위젯 추가를 확인했어요"), systemImage: "checkmark.circle.fill")
+            HStack(spacing: 8) {
+                PixelIcon(.check, size: 20, color: .accentPrimary)
+                Text(copy("위젯 추가를 확인했어요"))
+            }
                 .foregroundStyle(Color.accentPrimary)
+                .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("widgetInstalledConfirmation")
         } else if widgetStep < 3 {
             WidgetSetupPractice(step: widgetStep, onAdvance: advanceWidget)
