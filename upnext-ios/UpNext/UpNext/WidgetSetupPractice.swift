@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// An explicitly labelled rehearsal, never a fake system permission or success.
+/// Rehearsal stays visibly separate from the real Home Screen installation.
 struct WidgetSetupPractice: View {
     let step: Int
     let onAdvance: () -> Void
@@ -9,160 +9,116 @@ struct WidgetSetupPractice: View {
     @State private var menuOpen = false
     @State private var wide = true
     @State private var added = false
-    @Namespace private var placement
 
     private func copy(_ key: String.LocalizationValue) -> String { RetentionSetupCopy.text(key) }
-    private var motion: Animation { reduceMotion ? .easeOut(duration: 0.18) : Anim.cardOverlayEnter }
+    private var motion: Animation { reduceMotion ? .easeOut(duration: 0.12) : Anim.cardOverlayEnter }
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Text(copy("여기서 연습해보세요"))
-                    .font(.caption.weight(.medium)).foregroundStyle(Color.textSecondary)
-                Spacer()
-                PixelIcon(.hand, size: 20, color: .accentPrimary)
-            }
+        VStack(spacing: 12) {
+            Text(copy("연습")).typography(.micro).foregroundStyle(Color.textTertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if step == 2 { gallery } else { home }
         }
-        .padding(20)
-        .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 24))
+        .padding(14)
+        .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var home: some View {
-        VStack(spacing: 22) {
-            HStack {
-                if step == 1 {
+        VStack(spacing: 12) {
+            if step == 1 {
+                HStack {
                     Button {
                         Haptics.play(.selection)
                         withAnimation(motion) { menuOpen.toggle() }
                     } label: {
-                        Text(copy("편집")).font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 16).frame(minHeight: 44)
+                        Text(copy("편집")).typography(.caption)
+                            .padding(.horizontal, 14).frame(minHeight: 44)
                             .background(Color.accentPrimary, in: Capsule())
                             .foregroundStyle(Color.bgPrimary)
-                    }
-                    .accessibilityIdentifier("widgetPracticeEdit")
-                } else {
-                    Text("UpNext").font(.subheadline.weight(.semibold)).foregroundStyle(Color.textPrimary)
+                    }.buttonStyle(.unPress).accessibilityIdentifier("widgetPracticeEdit")
+                    Spacer()
+                    Text(copy("완료")).typography(.caption).foregroundStyle(Color.textTertiary)
                 }
-                Spacer()
-                if step == 1 {
-                    Text(copy("완료")).font(.subheadline).foregroundStyle(Color.textSecondary)
-                }
-            }
-            .overlay(alignment: .topLeading) {
-                if menuOpen {
-                    Button(action: onAdvance) {
-                        HStack(spacing: 8) {
-                            PixelIcon(.plus, size: 18)
-                            Text(copy("위젯 추가"))
-                        }
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 18).frame(minHeight: 52)
+                .overlay(alignment: .topLeading) {
+                    if menuOpen {
+                        Button(action: onAdvance) {
+                            HStack(spacing: 8) {
+                                PixelIcon(.plus, size: 18)
+                                Text(copy("위젯 추가")).typography(.body)
+                            }
+                            .padding(.horizontal, 14).frame(minHeight: 48)
                             .background(Color.bgHover, in: RoundedRectangle(cornerRadius: 12))
                             .foregroundStyle(Color.textPrimary)
-                            .shadow(color: .black.opacity(0.3), radius: 12, y: 8)
+                        }
+                        .buttonStyle(.unPress)
+                        .offset(y: 46).zIndex(2)
+                        .transition(.opacity)
+                        .accessibilityIdentifier("widgetPracticeAddMenu")
                     }
-                    .offset(y: 50).zIndex(2)
-                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .topLeading)))
-                    .accessibilityIdentifier("widgetPracticeAddMenu")
-                }
+                }.zIndex(2)
             }
-            .zIndex(2)
-
-            // Neutral silhouettes stand in for the user's home screen app tiles.
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 ForEach(0..<4) { index in
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 8)
                         .fill(Color.textSecondary.opacity(index == 0 ? 0.24 : 0.1))
-                        .frame(maxWidth: .infinity).frame(height: 46)
+                        .frame(width: 32, height: 32)
                         .rotationEffect(.degrees(reduceMotion || step == 0 ? 0 : (index.isMultiple(of: 2) ? -3 : 3)))
                 }
+                Spacer(minLength: 0)
             }.accessibilityHidden(true)
-
             if step == 0 {
-                VStack(spacing: 12) {
-                    ZStack {
-                        Circle().fill(Color.accentPrimary.opacity(holding ? 0.15 : 0.06))
-                            .frame(width: 68, height: 68)
-                        Circle().trim(from: 0, to: holding ? 1 : 0)
-                            .stroke(Color.accentPrimary, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                            .frame(width: 68, height: 68).rotationEffect(.degrees(-90))
-                            .animation(holding ? .linear(duration: 0.65) : Anim.easeOut(0.15), value: holding)
-                        PixelIcon(.hand, size: 30, color: .accentPrimary)
-                            .scaleEffect(reduceMotion || !holding ? 1 : 0.94)
-                    }
-                    Text(copy("빈 곳을 길게 눌러보세요"))
-                        .font(.subheadline).foregroundStyle(Color.textSecondary)
+                ZStack {
+                    Circle().trim(from: 0, to: holding ? 1 : 0)
+                        .stroke(Color.accentPrimary, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .frame(width: 58, height: 58).rotationEffect(.degrees(-90))
+                        .animation(holding && !reduceMotion ? .linear(duration: 0.65) : nil, value: holding)
+                    PixelIcon(.hand, size: 30, color: .accentPrimary)
+                        .scaleEffect(reduceMotion || !holding ? 1 : 0.94)
                 }
-                .frame(maxWidth: .infinity).frame(minHeight: 124)
+                .frame(maxWidth: .infinity, minHeight: 88)
                 .contentShape(Rectangle())
                 .onLongPressGesture(minimumDuration: 0.65, maximumDistance: 24,
                                     perform: onAdvance, onPressingChanged: { holding = $0 })
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(copy("빈 곳을 길게 누르기 연습"))
+                .accessibilityLabel(copy("빈 곳 길게 누르기"))
                 .accessibilityAddTraits(.isButton)
                 .accessibilityAction { onAdvance() }
                 .accessibilityIdentifier("widgetPracticeHold")
             } else {
-                VStack(spacing: 10) {
-                    PixelIcon(.arrowUp, size: 34, color: .accentPrimary)
-                        .rotationEffect(.degrees(-45))
-                    Text(copy("편집 → 위젯 추가"))
-                        .font(.subheadline).foregroundStyle(Color.textSecondary)
-                }
-                .frame(maxWidth: .infinity).frame(minHeight: 124)
-                .accessibilityHidden(true)
+                PixelIcon(.arrowUp, size: 28, color: .accentPrimary)
+                    .rotationEffect(.degrees(-45))
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .accessibilityHidden(true)
             }
         }
     }
 
     private var gallery: some View {
-        VStack(spacing: 18) {
-            HStack {
-                PixelIcon(added ? .check : .search, size: 18, color: added ? .accentPrimary : .textPrimary)
-                Text(added ? copy("연습 완료") : "UpNext")
-                Spacer()
+        VStack(spacing: 12) {
+            Button {
+                Haptics.play(.success)
+                withAnimation(motion) { added = true }
+            } label: {
+                RetentionWidgetPreview()
+                    .frame(maxWidth: wide ? .infinity : 156)
+                    .scaleEffect(reduceMotion || !added ? 1 : 0.96)
+                    .frame(maxWidth: .infinity)
             }
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(added ? Color.accentPrimary : Color.textPrimary)
-            .padding(12)
-            .background(Color.bgHover, in: RoundedRectangle(cornerRadius: 12))
-
-            RetentionWidgetPreview()
-                .frame(maxWidth: wide ? .infinity : 170)
-                .matchedGeometryEffect(id: "widget", in: placement)
-                .scaleEffect(reduceMotion || !added ? 1 : 0.96)
-                .shadow(color: Color.accentPrimary.opacity(added ? 0.12 : 0), radius: 20)
-                .frame(maxWidth: .infinity, minHeight: 150)
-
-            if !added {
-                Picker(copy("위젯 크기"), selection: $wide) {
-                    Text(copy("작게")).tag(false)
-                    Text(copy("넓게")).tag(true)
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("widgetPracticeSize")
-                .onChange(of: wide) { _ in Haptics.play(.selection) }
-                Button {
-                    Haptics.play(.success)
-                    withAnimation(motion) { added = true }
-                } label: {
-                    HStack(spacing: 8) {
-                        PixelIcon(.plus, size: 20, color: .bgPrimary)
-                        Text(copy("위젯 추가 연습"))
-                    }
-                }
-                .buttonStyle(.un(.primary))
-                .accessibilityIdentifier("widgetPracticePlace")
-            } else {
-                Text(copy("이제 같은 방법으로 실제 홈 화면에 추가해봐요."))
-                    .font(.subheadline).foregroundStyle(Color.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("widgetPracticeFinished")
+            .buttonStyle(.plain)
+            .accessibilityLabel(copy("위젯 놓기"))
+            .accessibilityIdentifier("widgetPracticePlace")
+            Text(copy(added ? "연습 완료" : "위젯을 눌러 놓아보세요."))
+                .typography(.micro).foregroundStyle(added ? Color.accentPrimary : Color.textSecondary)
+                .accessibilityIdentifier(added ? "widgetPracticeFinished" : "widgetPracticeHint")
+            Picker(copy("위젯 크기"), selection: $wide) {
+                Text(copy("작게")).tag(false)
+                Text(copy("넓게")).tag(true)
             }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("widgetPracticeSize")
+            .onChange(of: wide) { _ in Haptics.play(.selection) }
         }
-        .animation(reduceMotion ? nil : Anim.easeOut(0.25), value: wide)
+        .animation(reduceMotion ? nil : Anim.easeOut(0.2), value: wide)
     }
 }
 
@@ -193,27 +149,26 @@ struct RetentionWidgetPreview: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("UpNext").font(.caption.weight(.bold))
+                Text("UpNext").typography(.micro)
                 Spacer(minLength: 8)
-                PixelIcon(.flame, size: 18, color: .accentPrimary)
+                PixelIcon(.flame, size: 16, color: .accentPrimary).accessibilityHidden(true)
             }
-            Text(taskTitle)
-                .font(.headline).fixedSize(horizontal: false, vertical: true)
+            Text(taskTitle).typography(.body).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 5) {
                 ForEach(0..<min(completion.total, 5), id: \.self) { index in
                     Capsule().fill(index < completion.done ? Color.accentPrimary : Color.bgHover)
-                        .frame(width: 18, height: 5)
+                        .frame(width: 16, height: 4)
                 }
-                Text("\(completion.done)/\(completion.total)").font(.caption).monospacedDigit()
+                Text("\(completion.done)/\(completion.total)").typography(.micro).monospacedDigit()
                 Spacer()
-                PixelIcon(.arrowUp, size: 18, color: .accentPrimary).rotationEffect(.degrees(45))
+                PixelIcon(.arrowUp, size: 16, color: .accentPrimary).rotationEffect(.degrees(45))
             }
             .accessibilityHidden(true)
         }
-        .padding(20)
+        .padding(14)
         .foregroundStyle(Color.textPrimary)
-        .background(Color.bgPrimary, in: RoundedRectangle(cornerRadius: 22))
+        .background(Color.bgPrimary, in: RoundedRectangle(cornerRadius: 12))
     }
 }

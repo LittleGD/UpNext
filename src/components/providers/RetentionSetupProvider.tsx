@@ -8,6 +8,7 @@ import { useUIStore } from "@/store/useUIStore";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useRetentionSetupStore, type SetupKind } from "@/store/useRetentionSetupStore";
 import { getRetentionSetupCapabilities, hasNativeDailyReminder } from "@/lib/retentionSetupNative";
+import PixelIcon from "@/components/icons/PixelIcon";
 import RetentionSetupModal from "@/components/RetentionSetupModal";
 import copy from "@/data/retentionSetupCopy.json";
 
@@ -64,8 +65,8 @@ export function RetentionSetupSettings() {
   if (!supported) return null;
   return <section className="overflow-hidden rounded-xl bg-bg-surface">
     {([['notifications', '알림 설정 가이드'], ['widget', '홈 화면 위젯 가이드']] as const).map(([kind, key]) =>
-      <button key={kind} onClick={() => useRetentionSetupStore.getState().open(kind)} className="flex min-h-[52px] w-full items-center justify-between px-4 py-3.5 text-left text-sm text-text-primary">
-        {copy[key][language]}<span aria-hidden="true" className="text-accent">›</span>
+      <button key={kind} onClick={() => useRetentionSetupStore.getState().open(kind)} className="flex min-h-[52px] w-full items-center justify-between px-4 py-3.5 text-left typo-body text-text-primary">
+        {copy[key][language]}<PixelIcon name="ChevronRight" size={20} color="var(--text-secondary)" />
       </button>)}
   </section>;
 }

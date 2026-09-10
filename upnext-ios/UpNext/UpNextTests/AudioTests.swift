@@ -4,6 +4,39 @@ import AVFoundation
 
 @MainActor
 final class AudioTests: XCTestCase {
+    func testEffectsRecoverOnForegroundWithoutInterruptionEnded() {
+        let player = SoundPlayer.shared
+        SoundPlayer.enabled = true
+        player.setActive(true)
+        XCTAssertNotNil(player.play(.confirm))
+        NotificationCenter.default.post(name: AVAudioSession.interruptionNotification, object: nil,
+            userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue])
+        XCTAssertNil(player.play(.complete))
+        player.setActive(false)
+        player.setActive(true)
+        XCTAssertNotNil(player.play(.complete), "Foreground must recover without an ended notification")
+        XCTAssertNotNil(player.currentTrack)
+        player.setActive(false)
+    }
+
+    func testMediaResetRecoversEffectsAndForegroundPreservesMute() {
+        let player = SoundPlayer.shared
+        SoundPlayer.enabled = true
+        player.setActive(false)
+        player.setActive(true)
+        NotificationCenter.default.post(name: AVAudioSession.interruptionNotification, object: nil,
+            userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue])
+        NotificationCenter.default.post(name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
+        XCTAssertNotNil(player.play(.confirm))
+        player.setActive(false)
+        XCTAssertNil(player.play(.complete))
+        SoundPlayer.enabled = false
+        player.setActive(true)
+        XCTAssertNil(player.play(.complete), "Foreground must preserve the user's mute setting")
+        player.setActive(false)
+        SoundPlayer.enabled = true
+    }
+
     func testEveryBundledCueAndMusicDecodes() throws {
         for name in SoundName.allCases {
             let url = try XCTUnwrap(SoundPlayer.assetURL("sfx-\(name.rawValue)", extension: "wav"), name.rawValue)

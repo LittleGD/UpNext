@@ -23,6 +23,7 @@ struct OverlayContainer<Content: View>: View {
     var blur: Bool = true
     @ViewBuilder var content: () -> Content
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var entered = false
 
     var body: some View {
@@ -32,11 +33,11 @@ struct OverlayContainer<Content: View>: View {
                 .contentShape(Rectangle())
                 .onTapGesture { onBackdropTap?() }
             content()
-                .scaleEffect(entered ? 1 : 0.95)
+                .scaleEffect(entered || reduceMotion ? 1 : 0.95)
                 .opacity(entered ? 1 : 0)
-                .offset(y: entered ? 0 : 30)
+                .offset(y: entered || reduceMotion ? 0 : 30)
         }
-        .onAppear { withAnimation(Anim.cardOverlayEnter) { entered = true } }
+        .onAppear { withAnimation(reduceMotion ? .easeOut(duration: 0.12) : Anim.cardOverlayEnter) { entered = true } }
     }
 
     @ViewBuilder private var backdrop: some View {

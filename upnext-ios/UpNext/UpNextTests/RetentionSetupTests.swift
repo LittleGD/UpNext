@@ -44,6 +44,20 @@ final class RetentionSetupTests: XCTestCase {
         XCTAssertEqual(setup.queue, [.widget])
     }
 
+    func testDismissClearsOnlyTheVisibleOverlayAndKeepsTheNextInvitation() {
+        let setup = RetentionSetup(defaults: defaults)
+        setup.challengeCompleted(total: 1)
+        setup.challengeCompleted(total: 2)
+        setup.presented = .notifications
+        setup.reminderTime = "20:00"
+        setup.dismiss()
+        XCTAssertNil(setup.presented)
+        XCTAssertNil(setup.reminderTime)
+        XCTAssertEqual(setup.queue, [.widget])
+        setup.dismiss()
+        XCTAssertEqual(setup.queue, [.widget])
+    }
+
     func testNotificationSettingsHandoffKeepsSelectedTimeAcrossRestart() {
         let setup = RetentionSetup(defaults: defaults)
         setup.challengeCompleted(total: 1)

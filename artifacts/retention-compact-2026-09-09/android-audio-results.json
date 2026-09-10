@@ -1,0 +1,112 @@
+{
+  "url": "https://up-next-phi.vercel.app/",
+  "results": [
+    {
+      "before": 2.632,
+      "hidden": {
+        "hidden": false,
+        "active": false,
+        "music": 0,
+        "effects": 0
+      },
+      "after": {
+        "started": 4.8133333333333335,
+        "state": "running",
+        "active": true
+      }
+    },
+    {
+      "before": 5.357333333333333,
+      "hidden": {
+        "hidden": false,
+        "active": false,
+        "music": 0,
+        "effects": 0
+      },
+      "after": {
+        "started": 7.9013333333333335,
+        "state": "running",
+        "active": true
+      }
+    },
+    {
+      "before": 8.264,
+      "hidden": {
+        "hidden": false,
+        "active": false,
+        "music": 0,
+        "effects": 0
+      },
+      "after": {
+        "started": 10.536,
+        "state": "running",
+        "active": true
+      }
+    }
+  ],
+  "muted": {
+    "started": null,
+    "voices": 0
+  },
+  "events": {
+    "visibility": [
+      {
+        "hidden": false,
+        "time": 1789021878420
+      },
+      {
+        "hidden": false,
+        "time": 1789021885187
+      },
+      {
+        "hidden": false,
+        "time": 1789021887002
+      },
+      {
+        "hidden": false,
+        "time": 1789021887499
+      },
+      {
+        "hidden": false,
+        "time": 1789021890906
+      },
+      {
+        "hidden": false,
+        "time": 1789021892678
+      },
+      {
+        "hidden": false,
+        "time": 1789021893181
+      },
+      {
+        "hidden": false,
+        "time": 1789021895821
+      },
+      {
+        "hidden": false,
+        "time": 1789021897288
+      },
+      {
+        "hidden": false,
+        "time": 1789021898164
+      },
+      {
+        "hidden": false,
+        "time": 1789021901467
+      },
+      {
+        "hidden": false,
+        "time": 1789021901932
+      }
+    ],
+    "native": [
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  }
+}

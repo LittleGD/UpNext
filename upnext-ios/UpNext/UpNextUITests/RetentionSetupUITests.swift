@@ -17,7 +17,7 @@ final class RetentionSetupUITests: XCTestCase {
         XCTAssertTrue(app.buttons["enableReminderButton"].waitForExistence(timeout: 10))
         app.buttons["reminderPreset-20:00"].tap()
         capture("01-reminder-time")
-        let wasDenied = app.buttons["enableReminderButton"].label == "기기 알림 설정 열기"
+        let wasDenied = app.buttons["enableReminderButton"].label == "설정 열기"
         app.buttons["enableReminderButton"].tap()
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let allow = springboard.alerts.buttons["Allow"]
@@ -89,7 +89,7 @@ final class RetentionSetupUITests: XCTestCase {
         launch()
         completeChallenge()
         XCTAssertTrue(app.buttons["enableReminderButton"].waitForExistence(timeout: 10))
-        if app.buttons["enableReminderButton"].label != "기기 알림 설정 열기" {
+        if app.buttons["enableReminderButton"].label != "설정 열기" {
             app.buttons["enableReminderButton"].tap()
             let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
             let deny = springboard.alerts.buttons["Don’t Allow"]
@@ -97,7 +97,7 @@ final class RetentionSetupUITests: XCTestCase {
             if deny.waitForExistence(timeout: 3) { deny.tap() }
             else if alternateDeny.exists { alternateDeny.tap() }
         }
-        XCTAssertTrue(app.staticTexts["알림을 다시 켜볼까요?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["알림이 꺼져 있어요"].waitForExistence(timeout: 5))
         capture("10-reminder-permission-denied")
         app.buttons["enableReminderButton"].tap()
         allowNotificationsInSettings()
@@ -186,6 +186,8 @@ final class RetentionSetupUITests: XCTestCase {
     }
 
     private func capture(_ name: String) {
+        // Capture the settled card, including the reminder time transition.
+        Thread.sleep(forTimeInterval: 0.4)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways

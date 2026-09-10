@@ -61,8 +61,16 @@ final class SoundPlayer: NSObject {
     }
 
     func setActive(_ value: Bool) {
+        let returning = value && !active
         active = value
-        if value { resume() } else { stopAll() }
+        if value {
+            // Suspension does not guarantee a matching interruption-ended event.
+            if returning { interrupted = false; sessionReady = false }
+            resume()
+        } else {
+            stopAll()
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 
     private func configureSession() -> Bool {
@@ -187,7 +195,7 @@ final class SoundPlayer: NSObject {
         stopAll()
     }
 
-    @objc private func mediaReset() { stopAll(); resume() }
+    @objc private func mediaReset() { interrupted = false; stopAll(); resume() }
 }
 
 // Enhancement tiers retain their established feedback when samples change.

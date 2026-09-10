@@ -64,9 +64,13 @@ final class RetentionSetup: ObservableObject {
         persistQueue()
     }
 
-    func dismiss() { presented = nil }
+    func dismiss() {
+        guard let kind = presented else { return }
+        finish(kind)
+        presented = nil
+    }
 
-    /// Called after the native sheet finishes dismissing, including a swipe down.
+    /// Clear only the completed or dismissed invitation, preserving the next one.
     func finish(_ kind: RetentionSetupKind) {
         queue.removeAll { $0 == kind }
         if manualRequest == kind { manualRequest = nil }
@@ -108,14 +112,13 @@ final class RetentionSetup: ObservableObject {
     }
 }
 
-/// A native sheet supplies focus isolation, VoiceOver navigation, and interactive
-/// dismissal. It waits for the existing reward, photo, and pack presentations.
+/// Use the same central overlay as the other app prompts. Wait for rewards,
+/// photo capture, and pack presentations before showing an invitation.
 struct RetentionSetupPresenter: ViewModifier {
     @ObservedObject var setup: RetentionSetup
     @EnvironmentObject private var store: GameStore
     @Environment(\.scenePhase) private var scenePhase
     let blocked: Bool
-    @State private var displayedKind: RetentionSetupKind?
 
     private var canPresent: Bool {
         !blocked && scenePhase == .active && setup.presented == nil && !setup.queue.isEmpty
@@ -123,15 +126,14 @@ struct RetentionSetupPresenter: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .sheet(item: $setup.presented, onDismiss: {
-                if let displayedKind { setup.finish(displayedKind) }
-                displayedKind = nil
-            }) { kind in
-                RetentionSetupView(kind: kind, setup: setup)
-                    .environmentObject(store)
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-                    .modifier(RetentionSetupSheetStyle())
+            .allowsHitTesting(setup.presented == nil)
+            .accessibilityHidden(setup.presented != nil)
+            .overlay {
+                if let kind = setup.presented {
+                    RetentionSetupView(kind: kind, setup: setup)
+                        .environmentObject(store)
+                        .transition(.opacity)
+                }
             }
             .task(id: canPresent ? setup.queue.first : nil) {
                 guard canPresent, let kind = setup.queue.first else { return }
@@ -151,19 +153,8 @@ struct RetentionSetupPresenter: ViewModifier {
                     return
                 }
                 guard !Task.isCancelled, canPresent else { return }
-                displayedKind = kind
                 setup.presented = kind
             }
-    }
-}
-
-private struct RetentionSetupSheetStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 16.4, *) {
-            content.presentationCornerRadius(28).presentationBackground(Color.bgSurface)
-        } else {
-            content
-        }
     }
 }
 
