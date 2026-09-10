@@ -1,5 +1,6 @@
 "use client";
 
+
 /**
  * Phase 12d — 스킬트리 UI.
  *
@@ -74,7 +75,7 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
 
   const onLearn = (skill: ClassSkill) => {
     const result = learnSkill(skill.id);
-    play(result === "ok" ? "select" : "cancel");
+    play(result === "ok" ? "skillLearn" : "cancel");
   };
 
   const onRespecConfirm = () => {

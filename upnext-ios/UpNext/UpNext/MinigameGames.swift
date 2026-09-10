@@ -574,6 +574,7 @@ struct SortItemsGame: View {
                 ForEach($items) { $item in
                     if item.bin == nil {
                         Button {
+                            SoundPlayer.shared.play(.bagPlace)
                             withAnimation { item.bin = item.kind }
                             Haptics.play(.selection)
                             checkDone()
@@ -699,6 +700,7 @@ struct QuickSumGame: View {
     }
 
     private func answer(_ pick: Int) {
+        SoundPlayer.shared.play(pick == correct ? .matchPair : .minigameFail)
         if pick == correct {
             streak += 1
             Haptics.play(.success)
@@ -789,6 +791,7 @@ struct SpotDiffGame: View {
             let cx = size.width * Self.diffPositions[i].0
             let cy = size.height * Self.diffPositions[i].1
             if abs(loc.x - cx) < 24 && abs(loc.y - cy) < 24 {
+                if !diffsFound.contains(i) { SoundPlayer.shared.play(.matchPair) }
                 diffsFound.insert(i)
                 Haptics.play(.success)
                 if diffsFound.count >= need {
@@ -839,6 +842,7 @@ struct BreathHoldGame: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { _ in
                             if !holding {
+                                SoundPlayer.shared.play(.chargeUp)
                                 holding = true
                                 startTime = Date()
                                 Haptics.play(.medium)
@@ -936,6 +940,7 @@ struct TracePathGame: View {
                                     let d = hypot(g.location.x - pts[i].x, g.location.y - pts[i].y)
                                     if d < bestDist { bestDist = d; bestIdx = i }
                                 }
+                                if bestIdx / 15 > idx / 15 { SoundPlayer.shared.play(.cardSelect) }
                                 progress = Double(bestIdx) / Double(pts.count - 1)
                                 if progress >= 0.98 {
                                     onComplete(true)

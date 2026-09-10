@@ -166,6 +166,32 @@ struct SettingsView: View {
                         .labelsHidden()
                     }
                 }
+                divider
+                Button {
+                    store.retentionSetup.openFromSettings(.notifications)
+                } label: {
+                    HStack {
+                        Text(RetentionSetupCopy.text("알림 설정 가이드"))
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }.padding(16).frame(minHeight: 48)
+                }
+                .foregroundStyle(Color.textPrimary)
+                .accessibilityIdentifier("reminderSetupGuide")
+                if #available(iOS 17, *) {
+                    divider
+                    Button {
+                        store.retentionSetup.openFromSettings(.widget)
+                    } label: {
+                        HStack {
+                            Text(RetentionSetupCopy.text("홈 화면 위젯 가이드"))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }.padding(16).frame(minHeight: 48)
+                    }
+                    .foregroundStyle(Color.textPrimary)
+                    .accessibilityIdentifier("widgetSetupGuide")
+                }
             }
             .background(Color.bgSurface)
             .clipShape(RoundedRectangle(cornerRadius: 14))

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">UpNext</string>
-    <string name="title_activity_main">UpNext</string>
-    <string name="package_name">app.vercel.upnext</string>
-    <string name="custom_url_scheme">app.vercel.upnext</string>
+    <string name="app_name" translatable="false">UpNext</string>
+    <string name="title_activity_main" translatable="false">UpNext</string>
+    <string name="package_name" translatable="false">app.vercel.upnext</string>
+    <string name="custom_url_scheme" translatable="false">app.vercel.upnext</string>
 </resources>

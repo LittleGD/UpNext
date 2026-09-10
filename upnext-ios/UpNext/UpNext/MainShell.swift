@@ -375,6 +375,15 @@ struct MainTabView: View {
                 }
             )
         }
+        .modifier(RetentionSetupPresenter(
+            setup: store.retentionSetup,
+            blocked: showPatchNotes || showReviewPrompt || showFortunePrompt || showPackOpener
+                || store.showLoginOverlay || store.mergeConflict != nil
+                || store.pendingLevelUp != nil || store.fortuneOverlayOpen
+                || store.collectionCelebration || growth.pendingCapture != nil
+                || upHero.state.pendingWelcomeGift != nil || pendingPackCount > 0
+                || upHero.state.currentSession != nil || upHero.state.pendingHeroLevelUp != nil
+                || upHero.state.pendingClassChoice != nil))
     }
 
     // MARK: - R-Effects: 마운트 조건 계산
@@ -492,7 +501,8 @@ struct MainTabView: View {
         if args.contains(where: { $0.hasPrefix("UITest") }),
            !args.contains("UITestSeedReviewPrompt") { return }
         #endif
-        guard !showPatchNotes, !showReviewPrompt else { return }
+        guard !showPatchNotes, !showReviewPrompt,
+              !store.retentionSetup.hasPendingPresentation else { return }
         guard let progress = store.progress, let daily = store.daily else { return }
         guard ReviewPromptService.shouldShow(progress: progress, daily: daily) else { return }
         showReviewPrompt = true
@@ -512,7 +522,8 @@ struct MainTabView: View {
         // 실행 수명 싱글턴에 기록한다.
         guard !FortuneAutoOpen.shared.askedThisLaunch, !showFortunePrompt else { return }
         // 다른 모달·오버레이에 양보 — 닫히는 시점에 chainFortunePrompt 가 재평가한다.
-        guard !showPatchNotes, !showReviewPrompt else { return }
+        guard !showPatchNotes, !showReviewPrompt,
+              !store.retentionSetup.hasPendingPresentation else { return }
         guard !store.showLoginOverlay, store.mergeConflict == nil,
               store.pendingLevelUp == nil, !store.fortuneOverlayOpen,
               !store.collectionCelebration, growth.pendingCapture == nil,

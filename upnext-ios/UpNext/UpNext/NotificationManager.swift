@@ -12,6 +12,7 @@
 import UserNotifications
 
 enum NotificationManager {
+    private enum ReminderError: Error { case invalidTime }
 
     /// 매일 챌린지 리마인더 식별자 — 갱신 시 이 id 로 제거 후 재등록.
     private static let dailyReminderID = "upnext.dailyChallengeReminder"
@@ -26,6 +27,25 @@ enum NotificationManager {
         }
     }
 
+    static func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+
+    static func hasScheduledReminder() async -> Bool {
+        let status = await authorizationStatus()
+        guard status == .authorized || status == .provisional || status == .ephemeral else { return false }
+        return await UNUserNotificationCenter.current().pendingNotificationRequests()
+            .contains { $0.identifier == dailyReminderID }
+    }
+
+    /// Await registration before the tutorial reports that setup succeeded.
+    static func scheduleDailyReminder(time: String) async throws {
+        guard let request = dailyReminderRequest(time: time) else {
+            throw ReminderError.invalidTime
+        }
+        try await UNUserNotificationCenter.current().add(request)
+    }
+
     /// 설정에 맞춰 매일 챌린지 리마인더를 갱신한다.
     ///  - enabled=false → 예약 취소.
     ///  - enabled=true  → notificationTime("HH:mm")에 매일 반복 알림 등록.
@@ -34,7 +54,21 @@ enum NotificationManager {
     static func syncDailyReminder(enabled: Bool, time: String) {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [dailyReminderID])
-        guard enabled, let (hour, minute) = parseTime(time) else { return }
+        guard enabled, let request = dailyReminderRequest(time: time) else { return }
+
+        Task {
+            do {
+                try await center.add(request)
+            } catch {
+                #if DEBUG
+                print("[NotificationManager] add(request) failed: \(error)")
+                #endif
+            }
+        }
+    }
+
+    private static func dailyReminderRequest(time: String) -> UNNotificationRequest? {
+        guard let (hour, minute) = parseTime(time) else { return nil }
 
         // 알림은 시스템이 SwiftUI 환경 밖에서 표시하므로 `.environment(\.locale)` 가
         // 닿지 않는다. 인앱 언어(AppConfig.currentLocale)로 명시 해석해 설정 언어와 일치.
@@ -47,18 +81,8 @@ enum NotificationManager {
         when.hour = hour
         when.minute = minute
         let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: true)
-        let request = UNNotificationRequest(
+        return UNNotificationRequest(
             identifier: dailyReminderID, content: content, trigger: trigger)
-        // 권한 없음·시스템 거절 같은 실패를 catch 해 디버그 빌드에서 즉시 보이게.
-        Task {
-            do {
-                try await center.add(request)
-            } catch {
-                #if DEBUG
-                print("[NotificationManager] add(request) failed: \(error)")
-                #endif
-            }
-        }
     }
 
     /// "HH:mm" → (시, 분). 형식이 어긋나면 nil.

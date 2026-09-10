@@ -1,683 +1,204 @@
-//
-//  SoundPlayer.swift
-//  UpNext — 사운드 (R2 — UI/인터랙션 회복).
-//
-//  웹 src/lib/sounds.ts (680줄, 27 사운드) 의 *비트 단위* 복제.
-//
-//  웹과의 매핑:
-//   - 파형: Square (default) + Triangle 하모니. Sine 미사용.
-//   - Envelope: 5ms 어택 + 지수 decay (Web Audio `exponentialRampToValueAtTime` 동치).
-//   - 주파수 sweep: 지수 보간 (Web Audio 동치). 일부 ambientFloat 만 linear.
-//   - Multi-segment gain envelope: ambientFloat / pulseWave / chargeUp / impactShake /
-//     superIgnite / meteorWhoosh 6 사운드는 *커스텀 envelope* 분기 사용.
-//   - masterVolume: 0.18 (웹 MASTER_VOLUME 동치). 이전 0.35 (사각파 단독 보정) 폐기.
-//
-//  렌더링: 사운드별 1회 PCM 합성 → 캐시 → AVAudioPlayerNode.scheduleBuffer.
-//
-
 import AVFoundation
+import UIKit
 
-/// 38 사운드 — 웹 SoundName 전체. (이전 10 개 → 17 개 추가, 굴림틀 7 개, 강화 상위 밴드 4 개.)
-enum SoundName: String, CaseIterable {
-    // UI 클릭·확정·취소
-    case select, confirm, cancel
-    // 카드 상호작용
-    case cardFlip, cardSelect, cardHover, cardPreview
-    // 진행 단계
-    case packOpen, complete, fullClear, levelUp
-    case equip, xpGain
-    // 새 ambient·effect (R2 신규 이식)
-    case chargeUp, ambientFloat, pulseWave, collect
-    case fireIgnite, impactShake, superIgnite
-    case meteorWhoosh, matchPair, curseTrigger, rewardChoose
-    case cameraShutter, polaroidSlide, treeGrow
-    // 2026-09 (애플 2.3.6) — 룬 상자로 바뀌면서 카지노 큐 7종(slotLever/slotTick/
-    // slotStop/slotThud/slotWin*)을 웹과 함께 걷어냈다. 상자 연출은 기존
-    // collect / rewardChoose / packOpen / levelUp / confirm 을 재사용한다.
-    // Phase 5-B — 강화 상위 밴드 (+11..+20) 연출. 소리는 ritual 끝에만 (스포일 금지).
-    // 웹 sounds.ts enhanceCharge / enhanceSuccessHigh / enhanceSuccessMax / enhanceShatter.
-    case enhanceCharge, enhanceSuccessHigh, enhanceSuccessMax, enhanceShatter
+/// Matches the web mixer. Prepared tracks contain their loop crossfades.
+enum MusicTrack: String, CaseIterable {
+    case main, boss, fitness, learning, mindfulness, nutrition, social, productivity, wellness, trending
+    var volume: Float { self == .main ? 0.24 : self == .boss ? 0.55 : 0.42 }
 }
-
-extension SoundName {
-    /// Phase 5-B — 강화 상위 밴드 4종의 햅틱 의도. 웹 sounds.ts HAPTIC_INTENT 의 같은
-    /// 항목 (충전 light / band1 성공 success / band2 성공 celebration / 소실 heavy).
-    /// 그 외 사운드는 호출부가 각자 Haptics 를 고른다 (기존 패턴) — nil.
-    var enhanceHapticIntent: Haptics.Intent? {
-        switch self {
-        case .enhanceCharge:      return .light
-        case .enhanceSuccessHigh: return .success
-        case .enhanceSuccessMax:  return .celebration
-        case .enhanceShatter:     return .heavy
-        default:                  return nil
-        }
-    }
-}
-
-// MARK: - 합성 모델
-
-private enum WaveformType {
-    case square, triangle, sine
-}
-
-private enum SweepKind {
-    case exponential, linear
-}
-
-/// 사운드별 multi-segment gain envelope 의 한 분기점.
-/// `time` 은 OscillatorRecipe.start 로부터 경과 시간 (초). `value` 는 0~1 (volume 으로 곱).
-/// `kind` 는 *이전 점에서 이 점까지* 의 보간 방식.
-private struct EnvelopePoint {
-    var time: Double
-    var value: Double
-    var kind: SweepKind
-}
-
-/// 한 사운드의 오실레이터 한 개 — 웹 createOsc/createSweep 의 인자 묶음.
-/// 같은 사운드는 여러 OscillatorRecipe 의 합성(시간 오프셋·파형·주파수 다층).
-private struct OscillatorRecipe {
-    var freqStart: Double
-    var freqEnd: Double? = nil          // nil = 상수 주파수 (createOsc), 있으면 sweep
-    var freqSweepKind: SweepKind = .exponential
-    var start: Double = 0               // 사운드 시작점부터 offset (초)
-    var duration: Double
-    var volume: Double                  // 0~1+ (masterVolume 으로 추가 곱)
-    var waveform: WaveformType = .square
-    /// nil 일 때 default envelope: 5ms 어택 (0.0001→1 exp) + 지수 decay (1→0.0001 over duration).
-    /// 비-nil 이면 절대 envelope 사용 (ambientFloat 등 multi-segment).
-    var customEnvelope: [EnvelopePoint]? = nil
-
-    init(_ freqStart: Double,
-         _ freqEnd: Double? = nil,
-         start: Double = 0,
-         duration: Double,
-         volume: Double,
-         waveform: WaveformType = .square,
-         freqSweepKind: SweepKind = .exponential,
-         customEnvelope: [EnvelopePoint]? = nil) {
-        self.freqStart = freqStart
-        self.freqEnd = freqEnd
-        self.freqSweepKind = freqSweepKind
-        self.start = start
-        self.duration = duration
-        self.volume = volume
-        self.waveform = waveform
-        self.customEnvelope = customEnvelope
-    }
-}
-
-// MARK: - Player
 
 @MainActor
-final class SoundPlayer {
-
+final class SoundPlayer: NSObject {
     static let shared = SoundPlayer()
+    static var enabled = true {
+        didSet { if !enabled { shared.stopAll() } else { shared.resume() } }
+    }
+    private struct MusicVoice {
+        let player: AVAudioPlayer
+        var start: Float
+        var target: Float
+        var delay: TimeInterval
+        var duration: TimeInterval
+    }
+    private var samples: [SoundName: Data] = [:]
+    private var effects: [(SoundName, AVAudioPlayer)] = []
+    private var lastPlayed: [SoundName: TimeInterval] = [:]
+    private var music: [MusicVoice] = []
+    private var fadeTimer: Timer?
+    private var fadeStart: TimeInterval = 0
+    private var fadeDuration: TimeInterval = 2.4
+    private var bossMusicNotBefore: TimeInterval = 0
+    private var active = true
+    private var interrupted = false
+    private var sessionReady = false
+    private var desired: MusicTrack = .main
+    private(set) var currentTrack: MusicTrack?
+    var currentMusicTime: TimeInterval { music.last?.player.currentTime ?? 0 }
+    var currentMusicVolume: Float { music.last?.player.volume ?? 0 }
+    private let quiet: Set<SoundName> = [.select, .cardHover, .miss, .heroHit, .enemyHit]
 
-    /// 설정의 soundEnabled 와 동기. @MainActor — AVAudioEngine 메인 가정.
-    @MainActor static var enabled = true
-
-    private let engine = AVAudioEngine()
-    private let player = AVAudioPlayerNode()
-    private let sampleRate = 44_100.0
-    private lazy var format = AVAudioFormat(
-        standardFormatWithSampleRate: sampleRate, channels: 1)!
-    /// 사운드별 합성 버퍼 캐시 — 한 번 만들고 재사용.
-    private var cache: [SoundName: AVAudioPCMBuffer] = [:]
-    private var started = false
-
-    /// 마스터 볼륨 — 웹 sounds.ts L:44 `MASTER_VOLUME = 0.18` 그대로.
-    /// 이전 iOS 의 0.35 (사각파 단독 보정) 는 R2 다층 합성으로 폐기 (웹 동일치).
-    private let masterVolume = 0.18
-
-    private init() {
-        engine.attach(player)
-        engine.connect(player, to: engine.mainMixerNode, format: format)
+    private override init() {
+        super.init()
+        NotificationCenter.default.addObserver(self, selector: #selector(interruption),
+            name: AVAudioSession.interruptionNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(routeChanged),
+            name: AVAudioSession.routeChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(mediaReset),
+            name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
     }
 
-    /// 14-completion-delay(선택) — 부팅 idle 에 완료/레벨업 버퍼를 미리 합성하고 오디오
-    ///   세션·엔진을 미리 활성화한다. 첫 완료에서 동기 PCM 합성(샘플 루프) + setCategory/
-    ///   setActive/engine.start 를 처음 치르던 지연을 부팅 시점으로 옮긴다. enabled 와 무관하게
-    ///   캐시·엔진만 준비하고 실제 재생(무음)은 하지 않는다. .task 로 첫 렌더 후 호출된다.
+    static func assetURL(_ name: String, extension ext: String) -> URL? {
+        Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "Audio")
+            ?? Bundle.main.url(forResource: name, withExtension: ext)
+    }
+
     func prewarm() {
-        for name in [SoundName.complete, .levelUp] where cache[name] == nil {
-            if let synth = synthesize(Self.recipe(name)) { cache[name] = synth }
+        for name in SoundName.allCases {
+            if let url = Self.assetURL("sfx-\(name.rawValue)", extension: "wav"),
+               let data = try? Data(contentsOf: url) { samples[name] = data }
         }
-        if !started {
-            try? AVAudioSession.sharedInstance().setCategory(.ambient)
-            try? AVAudioSession.sharedInstance().setActive(true)
-            try? engine.start()
-            player.play()
-            started = true
+        resume()
+    }
+
+    func setActive(_ value: Bool) {
+        active = value
+        if value { resume() } else { stopAll() }
+    }
+
+    private func configureSession() -> Bool {
+        if sessionReady { return true }
+        do {
+            // Respect Silent Mode, mix with the user's audio, stop when app is inactive.
+            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+            sessionReady = true
+            return true
+        } catch { return false }
+    }
+
+    private func resume() {
+        guard Self.enabled, active, !interrupted, configureSession() else { return }
+        startMusic()
+    }
+
+    func setMusic(_ track: MusicTrack) {
+        guard track != desired else { return }
+        desired = track
+        bossMusicNotBefore = 0
+        if track == .boss, let started = play(.bossTransition) {
+            bossMusicNotBefore = started + 0.45
+        }
+        else {
+            for (name, player) in effects where name == .bossTransition { player.stop() }
+            effects.removeAll { $0.0 == .bossTransition }
+        }
+        resume()
+    }
+
+    @discardableResult
+    func play(_ name: SoundName) -> TimeInterval? {
+        guard Self.enabled, active, !interrupted else { return nil }
+        let now = ProcessInfo.processInfo.systemUptime
+        let cooldown = (name == .select) ? 0.045 : 0.11
+        guard now - (lastPlayed[name] ?? -.infinity) >= cooldown else { return nil }
+        lastPlayed[name] = now
+        effects.removeAll { !$0.1.isPlaying }
+        if effects.count >= 12 {
+            guard let index = effects.firstIndex(where: { quiet.contains($0.0) }) else { return nil }
+            effects.remove(at: index).1.stop()
+        }
+        if samples[name] == nil,
+           let url = Self.assetURL("sfx-\(name.rawValue)", extension: "wav") {
+            samples[name] = try? Data(contentsOf: url)
+        }
+        guard let data = samples[name], let player = try? AVAudioPlayer(data: data), configureSession() else { return nil }
+        player.volume = name == .bossTransition ? 0.26 : quiet.contains(name) ? 0.22 : 0.42
+        player.prepareToPlay()
+        guard player.play() else { return nil }
+        effects.append((name, player))
+        return ProcessInfo.processInfo.systemUptime
+    }
+
+    private func startMusic() {
+        guard currentTrack != desired,
+              let url = Self.assetURL("bgm-\(desired.rawValue)", extension: "m4a"),
+              let player = try? AVAudioPlayer(contentsOf: url) else { return }
+        player.numberOfLoops = -1
+        player.volume = 0
+        player.prepareToPlay()
+        let now = ProcessInfo.processInfo.systemUptime
+        let delay = desired == .boss ? max(0, bossMusicNotBefore - now) : 0
+        let duration = desired == .boss ? 1.4 : 2.4
+        let outgoingDuration = delay > 0 ? 0.65 : duration
+        guard delay > 0 ? player.play(atTime: player.deviceCurrentTime + delay) : player.play() else { return }
+        // Retarget from the actual current volumes, including interrupted crossfades.
+        fadeTimer?.invalidate()
+        // Stop a silent, scheduled intro if the user leaves before it starts.
+        for voice in music where voice.player.volume == 0 { voice.player.stop() }
+        music = music.filter { $0.player.isPlaying }.map {
+            MusicVoice(player: $0.player, start: $0.player.volume, target: 0, delay: 0, duration: outgoingDuration)
+        }
+        music.append(MusicVoice(player: player, start: 0, target: desired.volume, delay: delay, duration: duration))
+        currentTrack = desired
+        fadeDuration = delay + duration
+        fadeStart = now
+        fadeTimer = Timer.scheduledTimer(timeInterval: 1.0 / 30, target: self,
+            selector: #selector(updateFade), userInfo: nil, repeats: true)
+        if let fadeTimer { RunLoop.main.add(fadeTimer, forMode: .common) }
+    }
+
+    @objc private func updateFade() {
+        let elapsed = ProcessInfo.processInfo.systemUptime - fadeStart
+        for voice in music {
+            let fraction = Float(min(1, max(0, (elapsed - voice.delay) / voice.duration)))
+            voice.player.volume = voice.start + (voice.target - voice.start) * fraction
+        }
+        if elapsed >= fadeDuration {
+            for voice in music where voice.target == 0 { voice.player.stop() }
+            music.removeAll { $0.target == 0 }
+            fadeTimer?.invalidate(); fadeTimer = nil
         }
     }
 
-    /// 사운드 재생. enabled=false 면 무음. 메인 스레드 전용.
-    func play(_ name: SoundName) {
-        guard Self.enabled else { return }
-        let buffer: AVAudioPCMBuffer
-        if let cached = cache[name] {
-            buffer = cached
-        } else {
-            guard let synth = synthesize(Self.recipe(name)) else { return }
-            cache[name] = synth
-            buffer = synth
-        }
-        if !started {
-            // .ambient — 무음 스위치 존중 + 타 오디오와 믹스.
-            try? AVAudioSession.sharedInstance().setCategory(.ambient)
-            try? AVAudioSession.sharedInstance().setActive(true)
-            try? engine.start()
-            player.play()
-            started = true
-        }
-        // .interrupts — 새 효과음이 이전 것을 즉시 대체.
-        player.scheduleBuffer(buffer, at: nil, options: .interrupts,
-                              completionHandler: nil)
+    private func stopAll() {
+        fadeTimer?.invalidate(); fadeTimer = nil
+        music.forEach { $0.player.stop() }; music.removeAll()
+        effects.forEach { $0.1.stop() }; effects.removeAll()
+        lastPlayed.removeAll()
+        currentTrack = nil
+        bossMusicNotBefore = 0
+        sessionReady = false
     }
 
-    // MARK: - 합성
-
-    /// 다중 OscillatorRecipe 의 합산 PCM 버퍼.
-    /// 각 recipe 의 파형 sample × volume × envelope × masterVolume 을 시간축에서 합산하고
-    /// [-1, 1] 범위로 클램프.
-    private func synthesize(_ recipes: [OscillatorRecipe]) -> AVAudioPCMBuffer? {
-        guard !recipes.isEmpty else { return nil }
-        let total = (recipes.map { $0.start + $0.duration }.max() ?? 0) + 0.02
-        let frameCount = AVAudioFrameCount(total * sampleRate)
-        guard frameCount > 0,
-              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)
-        else { return nil }
-        buffer.frameLength = frameCount
-        let out = buffer.floatChannelData![0]
-        let n = Int(frameCount)
-        for i in 0..<n { out[i] = 0 }
-
-        for r in recipes {
-            let startFrame = Int(r.start * sampleRate)
-            let nFrames = Int(r.duration * sampleRate)
-            guard nFrames > 0 else { continue }
-            var phase = 0.0
-            let invSR = 1.0 / sampleRate
-
-            for i in 0..<nFrames {
-                let frame = startFrame + i
-                guard frame >= 0, frame < n else { continue }
-                let t = Double(i) * invSR
-
-                // 주파수 — 지수 또는 선형 보간
-                let progress = Double(i) / Double(nFrames)
-                let freq: Double
-                if let fEnd = r.freqEnd {
-                    freq = interpolate(r.freqStart, fEnd, progress, kind: r.freqSweepKind)
-                } else {
-                    freq = r.freqStart
-                }
-
-                // 파형
-                phase += freq * invSR
-                while phase >= 1 { phase -= 1 }
-                let sample: Double
-                switch r.waveform {
-                case .square:   sample = phase < 0.5 ? 1.0 : -1.0
-                case .triangle: sample = 4.0 * abs(phase - 0.5) - 1.0
-                case .sine:     sample = sin(2.0 * .pi * phase)
-                }
-
-                // Envelope
-                let env = envelopeAt(t, recipe: r)
-
-                out[frame] += Float(sample * r.volume * env * masterVolume)
-            }
-        }
-
-        // 클립 방지
-        for i in 0..<n {
-            if out[i] > 1 { out[i] = 1 } else if out[i] < -1 { out[i] = -1 }
-        }
-        return buffer
-    }
-
-    /// 두 값 사이 보간. 지수 sweep 는 Web Audio `exponentialRampToValueAtTime` 와 동치:
-    ///   x(p) = a · (b/a)^p,  p ∈ [0, 1].
-    /// 0 또는 음수 endpoint 면 exp 정의 안 되어 linear 폴백 (Web Audio 도 동일 처리).
-    private func interpolate(_ a: Double, _ b: Double, _ p: Double,
-                             kind: SweepKind) -> Double {
-        switch kind {
-        case .linear:
-            return a + (b - a) * p
-        case .exponential:
-            guard a > 0, b > 0 else { return a + (b - a) * p }
-            return a * pow(b / a, p)
+    @objc private func interruption(_ notification: Notification) {
+        guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        if type == .began { interrupted = true; stopAll() }
+        else {
+            interrupted = false
+            let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            if AVAudioSession.InterruptionOptions(rawValue: rawOptions).contains(.shouldResume) { resume() }
         }
     }
 
-    /// Envelope 평가 — t 는 recipe.start 로부터 경과 시간.
-    ///  - customEnvelope=nil: 5ms 어택 + 지수 decay (웹 createOsc/createSweep 의 default).
-    ///  - 비-nil: multi-segment 사이 점별 보간 (ambientFloat 등).
-    private func envelopeAt(_ t: Double, recipe r: OscillatorRecipe) -> Double {
-        if let custom = r.customEnvelope {
-            // 첫 점 이전: 0.0001 에서 첫 점.value 로 보간 (setValueAtTime 직후 첫 ramp).
-            var prevTime = 0.0
-            var prevValue = 0.0001
-            for point in custom {
-                if t <= point.time {
-                    let segDur = point.time - prevTime
-                    if segDur <= 0 { return point.value }
-                    let segP = (t - prevTime) / segDur
-                    return interpolate(prevValue, point.value, segP, kind: point.kind)
-                }
-                prevTime = point.time
-                prevValue = point.value
-            }
-            return prevValue  // 마지막 점 이후 hold
-        }
-
-        // 기본 envelope — 웹 createOsc/createSweep 와 동치.
-        let attackDur = 0.005
-        if t < attackDur {
-            // 5ms 어택: 0.0001 → 1 exp
-            return interpolate(0.0001, 1.0, t / attackDur, kind: .exponential)
-        } else {
-            // 지수 decay to 0.0001 by duration
-            let p = (t - attackDur) / max(0.0001, r.duration - attackDur)
-            return interpolate(1.0, 0.0001, min(1.0, p), kind: .exponential)
-        }
+    @objc private func routeChanged(_ notification: Notification) {
+        guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable else { return }
+        stopAll()
     }
 
-    // MARK: - 27 사운드 레시피 — 웹 sounds.ts 비트 단위 복제
+    @objc private func mediaReset() { stopAll(); resume() }
+}
 
-    private static func recipe(_ name: SoundName) -> [OscillatorRecipe] {
-        switch name {
-        // ───────── UI 클릭·확정·취소 ─────────
-        case .select:
-            // L:96-105 — punchy low thud + sub-bass triangle + brief high tick.
-            return [
-                OscillatorRecipe(180, duration: 0.06, volume: 0.8),
-                OscillatorRecipe(90,  duration: 0.05, volume: 0.5, waveform: .triangle),
-                OscillatorRecipe(600, duration: 0.02, volume: 0.25),
-            ]
-        case .confirm:
-            // L:107-113 — two rising notes 600→800.
-            return [
-                OscillatorRecipe(600, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(800, start: 0.1, duration: 0.1, volume: 1.0),
-            ]
-        case .cancel:
-            // L:115-120 — falling sweep 600→400.
-            return [OscillatorRecipe(600, 400, duration: 0.1, volume: 1.0)]
-
-        // ───────── 카드 상호작용 ─────────
-        case .cardFlip:
-            // L:122-127 — quick sweep 400→1200.
-            return [OscillatorRecipe(400, 1200, duration: 0.08, volume: 1.0)]
-        case .cardHover:
-            // L:129-134 — subtle tick 700 (quiet).
-            return [OscillatorRecipe(700, duration: 0.04, volume: 0.35)]
-        case .cardPreview:
-            // L:136-141 — smooth whoosh sweep 500→900.
-            return [OscillatorRecipe(500, 900, duration: 0.12, volume: 0.5)]
-        case .cardSelect:
-            // L:143-149 — positive tick 900 + 1100 follow.
-            return [
-                OscillatorRecipe(900, duration: 0.06, volume: 1.0),
-                OscillatorRecipe(1100, start: 0.04, duration: 0.05, volume: 0.6),
-            ]
-
-        // ───────── 진행 단계 ─────────
-        case .packOpen:
-            // L:151-158 — 3 ascending notes.
-            return [
-                OscillatorRecipe(600, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(800, start: 0.1, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(1000, start: 0.2, duration: 0.12, volume: 1.0),
-            ]
-        case .complete:
-            // L:160-167 — C5 E5 G5 ascending.
-            return [
-                OscillatorRecipe(523, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(659, start: 0.1, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(784, start: 0.2, duration: 0.15, volume: 1.0),
-            ]
-        case .fullClear:
-            // L:169-179 — 4-note fanfare + triangle harmony on final.
-            return [
-                OscillatorRecipe(523, duration: 0.12, volume: 1.0),
-                OscillatorRecipe(659, start: 0.12, duration: 0.12, volume: 1.0),
-                OscillatorRecipe(784, start: 0.24, duration: 0.12, volume: 1.0),
-                OscillatorRecipe(1047, start: 0.36, duration: 0.25, volume: 1.0),
-                // Triangle harmony — final note (R2 신규 이식)
-                OscillatorRecipe(523, start: 0.36, duration: 0.25,
-                                 volume: 0.4, waveform: .triangle),
-            ]
-        case .levelUp:
-            // L:181-193 — 6 ascending + sustained final + triangle harmony.
-            var recipes: [OscillatorRecipe] = []
-            let freqs: [Double] = [523, 587, 659, 784, 1047, 1319]
-            let dur = 0.11
-            for (i, freq) in freqs.enumerated() {
-                recipes.append(OscillatorRecipe(freq,
-                                                start: Double(i) * dur,
-                                                duration: dur + 0.02,
-                                                volume: 1.0))
-            }
-            let endT = Double(freqs.count) * dur
-            // 마지막 sustained note + triangle 784 하모니
-            recipes.append(OscillatorRecipe(1319, start: endT, duration: 0.2, volume: 0.8))
-            recipes.append(OscillatorRecipe(784, start: endT, duration: 0.2,
-                                            volume: 0.35, waveform: .triangle))
-            return recipes
-        case .equip:
-            // L:195-201 — "cha-ching" 1200 + 1600.
-            return [
-                OscillatorRecipe(1200, duration: 0.08, volume: 1.0),
-                OscillatorRecipe(1600, start: 0.08, duration: 0.12, volume: 1.0),
-            ]
-        case .xpGain:
-            // L:203-217 — 6 ascending staccato + shimmer + triangle harmony.
-            var recipes: [OscillatorRecipe] = []
-            let freqs: [Double] = [880, 988, 1047, 1175, 1319, 1568]
-            let step = 0.055
-            for (i, freq) in freqs.enumerated() {
-                recipes.append(OscillatorRecipe(freq,
-                                                start: Double(i) * step,
-                                                duration: 0.045,
-                                                volume: 0.4 + Double(i) * 0.08))
-            }
-            let endT = Double(freqs.count) * step
-            recipes.append(OscillatorRecipe(1568, start: endT, duration: 0.12, volume: 0.7))
-            recipes.append(OscillatorRecipe(784, start: endT, duration: 0.12,
-                                            volume: 0.25, waveform: .triangle))
-            return recipes
-
-        // ───────── 신규 이식 (R2 17 개) ─────────
-        case .collect:
-            // L:219-230 — heavy thud + metallic latch + resonance tail.
-            return [
-                OscillatorRecipe(120, duration: 0.08, volume: 0.9, waveform: .triangle),
-                OscillatorRecipe(80,  duration: 0.06, volume: 0.6),
-                OscillatorRecipe(1400, start: 0.03, duration: 0.03, volume: 0.4),
-                OscillatorRecipe(200, start: 0.06, duration: 0.1,
-                                 volume: 0.3, waveform: .triangle),
-            ]
-
-        case .ambientFloat:
-            // L:232-257 — deep space drone. Bass linear freq + multi-segment gain.
-            return [
-                // Bass — triangle 65→73 linear 1.2s, peak 0.45×master, hold middle
-                OscillatorRecipe(
-                    65, 73, duration: 1.2, volume: 0.45,
-                    waveform: .triangle, freqSweepKind: .linear,
-                    customEnvelope: [
-                        EnvelopePoint(time: 0.3, value: 1.0, kind: .exponential),
-                        EnvelopePoint(time: 0.7, value: 1.0, kind: .linear),     // hold
-                        EnvelopePoint(time: 1.2, value: 0.0001, kind: .exponential),
-                    ]
-                ),
-                // Mid-tone hum — square 98 0.8s
-                OscillatorRecipe(98, start: 0.1, duration: 0.8, volume: 0.15),
-                // High shimmer — triangle 262 0.5s, very quiet
-                OscillatorRecipe(262, start: 0.4, duration: 0.5,
-                                 volume: 0.08, waveform: .triangle),
-                // Sub rumble — triangle 45 0.4s
-                OscillatorRecipe(45, duration: 0.4, volume: 0.2, waveform: .triangle),
-                // Sub rumble 2 — triangle 45 0.4s, delayed
-                OscillatorRecipe(45, start: 0.5, duration: 0.4,
-                                 volume: 0.15, waveform: .triangle),
-            ]
-
-        case .pulseWave:
-            // L:259-284 — ascending pulses + rising undertone + peak shimmer.
-            return [
-                // Main pulse 220→880 exp 0.3s
-                OscillatorRecipe(220, 880, duration: 0.3, volume: 0.5),
-                // Echo 1 330→1100, delay 0.15
-                OscillatorRecipe(330, 1100, start: 0.15, duration: 0.3, volume: 0.3),
-                // Echo 2 440→1320, delay 0.3
-                OscillatorRecipe(440, 1320, start: 0.3, duration: 0.3, volume: 0.18),
-                // Rising undertone — triangle 110→440 exp, 0.9s, custom env
-                OscillatorRecipe(
-                    110, 440, duration: 0.9, volume: 0.35, waveform: .triangle,
-                    customEnvelope: [
-                        EnvelopePoint(time: 0.3, value: 1.0, kind: .exponential),
-                        EnvelopePoint(time: 0.9, value: 0.0001, kind: .exponential),
-                    ]
-                ),
-                // Peak shimmer — triangle 1320, delay 0.5, 0.15s
-                OscillatorRecipe(1320, start: 0.5, duration: 0.15,
-                                 volume: 0.15, waveform: .triangle),
-            ]
-
-        case .chargeUp:
-            // L:286-319 — deep rumble + main sweep + overtone + drone + pulses + burst.
-            var recipes: [OscillatorRecipe] = [
-                // Deep sub-bass rumble 60→200 0.8s
-                OscillatorRecipe(60, 200, duration: 0.8, volume: 0.7),
-                // Main rising sweep 100→900 0.75s
-                OscillatorRecipe(100, 900, duration: 0.75, volume: 0.55),
-                // Overtone sweep 200→1400, delay 0.15, 0.65s
-                OscillatorRecipe(200, 1400, start: 0.15, duration: 0.65, volume: 0.3),
-                // Drone — triangle 55→110 exp, 0.8s, hold middle
-                OscillatorRecipe(
-                    55, 110, duration: 0.8, volume: 0.5, waveform: .triangle,
-                    customEnvelope: [
-                        EnvelopePoint(time: 0.15, value: 1.0, kind: .exponential),
-                        EnvelopePoint(time: 0.5, value: 1.0, kind: .linear),
-                        EnvelopePoint(time: 0.8, value: 0.0001, kind: .exponential),
-                    ]
-                ),
-            ]
-            // Accelerating staccato pulses
-            let pulseOffsets: [Double] = [0, 0.12, 0.22, 0.30, 0.36, 0.41, 0.45, 0.48]
-            for (i, offset) in pulseOffsets.enumerated() {
-                let freq = 150.0 + Double(i) * 80.0
-                let volume = 0.12 + Double(i) * 0.04
-                recipes.append(OscillatorRecipe(freq, start: offset,
-                                                duration: 0.04, volume: volume))
-            }
-            // Final bright burst
-            recipes.append(OscillatorRecipe(1200, start: 0.7, duration: 0.1, volume: 0.25))
-            recipes.append(OscillatorRecipe(600, start: 0.7, duration: 0.1,
-                                            volume: 0.15, waveform: .triangle))
-            return recipes
-
-        case .fireIgnite:
-            // L:321-336 — low rumble + crackling bursts + rising sweep.
-            // Crackle 의 random offset/duration 은 *결정적 평균값* 으로 고정
-            // (PCM 캐시라 재현 가능성 보장).
-            var recipes: [OscillatorRecipe] = [
-                OscillatorRecipe(80, duration: 0.5, volume: 0.7, waveform: .triangle),
-                OscillatorRecipe(200, 600, start: 0.1, duration: 0.4, volume: 0.5),
-            ]
-            let crackleFreqs: [Double] = [1200, 1500, 1800, 1400, 2000]
-            for (i, freq) in crackleFreqs.enumerated() {
-                // web: 0.05 + i*0.07 + Math.random()*0.03 → 평균 0.015 offset
-                let offset = 0.05 + Double(i) * 0.07 + 0.015
-                // web: 0.02 + Math.random()*0.02 → 평균 0.03
-                let dur = 0.03
-                recipes.append(OscillatorRecipe(freq, start: offset,
-                                                duration: dur, volume: 0.4))
-            }
-            return recipes
-
-        case .impactShake:
-            // L:338-359 — strong low impact 60→30 + sub-bass body.
-            // Web 의 impactGain.gain peak 0.25 (absolute) → Swift volume = 0.25 / 0.18 ≈ 1.389.
-            // 클립은 합산 후 마지막 단계에서 처리.
-            return [
-                OscillatorRecipe(60, 30, duration: 0.2, volume: 0.25 / 0.18),
-                OscillatorRecipe(45, duration: 0.15, volume: 0.6, waveform: .triangle),
-            ]
-
-        case .superIgnite:
-            // L:361-403 — bass + crackles + chorus(3 detuned) + reverse cymbal.
-            var recipes: [OscillatorRecipe] = [
-                OscillatorRecipe(50, duration: 0.7, volume: 0.8, waveform: .triangle),
-            ]
-            // Crackles 8 notes
-            let crackleFreqs: [Double] = [1000, 1400, 1800, 2200, 1200, 2400, 1600, 2000]
-            for (i, freq) in crackleFreqs.enumerated() {
-                let offset = 0.05 + Double(i) * 0.06 + 0.015
-                let dur = 0.03
-                recipes.append(OscillatorRecipe(freq, start: offset,
-                                                duration: dur, volume: 0.35))
-            }
-            // Chorus — 3 detuned at 200 ± 5
-            for freq in [200.0, 205.0, 195.0] {
-                recipes.append(OscillatorRecipe(
-                    freq, freq * 3, start: 0.1, duration: 0.6, volume: 0.3,
-                    customEnvelope: [
-                        EnvelopePoint(time: 0.05, value: 1.0, kind: .exponential),
-                        EnvelopePoint(time: 0.6, value: 0.0001, kind: .exponential),
-                    ]
-                ))
-            }
-            // Reverse cymbal — triangle 2000→200 exp, 0.7s starting at 0.2
-            recipes.append(OscillatorRecipe(
-                2000, 200, start: 0.2, duration: 0.7, volume: 0.4, waveform: .triangle,
-                customEnvelope: [
-                    EnvelopePoint(time: 0.3, value: 1.0, kind: .exponential),
-                    EnvelopePoint(time: 0.7, value: 0.0001, kind: .exponential),
-                ]
-            ))
-            return recipes
-
-        case .matchPair:
-            // L:405-413 — double-chime 880→1320 + triangle harmony 660.
-            return [
-                OscillatorRecipe(880, duration: 0.08, volume: 1.0),
-                OscillatorRecipe(1320, start: 0.08, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(660, duration: 0.14, volume: 0.35, waveform: .triangle),
-            ]
-
-        case .curseTrigger:
-            // L:415-426 — dissonant tritone + descending menace + low rumble.
-            return [
-                OscillatorRecipe(523, duration: 0.15, volume: 1.0),
-                OscillatorRecipe(370, start: 0.05, duration: 0.18, volume: 1.0),
-                OscillatorRecipe(523, 130, start: 0.12, duration: 0.28, volume: 0.6),
-                OscillatorRecipe(70, duration: 0.35, volume: 0.8, waveform: .triangle),
-            ]
-
-        case .rewardChoose:
-            // L:428-437 — rising triplet + shimmer tail.
-            return [
-                OscillatorRecipe(784, duration: 0.08, volume: 1.0),
-                OscillatorRecipe(988, start: 0.07, duration: 0.08, volume: 1.0),
-                OscillatorRecipe(1319, start: 0.14, duration: 0.14, volume: 1.0),
-                OscillatorRecipe(1568, start: 0.18, duration: 0.1,
-                                 volume: 0.5, waveform: .triangle),
-            ]
-
-        case .meteorWhoosh:
-            // L:439-473 — descending sweep + cosmic pad + sparkle pings.
-            // Pad 의 absolute gain 0.05 → Swift volume 0.05/0.18 ≈ 0.278.
-            return [
-                // Descending sweep — triangle 1500→300 exp 0.8s, custom env (peak 0.02s, dip 0.4s)
-                OscillatorRecipe(
-                    1500, 300, duration: 0.8, volume: 0.6, waveform: .triangle,
-                    customEnvelope: [
-                        EnvelopePoint(time: 0.02, value: 1.0, kind: .exponential),
-                        EnvelopePoint(time: 0.4, value: 0.5, kind: .exponential),
-                        EnvelopePoint(time: 0.8, value: 0.0001, kind: .exponential),
-                    ]
-                ),
-                // Cosmic pad — triangle 200 1.15s starting at 0.2, slow swell + hold + decay
-                OscillatorRecipe(
-                    200, start: 0.2, duration: 1.15, volume: 0.05 / 0.18,
-                    waveform: .triangle,
-                    customEnvelope: [
-                        EnvelopePoint(time: 0.2, value: 1.0, kind: .exponential),
-                        EnvelopePoint(time: 0.8, value: 1.0, kind: .linear),  // hold
-                        EnvelopePoint(time: 1.15, value: 0.0001, kind: .exponential),
-                    ]
-                ),
-                // Sparkle pings
-                OscillatorRecipe(1800, start: 1.0, duration: 0.06, volume: 0.25),
-                OscillatorRecipe(1800, start: 1.12, duration: 0.06, volume: 0.15),
-            ]
-
-        case .cameraShutter:
-            // L:475-484 — sharp click + mechanical body.
-            return [
-                OscillatorRecipe(2000, duration: 0.02, volume: 0.6),
-                OscillatorRecipe(1600, start: 0.01, duration: 0.03, volume: 0.4),
-                OscillatorRecipe(300, duration: 0.06, volume: 0.5, waveform: .triangle),
-            ]
-
-        case .polaroidSlide:
-            // L:486-492 — soft whoosh.
-            return [
-                OscillatorRecipe(800, 300, duration: 0.15, volume: 0.35),
-                OscillatorRecipe(200, start: 0.05, duration: 0.1,
-                                 volume: 0.2, waveform: .triangle),
-            ]
-
-        case .treeGrow:
-            // L:494-503 — A4 C#5 E5 ascending + triangle harmony 330.
-            return [
-                OscillatorRecipe(440, duration: 0.12, volume: 1.0),
-                OscillatorRecipe(554, start: 0.1, duration: 0.12, volume: 1.0),
-                OscillatorRecipe(659, start: 0.2, duration: 0.18, volume: 1.0),
-                OscillatorRecipe(330, start: 0.2, duration: 0.18,
-                                 volume: 0.3, waveform: .triangle),
-            ]
-
-        // ───────── 강화 상위 밴드 (웹 sounds.ts Phase 5-B 4종) ─────────
-        case .enhanceCharge:
-            // 충전 — 700ms triangle riser 220→880Hz (8ms 어택 → 0.45 → 0.7s decay)
-            // + 미세한 square 틱 5개 (440 + i×110 Hz, 0.12 + i×0.11 s, 30ms, 0.12).
-            return [
-                OscillatorRecipe(220, 880, duration: 0.7, volume: 0.45, waveform: .triangle,
-                                 customEnvelope: [
-                                     EnvelopePoint(time: 0.08, value: 1.0, kind: .exponential),
-                                     EnvelopePoint(time: 0.7, value: 0.0001, kind: .exponential),
-                                 ]),
-                OscillatorRecipe(440, start: 0.12, duration: 0.03, volume: 0.12),
-                OscillatorRecipe(550, start: 0.23, duration: 0.03, volume: 0.12),
-                OscillatorRecipe(660, start: 0.34, duration: 0.03, volume: 0.12),
-                OscillatorRecipe(770, start: 0.45, duration: 0.03, volume: 0.12),
-                OscillatorRecipe(880, start: 0.56, duration: 0.03, volume: 0.12),
-            ]
-        case .enhanceSuccessHigh:
-            // band 1 성공 — C5 E5 G5 아르페지오 + 높은 triangle 차임 두 겹, 600ms.
-            return [
-                OscillatorRecipe(523, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(659, start: 0.1, duration: 0.1, volume: 1.0),
-                OscillatorRecipe(784, start: 0.2, duration: 0.14, volume: 1.0),
-                OscillatorRecipe(1568, start: 0.34, duration: 0.26, volume: 0.55, waveform: .triangle),
-                OscillatorRecipe(2093, start: 0.4, duration: 0.2, volume: 0.3, waveform: .triangle),
-            ]
-        case .enhanceSuccessMax:
-            // band 2 성공 — 리버스 심벌 대용 sweep 두 겹 + C5 E5 G5 C6 코러스(옥타브 아래
-            // triangle 동반) + 꼭대기 E6 유지 + 반짝임 3개, 1100ms.
-            return [
-                OscillatorRecipe(120, 1200, duration: 0.35, volume: 0.35),
-                OscillatorRecipe(180, 1600, start: 0.05, duration: 0.3, volume: 0.2),
-                OscillatorRecipe(523, start: 0.36, duration: 0.5, volume: 0.45),
-                OscillatorRecipe(261.5, start: 0.36, duration: 0.5, volume: 0.18, waveform: .triangle),
-                OscillatorRecipe(659, start: 0.39, duration: 0.5, volume: 0.45),
-                OscillatorRecipe(329.5, start: 0.39, duration: 0.5, volume: 0.18, waveform: .triangle),
-                OscillatorRecipe(784, start: 0.42, duration: 0.5, volume: 0.45),
-                OscillatorRecipe(392, start: 0.42, duration: 0.5, volume: 0.18, waveform: .triangle),
-                OscillatorRecipe(1047, start: 0.45, duration: 0.5, volume: 0.45),
-                OscillatorRecipe(523.5, start: 0.45, duration: 0.5, volume: 0.18, waveform: .triangle),
-                OscillatorRecipe(1319, start: 0.5, duration: 0.6, volume: 0.8),
-                OscillatorRecipe(2637, start: 0.82, duration: 0.06, volume: 0.3),
-                OscillatorRecipe(2093, start: 0.94, duration: 0.06, volume: 0.22),
-                OscillatorRecipe(3136, start: 1.02, duration: 0.06, volume: 0.18),
-            ]
-        case .enhanceShatter:
-            // band >= 1 소실 — 짧은 square 클러스터(노이즈 근사) + 600→80Hz sweep + 낮은
-            // triangle 타격, 500ms.
-            return [
-                OscillatorRecipe(1873, duration: 0.06, volume: 0.28),
-                OscillatorRecipe(2311, start: 0.012, duration: 0.06, volume: 0.28),
-                OscillatorRecipe(1493, start: 0.024, duration: 0.06, volume: 0.28),
-                OscillatorRecipe(2707, start: 0.036, duration: 0.06, volume: 0.28),
-                OscillatorRecipe(1117, start: 0.048, duration: 0.06, volume: 0.28),
-                OscillatorRecipe(600, 80, start: 0.04, duration: 0.46, volume: 0.7),
-                OscillatorRecipe(70, start: 0.02, duration: 0.3, volume: 0.6, waveform: .triangle),
-            ]
+// Enhancement tiers retain their established feedback when samples change.
+extension SoundName {
+    var enhanceHapticIntent: Haptics.Intent? {
+        switch self {
+        case .enhanceCharge: return .light
+        case .enhanceSuccessHigh: return .success
+        case .enhanceSuccessMax: return .celebration
+        case .enhanceShatter: return .heavy
+        default: return nil
         }
     }
 }

@@ -1,3 +1,4 @@
+import { useRetentionSetupStore } from "@/store/useRetentionSetupStore";
 import { create } from "zustand";
 import type { ChallengeCard, Rarity } from "@/types/card";
 import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase, ChallengeCompletionResult } from "@/types/game";
@@ -618,6 +619,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("daily", updatedDaily);
     saveToStorage("progress", updatedProgress);
     setTimeout(() => completingCardIds.delete(cardId), 100);
+
+    useRetentionSetupStore.getState().recordCompletion(Object.values(updatedProgress.cardCompletions).reduce((sum, count) => sum + count, 0));
 
     // Up Hero 탐험권 지급 — 해당 카테고리에 rarity 별 수량 (normal:1, rare:2, unique:3, legend:5)
     // 자동 전투 트리거 없음 — 사용자가 캠프에서 능동적으로 던전 진입
@@ -1297,6 +1300,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("daily", updatedDaily);
     saveToStorage("progress", updatedProgress);
     completingCardIds.delete(cardId);
+
+    useRetentionSetupStore.getState().recordCompletion(Object.values(updatedProgress.cardCompletions).reduce((sum, count) => sum + count, 0));
 
     // Phase 12 bugfix — extra/super phase 에도 탐험권 지급.
     //   유저 제보: "사진 기록 후 탐험 티켓이 안 들어온다". 원인은 photo flow 가

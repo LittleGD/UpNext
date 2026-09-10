@@ -1,4 +1,4 @@
-# 1.3.0 (빌드 29) 릴리스 노트
+# 1.3.0 (빌드 30) 릴리스 노트
 
 App Store Connect 1.3.0 의 "새로운 기능" 원문. 빌드 26 문안에 격자 가방(피드백 23번)과 가방 확장 상점을 더해 다시 썼다. 방지권은 켜고 시도할 때마다 소모되는 계약이므로 빌드 25 의 옛 문안("막는 순간에만 쓰입니다")은 쓰지 않는다.
 
@@ -19,6 +19,8 @@ App Store Connect 1.3.0 의 "새로운 기능" 원문. 빌드 26 문안에 격�
 • 던전의 룬 상자는 걸쇠 맞추기로 엽니다. 표식을 정확히 멈출수록 보상이 조금 더 커져요.
 • 카드 매치의 중복 카드 보상과 방치 보상을 조정했어요. 챌린지 완료 경험치는 그대로입니다.
 • 주간 악몽 던전 첫 클리어 보상을 추가했어요. 풀 카드팩은 5장을 보장합니다.
+• 첫 챌린지 완료 후 알림 시간을 정하고, 두 번째 완료 후 홈 화면 위젯 추가를 연습할 수 있어요. 설정에서도 가이드를 다시 볼 수 있습니다.
+• 화면과 던전별 배경 음악, 전투와 미니게임 효과음을 추가했습니다.
 
 ## en-US
 
@@ -37,6 +39,8 @@ Dungeons, the bag, and hero growth got a big rework.
 • The dungeon rune chest now opens with a lock you time yourself. Stop the marker closer to the target and the reward grows a little.
 • Rebalanced duplicate-card rewards in Card Match and idle rewards. Challenge completion XP is unchanged.
 • Added a first-clear reward for the weekly nightmare dungeon. Full card packs guarantee 5 cards.
+• After your first challenge, choose a daily reminder time. After your second, practice adding a Home Screen widget. Both guides are also available in Settings.
+• Added music for app screens and dungeons, plus combat and minigame sound effects.
 
 ## ja
 
@@ -55,6 +59,8 @@ Dungeons, the bag, and hero growth got a big rework.
 • ダンジョンのルーン箱は掛け金を自分で合わせて開けます。目印に近いほど報酬が少し増えます。
 • カードマッチの重複カード報酬と放置報酬を調整しました。チャレンジ完了の経験値はそのままです。
 • 週間ナイトメアダンジョンの初回クリア報酬を追加しました。フルカードパックは5枚保証です。
+• 最初のチャレンジを完了したら通知時刻を設定し、2回目の完了後はホーム画面へのウィジェット追加を練習できます。設定からもガイドを開けます。
+• 画面やダンジョンごとのBGMと、戦闘やミニゲームの効果音を追加しました。
 
 ## zh-Hans
 
@@ -73,3 +79,5 @@ Dungeons, the bag, and hero growth got a big rework.
 • 地牢的符文箱需要自己卡准时机打开锁扣。停得越准，奖励就稍微多一些。
 • 调整了卡牌配对的重复卡牌奖励与挂机奖励。挑战完成经验保持不变。
 • 新增每周噩梦地牢首次通关奖励。完整卡包保证5张。
+• 完成第一个挑战后可设置每日提醒时间，完成第二个挑战后可练习添加主屏幕小组件。也可在设置中再次打开指南。
+• 新增各界面和地牢的背景音乐，以及战斗和小游戏音效。

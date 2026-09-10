@@ -24,6 +24,7 @@ import SwiftUI
 import Combine
 
 struct MinigameRouter: View {
+    @State private var reported = false
     let pending: PendingMinigame
     let onComplete: (Bool) -> Void
     /// P0-1 — 사용자가 우상단 X 또는 GiveUp 으로 직접 포기. 호출자는 보통
@@ -54,6 +55,7 @@ struct MinigameRouter: View {
         .overlay(alignment: .topTrailing) {
             Button {
                 Haptics.play(.selection)
+                SoundPlayer.shared.play(.cancel)
                 onCancel()
             } label: {
                 PixelIcon(.cancel, size: 22, color: Color.white.opacity(0.7))
@@ -67,31 +69,38 @@ struct MinigameRouter: View {
         }
     }
 
+    private func finish(_ success: Bool) {
+        guard !reported else { return }
+        reported = true
+        SoundPlayer.shared.play(success ? .minigameSuccess : .minigameFail)
+        onComplete(success)
+    }
+
     @ViewBuilder
     private var gameView: some View {
         switch pending.minigame {
         case .pairMatch:
-            PairMatchGame(difficulty: pending.difficulty, onComplete: onComplete)
+            PairMatchGame(difficulty: pending.difficulty, onComplete: finish)
         case .reactionTap:
-            ReactionTapGame(difficulty: pending.difficulty, onComplete: onComplete)
+            ReactionTapGame(difficulty: pending.difficulty, onComplete: finish)
         case .tapBurst:
-            TapBurstGame(difficulty: pending.difficulty, onComplete: onComplete)
+            TapBurstGame(difficulty: pending.difficulty, onComplete: finish)
         case .pipeConnect:
-            PipeConnectGame(difficulty: pending.difficulty, onComplete: onComplete)
+            PipeConnectGame(difficulty: pending.difficulty, onComplete: finish)
         case .sequenceMemo:
-            SequenceMemoGame(difficulty: pending.difficulty, onComplete: onComplete)
+            SequenceMemoGame(difficulty: pending.difficulty, onComplete: finish)
         case .dodgeDrops:
-            DodgeDropsGame(difficulty: pending.difficulty, onComplete: onComplete)
+            DodgeDropsGame(difficulty: pending.difficulty, onComplete: finish)
         case .sortItems:
-            SortItemsGame(difficulty: pending.difficulty, onComplete: onComplete)
+            SortItemsGame(difficulty: pending.difficulty, onComplete: finish)
         case .quickSum:
-            QuickSumGame(difficulty: pending.difficulty, onComplete: onComplete)
+            QuickSumGame(difficulty: pending.difficulty, onComplete: finish)
         case .spotDiff:
-            SpotDiffGame(difficulty: pending.difficulty, onComplete: onComplete)
+            SpotDiffGame(difficulty: pending.difficulty, onComplete: finish)
         case .breathHold:
-            BreathHoldGame(difficulty: pending.difficulty, onComplete: onComplete)
+            BreathHoldGame(difficulty: pending.difficulty, onComplete: finish)
         case .tracePath:
-            TracePathGame(difficulty: pending.difficulty, onComplete: onComplete)
+            TracePathGame(difficulty: pending.difficulty, onComplete: finish)
         }
     }
 }
@@ -297,6 +306,7 @@ private struct ReactionTapGame: View {
     }
 
     private func handleTap() {
+        SoundPlayer.shared.play(.select)
         switch phase {
         case .ready:
             // 너무 빨리 탭 — 실패
@@ -366,6 +376,7 @@ private struct TapBurstGame: View {
     private var tapButton: some View {
         Button {
             guard timeRemaining > 0 else { return }
+            SoundPlayer.shared.play(.select)
             count += 1
             Haptics.play(.light)
         } label: {

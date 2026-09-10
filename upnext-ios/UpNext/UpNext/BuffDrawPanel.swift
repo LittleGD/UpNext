@@ -89,6 +89,7 @@ struct BuffDrawPanel: View {
     private func cardCell(_ card: ChallengeCard) -> some View {
         let selected = selectedIds.contains(card.id)
         return Button {
+            SoundPlayer.shared.play(.cardSelect)
             toggle(card.id)
         } label: {
             VStack(alignment: .leading, spacing: 6) {
@@ -123,7 +124,7 @@ struct BuffDrawPanel: View {
 
     private var bottomBar: some View {
         HStack(spacing: 10) {
-            Button("취소") { upHero.cancelBuffDraw() }
+            Button("취소") { SoundPlayer.shared.play(.cancel); upHero.cancelBuffDraw() }
                 .buttonStyle(.un(.secondary, tint: .textSecondary))
             Button("탐험 시작") {
                 upHero.confirmDungeon(selectedCardIds: Array(selectedIds))

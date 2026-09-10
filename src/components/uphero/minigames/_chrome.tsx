@@ -11,6 +11,8 @@
  * 모든 인터랙션은 EASE_OUT + scale(0.97) press 통일.
  */
 
+import { useEffect, useRef } from "react";
+import { useSound } from "@/hooks/useSound";
 import { GB, GB_DANGER, GB_WARN, EASE_OUT } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -109,6 +111,13 @@ interface StatusProps {
 }
 
 export function StatusMessage({ kind, children }: StatusProps) {
+  const { play } = useSound();
+  const sounded = useRef<string | null>(null);
+  useEffect(() => {
+    if (sounded.current === kind) return;
+    sounded.current = kind;
+    play(kind === "success" ? "minigameSuccess" : "minigameFail");
+  }, [kind, play]);
   return (
     <div
       role="status"

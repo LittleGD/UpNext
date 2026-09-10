@@ -28,7 +28,6 @@ import type { CombatSession, EffectSummaryData, Monster } from "@/types/uphero";
 import { nextBossFloorAfter } from "@/lib/upHeroCombat";
 import { affixStatLabel, buildSummaryChips } from "@/lib/upHeroI18n";
 import { GB, EASE_OUT, gbClass, GB_ENEMY, GB_WARN, GB_LEGEND } from "@/lib/upHeroPalette";
-import { useSound } from "@/hooks/useSound";
 import { useTranslation } from "@/hooks/useTranslation";
 import { dungeonName, monsterName } from "@/lib/upHeroI18n";
 import CombatLog from "./CombatLog";
@@ -119,7 +118,6 @@ export default function DungeonView() {
     setPrevSessionKey(sessionKey);
     setChoiceSeenUpTo(-1);
   }
-  const { play } = useSound();
   const { t, language } = useTranslation();
 
   // Phase 14 code-review High #6 — 전투 visual tell / SR 공지 로직을 hook 으로 분리.
@@ -161,17 +159,6 @@ export default function DungeonView() {
     if (last?.type !== "boss") return null;
     return { monster: last.monster as Monster, floor: last.floor };
   }, [session]);
-
-  // 보스 등장 시 사운드/진동 재생
-  const bossSoundPlayedRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!bossReveal) return;
-    // 같은 보스에 대해 1회만 재생
-    const ts = session?.log[session.log.length - 1]?.timestamp ?? 0;
-    if (bossSoundPlayedRef.current === ts) return;
-    bossSoundPlayedRef.current = ts;
-    play("impactShake");
-  }, [bossReveal, session, play]);
 
   // auto-tick loop — session.status === "active" 일 때만.
   // Phase 10 — choice result 모달 열려있으면 tick 도 pause → 유저가 결과 읽을 시간.

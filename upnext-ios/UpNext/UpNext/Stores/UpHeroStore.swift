@@ -378,7 +378,7 @@ final class UpHeroStore: ObservableObject {
             s.hero.equipped[item.type] = worn
         }
         Haptics.play(.selection)
-        SoundPlayer.shared.play(.cardSelect)
+        SoundPlayer.shared.play(.equip)
     }
 
     /// 슬롯의 장비를 해제해 인벤토리로 되돌린다. 웹 unequipItem.
@@ -391,7 +391,7 @@ final class UpHeroStore: ObservableObject {
             s.inventory = UpHeroBag.placeIntoBag(s.inventory, item, rows: rows)
         }
         Haptics.play(.selection)
-        SoundPlayer.shared.play(.cardSelect)
+        SoundPlayer.shared.play(.equip)
     }
 
     /// 인벤토리 장비 판매 — 등급 + 드롭 층 + 강화 단계 가산 환급 (Phase 6-E).
@@ -752,11 +752,9 @@ final class UpHeroStore: ObservableObject {
         case .completed:
             return
         }
-        // 이번 스텝에 탐험이 끝났으면 결산 햅틱·사운드 (매 tick 이 아니라 종료 1회).
-        // fullClear — 던전 결산은 데일리 풀클리어급 임팩트.
+        // 종료 햅틱은 한 번만. 결과별 사운드는 DungeonView의 새 로그 처리에서 재생한다.
         if wasOngoing, session.status == .completed {
             Haptics.play(.success)
-            SoundPlayer.shared.play(.fullClear)
         }
         state.currentSession = session
     }
@@ -1047,7 +1045,6 @@ final class UpHeroStore: ObservableObject {
             session, success: success, rng: &rng)
         if success {
             Haptics.play(.success)
-            SoundPlayer.shared.play(.matchPair)
         } else {
             Haptics.play(.warning)
         }
@@ -1269,7 +1266,7 @@ final class UpHeroStore: ObservableObject {
             s.hero.skillPoints = Self.deriveSkillPoints(s.hero, level: heroLevel)
         }
         Haptics.play(.celebration)   // 스킬 해금 — 성장 순간
-        SoundPlayer.shared.play(.levelUp)
+        SoundPlayer.shared.play(.skillLearn)
         return .ok
     }
 
@@ -1448,7 +1445,6 @@ final class UpHeroStore: ObservableObject {
         if idx >= 0, case let .encounter(m, _) = s.log[idx] { monster = m }
         guard ClassSkills.fireSkill(&s, skillId: skillId, monster: monster) else { return }
         Haptics.play(.heavy)
-        SoundPlayer.shared.play(.impactShake)
         mutate { $0.currentSession = s }
     }
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Up Hero — 세션 결산 modal.
  *
@@ -35,6 +37,7 @@ import DropRevealCard from "./DropRevealCard";
 //   IdleRewardToast 양쪽에 같은 rAF 로직이 복붙돼 있던 걸 정리.
 
 export default function SessionResultModal() {
+  const { play } = useSound();
   const session = useUpHeroStore((s) => s.currentSession);
   const acknowledge = useUpHeroStore((s) => s.acknowledgeSessionEnd);
   // 정산 미리보기용 인벤토리. 실제 정산은 acknowledge 가 같은 순수 함수로 한다 —
@@ -425,7 +428,7 @@ export default function SessionResultModal() {
                 CSS :active 로 교체. 다른 uphero 버튼들과 패턴 통일. */}
           <button
             type="button"
-            onClick={acknowledge}
+            onClick={() => { play("collect"); acknowledge(); }}
             className="session-result-cta w-full py-3 rounded typo-caption"
             style={{
               minHeight: 44,

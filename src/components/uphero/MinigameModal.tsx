@@ -9,6 +9,7 @@
  * 완료 콜백: `resolveMinigame(success)` store action 호출 → 세션 effects 적용.
  */
 
+import { useSound } from "@/hooks/useSound";
 import { useRef } from "react";
 import { createPortal } from "react-dom";
 import type { MinigameId } from "@/types/uphero";
@@ -67,6 +68,7 @@ export default function MinigameModal({
   difficulty,
   onComplete,
 }: MinigameModalProps) {
+  const { play } = useSound();
   const containerRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
   // Phase 12 R3 — Esc 로 실수 탈출 → 즉시 실패 + damage 페널티 방지.
@@ -141,7 +143,7 @@ export default function MinigameModal({
         <Game
           difficulty={difficulty}
           onComplete={(r) => onComplete(r.success)}
-          onCancel={() => onComplete(false)}
+          onCancel={() => { play("cancel"); onComplete(false); }}
         />
         <style jsx>{`
           div[role="dialog"] {

@@ -1,5 +1,6 @@
 "use client";
 
+import { RetentionSetupSettings } from "@/components/providers/RetentionSetupProvider";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -155,6 +156,8 @@ export default function SettingsPage() {
           <p className="typo-caption text-accent-secondary">{t("settings.dataWarning")}</p>
         </div>
       )}
+
+      <RetentionSetupSettings />
 
       {/* ── 일반 설정 (언어 + 사운드) ── */}
       <section className="rounded-lg bg-bg-surface overflow-hidden">

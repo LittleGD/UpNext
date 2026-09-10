@@ -246,7 +246,7 @@ struct EquipmentInventoryView: View {
                         }
                     case .keep:
                         Haptics.play(.warning)
-                        SoundPlayer.shared.play(.cancel)
+                        SoundPlayer.shared.play(outcome == .destroyed ? .itemBreak : .enhanceFail)
                     }
                     if let msg = enhanceMessage { showToast(msg) }
                     enhanceMessage = nil

@@ -46,6 +46,11 @@ struct UpHeroGameView: View {
                     .transition(.opacity)
             }
         }
+        .onAppear { SoundPlayer.shared.setMusic(UpHeroAudio.music(upHero.state.currentSession)) }
+        .onChange(of: upHero.state.currentSession) { session in
+            SoundPlayer.shared.setMusic(UpHeroAudio.music(session))
+        }
+        .onDisappear { SoundPlayer.shared.setMusic(.main) }
     }
 }
 
@@ -529,6 +534,7 @@ private struct CampView: View {
                         .foregroundStyle(Color.textSecondary)
                 }
                 Button {
+                    SoundPlayer.shared.play(.xpGain)
                     upHero.acknowledgeIdleReward()
                 } label: {
                     Text("확인")

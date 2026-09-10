@@ -19,6 +19,7 @@
  */
 "use client";
 
+import { registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { isNative } from "@/lib/platform";
 import type { Language } from "@/types/game";
 
@@ -52,6 +53,10 @@ export interface WidgetState {
 }
 
 interface WidgetBridgePlugin {
+  getSetupState(): Promise<{ installed: boolean; canPin: boolean }>;
+  requestPinWidget(): Promise<{ requested: boolean }>;
+  openNotificationSettings(): Promise<void>;
+  addListener(event: "setupResumed", callback: () => void): Promise<PluginListenerHandle>;
   updateWidget(state: WidgetState): Promise<{ ok: boolean }>;
   startChallengeActivity(opts: {
     challengeId: string;
@@ -62,19 +67,9 @@ interface WidgetBridgePlugin {
   endAllActivities(): Promise<{ ok?: boolean; supported?: boolean }>;
 }
 
-let cachedPlugin: WidgetBridgePlugin | null = null;
-
-async function getPlugin(): Promise<WidgetBridgePlugin | null> {
-  if (!isNative()) return null;
-  if (cachedPlugin) return cachedPlugin;
-  try {
-    const { registerPlugin } = await import("@capacitor/core");
-    cachedPlugin = registerPlugin<WidgetBridgePlugin>("WidgetBridge");
-    return cachedPlugin;
-  } catch {
-    return null;
-  }
-}
+// A Capacitor proxy synthesizes every method, including `then`. Returning it
+// from an async function would make Promise resolution call a nonexistent native method.
+export const widgetBridge = registerPlugin<WidgetBridgePlugin>("WidgetBridge");
 
 /**
  * 게임 상태를 위젯 표시용 payload로 압축해서 네이티브에 푸시.
@@ -82,8 +77,7 @@ async function getPlugin(): Promise<WidgetBridgePlugin | null> {
  */
 export async function pushWidgetState(state: WidgetState): Promise<void> {
   if (!isNative()) return;
-  const plugin = await getPlugin();
-  if (!plugin) return;
+  const plugin = widgetBridge;
   try {
     await plugin.updateWidget(state);
   } catch {
@@ -102,8 +96,7 @@ export async function startChallengeActivity(
   expiresAt: number
 ): Promise<void> {
   if (!isNative()) return;
-  const plugin = await getPlugin();
-  if (!plugin) return;
+  const plugin = widgetBridge;
   try {
     await plugin.startChallengeActivity({ challengeId, title, expiresAt });
   } catch {
@@ -114,8 +107,7 @@ export async function startChallengeActivity(
 /** 챌린지 완료/만료 시 호출 → Live Activity 즉시 dismiss */
 export async function endChallengeActivity(challengeId: string): Promise<void> {
   if (!isNative()) return;
-  const plugin = await getPlugin();
-  if (!plugin) return;
+  const plugin = widgetBridge;
   try {
     await plugin.endChallengeActivity({ challengeId });
   } catch { /* ignore */ }
@@ -124,8 +116,7 @@ export async function endChallengeActivity(challengeId: string): Promise<void> {
 /** 앱 리셋·로그아웃 등에서 모든 활성 Live Activity 종료 */
 export async function endAllChallengeActivities(): Promise<void> {
   if (!isNative()) return;
-  const plugin = await getPlugin();
-  if (!plugin) return;
+  const plugin = widgetBridge;
   try {
     await plugin.endAllActivities();
   } catch { /* ignore */ }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 12e — PairMatch 미니게임.
  *
@@ -102,6 +104,7 @@ export default function PairMatch({
   onCancel,
 }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const config = useMemo(() => {
     switch (difficulty) {
       case 1: return { pairs: 3, cols: 3, timeMs: 20000 };
@@ -174,6 +177,7 @@ export default function PairMatch({
     if (deck[idx].flipped || deck[idx].matched) return;
     if (selected.length >= 2) return;
 
+    play("cardFlip");
     const newDeck = deck.map((c, i) =>
       i === idx ? { ...c, flipped: true } : c,
     );
@@ -184,6 +188,7 @@ export default function PairMatch({
     if (newSelected.length === 2) {
       const [a, b] = newSelected;
       if (newDeck[a].symbol === newDeck[b].symbol) {
+        play("matchPair");
         setTimeout(() => {
           setDeck((d) =>
             d.map((c, i) =>

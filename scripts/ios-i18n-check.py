@@ -173,11 +173,12 @@ def scan_catalog_gaps(catalog):
 
 def main():
     update = "--update-baseline" in sys.argv
-    catalog = json.load(open(CATALOG))
-    catalog_keys = set(catalog["strings"].keys())
+    # Feature-specific tables are bundled alongside Localizable.xcstrings.
+    catalogs = [json.loads(path.read_text()) for path in APP.glob("*.xcstrings")]
+    catalog_keys = {key for catalog in catalogs for key in catalog["strings"]}
 
     found = scan_missing_literals(catalog_keys)
-    gaps = scan_catalog_gaps(catalog)
+    gaps = [gap for catalog in catalogs for gap in scan_catalog_gaps(catalog)]
 
     if update:
         BASELINE.write_text(

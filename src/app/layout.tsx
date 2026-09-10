@@ -10,6 +10,7 @@ import MotionProvider from "@/components/providers/MotionProvider";
 import ClientEffects from "@/components/effects/ClientEffects";
 import NativeSplashHide from "@/components/native/NativeSplashHide";
 import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
+import AudioProvider from "@/components/providers/AudioProvider";
 import WidgetSync from "@/components/providers/WidgetSync";
 import AccountLevelUpOverlay from "@/components/uphero/AccountLevelUpOverlay";
 import { Analytics } from "@vercel/analytics/next";
@@ -98,6 +99,7 @@ export default function RootLayout({
             NativeSplashHide 가 걷는다. React 소유라 DOM 에서 제거하지 않는다. */}
         <div id={BOOT_COVER_ID} aria-hidden="true" />
         <ClientEffects />
+        <AudioProvider />
         <NativeSplashHide />
         <ServiceWorkerRegistrar />
         <WidgetSync />

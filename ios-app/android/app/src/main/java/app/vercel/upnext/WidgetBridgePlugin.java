@@ -4,6 +4,9 @@ import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.Intent;
+import android.os.Build;
+import android.provider.Settings;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -24,6 +27,51 @@ public class WidgetBridgePlugin extends Plugin {
 
     static final String PREFS_NAME = "upnext_widget";
     static final String KEY_STATE = "widgetState";
+
+    @PluginMethod
+    public void getSetupState(PluginCall call) {
+        AppWidgetManager manager = AppWidgetManager.getInstance(getContext());
+        JSObject result = new JSObject();
+        result.put("installed", manager.getAppWidgetIds(
+            new ComponentName(getContext(), UpNextWidgetProvider.class)).length > 0);
+        result.put("canPin", Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            && manager.isRequestPinAppWidgetSupported());
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestPinWidget(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            AppWidgetManager manager = AppWidgetManager.getInstance(getContext());
+            JSObject result = new JSObject();
+            boolean supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && manager.isRequestPinAppWidgetSupported();
+            // Acceptance only means the launcher received the request. Installation
+            // is confirmed separately through getAppWidgetIds after the user adds it.
+            result.put("requested", supported && manager.requestPinAppWidget(
+                new ComponentName(getContext(), UpNextWidgetProvider.class), null, null));
+            call.resolve(result);
+        });
+    }
+
+    @PluginMethod
+    public void openNotificationSettings(PluginCall call) {
+        Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+        getActivity().runOnUiThread(() -> {
+            try {
+                getActivity().startActivity(intent);
+                call.resolve();
+            } catch (Exception exception) {
+                call.reject("Unable to open notification settings", exception);
+            }
+        });
+    }
+
+    @Override
+    protected void handleOnResume() {
+        notifyListeners("setupResumed", new JSObject());
+    }
 
     @PluginMethod
     public void updateWidget(PluginCall call) {
