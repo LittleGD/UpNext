@@ -62,6 +62,7 @@ struct UpNextApp: App {
             }
             .animation(.easeOut(duration: 0.2), value: splashDone)
             .onChange(of: scenePhase) { phase in
+                SoundPlayer.shared.setActive(phase == .active)
                 if phase == .active {
                     store.reconcileForToday()
                 } else if phase == .background {

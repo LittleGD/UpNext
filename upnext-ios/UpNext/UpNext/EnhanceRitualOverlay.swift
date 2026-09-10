@@ -73,6 +73,7 @@ struct EnhanceRitualOverlay: View {
             }
         }
         .onAppear {
+            if !reduceMotion { SoundPlayer.shared.play(.enhanceCharge) }
             startTime = Date()
             if reduceMotion {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) { onDone() }

@@ -1,0 +1,302 @@
+{
+  "내일도 이어가요": {
+    "ko": "내일도 이어가요",
+    "en": "Keep it going tomorrow",
+    "ja": "明日も続けよう",
+    "zh": "明天继续"
+  },
+  "눈에 보이면 더 쉬워요": {
+    "ko": "눈에 보이면 더 쉬워요",
+    "en": "Keep it in sight",
+    "ja": "目に入ると、続けやすい",
+    "zh": "看得见，更容易坚持"
+  },
+  "닫기": {
+    "ko": "닫기",
+    "en": "Close",
+    "ja": "閉じる",
+    "zh": "关闭"
+  },
+  "내일 만날 시간, 정했어요": {
+    "ko": "내일 만날 시간, 정했어요",
+    "en": "See you tomorrow",
+    "ja": "明日の時間が決まりました",
+    "zh": "明天见面的时间定好了"
+  },
+  "홈 화면에 자리 잡았어요": {
+    "ko": "홈 화면에 자리 잡았어요",
+    "en": "Your widget is in place",
+    "ja": "ホーム画面に追加できました",
+    "zh": "小组件已添加到主屏幕"
+  },
+  "첫 실천 완료!\n내일은 언제 만날까요?": {
+    "ko": "첫 실천 완료!\n내일은 언제 만날까요?",
+    "en": "First challenge complete!\nWhen works for tomorrow?",
+    "ja": "初めてのチャレンジ達成！\n明日は何時にしましょう？",
+    "zh": "第一次挑战完成！\n明天几点提醒你？"
+  },
+  "두 번째 실천도 완료!\n홈 화면에 꺼내둘까요?": {
+    "ko": "두 번째 실천도 완료!\n홈 화면에 꺼내둘까요?",
+    "en": "Two challenges complete!\nKeep the next one in sight.",
+    "ja": "2つ目のチャレンジも達成！\nホーム画面に置きませんか？",
+    "zh": "第二次挑战也完成了！\n把挑战放到主屏幕吧"
+  },
+  "실천하기 편한 시간을 골라주세요. 하루 한 번, 오늘의 챌린지를 알려드릴게요.": {
+    "ko": "실천하기 편한 시간을 골라주세요. 하루 한 번, 오늘의 챌린지를 알려드릴게요.",
+    "en": "Pick a time that fits your day. We’ll remind you of your challenge once a day.",
+    "ja": "取り組みやすい時間を選んでください。今日のチャレンジを1日1回お知らせします。",
+    "zh": "选择方便行动的时间。每天提醒你一次今天的挑战。"
+  },
+  "오늘의 챌린지를 바로 확인하고, 위젯을 눌러 UpNext로 돌아올 수 있어요.": {
+    "ko": "오늘의 챌린지를 바로 확인하고, 위젯을 눌러 UpNext로 돌아올 수 있어요.",
+    "en": "See today’s challenge at a glance. Tap the widget to return to UpNext.",
+    "ja": "今日のチャレンジをひと目で確認。タップするとUpNextに戻れます。",
+    "zh": "一眼查看今天的挑战。轻点小组件即可返回 UpNext。"
+  },
+  "알림 미리보기": {
+    "ko": "알림 미리보기",
+    "en": "Notification preview",
+    "ja": "通知のプレビュー",
+    "zh": "通知预览"
+  },
+  "아침": {
+    "ko": "아침",
+    "en": "Morning",
+    "ja": "朝",
+    "zh": "早上"
+  },
+  "점심": {
+    "ko": "점심",
+    "en": "Midday",
+    "ja": "昼",
+    "zh": "中午"
+  },
+  "저녁": {
+    "ko": "저녁",
+    "en": "Evening",
+    "ja": "夜",
+    "zh": "晚上"
+  },
+  "알림 시간": {
+    "ko": "알림 시간",
+    "en": "Reminder time",
+    "ja": "通知の時間",
+    "zh": "提醒时间"
+  },
+  "알림 설정 완료": {
+    "ko": "알림 설정 완료",
+    "en": "Reminder set",
+    "ja": "通知設定が完了",
+    "zh": "提醒已设置"
+  },
+  "위젯 추가를 확인했어요": {
+    "ko": "위젯 추가를 확인했어요",
+    "en": "Widget detected",
+    "ja": "ウィジェットを確認しました",
+    "zh": "已检测到小组件"
+  },
+  "확인 중": {
+    "ko": "확인 중",
+    "en": "Checking",
+    "ja": "確認中",
+    "zh": "正在检查"
+  },
+  "좋아요": {
+    "ko": "좋아요",
+    "en": "Done",
+    "ja": "完了",
+    "zh": "完成"
+  },
+  "기기 알림 설정 열기": {
+    "ko": "기기 알림 설정 열기",
+    "en": "Open notification settings",
+    "ja": "端末の通知設定を開く",
+    "zh": "打开通知设置"
+  },
+  "이 시간에 알림 받기": {
+    "ko": "이 시간에 알림 받기",
+    "en": "Remind me at this time",
+    "ja": "この時間に通知を受け取る",
+    "zh": "在这个时间提醒我"
+  },
+  "추가했어요 · 확인하기": {
+    "ko": "추가했어요 · 확인하기",
+    "en": "I added it · Check now",
+    "ja": "追加しました · 確認する",
+    "zh": "已添加 · 检查"
+  },
+  "방법 다시 보기": {
+    "ko": "방법 다시 보기",
+    "en": "Show me again",
+    "ja": "手順をもう一度見る",
+    "zh": "再看一遍"
+  },
+  "다음 단계": {
+    "ko": "다음 단계",
+    "en": "Next step",
+    "ja": "次の手順",
+    "zh": "下一步"
+  },
+  "나중에 할게요": {
+    "ko": "나중에 할게요",
+    "en": "Maybe later",
+    "ja": "あとで",
+    "zh": "稍后再说"
+  },
+  "설정을 저장하지 못했어요. 다시 시도해주세요.": {
+    "ko": "설정을 저장하지 못했어요. 다시 시도해주세요.",
+    "en": "Couldn’t save your reminder. Please try again.",
+    "ja": "設定を保存できませんでした。もう一度お試しください。",
+    "zh": "无法保存提醒，请重试。"
+  },
+  "아직 위젯이 확인되지 않아요. 홈 화면에서 추가한 뒤 다시 확인해주세요.": {
+    "ko": "아직 위젯이 확인되지 않아요. 홈 화면에서 추가한 뒤 다시 확인해주세요.",
+    "en": "No widget detected yet. Add it to your Home Screen, then check again.",
+    "ja": "まだウィジェットが見つかりません。ホーム画面に追加してから、もう一度確認してください。",
+    "zh": "暂未检测到小组件。请先添加到主屏幕，再检查一次。"
+  },
+  "여기서 연습해보세요": {
+    "ko": "여기서 연습해보세요",
+    "en": "Try it here",
+    "ja": "ここで練習しましょう",
+    "zh": "在这里练习"
+  },
+  "위젯 추가": {
+    "ko": "위젯 추가",
+    "en": "Add Widget",
+    "ja": "ウィジェットを追加",
+    "zh": "添加小组件"
+  },
+  "빈 곳을 길게 눌러보세요": {
+    "ko": "빈 곳을 길게 눌러보세요",
+    "en": "Touch and hold the empty space",
+    "ja": "何もない場所を長押し",
+    "zh": "长按空白处"
+  },
+  "위젯 크기": {
+    "ko": "위젯 크기",
+    "en": "Widget size",
+    "ja": "ウィジェットのサイズ",
+    "zh": "小组件尺寸"
+  },
+  "작게": {
+    "ko": "작게",
+    "en": "Small",
+    "ja": "小さく",
+    "zh": "小"
+  },
+  "넓게": {
+    "ko": "넓게",
+    "en": "Wide",
+    "ja": "横長",
+    "zh": "宽"
+  },
+  "오늘의 챌린지": {
+    "ko": "오늘의 챌린지",
+    "en": "Today’s challenge",
+    "ja": "今日のチャレンジ",
+    "zh": "今天的挑战"
+  },
+  "알림 설정 가이드": {
+    "ko": "알림 설정 가이드",
+    "en": "Reminder setup guide",
+    "ja": "通知設定ガイド",
+    "zh": "提醒设置指南"
+  },
+  "홈 화면 위젯 가이드": {
+    "ko": "홈 화면 위젯 가이드",
+    "en": "Home Screen widget guide",
+    "ja": "ホーム画面ウィジェットガイド",
+    "zh": "主屏幕小组件指南"
+  },
+  "나에게 맞는\n알림 시간을 정해요": {
+    "ko": "나에게 맞는\n알림 시간을 정해요",
+    "en": "Find a time\nthat works for you",
+    "ja": "自分に合う\n通知の時間を選びましょう",
+    "zh": "选择适合自己的\n提醒时间"
+  },
+  "오늘의 챌린지를\n홈 화면에서 만나요": {
+    "ko": "오늘의 챌린지를\n홈 화면에서 만나요",
+    "en": "Your daily challenge,\non your Home Screen",
+    "ja": "今日のチャレンジを\nホーム画面に",
+    "zh": "在主屏幕上\n查看今天的挑战"
+  },
+  "widgetIntro": {
+    "ko": "아래 화면에서 연습한 뒤, 실제 홈 화면에 추가해봐요.",
+    "en": "Practice below, then add the widget to your Home Screen.",
+    "ja": "下の画面で練習してから、実際のホーム画面に追加しましょう。",
+    "zh": "先在下方练习，再将小组件添加到主屏幕。"
+  },
+  "widgetHold": {
+    "ko": "빈 곳을 길게 눌러 위젯 메뉴를 열어요.",
+    "en": "Touch and hold the empty space to open the widget menu.",
+    "ja": "空いている場所を長押ししてウィジェットメニューを開きます。",
+    "zh": "长按空白处，打开小组件菜单。"
+  },
+  "widgetChoose": {
+    "ko": "UpNext 위젯을 골라 홈 화면에 놓아보세요.",
+    "en": "Choose the UpNext widget and place it on the Home Screen.",
+    "ja": "UpNextのウィジェットを選んでホーム画面に置いてみましょう。",
+    "zh": "选择 UpNext 小组件，并将其放在主屏幕上。"
+  },
+  "widgetReal": {
+    "ko": "이제 실제로 추가해요",
+    "en": "Now add your real widget",
+    "ja": "実際に追加しましょう",
+    "zh": "现在添加真正的小组件"
+  },
+  "widgetPin": {
+    "ko": "아래 버튼을 누르면 기기의 위젯 추가 창이 열려요. 추가를 확인한 뒤 앱으로 돌아오세요.",
+    "en": "The button opens your device’s widget dialog. Confirm the addition, then return to UpNext.",
+    "ja": "下のボタンで端末のウィジェット追加画面が開きます。追加を確認してからUpNextに戻ってください。",
+    "zh": "点击下方按钮打开设备的小组件添加窗口。确认添加后，返回 UpNext。"
+  },
+  "widgetManual": {
+    "ko": "홈 화면의 빈 곳을 길게 누르고 위젯에서 UpNext를 찾아 추가해주세요.",
+    "en": "Touch and hold your Home Screen, open Widgets, and add UpNext.",
+    "ja": "ホーム画面の空いている場所を長押しし、ウィジェットからUpNextを追加してください。",
+    "zh": "长按主屏幕空白处，打开小组件列表并添加 UpNext。"
+  },
+  "widgetAdd": {
+    "ko": "홈 화면에 추가하기",
+    "en": "Add to Home Screen",
+    "ja": "ホーム画面に追加",
+    "zh": "添加到主屏幕"
+  },
+  "practice": {
+    "ko": "연습 화면",
+    "en": "Practice screen",
+    "ja": "練習画面",
+    "zh": "练习画面"
+  },
+  "notificationSettings": {
+    "ko": "기기 설정에서 UpNext 알림을 켠 뒤 돌아오세요. 선택한 시간으로 마무리할게요.",
+    "en": "Enable UpNext notifications in device Settings. Return to finish with your chosen time.",
+    "ja": "端末の設定でUpNextの通知をオンにして戻ってください。選んだ時刻で設定を完了します。",
+    "zh": "请在设备设置中开启 UpNext 通知，然后返回，以所选时间完成设置。"
+  },
+  "retry": {
+    "ko": "다시 시도하기",
+    "en": "Try again",
+    "ja": "もう一度試す",
+    "zh": "重试"
+  },
+  "error": {
+    "ko": "설정을 확인하지 못했어요. 다시 시도해주세요.",
+    "en": "Couldn’t check your settings. Please try again.",
+    "ja": "設定を確認できませんでした。もう一度お試しください。",
+    "zh": "无法检查设置，请重试。"
+  },
+  "daily": {
+    "ko": "매일",
+    "en": "Every day",
+    "ja": "毎日",
+    "zh": "每天"
+  },
+  "선택한 시간에 하루 한 번 알려드릴게요. 설정에서 언제든 바꿀 수 있어요.": {
+    "ko": "선택한 시간에 하루 한 번 알려드릴게요. 설정에서 언제든 바꿀 수 있어요.",
+    "en": "You’ll get one reminder a day at your chosen time. Change it anytime in Settings.",
+    "ja": "選んだ時間に1日1回お知らせします。設定でいつでも変更できます。",
+    "zh": "每天会在你选择的时间提醒一次。随时可以在设置中更改。"
+  }
+}

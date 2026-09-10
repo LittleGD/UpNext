@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 15 WarioWare — DodgeDrops.
  *
@@ -28,6 +30,7 @@ interface Drop {
 
 export default function DodgeDrops({ difficulty, onComplete, onCancel }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const tolerance = useMemo(() => ({ 1: 2, 2: 1, 3: 0 }[difficulty]), [difficulty]);
   const spawnMs = useMemo(() => BASE_SPAWN_MS - (difficulty - 1) * 90, [difficulty]);
   const [pos, setPos] = useState(Math.floor(LANES / 2));
@@ -91,8 +94,8 @@ export default function DodgeDrops({ difficulty, onComplete, onCancel }: Minigam
     return () => window.clearTimeout(timer);
   }, [done]);
 
-  const moveLeft = () => !done && setPos((p) => Math.max(0, p - 1));
-  const moveRight = () => !done && setPos((p) => Math.min(LANES - 1, p + 1));
+  const moveLeft = () => { if (!done && pos > 0) { play("dodge"); setPos(p => Math.max(0, p - 1)); } };
+  const moveRight = () => { if (!done && pos < LANES - 1) { play("dodge"); setPos(p => Math.min(LANES - 1, p + 1)); } };
 
   // ←/→ 키로 이동
   useEffect(() => {

@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 15 WarioWare — SpotDiff.
  *
@@ -27,6 +29,7 @@ function makeGrid(size: number): { base: string[]; diffIdx: number; altSym: stri
 
 export default function SpotDiff({ difficulty, onComplete, onCancel }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const { size, durationMs } = useMemo(
     () => ({ 1: { size: 4, durationMs: 8000 }, 2: { size: 5, durationMs: 7000 }, 3: { size: 6, durationMs: 6000 } }[difficulty]),
     [difficulty],
@@ -68,6 +71,7 @@ export default function SpotDiff({ difficulty, onComplete, onCancel }: MinigameP
 
   const onCell = (i: number) => {
     if (done) return;
+    play(i === grid.diffIdx ? "matchPair" : "minigameFail");
     setDone(i === grid.diffIdx ? "success" : "fail");
   };
 

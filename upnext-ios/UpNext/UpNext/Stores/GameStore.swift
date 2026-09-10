@@ -97,6 +97,8 @@ final class GameStore: ObservableObject {
     /// Duo streak experiment — Firestore-backed, independent from solo retention.
     let duo = DuoStore()
 
+    let retentionSetup = RetentionSetup()
+
     @Published private(set) var progress: UserProgress? {
         // 설정의 haptic/sound 토글을 헬퍼에 동기 + 위젯 상태 publish + 익명 시 로컬 저장.
         // progress 가 바뀌는 모든 경로에서 자동 반영. 익명 (uid 없음) 일 때만 캐시 — 로그인
@@ -249,6 +251,13 @@ final class GameStore: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
     private var bootstrappedUid: String?
+
+    #if DEBUG
+    /// 지급 경로 테스트용. 인증 구독과 클라우드 부트스트랩 없이 진행도를 주입한다.
+    init(testProgress: UserProgress) {
+        progress = testProgress
+    }
+    #endif
 
     init() {
         #if DEBUG
@@ -808,6 +817,25 @@ final class GameStore: ObservableObject {
             enabled: progress?.notificationsEnabled ?? false, time: time)
     }
 
+    enum ReminderSetupResult { case enabled, denied, failed }
+
+    func configureDailyReminder(time: String) async -> ReminderSetupResult {
+        let owner = auth.uid
+        guard await NotificationManager.requestAuthorization() else { return .denied }
+        guard auth.uid == owner, phase == .ready else { return .failed }
+        do {
+            try await NotificationManager.scheduleDailyReminder(time: time)
+            guard auth.uid == owner, phase == .ready else { return .failed }
+            mutateProgress {
+                $0.notificationTime = time
+                $0.notificationsEnabled = true
+            }
+            return .enabled
+        } catch {
+            return .failed
+        }
+    }
+
     /// 챌린지 모드 변경 — pendingMode 에 예약 (다음 날부터 적용). 웹 setMode.
     func setMode(_ mode: GameMode) { mutateProgress { $0.pendingMode = mode } }
     func cancelPendingMode() { mutateProgress { $0.pendingMode = nil } }
@@ -1051,6 +1079,7 @@ final class GameStore: ObservableObject {
         sync.syncProgress(p)
         sync.syncDaily(d)
         upHero.grantExpeditionPass(card.category, card.rarity)
+        retentionSetup.challengeCompleted(total: p.cardCompletions.values.reduce(0, +))
         // 14-completion-delay — 사진 캡처는 더이상 완료마다 강제하지 않는다(웹 패리티).
         //   웹 completeChallenge 는 어떤 캡처 모달도 열지 않는다(useGameStore.ts:464-648).
         //   사진 인증은 옵트인 — DailyHomeView 확인 UI 의 "사진으로 인증하고 완료" 버튼이
@@ -1245,6 +1274,7 @@ final class GameStore: ObservableObject {
         sync.syncProgress(p)
         sync.syncDaily(d)
         upHero.grantExpeditionPass(card.category, card.rarity)
+        retentionSetup.challengeCompleted(total: p.cardCompletions.values.reduce(0, +))
         // 14-completion-delay — 사진 캡처 강제 제거(웹 패리티). 위 completeChallenge 주석 참조.
         Haptics.play(normalized.levelsGained > 0 ? .celebration : .success)
         SoundPlayer.shared.play(normalized.levelsGained > 0 ? .levelUp : .complete)
@@ -1386,20 +1416,22 @@ final class GameStore: ObservableObject {
 
     /// 미니게임 성공 보상 — 매치한 챌린지 카드별 XP/언락을 반영한다. 웹
     /// `grantMinigameRewards` 의 condensed native path.
-    func awardMinigameWin(matchedCardIds: Set<String>, totalXp fallbackXp: Int) {
+    func awardMinigameWin(
+        matchedCardIds: Set<String>, xpBoostedCardIds: Set<String> = [],
+        duplicateStash: Bool = false, doubleLoot: Bool = false
+    ) {
         guard var p = progress else { return }
-        var xpGain = 0
-        for id in matchedCardIds {
-            guard let card = CardCatalog.allCards.first(where: { $0.id == id }) else { continue }
-            if p.unlockedCardIds.contains(id) {
-                xpGain += GameConstants.xpPerRarity[card.rarity] ?? 10
-            } else {
-                p.unlockedCardIds.append(id)
-            }
+        let cards = CardCatalog.allCards.filter { matchedCardIds.contains($0.id) }
+        let xpGain = GameRules.minigameRewardXP(
+            matchedCards: cards, unlockedCardIds: p.unlockedCardIds,
+            xpBoostedCardIds: xpBoostedCardIds,
+            duplicateStash: duplicateStash, doubleLoot: doubleLoot)
+        for card in cards where !p.unlockedCardIds.contains(card.id) {
+            p.unlockedCardIds.append(card.id)
         }
         p.minigameRunsPlayed += 1
         p.minigameBestMatches = max(p.minigameBestMatches, matchedCardIds.count)
-        p.xp += xpGain > 0 ? xpGain : fallbackXp
+        p.xp += xpGain
         let normalized = normalizeAfterChallengeXP(p)
         p = normalized.progress
 
@@ -1434,6 +1466,18 @@ final class GameStore: ObservableObject {
         p.xp = GameRules.totalXPForLevel(1)
         p.unlockedCardIds = CardCatalog.starterCardIds
         var d = makeDefaultDaily()
+        if args.contains("UITestRetentionSetup") {
+            let cards = Array(CardCatalog.allCards.filter { $0.rarity == .normal }.prefix(2))
+            d.drawnCards = cards
+            d.selectedCards = cards
+            d.isDrawComplete = true
+            d.isSelectionComplete = true
+            p.mode = .godlife
+            if args.contains("UITestRetentionSecond"), let first = cards.first {
+                p.cardCompletions[first.id] = 1
+                d.completedIds = [first.id]
+            }
+        }
         if args.contains("UITestSeedBoard"),
            let card = CardCatalog.allCards.first {
             d.drawnCards = Array(CardCatalog.allCards.prefix(6))

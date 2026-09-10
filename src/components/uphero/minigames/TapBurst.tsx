@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 15 WarioWare — TapBurst.
  *
@@ -25,6 +27,7 @@ const DURATION_MS = 3000;
 
 export default function TapBurst({ difficulty, onComplete, onCancel }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const target = useMemo(() => ({ 1: 13, 2: 18, 3: 23 }[difficulty]), [difficulty]);
   const [count, setCount] = useState(0);
   const [remainingMs, setRemainingMs] = useState(DURATION_MS);
@@ -60,6 +63,7 @@ export default function TapBurst({ difficulty, onComplete, onCancel }: MinigameP
 
   const onTap = () => {
     if (done) return;
+    play("select");
     setCount((c) => {
       const next = c + 1;
       if (next >= target) setDone("success");

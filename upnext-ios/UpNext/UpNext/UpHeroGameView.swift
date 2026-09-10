@@ -19,11 +19,18 @@ struct UpHeroGameView: View {
         // 웹 UpHeroGame 의 currentSession 분기 — 세션이 있으면 던전(전투), 없으면 아지트.
         // UpHeroStore 초기화·idle accrual 은 GameStore.bootstrapUpHero 가 앱 부팅
         // 시점(.ready)에 처리한다 — 이 화면 진입과 무관 (idle 은 "앱 닫은 사이" 기준).
-        if upHero.state.currentSession != nil {
-            DungeonView()
-        } else {
-            CampView()
+        Group {
+            if upHero.state.currentSession != nil {
+                DungeonView()
+            } else {
+                CampView()
+            }
         }
+        .onAppear { SoundPlayer.shared.setMusic(UpHeroAudio.music(upHero.state.currentSession)) }
+        .onChange(of: upHero.state.currentSession) { session in
+            SoundPlayer.shared.setMusic(UpHeroAudio.music(session))
+        }
+        .onDisappear { SoundPlayer.shared.setMusic(.main) }
     }
 }
 
@@ -507,6 +514,7 @@ private struct CampView: View {
                         .foregroundStyle(Color.textSecondary)
                 }
                 Button {
+                    SoundPlayer.shared.play(.xpGain)
                     upHero.acknowledgeIdleReward()
                 } label: {
                     Text("확인")

@@ -20,6 +20,7 @@
  * reduced-motion 유저: 즉시 onDone 호출 (0ms). 시각적 혼란 방지.
  */
 
+import { useSound } from "@/hooks/useSound";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { GB, EASE_OUT, GB_ENEMY, GB_WARN } from "@/lib/upHeroPalette";
@@ -47,6 +48,8 @@ export default function EnhanceRitualOverlay({
 }: EnhanceRitualOverlayProps) {
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
+  const { play } = useSound();
+  useEffect(() => { if (!reducedMotion) play("enhanceCharge"); }, [play, reducedMotion]);
 
   useEffect(() => {
     if (reducedMotion) {

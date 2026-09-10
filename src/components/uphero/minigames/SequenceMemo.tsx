@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 12e — SequenceMemo (Simon says) 미니게임.
  *
@@ -52,6 +54,7 @@ export default function SequenceMemo({
   onCancel,
 }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const length = difficulty + 2;
   const sequence = useMemo<Color[]>(() => makeSequence(length), [length]);
 
@@ -74,6 +77,7 @@ export default function SequenceMemo({
       await new Promise((r) => setTimeout(r, 500));
       for (let i = 0; i < sequence.length; i++) {
         if (cancelled) return;
+        play("cardSelect");
         setWatchIdx(i);
         await new Promise((r) => setTimeout(r, 500));
         setWatchIdx(-1);
@@ -85,7 +89,7 @@ export default function SequenceMemo({
     return () => {
       cancelled = true;
     };
-  }, [phase, sequence]);
+  }, [phase, sequence, play]);
 
   const reportedRef = useRef(false);
   useEffect(() => {
@@ -100,6 +104,7 @@ export default function SequenceMemo({
 
   const onPress = (c: Color) => {
     if (phase !== "input" || result) return;
+    play(c === sequence[inputIdx] ? "cardSelect" : "minigameFail");
     setLastPressed(c);
     setTimeout(() => setLastPressed(null), 220);
     if (c === sequence[inputIdx]) {

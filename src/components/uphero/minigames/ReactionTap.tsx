@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 15 WarioWare — ReactionTap.
  *
@@ -40,6 +42,7 @@ type Phase = "red" | "yellow" | "green" | "done";
 
 export default function ReactionTap({ difficulty, onComplete, onCancel }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const windowMs = useMemo(() => ({ 1: 600, 2: 450, 3: 320 }[difficulty]), [difficulty]);
   const [phase, setPhase] = useState<Phase>("red");
   const [done, setDone] = useState<"success" | "fail" | null>(null);
@@ -94,6 +97,7 @@ export default function ReactionTap({ difficulty, onComplete, onCancel }: Miniga
 
   const onTap = () => {
     if (done) return;
+    play("select");
     if (phase === "green") {
       const rt = Math.round(performance.now() - (greenAtRef.current ?? performance.now()));
       setReactionMs(rt);

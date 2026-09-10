@@ -337,7 +337,7 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
             difficulty: 1,
             successEffects: [
               { kind: "heal", amount: 40 },
-              { kind: "reward", coins: 25, xp: 50 },
+              { kind: "reward", coins: 25, xp: 20 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [
@@ -387,7 +387,7 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
             difficulty: 2,
             successEffects: [
               { kind: "heal", amount: 55 },
-              { kind: "reward", coins: 30, xp: 70 },
+              { kind: "reward", coins: 30, xp: 28 },
               { kind: "time", delta: -3 },
             ],
             failEffects: [
@@ -437,7 +437,7 @@ export const NUTRITION_EVENTS: DungeonEvent[] = [
             difficulty: 1,
             successEffects: [
               { kind: "heal", amount: 35 },
-              { kind: "reward", coins: 35, xp: 55 },
+              { kind: "reward", coins: 35, xp: 22 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [

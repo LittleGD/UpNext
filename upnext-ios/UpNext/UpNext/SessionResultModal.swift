@@ -167,6 +167,7 @@ struct SessionResultModal: View {
         // 같은 이유로 그 룩을 유지 — variant 로 흡수하지 않고 공통 press 어포던스만 얹는다.
         Button {
             Haptics.play(.selection)
+            SoundPlayer.shared.play(.collect)
             onAcknowledge()
         } label: {
             Text("캠프로 돌아가기")

@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * SortItems (재구성: Color Match).
  *
@@ -37,6 +39,7 @@ function pickTarget(): Swatch {
 
 export default function SortItems({ difficulty, onComplete, onCancel }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const { rounds, timeMs } = useMemo(() => {
     switch (difficulty) {
       case 1: return { rounds: 4, timeMs: 8000 };
@@ -87,6 +90,7 @@ export default function SortItems({ difficulty, onComplete, onCancel }: Minigame
 
   const tap = (s: Swatch) => {
     if (result) return;
+    play(s.id === target.id ? "matchPair" : "minigameFail");
     if (s.id === target.id) {
       const nextDone = done + 1;
       setDone(nextDone);

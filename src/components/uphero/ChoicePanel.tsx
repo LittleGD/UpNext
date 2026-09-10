@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Up Hero — 선택지 패널.
  *
@@ -65,6 +67,7 @@ function useChoiceTypewriter(text: string, promptKey: string): {
 }
 
 export default function ChoicePanel() {
+  const { play } = useSound();
   const session = useUpHeroStore((s) => s.currentSession);
   const resolveChoice = useUpHeroStore((s) => s.resolveChoice);
   // 굴림틀 투명 pity — 스트릭이 임계에 닿았으면 선택지 위에 "다음은 반드시 나와요".
@@ -245,7 +248,7 @@ export default function ChoicePanel() {
           {entry.options.map((opt, i) => (
             <ChoiceButton
               key={i}
-              onClick={() => resolveChoice(i)}
+              onClick={() => { play("select"); resolveChoice(i); }}
               disabled={!promptDone}
               autoFocus={promptDone && i === 0}
             >

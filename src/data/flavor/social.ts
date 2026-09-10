@@ -352,7 +352,7 @@ export const SOCIAL_EVENTS: DungeonEvent[] = [
             minigame: "reaction_tap",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 55, coins: 35 },
+              { kind: "reward", xp: 22, coins: 35 },
               { kind: "heal", amount: 10 },
               { kind: "time", delta: -3 },
             ],
@@ -403,7 +403,7 @@ export const SOCIAL_EVENTS: DungeonEvent[] = [
             minigame: "sort_items",
             difficulty: 1,
             successEffects: [
-              { kind: "reward", xp: 45, coins: 30 },
+              { kind: "reward", xp: 18, coins: 30 },
               { kind: "time", delta: -3 },
             ],
             failEffects: [
@@ -452,7 +452,7 @@ export const SOCIAL_EVENTS: DungeonEvent[] = [
             minigame: "sequence_memo",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 60, coins: 40 },
+              { kind: "reward", xp: 24, coins: 40 },
               { kind: "time", delta: -3 },
             ],
             failEffects: [

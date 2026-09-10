@@ -1,5 +1,7 @@
 "use client";
 
+import RetentionSetupProvider from "@/components/providers/RetentionSetupProvider";
+import { useRetentionSetupStore } from "@/store/useRetentionSetupStore";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
@@ -154,6 +156,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   const [showPatchModal, setShowPatchModal] = useState(false);
   const [showFortunePrompt, setShowFortunePrompt] = useState(false);
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
+  const setupPending = useRetentionSetupStore(s => s.queue.length > 0);
 
   useEffect(() => {
     if (!isFirebaseConfigured) {
@@ -369,7 +372,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   });
 
   useEffect(() => {
-    if (!syncSettled) return;
+    if (!syncSettled || setupPending) return;
     if (conflict) return; // 병합 충돌 다이얼로그와 겹치지 않게
     if (!hasCompletedOnboarding) return;
     // 카드 드로우/선택 중에는 표시하지 않음 (extra/super phase 진입 시에도 닫힘)
@@ -395,6 +398,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     const timer = setTimeout(() => setShowPatchModal(true), 300);
     return () => clearTimeout(timer);
   }, [
+    setupPending,
     syncSettled,
     conflict,
     hasCompletedOnboarding,
@@ -421,6 +425,8 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   const unlockedCardIds = useGameStore((s) => s.progress.unlockedCardIds);
 
   useEffect(() => {
+    // Completing setup should return to the challenge, without a second prompt.
+    if (setupPending) { fortunePromptShownThisSession = true; return; }
     if (!syncSettled || conflict || !hasCompletedOnboarding) return;
     if (splashActive) return;
     if (showPatchModal) return; // 패치 노트에 양보 — 닫히면 이 effect 가 재실행된다
@@ -443,6 +449,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     }, 700);
     return () => clearTimeout(timer);
   }, [
+    setupPending,
     syncSettled,
     conflict,
     hasCompletedOnboarding,
@@ -473,7 +480,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   // 두 모달이 겹치지 않도록 패치노트가 떠 있으면 양보한다.
   // 오늘의 기운 팝업도 체인상 앞이라 같이 양보한다 (닫히면 이 effect 가 재실행).
   useEffect(() => {
-    if (!syncSettled || conflict || !hasCompletedOnboarding) return;
+    if (!syncSettled || conflict || !hasCompletedOnboarding || setupPending) return;
     if (!isSelectionDone || showPatchModal || showFortunePrompt) return;
     if (reviewPromptShownAt) return;
 
@@ -484,6 +491,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
     const timer = setTimeout(() => setShowReviewPrompt(true), 1200);
     return () => clearTimeout(timer);
   }, [
+    setupPending,
     syncSettled,
     conflict,
     hasCompletedOnboarding,
@@ -567,6 +575,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   return (
     <>
       {children}
+      <RetentionSetupProvider blocked={!syncSettled || !!conflict || showPatchModal || showFortunePrompt || showReviewPrompt} />
       <AnimatePresence>
         {conflict && (
           <MergeConflictDialog

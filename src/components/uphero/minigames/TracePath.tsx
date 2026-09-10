@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 15 WarioWare — TracePath.
  *
@@ -41,6 +43,7 @@ function makePoints(n: number): Point[] {
 
 export default function TracePath({ difficulty, onComplete, onCancel }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const { n, durationMs } = useMemo(
     () => ({ 1: { n: 4, durationMs: 8000 }, 2: { n: 5, durationMs: 7000 }, 3: { n: 6, durationMs: 6000 } }[difficulty]),
     [difficulty],
@@ -95,6 +98,7 @@ export default function TracePath({ difficulty, onComplete, onCancel }: Minigame
     if (nextIdx >= points.length) return;
     const tgt = points[nextIdx];
     if (Math.hypot(tgt.x - x, tgt.y - y) <= HIT_R) {
+      play("cardSelect");
       const newCleared = nextIdx + 1;
       clearedRef.current = newCleared;
       setCleared(newCleared);

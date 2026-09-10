@@ -10,6 +10,7 @@ import MotionProvider from "@/components/providers/MotionProvider";
 import ClientEffects from "@/components/effects/ClientEffects";
 import NativeSplashHide from "@/components/native/NativeSplashHide";
 import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
+import AudioProvider from "@/components/providers/AudioProvider";
 import WidgetSync from "@/components/providers/WidgetSync";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -87,6 +88,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-bg-primary font-sans antialiased">
         <ClientEffects />
+        <AudioProvider />
         <NativeSplashHide />
         <ServiceWorkerRegistrar />
         <WidgetSync />

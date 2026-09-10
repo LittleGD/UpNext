@@ -1250,7 +1250,8 @@ export function resolveChoice(
   // Phase 12d — choice 해소 시 자원 (chronomancer 시간 파편).
   gainClassResource(s, "choice");
 
-  s.status = "active";
+  // 미니게임 시작 효과가 만든 대기 상태를 보존한다.
+  if (s.status !== "awaitingMinigame") s.status = "active";
   s.pendingChoiceIndex = undefined;
   return s;
 }

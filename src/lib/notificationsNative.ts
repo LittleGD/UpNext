@@ -16,6 +16,7 @@
  *
  * DND 23:00-07:00 은 sw.js 의 동작을 미러한다.
  */
+import { LocalNotifications } from "@capacitor/local-notifications";
 import type { Language } from "@/types/game";
 import { t } from "@/i18n";
 
@@ -31,26 +32,11 @@ const CHANNEL_CELEBRATION = "celebration";
 const DND_START_HOUR = 23;
 const DND_END_HOUR = 7;
 
-type LocalNotificationsPlugin =
-  typeof import("@capacitor/local-notifications").LocalNotifications;
-
-let cachedPlugin: LocalNotificationsPlugin | null = null;
 let channelsReady = false;
-
-async function getPlugin(): Promise<LocalNotificationsPlugin | null> {
-  if (cachedPlugin) return cachedPlugin;
-  try {
-    const { LocalNotifications } = await import("@capacitor/local-notifications");
-    cachedPlugin = LocalNotifications;
-    return cachedPlugin;
-  } catch {
-    return null;
-  }
-}
 
 /** 채널은 1회 생성이면 충분 (이름 변경은 언어 변경 시 재생성으로 반영). */
 async function ensureChannels(lang: Language): Promise<void> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin || channelsReady) return;
   try {
     await plugin.createChannel({
@@ -86,14 +72,14 @@ function deferOutOfDnd(d: Date): Date {
 // === 권한 ===
 
 export async function nativeRequestPermission(): Promise<boolean> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin) return false;
   const res = await plugin.requestPermissions();
   return res.display === "granted";
 }
 
 export async function nativeGetPermission(): Promise<NotificationPermission | "unsupported"> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin) return "unsupported";
   const res = await plugin.checkPermissions();
   if (res.display === "granted") return "granted";
@@ -108,7 +94,7 @@ export async function nativeScheduleDailyReminder(
   body: string,
   lang: Language,
 ): Promise<void> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin) return;
   await ensureChannels(lang);
   const [hour, minute] = time.split(":").map(Number);
@@ -129,7 +115,7 @@ export async function nativeScheduleDailyReminder(
 }
 
 export async function nativeCancelDailyReminder(): Promise<void> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin) return;
   await plugin.cancel({ notifications: [{ id: DAILY_REMINDER_ID }] });
 }
@@ -140,7 +126,7 @@ export async function nativeScheduleChallengeReminder(
   message: string,
   lang: Language,
 ): Promise<void> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin) return;
   await ensureChannels(lang);
   await nativeCancelChallengeReminder();
@@ -161,7 +147,7 @@ export async function nativeScheduleChallengeReminder(
 }
 
 export async function nativeCancelChallengeReminder(): Promise<void> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin) return;
   const ids = [];
   for (let i = 1; i <= CHALLENGE_SLOT_COUNT; i++) {
@@ -184,7 +170,7 @@ export async function nativeShowInstant(
   tag: string,
   lang: Language,
 ): Promise<void> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin) return;
   await ensureChannels(lang);
   await plugin.schedule({
@@ -203,7 +189,7 @@ export async function nativeScheduleExtraNudge(
   delayMs: number,
   lang: Language,
 ): Promise<void> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin) return;
   await ensureChannels(lang);
   await plugin.cancel({ notifications: [{ id: EXTRA_NUDGE_ID }] });
@@ -222,7 +208,7 @@ export async function nativeScheduleExtraNudge(
 }
 
 export async function nativeCancelExtraNudge(): Promise<void> {
-  const plugin = await getPlugin();
+  const plugin = LocalNotifications;
   if (!plugin) return;
   await plugin.cancel({ notifications: [{ id: EXTRA_NUDGE_ID }] });
 }

@@ -1,7 +1,8 @@
+import { useRetentionSetupStore } from "@/store/useRetentionSetupStore";
 import { create } from "zustand";
 import type { ChallengeCard, Rarity } from "@/types/card";
 import type { DailyState, GameMode, UserProgress, DayRecord, Language, ChallengePhase } from "@/types/game";
-import { MODE_CARD_COUNT, XP_PER_RARITY, totalXPForLevel, getLevelFromXP, normalizeProgressXpLevel, PHASE_MIN_CARDS, PHASE_MAX_CARDS, MINIGAME_TICKET_CAP } from "@/types/game";
+import { MODE_CARD_COUNT, XP_PER_RARITY, totalXPForLevel, getLevelFromXP, normalizeProgressXpLevel, PHASE_MIN_CARDS, PHASE_MAX_CARDS, MINIGAME_TICKET_CAP, MINIGAME_RUN_XP_CAP } from "@/types/game";
 import { ALL_CARDS, STARTER_CARD_IDS } from "@/data/cards";
 import { drawCards, drawFromPool } from "@/lib/deck";
 import {
@@ -624,6 +625,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("daily", updatedDaily);
     saveToStorage("progress", updatedProgress);
     setTimeout(() => completingCardIds.delete(cardId), 100);
+
+    useRetentionSetupStore.getState().recordCompletion(Object.values(updatedProgress.cardCompletions).reduce((sum, count) => sum + count, 0));
 
     // Up Hero 탐험권 지급 — 해당 카테고리에 rarity 별 수량 (normal:1, rare:2, unique:3, legend:5)
     // 자동 전투 트리거 없음 — 사용자가 캠프에서 능동적으로 던전 진입
@@ -1267,6 +1270,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveToStorage("progress", updatedProgress);
     completingCardIds.delete(cardId);
 
+    useRetentionSetupStore.getState().recordCompletion(Object.values(updatedProgress.cardCompletions).reduce((sum, count) => sum + count, 0));
+
     // Phase 12 bugfix — extra/super phase 에도 탐험권 지급.
     //   유저 제보: "사진 기록 후 탐험 티켓이 안 들어온다". 원인은 photo flow 가
     //   아니라 `completePhaseChallenge` 에 grantExpeditionPass 호출이 누락돼
@@ -1332,8 +1337,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // cardCompletions는 건드리지 않음 — 언락 임계치는 데일리 완료로만 달성
     let totalXpGain = 0;
     for (const { amount } of xpGainPerCard) {
-      totalXpGain += amount;
+      if (Number.isFinite(amount)) totalXpGain += Math.max(0, Math.floor(amount));
     }
+    totalXpGain = Math.min(MINIGAME_RUN_XP_CAP, totalXpGain);
     if (totalXpGain > 0) {
       updated.xp = (updated.xp || 0) + totalXpGain;
       updated.pendingPacks = updated.pendingPacks || 0;

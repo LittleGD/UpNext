@@ -20,7 +20,7 @@ struct IdleReward: Equatable {
 
 enum IdleAccrual {
 
-    static let xpPerMin = 0.5
+    static let xpPerMin = 0.25
     static let coinsPerMin = 0.3
     static let minElapsedMin = 5
     static let maxElapsedMin = 8 * 60       // 8시간 cap

@@ -1,0 +1,425 @@
+{
+  "sampleRate": 44100,
+  "loopCrossfadeSeconds": 3,
+  "music": {
+    "main": {
+      "file": "bgm-main.m4a",
+      "frames": 4895349,
+      "seconds": 111.0056,
+      "source": "main-bg-ambient.mp3",
+      "sourceSha256": "c1d7f90241b58228b4c02063f1ad5fb28aa890212661a25434709589691bb919"
+    },
+    "fitness": {
+      "file": "bgm-fitness.m4a",
+      "frames": 2437527,
+      "seconds": 55.2727,
+      "source": "mountain_stage_bpm165.ogg",
+      "sourceSha256": "0c9ded3f5846a618f67e7ebaa246dee0230cb68e483d12e96709b173001d7daf",
+      "title": "Mountain Stage",
+      "author": "MintoDog",
+      "sourceUrl": "https://opengameart.org/content/mountain-stage",
+      "downloadUrl": "https://opengameart.org/sites/default/files/mountain_stage_bpm165_0.ogg",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "bpm": 165,
+      "loopCrossfadeSeconds": 2.909092970521542,
+      "loopCrossfadeBeats": 8
+    },
+    "learning": {
+      "file": "bgm-learning.m4a",
+      "frames": 12128932,
+      "seconds": 275.0325,
+      "source": "메아리도서관.mp3",
+      "sourceSha256": "9a36ad48aa9c2c0d351c3628c6cefb9857c0a2803e5520e5dc18ab8eb67a5955"
+    },
+    "mindfulness": {
+      "file": "bgm-mindfulness.m4a",
+      "frames": 4961641,
+      "seconds": 112.5089,
+      "source": "영혼사원.mp3",
+      "sourceSha256": "a75d441f72778ce8ca039251f0cb764a7981facfb30843addf67e2205f94a2e6"
+    },
+    "nutrition": {
+      "file": "bgm-nutrition.m4a",
+      "frames": 3228464,
+      "seconds": 73.2078,
+      "source": "황금들판.mp3",
+      "sourceSha256": "d45cc1858ed3c2f2180f0ebb4c80966cc5759a2e98726f3ac7303426dfec5561"
+    },
+    "social": {
+      "file": "bgm-social.m4a",
+      "frames": 3183524,
+      "seconds": 72.1888,
+      "source": "광장시장.mp3",
+      "sourceSha256": "9a494a8f03f0f1cdec3d662d694fff3f2661ccf65ecc163e7eb6b933e025a7bc"
+    },
+    "productivity": {
+      "file": "bgm-productivity.m4a",
+      "frames": 3525922,
+      "seconds": 79.9529,
+      "source": "시계탑.mp3",
+      "sourceSha256": "07c90d0dc63ae91f896702ef656b0fc0f9299246e52ea16f5fc4a9561f290475"
+    },
+    "wellness": {
+      "file": "bgm-wellness.m4a",
+      "frames": 5767440,
+      "seconds": 130.781,
+      "source": "온천골짜기.mp3",
+      "sourceSha256": "6b055457cbbef6dbddbd2ac6d95c12179235c8da0dae8babbd30749054797356"
+    },
+    "trending": {
+      "file": "bgm-trending.m4a",
+      "frames": 5021971,
+      "seconds": 113.8769,
+      "source": "신비차원.mp3",
+      "sourceSha256": "c423956e08cac2ba1df8260aac9d4efd13f9f92a064a16179755dfd6f8732a27"
+    },
+    "boss": {
+      "file": "bgm-boss.m4a",
+      "frames": 2988393,
+      "seconds": 67.764,
+      "source": "bossfight.mp3",
+      "sourceSha256": "a6d68983cceb2ac4ce6f5aa4dc6693201873fed1d5e46a5afd107d8e9e744fb6"
+    }
+  },
+  "sfx": {
+    "select": {
+      "file": "sfx-select.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/click_003.ogg"
+    },
+    "confirm": {
+      "file": "sfx-confirm.wav",
+      "pack": "digital-audio",
+      "source": "Audio/twoTone1.ogg"
+    },
+    "cancel": {
+      "file": "sfx-cancel.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/back_002.ogg"
+    },
+    "cardFlip": {
+      "file": "sfx-cardFlip.wav",
+      "pack": "casino-audio",
+      "source": "Audio/card-slide-3.ogg"
+    },
+    "cardSelect": {
+      "file": "sfx-cardSelect.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/select_002.ogg"
+    },
+    "cardHover": {
+      "file": "sfx-cardHover.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/tick_001.ogg"
+    },
+    "cardPreview": {
+      "file": "sfx-cardPreview.wav",
+      "pack": "casino-audio",
+      "source": "Audio/card-slide-1.ogg"
+    },
+    "packOpen": {
+      "file": "sfx-packOpen.wav",
+      "pack": "casino-audio",
+      "source": "Audio/cards-pack-open-1.ogg"
+    },
+    "complete": {
+      "file": "sfx-complete.wav",
+      "pack": "digital-audio",
+      "source": "Audio/threeTone1.ogg"
+    },
+    "fullClear": {
+      "file": "sfx-fullClear.wav",
+      "pack": "music-jingles",
+      "source": "Audio/8-Bit jingles/jingles_NES01.ogg"
+    },
+    "levelUp": {
+      "file": "sfx-levelUp.wav",
+      "pack": "music-jingles",
+      "source": "Audio/8-Bit jingles/jingles_NES00.ogg"
+    },
+    "equip": {
+      "file": "sfx-equip.wav",
+      "pack": "rpg-audio",
+      "source": "Audio/metalLatch.ogg"
+    },
+    "xpGain": {
+      "file": "sfx-xpGain.wav",
+      "pack": "digital-audio",
+      "source": "Audio/highUp.ogg"
+    },
+    "chargeUp": {
+      "file": "sfx-chargeUp.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp8.ogg"
+    },
+    "ambientFloat": {
+      "file": "sfx-ambientFloat.wav",
+      "pack": "digital-audio",
+      "source": "Audio/phaseJump4.ogg"
+    },
+    "pulseWave": {
+      "file": "sfx-pulseWave.wav",
+      "pack": "digital-audio",
+      "source": "Audio/phaserUp6.ogg"
+    },
+    "collect": {
+      "file": "sfx-collect.wav",
+      "pack": "rpg-audio",
+      "source": "Audio/handleCoins2.ogg"
+    },
+    "fireIgnite": {
+      "file": "sfx-fireIgnite.wav",
+      "pack": "digital-audio",
+      "source": "Audio/spaceTrash3.ogg"
+    },
+    "impactShake": {
+      "file": "sfx-impactShake.wav",
+      "pack": "digital-audio",
+      "source": "Audio/lowRandom.ogg"
+    },
+    "superIgnite": {
+      "file": "sfx-superIgnite.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp12.ogg"
+    },
+    "meteorWhoosh": {
+      "file": "sfx-meteorWhoosh.wav",
+      "pack": "digital-audio",
+      "source": "Audio/phaserDown3.ogg"
+    },
+    "matchPair": {
+      "file": "sfx-matchPair.wav",
+      "pack": "digital-audio",
+      "source": "Audio/pepSound3.ogg"
+    },
+    "curseTrigger": {
+      "file": "sfx-curseTrigger.wav",
+      "pack": "digital-audio",
+      "source": "Audio/zapThreeToneDown.ogg"
+    },
+    "rewardChoose": {
+      "file": "sfx-rewardChoose.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp3.ogg"
+    },
+    "cameraShutter": {
+      "file": "sfx-cameraShutter.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/switch_004.ogg"
+    },
+    "polaroidSlide": {
+      "file": "sfx-polaroidSlide.wav",
+      "pack": "casino-audio",
+      "source": "Audio/card-slide-8.ogg"
+    },
+    "treeGrow": {
+      "file": "sfx-treeGrow.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp5.ogg"
+    },
+    "slotLever": {
+      "file": "sfx-slotLever.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/switch_006.ogg"
+    },
+    "slotTick": {
+      "file": "sfx-slotTick.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/tick_002.ogg"
+    },
+    "slotStop": {
+      "file": "sfx-slotStop.wav",
+      "pack": "casino-audio",
+      "source": "Audio/chip-lay-1.ogg"
+    },
+    "slotThud": {
+      "file": "sfx-slotThud.wav",
+      "pack": "digital-audio",
+      "source": "Audio/lowDown.ogg"
+    },
+    "slotWinSmall": {
+      "file": "sfx-slotWinSmall.wav",
+      "pack": "digital-audio",
+      "source": "Audio/twoTone2.ogg"
+    },
+    "slotWinMid": {
+      "file": "sfx-slotWinMid.wav",
+      "pack": "digital-audio",
+      "source": "Audio/threeTone2.ogg"
+    },
+    "slotWinBig": {
+      "file": "sfx-slotWinBig.wav",
+      "pack": "music-jingles",
+      "source": "Audio/8-Bit jingles/jingles_NES03.ogg"
+    },
+    "heroHit": {
+      "file": "sfx-heroHit.wav",
+      "pack": "rpg-audio",
+      "source": "Audio/knifeSlice.ogg"
+    },
+    "enemyHit": {
+      "file": "sfx-enemyHit.wav",
+      "pack": "rpg-audio",
+      "source": "Audio/chop.ogg"
+    },
+    "criticalHit": {
+      "file": "sfx-criticalHit.wav",
+      "pack": "digital-audio",
+      "source": "Audio/zapThreeToneUp.ogg"
+    },
+    "dodge": {
+      "file": "sfx-dodge.wav",
+      "pack": "digital-audio",
+      "source": "Audio/phaserDown1.ogg"
+    },
+    "miss": {
+      "file": "sfx-miss.wav",
+      "pack": "rpg-audio",
+      "source": "Audio/cloth2.ogg"
+    },
+    "shieldBlock": {
+      "file": "sfx-shieldBlock.wav",
+      "pack": "rpg-audio",
+      "source": "Audio/metalPot2.ogg"
+    },
+    "heal": {
+      "file": "sfx-heal.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp2.ogg"
+    },
+    "poison": {
+      "file": "sfx-poison.wav",
+      "pack": "digital-audio",
+      "source": "Audio/zapTwoTone2.ogg"
+    },
+    "skillMelee": {
+      "file": "sfx-skillMelee.wav",
+      "pack": "digital-audio",
+      "source": "Audio/laser7.ogg"
+    },
+    "skillMagic": {
+      "file": "sfx-skillMagic.wav",
+      "pack": "digital-audio",
+      "source": "Audio/phaserUp3.ogg"
+    },
+    "skillHoly": {
+      "file": "sfx-skillHoly.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp7.ogg"
+    },
+    "skillTime": {
+      "file": "sfx-skillTime.wav",
+      "pack": "digital-audio",
+      "source": "Audio/phaseJump2.ogg"
+    },
+    "encounter": {
+      "file": "sfx-encounter.wav",
+      "pack": "digital-audio",
+      "source": "Audio/lowThreeTone.ogg"
+    },
+    "floorAdvance": {
+      "file": "sfx-floorAdvance.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/open_002.ogg"
+    },
+    "treasure": {
+      "file": "sfx-treasure.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp1.ogg"
+    },
+    "lootDrop": {
+      "file": "sfx-lootDrop.wav",
+      "pack": "digital-audio",
+      "source": "Audio/pepSound5.ogg"
+    },
+    "rareLoot": {
+      "file": "sfx-rareLoot.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp11.ogg"
+    },
+    "battleWin": {
+      "file": "sfx-battleWin.wav",
+      "pack": "digital-audio",
+      "source": "Audio/pepSound1.ogg"
+    },
+    "defeat": {
+      "file": "sfx-defeat.wav",
+      "pack": "music-jingles",
+      "source": "Audio/8-Bit jingles/jingles_NES14.ogg"
+    },
+    "retreat": {
+      "file": "sfx-retreat.wav",
+      "pack": "digital-audio",
+      "source": "Audio/highDown.ogg"
+    },
+    "timeWarning": {
+      "file": "sfx-timeWarning.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/question_002.ogg"
+    },
+    "enhanceCharge": {
+      "file": "sfx-enhanceCharge.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp10.ogg"
+    },
+    "enhanceSuccess": {
+      "file": "sfx-enhanceSuccess.wav",
+      "pack": "music-jingles",
+      "source": "Audio/8-Bit jingles/jingles_NES02.ogg"
+    },
+    "enhanceFail": {
+      "file": "sfx-enhanceFail.wav",
+      "pack": "digital-audio",
+      "source": "Audio/phaserDown2.ogg"
+    },
+    "itemBreak": {
+      "file": "sfx-itemBreak.wav",
+      "pack": "digital-audio",
+      "source": "Audio/spaceTrash5.ogg"
+    },
+    "skillLearn": {
+      "file": "sfx-skillLearn.wav",
+      "pack": "digital-audio",
+      "source": "Audio/powerUp9.ogg"
+    },
+    "choiceOpen": {
+      "file": "sfx-choiceOpen.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/maximize_002.ogg"
+    },
+    "minigameSuccess": {
+      "file": "sfx-minigameSuccess.wav",
+      "pack": "digital-audio",
+      "source": "Audio/threeTone1.ogg"
+    },
+    "minigameFail": {
+      "file": "sfx-minigameFail.wav",
+      "pack": "digital-audio",
+      "source": "Audio/lowDown.ogg"
+    },
+    "bagPlace": {
+      "file": "sfx-bagPlace.wav",
+      "pack": "casino-audio",
+      "source": "Audio/card-place-2.ogg"
+    },
+    "bagRotate": {
+      "file": "sfx-bagRotate.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/switch_002.ogg"
+    },
+    "bagReject": {
+      "file": "sfx-bagReject.wav",
+      "pack": "interface-sounds",
+      "source": "Audio/error_002.ogg"
+    },
+    "bossTransition": {
+      "file": "sfx-bossTransition.wav",
+      "source": "bossfight-transitionsound.mp3",
+      "pack": "user supplied",
+      "seconds": 0.9,
+      "speed": 2,
+      "fadeOutSeconds": 0.22
+    }
+  }
+}

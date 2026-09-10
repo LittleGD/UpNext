@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 15 WarioWare — QuickSum.
  *
@@ -47,6 +49,7 @@ function makeProblem(diff: 1 | 2 | 3): Problem {
 
 export default function QuickSum({ difficulty, onComplete, onCancel }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const target = useMemo(() => ({ 1: 3, 2: 4, 3: 5 }[difficulty]), [difficulty]);
   const [problem, setProblem] = useState<Problem>(() => makeProblem(difficulty));
   const [solved, setSolved] = useState(0);
@@ -87,6 +90,7 @@ export default function QuickSum({ difficulty, onComplete, onCancel }: MinigameP
 
   const choose = (n: number) => {
     if (done) return;
+    play(n === problem.answer ? "matchPair" : "minigameFail");
     if (n !== problem.answer) {
       setDone("fail");
       return;

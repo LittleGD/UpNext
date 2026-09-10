@@ -807,7 +807,7 @@ enum UpHeroSession {
         if s.status == .completed { return s }
         if consumeTime(&s, delta: -UpHeroCombat.TimeCost.choice) { return s }
         gainClassResource(&s, event: .choice)
-        s.status = .active
+        if s.status != .awaitingMinigame { s.status = .active }
         s.pendingChoiceIndex = nil
         return s
     }

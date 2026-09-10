@@ -17,7 +17,6 @@ import { useEffect, useRef, useState } from "react";
 import type { CombatSession } from "@/types/uphero";
 import { CLASS_THEME_COLOR } from "@/types/uphero";
 import { GB, GB_ENEMY } from "@/lib/upHeroPalette";
-import { useSound } from "@/hooks/useSound";
 import type { HeroSpriteState } from "./HeroSprite";
 
 export type GenericFloat = {
@@ -51,7 +50,6 @@ interface Result {
 }
 
 export function useDungeonAnimations(session: CombatSession | null): Result {
-  const { play } = useSound();
 
   const [critShake, setCritShake] = useState(false);
   const [heroState, setHeroState] = useState<HeroSpriteState>("idle");
@@ -107,7 +105,6 @@ export function useDungeonAnimations(session: CombatSession | null): Result {
       if (entry.outcome !== "crit") return;
       if (seenCritIdxRef.current.has(idx)) return;
       seenCritIdxRef.current.add(idx);
-      play("impactShake");
       if (shakeTimerRef.current) window.clearTimeout(shakeTimerRef.current);
       setCritShake(true);
       shakeTimerRef.current = window.setTimeout(() => {
@@ -115,7 +112,7 @@ export function useDungeonAnimations(session: CombatSession | null): Result {
         shakeTimerRef.current = null;
       }, 260);
     });
-  }, [session, play]);
+  }, [session]);
 
   // 세션 바뀌면 seen set 초기화 (다른 던전 / 재시작)
   useEffect(() => {

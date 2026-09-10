@@ -1,0 +1,16 @@
+Mountain Stage
+Author: MintoDog
+Source: https://opengameart.org/content/mountain-stage
+Original download: https://opengameart.org/sites/default/files/mountain_stage_bpm165_0.ogg
+License: CC0 1.0 Universal
+License terms: https://creativecommons.org/publicdomain/zero/1.0/
+Legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+Verified on 2026-09-09 from the author's OpenGameArt upload.
+
+Used for the Steel Mountain (fitness) dungeon in UpNext.
+Original: scripts/audio/sources/mountain_stage_bpm165.ogg
+Output: bgm-fitness.m4a
+Changes: loudness normalization, an eight-beat (two-bar) equal-power
+crossfade aligned to the original 165 BPM, loop rotation, AAC encoding.
+
+Credit is retained for provenance. No endorsement by the author is implied.

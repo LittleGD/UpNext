@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 12e — PipeConnect 미니게임.
  *
@@ -219,6 +221,7 @@ export default function PipeConnect({
   onCancel,
 }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const { size, timeMs } = useMemo(() => {
     switch (difficulty) {
       case 1: return { size: 3, timeMs: 30000 };
@@ -278,6 +281,7 @@ export default function PipeConnect({
   const rotate = useCallback(
     (r: number, c: number) => {
       if (result) return;
+      play("bagRotate");
       setGrid((g) => {
         const next = g.map((row) => row.slice());
         next[r][c] = {
@@ -295,7 +299,7 @@ export default function PipeConnect({
         return next;
       });
     },
-    [result],
+    [result, play],
   );
 
   /** Phase 16 R5 — 그리드 키보드 내비.

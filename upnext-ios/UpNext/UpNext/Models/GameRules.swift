@@ -12,6 +12,25 @@ import Foundation
 
 enum GameRules {
 
+    /// 결과 미리보기와 지급이 같은 계산을 사용한다. 새 카드는 언락만 지급한다.
+    static func minigameRewardXP(
+        matchedCards: [ChallengeCard], unlockedCardIds: [String],
+        xpBoostedCardIds: Set<String> = [],
+        duplicateStash: Bool = false, doubleLoot: Bool = false
+    ) -> Int {
+        let unlocked = Set(unlockedCardIds)
+        var seen = Set<String>()
+        var xp = 0
+        for card in matchedCards where unlocked.contains(card.id) && seen.insert(card.id).inserted {
+            let base = GameConstants.minigameXpPerRarity[card.rarity] ?? 3
+            let bloom = xpBoostedCardIds.contains(card.id) ? 1.5 : 1.0
+            xp += Int((Double(base) * bloom).rounded())
+        }
+        // iOS에 표시하는 기존 버프 배율을 실제 지급에도 반영한다.
+        let multiplier = (duplicateStash ? 1.25 : 1.0) * (doubleLoot ? 2.0 : 1.0)
+        return min(GameConstants.minigameRunXpCap, Int(Double(xp) * multiplier))
+    }
+
     // MARK: - XP 커브
 
     /// XP / 레벨 상한 — Int 오버플로 방어선.

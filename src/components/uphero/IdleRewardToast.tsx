@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Up Hero — Idle reward toast.
  *
@@ -26,6 +28,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function IdleRewardToast() {
+  const { play } = useSound();
   const { t } = useTranslation();
   const pathname = usePathname();
   // Phase 9d-fix — Header 가 full/compact 여부에 따라 toast top 위치 결정.
@@ -69,6 +72,7 @@ export default function IdleRewardToast() {
   if (blocked) return null;
 
   const onDismiss = () => {
+    play("xpGain");
     setMounted(false);
     window.setTimeout(() => acknowledge(), 240);
   };

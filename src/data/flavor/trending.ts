@@ -247,7 +247,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             minigame: "spot_diff",
             difficulty: 3,
             successEffects: [
-              { kind: "reward", xp: 80, coins: 45 },
+              { kind: "reward", xp: 32, coins: 45 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [
@@ -293,7 +293,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             minigame: "dodge_drops",
             difficulty: 3,
             successEffects: [
-              { kind: "reward", xp: 90, coins: 50 },
+              { kind: "reward", xp: 36, coins: 50 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [
@@ -339,7 +339,7 @@ export const TRENDING_EVENTS: DungeonEvent[] = [
             minigame: "reaction_tap",
             difficulty: 3,
             successEffects: [
-              { kind: "reward", xp: 70, coins: 40 },
+              { kind: "reward", xp: 28, coins: 40 },
               { kind: "heal", amount: 15 },
               { kind: "time", delta: -2 },
             ],

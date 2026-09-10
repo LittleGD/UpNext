@@ -54,6 +54,8 @@ struct DungeonView: View {
     @State private var slotResultSeq = 0
     /// 스프라이트 전투 반응 — 공격 시 lunge(중앙 쪽), 피격 시 recoil(바깥쪽). x offset.
     /// 웹은 attack/hurt 포즈 프레임이 있으나 iOS 는 신규 프레임 없이 transform 으로 반응 재현.
+    @State private var previousAudioHP: Int?
+    @State private var previousAudioTime: Int?
     @State private var heroReact: CGFloat = 0
     @State private var enemyReact: CGFloat = 0
 
@@ -81,6 +83,16 @@ struct DungeonView: View {
                         syncCombatEffects()
                     }
                     .onAppear { syncCombatEffects() }
+                    .onChange(of: session.hero.hp) { hp in
+                        if let previous = previousAudioHP, hp > previous { SoundPlayer.shared.play(.heal) }
+                        previousAudioHP = hp
+                    }
+                    .onChange(of: session.time) { time in
+                        if let previous = previousAudioTime, previous > 10, time <= 10, time > 0 {
+                            SoundPlayer.shared.play(.timeWarning)
+                        }
+                        previousAudioTime = time
+                    }
 
                 FloatingNumberOverlay(items: $floatingItems)
 
@@ -696,6 +708,8 @@ struct DungeonView: View {
         // 세션 교체 감지 — 새 세션이면 기존 로그 전체를 baseline(seen)으로 두어 과거 엔트리
         // 폭발을 막고, 이후 append 되는 신규 entry 만 효과 발사되게 한다.
         if session.startedAt != effectSessionStamp {
+            previousAudioHP = session.hero.hp
+            previousAudioTime = session.time
             effectSessionStamp = session.startedAt
             seenEffectIdx = Set(0..<session.log.count)
             heroFloats.removeAll()
@@ -710,12 +724,12 @@ struct DungeonView: View {
     }
 
     private func handleLogEntry(_ entry: LogEntry) {
+        if let cue = UpHeroAudio.cue(entry) { SoundPlayer.shared.play(cue) }
         switch entry {
         case let .boss(monster, floor, _):
             bossBannerData = (monster: monster, floor: floor)
             pausedForBoss = true
             // 보스 등장 — 임팩트 사운드 + 2단 타격 햅틱 (impact+반동, CoreHaptics).
-            SoundPlayer.shared.play(.impactShake)
             Haptics.critHit(intensity: 1.0)
         case let .combat(attacker, damage, outcome, _, _, _, _):
             // 공격 플래시 (좌=영웅 공격, 우=적 공격)
@@ -725,11 +739,10 @@ struct DungeonView: View {
             let heroAtk = (attacker == .hero)
             let didHit = (outcome == .hit || outcome == .crit) && damage > 0
             reactCombat(heroIsAttacker: heroAtk, didHit: didHit)
-            // 전투 사운드는 매 틱(0.7s) 발화하면 소음이라 crit 에만. 햅틱은 타격 차등.
+            // 사운드는 UpHeroAudio에서, 햅틱과 시각 반응은 타격 종류에 따라 처리한다.
             switch outcome {
             case .crit:
                 critShakeTrigger &+= 1
-                SoundPlayer.shared.play(.impactShake)
                 // 크리티컬 — 임팩트+반동 2단 transient. 데미지 비례 강도(CoreHaptics),
                 // 미지원 기기는 heavy(intensity) 단발로 폴백.
                 Haptics.critHit(intensity: min(1.0, 0.55 + Double(damage) / 40.0 * 0.45))
@@ -753,7 +766,6 @@ struct DungeonView: View {
             }
         case let .victory(_, xp, coins, _, _, _):
             // 전투 승리 — 완료 사운드 + 성공 햅틱.
-            SoundPlayer.shared.play(.complete)
             Haptics.play(.success)
             if xp > 0 {
                 emitFloat(text: "+\(xp) XP", variant: .xp, position: heroAnchor())
@@ -790,7 +802,6 @@ struct DungeonView: View {
             }
             choiceResultText = resolved
             choiceResultSummary = summaryData.map(Self.localizedEffectSummary) ?? effectSummary
-            SoundPlayer.shared.play(.select)
             Haptics.play(.selection)
             // 자동 닫힘 가드는 해석된 문자열 기준(같은 모달이 아직 떠 있는지 확인).
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {

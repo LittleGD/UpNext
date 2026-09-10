@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * BreathHold (재구성: Timing Stop).
  *
@@ -22,6 +24,7 @@ const TIME_LIMIT_MS = 12000;
 
 export default function BreathHold({ difficulty, onComplete, onCancel }: MinigameProps) {
   const { t } = useTranslation();
+  const { play } = useSound();
   const cfg = useMemo(() => {
     switch (difficulty) {
       case 1: return { rounds: 2, zone: 0.38, sweepMs: 1400 };
@@ -84,6 +87,7 @@ export default function BreathHold({ difficulty, onComplete, onCancel }: Minigam
     const zoneStart = (1 - cfg.zone) / 2 * 100;
     const zoneEnd = (1 + cfg.zone) / 2 * 100;
     const inZone = cursorPct >= zoneStart && cursorPct <= zoneEnd;
+    play(inZone ? "matchPair" : "minigameFail");
     if (inZone) {
       const nextDone = done + 1;
       setDone(nextDone);

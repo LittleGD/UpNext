@@ -125,7 +125,7 @@ export const LEARNING_EVENTS: DungeonEvent[] = [
             minigame: "pair_match",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 60, coins: 20 },
+              { kind: "reward", xp: 24, coins: 20 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [
@@ -162,7 +162,7 @@ export const LEARNING_EVENTS: DungeonEvent[] = [
             minigame: "sequence_memo",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 70, coins: 20 },
+              { kind: "reward", xp: 28, coins: 20 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [
@@ -199,7 +199,7 @@ export const LEARNING_EVENTS: DungeonEvent[] = [
             minigame: "pipe_connect",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 80, coins: 25 },
+              { kind: "reward", xp: 32, coins: 25 },
               { kind: "time", delta: -3 },
             ],
             failEffects: [
@@ -346,7 +346,7 @@ export const LEARNING_EVENTS: DungeonEvent[] = [
             minigame: "quick_sum",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 65, coins: 25 },
+              { kind: "reward", xp: 26, coins: 25 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [
@@ -386,7 +386,7 @@ export const LEARNING_EVENTS: DungeonEvent[] = [
             minigame: "trace_path",
             difficulty: 2,
             successEffects: [
-              { kind: "reward", xp: 70, coins: 30 },
+              { kind: "reward", xp: 28, coins: 30 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [
@@ -426,7 +426,7 @@ export const LEARNING_EVENTS: DungeonEvent[] = [
             minigame: "breath_hold",
             difficulty: 1,
             successEffects: [
-              { kind: "reward", xp: 50, coins: 20 },
+              { kind: "reward", xp: 20, coins: 20 },
               { kind: "time", delta: -2 },
             ],
             failEffects: [

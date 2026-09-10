@@ -1,5 +1,7 @@
 "use client";
 
+import { useSound } from "@/hooks/useSound";
+
 /**
  * Phase 12d — 스킬트리 UI.
  *
@@ -25,6 +27,7 @@ import { skillName, skillDesc, resourceName } from "@/lib/upHeroI18n";
 import PixelIcon from "@/components/icons/PixelIcon";
 
 export default function SkillTreePanel({ classType }: { classType: ClassType }) {
+  const { play } = useSound();
   const { t, language } = useTranslation();
   const hero = useUpHeroStore((s) => s.hero);
   const learnSkill = useUpHeroStore((s) => s.learnSkill);
@@ -137,7 +140,7 @@ export default function SkillTreePanel({ classType }: { classType: ClassType }) 
                         <button
                           type="button"
                           disabled={status !== "ok"}
-                          onClick={() => learnSkill(skill.id)}
+                          onClick={() => { if (learnSkill(skill.id) === "ok") play("skillLearn"); }}
                           className="skill-learn-btn typo-micro rounded px-2 py-1"
                           style={{
                             minHeight: 32,

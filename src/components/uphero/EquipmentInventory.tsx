@@ -1045,12 +1045,11 @@ export default function EquipmentInventory({
           onDone={() => {
             // outcome 별 sound 재생 — ritual 종료와 result modal 등장 사이.
             if (ritual.outcome === "success") {
-              play("collect");
+              play("enhanceSuccess");
             } else if (ritual.outcome === "destroyed") {
-              play("cancel");
+              play("itemBreak");
             } else {
-              // keep — 애매한 결과. cancel 은 너무 negative 하니 아무 소리 안 냄
-              // (정적 → modal 이 직접 메시지 전달).
+              play("enhanceFail");
             }
             setRitual(null);
             if (pendingResult) {

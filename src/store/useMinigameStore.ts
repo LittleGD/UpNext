@@ -22,7 +22,7 @@ import {
 import { generateBoard, getAdjacentIndices } from "@/lib/minigame/generateBoard";
 import { drawRewardOffer } from "@/data/minigame";
 import { useGameStore } from "@/store/useGameStore";
-import { XP_PER_RARITY } from "@/types/game";
+import { MINIGAME_XP_PER_RARITY } from "@/types/game";
 import { playSound, triggerHaptic } from "@/lib/sounds";
 
 /**
@@ -711,7 +711,7 @@ export const useMinigameStore = create<MinigameStore>((set, get) => {
       for (const t of picks) {
         if (!t.card) continue;
         if (unlockedSet.has(t.card.id)) {
-          const base = XP_PER_RARITY[t.card.rarity] ?? 10;
+          const base = MINIGAME_XP_PER_RARITY[t.card.rarity] ?? 3;
           const bloomMult = bloomSet.has(t.tileId) ? 1.5 : 1;
           xpGainPerCard.push({
             cardId: t.card.id,

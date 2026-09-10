@@ -69,10 +69,10 @@ struct EquipmentInventoryView: View {
                     enhanceOutcome = nil
                     if outcome == .success {
                         Haptics.play(.success)
-                        SoundPlayer.shared.play(.collect)
+                        SoundPlayer.shared.play(.enhanceSuccess)
                     } else {
                         Haptics.play(.warning)
-                        SoundPlayer.shared.play(.cancel)
+                        SoundPlayer.shared.play(outcome == .destroyed ? .itemBreak : .enhanceFail)
                     }
                     if let msg = enhanceMessage { showToast(msg) }
                     enhanceMessage = nil

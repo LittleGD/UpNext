@@ -7,6 +7,7 @@
  * 아니면 CampPlaceholder 로 라우팅.
  */
 
+import { useDungeonAudio } from "./useDungeonAudio";
 import { useEffect } from "react";
 import { useUpHeroStore } from "@/store/useUpHeroStore";
 import { useGameStore } from "@/store/useGameStore";
@@ -22,6 +23,7 @@ import { GB } from "@/lib/upHeroPalette";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export default function UpHeroGame() {
+  useDungeonAudio();
   const { t } = useTranslation();
   const initialize = useUpHeroStore((s) => s.initialize);
   const isLoaded = useUpHeroStore((s) => s.isLoaded);
@@ -77,7 +79,8 @@ export default function UpHeroGame() {
   const inDungeon =
     sessionStatus === "active" ||
     sessionStatus === "awaitingChoice" ||
-    sessionStatus === "paused";
+    sessionStatus === "paused" ||
+    sessionStatus === "awaitingMinigame";
 
   return (
     <>
