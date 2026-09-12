@@ -97,5 +97,14 @@
    <ArchiveAction
       buildConfiguration = "Release"
       revealArchiveInOrganizer = "YES">
+      <PostActions>
+         <ExecutionAction ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent title = "Match static framework stub symbols" scriptText = "python3 &quot;${SRCROOT}/../../scripts/ios-stub-symbols.py&quot; &quot;${ARCHIVE_PATH}&quot;&#10;">
+               <EnvironmentBuildable>
+                  <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "E6B6A0942FB6DEB800E7EA09" BuildableName = "UpNext.app" BlueprintName = "UpNext" ReferencedContainer = "container:UpNext.xcodeproj"/>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PostActions>
    </ArchiveAction>
 </Scheme>
