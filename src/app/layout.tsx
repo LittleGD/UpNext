@@ -11,6 +11,7 @@ import ClientEffects from "@/components/effects/ClientEffects";
 import NativeSplashHide from "@/components/native/NativeSplashHide";
 import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
 import AudioProvider from "@/components/providers/AudioProvider";
+import DuoLinkProvider from "@/components/providers/DuoLinkProvider";
 import WidgetSync from "@/components/providers/WidgetSync";
 import AccountLevelUpOverlay from "@/components/uphero/AccountLevelUpOverlay";
 import { Analytics } from "@vercel/analytics/next";
@@ -103,6 +104,7 @@ export default function RootLayout({
         <NativeSplashHide />
         <ServiceWorkerRegistrar />
         <WidgetSync />
+        <DuoLinkProvider />
         <MotionProvider>
           <SyncProvider>
             <LanguageSync />

@@ -2599,6 +2599,7 @@ const zh: Record<DictKey, string> = {
   "flame.duo.status.bothNotYet": "今天两人都还没，慢慢来",
   "flame.duo.msg.loginRequired": "登录后即可和好友一起点燃火焰",
   "flame.duo.msg.inviteReady": "邀请码已准备好",
+  "flame.duo.msg.retryJoin": "加入失败，请重试。",
   "flame.duo.msg.invalidCode": "邀请码无效",
   "flame.duo.msg.started": "双人火焰已开启",
   "flame.duo.msg.nudgeFailed": "戳一下发送失败",

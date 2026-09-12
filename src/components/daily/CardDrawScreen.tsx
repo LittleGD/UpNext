@@ -55,7 +55,7 @@ export default function CardDrawScreen() {
     if (!heroLoaded) initUpHero();
   }, [heroLoaded, initUpHero]);
 
-  const { play } = useSound();
+  const { play, startCardShuffle, stopCardShuffle } = useSound();
   const { t, language } = useTranslation();
   const isMd = useMediaQuery("(min-width: 768px)");
   const isLg = useMediaQuery("(min-width: 1024px)");
@@ -222,7 +222,7 @@ export default function CardDrawScreen() {
     didDrawRef.current = false;
     setIsHolding(true);
     setIsShaking(true);
-    play("chargeUp");
+    startCardShuffle();
     holdStartRef.current = Date.now();
     // 로컬 변수에 캡처해 clearInterval이 정확한 인터벌을 타겟팅하도록 함
     // NOTE(perf): 16ms setInterval → setHoldProgress 호출로 매 프레임 리렌더 발생.
@@ -233,6 +233,7 @@ export default function CardDrawScreen() {
       const p = Math.min(elapsed / HOLD_DURATION, 1);
       setHoldProgress(p);
       if (p >= 1) {
+        stopCardShuffle();
         clearInterval(timer);
         if (holdTimerRef.current === timer) holdTimerRef.current = null;
         // 홀드 완료 → 카드 뽑기 (한 사이클당 1회만)
@@ -253,9 +254,10 @@ export default function CardDrawScreen() {
       }
     }, 16);
     holdTimerRef.current = timer;
-  }, [drawDailyCards, drawPhaseCards, phase, play]);
+  }, [drawDailyCards, drawPhaseCards, phase, play, startCardShuffle, stopCardShuffle]);
 
   const cancelHold = useCallback(() => {
+    stopCardShuffle();
     if (holdTimerRef.current) {
       clearInterval(holdTimerRef.current);
       holdTimerRef.current = null;
@@ -263,11 +265,19 @@ export default function CardDrawScreen() {
     setIsHolding(false);
     setIsShaking(false);
     setHoldProgress(0);
-  }, []);
+  }, [stopCardShuffle]);
+
+  // Cancel the interaction when the tab loses visibility, as well as its audio.
+  useEffect(() => {
+    const hidden = () => { if (document.hidden) cancelHold(); };
+    document.addEventListener("visibilitychange", hidden);
+    return () => document.removeEventListener("visibilitychange", hidden);
+  }, [cancelHold]);
 
   // cleanup
   useEffect(() => {
     return () => {
+      stopCardShuffle();
       if (holdTimerRef.current) {
         clearInterval(holdTimerRef.current);
         holdTimerRef.current = null;
@@ -277,7 +287,7 @@ export default function CardDrawScreen() {
         previewExitTimerRef.current = null;
       }
     };
-  }, []);
+  }, [stopCardShuffle]);
 
   // ESC 로 프리뷰 닫기 — 접근성: 키보드 유저와 웹 표준 UX
   useEscapeKey(dismissPreview, previewId !== null);

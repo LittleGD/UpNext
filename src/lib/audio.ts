@@ -24,6 +24,8 @@ export class AppAudio {
   private buffers = new Map<string, Promise<AudioBuffer>>();
   private lastPlayed = new Map<SoundName, number>();
   private prewarmed = false;
+  private shuffleGeneration = 0;
+  private shuffle: Voice | null = null;
   private bossIntro: Promise<number | null> | null = null;
 
   private getContext() {
@@ -171,6 +173,36 @@ export class AppAudio {
     } catch { return null; }
   }
 
+  startCardShuffle() {
+    if (!this.enabled || !this.active || !this.unlocked) return;
+    this.stopCardShuffle();
+    const generation = this.shuffleGeneration;
+    const epoch = this.effectsEpoch;
+    void this.load('sfx-cardShuffle.wav').then(buffer => {
+      if (generation !== this.shuffleGeneration || epoch !== this.effectsEpoch ||
+          !this.enabled || !this.active) return;
+      const voice = this.makeVoice(buffer);
+      const now = this.getContext().currentTime;
+      voice.source.loop = true;
+      voice.gain.gain.setValueAtTime(0, now);
+      voice.gain.gain.linearRampToValueAtTime(0.32, now + 0.04);
+      voice.source.start(now);
+      this.effects.set(voice, 'cardShuffle');
+      this.shuffle = voice;
+    }).catch(() => {});
+  }
+
+  stopCardShuffle() {
+    this.shuffleGeneration++;
+    const voice = this.shuffle;
+    this.shuffle = null;
+    if (!voice) return;
+    const now = this.getContext().currentTime;
+    voice.gain.gain.cancelAndHoldAtTime(now);
+    voice.gain.gain.linearRampToValueAtTime(0, now + 0.06);
+    voice.source.stop(now + 0.07);
+  }
+
   private stopVoice(voice: Voice) {
     try { voice.source.stop(); } catch { /* Already ended. */ }
     this.effects.delete(voice);
@@ -178,6 +210,8 @@ export class AppAudio {
   }
 
   private stopAll() {
+    this.shuffleGeneration++;
+    this.shuffle = null;
     this.generation++;
     this.effectsEpoch++;
     this.current = null;

@@ -33,7 +33,7 @@ import {
 
 // firestore.rules 의 허용 키 목록 (rules 파일과 문자 그대로 일치해야 함)
 const DUO_CREATE_ALLOWED = ["memberIds", "memberNames", "checkIns", "createdAt", "updatedAt"];
-const DUO_UPDATE_ALLOWED = ["memberIds", "memberNames", "checkIns", "nudges", "createdAt", "updatedAt"];
+const DUO_UPDATE_ALLOWED = ["memberIds", "memberNames", "checkIns", "nudges", "createdAt", "updatedAt", "inviteCode"];
 const INVITE_ALLOWED = ["code", "duoId", "createdBy", "createdAt", "expiresAt", "status"];
 
 // dot-path 업데이트 키의 최상위 세그먼트 ("checkIns.uid1" → "checkIns")
@@ -324,42 +324,12 @@ describe("buildInviteCreateData — rules duoInvites create 분기", () => {
   });
 });
 
-describe("buildJoinDuoUpdate — rules update A 분기 (솔로→듀오)", () => {
-  const existing = {
-    memberIds: ["owner"],
-    memberNames: { owner: "주인" },
-    checkIns: { owner: ["2026-08-23"] },
-    createdAt: 1_700_000_000_000,
-    updatedAt: 1_700_000_000_000,
-  };
-  const update = buildJoinDuoUpdate(existing, "me", "나", 1_700_000_100_000);
-
-  it("허용 키만 사용 + nudges 는 건드리지 않음 (diff 빈 맵 통과)", () => {
-    for (const key of Object.keys(update)) {
-      expect(DUO_UPDATE_ALLOWED).toContain(key);
-    }
-    expect("nudges" in update).toBe(false);
-    expect("createdAt" in update).toBe(false); // createdAt 불변 — 페이로드에 미포함
-  });
-
-  it("기존 멤버 보존 + 본인만 추가 (size 1 → 2)", () => {
-    expect(update.memberIds).toEqual(["owner", "me"]);
-  });
-
-  it("memberNames/checkIns diff 는 본인 키만 — 파트너 값 그대로", () => {
-    expect(update.memberNames).toEqual({ owner: "주인", me: "나" });
-    expect(update.checkIns).toEqual({ owner: ["2026-08-23"], me: [] });
-  });
-
-  it("이미 멤버면 중복 추가 없음 (트랜잭션 재실행 멱등)", () => {
-    const again = buildJoinDuoUpdate(
-      { ...existing, memberIds: ["owner", "me"], checkIns: { owner: [], me: ["2026-08-24"] } },
-      "me",
-      "나",
-      1,
-    );
-    expect(again.memberIds).toEqual(["owner", "me"]);
-    expect(again.checkIns).toEqual({ owner: [], me: ["2026-08-24"] }); // 기존 체크인 보존
+describe("buildJoinDuoUpdate", () => {
+  const update = buildJoinDuoUpdate("me", "나", 1700000100000, "ABCD23", sentinels);
+  it("adds only the new member without reading or replacing partner data", () => {
+    expect(update).toEqual({ memberIds: { __op: "arrayUnion", values: ["me"] },
+      "memberNames.me": "나", "checkIns.me": [], inviteCode: "ABCD23", updatedAt: 1700000100000 });
+    for (const key of topSegments(update)) expect(DUO_UPDATE_ALLOWED).toContain(key);
   });
 });
 

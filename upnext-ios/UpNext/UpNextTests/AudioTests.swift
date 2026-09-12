@@ -4,6 +4,24 @@ import AVFoundation
 
 @MainActor
 final class AudioTests: XCTestCase {
+    func testCardShuffleLoopsAndStopsOnReleaseAndBackground() async throws {
+        let player = SoundPlayer.shared
+        SoundPlayer.enabled = true
+        player.setActive(true)
+        player.startCardShuffle()
+        try await Task.sleep(for: .milliseconds(750))
+        XCTAssertTrue(player.isCardShufflePlaying, "Shuffle must continue beyond its 640ms sample")
+        player.stopCardShuffle()
+        player.startCardShuffle()
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertTrue(player.isCardShufflePlaying, "Old fade must not stop a new press")
+        player.setActive(false)
+        XCTAssertFalse(player.isCardShufflePlaying)
+        player.setActive(true)
+        XCTAssertFalse(player.isCardShufflePlaying, "Returning does not replay the hold")
+        player.setActive(false)
+    }
+
     func testEffectsRecoverOnForegroundWithoutInterruptionEnded() {
         let player = SoundPlayer.shared
         SoundPlayer.enabled = true

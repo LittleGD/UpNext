@@ -1,5 +1,7 @@
 "use client";
 
+import DuoInviteShare from "@/components/flame/DuoInviteShare";
+import duoCopy from "@/data/duoInviteCopy.json";
 import { useEffect, useRef, useState } from "react";
 import PixelIcon from "@/components/icons/PixelIcon";
 import GbConfirm from "@/components/uphero/GbConfirm";
@@ -398,12 +400,7 @@ function WaitingBody({
         <EmptyFriendSlot />
       </div>
       <p className="typo-caption text-text-tertiary">{t("flame.duo.waiting")}</p>
-      {inviteCode && (
-        // 초대코드, 복사할 수 있게 선택 허용 (전역 user-select 차단의 옵트아웃)
-        <p className="typo-heading text-accent tabular-nums allow-select">
-          {t("flame.duo.inviteCode", { code: inviteCode })}
-        </p>
-      )}
+      <DuoInviteShare code={inviteCode} />
       <button
         type="button"
         onClick={onLeave}
@@ -434,6 +431,7 @@ function InactiveBody({
   onRequestLogin: () => void;
 }) {
   const { t } = useTranslation();
+  const language = useGameStore(s => s.progress.language);
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -453,9 +451,9 @@ function InactiveBody({
           <button
             type="button"
             onClick={onRequestLogin}
-            className="press-affordance w-full h-11 rounded-xl bg-bg-elevated flex items-center justify-center gap-1.5 typo-caption text-accent"
+            className="press-affordance w-full h-11 rounded-xl bg-bg-elevated flex items-center justify-center gap-1.5 typo-caption text-accent-cyan"
           >
-            <PixelIcon name="Link" size={14} color="var(--accent-primary)" />
+            <PixelIcon name="Link" size={14} color="var(--accent-cyan)" />
             {t("flame.duo.loginCta")}
           </button>
           <p className="typo-micro text-text-tertiary text-center">
@@ -469,7 +467,7 @@ function InactiveBody({
               value={joinCode}
               onChange={(e) => onJoinCodeChange(e.target.value.toUpperCase())}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && joinCode.trim().length >= 4) onJoin();
+                if (e.key === "Enter" && joinCode.trim().length === 6) onJoin();
               }}
               placeholder={t("flame.duo.codePlaceholder")}
               aria-label={t("flame.duo.codePlaceholder")}
@@ -483,8 +481,8 @@ function InactiveBody({
             <button
               type="button"
               onClick={onJoin}
-              disabled={isWorking || joinCode.trim().length < 4}
-              className="press-affordance h-11 px-4 rounded-xl bg-accent text-bg-primary typo-caption font-semibold disabled:opacity-50"
+              disabled={isWorking || joinCode.trim().length !== 6}
+              className="press-affordance h-11 px-4 rounded-xl bg-accent-cyan text-bg-primary typo-caption font-semibold disabled:opacity-50"
             >
               {t("flame.duo.join")}
             </button>
@@ -493,10 +491,10 @@ function InactiveBody({
             type="button"
             onClick={onCreate}
             disabled={isWorking}
-            className="press-affordance w-full h-11 rounded-xl bg-bg-elevated flex items-center justify-center gap-1.5 typo-caption text-accent disabled:opacity-50"
+            className="press-affordance w-full h-11 rounded-xl bg-bg-elevated flex items-center justify-center gap-1.5 typo-caption text-accent-cyan disabled:opacity-50"
           >
-            <PixelIcon name="Link" size={14} color="var(--accent-primary)" />
-            {t("flame.duo.createInvite")}
+            <PixelIcon name="Link" size={14} color="var(--accent-cyan)" />
+            {duoCopy.create[language]}
           </button>
         </div>
       )}

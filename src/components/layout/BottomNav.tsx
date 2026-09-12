@@ -102,6 +102,7 @@ export default function BottomNav() {
       upHeroStatus === "awaitingMinigame");
 
   if (
+    pathname.startsWith('/i/') ||
     !isLoaded ||
     !hasCompletedOnboarding ||
     isSelectionReview ||

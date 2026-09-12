@@ -13,6 +13,7 @@ enum SoundName: String, CaseIterable {
     case levelUp
     case equip
     case xpGain
+    case cardShuffle
     case chargeUp
     case ambientFloat
     case pulseWave

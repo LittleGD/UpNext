@@ -2601,6 +2601,7 @@ const en: Record<DictKey, string> = {
   "flame.duo.status.bothNotYet": "Neither of you yet today, take your time",
   "flame.duo.msg.loginRequired": "Sign in to light a Flame together with a friend",
   "flame.duo.msg.inviteReady": "Your invite code is ready",
+  "flame.duo.msg.retryJoin": "Couldn’t join. Please try again.",
   "flame.duo.msg.invalidCode": "That invite code isn't valid",
   "flame.duo.msg.started": "Your duo Flame has started",
   "flame.duo.msg.nudgeFailed": "Couldn't send the poke",

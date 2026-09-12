@@ -14,6 +14,7 @@ export const SOUND_NAMES = [
   "equip",
   "xpGain",
   "chargeUp",
+  "cardShuffle",
   "ambientFloat",
   "pulseWave",
   "collect",

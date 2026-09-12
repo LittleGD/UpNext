@@ -56,6 +56,7 @@ enum MainTab: CaseIterable {
 
 struct MainTabView: View {
     @EnvironmentObject private var store: GameStore
+    @EnvironmentObject private var duo: DuoStore
     @EnvironmentObject private var growth: GrowthStore
     // 11-buff-nav-overlap / 12-combat-parity — 전투 활성 여부로 하단 네비 가시성을 결정하기 위해
     // 앱 전역에 이미 주입된 UpHeroStore(UpNextApp.swift:45)를 참조.
@@ -301,6 +302,7 @@ struct MainTabView: View {
                                     category: .fitness)
             }
             #endif
+            if duo.pendingInviteCode != nil { tab = .record }
             syncPackOpener()
             evaluatePatchNotes()
             evaluateReviewPrompt()
@@ -336,6 +338,9 @@ struct MainTabView: View {
                 celebrate.toggle()
             }
             lastCompletedScore = newScore
+        }
+        .onChange(of: duo.pendingInviteCode) { code in
+            if code != nil { tab = .record }
         }
         .onOpenURL { url in
             handleDeepLink(url)

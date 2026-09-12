@@ -16,6 +16,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var store: GameStore
+    @EnvironmentObject private var duo: DuoStore
 
     var body: some View {
         ZStack {
@@ -26,9 +27,12 @@ struct ContentView: View {
                 OnboardingView()
             case .ready:
                 MainTabView()
+                    .accessibilityHidden(duo.pendingInviteCode != nil)
             case let .failed(message):
                 BootErrorView(message: message)
             }
+
+            DuoInvitePresenter(duo: store.duo)
 
             // LoginOverlay — 익명 모드에서 사용자가 백업 권유받을 때만 표시.
             // 로그인 성공 또는 "건너뛰기" → showLoginOverlay = false 로 자동 해제.
@@ -52,6 +56,10 @@ struct ContentView: View {
         //   폴백으로 둬 하루 롤오버(reconcileForToday)가 매 앱 진입 시 무조건 1회 보장되게
         //   한다. daily 가 아직 nil 이면 guard 로 안전 no-op 이라 중복 호출 비용은 무시 가능.
         .onAppear { store.reconcileForToday() }
+        .onOpenURL { store.duo.receiveInviteLink($0) }
+        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+            if let url = activity.webpageURL { store.duo.receiveInviteLink(url) }
+        }
         // 폰트/로케일 단일 출처 — 기기 로케일이 아닌 *앱 내 언어*(progress.language)를
         // 환경 locale 로 주입한다. Typography 가 @Environment(\.locale) 로 폰트 family 를
         // 고르는데(ko→April16th Promise), 기기 로케일이 en 이면 본문이 Menlo 로 폴백되고

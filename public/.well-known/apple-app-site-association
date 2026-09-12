@@ -1,0 +1,8 @@
+{
+  "applinks": {
+    "details": [{
+      "appIDs": ["L3RY7X2WBC.com.littlegd.upnext"],
+      "components": [{ "/": "/i/*", "comment": "Duo Flame invitations" }]
+    }]
+  }
+}

@@ -44,6 +44,19 @@ struct DuoSnapshot: Identifiable, Equatable {
 final class DuoStore: ObservableObject {
     @Published private(set) var activeDuo: DuoSnapshot?
     @Published private(set) var inviteCode: String?
+    @Published private(set) var pendingInviteCode = UserDefaults.standard.string(forKey: "duo.pendingInvite")
+
+    func receiveInviteLink(_ url: URL) {
+        guard let code = DuoInviteLink.parse(url) else { return }
+        message = nil
+        pendingInviteCode = code
+        UserDefaults.standard.set(code, forKey: "duo.pendingInvite")
+    }
+
+    func dismissInviteLink() {
+        pendingInviteCode = nil
+        UserDefaults.standard.removeObject(forKey: "duo.pendingInvite")
+    }
     @Published private(set) var isWorking = false
     @Published private(set) var message: String?
     /// 친구가 오늘 나를 콕 찔렀을 때 1회 true — 받는 쪽 로컬 배너 트리거.
@@ -80,7 +93,7 @@ final class DuoStore: ObservableObject {
     }
 
     func createInvite() {
-        guard activeDuo == nil, !isWorking else { return }
+        guard (activeDuo?.memberIds.count ?? 0) < 2, !isWorking else { return }
         // uid 가 nil(익명) 이면 이전엔 조용히 return 해 버튼이 무반응이었다. UI 는 로그인
         // 게이트(RetentionSectionView.inviteControls → store.promptLogin)로 선차단하지만,
         // 직접 호출 방어로 여기서도 사유를 message 에 표면화한다(기존 message 표시 경로 재사용).
@@ -91,17 +104,21 @@ final class DuoStore: ObservableObject {
         isWorking = true
         message = nil
         let code = Self.makeCode()
-        let duoId = db.collection("duos").document().documentID
+        let waitingDuo = activeDuo
+        let duoId = waitingDuo?.id ?? db.collection("duos").document().documentID
         let now = UpHeroStore.nowMillis()
         let batch = db.batch()
         let duoRef = db.collection("duos").document(duoId)
-        batch.setData([
+        if waitingDuo == nil { batch.setData([
             "memberIds": [uid],
             "memberNames": [uid: displayName],
             "checkIns": [uid: []],
             "createdAt": now,
             "updatedAt": now,
-        ], forDocument: duoRef)
+        ], forDocument: duoRef) }
+        if let previous = inviteCode {
+            batch.updateData(["status": "closed"], forDocument: db.collection("duoInvites").document(previous))
+        }
         let inviteRef = db.collection("duoInvites").document(code)
         batch.setData([
             "code": code,
@@ -137,54 +154,34 @@ final class DuoStore: ObservableObject {
             return
         }
         let code = rawCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard code.count >= 4 else { return }
+        guard code.range(of: "^[A-Z2-9]{6}$", options: .regularExpression) != nil else {
+            message = "유효하지 않은 초대코드예요"
+            return
+        }
         isWorking = true
         message = nil
+        guard let uid else { isWorking = false; return }
+        let displayName = displayName
         let inviteRef = db.collection("duoInvites").document(code)
-        inviteRef.getDocument { [weak self] snapshot, error in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let error {
-                    self.isWorking = false
-                    // 보간 메시지 — 포맷 유지 방안은 createInvite 의 주석 참고.
-                    self.message = AppConfig.loc("초대 조회 실패: \(error.localizedDescription)")
-                    return
-                }
-                guard let data = snapshot?.data(),
-                      (data["status"] as? String) == "open",
+        db.runTransaction({ transaction, errorPointer in
+            do {
+                let data = try transaction.getDocument(inviteRef).data()
+                guard let data,
+                      data["status"] as? String == "open",
+                      data["createdBy"] as? String != uid,
                       let duoId = data["duoId"] as? String,
                       let expiresAt = Self.millisValue(data["expiresAt"]),
                       expiresAt > UpHeroStore.nowMillis() else {
-                    self.isWorking = false
-                    self.message = "유효하지 않은 초대코드예요"
-                    return
-                }
-                self.joinDuo(duoId: duoId, inviteRef: inviteRef)
-            }
-        }
-    }
-
-    private func joinDuo(duoId: String, inviteRef: DocumentReference) {
-        guard let uid else { return }
-        let displayName = displayName
-        let duoRef = db.collection("duos").document(duoId)
-        db.runTransaction({ transaction, errorPointer in
-            do {
-                let doc = try transaction.getDocument(duoRef)
-                var memberIds = doc.data()?["memberIds"] as? [String] ?? []
-                guard memberIds.count < 2 || memberIds.contains(uid) else {
-                    errorPointer?.pointee = NSError(domain: "DuoStore", code: 409)
+                    errorPointer?.pointee = NSError(domain: "DuoStore", code: 410)
                     return nil
                 }
-                if !memberIds.contains(uid) { memberIds.append(uid) }
-                var memberNames = doc.data()?["memberNames"] as? [String: String] ?? [:]
-                memberNames[uid] = displayName
-                var checkIns = doc.data()?["checkIns"] as? [String: [String]] ?? [:]
-                checkIns[uid] = checkIns[uid] ?? []
+                let duoRef = self.db.collection("duos").document(duoId)
+                // The invite is readable before joining; the partner's private duo is not.
                 transaction.updateData([
-                    "memberIds": memberIds,
-                    "memberNames": memberNames,
-                    "checkIns": checkIns,
+                    "memberIds": FieldValue.arrayUnion([uid]),
+                    FieldPath(["memberNames", uid]): displayName,
+                    FieldPath(["checkIns", uid]): [String](),
+                    "inviteCode": code,
                     "updatedAt": UpHeroStore.nowMillis(),
                 ], forDocument: duoRef)
                 transaction.updateData(["status": "joined"], forDocument: inviteRef)
@@ -196,12 +193,15 @@ final class DuoStore: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.isWorking = false
                 if let error {
-                    // 보간 메시지 — 포맷 유지 방안은 createInvite 의 주석 참고.
-                    self?.message = AppConfig.loc("듀오 참여 실패: \(error.localizedDescription)")
+                    NSLog("Duo join failed: %@", error.localizedDescription)
+                    let failure = error as NSError
+                    let invalid = failure.domain == "DuoStore" || failure.code == FirestoreErrorCode.permissionDenied.rawValue
+                    self?.message = DuoInviteLink.text(invalid ? "invalid" : "failed")
                     return
                 }
                 self?.inviteCode = nil
                 self?.message = "2인 불꽃이 시작됐어요"
+                self?.dismissInviteLink()
                 self?.observeActiveDuo()
             }
         }
@@ -319,9 +319,14 @@ final class DuoStore: ObservableObject {
         listener = db.collection("duos")
             .whereField("memberIds", arrayContains: uid)
             .limit(to: 1)
-            .addSnapshotListener { [weak self] snapshot, _ in
+            .addSnapshotListener { [weak self] snapshot, error in
                 Task { @MainActor [weak self] in
-                    guard let self else { return }
+                    guard let self, self.uid == uid else { return }
+                    if let error {
+                        NSLog("Duo observation failed: %@", error.localizedDescription)
+                        self.message = DuoInviteLink.text("failed")
+                        return
+                    }
                     guard let doc = snapshot?.documents.first else {
                         self.activeDuo = nil
                         return
@@ -329,6 +334,7 @@ final class DuoStore: ObservableObject {
                     let next = Self.decodeDuo(doc)
                     self.detectIncomingNudge(previous: self.activeDuo, next: next)
                     self.activeDuo = next
+                    if next.memberIds.count == 2 { self.inviteCode = nil }
                 }
             }
     }

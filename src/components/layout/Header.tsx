@@ -124,7 +124,7 @@ export default function Header() {
     prevLevelRef.current = level;
   }, [level, isLoaded, hasCompletedOnboarding, pulseControls]);
 
-  if (!isLoaded || !hasCompletedOnboarding || splashActive) return null;
+  if (pathname.startsWith('/i/') || !isLoaded || !hasCompletedOnboarding || splashActive) return null;
 
   // 미니게임 런 중에는 몰입 모드: idle이 아닌 모든 phase에서 헤더 숨김
   // /minigame 직접 진입과 /playground 내 game 탭 양쪽 모두 커버

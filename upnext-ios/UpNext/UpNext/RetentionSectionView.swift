@@ -487,9 +487,21 @@ private struct DuoFlameCard: View {
             .padding(.vertical, 4)
             Text("동료를 기다리는 중").typography(.caption).foregroundStyle(Color.textTertiary)
             if let code = duo.inviteCode {
-                Text("초대코드 \(code)")
-                    .typography(.heading).foregroundStyle(Color.accentPrimary)
+                ShareLink(item: DuoInviteLink.url(code)) {
+                    HStack(spacing: 8) {
+                        PixelIcon(.link, size: 18, color: .bgPrimary)
+                        Text(DuoInviteLink.text("share"))
+                    }
+                }
+                .buttonStyle(.un(.primary, tint: .accentCyan))
+                .accessibilityIdentifier("duoShareInviteButton")
+                Text(DuoInviteLink.url(code).absoluteString)
+                    .typography(.caption).foregroundStyle(Color.textTertiary)
+                    .textSelection(.enabled)
                     .accessibilityIdentifier("duoInviteCodeLabel")
+            } else {
+                Button { duo.createInvite() } label: { Text(DuoInviteLink.text("create")) }
+                    .buttonStyle(.un(.primary, tint: .accentCyan)).disabled(duo.isWorking)
             }
             Button("나가기") { duo.leaveDuo() }
                 .typography(.micro).foregroundStyle(Color.textTertiary).buttonStyle(.plain)
@@ -524,11 +536,11 @@ private struct DuoFlameCard: View {
                 // 유도한다 — 백업 배너(BackupReminderBannerView) 의 store.promptLogin() 게이트와 동일.
                 Button { store.promptLogin() } label: {
                     HStack(spacing: 6) {
-                        PixelIcon(.link, size: 14, color: Color.accentPrimary)
-                        Text("로그인하고 함께 켜기").typography(.caption).foregroundStyle(Color.accentPrimary)
+                        PixelIcon(.link, size: 14, color: Color.accentCyan)
+                        Text("로그인하고 함께 켜기").typography(.caption).foregroundStyle(Color.accentCyan)
                     }
-                    .frame(maxWidth: .infinity).frame(height: 38)
-                    .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("duoCreateInviteButton")
@@ -541,8 +553,8 @@ private struct DuoFlameCard: View {
                         .typography(.caption)
                         .textInputAutocapitalization(.characters)
                         .disableAutocorrection(true)
-                        .padding(.horizontal, 10).frame(height: 38)
-                        .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
+                        .padding(.horizontal, 10).frame(height: 44)
+                        .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 12))
                         .accessibilityIdentifier("duoJoinCodeField")
                     // label-closure 형태 — 타이틀-init(Button("참여"))에 frame/background 를
                     // 버튼 자체에 걸면 iOS 26 AX 트리에서 identifier 가 버튼 타입으로
@@ -551,19 +563,19 @@ private struct DuoFlameCard: View {
                     Button { duo.joinInvite(code: joinCode) } label: {
                         Text("참여")
                             .typography(.caption).foregroundStyle(Color.bgPrimary)
-                            .frame(width: 56, height: 38)
-                            .background(Color.accentPrimary, in: RoundedRectangle(cornerRadius: 10))
+                            .frame(width: 64, height: 44)
+                            .background(Color.accentCyan, in: RoundedRectangle(cornerRadius: 12))
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("duoJoinButton")
                 }
                 Button { duo.createInvite() } label: {
                     HStack(spacing: 6) {
-                        PixelIcon(.link, size: 14, color: Color.accentPrimary)
-                        Text("초대코드 만들기").typography(.caption).foregroundStyle(Color.accentPrimary)
+                        PixelIcon(.link, size: 14, color: Color.accentCyan)
+                        Text(DuoInviteLink.text("create")).typography(.caption).foregroundStyle(Color.accentCyan)
                     }
-                    .frame(maxWidth: .infinity).frame(height: 38)
-                    .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 10))
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(Color.bgElevated, in: RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("duoCreateInviteButton")

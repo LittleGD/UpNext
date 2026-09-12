@@ -2617,6 +2617,7 @@ const ko = {
   // 듀오 스토어 런타임 메시지 (useDuoStore.message 경유 표시)
   "flame.duo.msg.loginRequired": "로그인하면 친구와 함께 불꽃을 켤 수 있어요",
   "flame.duo.msg.inviteReady": "초대코드가 준비됐어요",
+  "flame.duo.msg.retryJoin": "참여하지 못했어요. 다시 시도해 주세요.",
   "flame.duo.msg.invalidCode": "유효하지 않은 초대코드예요",
   "flame.duo.msg.started": "2인 불꽃이 시작됐어요",
   "flame.duo.msg.nudgeFailed": "콕 찌르기를 보내지 못했어요",

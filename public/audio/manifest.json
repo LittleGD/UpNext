@@ -135,8 +135,9 @@
     },
     "levelUp": {
       "file": "sfx-levelUp.wav",
-      "pack": "music-jingles",
-      "source": "Audio/8-Bit jingles/jingles_NES00.ogg"
+      "pack": "UpNext original sound design",
+      "source": "scripts/audio/design-cues.py",
+      "seconds": 0.95
     },
     "equip": {
       "file": "sfx-equip.wav",
@@ -400,6 +401,13 @@
       "file": "sfx-enhanceShatter.wav",
       "pack": "digital-audio",
       "source": "Audio/spaceTrash5.ogg"
+    },
+    "cardShuffle": {
+      "file": "sfx-cardShuffle.wav",
+      "pack": "UpNext original sound design",
+      "source": "scripts/audio/design-cues.py",
+      "seconds": 0.64,
+      "layerSource": "sfx-cardFlip.wav (Kenney Casino Audio, CC0)"
     }
   }
 }

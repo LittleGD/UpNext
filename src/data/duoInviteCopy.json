@@ -1,0 +1,104 @@
+{
+  "title": {
+    "ko": "2인 불꽃 초대",
+    "en": "Duo Flame invitation",
+    "ja": "2人の炎への招待",
+    "zh": "双人火焰邀请"
+  },
+  "body": {
+    "ko": "친구와 오늘의 불꽃을 켜세요.",
+    "en": "Light today’s Flame with a friend.",
+    "ja": "友だちと今日の炎を灯そう。",
+    "zh": "和朋友一起点亮今天的火焰。"
+  },
+  "share": {
+    "ko": "초대 링크 공유",
+    "en": "Share invite link",
+    "ja": "招待リンクを共有",
+    "zh": "分享邀请链接"
+  },
+  "create": {
+    "ko": "친구 초대하기",
+    "en": "Invite a friend",
+    "ja": "友だちを招待",
+    "zh": "邀请朋友"
+  },
+  "copy": {
+    "ko": "링크 복사",
+    "en": "Copy link",
+    "ja": "リンクをコピー",
+    "zh": "复制链接"
+  },
+  "copied": {
+    "ko": "링크를 복사했어요",
+    "en": "Link copied",
+    "ja": "リンクをコピーしました",
+    "zh": "链接已复制"
+  },
+  "join": {
+    "ko": "참여하기",
+    "en": "Join",
+    "ja": "参加する",
+    "zh": "加入"
+  },
+  "login": {
+    "ko": "로그인하고 참여",
+    "en": "Sign in to join",
+    "ja": "ログインして参加",
+    "zh": "登录并加入"
+  },
+  "open": {
+    "ko": "앱에서 열기",
+    "en": "Open in app",
+    "ja": "アプリで開く",
+    "zh": "在应用中打开"
+  },
+  "install": {
+    "ko": "앱 설치",
+    "en": "Get the app",
+    "ja": "アプリを入手",
+    "zh": "下载应用"
+  },
+  "return": {
+    "ko": "설치 후 이 링크를 다시 열어주세요.",
+    "en": "After installing, open this link again.",
+    "ja": "インストール後、このリンクをもう一度開いてください。",
+    "zh": "安装后请再次打开此链接。"
+  },
+  "later": {
+    "ko": "나중에",
+    "en": "Later",
+    "ja": "あとで",
+    "zh": "稍后"
+  },
+  "done": {
+    "ko": "완료",
+    "en": "Done",
+    "ja": "完了",
+    "zh": "完成"
+  },
+  "connected": {
+    "ko": "이미 참여 중인 불꽃이 있어요",
+    "en": "You already have a Duo Flame",
+    "ja": "参加中の炎があります",
+    "zh": "你已加入一个双人火焰"
+  },
+  "invalid": {
+    "ko": "초대가 만료됐거나 이미 사용됐어요",
+    "en": "This invite has expired or was used",
+    "ja": "招待の期限が切れたか、使用済みです",
+    "zh": "邀请已过期或已使用"
+  },
+  "failed": {
+    "ko": "참여하지 못했어요. 다시 시도해 주세요.",
+    "en": "Couldn’t join. Please try again.",
+    "ja": "参加できませんでした。もう一度お試しください。",
+    "zh": "加入失败，请重试。"
+  },
+  "web": {
+    "ko": "여기서 참여",
+    "en": "Join here",
+    "ja": "ここで参加",
+    "zh": "在此加入"
+  }
+}

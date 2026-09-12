@@ -214,23 +214,21 @@ export function buildInviteCreateData(
   };
 }
 
-/**
- * join 트랜잭션의 duo update 페이로드 — rules update A 분기(솔로→듀오)와 일치:
- * 기존 멤버 보존 + 본인만 추가, checkIns/memberNames diff 는 본인 키만,
- * nudges 는 건드리지 않음 (diff 빈 맵 → hasOnly 자동 통과).
- */
+/** Join without reading the partner's private document. Rules validate the invite atomically. */
 export function buildJoinDuoUpdate(
-  existing: Record<string, unknown>,
   uid: string,
   displayName: string,
   now: number,
+  inviteCode: string,
+  s: DuoWriteSentinels,
 ): Record<string, unknown> {
-  const memberIds = toStringArray(existing.memberIds);
-  if (!memberIds.includes(uid)) memberIds.push(uid);
-  const memberNames = { ...toStringMap(existing.memberNames), [uid]: displayName };
-  const checkIns = toStringArrayMap(existing.checkIns);
-  if (!checkIns[uid]) checkIns[uid] = [];
-  return { memberIds, memberNames, checkIns, updatedAt: now };
+  return {
+    memberIds: s.arrayUnion(uid),
+    [`memberNames.${uid}`]: displayName,
+    [`checkIns.${uid}`]: [],
+    inviteCode,
+    updatedAt: now,
+  };
 }
 
 /**

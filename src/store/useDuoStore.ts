@@ -144,7 +144,7 @@ export const useDuoStore = create<DuoState>((set, get) => {
         }
         const next = decodeDuo(docSnap.id, docSnap.data());
         detectIncomingNudge(get().activeDuo, next);
-        set({ activeDuo: next });
+        set({ activeDuo: next, ...(next.memberIds.length === 2 ? { inviteCode: null } : {}) });
         // 대기(1인) 상태인데 초대코드가 메모리에 없으면(페이지 새로고침) 원샷
         // 조회로 복구 — 코드 없인 친구에게 보낼 방법이 없다. duo 당 1회만 시도.
         if (
@@ -263,7 +263,7 @@ export const useDuoStore = create<DuoState>((set, get) => {
     },
 
     createInvite: async () => {
-      if (get().activeDuo || get().isWorking) return;
+      if ((get().activeDuo?.memberIds.length ?? 0) > 1 || get().isWorking) return;
       // 익명 상태의 조용한 무반응을 방어적으로 표면화 (iOS 와 동일 — UI 로그인
       // 게이트가 선차단하지만 직접 호출 방어).
       if (!currentUid) {
@@ -277,11 +277,14 @@ export const useDuoStore = create<DuoState>((set, get) => {
         const { db } = await getFirebase();
         const { collection, doc, writeBatch } = await getFirestoreMod();
         const code = makeCode();
-        const duoRef = doc(collection(db, "duos")); // auto id
+        const waitingDuo = get().activeDuo;
+        const duoRef = waitingDuo ? doc(db, "duos", waitingDuo.id) : doc(collection(db, "duos"));
         const inviteRef = doc(db, "duoInvites", code); // doc id == code (rules 검증)
         const now = Date.now();
         const batch = writeBatch(db);
-        batch.set(duoRef, buildDuoCreateData(uid, currentDisplayName, now));
+        if (!waitingDuo) batch.set(duoRef, buildDuoCreateData(uid, currentDisplayName, now));
+        const previousCode = get().inviteCode;
+        if (previousCode) batch.update(doc(db, "duoInvites", previousCode), { status: "closed" });
         batch.set(inviteRef, buildInviteCreateData(code, duoRef.id, uid, now));
         await batch.commit();
         set({ inviteCode: code, message: { key: "flame.duo.msg.inviteReady" } });
@@ -305,62 +308,32 @@ export const useDuoStore = create<DuoState>((set, get) => {
         return;
       }
       const code = normalizeCode(rawCode);
-      if (code.length < 4) return;
+      if (!/^[A-Z2-9]{6}$/.test(code)) {
+        set({ message: { key: "flame.duo.msg.invalidCode" } });
+        return;
+      }
       if (!isFirebaseConfigured) return;
       const uid = currentUid;
       const displayName = currentDisplayName;
       set({ isWorking: true, message: null });
       try {
         const { db } = await getFirebase();
-        const { doc, getDoc, runTransaction } = await getFirestoreMod();
+        const { doc, runTransaction, arrayUnion, arrayRemove, deleteField } = await getFirestoreMod();
         const inviteRef = doc(db, "duoInvites", code);
-
-        let inviteData: Record<string, unknown> | undefined;
         try {
-          const snapshot = await getDoc(inviteRef);
-          inviteData = snapshot.data();
-        } catch (error) {
-          set({
-            message: {
-              key: "flame.duo.msg.lookupFailed",
-              params: { error: errorCode("joinInvite lookup", error) },
-            },
-          });
-          return;
-        }
-
-        const invite = parseUsableInvite(inviteData, Date.now());
-        if (!invite) {
-          set({ message: { key: "flame.duo.msg.invalidCode" } });
-          return;
-        }
-
-        const duoRef = doc(db, "duos", invite.duoId);
-        try {
-          // 트랜잭션 — memberIds < 2 확인 + 자기 키만 추가 + invite "joined" 전환.
-          // 두 사람이 같은 코드로 동시에 join 해도 한 명만 성공한다.
           await runTransaction(db, async (tx) => {
-            const duoDoc = await tx.get(duoRef);
-            const data = duoDoc.data() ?? {};
-            const memberIds = Array.isArray(data.memberIds)
-              ? (data.memberIds as unknown[]).filter((v): v is string => typeof v === "string")
-              : [];
-            if (memberIds.length >= 2 && !memberIds.includes(uid)) {
-              // iOS 의 NSError(code: 409) 대응 — errorCode() 가 집는 code 필드 부여.
-              const full = new Error("duo already has two members") as Error & { code: string };
-              full.code = "duo/full";
-              throw full;
-            }
-            tx.update(duoRef, buildJoinDuoUpdate(data, uid, displayName, Date.now()));
+            const inviteData = (await tx.get(inviteRef)).data();
+            const invite = parseUsableInvite(inviteData, Date.now());
+            if (!invite || inviteData?.createdBy === uid) throw new Error("duo/invalid-invite");
+            const duoRef = doc(db, "duos", invite.duoId);
+            tx.update(duoRef, buildJoinDuoUpdate(uid, displayName, Date.now(), code,
+              { arrayUnion, arrayRemove, deleteField }));
             tx.update(inviteRef, { status: "joined" });
           });
         } catch (error) {
-          set({
-            message: {
-              key: "flame.duo.msg.joinFailed",
-              params: { error: errorCode("joinInvite", error) },
-            },
-          });
+          const code = errorCode("joinInvite", error);
+          const invalid = (error instanceof Error && error.message === "duo/invalid-invite") || code === "permission-denied";
+          set({ message: { key: invalid ? "flame.duo.msg.invalidCode" : "flame.duo.msg.retryJoin" } });
           return;
         }
 

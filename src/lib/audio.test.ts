@@ -32,6 +32,23 @@ afterEach(() => { mixer.setEnabled(false); vi.unstubAllGlobals(); });
 const resolveMusic = async (name: string) => { pending.get(`/audio/bgm-${name}.m4a`)?.(response()); await flush(); };
 
 describe('audio lifecycle and race handling', () => {
+  it('cancels a loading shuffle on release without reviving it on re-press', async () => {
+    vi.mocked(fetch).mockImplementation(url => new Promise<Response>(resolve => pending.set(String(url), resolve)));
+    mixer.unlock(); await flush();
+    mixer.startCardShuffle(); mixer.stopCardShuffle();
+    pending.get('/audio/sfx-cardShuffle.wav')?.(response()); await flush();
+    expect(sources).toHaveLength(0);
+    mixer.startCardShuffle(); await flush();
+    expect(sources).toHaveLength(1);
+    expect(sources[0].loop).toBe(true);
+    mixer.stopCardShuffle();
+    expect(sources[0].stop).toHaveBeenCalledWith(0.07);
+    mixer.startCardShuffle(); await flush();
+    mixer.setActive(false);
+    expect(sources[1].stop).toHaveBeenCalled();
+    mixer.setActive(true); await flush();
+    expect(sources).toHaveLength(2); // Foreground never restarts a released hold.
+  });
   it('does not fetch or start music before unlock', () => {
     mixer.setMusic('learning'); expect(fetch).not.toHaveBeenCalled();
   });

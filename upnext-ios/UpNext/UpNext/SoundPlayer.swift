@@ -20,6 +20,8 @@ final class SoundPlayer: NSObject {
         var delay: TimeInterval
         var duration: TimeInterval
     }
+    private var cardShuffle: AVAudioPlayer?
+    var isCardShufflePlaying: Bool { cardShuffle?.isPlaying ?? false }
     private var samples: [SoundName: Data] = [:]
     private var effects: [(SoundName, AVAudioPlayer)] = []
     private var lastPlayed: [SoundName: TimeInterval] = [:]
@@ -127,6 +129,27 @@ final class SoundPlayer: NSObject {
         return ProcessInfo.processInfo.systemUptime
     }
 
+    func startCardShuffle() {
+        guard Self.enabled, active, !interrupted, configureSession(),
+              let url = Self.assetURL("sfx-cardShuffle", extension: "wav"),
+              let player = try? AVAudioPlayer(contentsOf: url) else { return }
+        stopCardShuffle()
+        player.numberOfLoops = -1
+        player.volume = 0
+        player.prepareToPlay()
+        guard player.play() else { return }
+        player.setVolume(0.32, fadeDuration: 0.04)
+        cardShuffle = player
+    }
+
+    func stopCardShuffle() {
+        guard let player = cardShuffle else { return }
+        cardShuffle = nil
+        player.setVolume(0, fadeDuration: 0.06)
+        // Capture this voice so a quick re-press cannot stop the new shuffle.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.07) { player.stop() }
+    }
+
     private func startMusic() {
         guard currentTrack != desired,
               let url = Self.assetURL("bgm-\(desired.rawValue)", extension: "m4a"),
@@ -169,6 +192,7 @@ final class SoundPlayer: NSObject {
     }
 
     private func stopAll() {
+        cardShuffle?.stop(); cardShuffle = nil
         fadeTimer?.invalidate(); fadeTimer = nil
         music.forEach { $0.player.stop() }; music.removeAll()
         effects.forEach { $0.1.stop() }; effects.removeAll()

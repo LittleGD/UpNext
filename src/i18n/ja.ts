@@ -2599,6 +2599,7 @@ const ja: Record<DictKey, string> = {
   "flame.duo.status.bothNotYet": "今日はまだ二人とも、ゆっくりつけましょう",
   "flame.duo.msg.loginRequired": "ログインすると友達と一緒に炎を灯せます",
   "flame.duo.msg.inviteReady": "招待コードの準備ができました",
+  "flame.duo.msg.retryJoin": "参加できませんでした。もう一度お試しください。",
   "flame.duo.msg.invalidCode": "無効な招待コードです",
   "flame.duo.msg.started": "2人の炎が灯りました",
   "flame.duo.msg.nudgeFailed": "つつくの送信に失敗しました",

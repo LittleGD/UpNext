@@ -6,7 +6,7 @@
 //  Phase 4 의 "2열 그리드 + 탭 토글" condensed 포팅을 폐기하고 웹의 정체성 인터랙션 복원:
 //
 //   1. 덱 홀드 (DeckHoldDraw)  — 덱 5층 스택을 0.8s 길게 눌러 뽑기.
-//        chargeUp 사운드 + 진행도 따라 흔들림/리프트, 완료 시 6×cardFlip 80ms 스태거.
+//        cardShuffle 반복음 + 진행도 따라 흔들림/리프트, 완료 시 6×cardFlip 80ms 스태거.
 //        웹 startHold/cancelHold (L:152-199) + 덱 스택 (L:451-561) 동치.
 //   2. 부채꼴 선택 (CardSelectScreen) — 겹쳐진 가로 핸드. 탭→3D 프리뷰, 스와이프업→선택.
 //        HandCard 등장: spring(response:0.36, dampingFraction:0.43)[=springBouncy] delay i*0.08
@@ -123,6 +123,7 @@ struct DeckHoldDraw: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
         .onDisappear {
+            SoundPlayer.shared.stopCardShuffle()
             holdTimer?.cancel(); holdTimer = nil
             isHolding = false; holdProgress = 0; didDraw = false; shakeX = 0
             // 홀드 중 화면 이탈 시 CoreHaptics 연속 플레이어 정지 — 미정지 시 재진입에서
@@ -155,8 +156,8 @@ struct DeckHoldDraw: View {
         isHolding = true
         holdStart = Date()
         holdProgress = 0
-        SoundPlayer.shared.play(.chargeUp)
-        // chargeUp 사운드(0.8s rumble+가속 pulse)와 동기 — CoreHaptics 연속 램프 시작.
+        SoundPlayer.shared.startCardShuffle()
+        // 셔플 반복음과 함께 CoreHaptics 연속 램프 시작.
         // 미지원 기기는 beginHoldCharge 내부에서 prepare(.heavy) 로 폴백.
         Haptics.beginHoldCharge()
         holdTimer = Timer.publish(every: 0.016, on: .main, in: .common).autoconnect()
@@ -164,6 +165,7 @@ struct DeckHoldDraw: View {
     }
 
     private func cancelHold() {
+        SoundPlayer.shared.stopCardShuffle()
         guard !didDraw else { return }
         holdTimer?.cancel(); holdTimer = nil
         isHolding = false
@@ -186,6 +188,7 @@ struct DeckHoldDraw: View {
             didDraw = true
             isHolding = false
             shakeX = 0
+            SoundPlayer.shared.stopCardShuffle()
             holdTimer?.cancel(); holdTimer = nil
             // 충전 완료 — 연속 진동 정지 + 릴리즈 타격.
             Haptics.endHoldCharge(release: true)

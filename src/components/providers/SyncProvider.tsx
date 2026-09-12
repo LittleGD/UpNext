@@ -3,7 +3,7 @@
 import RetentionSetupProvider from "@/components/providers/RetentionSetupProvider";
 import { useRetentionSetupStore } from "@/store/useRetentionSetupStore";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { isFirebaseConfigured, getFirebase } from "@/lib/firebase";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGameStore } from "@/store/useGameStore";
@@ -161,6 +161,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   const [showPatchModal, setShowPatchModal] = useState(false);
   const [showFortunePrompt, setShowFortunePrompt] = useState(false);
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
+  const inviteRoute = usePathname().startsWith("/i/");
   const setupPending = useRetentionSetupStore(s => s.queue.length > 0);
 
   useEffect(() => {
@@ -580,7 +581,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
   return (
     <>
       {children}
-      <RetentionSetupProvider blocked={!syncSettled || !!conflict || showPatchModal || showFortunePrompt || showReviewPrompt} />
+      <RetentionSetupProvider blocked={inviteRoute || !syncSettled || !!conflict || showPatchModal || showFortunePrompt || showReviewPrompt} />
       <AnimatePresence>
         {conflict && (
           <MergeConflictDialog
@@ -592,12 +593,12 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {showPatchModal && !conflict && (
+        {!inviteRoute && showPatchModal && !conflict && (
           <PatchNotesModal patch={LATEST_PATCH} onClose={handleClosePatchModal} />
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {showFortunePrompt && !conflict && !showPatchModal && (
+        {!inviteRoute && showFortunePrompt && !conflict && !showPatchModal && (
           <FortunePromptModal
             onConfirm={handleConfirmFortunePrompt}
             onSkip={handleSkipFortunePrompt}
@@ -605,7 +606,7 @@ export default function SyncProvider({ children }: { children: React.ReactNode }
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {showReviewPrompt && !conflict && !showPatchModal && !showFortunePrompt && (
+        {!inviteRoute && showReviewPrompt && !conflict && !showPatchModal && !showFortunePrompt && (
           <ReviewPromptModal onClose={handleCloseReviewPrompt} />
         )}
       </AnimatePresence>
