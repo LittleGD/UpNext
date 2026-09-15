@@ -44599,6 +44599,28 @@
         }
       }
     },
+    "잠겨 있어요, 코인 %lld으로 열 수 있어요": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locked, open for %lld coins"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロック中です。コイン%lldで開けます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已锁定，%lld金币即可解锁"
+          }
+        }
+      }
+    },
     "잠긴 기운은 코인 %lld으로 열 수 있어요": {
       "extractionState": "manual",
       "localizations": {

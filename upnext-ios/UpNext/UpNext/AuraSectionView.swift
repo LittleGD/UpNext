@@ -22,15 +22,13 @@
 //  여기서 리딩을 띄우면 스크롤을 따라 움직이고 폴라로이드를 덮지도 못한다.
 //  요청만 올리고 표시는 탭 루트(RecordTabView)가 맡는다 — 거기서만 z 순서를 세울 수 있다.
 //
-//  ⚠️ 접근성 미완: 잠긴 칩의 accessibilityValue 는 AuraPickPanel(AuraReadingView.swift)
-//  이 들고 있고 코인 경로에서도 "잠겨 있어요, 광고를 보면 열려요" 로 읽힌다. 코인 경로에
-//  들어서면 그 값은 사실과 어긋난다. 고치려면 AuraPickPanel 에 `usesCoinPath` 를
-//  기본값 있는 파라미터로 하나 얹고 a11yValue 의 locked 분기를 코인 문구로 가르면 되지만,
-//  그 파일은 이 작업의 소유 범위 밖이고 지금 다른 세션이 편집 중이라 손대지 않았다.
-//  당장의 완충은 아래 안내줄이다 — 접근성 트리에 그대로 노출되는 Text 라 VoiceOver
-//  커서가 세 칩을 지난 직후 가격을 읽는다. 웹도 잠긴 칩 aria-label 은 "잠김" 한 마디이고
-//  가격은 같은 안내줄이 진다(aura.coin.hint) — 즉 지금의 웹/iOS 정보 배치는 같고,
-//  iOS 쪽 칩 문구만 광고를 특정해 남아 있다.
+//  접근성: 잠긴 칩의 accessibilityValue 는 AuraPickPanel(AuraReadingView.swift)이 들고
+//  있고, 여기서 넘기는 `usesCoinPath` 로 광고 문구와 코인 문구가 갈린다. 잠긴 칩에 남는
+//  시각 신호는 자물쇠 아이콘 하나뿐이라(칩에는 문구를 얹지 않는다) 그 값이 "무엇을 내면
+//  열리는가"를 나르는 유일한 채널이다. 아래 안내줄은 눈으로 보는 쪽의 같은 역할이고,
+//  접근성 트리에도 그대로 노출돼 VoiceOver 커서가 세 칩을 지난 직후 가격을 다시 읽는다.
+//  웹은 잠긴 칩 aria-label 이 "잠김" 한 마디이고 가격은 안내줄만 진다(aura.coin.hint)
+//  — iOS 는 칩 값에도 대가를 실어 한 칸 앞서 알린다.
 //
 
 import SwiftUI
@@ -115,7 +113,8 @@ struct AuraSectionView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            AuraPickPanel(state: state, accent: accent, loading: loading) { kind in
+            AuraPickPanel(state: state, accent: accent, loading: loading,
+                          usesCoinPath: usesCoinPath) { kind in
                 Task { await pick(kind) }
             }
             .disabled(!ready)

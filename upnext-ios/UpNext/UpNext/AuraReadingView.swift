@@ -367,6 +367,12 @@ struct AuraPickPanel: View {
     let accent: Color
     /// 광고 대기 중인 기운 (스피너 표시)
     let loading: AuraKind?
+    /// 잠긴 칸이 **코인**으로 열리는 상태인지 (광고를 구조적으로 받을 수 없는 환경).
+    /// 화면에는 아무 차이도 만들지 않는다 — 자물쇠 아이콘은 그대로고, 가격은 이 패널
+    /// 바깥의 안내줄(AuraSectionView)이 진다. 여기서 갈리는 것은 잠긴 칸의
+    /// accessibilityValue 하나뿐이다.
+    /// 기본값은 광고 경로 — 코인 경로인지는 부르는 쪽이 판정해 넘긴다.
+    var usesCoinPath: Bool = false
     let onPick: (AuraKind) -> Void
 
 
@@ -463,14 +469,17 @@ struct AuraPickPanel: View {
         // 상태는 **화면에 문구를 늘리지 않고** 여기로만 싣는다. 아이콘·스피너·등급 줄을
         // 다 숨겨 놨으므로 라벨은 기운 이름 하나로 남고, 열림/잠김/무료/대기가 값으로 갈린다.
         // (문구를 화면에 되살리는 것은 금지 — 대체 채널은 접근성 값뿐이다.)
-        .accessibilityValue(Self.a11yValue(opened: opened, locked: locked, busy: busy, tier: tier))
+        .accessibilityValue(Self.a11yValue(opened: opened, locked: locked, busy: busy,
+                                           tier: tier, usesCoinPath: usesCoinPath))
     }
 
     /// VoiceOver 전용 상태 문구. 화면에는 절대 나오지 않는다.
     /// 세 상태(열림·잠김·무료)가 같게 읽히던 자리 — 값이 없으면 커서가 세 칸을 똑같이 읽어
     /// "이미 본 것"과 "광고를 봐야 하는 것"을 구분할 수 없다.
-    private static func a11yValue(opened: Bool, locked: Bool,
-                                  busy: Bool, tier: AuraTier?) -> Text {
+    private static func a11yValue(opened: Bool, locked: Bool, busy: Bool,
+                                  tier: AuraTier?, usesCoinPath: Bool) -> Text {
+        // 코인 경로에서는 대기 상태 자체가 없다 — 탭이 곧 차감이고 그 자리에서 열린다.
+        // 이 값이 뜨는 것은 광고를 실제로 부르는 경로뿐이다.
         if busy { return Text("광고를 불러오는 중이에요") }
         if opened {
             guard let tier else { return Text("이미 확인했어요") }
@@ -478,7 +487,15 @@ struct AuraPickPanel: View {
             // 않도록 리터럴 키 안에서만 보간한다.
             return Text("이미 확인했어요, 오늘의 결과는 \(AuraCopy.tierName(tier))")
         }
-        if locked { return Text("잠겨 있어요, 광고를 보면 열려요") }
+        if locked {
+            // 대가가 갈리면 문구도 갈려야 한다. 잠긴 칸에 남는 시각 신호는 자물쇠 하나뿐이라
+            // (칸에는 문구를 얹지 않는다) 이 값이 "무엇을 내면 열리는가"를 나르는 유일한
+            // 채널이다. 코인으로 빠지는 자리에서 광고를 말하면 사실과 어긋난다.
+            if usesCoinPath {
+                return Text("잠겨 있어요, 코인 \(ShopPrices.auraReading)으로 열 수 있어요")
+            }
+            return Text("잠겨 있어요, 광고를 보면 열려요")
+        }
         return Text("지금 바로 열 수 있어요")
     }
 }
