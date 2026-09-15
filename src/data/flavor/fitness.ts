@@ -440,11 +440,11 @@ export const FITNESS_EVENTS: DungeonEvent[] = [
       ],
     },
     {
-      prompt: "산속 사냥꾼이 내기를 건다. 신호에 맞춰 활시위를 놓아라.",
+      prompt: "산속 사냥꾼이 활쏘기 겨루기를 청한다. 신호에 맞춰 활시위를 놓아라.",
       promptKey: "uphero.flavor.fit.8.prompt",
       options: [
         {
-          label: "내기 수락하기",
+          label: "겨루기 받아들이기",
           labelKey: "uphero.flavor.fit.8.opt0.label",
           effect: {
             kind: "startMinigame",

@@ -86,6 +86,31 @@ final class UpHeroRuneChestCopyTests: XCTestCase {
         }
     }
 
+    /// 던전 이벤트 문구(`uphero.flavor.*`)에도 도박 어휘가 없다. 이벤트는 `promptKey` 로
+    /// 카탈로그를 찾으므로 Flavor.json 의 한국어 fallback 만 고쳐서는 화면이 안 바뀐다.
+    /// 빌드 29 에서 그렇게 새서 빌드 32 까지 "Pull the lever" 가 그대로 나갔다.
+    /// 도박과 무관한 두 자리만 예외: 달력의 빈 칸(slots), 조각 퍼즐 돌리기(转动).
+    func testDungeonEventCopyHasNoGamblingVocabulary() {
+        let allow: Set<String> = ["en:uphero.flavor.prd.2.prompt",
+                                  "zh-Hans:uphero.flavor.prd.3.opt0.out0.result"]
+        let extra: [String: [String]] = ["ko": ["내기를", "내기 "]]
+        for (lang, words) in Self.banned {
+            guard let path = bundle(lang).path(forResource: "Localizable", ofType: "strings"),
+                  let dict = NSDictionary(contentsOfFile: path) as? [String: String] else {
+                XCTFail("\(lang) Localizable.strings 를 못 읽었다"); continue
+            }
+            let keys = dict.keys.filter { $0.hasPrefix("uphero.flavor.") }
+            XCTAssertGreaterThan(keys.count, 500, lang)
+            for key in keys where !allow.contains("\(lang):\(key)") {
+                let v = dict[key] ?? ""
+                for w in words + (extra[lang] ?? []) {
+                    XCTAssertFalse(v.lowercased().contains(w.lowercased()),
+                                   "\(lang) \(key) = \"\(v)\" 에 \"\(w)\" 가 있다")
+                }
+            }
+        }
+    }
+
     /// 자물쇠 조작 문구가 네 언어에 다 있다. 보너스 칩은 퍼센트를 문자열에 박지 않고
     /// 상수(`runeLockBonusPercent`)에서 받는다.
     func testLockCopyExistsInAllLanguages() {

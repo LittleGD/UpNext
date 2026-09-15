@@ -7955,25 +7955,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "내기 수락하기"
+            "value": "겨루기 받아들이기"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Accept the wager"
+            "value": "Accept the contest"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "賭けを受ける"
+            "value": "弓比べを受ける"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "接受赌约"
+            "value": "接受比试"
           }
         }
       }
@@ -8100,25 +8100,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "산속 사냥꾼이 내기를 건다. 신호에 맞춰 활시위를 놓아라."
+            "value": "산속 사냥꾼이 활쏘기 겨루기를 청한다. 신호에 맞춰 활시위를 놓아라."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A mountain hunter proposes a wager. Release the bowstring on the signal."
+            "value": "A mountain hunter challenges you to an archery contest. Release the bowstring on the signal."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "山の猟師が賭けを持ちかける。合図に合わせて弦を放て。"
+            "value": "山の猟師が弓比べを持ちかける。合図に合わせて弦を放て。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "山中猎人发起赌约。听信号松开弓弦。"
+            "value": "山中猎人邀你比试箭术。听信号松开弓弦。"
           }
         }
       }
@@ -15669,25 +15669,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "신호 맞춰 레버 당기기"
+            "value": "신호 맞춰 차단기 내리기"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pull on the signal"
+            "value": "Throw it on the signal"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "合図に合わせてレバーを引く"
+            "value": "合図に合わせて遮断機を下ろす"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "看准信号拉杆"
+            "value": "看准信号推下断路器"
           }
         }
       }
@@ -15785,25 +15785,25 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "시계탑의 신호등이 깜빡인다. 녹색이 켜지는 순간 레버를 당겨야 한다."
+            "value": "시계탑의 신호등이 깜빡인다. 녹색이 켜지는 순간 차단기를 내려야 한다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The clocktower signal blinks. Pull the lever the instant green appears."
+            "value": "The clocktower signal blinks. Throw the breaker the instant green appears."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "時計塔の信号が点滅している。緑が灯った瞬間にレバーを引け。"
+            "value": "時計塔の信号が点滅している。緑が灯った瞬間に遮断機を下ろせ。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "钟楼信号灯正在闪烁,绿灯亮起的瞬间必须拉杆。"
+            "value": "钟楼信号灯正在闪烁,绿灯亮起的瞬间必须推下断路器。"
           }
         }
       }

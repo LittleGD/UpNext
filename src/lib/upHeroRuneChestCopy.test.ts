@@ -18,7 +18,7 @@ import { SLOT_OUTCOMES } from "./upHeroSlot";
 
 /** 언어별 금지 어휘. 화면에 나가면 그대로 심사 리스크가 된다. */
 const BANNED: Record<string, RegExp[]> = {
-  ko: [/굴림/, /드럼/, /레버/, /손잡이/, /릴\b/, /슬롯/, /잭팟/, /대박/, /스핀/, /도박/, /베팅/, /아깝다/],
+  ko: [/굴림/, /드럼/, /레버/, /손잡이/, /릴\b/, /슬롯/, /잭팟/, /대박/, /스핀/, /도박/, /베팅/, /아깝다/, /내기를|내기 /],
   en: [
     /\bslots?\b/i,
     /\bspins?\b/i,
@@ -71,6 +71,25 @@ describe("룬 상자 카피 — 도박 어휘 금지 (2.3.6)", () => {
             rx.test(dict[key]),
             `${lang} ${key} = "${dict[key]}" 에 ${rx} 가 있다`,
           ).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("던전 이벤트·선택 결과 문구에도 도박 어휘가 없다", () => {
+    // 1.3.0 빌드 35 직전에 시계탑 "레버", 사냥꾼 "내기", 결과 톤 "대박" 이 남아 있었다.
+    // 룬 상자 키만 보던 검사가 놓친 자리라 이벤트 네임스페이스 전체로 넓힌다.
+    // 도박과 무관한 뜻으로 쓰인 두 자리만 예외다: 달력의 빈 칸(slots), 조각 퍼즐 돌리기(转动).
+    const allow = new Set(["en:uphero.flavor.prd.2.prompt", "zh:uphero.flavor.prd.3.opt0.out0.result"]);
+    for (const [lang, dict] of Object.entries(DICTS)) {
+      const keys = Object.keys(dict).filter(
+        (k) => k.startsWith("uphero.flavor.") || k.startsWith("uphero.choice."),
+      );
+      expect(keys.length).toBeGreaterThan(500);
+      for (const key of keys) {
+        if (allow.has(`${lang}:${key}`)) continue;
+        for (const rx of BANNED[lang]) {
+          expect(rx.test(dict[key]), `${lang} ${key} = "${dict[key]}" 에 ${rx} 가 있다`).toBe(false);
         }
       }
     }
