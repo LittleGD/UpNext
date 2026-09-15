@@ -16,6 +16,7 @@ import WidgetSync from "@/components/providers/WidgetSync";
 import AccountLevelUpOverlay from "@/components/uphero/AccountLevelUpOverlay";
 import { Analytics } from "@vercel/analytics/next";
 import { BOOT_COVER_ID, BOOT_COVER_INIT_SCRIPT, BOOT_COVER_STYLE } from "@/lib/bootCover";
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 // ── April16Promise 로컬 셀프호스팅 ──
 // display: "optional" → 100ms 내 로딩 못하면 시스템 폰트 유지
@@ -35,26 +36,35 @@ const april16 = localFont({
 export const metadata: Metadata = {
   // OG 이미지 파일 규칙은 상대 경로로 생성된다 — 미리보기 크롤러가 읽으려면 절대 URL 이
   // 필요하므로 기준 도메인을 명시한다. 미설정 시 Vercel 은 배포별 임시 URL 로 떨어진다.
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://up-next-phi.vercel.app"
-  ),
-  title: "UpNext",
-  description: "A roguelike challenge for daily achievements",
+  metadataBase: new URL(SITE_URL),
+  // 하위 페이지는 "%s | UpNext" 로 붙는다. 기본 제목에 검색 키워드(갓생·습관)를 담는다.
+  title: { default: SITE_TITLE, template: "%s | UpNext" },
+  description: SITE_DESCRIPTION,
+  applicationName: "UpNext",
+  // 서치 콘솔·네이버 서치어드바이저 소유 확인 태그. 비밀값이 아니다(누구나 HTML 에서 볼 수 있음).
+  // 구글 값은 up-next-phi.vercel.app URL 접두어 속성용. 지우면 서치 콘솔 소유권이 풀린다.
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION ?? "_aeqNf8EKA0_bobvMJgbwqxq1FNW8C_-GsVTqV07gnw",
+    other: process.env.NAVER_SITE_VERIFICATION
+      ? { "naver-site-verification": process.env.NAVER_SITE_VERIFICATION }
+      : undefined,
+  },
   appleWebApp: {
     capable: true,
     title: "UpNext",
     statusBarStyle: "black-translucent",
   },
   openGraph: {
-    title: "UpNext",
-    description: "A roguelike challenge for daily achievements",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     siteName: "UpNext",
+    locale: "ko_KR",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "UpNext",
-    description: "A roguelike challenge for daily achievements",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
 };
 

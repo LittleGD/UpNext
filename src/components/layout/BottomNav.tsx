@@ -103,6 +103,7 @@ export default function BottomNav() {
 
   if (
     pathname.startsWith('/i/') ||
+    pathname === '/about' ||
     !isLoaded ||
     !hasCompletedOnboarding ||
     isSelectionReview ||

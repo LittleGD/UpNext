@@ -9,6 +9,8 @@
 
 # Claude Code local workspace (launch configs, permissions, worktrees)
 /.claude/
+# Codex 세션 worktree (별도 브랜치 체크아웃이라 커밋 대상 아님)
+/.codex-worktrees/
 
 # dependencies
 /node_modules
