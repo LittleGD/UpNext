@@ -1,4 +1,4 @@
-# 1.3.0 (빌드 32) 릴리스 노트
+# 1.3.0 (빌드 35) 릴리스 노트
 
 App Store Connect 1.3.0 의 "새로운 기능" 원문. 빌드 26 문안에 격자 가방(피드백 23번)과 가방 확장 상점을 더해 다시 썼다. 방지권은 켜고 시도할 때마다 소모되는 계약이므로 빌드 25 의 옛 문안("막는 순간에만 쓰입니다")은 쓰지 않는다.
 
@@ -22,6 +22,7 @@ App Store Connect 1.3.0 의 "새로운 기능" 원문. 빌드 26 문안에 격�
 • 첫 챌린지 완료 후 알림 시간을 정하고, 두 번째 완료 후 홈 화면 위젯 추가를 연습할 수 있어요. 설정에서도 가이드를 다시 볼 수 있습니다.
 • 화면과 던전별 배경 음악, 전투와 미니게임 효과음을 추가했습니다.
 • 앱으로 돌아온 뒤 효과음이 재생되지 않던 문제를 수정했습니다.
+• 2인 불꽃 초대 링크를 공유할 수 있어요. 친구가 링크를 누르면 앱에서 바로 합류합니다.
 
 ## en-US
 
@@ -43,6 +44,7 @@ Dungeons, the bag, and hero growth got a big rework.
 • After your first challenge, choose a daily reminder time. After your second, practice adding a Home Screen widget. Both guides are also available in Settings.
 • Added music for app screens and dungeons, plus combat and minigame sound effects.
 • Fixed sound effects not playing after returning to the app.
+• Share a Duo Flame invite link. When a friend taps it, they join right in the app.
 
 ## ja
 
@@ -64,6 +66,7 @@ Dungeons, the bag, and hero growth got a big rework.
 • 最初のチャレンジを完了したら通知時刻を設定し、2回目の完了後はホーム画面へのウィジェット追加を練習できます。設定からもガイドを開けます。
 • 画面やダンジョンごとのBGMと、戦闘やミニゲームの効果音を追加しました。
 • アプリに戻った後、効果音が再生されない問題を修正しました。
+• 2人の炎の招待リンクを共有できます。友だちがリンクをタップすると、アプリですぐに参加できます。
 
 ## zh-Hans
 
@@ -85,3 +88,4 @@ Dungeons, the bag, and hero growth got a big rework.
 • 完成第一个挑战后可设置每日提醒时间，完成第二个挑战后可练习添加主屏幕小组件。也可在设置中再次打开指南。
 • 新增各界面和地牢的背景音乐，以及战斗和小游戏音效。
 • 修复了返回应用后音效无法播放的问题。
+• 可以分享双人火焰邀请链接。朋友点击链接后即可在应用内直接加入。
