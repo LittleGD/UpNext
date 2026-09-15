@@ -169,6 +169,8 @@ jobs:
       # 듀오 카드가 로그인 게이트로 렌더 → UITestFakeSignedIn 훅으로 로그인 상태 고정 +
       # Button("참여") 타이틀-init 이 iOS 26 AX 에서 버튼으로 노출 안 되는 문제를 label-closure
       # 구조로 수정. 공유 러너 클론-부팅 플레이크 완충으로 재시도 1회를 허용한다.
+      # 병렬 클론은 끈다. 3코어 러너에서 클론 2개가 돌면 테스트 하나가 70~400초씩 걸리고,
+      # 3~5초짜리 waitForExistence 가 시간 초과로 깨졌다(로컬 같은 런타임에선 19/19 통과).
       - name: Test (UI)
         run: |
           cd upnext-ios/UpNext
@@ -176,7 +178,17 @@ jobs:
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath /tmp/upnext-build \
             -only-testing:UpNextUITests \
+            -parallel-testing-enabled NO \
             -retry-tests-on-failure -test-iterations 2
+
+      # 실패 원인(단언 메시지, 크래시 로그, 스크린샷)은 xcresult 에만 있다. 로그로는 안 보인다.
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ github.run_id }}
+          path: /tmp/upnext-build/Logs/Test/*.xcresult
+          retention-days: 7
 
   # ═════════════════════════════ INFORMATIONAL ═════════════════════════════
   fidelity-capture:
