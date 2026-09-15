@@ -1,0 +1,15 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#0a0a0a;width:1080px;height:1920px;overflow:hidden}canvas{display:block}</style></head><body><canvas id="gl"></canvas>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';import {makeLowPolyPhone} from './phone5.js';
+const W=1080,H=1920;const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('gl'),antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setSize(W,H,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+const scene=new THREE.Scene();const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;
+const fov=26;const cam=new THREE.PerspectiveCamera(fov,W/H,10,30000);const camZ=(H/2)/Math.tan(THREE.MathUtils.degToRad(fov/2));cam.position.set(0,0,camZ);
+const key=new THREE.DirectionalLight(0xffffff,1.8);key.position.set(-900,1200,1400);scene.add(key);const rim=new THREE.DirectionalLight(0xCDF564,1.2);rim.position.set(900,-400,600);scene.add(rim);scene.add(new THREE.HemisphereLight(0xffffff,0x1a1030,0.5));
+const im=new Image();im.src='assets/screens/fan3x.png';await new Promise(r=>im.onload=r);const t=new THREE.Texture(im);t.colorSpace=THREE.SRGBColorSpace;t.needsUpdate=true;
+const poses=[[-300,520,0,0,0,.42],[300,520,8,-38,0,.42],[-300,-420,4,72,0,.42],[300,-420,-40,20,-6,.42]];
+for(const [x,y,rx,ry,rz,s] of poses){const {g}=makeLowPolyPhone(t);g.position.set(x,y,0);g.rotation.set(THREE.MathUtils.degToRad(rx),THREE.MathUtils.degToRad(ry),THREE.MathUtils.degToRad(rz));g.scale.setScalar(s);scene.add(g);}
+// big close-up corner
+const {g:big}=makeLowPolyPhone(t);big.position.set(700,-1500,0);big.scale.setScalar(1.6);big.rotation.set(0,THREE.MathUtils.degToRad(-12),0);scene.add(big);
+renderer.render(scene,cam);window.__ready=true;
+</script></body></html>

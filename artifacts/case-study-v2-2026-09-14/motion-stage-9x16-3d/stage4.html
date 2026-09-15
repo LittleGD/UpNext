@@ -1,0 +1,194 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:'April16';src:url('assets/April16th-Promise.woff2') format('woff2');}
+html,body{margin:0;background:#0a0a0a;width:1080px;height:1920px;overflow:hidden;}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;font-family:'April16',sans-serif;color:#f2f2f2;}
+#bg{position:absolute;inset:0;background:#000;}
+.wipe{position:absolute;inset:0;transform-origin:left center;display:none;}
+#gl{position:absolute;left:0;top:0;width:1080px;height:1920px;}
+.scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 2px,transparent 2px 5px);pointer-events:none;mix-blend-mode:overlay;}
+.vig{position:absolute;inset:0;background:radial-gradient(80% 70% at 50% 45%,transparent 60%,rgba(0,0,0,.42) 100%);pointer-events:none;}
+.dom{position:absolute;display:none;will-change:transform;transform-origin:center;}
+.h{left:72px;line-height:1.0;letter-spacing:-0.012em;white-space:nowrap;text-shadow:6px 6px 0 rgba(205,245,100,.5);}
+.h.light{color:#0a0a0a;text-shadow:6px 6px 0 rgba(0,0,0,.2);}
+.h .ico{display:inline-block;width:.78em;height:.78em;vertical-align:-0.1em;margin:0 .1em;border-radius:.2em;}
+.center{left:0;top:0;width:1080px;height:1920px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;}
+.intro span{font-size:96px;background:linear-gradient(90deg,#f2f2f2 0 50%,#CDF564 50% 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;}
+.mark{width:260px;height:290px;transform-origin:center bottom;}
+.word{font-size:150px;line-height:1;}
+.sub{font-size:44px;color:#9a9a9a;}
+.spark{width:72px;height:72px;image-rendering:pixelated;filter:invert(1) drop-shadow(0 0 8px #CDF564);}
+.count{font-size:72px;color:#f2f2f2;background:#171717;padding:0 22px;border-radius:14px;line-height:1.15;box-shadow:0 10px 30px rgba(0,0,0,.6);}
+</style></head><body><div id="stage"><div id="bg"></div><div id="wipes"></div><canvas id="gl"></canvas><div id="dom"></div><div class="scan"></div><div class="vig"></div></div>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+// ======================= timeline engine =======================
+const FPS=30, F=1/FPS, D=16.0, B=0.355, K0=0.60, k=n=>K0+n*B, h=0.1775, W=1080, H=1920;
+const DARK='#0a0a0a', PURPLE='#241638', LIME='#CDF564', CYAN='#9BF0E1';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const E={linear:t=>t,outExpo:t=>t>=1?1:1-Math.pow(2,-10*t),outQuart:t=>1-Math.pow(1-t,4),outCubic:t=>1-Math.pow(1-t,3),inCubic:t=>t*t*t,inQuart:t=>t*t*t*t,inOutSine:t=>-(Math.cos(Math.PI*t)-1)/2,outSine:t=>Math.sin(t*Math.PI/2),
+ outBack:(s=1.7)=>t=>1+(s+1)*Math.pow(t-1,3)+s*Math.pow(t-1,2),steps:n=>t=>Math.min(1,Math.floor(t*n)/n),
+ spring:(z=0.42,w=18)=>t=>{const wd=w*Math.sqrt(1-z*z);return 1-Math.exp(-z*w*t)*(Math.cos(wd*t)+(z*w/wd)*Math.sin(wd*t));}};
+class Actor{constructor(base){this.base=Object.assign({x:0,y:0,z:0,rx:0,ry:0,rz:0,s:1,sx:1,sy:1,op:1,n:0},base);this.tw=[];this.vis=[];this.procs=[];}
+ show(a,b){this.vis.push([a,b]);return this;}
+ visible(t){return this.vis.some(([a,b])=>t>=a&&t<b);}
+ to(key,t0,t1,from,to,ease){this.tw.push({key,t0,t1,from,to,ease:ease||E.outExpo});return this;}
+ proc(fn){this.procs.push(fn);return this;}
+ val(key,t){let v=this.base[key];const tws=this.tw.filter(w=>w.key===key&&w.t0<=t).sort((a,b)=>a.t0-b.t0);for(const w of tws){const from=(w.from==='auto')?v:w.from;if(t>=w.t1){v=w.to;}else{const u=clamp((t-w.t0)/(w.t1-w.t0),0,1);v=from+(w.to-from)*w.ease(u);}}return v;}
+ params(t){const p={};for(const key of Object.keys(this.base))p[key]=this.val(key,t);for(const fn of this.procs)fn(p,t);return p;}}
+const actors=[];
+// choreography helpers (12 principles): enter = fast settle, hold = moving hold, exit = accelerate into the cut
+function enter(a,t0,dur,from,ease){for(const key of Object.keys(from)){a.to(key,t0,t0+dur,from[key].from,from[key].to,ease||E.outExpo);}}
+function exit(a,t1,dur,to){for(const key of Object.keys(to)){a.to(key,t1-dur,t1,'auto',to[key],E.inCubic);}}
+function drift(a,t0,t1,key,delta){a.to(key,t0,t1,'auto',null,E.outSine);const w=a.tw[a.tw.length-1];w.to=undefined;w.delta=delta;w.fn=true;}
+// procedural hover (secondary action): gentle float + micro rotation
+function hover(a,t0,amp=6,rot=1.2){a.proc((p,t)=>{if(t<t0)return;const u=t-t0;p.y+=Math.sin(u*3.1)*amp;p.rz+=Math.sin(u*2.3+1)*rot;});}
+function squash(a,t0){a.to('sx',t0,t0+2*F,1.1,1.1,E.linear).to('sy',t0,t0+2*F,.9,.9,E.linear).to('sx',t0+2*F,t0+5*F,1.1,.97,E.outCubic).to('sy',t0+2*F,t0+5*F,.9,1.03,E.outCubic).to('sx',t0+5*F,t0+9*F,.97,1,E.outCubic).to('sy',t0+5*F,t0+9*F,1.03,1,E.outCubic);}
+// stepped pose animation "on fours" (retro): poses cycle, each held `holdF` frames
+function stepped(a,t0,t1,poses,holdF=4,loop=true){a.proc((p,t)=>{if(t<t0||t>=t1)return;let i=Math.floor((t-t0)/(holdF*F));i=loop?i%poses.length:Math.min(i,poses.length-1);Object.assign(p,poses[i]);});}
+// fix drift helper: resolve fn tweens with delta
+const _val=Actor.prototype.val;Actor.prototype.val=function(key,t){let v=this.base[key];const tws=this.tw.filter(w=>w.key===key&&w.t0<=t).sort((a,b)=>a.t0-b.t0);for(const w of tws){const from=(w.from==='auto')?v:w.from;const to=(w.fn)?from+w.delta:w.to;if(t>=w.t1){v=to;}else{const u=clamp((t-w.t0)/(w.t1-w.t0),0,1);v=from+(to-from)*w.ease(u);}}return v;};
+// ======================= background blocks + stepped wipes =======================
+const bgSegs=[[0,'#000'],[k(1),DARK],[k(3),PURPLE],[k(5),DARK],[k(7),PURPLE],[k(8),DARK],[k(9),DARK],[k(10),LIME],[k(11),CYAN],[k(12),DARK],[k(13),PURPLE],[k(13)+h,DARK],[k(13)+2*h,LIME],[k(13)+3*h,DARK],[k(15),DARK],[k(17),PURPLE],[k(19),DARK],[k(21),LIME],[k(23),DARK],[k(24),PURPLE],[k(25),CYAN],[k(26),DARK],[k(27),DARK],[k(27)+h,PURPLE],[k(27)+2*h,DARK],[k(27)+3*h,LIME],[k(27)+4*h,DARK],[k(27)+5*h,PURPLE],[k(27)+6*h,CYAN],[k(27)+7*h,DARK],[k(31),DARK]];
+const colorAt=t=>{let c=DARK;for(const [tt,cc] of bgSegs){if(tt<=t)c=cc;}return c;};const isLight=t=>{const c=colorAt(t);return c===LIME||c===CYAN;};
+const wipesEl=document.getElementById('wipes');const wipes=[];for(let i=2;i<bgSegs.length;i++){const [t,c]=bgSegs[i];if(c===bgSegs[i-1][1])continue;const w=document.createElement('div');w.className='wipe';w.style.background=c;wipesEl.appendChild(w);wipes.push({t,el:w});}
+// ======================= three.js scene =======================
+const canvas=document.getElementById('gl');const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setSize(W,H,false);renderer.setPixelRatio(1);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+const scene=new THREE.Scene();const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;
+const fov=26;const cam=new THREE.PerspectiveCamera(fov,W/H,10,30000);const camZ=(H/2)/Math.tan(THREE.MathUtils.degToRad(fov/2));cam.position.set(0,0,camZ);
+const key=new THREE.DirectionalLight(0xffffff,1.8);key.position.set(-900,1200,1400);scene.add(key);const rim=new THREE.DirectionalLight(0xCDF564,1.2);rim.position.set(900,-400,600);scene.add(rim);scene.add(new THREE.HemisphereLight(0xffffff,0x1a1030,0.5));
+function rrect(w,hh,rad){const s=new THREE.Shape();const x=-w/2,y=-hh/2;s.moveTo(x+rad,y);s.lineTo(x+w-rad,y);s.quadraticCurveTo(x+w,y,x+w,y+rad);s.lineTo(x+w,y+hh-rad);s.quadraticCurveTo(x+w,y+hh,x+w-rad,y+hh);s.lineTo(x+rad,y+hh);s.quadraticCurveTo(x,y+hh,x,y+hh-rad);s.lineTo(x,y+rad);s.quadraticCurveTo(x,y,x+rad,y);const geo=new THREE.ShapeGeometry(s,10);const uv=geo.attributes.uv,pos=geo.attributes.position;for(let i=0;i<uv.count;i++){uv.setXY(i,(pos.getX(i)-x)/w,(pos.getY(i)-y)/hh);}return geo;}
+const loader=new THREE.TextureLoader();const tex={};const texNames=['deck_hold','fan','card_preview','confirm','board_news','camera','decorate3x','album3x','deck3x','fan3x','complete_board','flame_pre3x','flame_post3x','dungeon_choice','chest_marker','combat','widget_step1','reminder','permission','reminder_set','widget_done','aura_reveal','board2_3x'];
+const partNames=['card_preview_big','board_card_walk','polaroid_decorated','polaroid_saved','flame_hero_pre','flame_hero_post','chest_modal'];
+async function loadTex(url,maxW){return new Promise(res=>{const im=new Image();im.onload=()=>{const sc=Math.min(1,maxW/im.width);const c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;t.minFilter=THREE.LinearMipmapLinearFilter;t.generateMipmaps=true;res(t);};im.src=url;});}
+for(const n of texNames)tex[n]=await loadTex('assets/screens/'+n+'.png',900);
+for(const n of partNames)tex[n]=await loadTex('assets/parts/'+n+'.png',1000);
+// contact shadow sprite
+function shadowTex(){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');const gr=g.createRadialGradient(128,128,10,128,128,128);gr.addColorStop(0,'rgba(0,0,0,.75)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,256,256);const t=new THREE.CanvasTexture(c);return t;}
+const shTex=shadowTex();
+function makeShadow(w,hh){const m=new THREE.Mesh(new THREE.PlaneGeometry(w*1.5,hh*1.25),new THREE.MeshBasicMaterial({map:shTex,transparent:true,depthWrite:false,opacity:.9}));return m;}
+// phone: real 3D body (rounded box) + bezel + screen plane with texture
+function makePhone(){const g=new THREE.Group();const body=new THREE.Mesh(new RoundedBoxGeometry(752,1620,36,6,64),new THREE.MeshPhysicalMaterial({color:0x1b1b1e,metalness:.9,roughness:.28,clearcoat:.7,clearcoatRoughness:.15}));g.add(body);
+ const bezel=new THREE.Mesh(rrect(742,1610,112),new THREE.MeshBasicMaterial({color:0x000000}));bezel.position.z=18.2;g.add(bezel);
+ const scr=new THREE.Mesh(rrect(720,1565,98),new THREE.MeshBasicMaterial({map:tex.deck3x,toneMapped:false}));scr.position.z=18.6;g.add(scr);
+ const gloss=new THREE.Mesh(rrect(720,1565,98),new THREE.MeshPhysicalMaterial({color:0xffffff,transparent:true,opacity:.06,roughness:.1,metalness:0,clearcoat:1}));gloss.position.z=19;g.add(gloss);
+ const sh=makeShadow(752,1620);sh.position.z=-120;const wrap=new THREE.Group();wrap.add(sh);wrap.add(g);scene.add(wrap);wrap.visible=false;return {wrap,g,scr,sh};}
+function makePart(name,w,rad){const t=tex[name];const hh=w*t.image.height/t.image.width;const m=new THREE.Mesh(rrect(w,hh,rad),new THREE.MeshBasicMaterial({map:t,toneMapped:false}));const sh=makeShadow(w,hh);sh.position.z=-90;const wrap=new THREE.Group();wrap.add(sh);wrap.add(m);scene.add(wrap);wrap.visible=false;return {wrap,m,sh,w,hh};}
+const px=(x,y)=>[x-W/2,H/2-y];
+// ======================= DOM helpers =======================
+const domRoot=document.getElementById('dom');
+function dom(cls,html,style){const e=document.createElement('div');e.className='dom '+cls;if(html)e.innerHTML=html;if(style)e.style.cssText+=style;domRoot.appendChild(e);return e;}
+function themeClass(el,t){el.classList.toggle('light',isLight(t));}
+// ======================= build the show =======================
+const items=[]; // {kind:'dom'|'three', el|obj, actor, extra}
+function addDom(el,actor){items.push({kind:'dom',el,actor});actors.push(actor);return actor;}
+function addThree(obj,actor,onApply){items.push({kind:'three',obj,actor,onApply});actors.push(actor);return actor;}
+// --- S0 intro (0 .. k1): stepped sweep, accelerate out
+const intro=dom('center intro','<span>Introducing</span>');const introA=addDom(intro,new Actor({s:.98,n:1})).show(0,k(1));
+introA.to('n',0.05,k(1)-0.1,1,0,E.steps(10)).to('s',0,0.4,.96,1,E.outExpo);exit(introA,k(1),7*F,{s:1.35});
+// --- S1 logo: mark stepped bounce on fours + wordmark outBack
+const logo=dom('center','<img class="mark" src="assets/graphic-logo.png"><div class="word">UpNext</div>');const mark=logo.querySelector('.mark'),word=logo.querySelector('.word');
+const logoA=addDom(logo,new Actor({})).show(k(1),k(3));const markA=addDom(mark,new Actor({sx:1,sy:1,y:0}));const wordA=addDom(word,new Actor({y:60,op:0}));
+stepped(markA,k(1),k(1)+16*F,[{sx:1.25,sy:.6,y:40},{sx:.8,sy:1.3,y:-40},{sx:1.12,sy:.9,y:8},{sx:.96,sy:1.06,y:-6},{sx:1.03,sy:.98,y:2},{sx:1,sy:1,y:0}],3,false);
+stepped(markA,k(1)+16*F,k(3),[{sx:1,sy:1,y:0},{sx:1.02,sy:.98,y:2},{sx:.99,sy:1.02,y:-2},{sx:1,sy:1,y:0}],4,true);
+wordA.to('y',k(1)+3*F,k(1)+11*F,60,0,E.outBack(1.5)).to('op',k(1)+3*F,k(1)+5*F,0,1,E.linear);
+exit(logoA,k(3),7*F,{s:1.3,y:-260});
+// --- pixel sparkles helper (follow-through: appear a few frames after the hit, stepped scale)
+function sparkles(t0,t1,pts){pts.forEach(([x,y,d,icon])=>{const s=dom('spark','',`left:${x}px;top:${y}px;width:${icon?110:72}px;height:${icon?110:72}px`);const im=document.createElement('img');im.className='spark';im.src='assets/icons/'+(icon||'sparkle')+'.svg';im.style.width='100%';im.style.height='100%';s.appendChild(im);const a=addDom(s,new Actor({s:0,rz:0})).show(t0+d,t1);a.to('s',t0+d,t0+d+10*F,0,1,E.steps(4)).to('rz',t0+d,t0+d+10*F,-20,0,E.steps(4));exit(a,t1,4*F,{s:0});});}
+// --- phones (one 3D phone object per shot) ---
+function phoneShot(screens,visFrom,visTo){const ph=makePhone();const a=new Actor({x:540,y:1180,z:0,rx:0,ry:0,rz:0,s:1});a.show(visFrom,visTo);addThree(ph.wrap,a,(p,t)=>{const [X,Y]=px(p.x,p.y);ph.wrap.position.set(X,Y,p.z);ph.wrap.rotation.set(THREE.MathUtils.degToRad(p.rx),THREE.MathUtils.degToRad(p.ry),THREE.MathUtils.degToRad(p.rz));ph.wrap.scale.setScalar(p.s);ph.sh.position.set(0,-40,-120);ph.sh.material.opacity=.85;let name=screens[0][0];for(const [n,from] of screens){if(t>=from)name=n;}if(ph.scr.material.map!==tex[name]){ph.scr.material.map=tex[name];ph.scr.material.needsUpdate=true;}});return a;}
+function partShot(name,w,rad,visFrom,visTo,base){const pt=makePart(name,w,rad);const a=new Actor(Object.assign({x:540,y:1000,z:120,rx:0,ry:0,rz:0,s:1},base));a.show(visFrom,visTo);addThree(pt.wrap,a,(p,t)=>{const [X,Y]=px(p.x,p.y);pt.wrap.position.set(X,Y,p.z);pt.wrap.rotation.set(THREE.MathUtils.degToRad(p.rx),THREE.MathUtils.degToRad(p.ry),THREE.MathUtils.degToRad(p.rz));pt.wrap.scale.setScalar(p.s);});return a;}
+function recoil(a,t0){a.to('rz',t0,t0+3*F,'auto',null,E.outCubic);const w=a.tw[a.tw.length-1];w.fn=true;w.delta=-2.5;a.to('rz',t0+3*F,t0+12*F,'auto',null,E.outBack(1.4));const w2=a.tw[a.tw.length-1];w2.fn=true;w2.delta=2.5;}
+// S2: deck hold, purple. Enter from below fast, settle, moving hold (ry drift), accelerate out toward camera.
+const p2=phoneShot([['deck_hold',0]],k(3),k(5));
+enter(p2,k(3),8*F,{y:{from:1900,to:1180},ry:{from:-26,to:-14},rz:{from:-12,to:-7}},E.outExpo);drift(p2,k(3)+8*F,k(5)-8*F,'ry',5);exit(p2,k(5),8*F,{z:520,ry:-34,y:1050});
+// S3: fan + card preview pops out (anticipation: phone recoil), part hovers, both accelerate out
+const p3=phoneShot([['fan',0]],k(5),k(7));
+enter(p3,k(5),8*F,{x:{from:1500,to:540},ry:{from:34,to:16},rz:{from:10,to:6}},E.outExpo);drift(p3,k(5)+8*F,k(7)-8*F,'ry',-5);recoil(p3,k(5)+6*F);exit(p3,k(7),8*F,{x:-700,ry:40});
+const c3=partShot('card_preview_big',470,40,k(5)+7*F,k(7),{x:560,y:1120,z:40,ry:-12,s:.5});
+c3.to('x',k(5)+7*F,k(5)+16*F,560,790,E.outBack(1.6)).to('y',k(5)+7*F,k(5)+16*F,1120,880,E.outBack(1.4)).to('z',k(5)+7*F,k(5)+16*F,40,300,E.outBack(1.6)).to('s',k(5)+7*F,k(5)+16*F,.5,1,E.outBack(1.8)).to('ry',k(5)+7*F,k(5)+16*F,-12,-18,E.outCubic);hover(c3,k(5)+16*F);exit(c3,k(7),8*F,{x:-500,z:800,ry:-60});
+// S4: board upright, board card pops up from the phone; exit up
+const p4=phoneShot([['board_news',0]],k(7),k(8));
+enter(p4,k(7),7*F,{s:{from:.88,to:1},ry:{from:-10,to:0}},E.outBack(1.3));recoil(p4,k(7)+4*F);exit(p4,k(8),7*F,{y:400,s:1.12});
+const c4=partShot('board_card_walk',760,34,k(7)+5*F,k(8),{x:540,y:1000,z:60,ry:0,s:.7});
+c4.to('y',k(7)+5*F,k(7)+13*F,1000,760,E.outBack(1.7)).to('z',k(7)+5*F,k(7)+13*F,60,260,E.outBack(1.5)).to('s',k(7)+5*F,k(7)+13*F,.7,1,E.outBack(1.8)).to('rx',k(7)+5*F,k(7)+13*F,10,4,E.outCubic);hover(c4,k(7)+13*F,4,.8);exit(c4,k(8),7*F,{y:-300,z:700});
+// S4b: mascot on fours + sparkles
+const m1=dom('','<img class="mark" src="assets/graphic-logo.png" style="width:300px;height:335px">','left:390px;top:800px;width:300px;height:335px');const m1A=addDom(m1,new Actor({sx:1,sy:1,y:0})).show(k(8),k(9));
+stepped(m1A,k(8),k(9),[{sx:.5,sy:.5,y:120},{sx:1.3,sy:.7,y:30},{sx:.85,sy:1.25,y:-50},{sx:1.1,sy:.92,y:6},{sx:.97,sy:1.05,y:-8},{sx:1,sy:1,y:0}],3,false);
+sparkles(k(8)+8*F,k(9),[[240,760,0],[800,790,.03],[320,1220,.06],[760,1240,.1],[540,660,.13]]);
+// S5: headline A + phone per beat. Headline lines enter outBack with 2f offset, squash; phone pose cuts with micro-pop; exit accelerating at k15
+const hA1=dom('h','Draw <span style="color:#CDF564">Today</span>','top:150px;font-size:132px');const hA2=dom('h','Your <img class="ico" src="assets/icon.png"> Challenge','top:300px;font-size:104px');
+const hA1A=addDom(hA1,new Actor({y:0,s:1})).show(k(9),k(15));const hA2A=addDom(hA2,new Actor({y:0,s:1})).show(k(9)+2*F,k(15));
+hA1A.to('y',k(9),k(9)+9*F,-140,0,E.outBack(1.4));hA2A.to('y',k(9)+2*F,k(9)+11*F,-140,0,E.outBack(1.4));squash(hA1A,k(9)+7*F);exit(hA1A,k(15),7*F,{y:-400});exit(hA2A,k(15),7*F,{y:-400});
+const s5=[['deck3x',0],['fan3x',k(10)],['card_preview',k(11)],['confirm',k(12)],['complete_board',k(13)],['camera',k(13)+h],['decorate3x',k(13)+2*h],['album3x',k(13)+3*h]];
+const p5=phoneShot(s5,k(9),k(15));p5.base.y=1230;
+enter(p5,k(9),9*F,{y:{from:2100,to:1230},ry:{from:-30,to:-12},rz:{from:-8,to:-4}},E.outExpo);
+const poses5=[[k(10),8,3,1.02],[k(11),-6,-2,1],[k(12),0,0,1.04],[k(13),-7,3,1.01],[k(13)+h,6,-3,1],[k(13)+2*h,-4,2,1.03],[k(13)+3*h,0,0,1.01]];
+poses5.forEach(([t,ry,rz,s])=>{p5.to('ry',t,t+5*F,'auto',ry,E.outBack(1.2)).to('rz',t,t+5*F,'auto',rz,E.outBack(1.2)).to('s',t,t+4*F,s*.97,s,E.outBack(2));});
+exit(p5,k(15),8*F,{y:2300,ry:-40});
+// S7: camera phone + polaroid pops on an arc; hover; accelerate out
+const p7=phoneShot([['camera',0]],k(15),k(17));
+enter(p7,k(15),8*F,{x:{from:-500,to:520},ry:{from:-30,to:14},rz:{from:-10,to:-7}},E.outExpo);drift(p7,k(15)+8*F,k(17)-8*F,'ry',-4);recoil(p7,k(15)+6*F);exit(p7,k(17),8*F,{x:1700,ry:40});
+const c7=partShot('polaroid_decorated',560,8,k(15)+7*F,k(17),{x:560,y:1200,z:60,rz:-14,s:.4});
+c7.to('x',k(15)+7*F,k(15)+17*F,560,700,E.outBack(1.4)).to('y',k(15)+7*F,k(15)+17*F,1200,940,E.outBack(1.6)).to('z',k(15)+7*F,k(15)+17*F,60,320,E.outBack(1.6)).to('s',k(15)+7*F,k(15)+17*F,.4,1,E.outBack(1.8)).to('rz',k(15)+7*F,k(15)+17*F,-14,6,E.outBack(1.3));hover(c7,k(15)+17*F,7,1.5);exit(c7,k(17),8*F,{x:1900,z:800,rz:30});
+// S8: album phone upright + saved polaroid pops (scale), accelerate out
+const p8=phoneShot([['album3x',0]],k(17),k(19));
+enter(p8,k(17),7*F,{s:{from:.9,to:1},ry:{from:12,to:0}},E.outBack(1.2));exit(p8,k(19),8*F,{s:1.15,z:300});
+const c8=partShot('polaroid_saved',480,8,k(17)+6*F,k(19),{x:540,y:1000,z:200,rz:-3,s:.92});
+c8.to('s',k(17)+6*F,k(17)+14*F,.92,1.12,E.outBack(2.2)).to('z',k(17)+6*F,k(17)+14*F,200,320,E.outBack(1.5));hover(c8,k(17)+14*F,5,1);exit(c8,k(19),8*F,{s:1.5,z:900});
+// S9: Keep the Flame. headline; phone; flame card pops; count-up 0→12; at k21 post-pop with squash; exit
+const hB=dom('h','Keep the <span style="color:#CDF564">Flame</span>','top:150px;font-size:118px');const hBA=addDom(hB,new Actor({y:0})).show(k(19),k(23));hBA.to('y',k(19),k(19)+9*F,-140,0,E.outBack(1.4));squash(hBA,k(19)+7*F);exit(hBA,k(23),7*F,{y:-400});
+const p9=phoneShot([['flame_pre3x',0],['flame_post3x',k(21)]],k(19),k(23));p9.base.y=1230;
+enter(p9,k(19),9*F,{x:{from:1600,to:540},ry:{from:34,to:-10},rz:{from:10,to:4}},E.outExpo);recoil(p9,k(19)+8*F);p9.to('ry',k(21),k(21)+6*F,'auto',8,E.outBack(1.3)).to('s',k(21),k(21)+5*F,.96,1.06,E.outBack(2));exit(p9,k(23),8*F,{y:2300,ry:-30});
+const c9a=partShot('flame_hero_pre',600,40,k(19)+9*F,k(21),{x:640,y:1120,z:60,ry:-10,s:.6});
+c9a.to('x',k(19)+9*F,k(19)+18*F,640,700,E.outBack(1.5)).to('y',k(19)+9*F,k(19)+18*F,1120,900,E.outBack(1.5)).to('z',k(19)+9*F,k(19)+18*F,60,300,E.outBack(1.6)).to('s',k(19)+9*F,k(19)+18*F,.6,1,E.outBack(1.8)).to('ry',k(19)+9*F,k(19)+18*F,-10,-16,E.outCubic);hover(c9a,k(19)+18*F,5,1);
+const c9b=partShot('flame_hero_post',600,40,k(21),k(23),{x:700,y:900,z:300,ry:-16,s:1});
+squash(c9b,k(21));c9b.to('s',k(21),k(21)+8*F,1.18,1.02,E.outBack(2));hover(c9b,k(21)+8*F,5,1);exit(c9b,k(23),8*F,{y:-200,z:900,ry:-50});
+sparkles(k(21)+3*F,k(23),[[380,700,0],[980,760,.04],[440,1400,.08],[960,1360,.12]]);
+// count-up overlay (0→12), projected onto the pre card's number area
+const cnt=dom('count','0','left:0;top:0');const cntA=addDom(cnt,new Actor({n:0})).show(k(19)+18*F,k(21));cntA.to('n',k(19)+18*F,k(19)+30*F,0,12,E.steps(12));
+// S10: Grow your Hero. hero sprite on fours + icons; phone enters; chest pops; combat
+const hC=dom('h','Grow your <span style="color:#CDF564">Hero</span>','top:150px;font-size:118px');const hCA=addDom(hC,new Actor({y:0})).show(k(23),k(27));hCA.to('y',k(23),k(23)+9*F,-140,0,E.outBack(1.4));squash(hCA,k(23)+7*F);exit(hCA,k(27),7*F,{y:-400});
+const hero=dom('','<img src="assets/parts/hero_sprite.png" style="width:400px;height:400px;image-rendering:pixelated;">','left:340px;top:760px;width:400px;height:400px');const heroA=addDom(hero,new Actor({sx:1,sy:1,y:0})).show(k(23),k(24));
+stepped(heroA,k(23),k(24),[{sx:.4,sy:.4,y:140},{sx:1.25,sy:.75,y:30},{sx:.9,sy:1.2,y:-40},{sx:1.06,sy:.95,y:4},{sx:1,sy:1,y:0}],3,false);
+sparkles(k(23)+8*F,k(24),[[230,900,0,'sword'],[790,920,.04,'shield'],[520,1250,.08,'zap']]);
+const p10=phoneShot([['dungeon_choice',0],['chest_marker',k(25)],['combat',k(26)]],k(24),k(27));p10.base.y=1230;
+enter(p10,k(24),8*F,{x:{from:1600,to:540},ry:{from:30,to:-12},rz:{from:8,to:5}},E.outExpo);p10.to('ry',k(25),k(25)+5*F,'auto',0,E.outBack(1.2)).to('s',k(25),k(25)+4*F,.97,1.04,E.outBack(2)).to('ry',k(26),k(26)+5*F,'auto',10,E.outBack(1.2)).to('rz',k(26),k(26)+5*F,'auto',-4,E.outBack(1.2));recoil(p10,k(25)+2*F);exit(p10,k(27),8*F,{y:2300,ry:-35});
+const c10=partShot('chest_modal',640,32,k(25)+4*F,k(26),{x:540,y:1100,z:60,s:.5});
+c10.to('z',k(25)+4*F,k(25)+12*F,60,360,E.outBack(1.7)).to('s',k(25)+4*F,k(25)+12*F,.5,1.05,E.outBack(1.9)).to('y',k(25)+4*F,k(25)+12*F,1100,1040,E.outBack(1.4));hover(c10,k(25)+12*F,4,.6);exit(c10,k(26),5*F,{z:900,s:1.4});
+// S11: main copy again + rapid montage with micro-pops; everything accelerates out at k31
+const hD1=dom('h','Draw <span style="color:#CDF564">Today</span>','top:150px;font-size:148px');const hD2=dom('h','Your <img class="ico" src="assets/icon.png"> Challenge','top:320px;font-size:112px');
+const hD1A=addDom(hD1,new Actor({y:0})).show(k(27),k(31));const hD2A=addDom(hD2,new Actor({y:0})).show(k(27)+2*F,k(31));
+hD1A.to('y',k(27),k(27)+9*F,-140,0,E.outBack(1.4));hD2A.to('y',k(27)+2*F,k(27)+11*F,-140,0,E.outBack(1.4));squash(hD1A,k(27)+7*F);exit(hD1A,k(31),7*F,{y:-400});exit(hD2A,k(31),7*F,{y:-400});
+const seq=['widget_step1','reminder','permission','reminder_set','widget_done','aura_reveal','board2_3x','decorate3x'];
+const p11=phoneShot(seq.map((n,i)=>[n,k(27)+i*h]),k(27),k(31));p11.base.y=1250;
+enter(p11,k(27),8*F,{y:{from:2100,to:1250},ry:{from:-28,to:-8},rz:{from:-6,to:-3}},E.outExpo);
+seq.forEach((n,i)=>{if(i===0)return;const t=k(27)+i*h;const ry=[-8,6,-4,7,-6,4,-5,0][i],rz=[-3,2,-2,3,-2,2,-2,0][i],s=[1,1.04,1,1.05,1.02,1.03,1,1.02][i];p11.to('ry',t,t+4*F,'auto',ry,E.outBack(1.2)).to('rz',t,t+4*F,'auto',rz,E.outBack(1.2)).to('s',t,t+4*F,s*.97,s,E.outBack(2));});
+exit(p11,k(31),8*F,{y:2400,ry:-40,s:1.1});
+// S12: end card: mark on fours then still, wordmark/sub outBack, sparkles stepped, slow drift
+const end=dom('center','<img class="mark" src="assets/graphic-logo.png" style="width:220px;height:245px"><div class="word" style="font-size:132px;margin-top:10px">UpNext</div><div class="sub">Challenge Card Habits</div>');
+const endA=addDom(end,new Actor({})).show(k(31),D);const emark=end.querySelector('.mark'),eword=end.querySelector('.word'),esub=end.querySelector('.sub');
+const emA=addDom(emark,new Actor({sx:1,sy:1,y:0}));stepped(emA,k(31),k(31)+18*F,[{sx:.5,sy:.5,y:120},{sx:1.3,sy:.7,y:30},{sx:.85,sy:1.25,y:-50},{sx:1.1,sy:.92,y:6},{sx:.97,sy:1.05,y:-8},{sx:1,sy:1,y:0}],3,false);stepped(emA,k(31)+18*F,D,[{sx:1,sy:1,y:0},{sx:1.02,sy:.98,y:2},{sx:1,sy:1,y:0},{sx:.99,sy:1.02,y:-2}],6,true);
+const ewA=addDom(eword,new Actor({y:60,op:0}));ewA.to('y',k(31)+4*F,k(31)+12*F,60,0,E.outBack(1.5)).to('op',k(31)+4*F,k(31)+6*F,0,1,E.linear);
+const esA=addDom(esub,new Actor({y:40,op:0}));esA.to('y',k(31)+8*F,k(31)+16*F,40,0,E.outBack(1.5)).to('op',k(31)+8*F,k(31)+10*F,0,1,E.linear);
+sparkles(k(31)+12*F,D,[[250,700,0],[820,720,.1],[300,1250,.2],[790,1230,.3]]);
+// ======================= seek / apply =======================
+const bgEl=document.getElementById('bg');
+function applyDom(el,p,t){el.style.display='';el.style.transform=`translate(${p.x}px,${p.y}px) rotate(${p.rz}deg) scale(${p.s*p.sx},${p.s*p.sy})`;el.style.opacity=p.op;}
+const tmpV=new THREE.Vector3();
+window.__seek=(t)=>{
+ bgEl.style.background=colorAt(t);
+ for(const w of wipes){const a=w.t-0.14;if(t>=a&&t<w.t){w.el.style.display='block';const u=(t-a)/0.14;w.el.style.transform=`scaleX(${Math.min(1,Math.floor(u*6)/6+1/6)})`;}else w.el.style.display='none';}
+ for(const it of items){const vis=it.actor.visible(t)||(it.actor.vis.length===0);const p=it.actor.params(t);
+  if(it.kind==='dom'){if(!vis){it.el.style.display='none';continue;}applyDom(it.el,p,t);if(it.el.classList.contains('h'))themeClass(it.el,t);if(it.el.classList.contains('intro')){it.el.querySelector('span').style.backgroundPositionX=(p.n*100)+'%';}if(it.el.classList.contains('count')){it.el.textContent=String(Math.round(p.n));}}
+  else{it.obj.visible=vis;if(vis)it.onApply(p,t);}
+ }
+ // project the count-up overlay onto the flame card
+ if(cntA.visible(t)){const pp=c9a.params(t);const [X,Y]=px(pp.x,pp.y);tmpV.set(X,Y+40,pp.z+2).project(cam);cnt.style.left=((tmpV.x+1)/2*W-40)+'px';cnt.style.top=((1-tmpV.y)/2*H-40)+'px';}
+ renderer.render(scene,cam);
+};
+window.__checkTimes=[0.3,1.2,2.0,2.7,3.3,3.6,4.2,4.7,5.5,6.2,7.0,7.9,8.5,9.3,9.9,10.6,11.2,13.0];
+window.__seek(0);window.__ready=true;
+</script></body></html>

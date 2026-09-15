@@ -1,0 +1,115 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:'April16';src:url('assets/April16th-Promise.woff2') format('woff2');}
+html,body{margin:0;background:#0a0a0a;width:1920px;height:1080px;overflow:hidden;}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;font-family:'April16',sans-serif;color:#f2f2f2;perspective:2200px;}
+#bg{position:absolute;inset:0;background:#0a0a0a;}
+.el{position:absolute;opacity:0;will-change:transform,opacity;transform-origin:center;}
+.phone{position:absolute;width:430px;height:930px;border-radius:70px;background:#0e0e0e;box-shadow:0 50px 120px rgba(0,0,0,.75), inset 0 0 0 2px #2a2a2a;transform-style:preserve-3d;opacity:0;}
+.phone .scr{position:absolute;left:14px;top:28px;width:402px;height:874px;border-radius:54px;overflow:hidden;background:#000;}
+.phone .scr img{position:absolute;left:0;top:0;width:402px;height:874px;opacity:0;}
+.part{position:absolute;opacity:0;will-change:transform,opacity;transform-origin:center;box-shadow:0 40px 90px rgba(0,0,0,.7);border-radius:24px;}
+.h{position:absolute;left:120px;line-height:1.0;letter-spacing:-0.012em;white-space:nowrap;opacity:0;}
+.h .ico{display:inline-block;width:.78em;height:.78em;vertical-align:-0.1em;margin:0 .12em;border-radius:.2em;}
+.intro{position:absolute;left:0;top:0;width:1920px;height:1080px;display:flex;align-items:center;justify-content:center;font-size:120px;opacity:0;}
+.intro span{background:linear-gradient(90deg,#f2f2f2 0 50%,#CDF564 50% 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;}
+.logo{position:absolute;left:0;top:0;width:1920px;height:1080px;display:flex;align-items:center;justify-content:center;gap:40px;opacity:0;}
+.logo img{width:200px;height:200px;border-radius:50px;box-shadow:0 30px 90px rgba(205,245,100,.35);}
+.logo .t{font-size:160px;}
+.end{position:absolute;left:0;top:0;width:1920px;height:1080px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;opacity:0;}
+.end img{width:190px;height:190px;border-radius:48px;box-shadow:0 30px 90px rgba(205,245,100,.35);}
+.end .n{font-size:110px;line-height:1;}
+.end .s{font-size:40px;color:#9a9a9a;}
+.cap{position:absolute;font-size:96px;line-height:1.02;letter-spacing:-0.01em;opacity:0;white-space:nowrap;}
+</style></head><body><div id="stage"><div id="bg"></div></div>
+<script>
+const D=16.0, B=0.355, K0=0.60, k=n=>K0+n*B, h=0.1775;
+const DARK='#0a0a0a', PURPLE='#241638', LIME='#CDF564', CYAN='#9BF0E1';
+const stage=document.getElementById('stage'); const anims=[]; const OUT='cubic-bezier(.16,1,.3,1)';
+function mk(tag,cls,style,parent){const e=document.createElement(tag);if(cls)e.className=cls;if(style)e.style.cssText=style;(parent||stage).appendChild(e);return e;}
+function A(el,kf,opts){const a=el.animate(kf,opts);a.pause();anims.push(a);return a;}
+function show(el,from,to){const kf=[{opacity:0,offset:0,easing:'steps(1,end)'},{opacity:1,offset:from/D,easing:'steps(1,end)'}];if(to<D){kf.push({opacity:0,offset:to/D,easing:'steps(1,end)'});}kf.push({opacity:to<D?0:1,offset:1});A(el,kf,{duration:D*1000,fill:'both'});}
+function pose(el,from,to,kf,easing){A(el,kf,{delay:from*1000,duration:(to-from)*1000,fill:'none',easing:easing||OUT});}
+function steps(el,prop,segs,last){const kf=segs.map(([t,v])=>({[prop]:v,offset:t/D,easing:'steps(1,end)'}));kf.push({[prop]:last,offset:1});A(el,kf,{duration:D*1000,fill:'both'});}
+// background blocks
+const bgSegs=[[0,'#000'],[k(1),DARK],[k(3),PURPLE],[k(5),DARK],[k(7),PURPLE],[k(9),DARK],[k(10),LIME],[k(11),CYAN],[k(12),DARK],[k(13),PURPLE],[k(13)+h,DARK],[k(13)+2*h,LIME],[k(13)+3*h,DARK],[k(15),DARK],[k(17),PURPLE],[k(19),DARK],[k(21),LIME],[k(23),PURPLE],[k(25),CYAN],[k(26),DARK],[k(27),DARK],[k(27)+h,PURPLE],[k(27)+2*h,DARK],[k(27)+3*h,LIME],[k(27)+4*h,DARK],[k(27)+5*h,PURPLE],[k(27)+6*h,CYAN],[k(27)+7*h,DARK],[k(31),DARK]];
+steps(document.getElementById('bg'),'backgroundColor',bgSegs,DARK);
+const isLight=t=>{let c=DARK;for(const [tt,cc] of bgSegs){if(tt<=t)c=cc;}return c===LIME||c===CYAN;};
+// phone factory
+function phone(x,y,screens){const p=mk('div','phone',`left:${x}px;top:${y}px`);const scr=mk('div','scr','',p);const imgs={};for(const n of screens){const im=document.createElement('img');im.src='assets/screens/'+n+'.png';scr.appendChild(im);imgs[n]=im;}return {el:p,imgs};}
+function screenAt(ph,name,from,to){show(ph.imgs[name],from,to);}
+function part(src,x,y,w){const e=mk('img','part',`left:${x}px;top:${y}px;width:${w}px`);e.src='assets/parts/'+src;return e;}
+function headline(top,size,html){const e=mk('div','h',`top:${top}px;font-size:${size}px`);e.innerHTML=html;return e;}
+function textColorSteps(el,from,to){const segs=[];let prev=null;for(let t=from;t<to;t+=0.05){const c=isLight(t)?'#0a0a0a':'#f2f2f2';if(c!==prev){segs.push([t,c]);prev=c;}}steps(el,'color',segs,prev||'#f2f2f2');}
+
+// S0 intro 0.0-k1
+const intro=mk('div','intro');intro.innerHTML='<span>Introducing</span>';show(intro,0,k(1));
+pose(intro.firstChild,0,k(1),[{backgroundPositionX:'100%'},{backgroundPositionX:'0%'}],'cubic-bezier(.4,0,.2,1)');
+pose(intro,0,k(1),[{transform:'scale(.96)'},{transform:'scale(1)'}],OUT);
+// S1 logo k1-k3
+const logo=mk('div','logo');logo.innerHTML='<img src="assets/icon.png"><div class="t">UpNext</div>';show(logo,k(1),k(3));
+pose(logo.querySelector('img'),k(1),k(3),[{transform:'scale(1,.55) translateY(40px)'},{transform:'scale(.9,1.22) translateY(-10px)',offset:.3},{transform:'scale(1.06,.94)',offset:.5},{transform:'scale(1,1)',offset:.7},{transform:'scale(1.02,.98)',offset:.85},{transform:'scale(1)'}],'cubic-bezier(.34,1.56,.64,1)');
+pose(logo.querySelector('.t'),k(1),k(3),[{transform:'translateX(60px)',opacity:0},{transform:'translateX(0)',opacity:1,offset:.35},{transform:'translateX(0)',opacity:1}],OUT);
+// S2 deck hold, purple, phone tilted
+const p2=phone(600,80,['deck_hold']);show(p2.el,k(3),k(5));screenAt(p2,'deck_hold',0,D);
+pose(p2.el,k(3),k(5),[{transform:'rotate(-14deg) scale(1.04) translateY(20px)'},{transform:'rotate(-12deg) scale(1.0) translateY(0)'}],'linear');
+// S3 fan + card preview extrudes
+const p3=phone(520,80,['fan']);show(p3.el,k(5),k(7));screenAt(p3,'fan',0,D);
+pose(p3.el,k(5),k(7),[{transform:'rotate(9deg) scale(.98)'},{transform:'rotate(7deg) scale(1.02)'}],'linear');
+const cp=part('card_preview_big.png',1010,200,470);show(cp,k(5)+0.05,k(7));
+pose(cp,k(5)+0.05,k(7),[{transform:'translateX(-380px) translateZ(-200px) rotateY(-30deg) scale(.5)',opacity:0},{transform:'translateX(0) translateZ(0) rotateY(-14deg) scale(1)',opacity:1,offset:.45},{transform:'translateX(20px) rotateY(-10deg) scale(1.03)',opacity:1}],OUT);
+// S4 board upright + board card extrudes
+const p4=phone(600,80,['board_news']);show(p4.el,k(7),k(9));screenAt(p4,'board_news',0,D);
+pose(p4.el,k(7),k(9),[{transform:'rotate(0deg) scale(1.0)'},{transform:'rotate(0deg) scale(1.04)'}],'linear');
+const bc=part('board_card_walk.png',1090,330,720);show(bc,k(7)+0.05,k(9));
+pose(bc,k(7)+0.05,k(9),[{transform:'translateX(-420px) rotateY(-25deg) scale(.6)',opacity:0},{transform:'translateX(0) rotateY(-12deg) scale(1)',opacity:1,offset:.45},{transform:'translateX(10px) rotateY(-10deg) scale(1.02)',opacity:1}],OUT);
+// S5+S6 headline A + phone right with beat cuts
+const hA1=headline(300,150,'Draw <span style="color:#CDF564" id="hA1c">Today</span>');const hA2=headline(470,118,'Your <img class="ico" src="assets/icon.png"> Challenge');
+show(hA1,k(9),k(15));show(hA2,k(9)+0.06,k(15));textColorSteps(hA1,k(9),k(15));textColorSteps(hA2,k(9),k(15));
+pose(hA1,k(9),k(9)+0.5,[{transform:'translateY(40px)',opacity:0},{transform:'translateY(0)',opacity:1}],OUT);pose(hA2,k(9)+0.06,k(9)+0.56,[{transform:'translateY(40px)',opacity:0},{transform:'translateY(0)',opacity:1}],OUT);
+const p5=phone(1250,80,['deck3x','fan3x','card_preview','confirm','complete_board','camera','decorate3x','album3x']);show(p5.el,k(9),k(15));
+screenAt(p5,'deck3x',0,k(10));screenAt(p5,'fan3x',k(10),k(11));screenAt(p5,'card_preview',k(11),k(12));screenAt(p5,'confirm',k(12),k(13));
+screenAt(p5,'complete_board',k(13),k(13)+h);screenAt(p5,'camera',k(13)+h,k(13)+2*h);screenAt(p5,'decorate3x',k(13)+2*h,k(13)+3*h);screenAt(p5,'album3x',k(13)+3*h,D);
+[[k(9),k(10),'-6deg',1],[k(10),k(11),'0deg',1.04],[k(11),k(12),'6deg',1],[k(12),k(13),'0deg',1.06],[k(13),k(13)+h,'-4deg',1.02],[k(13)+h,k(13)+2*h,'4deg',1],[k(13)+2*h,k(13)+3*h,'-3deg',1.05],[k(13)+3*h,k(15),'0deg',1.02]].forEach(([f,t,r,s])=>pose(p5.el,f,t,[{transform:`rotate(${r}) scale(${s})`},{transform:`rotate(${r}) scale(${s*1.02})`}],'linear'));
+// S7 camera phone + polaroid extrudes, caption
+const p7=phone(520,80,['camera']);show(p7.el,k(15),k(17));screenAt(p7,'camera',0,D);
+pose(p7.el,k(15),k(17),[{transform:'rotate(-10deg) scale(1.0)'},{transform:'rotate(-8deg) scale(1.03)'}],'linear');
+const pol=part('polaroid_decorated.png',1020,120,560);pol.style.borderRadius='6px';show(pol,k(15)+0.05,k(17));
+pose(pol,k(15)+0.05,k(17),[{transform:'translateX(-420px) translateY(200px) rotate(-20deg) scale(.4)',opacity:0},{transform:'translateX(0) translateY(0) rotate(5deg) scale(1)',opacity:1,offset:.5},{transform:'translateX(0) translateY(-10px) rotate(6deg) scale(1.02)',opacity:1}],OUT);
+const capA=mk('div','cap','left:1040px;top:780px');capA.textContent='Snap the proof';show(capA,k(16),k(17));pose(capA,k(16),k(17),[{transform:'translateY(30px)',opacity:0},{transform:'translateY(0)',opacity:1,offset:.4},{transform:'translateY(0)',opacity:1}],OUT);
+// S8 album upright + saved polaroid pops
+const p8=phone(745,80,['album3x']);show(p8.el,k(17),k(19));screenAt(p8,'album3x',0,D);
+pose(p8.el,k(17),k(19),[{transform:'scale(1)'},{transform:'scale(1.03)'}],'linear');
+const ps=part('polaroid_saved.png',745,270,430);ps.style.borderRadius='6px';show(ps,k(17)+0.1,k(19));
+pose(ps,k(17)+0.1,k(19),[{transform:'scale(.92)',opacity:0},{transform:'scale(1.12) rotate(-3deg)',opacity:1,offset:.4},{transform:'scale(1.08) rotate(-3deg)',opacity:1}],OUT);
+// S9 Keep the Flame
+const hB=headline(440,118,'Keep the <span id="hBc" style="color:#CDF564">Flame</span>');show(hB,k(19),k(23));textColorSteps(hB,k(19),k(23));
+pose(hB,k(19),k(19)+0.5,[{transform:'translateY(40px)',opacity:0},{transform:'translateY(0)',opacity:1}],OUT);
+const p9=phone(1010,80,['flame_pre3x','flame_post3x']);show(p9.el,k(19),k(23));screenAt(p9,'flame_pre3x',0,k(21));screenAt(p9,'flame_post3x',k(21),D);
+pose(p9.el,k(19),k(21),[{transform:'rotate(-5deg) scale(1)'},{transform:'rotate(-5deg) scale(1.02)'}],'linear');pose(p9.el,k(21),k(23),[{transform:'rotate(3deg) scale(1.08)'},{transform:'rotate(3deg) scale(1.1)'}],'linear');
+const fpre=part('flame_hero_pre.png',1430,260,470);fpre.style.borderRadius='40px';show(fpre,k(19)+0.05,k(21));
+pose(fpre,k(19)+0.05,k(21),[{transform:'translateX(-300px) rotateY(-20deg) scale(.6)',opacity:0},{transform:'translateX(0) rotateY(-12deg) scale(1)',opacity:1,offset:.45},{transform:'translateX(6px) rotateY(-12deg) scale(1.02)',opacity:1}],OUT);
+const fpost=part('flame_hero_post.png',1430,260,470);fpost.style.borderRadius='40px';show(fpost,k(21),k(23));
+pose(fpost,k(21),k(23),[{transform:'rotateY(-12deg) scale(1.18)'},{transform:'rotateY(-10deg) scale(1.02)',offset:.35},{transform:'rotateY(-10deg) scale(1.04)'}],OUT);
+// S10 Grow your Hero
+const hC=headline(440,118,'Grow your <span style="color:#CDF564">Hero</span>');show(hC,k(23),k(27));textColorSteps(hC,k(23),k(27));
+pose(hC,k(23),k(23)+0.5,[{transform:'translateY(40px)',opacity:0},{transform:'translateY(0)',opacity:1}],OUT);
+const p10=phone(1010,80,['dungeon_choice','chest_marker','combat']);show(p10.el,k(23),k(27));screenAt(p10,'dungeon_choice',0,k(25));screenAt(p10,'chest_marker',k(25),k(26));screenAt(p10,'combat',k(26),D);
+pose(p10.el,k(23),k(25),[{transform:'rotate(-8deg) scale(1)'},{transform:'rotate(-8deg) scale(1.02)'}],'linear');pose(p10.el,k(25),k(26),[{transform:'rotate(0deg) scale(1.06)'},{transform:'rotate(0deg) scale(1.08)'}],'linear');pose(p10.el,k(26),k(27),[{transform:'rotate(6deg) scale(1)'},{transform:'rotate(6deg) scale(1.03)'}],'linear');
+const chest=part('chest_modal.png',1440,330,470);chest.style.borderRadius='28px';show(chest,k(25),k(26));
+pose(chest,k(25),k(26),[{transform:'translateX(-300px) translateZ(-300px) scale(.5)',opacity:0},{transform:'translateX(0) translateZ(0) scale(1.08)',opacity:1,offset:.5},{transform:'translateX(0) scale(1.1)',opacity:1}],OUT);
+// S11 main copy again + rapid montage
+const hD1=headline(300,170,'Draw <span style="color:#CDF564">Today</span>');const hD2=headline(490,130,'Your <img class="ico" src="assets/icon.png"> Challenge');
+show(hD1,k(27),k(31));show(hD2,k(27)+0.05,k(31));textColorSteps(hD1,k(27),k(31));textColorSteps(hD2,k(27),k(31));
+pose(hD1,k(27),k(27)+0.4,[{transform:'translateY(40px)',opacity:0},{transform:'translateY(0)',opacity:1}],OUT);pose(hD2,k(27)+0.05,k(27)+0.45,[{transform:'translateY(40px)',opacity:0},{transform:'translateY(0)',opacity:1}],OUT);
+const seq=['widget_step1','reminder','permission','reminder_set','widget_done','aura_reveal','board2_3x','decorate3x'];
+const p11=phone(1250,80,seq);show(p11.el,k(27),k(31));
+seq.forEach((n,i)=>{const f=k(27)+i*h,t=(i===seq.length-1)?D:k(27)+(i+1)*h;screenAt(p11,n,f,t);pose(p11.el,f,(i===seq.length-1)?k(31):t,[{transform:`rotate(${[-6,4,-3,5,-5,3,-4,0][i]}deg) scale(${[1,1.05,1,1.06,1.02,1.04,1,1.03][i]})`},{transform:`rotate(${[-6,4,-3,5,-5,3,-4,0][i]}deg) scale(${[1,1.05,1,1.06,1.02,1.04,1,1.03][i]*1.02})`}],'linear');});
+// S12 end card
+const end=mk('div','end');end.innerHTML='<img src="assets/icon.png"><div class="n">UpNext</div><div class="s">Challenge Card Habits</div>';show(end,k(31),D);
+pose(end.querySelector('img'),k(31),k(31)+0.9,[{transform:'scale(1,.5) translateY(60px)'},{transform:'scale(.9,1.2) translateY(-14px)',offset:.35},{transform:'scale(1.05,.95)',offset:.55},{transform:'scale(1)',offset:.75},{transform:'scale(1)'}],'cubic-bezier(.34,1.56,.64,1)');
+pose(end.querySelector('.n'),k(31)+0.1,k(31)+0.7,[{transform:'translateY(30px)',opacity:0},{transform:'translateY(0)',opacity:1}],OUT);
+pose(end.querySelector('.s'),k(31)+0.25,k(31)+0.85,[{transform:'translateY(30px)',opacity:0},{transform:'translateY(0)',opacity:1}],OUT);
+pose(end.querySelector('img'),k(31)+1.0,D,[{transform:'rotate(0deg)'},{transform:'rotate(-4deg)',offset:.25},{transform:'rotate(3deg)',offset:.5},{transform:'rotate(-2deg)',offset:.75},{transform:'rotate(0deg)'}],'ease-in-out');
+window.__seek=(t)=>{for(const a of anims){a.currentTime=Math.max(0,t*1000);}};
+window.__ready=true;
+</script></body></html>

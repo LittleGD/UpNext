@@ -1,0 +1,249 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:'April16';src:url('assets/April16th-Promise.woff2') format('woff2');}
+html,body{margin:0;background:#0a0a0a;width:1080px;height:1920px;overflow:hidden;}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;font-family:'April16',sans-serif;color:#f2f2f2;}
+#bg{position:absolute;inset:0;background:#0a0a0a;}
+#gl{position:absolute;left:0;top:0;width:1080px;height:1920px;}
+.scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 2px,transparent 2px 5px);pointer-events:none;mix-blend-mode:overlay;}
+.vig{position:absolute;inset:0;background:radial-gradient(80% 70% at 50% 45%,transparent 60%,rgba(0,0,0,.42) 100%);pointer-events:none;}
+.dom{position:absolute;display:none;will-change:transform;transform-origin:center;}
+.dom:not(.on){display:none!important;}.dom.on{display:block;}.dom.on.center{display:flex;}.dom.on.w{display:inline-block;}.dom.on.h{display:flex;}
+.h{left:0;width:1080px;line-height:1.0;letter-spacing:-0.012em;white-space:nowrap;justify-content:center;align-items:baseline;column-gap:.24em;}
+.h .w{display:inline-block;text-shadow:6px 6px 0 rgba(205,245,100,.5);}
+.h.light .w{color:#0a0a0a;text-shadow:6px 6px 0 rgba(0,0,0,.2);}
+.h.light .w.acc{color:#241638;}
+.h .w.acc{color:#CDF564;}
+.h .ico{display:inline-block;width:.78em;height:.78em;vertical-align:-0.1em;margin:0 .1em;border-radius:.2em;}
+.center{left:0;top:0;width:1080px;height:1920px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;}
+.intro span{font-size:96px;background:linear-gradient(90deg,#f2f2f2 0 50%,#CDF564 50% 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;}
+.wm{position:relative;color:#f2f2f2;}
+.wm svg{display:block;width:100%;height:auto;}
+.wm .main{position:relative;}
+.mark{width:200px;height:223px;transform-origin:center bottom;}
+.sub{font-size:44px;color:#9a9a9a;}
+.spark{width:72px;height:72px;image-rendering:pixelated;filter:invert(1) drop-shadow(0 0 8px #CDF564);}
+.count{font-size:72px;color:#f2f2f2;background:#171717;padding:0 22px;border-radius:14px;line-height:1.15;box-shadow:0 10px 30px rgba(0,0,0,.6);}
+.hero{image-rendering:pixelated;}
+.cta{font-size:64px;line-height:1;color:#CDF564;margin-top:40px;}
+.badges{display:flex;gap:28px;align-items:center;}
+.badges img{height:100px;display:block;}
+.badges .bd{position:relative;}
+.soon{position:absolute;left:0;right:0;top:100%;margin-top:14px;text-align:center;font-size:34px;line-height:1;color:#9a9a9a;}
+</style></head><body><div id="stage"><div id="bg"></div><canvas id="gl"></canvas><div id="dom"></div><div class="scan"></div><div class="vig"></div></div>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {makeLowPolyPhone,flatRect} from './phone5.js';
+// ======================= timeline engine =======================
+const FPS=30, F=1/FPS, D=16.0, B=0.355, K0=0.60, k=n=>K0+n*B, h=0.1775, W=1080, H=1920;
+const DARK='#0a0a0a', PURPLE='#241638', LIME='#CDF564', CYAN='#9BF0E1';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)); const rad=d=>THREE.MathUtils.degToRad(d);
+const E={linear:t=>t,outExpo:t=>t>=1?1:1-Math.pow(2,-10*t),outQuart:t=>1-Math.pow(1-t,4),outCubic:t=>1-Math.pow(1-t,3),inCubic:t=>t*t*t,inQuart:t=>t*t*t*t,inOutSine:t=>-(Math.cos(Math.PI*t)-1)/2,outSine:t=>Math.sin(t*Math.PI/2),
+ outBack:(s=1.7)=>t=>1+(s+1)*Math.pow(t-1,3)+s*Math.pow(t-1,2),steps:n=>t=>Math.min(1,Math.floor(t*n)/n)};
+class Actor{constructor(base){this.base=Object.assign({x:0,y:0,z:0,rx:0,ry:0,rz:0,s:1,sx:1,sy:1,op:1,n:0},base);this.tw=[];this.vis=[];this.procs=[];}
+ show(a,b){this.vis.push([a,b]);return this;}
+ visible(t){return this.vis.some(([a,b])=>t>=a&&t<b);}
+ to(key,t0,t1,from,to,ease){this.tw.push({key,t0,t1,from,to,ease:ease||E.outExpo});return this;}
+ proc(fn){this.procs.push(fn);return this;}
+ val(key,t){let v=this.base[key];const tws=this.tw.filter(w=>w.key===key&&w.t0<=t).sort((a,b)=>a.t0-b.t0);for(const w of tws){const from=(w.from==='auto')?v:w.from;const to=(w.fn)?from+w.delta:w.to;if(t>=w.t1){v=to;}else{const u=clamp((t-w.t0)/(w.t1-w.t0),0,1);v=from+(to-from)*w.ease(u);}}return v;}
+ params(t){const p={};for(const key of Object.keys(this.base))p[key]=this.val(key,t);for(const fn of this.procs)fn(p,t);return p;}}
+const actors=[];
+function enter(a,t0,dur,from,ease){for(const key of Object.keys(from)){a.to(key,t0,t0+dur,from[key].from,from[key].to,ease||E.outExpo);}}
+function exit(a,t1,dur,to){for(const key of Object.keys(to)){a.to(key,t1-dur,t1,'auto',to[key],E.inCubic);}}
+function drift(a,t0,t1,key,delta){a.to(key,t0,t1,'auto',null,E.inOutSine);const w=a.tw[a.tw.length-1];w.to=undefined;w.delta=delta;w.fn=true;}
+function hover(a,t0,amp=6,rot=1.2){a.proc((p,t)=>{if(t<t0)return;const u=t-t0;p.y+=Math.sin(u*3.1)*amp;p.rz+=Math.sin(u*2.3+1)*rot;});}
+function squash(a,t0,k1=1.1){const d=k1-1;a.to('sx',t0,t0+2*F,1+d,1+d,E.linear).to('sy',t0,t0+2*F,1-d,1-d,E.linear).to('sx',t0+2*F,t0+5*F,1+d,1-d*.3,E.outCubic).to('sy',t0+2*F,t0+5*F,1-d,1+d*.3,E.outCubic).to('sx',t0+5*F,t0+9*F,1-d*.3,1,E.outCubic).to('sy',t0+5*F,t0+9*F,1+d*.3,1,E.outCubic);}
+function stepped(a,t0,t1,poses,holdF=4,loop=true){a.proc((p,t)=>{if(t<t0||t>=t1)return;let i=Math.floor((t-t0)/(holdF*F));i=loop?i%poses.length:Math.min(i,poses.length-1);Object.assign(p,poses[i]);});}
+function pop(a,t0,from=.94,to=1,dur=6*F){a.to('s',t0,t0+dur,from,to,E.outBack(2.2));}
+// ======================= background blocks (hard cuts, no wipes) =======================
+const bgSegs=[[0,DARK],[k(2),LIME],[k(3),DARK],[k(9),LIME],[k(10),DARK],[k(14),PURPLE],[k(16),CYAN],[k(16)+h,LIME],[k(17),PURPLE],[k(17)+h,CYAN],[k(18),DARK],[k(20),LIME],[k(21),DARK],[k(25),PURPLE],[k(26),CYAN],[k(26)+h,LIME],[k(27),DARK],[k(32),PURPLE],[k(34),LIME],[k(34)+h,CYAN],[k(35),PURPLE],[k(35)+h,LIME],[k(36),DARK]];
+const colorAt=t=>{let c=DARK;for(const [tt,cc] of bgSegs){if(tt<=t)c=cc;}return c;};const isLight=t=>{const c=colorAt(t);return c===LIME||c===CYAN;};
+// ======================= three.js scene =======================
+const canvas=document.getElementById('gl');const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setSize(W,H,false);renderer.setPixelRatio(1);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+const scene=new THREE.Scene();const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;
+const fov=26;const cam=new THREE.PerspectiveCamera(fov,W/H,10,40000);const camZ=(H/2)/Math.tan(rad(fov/2));cam.position.set(0,0,camZ);
+const key=new THREE.DirectionalLight(0xffffff,1.8);key.position.set(-900,1200,1400);scene.add(key);const rim=new THREE.DirectionalLight(0xCDF564,1.2);rim.position.set(900,-400,600);scene.add(rim);scene.add(new THREE.HemisphereLight(0xffffff,0x1a1030,0.5));
+const px=(x,y)=>[x-W/2,H/2-y];
+// camera rig: yaw/pitch orbit around a target (frame px), dist multiplier. yaw=pitch=0,dist=1 => 1px = 1 unit at z=0
+const rig=new Actor({yaw:0,pitch:0,dist:1,tx:540,ty:960});actors.push(rig);
+function applyCam(p){const [TX,TY]=px(p.tx,p.ty);const d=camZ*p.dist;const yaw=rad(p.yaw),pit=rad(p.pitch);cam.position.set(TX+d*Math.sin(yaw)*Math.cos(pit),TY+d*Math.sin(pit),d*Math.cos(yaw)*Math.cos(pit));cam.lookAt(TX,TY,0);cam.updateMatrixWorld(true);}
+function camMove(t0,t1,from,to,ease){for(const key of Object.keys(from))rig.to(key,t0,t1,from[key],to[key],ease||E.inOutSine);}
+// textures
+const tex={};
+async function loadTex(url,maxW){return new Promise(res=>{const im=new Image();im.onload=()=>{const sc=Math.min(1,maxW/im.width);const c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;t.minFilter=THREE.LinearMipmapLinearFilter;t.generateMipmaps=true;res(t);};im.src=url;});}
+const bigScreens=['complete_board','complete_board_nocard','flame_pre_nocard','fan','fan_nocard','board_news','board_news_nocard','decorate3x','decorate3x_nocard','album3x','album3x_nocard','dungeon_choice','chest_marker','combat'];
+const smallScreens=['deck3x','fan3x','confirm','aura_reveal','flame_post3x','flame_aura_cta','aura_throw','chest_result','widget_done','reminder_set'];
+for(const n of bigScreens)tex[n]=await loadTex('assets/screens/'+n+'.png',1100);
+for(const n of smallScreens)tex[n]=await loadTex('assets/screens/'+n+'.png',900);
+const parts=['flame_hero_pre','card_preview_big','polaroid_decorated','chest_modal','hero_sprite','card_strength','card_stretch','card_walk'];
+const parts2=['complete_card','board_card_news','card_review','card_news','card_compliment','st_star','st_heart','st_fire','st_sparkle','st_leaf','st_music','st_bulb','st_upnext'];
+for(const n of parts)tex[n]=await loadTex('assets/parts/'+n+'.png',1100);
+for(const n of parts2)tex[n]=await loadTex('assets/parts2/'+n+'.png',1100);
+tex.hero_sprite.magFilter=THREE.NearestFilter;tex.hero_sprite.minFilter=THREE.NearestFilter;tex.hero_sprite.generateMipmaps=false;tex.hero_sprite.needsUpdate=true;
+function shadowTex(){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');const gr=g.createRadialGradient(128,128,10,128,128,128);gr.addColorStop(0,'rgba(0,0,0,.75)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,256,256);return new THREE.CanvasTexture(c);}
+const shTex=shadowTex();
+function makeShadow(w,hh){return new THREE.Mesh(new THREE.PlaneGeometry(w*1.5,hh*1.25),new THREE.MeshBasicMaterial({map:shTex,transparent:true,depthWrite:false,opacity:.9}));}
+// ======================= DOM helpers =======================
+const domRoot=document.getElementById('dom');
+function dom(cls,html,style){const e=document.createElement('div');e.className='dom '+cls;if(html)e.innerHTML=html;if(style)e.style.cssText+=style;domRoot.appendChild(e);return e;}
+function themeClass(el,t){el.classList.toggle('light',isLight(t));}
+const items=[];
+function addDom(el,actor){items.push({kind:'dom',el,actor});actors.push(actor);return actor;}
+function addThree(obj,actor,onApply){items.push({kind:'three',obj,actor,onApply});actors.push(actor);return actor;}
+const wmSvg=await (await fetch('assets/wordmark.svg')).text();
+function wordmark(width){return `<div class="wm" style="width:${width}px"><div class="main">${wmSvg}</div></div>`;}
+// ======================= phones + parts =======================
+const TS=716/1206; const tl=(cx,cy)=>[(cx-603)*TS,(1311-cy)*TS]; // texture px -> phone-local
+function phone(screens,visFrom,visTo,base){const ph=makeLowPolyPhone(tex[screens[0][0]]);const wrap=new THREE.Group();const sh=makeShadow(752,1620);sh.position.set(0,-40,-150);sh.material.opacity=.8;wrap.add(sh);wrap.add(ph.g);scene.add(wrap);wrap.visible=false;
+ const a=new Actor(Object.assign({x:540,y:1000,z:0,rx:0,ry:0,rz:0,s:.92},base));a.show(visFrom,visTo);
+ addThree(wrap,a,(p,t)=>{const [X,Y]=px(p.x,p.y);wrap.position.set(X,Y,p.z);wrap.rotation.set(rad(p.rx),rad(p.ry),rad(p.rz));wrap.scale.set(p.s*p.sx,p.s*p.sy,p.s);let name=screens[0][0];for(const [n,from] of screens){if(t>=from)name=n;}if(ph.scr.material.map!==tex[name]){ph.scr.material.map=tex[name];ph.scr.material.needsUpdate=true;}});
+ a.ph=ph;a.wrap=wrap;return a;}
+// part living in a phone's local space (units = phone px). w = width in texture px. alpha: keyed png
+function lpart(phoneA,name,w,radTex,visFrom,visTo,base,alpha){const t=tex[name];const lw=w*TS,lh=lw*t.image.height/t.image.width;const geo=radTex?flatRect(lw,lh,radTex*TS,3):new THREE.PlaneGeometry(lw,lh);const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:t,toneMapped:false,transparent:!!alpha,alphaTest:alpha?.5:0}));
+ const grp=new THREE.Group();grp.add(m);phoneA.ph.g.add(grp);grp.visible=false;
+ const a=new Actor(Object.assign({x:0,y:0,z:phoneA.ph.zf+1.5,rx:0,ry:0,rz:0,s:1},base));a.show(visFrom,visTo);
+ addThree(grp,a,(p,t)=>{grp.position.set(p.x,p.y,p.z);grp.rotation.set(rad(p.rx),rad(p.ry),rad(p.rz));grp.scale.set(p.s*p.sx,p.s*p.sy,p.s);});a.grp=grp;a.lw=lw;a.lh=lh;return a;}
+// free part in world space (frame px), with contact shadow
+function wpart(name,w,radPx,visFrom,visTo,base,alpha){const t=tex[name];const hh=w*t.image.height/t.image.width;const m=new THREE.Mesh(radPx?flatRect(w,hh,radPx,3):new THREE.PlaneGeometry(w,hh),new THREE.MeshBasicMaterial({map:t,toneMapped:false,transparent:!!alpha,alphaTest:alpha?.5:0}));const sh=makeShadow(w,hh);sh.position.z=-90;sh.material.opacity=.7;const wrap=new THREE.Group();wrap.add(sh);wrap.add(m);scene.add(wrap);wrap.visible=false;
+ const a=new Actor(Object.assign({x:540,y:1000,z:60,rx:0,ry:0,rz:0,s:1},base));a.show(visFrom,visTo);
+ addThree(wrap,a,(p,t)=>{const [X,Y]=px(p.x,p.y);wrap.position.set(X,Y,p.z);wrap.rotation.set(rad(p.rx),rad(p.ry),rad(p.rz));wrap.scale.set(p.s*p.sx,p.s*p.sy,p.s);});return a;}
+function recoil(a,t0){a.to('rz',t0,t0+3*F,'auto',null,E.outCubic);const w=a.tw[a.tw.length-1];w.fn=true;w.delta=-2.5;a.to('rz',t0+3*F,t0+12*F,'auto',null,E.outBack(1.4));const w2=a.tw[a.tw.length-1];w2.fn=true;w2.delta=2.5;}
+function sparkles(t0,t1,pts){pts.forEach(([x,y,d,icon])=>{const s=dom('sp','',`left:${x}px;top:${y}px;width:${icon?110:72}px;height:${icon?110:72}px`);const im=document.createElement('img');im.className='spark';im.src='assets/icons/'+(icon||'sparkle')+'.svg';im.style.width='100%';im.style.height='100%';s.appendChild(im);const a=addDom(s,new Actor({s:0,rz:0})).show(t0+d,t1);a.to('s',t0+d,t0+d+10*F,0,1,E.steps(4)).to('rz',t0+d,t0+d+10*F,-20,0,E.steps(4));exit(a,t1,4*F,{s:0});});}
+// solve phone x,y so that a phone-local point projects to a frame point (for positional match cuts)
+function solveXY(base,rigP,localPt,target){applyCam(rigP);const g=new THREE.Group();scene.add(g);let x=base.x,y=base.y;const v=new THREE.Vector3();for(let i=0;i<6;i++){const [X,Y]=px(x,y);g.position.set(X,Y,base.z||0);g.rotation.set(rad(base.rx||0),rad(base.ry||0),rad(base.rz||0));g.scale.setScalar(base.s);g.updateMatrixWorld(true);v.set(localPt[0],localPt[1],localPt[2]).applyMatrix4(g.matrixWorld).project(cam);const fx=(v.x+1)/2*W,fy=(1-v.y)/2*H;x+=target[0]-fx;y+=target[1]-fy;}scene.remove(g);return [x,y];}
+// ======================= THE SHOW =======================
+// S0 intro (0..k0): stepped color sweep, accelerate out
+const intro=dom('center intro','<span>Introducing</span>');const introA=addDom(intro,new Actor({s:.98,n:1})).show(0,k(0));
+introA.to('n',0.04,k(0)-0.08,1,0,E.steps(10)).to('s',0,0.4,.96,1,E.outExpo);exit(introA,k(0),6*F,{s:1.3});
+// S1 logo (k0..k2): wordmark pops (outBack + squash), mascot lands on fours at the top-right, both hover
+const logo=dom('center',wordmark(640)+'',`gap:0`);const wmEl=logo.querySelector('.wm');
+const logoA=addDom(logo,new Actor({})).show(k(0),k(2));const wmA=addDom(wmEl,new Actor({s:1,y:0}));
+wmA.to('s',k(0),k(0)+9*F,.55,1,E.outBack(1.6)).to('y',k(0),k(0)+9*F,90,0,E.outBack(1.4));squash(wmA,k(0)+8*F,1.08);
+const mk1=dom('','<img class="mark" src="assets/graphic-logo.png">','left:690px;top:770px;width:190px;height:212px');const mk1A=addDom(mk1,new Actor({sx:1,sy:1,y:0})).show(k(0)+4*F,k(2));
+stepped(mk1A,k(0)+4*F,k(0)+20*F,[{sx:1.25,sy:.6,y:40},{sx:.8,sy:1.3,y:-40},{sx:1.12,sy:.9,y:8},{sx:.96,sy:1.06,y:-6},{sx:1.03,sy:.98,y:2},{sx:1,sy:1,y:0}],3,false);
+stepped(mk1A,k(0)+20*F,k(2),[{sx:1,sy:1,y:0},{sx:1.02,sy:.98,y:2},{sx:.99,sy:1.02,y:-2},{sx:1,sy:1,y:0}],4,true);
+exit(logoA,k(2),5*F,{s:1.18});exit(mk1A,k(2),5*F,{s:1.3});
+// S2 ECU (k2..k3) LIME: the phone corner crosses the frame; moving hold (slow push-in)
+const P2=phone([['complete_board',0]],k(2),k(3),{x:830,y:2210,s:1.9,rx:0,ry:-9,rz:-4});
+drift(P2,k(2),k(3),'y',-70);drift(P2,k(2),k(3),'s',.06);camMove(k(2),k(3),{yaw:0,pitch:0,dist:1},{yaw:3,pitch:1,dist:.97},E.outSine);
+// S3 (k3..k5) DARK: phone tilted, straightens; the complete card lifts off and flies away (component OUT of mockup)
+const P3=phone([['complete_board',0],['complete_board_nocard',k(3)+2*F]],k(3),k(5),{x:540,y:1040,s:.95,rx:26,ry:-10});
+P3.to('rx',k(3),k(3)+14*F,26,0,E.outExpo).to('ry',k(3),k(3)+14*F,-10,0,E.outExpo);drift(P3,k(3)+14*F,k(5),'ry',4);recoil(P3,k(3)+3*F);
+camMove(k(3),k(5),{yaw:-5,pitch:-2,dist:1},{yaw:4,pitch:0,dist:1},E.inOutSine);
+{const [cx,cy]=tl(597,566);const C3=lpart(P3,'complete_card',1114,44,k(3)+2*F,k(3)+20*F,{x:cx,y:cy});
+ C3.to('z',k(3)+2*F,k(3)+10*F,P3.ph.zf+1.5,P3.ph.zf+520,E.outBack(1.2)).to('y',k(3)+2*F,k(3)+10*F,cy,cy+200,E.outBack(1.3)).to('rx',k(3)+2*F,k(3)+10*F,0,-28,E.outCubic).to('s',k(3)+2*F,k(3)+10*F,1,1.18,E.outBack(1.5)).to('rz',k(3)+2*F,k(3)+10*F,0,-5,E.outCubic);
+ C3.to('x',k(3)+10*F,k(3)+20*F,'auto',1300,E.inCubic).to('y',k(3)+10*F,k(3)+20*F,'auto',cy+1500,E.inCubic).to('z',k(3)+10*F,k(3)+20*F,'auto',P3.ph.zf+1100,E.inCubic).to('rz',k(3)+10*F,k(3)+20*F,0,18,E.inCubic);}
+// S4 (k5..k7) DARK: jump cut, same pose; the flame card flies in from the left and LANDS on the screen with a count-up (component INTO mockup); exit = turn away
+const P4=phone([['flame_pre_nocard',0]],k(5),k(7),{x:540,y:1040,s:.95,rx:0,ry:4});
+pop(P4,k(5),.91,.95);drift(P4,k(5)+6*F,k(7)-8*F,'ry',-5);exit(P4,k(7),8*F,{ry:-42,x:330,z:160});
+camMove(k(5),k(7),{yaw:4,pitch:0,dist:1.0},{yaw:-3,pitch:1,dist:.985},E.inOutSine);
+const [f4x,f4y]=tl(602,929);const C4=lpart(P4,'flame_hero_pre',1109,44,k(5)+1*F,k(7),{x:-1500,y:f4y+300,z:P4.ph.zf+600,ry:55,rz:-12,s:1.15});
+C4.to('x',k(5)+1*F,k(5)+11*F,-1500,f4x,E.outBack(1.15)).to('y',k(5)+1*F,k(5)+11*F,f4y+300,f4y,E.outBack(1.2)).to('z',k(5)+1*F,k(5)+11*F,P4.ph.zf+600,P4.ph.zf+1.5,E.outCubic).to('ry',k(5)+1*F,k(5)+11*F,55,0,E.outCubic).to('rz',k(5)+1*F,k(5)+11*F,-12,0,E.outBack(1.3)).to('s',k(5)+1*F,k(5)+11*F,1.15,1,E.outBack(1.6));
+squash(C4,k(5)+11*F,1.05);recoil(P4,k(5)+10*F);exit(C4,k(7),8*F,{x:f4x-40});
+const cnt=dom('count','0','left:0;top:0');const cntA=addDom(cnt,new Actor({n:0})).show(k(5)+8*F,k(7)-8*F);cntA.to('n',k(5)+8*F,k(5)+21*F,0,12,E.steps(12));
+// S5 (k7..k9) DARK: six hand cards fly in and stack (components before the mockup)
+const hand=['card_walk','card_stretch','card_strength','card_review','card_news','card_compliment'];
+hand.forEach((n,i)=>{const t0=k(7)+i*2*F;const X=560+(i-2.5)*70,Y=980+Math.abs(i-2.5)*12,RZ=-19+i*7.5;const a=wpart(n,400,16,t0,k(9),{x:1500,y:2300,z:40+i*36,rz:-40,s:1.1});
+ a.to('x',t0,t0+9*F,1500,X,E.outBack(1.35)).to('y',t0,t0+9*F,2300,Y,E.outBack(1.25)).to('rz',t0,t0+9*F,-48,RZ,E.outCubic).to('s',t0,t0+9*F,1.15,1,E.outCubic);hover(a,t0+9*F,3,.4);});
+camMove(k(7),k(9),{yaw:7,pitch:2,dist:1.02},{yaw:-4,pitch:-1,dist:.99},E.inOutSine);
+// S6 (k9..k10) LIME: match cut, the same cards are now the hand on the phone
+const P6=phone([['fan',0]],k(9),k(10),{x:540,y:1000,s:.92});pop(P6,k(9),.86,.92);drift(P6,k(9),k(10),'ry',-3);
+camMove(k(9),k(10),{yaw:0,pitch:0,dist:1},{yaw:0,pitch:0,dist:1});
+// S7 (k10..k14) DARK: big phone, camera orbits; hand card lifts + flips into the preview card; screen cuts to the board; card flips again and lands as the board entry
+const P7=phone([['fan',0],['fan_nocard',k(10)+2*F],['board_news_nocard',k(11)+3*F],['board_news',k(11)+13*F]],k(10),k(14),{x:540,y:1180,s:1.22,rx:16,ry:-6});
+P7.to('rx',k(10),k(10)+16*F,16,0,E.outExpo).to('ry',k(10),k(10)+16*F,-6,0,E.outExpo);recoil(P7,k(10)+2*F);P7.to('s',k(11)+3*F,k(11)+8*F,'auto',1.25,E.outBack(2));exit(P7,k(14),8*F,{y:1720,rx:22});
+camMove(k(10),k(14),{yaw:-16,pitch:3,dist:1.03},{yaw:14,pitch:-2,dist:.975},E.inOutSine);
+{const zf=P7.ph.zf;const [hx,hy]=tl(603,1949);const [bx,by]=tl(603,746);
+ // A: hand card lifts and flips to edge-on
+ const A=lpart(P7,'card_news',322,26,k(10)+2*F,k(10)+7*F,{x:hx,y:hy});
+ A.to('z',k(10)+2*F,k(10)+7*F,zf+1.5,zf+260,E.outCubic).to('y',k(10)+2*F,k(10)+7*F,hy,hy+140,E.outCubic).to('ry',k(10)+2*F,k(10)+7*F,0,-90,E.linear).to('s',k(10)+2*F,k(10)+7*F,1,1.5,E.outCubic);
+ // B: preview card continues the flip, settles with overshoot, hovers, then flips away toward the board slot
+ const Bp=lpart(P7,'card_preview_big',841,40,k(10)+7*F,k(11)+8*F,{x:hx,y:hy+140,z:zf+260,ry:90,s:.62});
+ Bp.to('ry',k(10)+7*F,k(10)+13*F,90,0,E.outBack(1.3)).to('z',k(10)+7*F,k(10)+13*F,zf+260,zf+420,E.outBack(1.4)).to('y',k(10)+7*F,k(10)+13*F,hy+140,hy+330,E.outBack(1.3)).to('s',k(10)+7*F,k(10)+13*F,.62,1,E.outBack(1.5)).to('rz',k(10)+7*F,k(10)+13*F,8,-4,E.outBack(1.3));
+ hover(Bp,k(10)+13*F,5,1);
+ Bp.to('ry',k(11)+3*F,k(11)+8*F,'auto',-90,E.inCubic).to('y',k(11)+3*F,k(11)+8*F,'auto',by-40,E.inOutSine).to('z',k(11)+3*F,k(11)+8*F,'auto',zf+200,E.inOutSine).to('s',k(11)+3*F,k(11)+8*F,'auto',.8,E.inOutSine).to('rz',k(11)+3*F,k(11)+8*F,'auto',0,E.inOutSine);
+ // C: board card completes the flip and lands into the slot with a settle; then the screen swaps to the full board and C hides
+ const Cc=lpart(P7,'board_card_news',1146,34,k(11)+8*F,k(11)+13*F,{x:bx,y:by-40,z:zf+200,ry:-90,s:.8});
+ Cc.to('ry',k(11)+8*F,k(11)+13*F,-90,0,E.outCubic).to('y',k(11)+8*F,k(11)+13*F,by-40,by,E.outCubic).to('z',k(11)+8*F,k(11)+13*F,zf+200,zf+1.5,E.outCubic).to('s',k(11)+8*F,k(11)+13*F,.8,1,E.outCubic);
+ recoil(P7,k(11)+12*F);P7.to('s',k(11)+13*F,k(11)+19*F,'auto',1.22,E.outBack(2.5));}
+// S8 (k14..k18) PURPLE headline + phone at the bottom; burst of 4 half-beat screen cuts from k16
+const HEAD={y:1330,s:.86,gap:98}; // headline shots: phone center y, scale, text-to-phone gap
+function headline(lines,t0,t1,size1,size2){const bottom=HEAD.y-810*HEAD.s-HEAD.gap;const tops=lines.length===2?[bottom-size2-14-size1,bottom-size2]:[bottom-size1];const out=[];lines.forEach((words,li)=>{const el=dom('h','',`top:${tops[li]}px;font-size:${li===0?size1:size2}px`);words.forEach(([txt,acc],wi)=>{const sp=document.createElement('span');sp.className='w'+(acc?' acc':'');sp.innerHTML=txt;el.appendChild(sp);const a=addDom(sp,new Actor({y:-150,s:1,op:0}));const d=t0+(li*3+wi*2)*F;a.to('y',d,d+8*F,-150,0,E.outBack(1.35)).to('op',d,d+2*F,0,1,E.linear);});const la=addDom(el,new Actor({y:0})).show(t0,t1);squash(la,t0+7*F,1.06);exit(la,t1,5*F,{y:-60});out.push(la);});return out;}
+headline([[['Draw',0],['Today',1]],[['Your',0],['<img class="ico" src="assets/icon.png">',0],['Challenge',0]]],k(14),k(18),132,104);
+const P8=phone([['deck3x',0],['fan3x',k(16)],['confirm',k(16)+h],['complete_board',k(17)],['aura_reveal',k(17)+h]],k(14),k(18),{x:540,y:HEAD.y,s:HEAD.s});
+enter(P8,k(14),9*F,{y:{from:HEAD.y+700,to:HEAD.y},rx:{from:14,to:0}},E.outBack(1.1));
+[[k(16),8,3,1.03],[k(16)+h,-7,-2,1],[k(17),5,2,1.04],[k(17)+h,-6,0,1.01]].forEach(([t,ry,rz,s])=>{P8.to('ry',t,t+5*F,'auto',ry,E.outBack(1.2)).to('rz',t,t+5*F,'auto',rz,E.outBack(1.2)).to('s',t,t+4*F,HEAD.s*s*.97,HEAD.s*s,E.outBack(2));});
+exit(P8,k(18),7*F,{y:HEAD.y+360,rx:14});camMove(k(14),k(18),{yaw:0,pitch:0,dist:1},{yaw:0,pitch:0,dist:1});
+// S10 (k18..k20) DARK: stickers fly in from the edges and settle in a loose cluster
+const st=[['st_star',300,700,-18],['st_heart',760,650,14],['st_fire',540,880,-6],['st_sparkle',250,1050,22],['st_leaf',820,1010,-14],['st_music',400,1300,10],['st_bulb',700,1280,-20],['st_upnext',540,1130,6]];
+st.forEach(([n,X,Y,RZ],i)=>{const t0=k(18)+i*1.6*F;const fromX=(i%2?1700:-600),fromY=(i<4?-300:2300);const a=wpart(n,n==='st_upnext'?230:150,0,t0,k(20),{x:fromX,y:fromY,z:40+i*22,rz:RZ-60,s:1.2},true);
+ a.to('x',t0,t0+8*F,fromX,X,E.outBack(1.5)).to('y',t0,t0+8*F,fromY,Y,E.outBack(1.4)).to('rz',t0,t0+8*F,RZ-60,RZ,E.outCubic).to('s',t0,t0+8*F,1.25,1,E.outBack(1.4));hover(a,t0+8*F,4,1.2);});
+camMove(k(18),k(20),{yaw:-4,pitch:2,dist:1.02},{yaw:5,pitch:-1,dist:.99},E.inOutSine);
+// S11 (k20..k21) LIME: match cut, the sticker palette on the decorate screen
+const P11=phone([['decorate3x',0]],k(20),k(21),{x:540,y:1000,s:.92});pop(P11,k(20),.86,.92);drift(P11,k(20),k(21),'ry',3);camMove(k(20),k(21),{yaw:0,pitch:0,dist:1},{yaw:0,pitch:0,dist:1});
+// S12 (k21..k25) DARK: big phone, orbit the other way; the polaroid lifts off the decorate screen, the screen cuts to the album, the polaroid lands in the album slot
+const P12=phone([['decorate3x',0],['decorate3x_nocard',k(21)+2*F],['album3x_nocard',k(22)+3*F],['album3x',k(22)+13*F]],k(21),k(25),{x:540,y:1180,s:1.22,rx:14,ry:6});
+P12.to('rx',k(21),k(21)+16*F,14,0,E.outExpo).to('ry',k(21),k(21)+16*F,6,0,E.outExpo);recoil(P12,k(21)+2*F);exit(P12,k(25),8*F,{x:-220,ry:-38});
+camMove(k(21),k(25),{yaw:14,pitch:-2,dist:1.03},{yaw:-16,pitch:3,dist:.975},E.inOutSine);
+{const zf=P12.ph.zf;const [dx,dy]=tl(600,970);const [ax,ay]=tl(604,1322);
+ const Pd=lpart(P12,'polaroid_decorated',957,4,k(21)+2*F,k(22)+13*F,{x:dx,y:dy},true);
+ Pd.to('z',k(21)+2*F,k(21)+10*F,zf+1.5,zf+340,E.outBack(1.3)).to('y',k(21)+2*F,k(21)+10*F,dy,dy+30,E.outBack(1.3)).to('rz',k(21)+2*F,k(21)+10*F,0,-9,E.outBack(1.3)).to('s',k(21)+2*F,k(21)+10*F,1,1.04,E.outBack(1.4));
+ hover(Pd,k(21)+10*F,5,1);
+ Pd.to('x',k(22)+3*F,k(22)+13*F,'auto',ax,E.outBack(1.15)).to('y',k(22)+3*F,k(22)+13*F,'auto',ay,E.outBack(1.15)).to('z',k(22)+3*F,k(22)+13*F,'auto',zf+1.5,E.outCubic).to('rz',k(22)+3*F,k(22)+13*F,'auto',0,E.outBack(1.2)).to('s',k(22)+3*F,k(22)+13*F,'auto',900/957,E.outCubic);
+ recoil(P12,k(22)+12*F);P12.to('s',k(22)+13*F,k(22)+19*F,1.25,1.22,E.outBack(2.5));}
+// S13 (k25..k27) PURPLE headline "Keep the Flame" + 2 quick color cuts
+headline([[['Keep the',0],['Flame',1]]],k(25),k(27),118,0);
+const P13=phone([['flame_post3x',0],['flame_aura_cta',k(26)],['aura_throw',k(26)+h]],k(25),k(27),{x:540,y:HEAD.y,s:HEAD.s});
+enter(P13,k(25),9*F,{y:{from:HEAD.y+700,to:HEAD.y},rx:{from:14,to:0}},E.outBack(1.1));
+[[k(26),-7,-3,1.03],[k(26)+h,6,2,1]].forEach(([t,ry,rz,s])=>{P13.to('ry',t,t+5*F,'auto',ry,E.outBack(1.2)).to('rz',t,t+5*F,'auto',rz,E.outBack(1.2)).to('s',t,t+4*F,HEAD.s*s*.97,HEAD.s*s,E.outBack(2));});
+exit(P13,k(27),7*F,{y:HEAD.y+360,rx:14});camMove(k(25),k(27),{yaw:0,pitch:0,dist:1},{yaw:0,pitch:0,dist:1});
+// S14 (k27..k29) DARK: hero sprite pops on fours (small, like a sticker) + icon sparkles
+const HERO_T=[470,880];const hero=dom('','<img class="hero" src="assets/parts/hero_sprite.png" style="width:170px;height:170px">',`left:${HERO_T[0]-85}px;top:${HERO_T[1]-85}px;width:170px;height:170px`);const heroA=addDom(hero,new Actor({sx:1,sy:1,y:0})).show(k(27),k(29));
+stepped(heroA,k(27),k(27)+15*F,[{sx:.4,sy:.4,y:60},{sx:1.25,sy:.75,y:14},{sx:.9,sy:1.2,y:-18},{sx:1.06,sy:.95,y:3},{sx:1,sy:1,y:0}],3,false);
+stepped(heroA,k(27)+15*F,k(29),[{sx:1,sy:1,y:0},{sx:1.03,sy:.97,y:2},{sx:1,sy:1,y:0},{sx:.98,sy:1.03,y:-2}],5,true);
+sparkles(k(27)+6*F,k(29),[[330,760,0,'sword'],[660,740,.04,'shield'],[520,1040,.08,'zap'],[300,1000,.12],[760,980,.15]]);
+// S15 (k29..k32) DARK: positional match cut: the sprite on the dungeon screen sits exactly where the DOM sprite was; big phone, long orbit + dolly-in; chest modal pops; combat
+const rig15={yaw:-24,pitch:5,dist:1.06,tx:540,ty:960};const base15={x:540,y:1200,z:0,s:1.42,rx:4,ry:-10,rz:0};
+{const [lx,ly]=tl(160,723);const [sx,sy]=solveXY(base15,rig15,[lx,ly,0],HERO_T);base15.x=sx;base15.y=sy;}
+const P15=phone([['dungeon_choice',0],['chest_marker',k(30)+2*F],['combat',k(31)+2*F]],k(29),k(32),base15);
+drift(P15,k(29),k(32),'ry',6);drift(P15,k(29),k(32),'rx',-6);drift(P15,k(29),k(32),'y',-120);
+P15.to('s',k(30)+2*F,k(30)+7*F,'auto',1.45,E.outBack(2)).to('s',k(31)+2*F,k(31)+7*F,'auto',1.42,E.outBack(2));recoil(P15,k(30)+2*F);recoil(P15,k(31)+2*F);exit(P15,k(32),8*F,{y:260,rx:-24});
+camMove(k(29),k(32),rig15,{yaw:20,pitch:-3,dist:.95,tx:540,ty:960},E.inOutSine);
+{const zf=P15.ph.zf;const [mx,my]=tl(604,1352);const M=lpart(P15,'chest_modal',953,30,k(30)+3*F,k(31)+2*F,{x:mx,y:my});
+ M.to('z',k(30)+3*F,k(30)+11*F,zf+1.5,zf+360,E.outBack(1.6)).to('s',k(30)+3*F,k(30)+11*F,1,1.12,E.outBack(1.6)).to('y',k(30)+3*F,k(30)+11*F,my,my+40,E.outBack(1.3));hover(M,k(30)+11*F,4,.6);exit(M,k(31)+2*F,5*F,{z:zf+900,s:1.5});}
+// S16 (k32..k36) PURPLE headline "Grow your Hero" + burst of 4 half-beat cuts from k34
+headline([[['Grow your',0],['Hero',1]]],k(32),k(36),118,0);
+const P16=phone([['chest_result',0],['combat',k(34)],['widget_done',k(34)+h],['reminder_set',k(35)],['deck3x',k(35)+h]],k(32),k(36),{x:540,y:HEAD.y,s:HEAD.s});
+enter(P16,k(32),9*F,{y:{from:HEAD.y+700,to:HEAD.y},rx:{from:14,to:0}},E.outBack(1.1));
+[[k(34),8,3,1.03],[k(34)+h,-7,-2,1],[k(35),5,2,1.04],[k(35)+h,-5,0,1.01]].forEach(([t,ry,rz,s])=>{P16.to('ry',t,t+5*F,'auto',ry,E.outBack(1.2)).to('rz',t,t+5*F,'auto',rz,E.outBack(1.2)).to('s',t,t+4*F,HEAD.s*s*.97,HEAD.s*s,E.outBack(2));});
+exit(P16,k(36),7*F,{y:HEAD.y+360,rx:14});camMove(k(32),k(36),{yaw:0,pitch:0,dist:1},{yaw:0,pitch:0,dist:1});
+// S18 (k36..D) DARK end card: mascot on fours, wordmark, sub, Download Now + store badges (staggered pops)
+const end=dom('center','<img class="mark" src="assets/graphic-logo.png" style="width:170px;height:190px">'+wordmark(520)+'<div class="sub">Challenge Card Habits</div><div class="cta">Download Now</div><div class="badges"><div class="bd"><img src="assets/badges/app-store-en.svg"></div><div class="bd"><img src="assets/badges/google-play-en.png"><div class="soon">Coming soon</div></div></div>','gap:24px');
+const endA=addDom(end,new Actor({})).show(k(36),D);const emark=end.querySelector('.mark'),ewm=end.querySelector('.wm'),esub=end.querySelector('.sub'),ecta=end.querySelector('.cta'),ebs=[...end.querySelectorAll('.bd')];
+const emA=addDom(emark,new Actor({sx:1,sy:1,y:0}));stepped(emA,k(36),k(36)+18*F,[{sx:.5,sy:.5,y:120},{sx:1.3,sy:.7,y:30},{sx:.85,sy:1.25,y:-50},{sx:1.1,sy:.92,y:6},{sx:.97,sy:1.05,y:-8},{sx:1,sy:1,y:0}],3,false);stepped(emA,k(36)+18*F,D,[{sx:1,sy:1,y:0},{sx:1.02,sy:.98,y:2},{sx:1,sy:1,y:0},{sx:.99,sy:1.02,y:-2}],6,true);
+const ewA=addDom(ewm,new Actor({y:60,op:0,s:1}));ewA.to('y',k(36)+4*F,k(36)+12*F,60,0,E.outBack(1.5)).to('op',k(36)+4*F,k(36)+6*F,0,1,E.linear).to('s',k(36)+4*F,k(36)+12*F,.8,1,E.outBack(1.5));
+const esA=addDom(esub,new Actor({y:40,op:0}));esA.to('y',k(36)+8*F,k(36)+16*F,40,0,E.outBack(1.5)).to('op',k(36)+8*F,k(36)+10*F,0,1,E.linear);
+const ecA=addDom(ecta,new Actor({y:50,op:0,s:1}));ecA.to('y',k(36)+12*F,k(36)+20*F,50,0,E.outBack(1.5)).to('op',k(36)+12*F,k(36)+14*F,0,1,E.linear).to('s',k(36)+12*F,k(36)+20*F,.7,1,E.outBack(1.8));squash(ecA,k(36)+19*F,1.07);
+ebs.forEach((el,i)=>{const t=k(36)+(15+i*2)*F;const a=addDom(el,new Actor({y:60,op:0,s:.8}));a.to('y',t,t+8*F,60,0,E.outBack(1.6)).to('s',t,t+8*F,.8,1,E.outBack(1.8)).to('op',t,t+2*F,0,1,E.linear);});
+// 'Coming soon' under the Play badge: pops on fours after the badge lands (Play listing not public yet)
+{const t=k(36)+24*F;const soA=addDom(end.querySelector('.soon'),new Actor({op:0,s:.6}));soA.to('op',t,t+F,0,1,E.linear).to('s',t,t+8*F,.6,1,E.outBack(2));stepped(soA,t,t+12*F,[{s:.6},{s:1.16},{s:.94},{s:1.04},{s:1}],3,false);}
+sparkles(k(36)+14*F,D,[[160,640,0],[850,620,.1],[140,990,.2],[870,970,.3]]);
+camMove(k(36),D,{yaw:0,pitch:0,dist:1},{yaw:0,pitch:0,dist:1});
+// ======================= seek / apply =======================
+const bgEl=document.getElementById('bg');
+function applyDom(el,p,t){el.classList.add('on');el.style.transform=`translate(${p.x}px,${p.y}px) rotate(${p.rz}deg) scale(${p.s*p.sx},${p.s*p.sy})`;el.style.opacity=p.op;}
+const tmpV=new THREE.Vector3();
+window.__seek=(t)=>{
+ bgEl.style.background=colorAt(t);applyCam(rig.params(t));
+ for(const it of items){const vis=it.actor.visible(t)||(it.actor.vis.length===0);const p=it.actor.params(t);
+  if(it.kind==='dom'){if(!vis){it.el.classList.remove('on');continue;}applyDom(it.el,p,t);if(it.el.classList.contains('h'))themeClass(it.el,t);if(it.el.classList.contains('intro')){it.el.querySelector('span').style.backgroundPositionX=(p.n*100)+'%';}if(it.el.classList.contains('count')){it.el.textContent=String(Math.round(p.n));}}
+  else{it.obj.visible=vis;if(vis)it.onApply(p,t);}
+ }
+ // count-up overlay follows the flame card's number (phone-local point -> world -> screen)
+ if(cntA.visible(t)){C4.grp.updateWorldMatrix(true,false);tmpV.set(0,-C4.lh*0.07,3).applyMatrix4(C4.grp.matrixWorld).project(cam);cnt.style.left=((tmpV.x+1)/2*W-42)+'px';cnt.style.top=((1-tmpV.y)/2*H-44)+'px';}
+ renderer.render(scene,cam);
+};
+window.__checkTimes=[0.3,0.9,1.5,2.0,2.6,3.3,3.9,4.5,5.2,5.6,6.2,6.8,7.6,8.4,9.0,9.6,10.3,11.0,11.8,12.4,13.0,13.6,14.5,15.5];
+window.__seek(0);window.__ready=true;
+</script></body></html>

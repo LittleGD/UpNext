@@ -1,0 +1,90 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'April16';src:url('assets/April16th-Promise.woff2') format('woff2');}
+html,body{margin:0;background:#0a0a0a;width:1080px;height:1080px;overflow:hidden;}
+#stage{position:relative;width:1080px;height:1080px;background:#0a0a0a;overflow:hidden;font-family:'April16',sans-serif;color:#f2f2f2;}
+.aurora{position:absolute;inset:-25%;background:
+ radial-gradient(55% 45% at 28% 72%, rgba(205,245,100,.13), transparent 62%),
+ radial-gradient(50% 45% at 76% 22%, rgba(120,60,180,.26), transparent 62%),
+ radial-gradient(40% 40% at 62% 88%, rgba(155,240,225,.09), transparent 60%);
+ filter:blur(34px);}
+.vig{position:absolute;inset:0;background:radial-gradient(70% 70% at 50% 50%, transparent 55%, rgba(0,0,0,.55) 100%);pointer-events:none;}
+.el{position:absolute;opacity:0;will-change:transform,filter,opacity;transform-origin:center;}
+img{display:block;}
+.card{border-radius:28px;box-shadow:0 34px 70px rgba(0,0,0,.65);}
+.list{left:110px;top:0;width:340px;}
+.list img{width:322px;margin:0 0 22px 0;border-radius:24px;}
+.type{left:0;width:1080px;text-align:center;line-height:1.02;letter-spacing:-0.012em;white-space:nowrap;}
+.type .w{display:inline-block;opacity:0;will-change:transform,filter,opacity;}
+.type .ico{display:inline-block;width:92px;height:92px;vertical-align:-12px;margin:0 14px;border-radius:24px;box-shadow:0 12px 30px rgba(205,245,100,.35);}
+.end{left:0;top:0;width:1080px;height:1080px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;}
+.end img{width:168px;height:168px;border-radius:42px;box-shadow:0 24px 70px rgba(205,245,100,.38);}
+.end .name{font-size:68px;}
+.end .sub{font-size:30px;color:#9a9a9a;}
+</style></head><body>
+<div id="stage">
+ <div class="aurora el" id="aurora" style="opacity:1"></div>
+
+ <div class="el list" id="list">
+  <img src="assets/card_walk.png"><img src="assets/card_stretch.png"><img src="assets/card_strength.png">
+  <img src="assets/card_walk.png"><img src="assets/card_stretch.png"><img src="assets/card_strength.png">
+ </div>
+ <img class="el" id="icon1" src="assets/icon.png" style="left:400px;top:400px;width:280px;height:280px;border-radius:64px;box-shadow:0 30px 80px rgba(205,245,100,.35)">
+
+ <div class="el type" id="t1" style="top:372px;font-size:124px;opacity:1"><span class="w" id="w1">Draw</span> <span class="w" id="w2" style="color:#CDF564">Today</span></div>
+ <div class="el type" id="t2" style="top:528px;font-size:98px;opacity:1"><span class="w" id="w3">Your</span><img class="ico w" id="w4" src="assets/icon.png"><span class="w" id="w5">Challenge</span></div>
+
+ <img class="el" id="deck" src="assets/deck.png" style="left:240px;top:190px;width:600px">
+ <img class="el card" id="board" src="assets/board_card_walk.png" style="left:120px;top:330px;width:840px">
+
+ <svg class="el" id="stroke" viewBox="0 0 1080 1080" style="left:0;top:0;width:1080px;height:1080px;overflow:visible"><path id="p" d="M 120 760 C 300 560, 480 930, 630 580 S 890 340, 1000 440" fill="none" stroke="#CDF564" stroke-width="16" stroke-linecap="round" style="filter:drop-shadow(0 0 18px rgba(205,245,100,.7))"/></svg>
+ <img class="el card" id="c1" src="assets/card_walk.png" style="left:90px;top:470px;width:340px">
+ <img class="el card" id="c2" src="assets/card_stretch.png" style="left:385px;top:320px;width:340px">
+ <img class="el card" id="c3" src="assets/card_strength.png" style="left:680px;top:160px;width:340px">
+
+ <img class="el" id="pol" src="assets/polaroid_saved.png" style="left:215px;top:60px;width:650px;filter:drop-shadow(0 40px 90px rgba(0,0,0,.7))">
+ <img class="el" id="flamePre" src="assets/flame_hero_pre.png" style="left:110px;top:120px;width:860px;border-radius:40px">
+ <img class="el" id="flamePost" src="assets/flame_hero_post.png" style="left:110px;top:120px;width:860px;border-radius:40px">
+
+ <div class="el end" id="end"><img src="assets/icon.png"><div class="name">UpNext</div><div class="sub">Challenge Card Habits</div></div>
+ <div class="vig"></div>
+</div>
+<script>
+const E=(id)=>document.getElementById(id); const anims=[];
+function A(el,kf,ms,delay,easing){const a=el.animate(kf,{fill:'both',duration:ms,delay:delay,easing:easing||'linear'});a.pause();anims.push(a);return a;}
+const OUT='cubic-bezier(.16,1,.3,1)', SOFT='cubic-bezier(.4,0,.2,1)';
+const p=E('p'); const L=p.getTotalLength(); p.style.strokeDasharray=L; p.style.strokeDashoffset=L;
+
+// S1 0.00-1.35 list scroll + icon
+A(E('list'),[{opacity:0,transform:'translateY(1100px)',filter:'blur(0px)'},{opacity:1,transform:'translateY(700px)',filter:'blur(2px)',offset:.12},{opacity:1,transform:'translateY(-400px)',filter:'blur(14px)',offset:.62},{opacity:0,transform:'translateY(-1500px)',filter:'blur(18px)'}],1350,0,SOFT);
+A(E('icon1'),[{opacity:0,transform:'scale(.2) rotate(-25deg)',filter:'blur(20px)'},{opacity:1,transform:'scale(1.06) rotate(3deg)',filter:'blur(0px)',offset:.55},{opacity:1,transform:'scale(1) rotate(0deg)',filter:'blur(0px)',offset:.82},{opacity:0,transform:'scale(2.8)',filter:'blur(16px)'}],1000,380,OUT);
+
+// S2 1.35-3.75 kinetic words
+[['w1',1350],['w2',1480],['w3',1620],['w4',1720],['w5',1800]].forEach(([id,d])=>{
+ A(E(id),[{opacity:0,transform:'translateY(70px) scale(.92)',filter:'blur(16px)'},{opacity:1,transform:'translateY(0) scale(1)',filter:'blur(0)',offset:.28},{opacity:1,transform:'translateY(0) scale(1)',filter:'blur(0)',offset:.84},{opacity:0,transform:'translateY(-110px) scale(1.06)',filter:'blur(14px)'}],3750-d,d,OUT);
+});
+
+// S3 3.75-4.90 deck zoom, board card with "Tap to complete"
+A(E('deck'),[{opacity:0,transform:'scale(.12) translateY(320px)',filter:'brightness(1.7) blur(24px) drop-shadow(0 0 0 rgba(205,245,100,0))'},{opacity:1,transform:'scale(1) translateY(0)',filter:'brightness(1.7) blur(0) drop-shadow(0 30px 70px rgba(205,245,100,.35))',offset:.4},{opacity:1,transform:'scale(1.02)',filter:'brightness(1.7) blur(0) drop-shadow(0 30px 70px rgba(205,245,100,.35))',offset:.66},{opacity:0,transform:'scale(1.9) translateY(-120px)',filter:'brightness(1.7) blur(16px)'}],1150,3750,OUT);
+A(E('board'),[{opacity:0,transform:'scale(.7) translateY(120px)',filter:'blur(18px)'},{opacity:1,transform:'scale(1.02) translateY(0)',filter:'blur(0)',offset:.4},{opacity:1,transform:'scale(1)',filter:'blur(0)',offset:.8},{opacity:0,transform:'scale(1.15) translateY(-90px)',filter:'blur(12px)'}],1000,4300,OUT);
+
+// S4 5.05-7.75 cards fly in + stroke
+[['c1',5050,'translate(-900px,600px) rotate(-40deg)'],['c2',5280,'translate(0,1200px) rotate(25deg)'],['c3',5500,'translate(900px,-700px) rotate(35deg)']].forEach(([id,d,from])=>{
+ A(E(id),[{opacity:0,transform:from+' scale(.7)',filter:'blur(22px)'},{opacity:1,transform:'translate(0,0) rotate(0deg) scale(1.04)',filter:'blur(0)',offset:.42},{opacity:1,transform:'translate(0,0) rotate(0deg) scale(1)',filter:'blur(0)',offset:.9},{opacity:0,transform:'translate(0,-170px) scale(1.12)',filter:'blur(16px)'}],7750-d,d,OUT);
+});
+A(E('stroke'),[{opacity:0},{opacity:1,offset:.05},{opacity:1,offset:.9},{opacity:0}],2150,5600,'linear');
+A(p,[{strokeDashoffset:L},{strokeDashoffset:0,offset:.6},{strokeDashoffset:0}],2150,5600,OUT);
+
+// S5 7.75-9.15 polaroid develops (dark to color), then flame lights 9.10-10.10
+A(E('pol'),[{opacity:0,transform:'translateY(720px) rotate(8deg) scale(.9)',filter:'brightness(.15) saturate(0) blur(20px)'},{opacity:1,transform:'translateY(0) rotate(-2deg) scale(1)',filter:'brightness(.2) saturate(0) blur(0)',offset:.3},{opacity:1,transform:'translateY(0) rotate(-2deg) scale(1)',filter:'brightness(1) saturate(1) blur(0)',offset:.68},{opacity:1,transform:'translateY(0) rotate(-2deg) scale(1)',filter:'brightness(1) saturate(1) blur(0)',offset:.86},{opacity:0,transform:'translateY(-140px) rotate(-2deg) scale(1.18)',filter:'blur(14px)'}],1500,7750,OUT);
+A(E('flamePre'),[{opacity:0,transform:'scale(.6) translateY(220px)',filter:'blur(18px)'},{opacity:1,transform:'scale(1) translateY(0)',filter:'blur(0)',offset:.5},{opacity:1,transform:'scale(1)',filter:'blur(0)',offset:.999},{opacity:0}],620,9080,OUT);
+A(E('flamePost'),[{opacity:0,transform:'scale(1)'},{opacity:1,transform:'scale(1.02)',offset:.22},{opacity:1,transform:'scale(1.22) translateY(-50px)',filter:'blur(0)',offset:.78},{opacity:0,transform:'scale(1.6)',filter:'blur(12px)'}],560,9700,OUT);
+
+// S6 10.15-11.2 end card
+A(E('end'),[{opacity:0,transform:'scale(.9)',filter:'blur(12px)'},{opacity:1,transform:'scale(1)',filter:'blur(0)',offset:.32},{opacity:1,transform:'scale(1)',filter:'blur(0)'}],1050,10150,OUT);
+A(E('aurora'),[{transform:'rotate(0deg) scale(1)'},{transform:'rotate(28deg) scale(1.18)'}],11200,0,'linear');
+
+window.__seek=(t)=>{for(const a of anims){a.currentTime=Math.max(0,t*1000);}};
+window.__ready=true;
+</script></body></html>
