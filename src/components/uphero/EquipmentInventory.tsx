@@ -620,8 +620,17 @@ export default function EquipmentInventory({
     [hero.equipped, unequipItem, play, onNotify, t, language, clearSelection],
   );
 
-  /** 강화 시도 — 확인 다이얼로그 표시. Phase 5-B — 방지권 토글은 열 때마다 OFF (시도당 소모). */
+  /**
+   * 강화 시도 — 확인 다이얼로그 표시. Phase 5-B — 방지권 토글은 열 때마다 OFF (시도당 소모).
+   * 사진 부적(photoId) 은 제외 — 부적은 재의식(+10 상한) 경로만 쓴다. 액션바 강화 버튼은
+   * 선택한 아이템을 가리지 않으므로(가방 격자) 여기서 막는다 (iOS beginEnhance 와 동일).
+   */
   const onEnhance = useCallback((item: Equipment) => {
+    if (item.photoId) {
+      play("cancel");
+      onNotify(t("uphero.equip.toast.photoEnhanceBlocked"));
+      return;
+    }
     const lvl = item.enhanceLevel ?? 0;
     const cost = enhanceCost(item.rarity, lvl);
     // Phase 11c R4 — pity streak 반영된 성공률 표시.
@@ -629,7 +638,7 @@ export default function EquipmentInventory({
     setArmDestroyGuard(false);
     setArmDownGuard(false);
     setPending({ kind: "enhance", item, cost, successRate: rate });
-  }, []);
+  }, [play, onNotify, t]);
 
   /** Phase 11a — 강화 연출 state. confirm → ritual (밴드별 2.0/2.6/3.4s) → result modal. */
   const [ritual, setRitual] = useState<{
@@ -1120,12 +1129,14 @@ export default function EquipmentInventory({
         onDragToBoard={handleDragToBoard}
       />
 
-      {/* === 액션바 (항상 마운트) === */}
+      {/* === 액션바 (항상 마운트) ===
+           trayCount 는 트레이에 실제로 보이는 수(미배치 + 보류)다. 격자 도입 전 저장본은
+           전부 보류로 들어오므로 unplaced 만 세면 "가방이 꽉 찼어요" 안내가 영영 안 뜬다. */}
       <BagActionBar
         item={selectedItem}
         wornSlot={selectedWorn ? selectedSlot : null}
         placing={placing}
-        trayCount={layout.unplaced.length}
+        trayCount={trayItems.length}
         rotatable={selectedItem ? canRotate(selectedItem.type) : false}
         synthMode={synthMode}
         synthCount={synthPickItems.length}
@@ -1140,9 +1151,6 @@ export default function EquipmentInventory({
         }}
         onSell={() =>
           selectedItem && setPending({ kind: "sell", item: selectedItem })
-        }
-        onDiscard={() =>
-          selectedItem && setPending({ kind: "discard", item: selectedItem })
         }
         onCancel={clearSelection}
         onSynth={() => enterSynthMode(selectedItem)}
@@ -1334,9 +1342,12 @@ export default function EquipmentInventory({
                 const lvl = pending.item.enhanceLevel ?? 0;
                 if (isEnhanceSafeLevel(pending.item.rarity, lvl)) {
                   return (
-                    <span style={{ color: GB.lightest }}>
-                      {t("uphero.equip.enhanceSafeHint")}
-                    </span>
+                    <>
+                      <span style={{ color: GB.lightest }}>
+                        {t("uphero.equip.enhanceSafeHint")}
+                      </span>
+                      <br />
+                    </>
                   );
                 }
                 const rates = enhanceOutcomeRates(pending.item.rarity, lvl);

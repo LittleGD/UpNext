@@ -513,6 +513,11 @@ export function packAllIfNonePlaced(inventory: Equipment[], rows: number = BAG_R
  * 이미 갖고 있던 아이템은 절대 자동 판매되지 않게 한다 — 격자 도입 전 저장본의 넘침(수십 개)이
  * 첫 탐험 한 번에 5~200 코인으로 증발하면 안 된다. 후보가 초과분보다 적으면 후보만 팔고
  * 트레이는 cap 을 넘긴 채 남는다(유저가 직접 정리). null 이면 트레이 전체가 후보.
+ *
+ * 그리고 **이번 드롭이 만들지 않은 넘침으로는 아무것도 팔지 않는다**: 후보가 아닌 트레이가
+ * 이미 cap 이상이면 초과분 전부가 후보 몫으로 계산되어, 유저가 넘치게 만든 적이 없는데도
+ * 이번 전리품이 통째로 자동 판매된다 (마이그레이션 직후 트레이가 꽉 찬 저장본은 그 뒤
+ * 모든 탐험의 전리품을 잃는다). 그 상태의 정리는 유저 몫이다.
  */
 export function trayOverflow(
   inventory: Equipment[],
@@ -523,6 +528,13 @@ export function trayOverflow(
   const { inventory: normalized, layout } = normalizeBagLayout(inventory, rows);
   const tray = layout.unplaced;
   if (tray.length <= cap) return { keep: normalized, sell: [] };
+  // 후보 밖(= 원래 갖고 있던) 트레이만으로 이미 cap 이상이면 이번 드롭 탓이 아니다.
+  if (
+    candidateIds !== null &&
+    tray.filter((it) => !candidateIds.includes(it.id)).length >= cap
+  ) {
+    return { keep: normalized, sell: [] };
+  }
   const excess = tray.length - cap;
   const indexed = tray
     .map((item, i) => ({ item, i }))

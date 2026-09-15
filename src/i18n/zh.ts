@@ -1197,6 +1197,7 @@ const zh: Record<DictKey, string> = {
   "uphero.equip.action.confirm": "确认",
   "uphero.equip.toast.discarded": "已丢弃",
   "uphero.equip.toast.maxEnhance": "已达最大强化 +{max}",
+  "uphero.equip.toast.photoEnhanceBlocked": "照片护符只能通过再仪式强化",
   "uphero.equip.toast.notFound": "未找到物品",
   "uphero.equip.toast.equipped": "已装备 {name}",
   "uphero.equip.toast.unequipped": "已卸下 {name}",

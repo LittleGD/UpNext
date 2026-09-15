@@ -1197,6 +1197,7 @@ const ko = {
   "uphero.equip.action.confirm": "확인",
   "uphero.equip.toast.discarded": "버렸다",
   "uphero.equip.toast.maxEnhance": "이미 +{max} 최대 강화",
+  "uphero.equip.toast.photoEnhanceBlocked": "사진 부적은 재의식으로만 강화할 수 있어요",
   "uphero.equip.toast.notFound": "아이템을 찾을 수 없음",
   "uphero.equip.toast.equipped": "{name} 장착",
   "uphero.equip.toast.unequipped": "{name} 해제",

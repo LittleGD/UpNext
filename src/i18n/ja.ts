@@ -1197,6 +1197,7 @@ const ja: Record<DictKey, string> = {
   "uphero.equip.action.confirm": "確認",
   "uphero.equip.toast.discarded": "捨てた",
   "uphero.equip.toast.maxEnhance": "すでに最大強化 +{max}",
+  "uphero.equip.toast.photoEnhanceBlocked": "写真の護符は再儀式でのみ強化できます",
   "uphero.equip.toast.notFound": "アイテムが見つかりません",
   "uphero.equip.toast.equipped": "{name} 装備",
   "uphero.equip.toast.unequipped": "{name} 解除",
