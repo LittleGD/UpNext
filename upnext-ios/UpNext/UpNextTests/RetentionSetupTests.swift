@@ -17,7 +17,13 @@ final class RetentionSetupTests: XCTestCase {
         super.tearDown()
     }
 
-    func testFirstAndSecondCompletionsSurviveRestartWithoutRepeatingDismissedPrompts() {
+    // 아래 테스트는 @MainActor 클래스를 만들고 테스트 안에서 해제한다. MainActor 기본
+    // 격리에서 컴파일러가 붙인 isolated deinit 은 배포 타깃 17 때문에 백포트 경로
+    // (swift_task_deinitOnExecutorMainActorBackDeploy) 를 타는데, iOS 26.2 이하 런타임은
+    // 동기 XCTest 함수 안(Task 밖)에서 이 경로를 밟으면 TaskLocal::StopLookupScope 에서
+    // SIGABRT 로 죽는다 (swiftlang/swift#87316, #85663). CI 러너가 26.2 라 여기서만 깨졌다.
+    // async 로 두면 해제가 Task 안에서 일어나 안전하다. await 가 없어도 async 를 지우지 말 것.
+    func testFirstAndSecondCompletionsSurviveRestartWithoutRepeatingDismissedPrompts() async {
         let setup = RetentionSetup(defaults: defaults)
         setup.challengeCompleted(total: 1)
         setup.challengeCompleted(total: 1)
@@ -35,7 +41,7 @@ final class RetentionSetupTests: XCTestCase {
         XCTAssertTrue(relaunched.queue.isEmpty)
     }
 
-    func testRapidCompletionsQueueBothInOrder() {
+    func testRapidCompletionsQueueBothInOrder() async {
         let setup = RetentionSetup(defaults: defaults)
         setup.challengeCompleted(total: 1)
         setup.challengeCompleted(total: 2)
@@ -44,7 +50,7 @@ final class RetentionSetupTests: XCTestCase {
         XCTAssertEqual(setup.queue, [.widget])
     }
 
-    func testDismissClearsOnlyTheVisibleOverlayAndKeepsTheNextInvitation() {
+    func testDismissClearsOnlyTheVisibleOverlayAndKeepsTheNextInvitation() async {
         let setup = RetentionSetup(defaults: defaults)
         setup.challengeCompleted(total: 1)
         setup.challengeCompleted(total: 2)
@@ -58,7 +64,7 @@ final class RetentionSetupTests: XCTestCase {
         XCTAssertEqual(setup.queue, [.widget])
     }
 
-    func testNotificationSettingsHandoffKeepsSelectedTimeAcrossRestart() {
+    func testNotificationSettingsHandoffKeepsSelectedTimeAcrossRestart() async {
         let setup = RetentionSetup(defaults: defaults)
         setup.challengeCompleted(total: 1)
         setup.reminderTime = "20:00"
@@ -72,14 +78,14 @@ final class RetentionSetupTests: XCTestCase {
         XCTAssertFalse(restored.waitingForNotificationSettings)
     }
 
-    func testExistingUsersDoNotReceiveHistoricalMilestones() {
+    func testExistingUsersDoNotReceiveHistoricalMilestones() async {
         let setup = RetentionSetup(defaults: defaults)
         XCTAssertTrue(setup.queue.isEmpty)
         for count in [0, 3, 15, 200] { setup.challengeCompleted(total: count) }
         XCTAssertTrue(setup.queue.isEmpty)
     }
 
-    func testWidgetHandoffRestoresUntilDismissedAndCanBeReopenedFromSettings() {
+    func testWidgetHandoffRestoresUntilDismissedAndCanBeReopenedFromSettings() async {
         let setup = RetentionSetup(defaults: defaults)
         setup.challengeCompleted(total: 2)
         setup.widgetStep = 3

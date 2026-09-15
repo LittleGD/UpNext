@@ -151,7 +151,13 @@ final class EquipmentRepairTests: XCTestCase {
 
     // MARK: - loadPersisted 경로 — uphero.json 에 'Hanger' 가 있어도 로드 시 수리된다
 
-    func testLoadPersistedRepairsHandWrittenSaveFile() throws {
+    // 아래 테스트는 @MainActor 클래스를 만들고 테스트 안에서 해제한다. MainActor 기본
+    // 격리에서 컴파일러가 붙인 isolated deinit 은 배포 타깃 17 때문에 백포트 경로
+    // (swift_task_deinitOnExecutorMainActorBackDeploy) 를 타는데, iOS 26.2 이하 런타임은
+    // 동기 XCTest 함수 안(Task 밖)에서 이 경로를 밟으면 TaskLocal::StopLookupScope 에서
+    // SIGABRT 로 죽는다 (swiftlang/swift#87316, #85663). CI 러너가 26.2 라 여기서만 깨졌다.
+    // async 로 두면 해제가 Task 안에서 일어나 안전하다. await 가 없어도 async 를 지우지 말 것.
+    func testLoadPersistedRepairsHandWrittenSaveFile() async throws {
         var s = UpHeroStore.makeDefaultState()
         s.inventory = [legacyRobe()]
         s.hero.equipped[.talisman] = legacyRobe(
@@ -160,6 +166,8 @@ final class EquipmentRepairTests: XCTestCase {
         s.codex.equipment = ["빛나는 곡물의 갑옷 of 힘", "eq_지혜의안경_rare_1_2"]
         let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("uphero.json")
+        // 앞 테스트의 resetAllData 가 비동기로 넣어 둔 삭제가 방금 쓴 파일을 지우지 않게 먼저 비운다.
+        UpHeroStore.drainPersistenceQueueForTesting()
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder().encode(PersistedUpHeroState(s)).write(to: url, options: .atomic)
         defer { try? FileManager.default.removeItem(at: url) }
@@ -174,7 +182,7 @@ final class EquipmentRepairTests: XCTestCase {
     }
 
     /// 클라우드 채택 경로도 같은 수리를 거친다 (구 클라이언트가 옛 iconName 을 올릴 수 있다).
-    func testAdoptCloudStateRepairs() throws {
+    func testAdoptCloudStateRepairs() async throws {
         let json = #"{"inventory": [{"id": "eq_침묵의로브_rare_123_45", "name": "빛나는 침묵의 로브 of 힘", "type": "armor", "rarity": "rare", "category": "mindfulness", "iconName": "Hanger", "stats": {"int": 14, "str": 2}}], "codex": {"monsters": [], "equipment": ["신성한 곡물의 갑옷 +12"], "bosses": []}}"#
         let cloud = try JSONDecoder().decode(CloudUpHeroState.self, from: Data(json.utf8))
         let store = UpHeroStore()

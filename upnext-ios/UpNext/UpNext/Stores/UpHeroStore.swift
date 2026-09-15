@@ -1616,6 +1616,13 @@ final class UpHeroStore: ObservableObject {
     private static let ioQueue = DispatchQueue(
         label: "com.littlegd.upnext.uphero.persist", qos: .utility)
 
+    #if DEBUG
+    /// 테스트 전용 — 앞선 테스트가 큐에 넣은 쓰기·삭제(resetAllData 등)가 끝날 때까지 기다린다.
+    /// uphero.json 을 직접 써 두고 로드를 검사하는 테스트가, 뒤늦게 도는 삭제에 파일을
+    /// 잃지 않게 한다.
+    static func drainPersistenceQueueForTesting() { ioQueue.sync {} }
+    #endif
+
     /// 상태의 영속 부분(PersistedUpHeroState)을 디스크에 기록. 실패는 무시한다.
     private static func savePersisted(_ state: UpHeroState) {
         // 인코딩은 호출 컨텍스트(메인)에서 수행하고, 무거운 atomic 파일쓰기(temp+fsync+
