@@ -78,9 +78,13 @@ final class AudioTests: XCTestCase {
             player.volume = 0.01
             player.currentTime = player.duration - 0.2
             XCTAssertTrue(player.play(), track.rawValue)
+            let started = ProcessInfo.processInfo.systemUptime
             try await Task.sleep(nanoseconds: 600_000_000)
             XCTAssertTrue(player.isPlaying, track.rawValue)
-            XCTAssertLessThan(player.currentTime, 1, track.rawValue)
+            // 끝 0.2s 전에서 시작했으니 한 바퀴 돌았으면 재생 위치는 경과보다 작다.
+            // 고정값 1초로 재면 sleep 이 늦게 깨는 러너에서 깨진다.
+            let elapsed = ProcessInfo.processInfo.systemUptime - started
+            XCTAssertLessThan(player.currentTime, elapsed, track.rawValue)
             player.stop()
         }
     }
@@ -93,9 +97,15 @@ final class AudioTests: XCTestCase {
         XCTAssertEqual(player.currentTrack, .fitness)
         player.setMusic(.boss)
         XCTAssertEqual(player.currentTrack, .boss)
+        // 보스 음악은 전환 효과음 시작 +0.45s 에 나온다. 200ms 만 재우고 "아직 안 나왔다"를
+        // 단언하는데, 부하가 큰 CI 러너에서는 이 sleep 이 0.45s 를 넘겨 깨어나 음악이 이미
+        // 시작돼 있었다. 실제 경과를 재서 아직 게이트 전일 때만 단언한다.
+        let beforeIntro = ProcessInfo.processInfo.systemUptime
         try await Task.sleep(nanoseconds: 200_000_000)
-        XCTAssertEqual(player.currentMusicTime, 0, accuracy: 0.02)
-        XCTAssertEqual(player.currentMusicVolume, 0, accuracy: 0.001)
+        if ProcessInfo.processInfo.systemUptime - beforeIntro < 0.35 {
+            XCTAssertEqual(player.currentMusicTime, 0, accuracy: 0.02)
+            XCTAssertEqual(player.currentMusicVolume, 0, accuracy: 0.001)
+        }
         try await Task.sleep(nanoseconds: 450_000_000)
         XCTAssertGreaterThan(player.currentMusicTime, 0.05)
         XCTAssertGreaterThan(player.currentMusicVolume, 0)
